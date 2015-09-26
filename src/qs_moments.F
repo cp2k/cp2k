@@ -123,7 +123,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -153,7 +153,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
 
@@ -365,7 +364,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -397,7 +396,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (qs_kind_set,cell,particle_set,sab_orb)
     NULLIFY (matrix_s)
@@ -614,7 +612,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(dp), DIMENSION(:, :), POINTER       :: cblock, cosab, sblock, sinab, &
                                                 work
     REAL(KIND=dp)                            :: dab
@@ -638,7 +636,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (qs_kind_set,particle_set,sab_orb,cell)
     CALL get_qs_env(qs_env=qs_env,&
@@ -795,7 +792,7 @@ CONTAINS
                                                 ispin, ix, iy, iz, j, k, l, &
                                                 nao, nm, nmo, nmom, nmotot, &
                                                 tmp_dim
-    LOGICAL                                  :: failure, ghost, uniform
+    LOGICAL                                  :: ghost, uniform
     REAL(dp)                                 :: charge, ci(3), cij(3,3), dd, &
                                                 occ, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
@@ -827,7 +824,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rt_prop_type), POINTER              :: rtp
 
-     failure = .FALSE.
      CPASSERT(ASSOCIATED(qs_env))
 
     IF(ASSOCIATED(qs_env%ls_scf_env)) THEN
@@ -1361,7 +1357,6 @@ CONTAINS
     INTEGER                                  :: akind, handle, i, ia, iatom, &
                                                 ikind, ispin, ix, iy, iz, l, &
                                                 nm, nmom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: charge, dd, strace, trace
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: mmom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rmom
@@ -1381,7 +1376,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
 

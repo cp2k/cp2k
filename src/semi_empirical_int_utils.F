@@ -356,14 +356,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2, m1, m2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: add, da, db, dxdx, dxqxz, &
                                                 dzdz, dzqxx, dzqzz, fact, &
                                                 qqxx, qqzz, qxxqxx, qxxqyy, &
                                                 qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
-    ! Computing only Integral Values
+! Computing only Integral Values
+
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -563,14 +562,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2, m1, m2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: add, da, db, dxdx, dxqxz, &
                                                 dzdz, dzqxx, dzqzz, fact, &
                                                 qqxx, qqzz, qxxqxx, qxxqyy, &
                                                 qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
-    ! Computing only Integral Derivatives
+! Computing only Integral Derivatives
+
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -771,14 +769,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2, m1, m2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: add, da, db, dxdx, dxqxz, &
                                                 dzdz, dzqxx, dzqzz, fact, &
                                                 qqxx, qqzz, qxxqxx, qxxqyy, &
                                                 qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
-    ! Computing only Integral Derivatives
+! Computing only Integral Derivatives
+
     IF      ( l1_i  < l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -1279,12 +1276,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aa, ab, add, da, db, dxdx, &
                                                 dxqxz, dzdz, dzqzz, fact, &
                                                 qqzz, qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -1418,12 +1413,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aa, ab, add, da, db, dxdx, &
                                                 dxqxz, dzdz, dzqzz, fact, &
                                                 qqzz, qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -1559,12 +1552,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aa, ab, add, da, db, dxdx, &
                                                 dxqxz, dzdz, dzqzz, fact, &
                                                 qqzz, qxzqxz, xyxy, zzzz
 
-    failure = .FALSE.
     IF      ( l1_i  <= l2_i) THEN
        l1 = l1_i
        l2 = l2_i
@@ -1698,7 +1689,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imap(3), k, l
-    LOGICAL                                  :: dbg_inv, eval, failure
+    LOGICAL                                  :: dbg_inv, eval
     REAL(KIND=dp)                            :: b, c2a, c2b, ca, ca2, cb, &
                                                 cb2, check, pt5sq3, r2i, s2a, &
                                                 s2b, sa, sb, sb2, sqb, sqb2i, &
@@ -1710,7 +1701,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 5, 5)        :: d_d
     REAL(KIND=dp), DIMENSION(5, 5)           :: d
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ij_matrix))
     IF (PRESENT(do_invert)) do_invert = .FALSE.
     IF ((sepi%natorb>1).OR.(sepj%natorb>1)) THEN
@@ -2129,10 +2119,8 @@ CONTAINS
 
     INTEGER                                  :: i, i1, ij, j1, k, k1, kl, l, &
                                                 l1, limkl, ll, mm, nd
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: wrepp, wrepp_d(3)
 
-    failure = .FALSE.
     IF (lgrad) THEN
        CPASSERT(PRESENT( rep_d))
        CPASSERT(PRESENT(   v_d))
@@ -2460,9 +2448,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl, l
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     l = 0
     IF      (PRESENT(ww).AND.PRESENT(w)) THEN
        DO ij = 1, limij

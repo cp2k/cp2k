@@ -158,11 +158,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ALLOCATE (scf_control)
 
@@ -274,10 +272,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     CPASSERT(ASSOCIATED(scf_control))
 
     CPASSERT(scf_control%ref_count > 0)
@@ -300,10 +294,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(scf_control)) THEN
       CPASSERT(scf_control%ref_count>0)
@@ -340,7 +330,7 @@ CONTAINS
 
     INTEGER                                  :: cholesky_flag, handle, ialgo
     INTEGER, DIMENSION(:), POINTER           :: added_mos
-    LOGICAL                                  :: do_mixing, failure
+    LOGICAL                                  :: do_mixing
     REAL(KIND=dp), DIMENSION(:), POINTER     :: roks_parameter
     TYPE(section_vals_type), POINTER         :: mixing_section, &
                                                 outer_scf_section, &
@@ -348,143 +338,141 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(scf_control))
     CPASSERT(scf_control%ref_count > 0)
-    IF (.NOT.failure) THEN
-       scf_section => section_vals_get_subs_vals(inp_section,"SCF")
-       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
-            l_val=scf_control%use_diag)
-       IF(scf_control%use_diag) THEN
-         CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%_SECTION_PARAMETERS_",&
-            l_val=scf_control%do_diag_sub)
+    scf_section => section_vals_get_subs_vals(inp_section,"SCF")
+    CALL section_vals_val_get(scf_section,"DIAGONALIZATION%_SECTION_PARAMETERS_",&
+         l_val=scf_control%use_diag)
+    IF(scf_control%use_diag) THEN
+      CALL section_vals_val_get(scf_section,"DIAGONALIZATION%DIAG_SUB_SCF%_SECTION_PARAMETERS_",&
+         l_val=scf_control%do_diag_sub)
+    END IF
+    CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=scf_control%use_ot)
+    IF ( scf_control%use_diag .AND. scf_control%use_ot ) THEN
+       ! don't allow both options to be true
+       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+            routineP,"Don't activate OT and Diagonaliztion together")
+    ELSEIF ( .NOT. (scf_control%use_diag .OR. scf_control%use_ot) ) THEN
+       ! set default to diagonalization
+       scf_control%use_diag = .TRUE.
+    END IF
+    CALL section_vals_val_get(scf_section,"OT%ALGORITHM",i_val=ialgo)
+    scf_control%do_outer_scf_reortho = ialgo.EQ.ot_algo_taylor_or_diag
+    CALL section_vals_val_get(scf_section,"SCF_GUESS",i_val=scf_control%density_guess)
+    CALL section_vals_val_get(scf_section,"EPS_DIIS",r_val=scf_control%eps_diis)
+    CALL section_vals_val_get(scf_section,"eps_eigval",r_val=scf_control%eps_eigval)
+    CALL section_vals_val_get(scf_section,"cholesky",i_val=cholesky_flag)
+    IF(cholesky_flag>0) THEN
+      scf_control%use_cholesky = .TRUE.
+    END IF
+    CALL section_vals_val_get(scf_section,"eps_scf",r_val=scf_control%eps_scf)
+    CALL section_vals_val_get(scf_section,"level_shift",r_val=scf_control%level_shift)
+    CALL section_vals_val_get(scf_section,"max_diis",i_val=scf_control%max_diis)
+    CALL section_vals_val_get(scf_section,"max_scf",i_val=scf_control%max_scf)
+
+    ! Diagonaliztion section
+    IF ( scf_control%use_diag ) THEN
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%ALGORITHM",&
+            i_val=scf_control%diagonalization%method)
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_JACOBI",&
+            r_val=scf_control%diagonalization%eps_jacobi)
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%JACOBI_THRESHOLD",&
+            r_val=scf_control%diagonalization%jacobi_threshold)
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
+            i_val=scf_control%diagonalization%max_iter)
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ITER",&
+            r_val=scf_control%diagonalization%eps_iter)
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ADAPT",&
+            r_val=scf_control%diagonalization%eps_adapt)
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NKRYLOV",&
+            i_val=scf_control%diagonalization%nkrylov)
+       CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NBLOCK",&
+            i_val=scf_control%diagonalization%nblock_krylov)
+       IF ( scf_control%diagonalization%method == diag_ot ) THEN
+         ! read OT section
+         CALL ot_diag_read_input(scf_control%diagonalization%ot_settings,scf_section)
        END IF
-       CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=scf_control%use_ot)
-       IF ( scf_control%use_diag .AND. scf_control%use_ot ) THEN
-          ! don't allow both options to be true
-          CPABORT("Don't activate OT and Diagonaliztion together")
-       ELSEIF ( .NOT. (scf_control%use_diag .OR. scf_control%use_ot) ) THEN
-          ! set default to diagonalization
-          scf_control%use_diag = .TRUE.
+    END IF
+
+    ! Read ROKS parameters
+    CALL section_vals_val_get(scf_section,"ROKS_SCHEME",i_val=scf_control%roks_scheme)
+
+    SELECT CASE (scf_control%roks_scheme)
+    CASE (general_roks)
+      ! Read parameters for the general ROKS scheme
+       CALL section_vals_val_get(scf_section,"ROKS_F",r_val=scf_control%roks_f)
+    CASE (high_spin_roks)
+      ! Read high-spin ROKS parameters for the diagonal block
+      ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
+      NULLIFY (roks_parameter)
+      CALL section_vals_val_get(scf_section,"ROKS_PARAMETERS",r_vals=roks_parameter)
+      IF (ASSOCIATED(roks_parameter)) THEN
+         scf_control%roks_parameter(2,2,1) = roks_parameter(1) ! acc
+         scf_control%roks_parameter(2,2,2) = roks_parameter(2) ! bcc
+         scf_control%roks_parameter(1,1,1) = roks_parameter(3) ! aoo
+         scf_control%roks_parameter(1,1,2) = roks_parameter(4) ! boo
+         scf_control%roks_parameter(0,0,1) = roks_parameter(5) ! avv
+         scf_control%roks_parameter(0,0,2) = roks_parameter(6) ! bvv
+      END IF
+    END SELECT
+
+    ! should be moved to printkey
+    CALL section_vals_val_get(scf_section,"eps_lumo",r_val=scf_control%eps_lumos)
+    CALL section_vals_val_get(scf_section,"max_iter_lumo",i_val=scf_control%max_iter_lumos)
+
+    ! Extra MOs, e.g. for smearing
+    CALL section_vals_val_get(scf_section,"added_mos",i_vals=added_mos)
+    CPASSERT(ASSOCIATED(added_mos))
+    IF (SIZE(added_mos) > 0) THEN
+       scf_control%added_mos(1) = added_mos(1)
+       IF (SIZE(added_mos) > 1) THEN
+          scf_control%added_mos(2) = added_mos(2)
        END IF
-       CALL section_vals_val_get(scf_section,"OT%ALGORITHM",i_val=ialgo)
-       scf_control%do_outer_scf_reortho = ialgo.EQ.ot_algo_taylor_or_diag
-       CALL section_vals_val_get(scf_section,"SCF_GUESS",i_val=scf_control%density_guess)
-       CALL section_vals_val_get(scf_section,"EPS_DIIS",r_val=scf_control%eps_diis)
-       CALL section_vals_val_get(scf_section,"eps_eigval",r_val=scf_control%eps_eigval)
-       CALL section_vals_val_get(scf_section,"cholesky",i_val=cholesky_flag)
-       IF(cholesky_flag>0) THEN
-         scf_control%use_cholesky = .TRUE.
-       END IF
-       CALL section_vals_val_get(scf_section,"eps_scf",r_val=scf_control%eps_scf)
-       CALL section_vals_val_get(scf_section,"level_shift",r_val=scf_control%level_shift)
-       CALL section_vals_val_get(scf_section,"max_diis",i_val=scf_control%max_diis)
-       CALL section_vals_val_get(scf_section,"max_scf",i_val=scf_control%max_scf)
+    END IF
 
-       ! Diagonaliztion section
-       IF ( scf_control%use_diag ) THEN
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%ALGORITHM",&
-               i_val=scf_control%diagonalization%method)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_JACOBI",&
-               r_val=scf_control%diagonalization%eps_jacobi)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%JACOBI_THRESHOLD",&
-               r_val=scf_control%diagonalization%jacobi_threshold)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%MAX_ITER",&
-               i_val=scf_control%diagonalization%max_iter)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ITER",&
-               r_val=scf_control%diagonalization%eps_iter)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%EPS_ADAPT",&
-               r_val=scf_control%diagonalization%eps_adapt)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NKRYLOV",&
-               i_val=scf_control%diagonalization%nkrylov)
-          CALL section_vals_val_get(scf_section,"DIAGONALIZATION%KRYLOV%NBLOCK",&
-               i_val=scf_control%diagonalization%nblock_krylov)
-          IF ( scf_control%diagonalization%method == diag_ot ) THEN
-            ! read OT section
-            CALL ot_diag_read_input(scf_control%diagonalization%ot_settings,scf_section)
-          END IF
-       END IF
+    CALL section_vals_val_get(scf_section,"max_scf_history",i_val=scf_control%max_scf_hist)
+    CALL section_vals_val_get(scf_section,"eps_scf_history",r_val=scf_control%eps_scf_hist)
 
-       ! Read ROKS parameters
-       CALL section_vals_val_get(scf_section,"ROKS_SCHEME",i_val=scf_control%roks_scheme)
+    IF (scf_control%level_shift /= 0.0_dp) scf_control%use_cholesky = .FALSE.
+    IF (scf_control%use_ot.AND.(scf_control%density_guess == core_guess)) THEN
+       CALL stop_program(routineN,moduleN,__LINE__,"Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
+    END IF
 
-       SELECT CASE (scf_control%roks_scheme)
-       CASE (general_roks)
-         ! Read parameters for the general ROKS scheme
-          CALL section_vals_val_get(scf_section,"ROKS_F",r_val=scf_control%roks_f)
-       CASE (high_spin_roks)
-         ! Read high-spin ROKS parameters for the diagonal block
-         ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
-         NULLIFY (roks_parameter)
-         CALL section_vals_val_get(scf_section,"ROKS_PARAMETERS",r_vals=roks_parameter)
-         IF (ASSOCIATED(roks_parameter)) THEN
-            scf_control%roks_parameter(2,2,1) = roks_parameter(1) ! acc
-            scf_control%roks_parameter(2,2,2) = roks_parameter(2) ! bcc
-            scf_control%roks_parameter(1,1,1) = roks_parameter(3) ! aoo
-            scf_control%roks_parameter(1,1,2) = roks_parameter(4) ! boo
-            scf_control%roks_parameter(0,0,1) = roks_parameter(5) ! avv
-            scf_control%roks_parameter(0,0,2) = roks_parameter(6) ! bvv
-         END IF
-       END SELECT
+    outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF")
+    CALL section_vals_val_get(outer_scf_section,"_SECTION_PARAMETERS_",&
+         l_val=scf_control%outer_scf%have_scf)
+    IF (scf_control%outer_scf%have_scf) THEN
+       CALL section_vals_val_get(outer_scf_section,"EPS_SCF",&
+                                 r_val=scf_control%outer_scf%eps_scf)
+       CALL section_vals_val_get(outer_scf_section,"STEP_SIZE",&
+                                 r_val=scf_control%outer_scf%step_size)
+       CALL section_vals_val_get(outer_scf_section,"DIIS_BUFFER_LENGTH",&
+                                 i_val=scf_control%outer_scf%diis_buffer_length)
+       CALL section_vals_val_get(outer_scf_section,"BISECT_TRUST_COUNT",&
+                                 i_val=scf_control%outer_scf%bisect_trust_count)
+       CALL section_vals_val_get(outer_scf_section,"TYPE",&
+                                 i_val=scf_control%outer_scf%type)
+       CALL section_vals_val_get(outer_scf_section,"OPTIMIZER",&
+                                 i_val=scf_control%outer_scf%optimizer)
+       CALL section_vals_val_get(outer_scf_section,"MAX_SCF",&
+                                 i_val=scf_control%outer_scf%max_scf)
+       CALL section_vals_val_get(outer_scf_section,"EXTRAPOLATION_ORDER",&
+                                 i_val=scf_control%outer_scf%extrapolation_order)
+    END IF
 
-       ! should be moved to printkey
-       CALL section_vals_val_get(scf_section,"eps_lumo",r_val=scf_control%eps_lumos)
-       CALL section_vals_val_get(scf_section,"max_iter_lumo",i_val=scf_control%max_iter_lumos)
+    smear_section => section_vals_get_subs_vals(scf_section,"SMEAR")
+    CALL init_smear(scf_control%smear)
+    CALL read_smear_section(scf_control%smear, smear_section)
 
-       ! Extra MOs, e.g. for smearing
-       CALL section_vals_val_get(scf_section,"added_mos",i_vals=added_mos)
-       CPASSERT(ASSOCIATED(added_mos))
-       IF (SIZE(added_mos) > 0) THEN
-          scf_control%added_mos(1) = added_mos(1)
-          IF (SIZE(added_mos) > 1) THEN
-             scf_control%added_mos(2) = added_mos(2)
-          END IF
-       END IF
-
-       CALL section_vals_val_get(scf_section,"max_scf_history",i_val=scf_control%max_scf_hist)
-       CALL section_vals_val_get(scf_section,"eps_scf_history",r_val=scf_control%eps_scf_hist)
-
-       IF (scf_control%level_shift /= 0.0_dp) scf_control%use_cholesky = .FALSE.
-       IF (scf_control%use_ot.AND.(scf_control%density_guess == core_guess)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
-       END IF
-
-       outer_scf_section => section_vals_get_subs_vals(scf_section,"OUTER_SCF")
-       CALL section_vals_val_get(outer_scf_section,"_SECTION_PARAMETERS_",&
-            l_val=scf_control%outer_scf%have_scf)
-       IF (scf_control%outer_scf%have_scf) THEN
-          CALL section_vals_val_get(outer_scf_section,"EPS_SCF",&
-                                    r_val=scf_control%outer_scf%eps_scf)
-          CALL section_vals_val_get(outer_scf_section,"STEP_SIZE",&
-                                    r_val=scf_control%outer_scf%step_size)
-          CALL section_vals_val_get(outer_scf_section,"DIIS_BUFFER_LENGTH",&
-                                    i_val=scf_control%outer_scf%diis_buffer_length)
-          CALL section_vals_val_get(outer_scf_section,"BISECT_TRUST_COUNT",&
-                                    i_val=scf_control%outer_scf%bisect_trust_count)
-          CALL section_vals_val_get(outer_scf_section,"TYPE",&
-                                    i_val=scf_control%outer_scf%type)
-          CALL section_vals_val_get(outer_scf_section,"OPTIMIZER",&
-                                    i_val=scf_control%outer_scf%optimizer)
-          CALL section_vals_val_get(outer_scf_section,"MAX_SCF",&
-                                    i_val=scf_control%outer_scf%max_scf)
-          CALL section_vals_val_get(outer_scf_section,"EXTRAPOLATION_ORDER",&
-                                    i_val=scf_control%outer_scf%extrapolation_order)
-       END IF
-
-       smear_section => section_vals_get_subs_vals(scf_section,"SMEAR")
-       CALL init_smear(scf_control%smear)
-       CALL read_smear_section(scf_control%smear, smear_section)
-
-       do_mixing = .FALSE.
-       mixing_section => section_vals_get_subs_vals(scf_section,"MIXING")
-       CALL section_vals_val_get(mixing_section,"_SECTION_PARAMETERS_",&
-                                 l_val=do_mixing)
-       IF (do_mixing) THEN
-          CALL section_vals_val_get(mixing_section,"METHOD",&
-                                    i_val=scf_control%mixing_method)
-          CALL section_vals_val_get(mixing_section,"NMIXING",i_val=scf_control%nmixing)
-       END IF ! do mixing
-    END IF ! failure
+    do_mixing = .FALSE.
+    mixing_section => section_vals_get_subs_vals(scf_section,"MIXING")
+    CALL section_vals_val_get(mixing_section,"_SECTION_PARAMETERS_",&
+                              l_val=do_mixing)
+    IF (do_mixing) THEN
+       CALL section_vals_val_get(mixing_section,"METHOD",&
+                                 i_val=scf_control%mixing_method)
+       CALL section_vals_val_get(mixing_section,"NMIXING",i_val=scf_control%nmixing)
+    END IF ! do mixing
 
     CALL timestop(handle)
 
@@ -500,9 +488,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_smear', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(smear))
     ALLOCATE(smear)
     smear%do_smear = .FALSE.
@@ -526,35 +511,31 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_smear_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
-    failure=.FALSE.
     NULLIFY(r_vals)
 
-    IF (.NOT.failure) THEN
-      CALL section_vals_val_get(smear_section,"_SECTION_PARAMETERS_",&
-                                l_val=smear%do_smear)
-      IF (smear%do_smear) THEN
-         CALL section_vals_val_get(smear_section,"METHOD",&
-                                   i_val=smear%method)
-         CALL section_vals_val_get(smear_section,"ELECTRONIC_TEMPERATURE",&
-                                   r_val=smear%electronic_temperature)
-         CALL section_vals_val_get(smear_section,"EPS_FERMI_DIRAC",&
-                                   r_val=smear%eps_fermi_dirac)
-         CALL section_vals_val_get(smear_section,"WINDOW_SIZE",&
-                                   r_val=smear%window_size)
-         IF (smear%method==smear_list) THEN
-            CALL section_vals_val_get(smear_section,"LIST",&
-                                      r_vals=r_vals)
-            CPASSERT(ASSOCIATED(r_vals))
-            ALLOCATE(smear%list(SIZE(r_vals)))
-            smear%list=r_vals
-         END IF
-         CALL section_vals_val_get(smear_section,"FIXED_MAGNETIC_MOMENT",&
-                                   r_val=smear%fixed_mag_mom)
-      END IF ! do smear
-    END IF
+    CALL section_vals_val_get(smear_section,"_SECTION_PARAMETERS_",&
+                              l_val=smear%do_smear)
+    IF (smear%do_smear) THEN
+       CALL section_vals_val_get(smear_section,"METHOD",&
+                                 i_val=smear%method)
+       CALL section_vals_val_get(smear_section,"ELECTRONIC_TEMPERATURE",&
+                                 r_val=smear%electronic_temperature)
+       CALL section_vals_val_get(smear_section,"EPS_FERMI_DIRAC",&
+                                 r_val=smear%eps_fermi_dirac)
+       CALL section_vals_val_get(smear_section,"WINDOW_SIZE",&
+                                 r_val=smear%window_size)
+       IF (smear%method==smear_list) THEN
+          CALL section_vals_val_get(smear_section,"LIST",&
+                                    r_vals=r_vals)
+          CPASSERT(ASSOCIATED(r_vals))
+          ALLOCATE(smear%list(SIZE(r_vals)))
+          smear%list=r_vals
+       END IF
+       CALL section_vals_val_get(smear_section,"FIXED_MAGNETIC_MOMENT",&
+                                 r_val=smear%fixed_mag_mom)
+    END IF ! do smear
   END SUBROUTINE read_smear_section
 
 ! *****************************************************************************
@@ -576,7 +557,7 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit, &
                                                 roks_scheme
-    LOGICAL                                  :: failure, roks
+    LOGICAL                                  :: roks
     REAL(KIND=dp)                            :: elec_temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
@@ -586,7 +567,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (logger)
     logger => cp_get_default_logger()
@@ -597,145 +577,141 @@ CONTAINS
     CPASSERT(ASSOCIATED(scf_control))
     CPASSERT(scf_control%ref_count>0)
 
-    IF (.NOT.failure) THEN
+    scf_section => section_vals_get_subs_vals(dft_section,"SCF")
+    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".scfLog")
 
-       scf_section => section_vals_get_subs_vals(dft_section,"SCF")
-       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
-            extension=".scfLog")
+    IF (output_unit > 0) THEN
 
-       IF (output_unit > 0) THEN
+       IF (scf_control%max_scf > 0) THEN
 
-          IF (scf_control%max_scf > 0) THEN
+          CALL create_scf_section(section)
 
-             CALL create_scf_section(section)
+          keyword => section_get_keyword(section,"SCF_GUESS")
+          CALL keyword_get(keyword,enum=enum)
 
-             keyword => section_get_keyword(section,"SCF_GUESS")
+          WRITE (UNIT=output_unit,&
+               FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
+               "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
+               "1(/,T25,A,T76,F5.2))")&
+               "SCF PARAMETERS",&
+               "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess))),&
+               "max_scf:           ",scf_control%max_scf,&
+               "max_scf_history:   ",scf_control%max_scf_hist,&
+               "max_diis:          ",scf_control%max_diis,&
+               "eps_scf:           ",scf_control%eps_scf,&
+               "eps_scf_history:   ",scf_control%eps_scf_hist,&
+               "eps_diis:          ",scf_control%eps_diis,&
+               "eps_eigval:        ",scf_control%eps_eigval,&
+               "level_shift [a.u.]:",scf_control%level_shift
+          IF ( SUM(scf_control%added_mos) > 0 ) THEN
+            WRITE (UNIT=output_unit,FMT="(T25,A,T71,2I5)")&
+               "added MOs          ",scf_control%added_mos
+          END IF
+
+          IF (scf_control%mixing_method>0 .AND. .NOT. scf_control%use_ot) THEN
+             keyword => section_get_keyword(section,"MIXING%METHOD")
              CALL keyword_get(keyword,enum=enum)
-
-             WRITE (UNIT=output_unit,&
-                  FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/,"//&
-                  "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'),"//&
-                  "1(/,T25,A,T76,F5.2))")&
-                  "SCF PARAMETERS",&
-                  "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess))),&
-                  "max_scf:           ",scf_control%max_scf,&
-                  "max_scf_history:   ",scf_control%max_scf_hist,&
-                  "max_diis:          ",scf_control%max_diis,&
-                  "eps_scf:           ",scf_control%eps_scf,&
-                  "eps_scf_history:   ",scf_control%eps_scf_hist,&
-                  "eps_diis:          ",scf_control%eps_diis,&
-                  "eps_eigval:        ",scf_control%eps_eigval,&
-                  "level_shift [a.u.]:",scf_control%level_shift
-             IF ( SUM(scf_control%added_mos) > 0 ) THEN
-               WRITE (UNIT=output_unit,FMT="(T25,A,T71,2I5)")&
-                  "added MOs          ",scf_control%added_mos
+             WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
+                  REPEAT("-",56),&
+                  "Mixing method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%mixing_method)))
+             IF(scf_control%mixing_method>1) THEN
+             WRITE (UNIT=output_unit,FMT="(T47,A34)") "charge density mixing in g-space"
              END IF
+          END IF
+          IF (scf_control%smear%do_smear) THEN
+             keyword => section_get_keyword(section,"SMEAR%METHOD")
+             CALL keyword_get(keyword,enum=enum)
+             WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
+                  REPEAT("-",56),&
+                  "Smear method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%smear%method)))
+             SELECT CASE (scf_control%smear%method)
+             CASE (smear_fermi_dirac)
+                elec_temp = cp_unit_from_cp2k(scf_control%smear%electronic_temperature,&
+                     "K")
+                WRITE (UNIT=output_unit,FMT="(T25,A,T61,F20.1)")&
+                     "Electronic temperature [K]:",elec_temp
+                WRITE (UNIT=output_unit,FMT="(T25,A,T71,ES10.2)")&
+                     "Electronic temperature [a.u.]:",scf_control%smear%electronic_temperature,&
+                     "Accuracy threshold:",scf_control%smear%eps_fermi_dirac
+                IF(scf_control%smear%fixed_mag_mom>0.0_dp) WRITE (UNIT=output_unit,FMT="(T25,A,F10.5)")&
+                       "Spin channel alpha and spin channel beta are smeared independently, keeping "//&
+                       " fixed difference in number of electrons equal to ",scf_control%smear%fixed_mag_mom
+             CASE (smear_energy_window)
+                WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
+                     "Smear window [a.u.]:       ",scf_control%smear%window_size
+             END SELECT
+          END IF
 
-             IF (scf_control%mixing_method>0 .AND. .NOT. scf_control%use_ot) THEN
-                keyword => section_get_keyword(section,"MIXING%METHOD")
-                CALL keyword_get(keyword,enum=enum)
-                WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
-                     REPEAT("-",56),&
-                     "Mixing method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%mixing_method)))
-                IF(scf_control%mixing_method>1) THEN
-                WRITE (UNIT=output_unit,FMT="(T47,A34)") "charge density mixing in g-space"
-                END IF
-             END IF
-             IF (scf_control%smear%do_smear) THEN
-                keyword => section_get_keyword(section,"SMEAR%METHOD")
-                CALL keyword_get(keyword,enum=enum)
-                WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
-                     REPEAT("-",56),&
-                     "Smear method:      ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%smear%method)))
-                SELECT CASE (scf_control%smear%method)
-                CASE (smear_fermi_dirac)
-                   elec_temp = cp_unit_from_cp2k(scf_control%smear%electronic_temperature,&
-                        "K")
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T61,F20.1)")&
-                        "Electronic temperature [K]:",elec_temp
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T71,ES10.2)")&
-                        "Electronic temperature [a.u.]:",scf_control%smear%electronic_temperature,&
-                        "Accuracy threshold:",scf_control%smear%eps_fermi_dirac
-                   IF(scf_control%smear%fixed_mag_mom>0.0_dp) WRITE (UNIT=output_unit,FMT="(T25,A,F10.5)")&
-                          "Spin channel alpha and spin channel beta are smeared independently, keeping "//&
-                          " fixed difference in number of electrons equal to ",scf_control%smear%fixed_mag_mom
-                CASE (smear_energy_window)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
-                        "Smear window [a.u.]:       ",scf_control%smear%window_size
-                END SELECT
-             END IF
+          CALL section_vals_val_get(dft_section,"ROKS",l_val=roks)
+          IF (roks.AND.(.NOT.scf_control%use_ot)) THEN
+             CALL section_vals_val_get(scf_section,"ROKS_SCHEME",&
+                  i_val=roks_scheme)
+             keyword => section_get_keyword(section,"ROKS_SCHEME")
+             CALL keyword_get(keyword,enum=enum)
+             WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
+                  REPEAT("-",56),&
+                  "ROKS scheme:",ADJUSTR(TRIM(enum_i2c(enum,roks_scheme)))
+             SELECT CASE (roks_scheme)
+             CASE (general_roks)
+                WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
+                     "ROKS parameter f:",scf_control%roks_f
+             CASE (high_spin_roks)
+                WRITE (UNIT=output_unit,&
+                     FMT="(T25,A,6(/,T25,A,T71,F10.6))")&
+                     "ROKS parameters: a)lpha, b)eta; c)losed, o)pen, v)irtual",&
+                     "acc",scf_control%roks_parameter(2,2,1),&
+                     "bcc",scf_control%roks_parameter(2,2,2),&
+                     "aoo",scf_control%roks_parameter(1,1,1),&
+                     "boo",scf_control%roks_parameter(1,1,2),&
+                     "avv",scf_control%roks_parameter(0,0,1),&
+                     "bvv",scf_control%roks_parameter(0,0,2)
+             END SELECT
+          END IF
+          CALL section_release(section)
 
-             CALL section_vals_val_get(dft_section,"ROKS",l_val=roks)
-             IF (roks.AND.(.NOT.scf_control%use_ot)) THEN
-                CALL section_vals_val_get(scf_section,"ROKS_SCHEME",&
-                     i_val=roks_scheme)
-                keyword => section_get_keyword(section,"ROKS_SCHEME")
-                CALL keyword_get(keyword,enum=enum)
-                WRITE (UNIT=output_unit,FMT="(T25,A,/,T25,A,T51,A30)")&
-                     REPEAT("-",56),&
-                     "ROKS scheme:",ADJUSTR(TRIM(enum_i2c(enum,roks_scheme)))
-                SELECT CASE (roks_scheme)
-                CASE (general_roks)
-                   WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
-                        "ROKS parameter f:",scf_control%roks_f
-                CASE (high_spin_roks)
-                   WRITE (UNIT=output_unit,&
-                        FMT="(T25,A,6(/,T25,A,T71,F10.6))")&
-                        "ROKS parameters: a)lpha, b)eta; c)losed, o)pen, v)irtual",&
-                        "acc",scf_control%roks_parameter(2,2,1),&
-                        "bcc",scf_control%roks_parameter(2,2,2),&
-                        "aoo",scf_control%roks_parameter(1,1,1),&
-                        "boo",scf_control%roks_parameter(1,1,2),&
-                        "avv",scf_control%roks_parameter(0,0,1),&
-                        "bvv",scf_control%roks_parameter(0,0,2)
-                END SELECT
-             END IF
-             CALL section_release(section)
+          IF (scf_control%outer_scf%have_scf) THEN
+             WRITE (output_unit,"(T25,56('-'),/,T25,A)") "Outer loop SCF in use "
+             SELECT CASE(scf_control%outer_scf%type)
+             CASE (outer_scf_none)
+                WRITE (output_unit,'(T25,A)') "No variables optimised in outer loop"
+             CASE (outer_scf_ddapc_constraint)
+                WRITE (output_unit,'(T25,A)') "DDAPC constraint enforced"
+             CASE (outer_scf_s2_constraint)
+                WRITE (output_unit,'(T25,A)') "S2 constraint enforced"
+             CASE (outer_scf_becke_constraint)
+                WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
+             CASE DEFAULT
+                CPASSERT(.FALSE.)
+             END SELECT
+             WRITE (output_unit,'(T25,A,T72,ES9.2)') "eps_scf",scf_control%outer_scf%eps_scf
+             WRITE (output_unit,'(T25,A,T72,I9)') "max_scf",scf_control%outer_scf%max_scf
+             SELECT CASE(scf_control%outer_scf%optimizer)
+             CASE (outer_scf_optimizer_none)
+                WRITE (output_unit,'(T25,A)') "No outer loop optimization"
+             CASE (outer_scf_optimizer_sd)
+                WRITE (output_unit,'(T25,A)') "Steepest descent optimization"
+             CASE (outer_scf_optimizer_bisect)
+                WRITE (output_unit,'(T25,A)') "Gradient bisection"
+                WRITE (output_unit,'(T25,A,T72,I9)') "bisect_trust_count",scf_control%outer_scf%bisect_trust_count
+             CASE (outer_scf_optimizer_diis)
+                WRITE (output_unit,'(T25,A)') "DIIS optimization"
+                WRITE (output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &
+                     scf_control%outer_scf%diis_buffer_length
+             CASE DEFAULT
+                CPASSERT(.FALSE.)
+             END SELECT
+             WRITE (output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
+          ELSE
+             WRITE (output_unit,"(T25,56('-'),/,T25,A)") "No outer SCF"
+          END IF
 
-             IF (scf_control%outer_scf%have_scf) THEN
-                WRITE (output_unit,"(T25,56('-'),/,T25,A)") "Outer loop SCF in use "
-                SELECT CASE(scf_control%outer_scf%type)
-                CASE (outer_scf_none)
-                   WRITE (output_unit,'(T25,A)') "No variables optimised in outer loop"
-                CASE (outer_scf_ddapc_constraint)
-                   WRITE (output_unit,'(T25,A)') "DDAPC constraint enforced"
-                CASE (outer_scf_s2_constraint)
-                   WRITE (output_unit,'(T25,A)') "S2 constraint enforced"
-                CASE (outer_scf_becke_constraint)
-                   WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
-                CASE DEFAULT
-                   CPASSERT(.FALSE.)
-                END SELECT
-                WRITE (output_unit,'(T25,A,T72,ES9.2)') "eps_scf",scf_control%outer_scf%eps_scf
-                WRITE (output_unit,'(T25,A,T72,I9)') "max_scf",scf_control%outer_scf%max_scf
-                SELECT CASE(scf_control%outer_scf%optimizer)
-                CASE (outer_scf_optimizer_none)
-                   WRITE (output_unit,'(T25,A)') "No outer loop optimization"
-                CASE (outer_scf_optimizer_sd)
-                   WRITE (output_unit,'(T25,A)') "Steepest descent optimization"
-                CASE (outer_scf_optimizer_bisect)
-                   WRITE (output_unit,'(T25,A)') "Gradient bisection"
-                   WRITE (output_unit,'(T25,A,T72,I9)') "bisect_trust_count",scf_control%outer_scf%bisect_trust_count
-                CASE (outer_scf_optimizer_diis)
-                   WRITE (output_unit,'(T25,A)') "DIIS optimization"
-                   WRITE (output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &
-                        scf_control%outer_scf%diis_buffer_length
-                CASE DEFAULT
-                   CPASSERT(.FALSE.)
-                END SELECT
-                WRITE (output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
-             ELSE
-                WRITE (output_unit,"(T25,56('-'),/,T25,A)") "No outer SCF"
-             END IF
+       END IF ! max_scf > 0
 
-          END IF ! max_scf > 0
+    END IF ! output_unit > 0
 
-       END IF ! output_unit > 0
-
-       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%PROGRAM_RUN_INFO")
-
-    END IF ! not failure
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%PROGRAM_RUN_INFO")
 
     CALL timestop(handle)
 
@@ -756,11 +732,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

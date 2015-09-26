@@ -116,9 +116,8 @@ CONTAINS
       ispin, ix, iy, iz, natom, nexp_ppl, nkind, nspins, output_unit, unit_nr
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gapw, gapw_xc, &
-                                                gth_gspace, ionode, &
-                                                make_soft, paw_atom
+    LOGICAL                                  :: gapw, gapw_xc, gth_gspace, &
+                                                ionode, make_soft, paw_atom
     REAL(KIND=dp) :: alpha, alpha_core, arg, charge, ehartree, exc, exp_rap, &
       gapw_max_alpha, hard_radius, hard_value, soft_value, sqrt_alpha, &
       sqrt_rap
@@ -219,7 +218,6 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog")
 
-    failure = .FALSE.
 
 !   -------------------------------------
 !   Read settings

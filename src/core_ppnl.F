@@ -118,8 +118,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, &
                                                 nprj_ppnl, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: dokp, failure, found, &
-                                                ppnl_present
+    LOGICAL                                  :: dokp, found, ppnl_present
     REAL(KIND=dp)                            :: dac, f0, ppnl_radius
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sab, work
@@ -145,7 +144,6 @@ CONTAINS
     TYPE(sap_int_type), DIMENSION(:), &
       POINTER                                :: sap_int
 
-    failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
     ELSE
@@ -227,7 +225,7 @@ CONTAINS
 !$OMP          cell_c, rac, iac, first_sgfa, la_max, la_min, npgfa, nseta, nsgfa, nsgf_seta, &
 !$OMP          sphi_a, zeta, cprj, lppnl, nppnl, nprj_ppnl, & 
 !$OMP          clist, iset, ncoa, sgfa, prjc, work, sab, ai_work, nprjc,  ppnl_radius, &
-!$OMP          ncoc, rpgfa, first_col, vprj_ppnl, failure, i, l, &
+!$OMP          ncoc, rpgfa, first_col, vprj_ppnl, i, l, &
 !$OMP          set_radius_a, rprjc, dac, lc_max, lc_min, zetc, alpha_ppnl)
       mepos=0
 !$    mepos=omp_get_thread_num()

@@ -162,9 +162,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO i = 1, 9
        DO j = 1, i
           ! indexa:
@@ -208,11 +206,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_indrot_array', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Setup indexes for integral rotations
+! INDPP
 
-    failure = .FALSE.
-    ! Setup indexes for integral rotations
-    ! INDPP
     indpp(1, 1) =  1
     indpp(2, 1) =  4
     indpp(3, 1) =  5
@@ -278,12 +274,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: CLM1, CLM1m
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: ALM1, ALMs15_49, ALMs15_49m, ALMs15m, ALMs20_49, &
       ALMs20_49m, ALMs35, ALMs35m, ALMs45, ALMs5_49, ALMs5_49m, CLM23, &
       CLM23m, CLM43, CLM43m, CLMs13, CLMs13m, CLMs43, CLMs43m
 
-    failure = .FALSE.
     CLM1       =  1
     CLM1m      = -1
     CLMs13     =  SQRT(1.0_dp/3.0_dp)
@@ -490,22 +484,20 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_ijkl_array', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Address unique indexes (excluding those related by rotations)
+! Indexes according:
+!           s   pz   px   py  dz2  dzx  dzy dx2-y2 dxy
+!      s    1    2    3    4    5    6    7    8    9
+!      pz   2   10   11   12   13   14   15   16   17
+!      px   3   11   18   19   20   21   22   23   24
+!      py   4   12   19   25   26   27   28   29   30
+!     dz2   5   13   20   26   31   32   33   34   35
+!     dzx   6   14   21   27   32   36   37   38   39
+!     dzy   7   15   22   28   33   37   40   41   42
+!  dx2-y2   8   16   23   29   34   38   41   43   44
+!     dxy   9   17   24   30   35   39   42   44   45
+! ################  Zero the Arrays #######################
 
-    failure = .FALSE.
-    ! Address unique indexes (excluding those related by rotations)
-    ! Indexes according:
-    !           s   pz   px   py  dz2  dzx  dzy dx2-y2 dxy
-    !      s    1    2    3    4    5    6    7    8    9
-    !      pz   2   10   11   12   13   14   15   16   17
-    !      px   3   11   18   19   20   21   22   23   24
-    !      py   4   12   19   25   26   27   28   29   30
-    !     dz2   5   13   20   26   31   32   33   34   35
-    !     dzx   6   14   21   27   32   36   37   38   39
-    !     dzy   7   15   22   28   33   37   40   41   42
-    !  dx2-y2   8   16   23   29   34   38   41   43   44
-    !     dxy   9   17   24   30   35   39   42   44   45
-    ! ################  Zero the Arrays #######################
     ijkl_ind = 0
     ijkl_sym = 0
     ! ################      s       s   #######################

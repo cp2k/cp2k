@@ -120,7 +120,6 @@ MODULE mp2_ri_grad_util
                                                 mepos_2_grid_group, sizes, &
                                                 starts
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_C_2D, Gamma_2D
     REAL(KIND=dp), ALLOCATABLE, &
@@ -134,7 +133,6 @@ MODULE mp2_ri_grad_util
                                                 fm_Y, PQ_half
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! reshape the data into a 2D array
     ! reorder the local data in such a way to help the next stage of matrix creation
@@ -662,14 +660,12 @@ MODULE mp2_ri_grad_util
     INTEGER, ALLOCATABLE, DIMENSION(:, :) :: blocks_ranges_col, &
       blocks_ranges_row, grid_2_mepos, grid_ref_2_send_pos, mepos_2_grid
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: part_col, part_row
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! create the full matrix, (num_rows x num_cols)
     NULLIFY(fm_mat)
@@ -1077,13 +1073,11 @@ MODULE mp2_ri_grad_util
                                                 grid_ref_2_send_pos, &
                                                 mepos_2_grid
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: part_col, part_row
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! allocate the array
     ALLOCATE(mat2D(my_rows,my_cols))
@@ -1439,7 +1433,6 @@ MODULE mp2_ri_grad_util
                                                 grid_ref_2_send_pos, &
                                                 indeces_map_my, mepos_2_grid
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: part_ia
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
@@ -1452,7 +1445,6 @@ MODULE mp2_ri_grad_util
 ! TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: G_P_ia
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! allocate G_P_ia (DBCSR)
     IF (alpha_case) THEN

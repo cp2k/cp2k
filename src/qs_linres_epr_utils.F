@@ -90,7 +90,7 @@ CONTAINS
     INTEGER                                  :: handle, i_B, idir, ispin, &
                                                 n_mo(2), nao, natom, nmoloc, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -114,7 +114,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, mos, mpools, particle_set)
@@ -163,7 +162,7 @@ CONTAINS
     !
     ! check that the psi0 are localized and you have all the centers
     CPASSERT(linres_control%localized_psi0)
-    IF(failure .AND. (output_unit>0)) THEN
+    IF(output_unit>0) THEN
        WRITE(output_unit,'(A)') &
             ' To get EPR parameters within PBC you need localized zero order orbitals '
     ENDIF
@@ -254,58 +253,54 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_B, idir, ispin
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
-    IF(.NOT. failure) THEN
-      epr_env%ref_count = epr_env%ref_count - 1
-      IF(epr_env%ref_count == 0 ) THEN
-        ! nablavks_set
-        IF(ASSOCIATED(epr_env%nablavks_set)) THEN
-           DO ispin = 1,SIZE(epr_env%nablavks_set,2)
-           DO idir = 1,SIZE(epr_env%nablavks_set,1)
-              CALL qs_rho_clear(epr_env%nablavks_set(idir,ispin)%rho)
-              DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho)
-           ENDDO
-           ENDDO
-           DEALLOCATE(epr_env%nablavks_set)
-        END IF
-        ! nablavks_atom_set
-        IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
-          CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set)
-        END IF
-        ! vks_atom_set
-        IF(ASSOCIATED(epr_env%vks_atom_set)) THEN
-          CALL deallocate_rho_atom_set(epr_env%vks_atom_set)
-        END IF
-        ! bind_set
-        IF(ASSOCIATED(epr_env%bind_set)) THEN
-           DO i_B = 1,SIZE(epr_env%bind_set,2)
-           DO idir = 1,SIZE(epr_env%bind_set,1)
-              CALL qs_rho_clear(epr_env%bind_set(idir,i_B)%rho)
-              DEALLOCATE(epr_env%bind_set(idir,i_B)%rho)
-           ENDDO
-           ENDDO
-          DEALLOCATE(epr_env%bind_set)
-        END IF
-        ! bind_atom_set
-        IF(ASSOCIATED(epr_env%bind_atom_set)) THEN
-          DEALLOCATE(epr_env%bind_atom_set)
-        END IF
-        ! g_total
-        IF(ASSOCIATED(epr_env%g_total)) THEN
-          DEALLOCATE(epr_env%g_total)
-        END IF
-        ! g_so
-        IF(ASSOCIATED(epr_env%g_so)) THEN
-          DEALLOCATE(epr_env%g_so)
-        END IF
-        ! g_soo
-        IF(ASSOCIATED(epr_env%g_soo)) THEN
-          DEALLOCATE(epr_env%g_soo)
-        END IF
-      END IF  ! ref count
-    END IF ! failure
+    epr_env%ref_count = epr_env%ref_count - 1
+    IF(epr_env%ref_count == 0 ) THEN
+      ! nablavks_set
+      IF(ASSOCIATED(epr_env%nablavks_set)) THEN
+         DO ispin = 1,SIZE(epr_env%nablavks_set,2)
+         DO idir = 1,SIZE(epr_env%nablavks_set,1)
+            CALL qs_rho_clear(epr_env%nablavks_set(idir,ispin)%rho)
+            DEALLOCATE(epr_env%nablavks_set(idir,ispin)%rho)
+         ENDDO
+         ENDDO
+         DEALLOCATE(epr_env%nablavks_set)
+      END IF
+      ! nablavks_atom_set
+      IF(ASSOCIATED(epr_env%nablavks_atom_set)) THEN
+        CALL deallocate_nablavks_atom_set(epr_env%nablavks_atom_set)
+      END IF
+      ! vks_atom_set
+      IF(ASSOCIATED(epr_env%vks_atom_set)) THEN
+        CALL deallocate_rho_atom_set(epr_env%vks_atom_set)
+      END IF
+      ! bind_set
+      IF(ASSOCIATED(epr_env%bind_set)) THEN
+         DO i_B = 1,SIZE(epr_env%bind_set,2)
+         DO idir = 1,SIZE(epr_env%bind_set,1)
+            CALL qs_rho_clear(epr_env%bind_set(idir,i_B)%rho)
+            DEALLOCATE(epr_env%bind_set(idir,i_B)%rho)
+         ENDDO
+         ENDDO
+        DEALLOCATE(epr_env%bind_set)
+      END IF
+      ! bind_atom_set
+      IF(ASSOCIATED(epr_env%bind_atom_set)) THEN
+        DEALLOCATE(epr_env%bind_atom_set)
+      END IF
+      ! g_total
+      IF(ASSOCIATED(epr_env%g_total)) THEN
+        DEALLOCATE(epr_env%g_total)
+      END IF
+      ! g_so
+      IF(ASSOCIATED(epr_env%g_so)) THEN
+        DEALLOCATE(epr_env%g_so)
+      END IF
+      ! g_soo
+      IF(ASSOCIATED(epr_env%g_soo)) THEN
+        DEALLOCATE(epr_env%g_soo)
+      END IF
+    END IF  ! ref count
 
   END SUBROUTINE epr_env_cleanup
 

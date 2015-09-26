@@ -54,11 +54,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(qs_energy_type), POINTER            :: qs_energy
 
-    failure=.FALSE.
     NULLIFY(qs_energy, thermo)
 
     CPASSERT(ASSOCIATED(qmmm_env))
@@ -92,10 +90,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (ASSOCIATED(qmmm_env)) THEN
        CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
@@ -119,10 +113,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(qmmm_env))
     CPASSERT(qmmm_env%ref_count>0)

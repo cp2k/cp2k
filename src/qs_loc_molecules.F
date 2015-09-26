@@ -77,7 +77,7 @@ CONTAINS
       istate, j, local_location, natom, natom_loc, natom_max, nkind, nmol, &
       nstate, output_unit, reference
     INTEGER, POINTER                         :: wfc_to_atom_map( : )
-    LOGICAL                                  :: do_berry, failure, ghost
+    LOGICAL                                  :: do_berry, ghost
     REAL(KIND=dp)                            :: charge_tot, dipole(3), dr(3), &
                                                 mydist(2), ria( 3 ), theta, &
                                                 zeff, zwfc
@@ -97,7 +97,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     ! Molecular Dipoles availables only for nspin == 1

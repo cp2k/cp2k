@@ -80,16 +80,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: apply_thermostat, &
                                                 do_langevin, &
-                                                do_langevin_default, &
-                                                explicit, failure
+                                                do_langevin_default, explicit
     REAL(KIND=dp)                            :: temp, temp_tol
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: region_sections, &
                                                 thermal_region_section
     TYPE(thermal_region_type), POINTER       :: t_region
-
-    failure =.FALSE.
 
     NULLIFY(region_sections,t_region,thermal_region_section, particles,subsys,tmplist)
     CALL allocate_thermal_regions(thermal_regions)
@@ -206,12 +203,11 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: fmd
     INTEGER                                  :: ireg, nregions, unit
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
@@ -268,12 +264,11 @@ CONTAINS
     INTEGER                                  :: ipart, ipart_reg, ireg, &
                                                 natoms, print_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: region_id
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperature
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

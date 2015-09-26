@@ -61,7 +61,7 @@ CONTAINS
     CHARACTER(LEN=15)                        :: tmpstr
     INTEGER                                  :: handle, i, icenter, &
                                                 iparticle, output_unit
-    LOGICAL                                  :: failure, zero_weight
+    LOGICAL                                  :: zero_weight
     REAL(KIND=dp)                            :: c, dcdr, kT, r, rab(3), sf, &
                                                 strength
     TYPE(cp_logger_type), POINTER            :: logger
@@ -71,7 +71,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(fp_env))
     CPASSERT(fp_env%use_fp)

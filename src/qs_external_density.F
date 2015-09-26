@@ -70,7 +70,6 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
                                                 npoints, npoints_local, &
                                                 ubounds, ubounds_local
-    LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_ext
@@ -86,7 +85,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: rs_rho_ext
     TYPE(section_vals_type), POINTER         :: ext_den_section, input
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, rs_rho_ext, input, ext_den_section, rs_descs, dft_control)
     NULLIFY(rho_ext_r, rho_ext_g, tot_rho_r_ext)
@@ -237,7 +235,6 @@ CONTAINS
                                                 nat, ndum
     INTEGER, DIMENSION(2, 3)                 :: bo_global, bo_local
     INTEGER, DIMENSION(3)                    :: lbounds, npoints, ubounds
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dvol
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     TYPE(cell_type), POINTER                 :: cell
@@ -245,7 +242,6 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: vxc_ext
     TYPE(section_vals_type), POINTER         :: ext_vxc_section, input
 
-    failure=.FALSE.
     NULLIFY(cell, vxc_ext, input, ext_vxc_section, dft_control)
     CALL timeset(routineN,handle)
     CALL get_qs_env(qs_env,&

@@ -71,10 +71,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: param
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(pbe_params,"parametrization",i_val=param)
     CALL section_vals_val_get(pbe_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(pbe_params,"scale_c",r_val=sc)
@@ -183,10 +181,8 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: param
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(pbe_params,"parametrization",i_val=param)
     CALL section_vals_val_get(pbe_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(pbe_params,"scale_c",r_val=sc)
@@ -297,7 +293,6 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 
     INTEGER                                  :: handle, npoints, param
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, scale_ec, &
                                                 scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
@@ -307,7 +302,6 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 
     CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(bo)
 
   CPASSERT(ASSOCIATED(rho_set))
@@ -454,7 +448,6 @@ SUBROUTINE pbe_lda_calc(rho, norm_drho,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: A, A1rho, A1rhorho, A2rho, A_1, alpha_1_1, Arho, &
       Arho1rho, Arhorho, Arhorhorho, beta, beta_1_1, beta_2_1, beta_3_1, &
       beta_4_1, e_c_u_0, e_c_u_01rho, e_c_u_01rhorho, e_c_u_02rho, &
@@ -516,10 +509,8 @@ SUBROUTINE pbe_lda_calc(rho, norm_drho,&
 !TYPE(section_vals_type), POINTER         :: pbe_params
 !, param
 ! scale_ec, scale_ex, snorm_drho, snorm_drho1rho, snorm_drhorho, srho, &
+! Parametrization of PBE
 
-  failure=.FALSE.
-
-  ! Parametrization of PBE
   SELECT CASE(param)
   ! Original PBE
   CASE (xc_pbe_orig)
@@ -1387,7 +1378,6 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
 
     INTEGER                                  :: handle, npoints, param
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, scale_ec, &
                                                 scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
@@ -1397,7 +1387,6 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-  failure=.FALSE.
   NULLIFY(deriv, bo)
 
   CPASSERT(ASSOCIATED(rho_set))
@@ -1576,7 +1565,6 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: A, A1rhoa, A1rhob, A_1, A_2, A_3, alpha_1_1, alpha_1_2, &
       alpha_1_3, alpha_c, alpha_c1rhoa, alpha_c1rhob, alpha_crhoa, &
       alpha_crhob, Arhoa, Arhoarhoa, Arhoarhob, Arhob, Arhobrhob, beta, &
@@ -1640,9 +1628,8 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       t985, t998, t999, tnorm_drho, trhoa, trhoanorm_drho, trhoarhoa, &
       trhoarhob, trhob, trhobnorm_drho, trhobrhob
 
-  failure=.FALSE.
+! Parametrization of PBE
 
-  ! Parametrization of PBE
   SELECT CASE(param)
   ! Original PBE
   CASE (xc_pbe_orig)

@@ -81,14 +81,12 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp , zero = 0.0_dp
 
     INTEGER                                  :: handle, i, im, nmo, re
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: exp_H_new, exp_H_old, &
                                                 propagator_matrix
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_new, mos_next, mos_old
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix, mos_old=mos_old, mos_new=mos_new,&
@@ -292,7 +290,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, im, ispin, re
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dt
     REAL(KIND=dp)                            :: prefac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -301,7 +298,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure= .FALSE.
 
     CALL get_rtp(rtp=rtp, propagator_matrix=propagator_matrix,rho_old=rho_old,rho_new=rho_new,&
          rho_next=rho_next)

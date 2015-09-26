@@ -72,14 +72,10 @@ MODULE helium_sampling
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: step, tot_steps
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     TYPE(pint_env_type), POINTER             :: pint_env
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
-    IF (failure) THEN
-      CPASSERT(.FALSE.)
-    END IF
 
     NULLIFY(pint_env)
 
@@ -140,7 +136,7 @@ MODULE helium_sampling
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: irot, nslices
-    LOGICAL                                  :: failure, solute_present
+    LOGICAL                                  :: solute_present
     REAL(kind=dp)                            :: inv_iter_rot, inv_num_pe, &
                                                 rnd, rtmp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -148,7 +144,6 @@ MODULE helium_sampling
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     solute_present = helium%solute_present
@@ -256,14 +251,12 @@ MODULE helium_sampling
 
     CHARACTER(len=default_string_length)     :: msgstr, stmp, time_unit
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: time_start, time_stop, &
                                                 time_used
 
     CALL timeset(routineN,handle)
     time_start = m_walltime()
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     ! perform the actual phase space sampling

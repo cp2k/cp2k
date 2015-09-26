@@ -653,10 +653,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_r_val', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(cp_unit_type), POINTER              :: my_unit
 
-    failure = .FALSE.
     NULLIFY(my_unit)
     IF (ASSOCIATED(unit)) THEN
        IF ('STR'==parser_test_next_token(parser)) THEN
@@ -676,7 +675,7 @@ CPSourceFileRef,&
        CALL cp_assert(cp_unit_compatible(unit,my_unit),&
             cp_failure_level,cp_assertion_failed,routineP,"Incompatible units. Defined as ("//&
             TRIM(cp_unit_desc(unit))//") specified in input as ("//&
-            TRIM(cp_unit_desc(my_unit))//"). These units are incompatible!",failure)
+            TRIM(cp_unit_desc(my_unit))//"). These units are incompatible!")
     END IF
     CALL parser_get_object(parser,r_val)
     IF (ASSOCIATED(unit)) THEN

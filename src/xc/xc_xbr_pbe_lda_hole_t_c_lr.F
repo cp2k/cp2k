@@ -117,10 +117,6 @@ CONTAINS
       routineN = 'xbr_pbe_lda_hole_tc_lr_lda_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF ( PRESENT ( reference ) ) THEN
       reference = "{LDA version}"
     END IF
@@ -157,10 +153,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'xbr_pbe_lda_hole_tc_lr_lsd_info', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF ( PRESENT ( reference ) ) THEN
       reference = "{LDA version}"
@@ -202,7 +194,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
     REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -214,7 +205,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(bo)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -498,7 +488,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: gamma, R, sx
     REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_laplace_rhoa, &
@@ -509,7 +498,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(bo)
 
     CPASSERT(ASSOCIATED(rho_set))

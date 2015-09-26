@@ -623,7 +623,6 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 img, ispin, natom, nkind, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pc_ener, qmmm_el, zeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
@@ -654,7 +653,6 @@ CONTAINS
     NULLIFY(dft_control, logger, scf_section,matrix_p, particle_set, ks_env,&
             ks_matrix, rho, energy)
     logger => cp_get_default_logger()
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env,&
@@ -1009,7 +1007,7 @@ CONTAINS
     INTEGER                                  :: blk, handle, i, iatom, ikind, &
                                                 jatom, natom, natorb, nkind
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, failure, found
+    LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: pc_ener, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: qpot
@@ -1031,7 +1029,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -1123,14 +1120,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input)
     NULLIFY(matrix_s)
@@ -1178,8 +1173,7 @@ CONTAINS
     INTEGER :: blk, do_ipol, ewald_type, handle, i, iatom, ikind, imm, imp, &
       indmm, ipot, jatom, natom, natorb, nkind, nmm
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, do_multipoles, &
-                                                failure, found
+    LOGICAL                                  :: defined, do_multipoles, found
     REAL(KIND=dp)                            :: alpha, pc_ener, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(2)              :: rcutoff
@@ -1207,7 +1201,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -1433,7 +1426,7 @@ CONTAINS
                                                 natom, natorb, nkind, nspins, &
                                                 number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, failure, found
+    LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: fi, gmij, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, qpot
@@ -1454,7 +1447,6 @@ CONTAINS
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     TYPE(qs_rho_type), POINTER               :: rho
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set, qs_kind_set, particles_qm)
@@ -1636,8 +1628,7 @@ CONTAINS
       imm, imp, indmm, ipot, iqm, jatom, natom, natorb, nkind, nmm, nspins, &
       number_qm_atoms
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: defined, do_multipoles, &
-                                                failure, found
+    LOGICAL                                  :: defined, do_multipoles, found
     REAL(KIND=dp)                            :: alpha, fi, gmij, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
     REAL(KIND=dp), DIMENSION(2)              :: rcutoff
@@ -1664,7 +1655,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: ewald_section, &
                                                 poisson_section, print_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     IF (calc_force) THEN
        NULLIFY (rho, atomic_kind_set, qs_kind_set, particles_qm)

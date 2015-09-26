@@ -52,7 +52,6 @@ CONTAINS
     INTEGER                                  :: i, ii, l, la_max, la_min, &
                                                 lc_max, lc_min, ll, n, npgfa, &
                                                 npgfb, npgfc, npgfd
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: perf, rac2, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f
     REAL(KIND=dp), ALLOCATABLE, &
@@ -62,7 +61,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra, rb, rc, rd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgf, zeta, zetb, zetc, zetd
 
-    failure = .FALSE.
     IF ( iw>0 ) WRITE(iw,'(/,A)') " Test of Electron Repulsion Integrals (ERI) "
 
     CALL init_orbital_pointers(lmax)

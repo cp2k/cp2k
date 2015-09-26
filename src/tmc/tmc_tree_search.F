@@ -76,13 +76,12 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: check_accepted, &
-                                                check_rejected, failure, &
-                                                keep_on, tmp_acc, tmp_nacc
+                                                check_rejected, keep_on, &
+                                                tmp_acc, tmp_nacc
     REAL(KIND=dp)                            :: prob_n_acc, prob_n_nacc
     TYPE(global_tree_type), POINTER          :: ptr_acc, ptr_nacc
     TYPE(tree_type), POINTER                 :: st_elem
 
-    failure = .FALSE.
     NULLIFY(st_elem, ptr_acc, ptr_nacc)
 
     prob_n_acc  = -100000
@@ -238,12 +237,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: prob
 
     prob = 0.0_dp
     flag = .FALSE.
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_head))
 
     ! start the timing
@@ -290,9 +288,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(current))
 
     ! start the timing
@@ -328,11 +324,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     found = .FALSE.
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ptr))
 
     ! start the timing
@@ -361,8 +355,7 @@ CONTAINS
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unexpected status "//cp_to_string(ptr%stat)//&
-                  "of global tree elem "//cp_to_string(ptr%nr), &
-                  failure)
+                  "of global tree elem "//cp_to_string(ptr%nr))
     END SELECT
     ! end the timing
     CALL timestop(handle)
@@ -387,9 +380,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_act_elem))
 
     ! start the timing
@@ -438,9 +429,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(last_acc))
     CPASSERT(ASSOCIATED(tree_ptr))
 
@@ -467,8 +456,7 @@ CONTAINS
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                 routineP,"the global tree element "//cp_to_string(tree_ptr%nr)//&
-                " stat "//cp_to_string(tree_ptr%stat)//" is UNknown",&
-                failure)
+                " stat "//cp_to_string(tree_ptr%stat)//" is UNknown")
     END SELECT
     ! end the timing
     CALL timestop(handle)
@@ -494,9 +482,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tree_ptr))
     CPASSERT(ASSOCIATED(last_acc))
 
@@ -538,10 +524,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, ready
+    LOGICAL                                  :: ready
     TYPE(global_tree_type), POINTER          :: act_pt_ptr, pt_elem
 
-    failure = .FALSE.
     NULLIFY(pt_elem, act_pt_ptr)
     CPASSERT(ASSOCIATED(pt_elem_in))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -579,8 +564,7 @@ CONTAINS
          CASE DEFAULT
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                    routineP,"unknown status of subtree element"//&
-                   cp_to_string(pt_elem%conf(pt_elem%mv_conf)%elem%stat),&
-                   failure)
+                   cp_to_string(pt_elem%conf(pt_elem%mv_conf)%elem%stat))
          END SELECT
       END IF
       !-- go until the ends ot he tree, to search for elements to cancel
@@ -615,10 +599,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: begin_ptr
 
-    failure = .FALSE.
     NULLIFY(begin_ptr)
 
     CPASSERT(ASSOCIATED(global_tree_ptr))
@@ -654,10 +636,8 @@ CONTAINS
       routineN = 'count_prepared_nodes_in_subtree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: tmp_ptr
 
-    failure = .FALSE.
     NULLIFY(tmp_ptr)
 
     CPASSERT(ASSOCIATED(tree_ptr))
@@ -715,11 +695,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(global_tree_type), POINTER          :: begin_gt_ptr
     TYPE(tree_type), POINTER                 :: begin_ptr
 
-    failure = .FALSE.
     NULLIFY(begin_gt_ptr, begin_ptr)
 
     CPASSERT(ASSOCIATED(global_tree_ptr))
@@ -766,9 +744,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_global_tree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ptr))
 
     counter = counter +1
@@ -792,9 +767,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'count_nodes_in_tree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ptr))
 
     counter = counter +1

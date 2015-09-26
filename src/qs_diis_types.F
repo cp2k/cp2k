@@ -85,10 +85,6 @@ SUBROUTINE qs_diis_b_retain(diis_buffer)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(diis_buffer))
   CPASSERT(diis_buffer%ref_count>0)
   diis_buffer%ref_count=diis_buffer%ref_count+1
@@ -108,9 +104,6 @@ SUBROUTINE qs_diis_b_release(diis_buffer)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(diis_buffer)) THEN
      CPASSERT(diis_buffer%ref_count>0)
@@ -156,9 +149,6 @@ SUBROUTINE qs_diis_b_release_sparse(diis_buffer)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(diis_buffer)) THEN
         IF (ASSOCIATED(diis_buffer%b_matrix)) THEN

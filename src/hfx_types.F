@@ -499,14 +499,13 @@ MODULE hfx_types
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
       pbc_shells, storage_id
     INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
-    LOGICAL                                  :: failure, logic_val, my_do_exx
+    LOGICAL                                  :: logic_val, my_do_exx
     REAL(dp)                                 :: real_val
     TYPE(hfx_type), POINTER                  :: actual_x_data
     TYPE(section_vals_type), POINTER         :: hf_pbc_section, hf_sub_section
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL cite_reference(Guidon2008)
     CALL cite_reference(Guidon2009)
     !! There might be 2 hf sections
@@ -946,13 +945,11 @@ MODULE hfx_types
       so_counter
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl_a
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: sphi_a
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     !! BASIS parameter
     nkind = SIZE(qs_kind_set,1)
@@ -1079,10 +1076,8 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     !! BASIS parameter
     DO i=1,SIZE(basis_parameter)
@@ -1123,10 +1118,9 @@ MODULE hfx_types
     CHARACTER(LEN=512)                       :: error_msg
     CHARACTER(LEN=default_path_length)       :: char_val, filename, orig_wd
     INTEGER                                  :: int_val, stat
-    LOGICAL                                  :: check, failure, logic_val
+    LOGICAL                                  :: check, logic_val
     REAL(dp)                                 :: real_val
 
-    failure = .FALSE.
     check = (PRESENT(storage_id).EQV.PRESENT(i_thread)) .AND.&
             (PRESENT(storage_id).EQV.PRESENT(n_threads)).AND.&
             (PRESENT(storage_id).EQV.PRESENT(para_env)) .AND.&
@@ -1184,8 +1178,7 @@ MODULE hfx_types
           WRITE(error_msg,'(A,A,A)') "Request for disk storage failed due to unknown error while writing to ",&
                TRIM(filename), ". Please check STORAGE_LOCATION"
           CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-               error_msg , &
-               failure)
+               error_msg)
        END IF
        CALL m_chdir(orig_wd,stat)
 
@@ -1214,11 +1207,10 @@ MODULE hfx_types
 
     INTEGER                                  :: i, i_thread, irep, n_rep_hf, &
                                                 n_threads
-    LOGICAL                                  :: failure
     TYPE(hfx_type), POINTER                  :: actual_x_data
 
-    failure = .FALSE.
-    !! There might be 2 hf sections
+!! There might be 2 hf sections
+
     n_rep_hf = x_data(1,1)%n_rep_hf
     n_threads = 1
 !$  n_threads = omp_get_max_threads()
@@ -1354,7 +1346,7 @@ MODULE hfx_types
       jshell, k, kshell, l, m(3), max_shell, nseta, nsetb, &
       total_number_of_cells, ub, ub_max
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb
-    LOGICAL                                  :: failure, image_cell_found, &
+    LOGICAL                                  :: image_cell_found, &
                                                 nothing_more_to_add
     REAL(dp) :: cross_product(3), dist_min, distance(14), l_min, normal(3,6), &
       P(3,14), plane_vector(3,2), point_in_plane(3), r(3), R1, R_max, &
@@ -1363,7 +1355,6 @@ MODULE hfx_types
     TYPE(hfx_cell_type), ALLOCATABLE, &
       DIMENSION(:)                           :: tmp_neighbor_cells
 
-    failure = .FALSE.
     total_number_of_cells = 0
 
     ! ** Check some settings
@@ -1820,12 +1811,9 @@ MODULE hfx_types
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_init_container', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(hfx_container_node), POINTER        :: current, next
 
-    failure =.FALSE.
-
-    !! DEALLOCATE memory
+!! DEALLOCATE memory
 
     current => container%first
     DO WHILE(ASSOCIATED(current))
@@ -2061,10 +2049,6 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bin, i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
 
     SELECT CASE(eval_type)
     CASE (hfx_do_eval_energy)
@@ -2124,10 +2108,6 @@ MODULE hfx_types
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bin, i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
 
     SELECT CASE(eval_type)
     CASE (hfx_do_eval_energy)

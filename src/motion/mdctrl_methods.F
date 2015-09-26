@@ -42,9 +42,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'mdctrl_callback', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(md_env))
     CPASSERT(ASSOCIATED(mdctrl))
 

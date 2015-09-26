@@ -71,11 +71,8 @@ CONTAINS
     INTEGER                                  :: handle, ik, ispin, max_nmo, &
                                                 nao, nblock, ndim, nk, nmo, &
                                                 nspin
-    LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -199,7 +196,7 @@ CONTAINS
       imo_low, imo_up, it, jt, nblock, ndim, nmo, nmo_converged, nmo_nc, &
       nmob, num_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
-    LOGICAL                                  :: failure, my_check_moconv_only
+    LOGICAL                                  :: my_check_moconv_only
     REAL(dp)                                 :: max_norm, min_norm, vmax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: q_mat, tblock, tvblock
     REAL(dp), DIMENSION(:), POINTER          :: c_res, t_eval
@@ -211,7 +208,6 @@ CONTAINS
                                                 t_mat, t_vec
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     NULLIFY(fm_struct_tmp)
     NULLIFY(chc, evec)
@@ -542,7 +538,7 @@ CONTAINS
       nmo, nmo_converged, nmo_nc, nmob, num_blocks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
     INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure, my_check_moconv_only
+    LOGICAL                                  :: my_check_moconv_only
     REAL(dp)                                 :: max_norm, min_norm, vmax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_block, b_block, q_mat, t_mat
     REAL(dp), DIMENSION(:), POINTER          :: c_res, t_eval
@@ -555,7 +551,6 @@ CONTAINS
                                                 evec, hc, v_tmp
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     NULLIFY(fm_struct_tmp)
     NULLIFY(chc, evec)

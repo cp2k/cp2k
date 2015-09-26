@@ -432,7 +432,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ic, ik, ikk, ispin, &
                                                 nmo, nmo_mat
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -457,7 +456,6 @@ CONTAINS
     NULLIFY(ao_mo_fm_pools, dft_control, mos, ao_mo_fm_pools_aux_fit)
     NULLIFY( mo_derivs, mo_coeff, mo_coeff_aux_fit, mo_derivs_aux_fit, xas_env, matrix_s)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)
@@ -545,11 +543,11 @@ CONTAINS
     IF(kpoints%nkp /= 0) THEN
        ! check for some incompatible options
        CALL cp_assert(.NOT.(qs_env%requires_mo_derivs),cp_failure_level,cp_assertion_failed,&
-            routineP,"No MO derivative methods allowed with kpoints",failure)
+            routineP,"No MO derivative methods allowed with kpoints")
        CALL cp_assert(.NOT.(dft_control%do_admm),cp_failure_level,cp_assertion_failed,&
-            routineP,"No ADMM implemented with kpoints",failure)
+            routineP,"No ADMM implemented with kpoints")
        CALL cp_assert(.NOT.(dft_control%do_xas_calculation),cp_failure_level,cp_assertion_failed,&
-            routineP,"No XAS implemented with kpoints",failure)
+            routineP,"No XAS implemented with kpoints")
        DO ik=1,SIZE(kpoints%kp_env)
           CALL mpools_get(kpoints%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
           mos_k => kpoints%kp_env(ik)%kpoint_env%mos
@@ -660,8 +658,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nao, nmo
-    LOGICAL                                  :: do_kpoints, failure, &
-                                                need_coeff_b, not_se_or_dftb
+    LOGICAL                                  :: do_kpoints, need_coeff_b, &
+                                                not_se_or_dftb
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -675,11 +673,11 @@ CONTAINS
     IF (scf_control%use_diag) THEN
 ! sanity check whether combinations are allowed
       CALL cp_assert(.NOT.dft_control%restricted,cp_failure_level,cp_assertion_failed,&
-            routineP,"OT only for restricted (ROKS)",failure)
+            routineP,"OT only for restricted (ROKS)")
       SELECT CASE (scf_control%diagonalization%method)
       CASE(diag_ot,diag_block_krylov,diag_block_davidson)
          CALL cp_assert(not_se_or_dftb,cp_failure_level,cp_assertion_failed,&
-            routineP,"DFTB and SE not possible with OT diagonalization",failure)
+            routineP,"DFTB and SE not possible with OT diagonalization")
       END SELECT
       SELECT CASE (scf_control%diagonalization%method)
       ! Diagonalization: additional check whether we are in an orthonormal basis
@@ -692,18 +690,18 @@ CONTAINS
       ! OT Diagonalization: not possible with ROKS
       CASE (diag_ot)
         CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
-              routineP,"ROKS with OT diagonalization not possible",failure)
+              routineP,"ROKS with OT diagonalization not possible")
          CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"OT diagonalization not possible with kpoint calculations",failure)
+              routineP,"OT diagonalization not possible with kpoint calculations")
          scf_env%method=ot_diag_method_nr
          need_coeff_b=.TRUE.
       ! Block Krylov diagonlization: not possible with ROKS,
       ! allocation of additional matrices is needed
       CASE (diag_block_krylov)
          CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
-              routineP,"ROKS with block PF diagonalization not possible",failure)
+              routineP,"ROKS with block PF diagonalization not possible")
          CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"Block Krylov diagonalization not possible with kpoint calculations",failure)
+              routineP,"Block Krylov diagonalization not possible with kpoint calculations")
          scf_env%method=block_krylov_diag_method_nr
          scf_env%needs_ortho=.TRUE.
          IF(.NOT.ASSOCIATED(scf_env%krylov_space))&
@@ -712,7 +710,7 @@ CONTAINS
       ! Block davidson diagonlization: allocation of additional matrices is needed
       CASE (diag_block_davidson)
          CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"Block Davidson diagonalization not possible with kpoint calculations",failure)
+              routineP,"Block Davidson diagonalization not possible with kpoint calculations")
         scf_env%method=block_davidson_diag_method_nr
         IF(.NOT.ASSOCIATED(scf_env%block_davidson_env))&
            CALL block_davidson_env_create(scf_env%block_davidson_env,dft_control%nspins,&
@@ -745,7 +743,7 @@ CONTAINS
               dft_control%qs_control%cutoff)
          CALL diag_subspace_allocate(scf_env%subspace_env, qs_env, mos)
         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"No subspace diagonlization with kpoint calculation",failure)
+              routineP,"No subspace diagonlization with kpoint calculation")
       END IF
     ! OT: check if OT is used instead of diagonlization. Not possible with added MOS at the moment
     ELSEIF (scf_control%use_ot) THEN
@@ -755,9 +753,9 @@ CONTAINS
          CPABORT("OT with ADDED_MOS/=0 not implemented")
       IF(dft_control%restricted)&
          CALL cp_assert(dft_control%nspins.EQ.2,cp_failure_level,cp_assertion_failed,&
-               routineP,"nspin must be 2 for restricted (ROKS)",failure)
+               routineP,"nspin must be 2 for restricted (ROKS)")
       CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-            routineP,"OT not possible with kpoint calculations",failure)
+            routineP,"OT not possible with kpoint calculations")
     ELSE
       CPABORT("OT or DIAGONALIZATION have to be set")
     END IF
@@ -831,7 +829,7 @@ CONTAINS
 
     INTEGER                                  :: after, handle, ikind, iw, &
                                                 nao, ndep, output_unit
-    LOGICAL :: dft_plus_u_atom, do_kpoints, failure, init_u_ramping_each_scf, &
+    LOGICAL :: dft_plus_u_atom, do_kpoints, init_u_ramping_each_scf, &
       omit_headers, s_minus_half_available
     REAL(KIND=dp)                            :: u_ramping
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -850,7 +848,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY( qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho,xas_env)
-    failure=.FALSE.
 !
     logger => cp_get_default_logger()
 
@@ -1016,7 +1013,7 @@ CONTAINS
     INTEGER                                  :: extrapolation_method_nr, &
                                                 handle, ispin, nmo, &
                                                 output_unit
-    LOGICAL                                  :: failure, orthogonal_wf
+    LOGICAL                                  :: orthogonal_wf
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1028,7 +1025,6 @@ CONTAINS
       POINTER                                :: rho_atom
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(mo_coeff, rho, dft_control, para_env, mos)
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(scf_env))

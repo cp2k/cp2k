@@ -118,10 +118,6 @@ SUBROUTINE wfs_create(snapshot)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   ALLOCATE(snapshot)
   last_wfs_id=last_wfs_id+1
   snapshot%id_nr=last_wfs_id
@@ -154,7 +150,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
 
     INTEGER                                  :: handle, img, ispin, nimg, &
                                                 nspins
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -172,7 +167,6 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt)
 
   CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff,&
        rho, rho_r,rho_g,rho_ao, matrix_s)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
@@ -330,11 +324,9 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-  failure=.FALSE.
 
   ALLOCATE(wf_history)
   last_wfi_id=last_wfi_id+1
@@ -415,9 +407,6 @@ SUBROUTINE wfi_create_for_kp(wf_history)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_create_for_kp', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(wf_history))
     IF(wf_history%store_rho_ao) THEN
        wf_history%store_rho_ao_kp = .TRUE.
@@ -450,10 +439,6 @@ FUNCTION wfi_get_method_label(method_nr) RESULT(res)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_method_label', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   res="unknown"
   SELECT CASE(method_nr)
@@ -511,8 +496,8 @@ END FUNCTION wfi_get_method_label
 
     INTEGER :: actual_extrapolation_method_nr, handle, i, img, ispin, k, n, &
       nmo, nvec, output_unit, print_level
-    LOGICAL                                  :: do_kpoints, failure, &
-                                                my_orthogonal_wf, use_overlap
+    LOGICAL                                  :: do_kpoints, my_orthogonal_wf, &
+                                                use_overlap
     REAL(KIND=dp)                            :: alpha, t0, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, rho_frozen_ao
@@ -531,7 +516,6 @@ END FUNCTION wfi_get_method_label
 
     NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, &
          rho, rho_ao, rho_frozen_ao)
-    failure=.FALSE.
 
     use_overlap = wf_history%store_overlap
 
@@ -981,10 +965,8 @@ END FUNCTION wfi_get_method_label
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(qs_env))
     CPASSERT(qs_env%ref_count>0)
@@ -1024,10 +1006,6 @@ SUBROUTINE wfi_update(wf_history, qs_env, dt)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_update', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(wf_history))
   CPASSERT(wf_history%ref_count>0)
   CPASSERT(ASSOCIATED(qs_env))
@@ -1061,7 +1039,7 @@ END SUBROUTINE wfi_update
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, my_n_col
-    LOGICAL                                  :: failure, has_unit_metric, &
+    LOGICAL                                  :: has_unit_metric, &
                                                 ortho_contains_cholesky, &
                                                 smearing_is_used
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1072,7 +1050,6 @@ END SUBROUTINE wfi_update
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    failure=.FALSE.
     NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools, dft_control)
     CALL timeset(routineN,handle)
 

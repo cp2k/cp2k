@@ -68,7 +68,6 @@ CONTAINS
     INTEGER                                  :: handle, info, my_n, &
                                                 nfullcols_total, &
                                                 nfullrows_total
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
@@ -79,7 +78,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(fm_matrix, fm_struct)
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
@@ -155,7 +153,6 @@ CONTAINS
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n, nfullrows_total, nfullcols_total
-    LOGICAL                                   :: failure
     TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrix_tmp
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct
 #if defined(__SCALAPACK)
@@ -164,7 +161,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(fm_matrix, fm_struct)
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
@@ -247,7 +243,6 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a,b
     INTEGER                                   :: info,itype,handle
     INTEGER                                   :: n, nfullrows_total, nfullcols_total
-    LOGICAL                                   :: failure
     TYPE(cp_fm_type), POINTER                 :: fm_matrix, fm_matrixb
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct
 #if defined(__SCALAPACK)
@@ -257,7 +252,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(fm_matrix, fm_struct)
     CALL cp_dbcsr_get_info(matrix,nfullrows_total=nfullrows_total,nfullcols_total=nfullcols_total)
@@ -296,8 +290,7 @@ CONTAINS
     CALL cp_assert(scale == 1.0_dp, cp_failure_level,cp_assertion_failed,&
          routineP,&
          "scale not equal 1 (scale="//cp_to_string(scale)//")"//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
 #else
 
     CALL dsygst(itype,'U',n,a(1,1),n,b(1,1),n,info)
@@ -345,7 +338,6 @@ CPSourceFileRef,&
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp,b_sp,out_sp
     INTEGER                                   :: itype,handle
     INTEGER                                   :: n
-    LOGICAL                                   :: failure
     REAL(KIND = dp)                           :: alpha
     INTEGER                                   :: myprow, mypcol, nfullrows_total, &
          nfullcols_total
@@ -360,7 +352,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(fm_matrix, fm_matrixb, fm_matrixout, fm_struct)
 
@@ -394,8 +385,7 @@ CPSourceFileRef,&
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
          cp_failure_level,cp_assertion_failed,routineP,&
          "wrong argument op"//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -417,8 +407,7 @@ CPSourceFileRef,&
          cp_failure_level,cp_assertion_failed,&
          routineP,&
          "not the same precision"//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
 
     ! notice b is the cholesky guy
     a => fm_matrix%local_data

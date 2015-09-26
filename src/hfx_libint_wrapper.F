@@ -123,9 +123,7 @@ MODULE hfx_libint_wrapper
     INTEGER                                  :: i
     INTEGER(KIND=C_INT)                      :: lib_storage, max_am_local, &
                                                 max_prim
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     max_am_local= max_am
     max_prim = 1
     CALL init_base()
@@ -135,13 +133,12 @@ MODULE hfx_libint_wrapper
        IF(storage_required(i,0) < 0) EXIT
     ENDDO
     CALL cp_assert(libint_max_am==i, cp_failure_level,cp_assertion_failed,routineP,&
-                    "CP2K and libint were compiled with different LIBINT_MAX_AM.",failure)
+                    "CP2K and libint were compiled with different LIBINT_MAX_AM.")
 
     lib_storage = init_lib(lib, max_am_local, max_prim)
     IF (lib_storage<0) THEN
       CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                     " the angular momentum needed exceeds the value assumed when configuring libint ", &
-                     failure)
+                     " the angular momentum needed exceeds the value assumed when configuring libint ")
     ENDIF
   END SUBROUTINE initialize_libint
 
@@ -161,9 +158,7 @@ MODULE hfx_libint_wrapper
     INTEGER(KIND=C_INT)                      :: lib_deriv_storage, &
                                                 max_am_local, max_classes, &
                                                 max_prim
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     max_am_local= max_am
     max_prim = 1
     max_classes = nco(max_am)**4
@@ -174,13 +169,12 @@ MODULE hfx_libint_wrapper
        IF(storage_required_deriv1(i,0,0) < 0) EXIT
     ENDDO
     CALL cp_assert(libderiv_max_am1==i, cp_failure_level,cp_assertion_failed,routineP,&
-                    "CP2K and libderiv were compiled with different LIBDERIV_MAX_AM1.",failure)
+                    "CP2K and libderiv were compiled with different LIBDERIV_MAX_AM1.")
 
     lib_deriv_storage = init_deriv1(deriv, max_am_local, max_prim, max_classes)
     IF (lib_deriv_storage<0) THEN
       CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                     " the angular momentum needed exceeds the value assumed when configuring libderiv ", &
-                     failure)
+                     " the angular momentum needed exceeds the value assumed when configuring libderiv ")
     ENDIF
   END SUBROUTINE initialize_libderiv
 
@@ -295,12 +289,8 @@ MODULE hfx_libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                   " This CP2K executable has not been linked against the library libint, required for HFX.", &
-                   failure)
+                   " This CP2K executable has not been linked against the library libint, required for HFX.")
 
   END SUBROUTINE initialize_libint
 
@@ -316,12 +306,8 @@ MODULE hfx_libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                   " This CP2K executable has not been linked against the library libint, required for HFX.", &
-                   failure)
+                   " This CP2K executable has not been linked against the library libint, required for HFX.")
 
   END SUBROUTINE initialize_libderiv
 

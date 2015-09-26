@@ -78,9 +78,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
@@ -110,9 +108,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     ind = INDEX(file_name,".",BACK = .TRUE.)
@@ -144,9 +140,7 @@ CONTAINS
 
     CHARACTER(LEN=18)                        :: rval_to_string
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     rval_to_string = ""
@@ -186,9 +180,7 @@ CONTAINS
 
     CHARACTER(LEN=18)                        :: rval_to_string
     INTEGER                                  :: ind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(file_name.NE."")
 
     rval_to_string = ""
@@ -233,16 +225,12 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: c_tmp, file_name
     INTEGER                                  :: f_unit, i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     c_tmp=""
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
     CPASSERT(ASSOCIATED(tmc_env%params))
     CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
-
-    IF(failure) RETURN
 
     WRITE(c_tmp, FMT='(I9.9)') tmc_env%m_env%result_count(0)
     file_name=TRIM(expand_file_name_char(&
@@ -309,16 +297,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: file_ptr, i, temp_size
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp_temp
     REAL(KIND=dp), DIMENSION(nr_mv_types)    :: mv_weight_tmp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
     CPASSERT(ASSOCIATED(tmc_env%params))
     CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
-    IF(failure) RETURN
 
     IF(file_name.EQ.tmc_default_restart_in_file_name) THEN
       INQUIRE(FILE=tmc_default_restart_in_file_name, EXIST=flag)
@@ -335,8 +321,7 @@ CONTAINS
     CALL cp_assert(temp_size.EQ. SIZE(tmc_env%params%Temp),&
                    cp_failure_level,cp_assertion_failed,routineP,&
                    "the actual specified temperatures does not "//&
-                   "fit in amount with the one from restart file ",&
-                   failure=flag)
+                   "fit in amount with the one from restart file ")
     ALLOCATE(tmp_temp(temp_size))
     READ(file_ptr) tmp_temp(:), &
                    tmc_env%m_env%gt_act%nr, &
@@ -357,12 +342,10 @@ CONTAINS
 
     CALL cp_assert(ALL(ABS(tmc_env%params%Temp(:)-tmp_temp(:)) .LT. 0.005),&
                    cp_failure_level,cp_assertion_failed,routineP,&
-                   "the temperatures differ from the previous calculation. There were the following temperatures used:",&
-                   failure=flag)
+                   "the temperatures differ from the previous calculation. There were the following temperatures used:")
     CALL cp_assert(ALL(mv_weight_tmp(:).EQ.tmc_env%params%move_types%mv_weight(:)),&
                    cp_warning_level,cp_assertion_failed,routineP,&
-                   "The amount of mv types differs between the original and the restart run. ",&
-                   failure=flag)
+                   "The amount of mv types differs between the original and the restart run. ")
 
     DO i=1, SIZE(tmc_env%params%Temp)
        tmc_env%m_env%gt_act%conf(i)%elem => tmc_env%m_env%result_list(i)%elem
@@ -409,9 +392,7 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
-    failure   = .FALSE.
     file_name = ""
 
     CPASSERT(ASSOCIATED(result_list))
@@ -470,11 +451,10 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name_act, tmp_name
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: file_ptr, handle, i, nr_atoms
-    LOGICAL                                  :: failure, file_exists, print_it
+    LOGICAL                                  :: file_exists, print_it
     REAL(KIND=dp)                            :: vol
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_scaled
 
-    failure   = .FALSE.
     file_name_act = ""
     tmp_name  = ""
     header    = ""
@@ -668,10 +648,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: conf_nr_old, handle, i_tmp
-    LOGICAL                                  :: failure, &
-                                                files_conf_missmatch, flag
+    LOGICAL                                  :: files_conf_missmatch
 
-    failure   = .FALSE.
     stat = TMC_STATUS_OK
     conf_nr_old = conf_nr
     files_conf_missmatch = .FALSE.
@@ -693,8 +671,7 @@ CONTAINS
              cp_warning_level,cp_assertion_failed,routineP,&
              'end of position file reached at line '//&
              cp_to_string(REAL(tmc_ana%lc_traj,KIND=dp))//", last element "//&
-             cp_to_string(tmc_ana%last_elem%nr),&
-             failure=flag, only_ionode=.TRUE.)
+             cp_to_string(tmc_ana%last_elem%nr), only_ionode=.TRUE.)
       ELSE
         CPASSERT(i_tmp.GT.conf_nr_old)
         conf_nr = i_tmp
@@ -715,8 +692,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                  cp_warning_level,cp_assertion_failed,routineP,&
                  'end of dipole file reached at line'//&
-                 cp_to_string(REAL(tmc_ana%lc_dip,KIND=dp)),&
-                 failure=flag, only_ionode=.TRUE.)
+                 cp_to_string(REAL(tmc_ana%lc_dip,KIND=dp)), only_ionode=.TRUE.)
           EXIT search_conf_dip
         END IF
         ! check consitence with pos file
@@ -747,8 +723,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                  cp_warning_level,cp_assertion_failed,routineP,&
                  'end of cell file reached at line at line'//&
-                 cp_to_string(REAL(tmc_ana%lc_cell, KIND=dp)),&
-                 failure=flag, only_ionode=.TRUE.)
+                 cp_to_string(REAL(tmc_ana%lc_cell, KIND=dp)), only_ionode=.TRUE.)
           EXIT search_conf_cell
         END IF
         ! check consitence with pos file
@@ -780,8 +755,7 @@ CONTAINS
            "Read number of lines (pos|cell|dip)"//&
            cp_to_string(tmc_ana%lc_traj)//"|"//&
            cp_to_string(tmc_ana%lc_cell)//"|"//&
-           cp_to_string(tmc_ana%lc_dip), &
-           failure=flag, only_ionode=.TRUE.)
+           cp_to_string(tmc_ana%lc_dip), only_ionode=.TRUE.)
 
     ! end the timing
     CALL timestop(handle)
@@ -808,9 +782,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: c_tmp
     INTEGER                                  :: handle, i, i_tmp, status
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
     CPASSERT(ASSOCIATED(elem))
@@ -887,9 +859,7 @@ CONTAINS
 
     CHARACTER(LEN=250)                       :: c_tmp
     INTEGER                                  :: handle, status
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
     CPASSERT(ASSOCIATED(elem))
@@ -946,11 +916,9 @@ CONTAINS
 
     CHARACTER(LEN=250)                       :: c_tmp
     INTEGER                                  :: handle, status
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r_tmp
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat
 
-    failure = .FALSE.
     stat = TMC_STATUS_FAILED
 
     CPASSERT(ASSOCIATED(elem))
@@ -1017,9 +985,8 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: dir_name, file_name_act, &
                                                 file_name_temp
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_ana))
 
     stat = TMC_STATUS_WAIT_FOR_NEW_TASK
@@ -1117,9 +1084,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_ana))
 
     ! start the timing

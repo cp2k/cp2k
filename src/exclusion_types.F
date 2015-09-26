@@ -44,9 +44,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom
-    LOGICAL                                  :: failure
 
-   failure=.FALSE.
    IF (ASSOCIATED(exclusions)) THEN
       DO iatom=1,SIZE(exclusions)
          IF (ASSOCIATED(exclusions(iatom)%list_exclude_vdw,&

@@ -113,14 +113,12 @@ CONTAINS
       DIMENSION(:)                           :: element
     INTEGER                                  :: i, ik, iounit, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype
-    LOGICAL                                  :: failure, inv, spez, symmo
+    LOGICAL                                  :: inv, spez, symmo
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight, zeff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(csym_type), POINTER                 :: crys_sym
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -236,7 +234,6 @@ CONTAINS
                                                 niogrp, nkp, nkp_grp, &
                                                 nkp_loc, npe, unit_nr
     INTEGER, DIMENSION(2)                    :: dims, pos
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(2)                    :: rdim
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
@@ -246,7 +243,6 @@ CONTAINS
       POINTER                                :: kp_env
     TYPE(kpoint_env_type), POINTER           :: kp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
     para_env => kpoint%para_env
     CPASSERT(ASSOCIATED(para_env))
@@ -392,7 +388,6 @@ CONTAINS
 
     INTEGER                                  :: ic, ik, is, nao, nc, &
                                                 nelectron, nkp_loc, nmo, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flexible_electron_count, &
                                                 maxocc, n_el_f
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
@@ -403,7 +398,6 @@ CONTAINS
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
     IF (ASSOCIATED(mos)) THEN
@@ -518,11 +512,10 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell, itm
     INTEGER, DIMENSION(:, :), POINTER        :: list
     INTEGER, DIMENSION(:, :, :), POINTER     :: cti
-    LOGICAL                                  :: failure, new
+    LOGICAL                                  :: new
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(kpoint))
 
     ALLOCATE(list(3,125))
@@ -718,7 +711,6 @@ CONTAINS
     INTEGER                                  :: ik, ikpgr, ispin, kplocal, &
                                                 nb, nelectron, nkp, nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kTS, mu, nel
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: weig, wocc
@@ -727,8 +719,8 @@ CONTAINS
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(mo_set_type), POINTER               :: mo_set
 
-    failure = .FALSE.
-    ! first collect all the eigenvalues
+! first collect all the eigenvalues
+
     CALL get_kpoint_info(kpoint,nkp=nkp)
     kp => kpoint%kp_env(1)%kpoint_env
     nspin = SIZE(kp%mos,2)
@@ -799,16 +791,15 @@ CONTAINS
     INTEGER                                  :: ikpgr, ispin, kplocal, nao, &
                                                 nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
-    LOGICAL                                  :: failure, wtype
+    LOGICAL                                  :: wtype
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, occupation
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     TYPE(cp_fm_type), POINTER                :: cpmat, fwork, pmat, rpmat
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(mo_set_type), POINTER               :: mo_set
 
-    failure = .FALSE.
+! which type of density matrix
 
-    ! which type of density matrix
     IF(PRESENT(energy_weighted)) THEN
        wtype = energy_weighted
     ELSE
@@ -911,7 +902,7 @@ CONTAINS
                                                 jatom, nc, nimg, nkp, nspin
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: do_symmetric, failure, found, &
+    LOGICAL                                  :: do_symmetric, found, &
                                                 my_kpgrp, real_only
     REAL(KIND=dp)                            :: arg, coskl, fc, sinkl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wkp
@@ -923,9 +914,8 @@ CONTAINS
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure = .FALSE.
+! work storage
 
-    ! work storage
     ALLOCATE(rpmat,cpmat)
     CALL cp_dbcsr_init(rpmat)
     CALL cp_dbcsr_init(cpmat)

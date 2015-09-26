@@ -74,14 +74,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure, my_do_update
+    LOGICAL                                  :: my_do_update
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
     logger => cp_get_default_logger()
 
-    failure = .FALSE.
 
     output_unit = cp_print_key_unit_nr(logger,geo_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog")
@@ -125,8 +124,7 @@ CONTAINS
     CHARACTER(LEN=5)                         :: wildcard
     INTEGER                                  :: handle, iter_nr, its, &
                                                 max_steep_steps, maxiter
-    LOGICAL                                  :: conv, failure, &
-                                                Fletcher_Reeves, &
+    LOGICAL                                  :: conv, Fletcher_Reeves, &
                                                 save_consistent_energy_force, &
                                                 should_stop
     REAL(KIND=dp)                            :: emin, eold, opt_energy, &
@@ -143,7 +141,6 @@ CONTAINS
     root_section => force_env%root_section
     logger       => cp_get_default_logger()
     conv         = .FALSE.
-    failure      = .FALSE.
     maxiter            = gopt_param%max_iter
     max_steep_steps    = gopt_param%max_steep_steps
     Fletcher_Reeves    = gopt_param%Fletcher_Reeves

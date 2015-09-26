@@ -146,7 +146,6 @@ MODULE qs_efield_berry
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(3)                   :: kvec
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -155,7 +154,6 @@ MODULE qs_efield_berry
     TYPE(efield_berry_type), POINTER         :: efield
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)

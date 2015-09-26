@@ -155,10 +155,9 @@ CONTAINS
 
     INTEGER                                  :: m, m1, m2, mp, mt, mx(0:3,2), &
                                                 n
-    LOGICAL                                  :: calc(0:4), failure
+    LOGICAL                                  :: calc(0:4)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
 
-    failure = .FALSE.
     CALL setup_calculation(order,mx,calc,100)
     mp = SIZE ( pot, 2 )
     m = ABS(order)
@@ -209,13 +208,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n
-    LOGICAL                                  :: calc(0:4), failure
+    LOGICAL                                  :: calc(0:4)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_r, e_rr, e_rrr
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    failure = .FALSE.
     calc = .FALSE.
     IF (order >= 0) calc(0:order) = .TRUE.
     IF (order < 0) calc(-order) = .TRUE.

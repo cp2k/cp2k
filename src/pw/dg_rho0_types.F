@@ -159,10 +159,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(dg_rho0))
     CPASSERT(dg_rho0%ref_count>0)
     dg_rho0%ref_count=dg_rho0%ref_count+1
@@ -182,10 +178,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dg_rho0_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(dg_rho0)) THEN
        CPASSERT(dg_rho0%ref_count>0)

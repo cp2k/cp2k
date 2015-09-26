@@ -84,7 +84,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ind, j
-    LOGICAL                                  :: explicit, failure, restart
+    LOGICAL                                  :: explicit, restart
     REAL(KIND=dp)                            :: temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
     TYPE(section_vals_type), POINTER         :: work_section2
@@ -94,7 +94,6 @@ CONTAINS
     NULLIFY (work_section2)
 
     explicit = .FALSE.
-    failure=.FALSE.
     restart = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(npt_info))
@@ -131,8 +130,7 @@ CONTAINS
           work_section2 => section_vals_get_subs_vals(work_section,"MASS")
           CALL section_vals_get(work_section2, explicit=explicit)
           CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-               "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section",&
-               failure=failure)
+               "You need to define both VELOCITY and MASS section (or none) in the BAROSTAT section")
           restart=explicit.AND.restart
        END IF
 
@@ -188,12 +186,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
     REAL(KIND=dp)                            :: temp
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
 
     CALL nhc_to_barostat_mapping ( simpar, nhc)
@@ -259,11 +256,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
 
@@ -327,11 +323,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
 
@@ -397,11 +392,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
 
@@ -468,11 +462,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL nhc_to_shell_mapping(thermostat_info, simpar, local_molecules,&
        molecule, molecule_kind_set, nhc, para_env, gci)
 
@@ -732,14 +725,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, icount, j, number, &
                                                 tot_rn
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, dum, temp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     tot_rn = 0
 
     ! first initializing the mass of the nhc variables
@@ -871,12 +862,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: akin, temp, v
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     temp = 0.0_dp
 
     ! first initializing the mass of the nhc variables
@@ -957,11 +946,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(nhc))
     ! assign the forces

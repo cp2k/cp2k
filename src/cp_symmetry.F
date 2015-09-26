@@ -70,8 +70,8 @@ CONTAINS
     CHARACTER(LEN=8)                         :: csym1, csym2, csymm, esymm
     INTEGER                                  :: handle, i, iw, natom, plevel
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype, z
-    LOGICAL                                  :: check, failure, molecular, &
-                                                pall, pcoor, pinertia, prmat, &
+    LOGICAL                                  :: check, molecular, pall, &
+                                                pcoor, pinertia, prmat, &
                                                 psymmele
     REAL(KIND=dp)                            :: eps_geo
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight
@@ -82,7 +82,6 @@ CONTAINS
     TYPE(molsym_type), POINTER               :: mol_sym
     TYPE(section_vals_type), POINTER         :: section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)

@@ -585,7 +585,7 @@ CONTAINS
                                                 imolecule_kind, iw, natoms, &
                                                 num_x
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: is_fixed
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
     REAL(KIND=dp)                            :: ecom, ekin, mass, mass_tot, &
                                                 temp, tmp_r1
     REAL(KIND=dp), DIMENSION(3)              :: rcom, vang, vcom
@@ -601,7 +601,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ! Initializing parameters
-    failure = .FALSE.
     natoms = SIZE(part)
     NULLIFY (atomic_kind, fixd_list, logger, molecule_kind)
     NULLIFY (molecule_kind_set)
@@ -1799,8 +1798,8 @@ CONTAINS
 
     INTEGER                                  :: handle, nconstraint, &
                                                 nconstraint_fixd
-    LOGICAL                                  :: apply_cns0, failure, &
-                                                shell_adiabatic, shell_present
+    LOGICAL                                  :: apply_cns0, shell_adiabatic, &
+                                                shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1815,8 +1814,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 print_section, subsys_section
 
-    failure = .FALSE.
-    
     CALL timeset(routineN,handle)
 
     NULLIFY (atomic_kinds,cell,para_env,subsys,molecule_kinds,core_particles,particles)
@@ -1938,7 +1935,7 @@ CONTAINS
                                                 imolecule_kind, iparticle, &
                                                 iw, natom, nparticle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_index, is_fixed
-    LOGICAL                                  :: failure, init_cascade, is_ok, &
+    LOGICAL                                  :: init_cascade, is_ok, &
                                                 no_read_error
     REAL(KIND=dp)                            :: ecom, ekin, energy, norm, &
                                                 temp, temperature
@@ -1960,7 +1957,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atom_list)
     NULLIFY (atom_list_section)

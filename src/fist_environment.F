@@ -106,8 +106,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure, qmmm, &
-                                                shell_adiabatic, shell_present
+    LOGICAL                                  :: qmmm, shell_adiabatic, &
+                                                shell_present
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
@@ -126,7 +126,6 @@ CONTAINS
                                                 mm_section, poisson_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     NULLIFY ( subsys, cell,cell_ref)

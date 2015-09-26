@@ -49,12 +49,9 @@ CONTAINS
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: ik, irk, Nlist
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(rng_section))
     CPASSERT(rng_section%ref_count > 0)
@@ -67,7 +64,7 @@ CONTAINS
 
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
                    "section "//TRIM(section%name)//" does not contain keyword "//&
-                   "_DEFAULT_KEYWORD_",failure)
+                   "_DEFAULT_KEYWORD_")
 
     DO
       IF (SIZE(rng_section%values,2)==1) EXIT

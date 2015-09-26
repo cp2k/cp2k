@@ -107,10 +107,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: averages_section
 
-    failure = .FALSE.
     ALLOCATE(md_env)
     last_md_env_id=last_md_env_id+1
     md_env%id_nr=last_md_env_id
@@ -162,10 +160,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(md_env))
     CPASSERT(md_env%ref_count>0)
     md_env%ref_count=md_env%ref_count+1
@@ -185,10 +179,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(md_env)) THEN
        CPASSERT(md_env%ref_count>0)
@@ -280,9 +270,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_md_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure = .FALSE.
     check = ASSOCIATED(md_env)
     CPASSERT(check)
     IF (PRESENT(itimes)) itimes => md_env%itimes
@@ -384,9 +373,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_md_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure = .FALSE.
     check = ASSOCIATED(md_env)
     CPASSERT(check)
     IF(PRESENT (init)) md_env%init = init

@@ -59,10 +59,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ndeg
-    LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
        CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
@@ -127,11 +125,9 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
@@ -221,10 +217,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nkind, number, region
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => csvr%map_info
@@ -278,10 +273,8 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_shell_list
-    LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
-    failure = .FALSE.
     NULLIFY (massive_shell_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )

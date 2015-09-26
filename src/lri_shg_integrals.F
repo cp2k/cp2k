@@ -197,7 +197,6 @@ CONTAINS
                                                 nshella, nshellb, nshellca
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfca, la, lb, lca
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, aif, bjf, const, consta, &
                                                 constca, dab, prefac, rab2, &
                                                 shg_fac(5)
@@ -207,7 +206,6 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: swork, swork_cont
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, lb_max, lca_max, npgfa, npgfb, npgfca) 
     NULLIFY(first_sgfa, first_sgfb, first_sgfca, set_radius_a, set_radius_b,&
@@ -441,7 +439,6 @@ CONTAINS
                                                 nshella, nshellb, nshellcb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfcb, la, lb, lcb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aif, b, bjf, const, constb, &
                                                 constcb, dab, prefac, rab2, &
                                                 shg_fac(5)
@@ -451,7 +448,6 @@ CONTAINS
     REAL(KIND=dp), &
       DIMENSION(:, :, :, :, :), POINTER      :: swork, swork_cont
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, lb_max, lcb_max, npgfa, npgfb, npgfcb) 
     NULLIFY(first_sgfa, first_sgfb, first_sgfcb, set_radius_a, set_radius_b,&
@@ -673,14 +669,12 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, lb_max, npgfa, npgfb, &
                                                 nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, la, lb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aif, bjf, dab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: swork, swork_cont
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, lb_max, npgfa, npgfb, first_sgfa, first_sgfb, set_radius_a,&
              set_radius_b, zeta, zetb)

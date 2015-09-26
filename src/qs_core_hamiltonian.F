@@ -161,8 +161,8 @@ CONTAINS
     INTEGER                                  :: handle, img, maxder, natom, &
                                                 nder, nders, nimages, nkind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL :: all_potential_present, failure, gth_potential_present, kgpot, &
-      lrigpw, ofdft, ppl_present, use_virial
+    LOGICAL :: all_potential_present, gth_potential_present, kgpot, lrigpw, &
+      ofdft, ppl_present, use_virial
     REAL(KIND=dp)                            :: eps_filter, eps_fit, eps_ppnl
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -195,7 +195,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
     ELSE
@@ -496,11 +495,9 @@ CONTAINS
     INTEGER                                  :: blk, iatom, ikind, jatom, &
                                                 natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, reltmat
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-    failure = .FALSE.
     natom = SIZE(particle_set)
     ALLOCATE (kind_of(natom))
 

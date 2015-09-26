@@ -206,12 +206,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_topology', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!-----------------------------------------------------------------------------
+! 1. Nullify and allocate things in topology
+!-----------------------------------------------------------------------------
 
-    failure = .FALSE.
-    !-----------------------------------------------------------------------------
-    ! 1. Nullify and allocate things in topology
-    !-----------------------------------------------------------------------------
     ALLOCATE(topology%atom_info)
     ALLOCATE(topology%conn_info)
     ALLOCATE(topology%cons_info)
@@ -311,10 +309,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_constraint', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-    ! Bonds involving Hydrogens
+! Bonds involving Hydrogens
 
     constraint_info%hbonds_restraint = .FALSE.
     ! Fixed Atoms
@@ -403,12 +398,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_topology', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!-----------------------------------------------------------------------------
+! 1. DEALLOCATE things in topology%atom_info
+!-----------------------------------------------------------------------------
 
-    failure = .FALSE.
-    !-----------------------------------------------------------------------------
-    ! 1. DEALLOCATE things in topology%atom_info
-    !-----------------------------------------------------------------------------
     IF(ASSOCIATED(topology%atom_info%id_molname)) THEN
        DEALLOCATE(topology%atom_info%id_molname)
     END IF
@@ -565,10 +558,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
-    ! Fixed Atoms
+! Fixed Atoms
+
     IF(ASSOCIATED(constraint_info%fixed_atoms)) THEN
        DEALLOCATE(constraint_info%fixed_atoms)
     END IF
@@ -783,10 +775,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
 
-    failure = .FALSE.
     atom_info => topology%atom_info
 
     IF (ASSOCIATED(atom_info%id_molname)) THEN

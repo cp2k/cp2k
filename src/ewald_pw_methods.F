@@ -71,7 +71,6 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ewald_type, o_spline
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha
     REAL(KIND=dp), DIMENSION(3, 3)           :: old_cell_hmat
     TYPE(dg_type), POINTER                   :: dg
@@ -81,8 +80,6 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
     TYPE(section_vals_type), POINTER         :: poisson_section
-
-  failure=.FALSE.
 
   NULLIFY ( pw_big_pool )
   NULLIFY ( pw_small_pool )

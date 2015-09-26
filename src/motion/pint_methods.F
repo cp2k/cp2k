@@ -149,7 +149,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
+    failure = .FALSE.
     NULLIFY(f_env,subsys,particles, nose_section, gle_section)
 
     CPASSERT(.NOT.ASSOCIATED(pint_env))
@@ -417,10 +417,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     pint_env%ref_count=pint_env%ref_count+1
@@ -439,10 +435,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(pint_env)) THEN
       CPASSERT(pint_env%ref_count>0)
@@ -515,14 +507,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: c, e_h, err
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: x1
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pint_env_type), POINTER             :: pint_env
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(para_env))
   CPASSERT(ASSOCIATED(input))
@@ -593,15 +582,14 @@ CONTAINS
                                                 solute_with_helium_mid = 3
 
     INTEGER                                  :: handle, mode
-    LOGICAL                                  :: explicit, failure, &
-                                                helium_only, solvent_present
+    LOGICAL                                  :: explicit, helium_only, &
+                                                solvent_present
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: helium_section
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(input))
@@ -673,8 +661,7 @@ CONTAINS
 
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-        routineP,"Unknown mode ("//TRIM(ADJUSTL(cp_to_string(mode)))//")",&
-        failure)
+        routineP,"Unknown mode ("//TRIM(ADJUSTL(cp_to_string(mode)))//")")
     END SELECT
 
 
@@ -699,14 +686,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     CALL pint_init_x( pint_env)
     CALL pint_init_v( pint_env)
@@ -743,7 +724,7 @@ CONTAINS
     INTEGER                                  :: ia, ib, ic, idim, input_seed, &
                                                 n_rep_val
     LOGICAL                                  :: done_init, done_levy, &
-                                                done_rand, explicit, failure, &
+                                                done_rand, explicit, &
                                                 levycorr, ltmp
     REAL(kind=dp)                            :: tcorr, var
     REAL(kind=dp), DIMENSION(3)              :: x0
@@ -752,12 +733,8 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_gaussian
     TYPE(section_vals_type), POINTER         :: input_section
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     DO idim = 1, pint_env%ndim
       DO ib=1,pint_env%p
@@ -848,7 +825,7 @@ CONTAINS
              cp_failure_level,cp_assertion_failed,&
              "Invalid size of MOTION%PINT%BEADS%COORD "//&
              CPSourceFileRef,&
-             routineP,failure)
+             routineP)
         ic=0
         DO idim=1,pint_env%ndim
           DO ib=1,pint_env%p
@@ -932,20 +909,15 @@ CONTAINS
                                                 itmp, n_rep_val
     LOGICAL                                  :: done_init, done_quench, &
                                                 done_scale, done_sped, &
-                                                explicit, failure, ltmp, &
-                                                vels_present
+                                                explicit, ltmp, vels_present
     REAL(kind=dp)                            :: actual_t, ek, rtmp, target_t, &
                                                 unit_conv
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input_section
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -973,8 +945,8 @@ CONTAINS
       CALL cp_assert(3*n_rep_val==pint_env%ndim,&
                      cp_failure_level, cp_assertion_failed,&
                      routineP//" from "//&
-CPSourceFileRef,&
-                     msg,failure)
+                     CPSourceFileRef,&
+                     msg)
       DO ia = 1, pint_env%ndim/3
         CALL section_vals_val_get(input_section, "_DEFAULT_KEYWORD_",&
              i_rep_val=ia, r_vals=r_vals)
@@ -986,8 +958,8 @@ CPSourceFileRef,&
         CALL cp_assert(itmp==3,&
                        cp_failure_level, cp_assertion_failed,&
                        routineP//" from "//&
-CPSourceFileRef,&
-                       msg,failure)
+                       CPSourceFileRef,&
+                       msg)
         DO ib = 1, pint_env%p
           DO ic = 1, 3
           idim = 3*(ia-1)+ic
@@ -1109,7 +1081,7 @@ CPSourceFileRef,&
                        cp_failure_level,cp_assertion_failed,&
                        "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
                        CPSourceFileRef,&
-                       routineP,failure)
+                       routineP)
         itmp=0
         DO idim=1,pint_env%ndim
           DO ib=1,pint_env%p
@@ -1179,17 +1151,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim, ii, inos, n_rep_val
-    LOGICAL                                  :: explicit, failure, gle_restart
+    LOGICAL                                  :: explicit, gle_restart
     REAL(kind=dp)                            :: mykt
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: input_section
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) THEN
-      RETURN
-    END IF
 
     IF(pint_env%pimd_thermostat==thermostat_nose) THEN
 
@@ -1220,7 +1188,7 @@ CPSourceFileRef,&
                          cp_failure_level,cp_assertion_failed,&
                          "Invalid size of MOTION%PINT%NOSE%COORD "//&
                          CPSourceFileRef,&
-                         routineP,failure)
+                         routineP)
           ii=0
           DO idim=1,pint_env%ndim
             DO ib=1,pint_env%p
@@ -1248,7 +1216,7 @@ CPSourceFileRef,&
                          cp_failure_level,cp_assertion_failed,&
                          "Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
                          CPSourceFileRef,&
-                         routineP,failure)
+                         routineP)
           ii=0
           DO idim=1,pint_env%ndim
             DO ib=1,pint_env%p
@@ -1294,10 +1262,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim, inos
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: e_h
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     CALL pint_x2u(pint_env)
@@ -1378,10 +1344,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: step
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     REAL(kind=dp)                            :: scal
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(pint_env%logger)
@@ -1459,7 +1424,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, ib, idim, inos, &
                                                 iresp
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dti, dti2, dti22, e_h, rn, &
                                                 tdti, time_start, time_stop, &
                                                 tol
@@ -1469,7 +1433,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
     time_start = m_walltime()
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
   rn=REAL(pint_env%nrespa,dp)
@@ -1672,10 +1635,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_uf_h', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (pint_env%transform == transformation_stage) THEN
       CALL staging_calc_uf_h(pint_env%staging_env,&
                              pint_env%mass_beads,&
@@ -1719,11 +1678,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(:), POINTER     :: my_e
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_x
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1769,11 +1725,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: res
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_uv
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1808,10 +1761,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: res, xcentroid
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
@@ -1847,10 +1797,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ib, idim, inos
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ekin, epot
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)

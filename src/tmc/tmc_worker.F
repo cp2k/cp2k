@@ -126,11 +126,10 @@ CONTAINS
     INTEGER                                  :: calc_stat, handle, i1, i2, &
                                                 ierr, itmp, num_dim, work_stat
     INTEGER, DIMENSION(:), POINTER           :: ana_restart_conf
-    LOGICAL                                  :: failure, flag, master
+    LOGICAL                                  :: flag, master
     TYPE(cp_para_env_type), POINTER          :: para_env_m_w
     TYPE(tree_type), POINTER                 :: conf
 
-    failure = .FALSE.
     master  = .FALSE.
     i1 = -1
     i2 = -1
@@ -803,12 +802,10 @@ CONTAINS
 
     INTEGER                                  :: handle, ierr, mol, ndim, &
                                                 nr_atoms
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(mol_new_list_type), POINTER         :: molecule_new
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(init_conf))
 
     ! start the timing
@@ -856,13 +853,11 @@ CONTAINS
 
     INTEGER                                  :: iparticle, nr_atoms, &
                                                 nunits_tot
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell_tmp
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure = .FALSE.
     NULLIFY (f_env, subsys, particles)
     nr_atoms = 0
 
@@ -904,13 +899,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: values
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY(results,subsys)
     CPASSERT(env_id.GT.0)
 
@@ -949,12 +942,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: description
-    LOGICAL                                  :: failure
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY(subsys,results)
     CPASSERT(env_id.GT.0)
 
@@ -992,19 +983,16 @@ CONTAINS
 !    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mimal_distances', &
 !      routineP = moduleN//':'//routineN
 !
-!    LOGICAL                                  :: failure
 !    TYPE(f_env_type), POINTER                :: f_env
 !
-!    CPPrecondition(env_id.GT.0,cp_failure_level,routineP,failure)
-!    CPPrecondition(.NOT.ASSOCIATED(rlist_lowsq),cp_failure_level,routineP,failure)
+!    CPASSERT(env_id.GT.0)
+!    CPASSERT(.NOT.ASSOCIATED(rlist_lowsq))
 !
 !    CALL f_env_get_from_id(env_id,f_env)
-!    IF (.NOT.failure) THEN
-!      IF(ASSOCIATED(f_env%force_env)) THEN
-!        IF(ASSOCIATED(f_env%force_env%fist_env)) THEN
-!          CALL fist_nonbond_env_get(f_env%force_env%fist_env%fist_nonbond_env, &
-!                 rlist_lowsq=rlist_lowsq)
-!        END IF
+!    IF(ASSOCIATED(f_env%force_env)) THEN
+!      IF(ASSOCIATED(f_env%force_env%fist_env)) THEN
+!        CALL fist_nonbond_env_get(f_env%force_env%fist_env%fist_nonbond_env, &
+!               rlist_lowsq=rlist_lowsq)
 !      END IF
 !    END IF
 !    

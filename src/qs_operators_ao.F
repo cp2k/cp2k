@@ -82,7 +82,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b
+    LOGICAL                                  :: found, new_atom_b
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -112,7 +112,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(cell,sab_orb,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
@@ -454,7 +453,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b
+    LOGICAL                                  :: found, new_atom_b
     REAL(KIND=dp)                            :: dab, rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -484,7 +483,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(cell,sab_all,qs_kind_set,particle_set,para_env)
     NULLIFY(logger)
@@ -849,8 +847,8 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, &
-                                                my_minimum_image, new_atom_b
+    LOGICAL                                  :: found, my_minimum_image, &
+                                                new_atom_b
     REAL(KIND=dp)                            :: alpha, dab, Lxo2, Lyo2, Lzo2, &
                                                 rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
@@ -877,7 +875,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
@@ -1128,9 +1125,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, &
-                                                my_minimum_image, my_soft, &
-                                                new_atom_b
+    LOGICAL                                  :: found, my_minimum_image, &
+                                                my_soft, new_atom_b
     REAL(KIND=dp)                            :: dab, Lxo2, Lyo2, Lzo2, rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
@@ -1156,7 +1152,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, particle_set)
     NULLIFY (sab_orb)
@@ -1403,9 +1398,9 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, my_minimum_image, &
-                                                my_soft, new_atom_b, &
-                                                op_der_found, op_found
+    LOGICAL                                  :: my_minimum_image, my_soft, &
+                                                new_atom_b, op_der_found, &
+                                                op_found
     REAL(KIND=dp)                            :: alpha, alpha_der, dab, Lxo2, &
                                                 Lyo2, Lzo2, rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc
@@ -1436,7 +1431,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(op))
     CPASSERT(ASSOCIATED(op_der))
     !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN

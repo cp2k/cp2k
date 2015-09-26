@@ -215,8 +215,8 @@ CONTAINS
                                                 jkind, natom, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: atenergy, failure, &
-                                                only_molecule, use_virial
+    LOGICAL                                  :: atenergy, only_molecule, &
+                                                use_virial
     REAL(KIND=dp)                            :: aab, dab, eab, ecore_overlap, &
                                                 f, fab, rab2, rootaab, zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
@@ -237,8 +237,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

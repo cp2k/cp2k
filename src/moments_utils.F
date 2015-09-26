@@ -72,7 +72,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: akind, ia, iatom, ikind
-    LOGICAL                                  :: do_molecule, failure
+    LOGICAL                                  :: do_molecule
     REAL(dp)                                 :: charge, mass, mass_low, mtot, &
                                                 ztot
     REAL(dp), DIMENSION(3)                   :: center, ria
@@ -85,7 +85,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     CPASSERT(PRESENT(ifirst).EQV.PRESENT(ilast))
     NULLIFY ( cell, particle_set, qs_kind_set, local_particles, para_env )
     IF (PRESENT(qs_env)) THEN

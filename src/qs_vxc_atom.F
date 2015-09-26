@@ -95,8 +95,8 @@ CONTAINS
                                                 natom, nr, nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: epr_xc, failure, gradient_f, &
-                                                lsd, paw_atom, tau_f
+    LOGICAL                                  :: epr_xc, gradient_f, lsd, &
+                                                paw_atom, tau_f
     REAL(dp)                                 :: density_cut, exc_h, exc_s, &
                                                 gradient_cut, &
                                                 my_adiabatic_rescale_factor, &
@@ -132,7 +132,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (atom_list)
     NULLIFY (qs_kind_set)
@@ -460,9 +459,9 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: local_loop_limit
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gradient_functional, &
-                                                lsd, lsd_singlets, &
-                                                my_do_tddft, paw_atom, tau_f
+    LOGICAL                                  :: gradient_functional, lsd, &
+                                                lsd_singlets, my_do_tddft, &
+                                                paw_atom, tau_f
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 rtot, tau_cut
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho1_h, rho1_s, rho_h, rho_s, &
@@ -499,7 +498,6 @@ CONTAINS
 
    CALL timeset(routineN,handle)
 
-   failure = .FALSE.
 
    NULLIFY(qs_kind_set, energy, para_env)
    NULLIFY(rho_h, rho_s, drho_h, drho_s, weight)
@@ -760,10 +758,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iso, ispin, na
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rad, urad
 
-   failure = .FALSE.
    CPASSERT(ASSOCIATED(r_h))
    CPASSERT(ASSOCIATED(r_s))
    CPASSERT(ASSOCIATED(rho_h))
@@ -776,8 +772,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(drho_h))
       CPASSERT(ASSOCIATED(drho_s))
    END IF
-
-   IF (failure) RETURN
 
    na = grid_atom%ng_sphere
    rad = grid_atom%rad(ir)
@@ -880,15 +874,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iso, ispin, na
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(trho_h))
     CPASSERT(ASSOCIATED(trho_s))
     CPASSERT(ASSOCIATED(tau_h))
     CPASSERT(ASSOCIATED(tau_s))
-
-    IF (failure) RETURN
 
     na = grid_atom%ng_sphere
     tau_h = 0.0_dp
@@ -944,7 +934,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: gg, gVg_h, gVg_s, matso_h, &
                                                 matso_s, vx
@@ -960,7 +949,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY (lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom)
 
@@ -1138,7 +1126,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: urad
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg, gVXCg_h, gVXCg_s, &
@@ -1158,7 +1145,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom)
 
@@ -1214,7 +1200,7 @@ CONTAINS
           CPASSERT(max_iso_not0_local.LE.max_iso_not0)
           CALL get_none0_cg_list(my_CG_dxyz,lmin(iset1),lmax(iset1),lmin(iset2),lmax(iset2),&
                                  max_s_harm,lmax_expansion,dcg_list,dcg_n_list,dmax_iso_not0_local)
-          !CPPrecondition(dmax_iso_not0_local.LE.dmax_iso_not0,cp_failure_level,routineP,failure)
+          !CPASSERT(dmax_iso_not0_local.LE.dmax_iso_not0)
 
           n2 = nsoset(lmax(iset2))
           DO ipgf1  = 1,npgf(iset1)
@@ -1318,21 +1304,18 @@ CONTAINS
 
                     !test reduce expansion local densities
                     CPASSERT(l<=lmax_expansion)
-                    IF(.NOT. failure) THEN
-
-                       DO ia = 1,na
-                          matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
-                                               gVXCg_h(ia,l)*&
-                                               harmonics%slm(ia,iso)*&
-                                               my_CG(iso1,iso2,iso)
-                          matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
-                                               gVXCg_s(ia,l)*&
-                                               harmonics%slm(ia,iso)*&
-                                               my_CG(iso1,iso2,iso)
-                       END DO ! ia
+                    DO ia = 1,na
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
+                                            gVXCg_h(ia,l)*&
+                                            harmonics%slm(ia,iso)*&
+                                            my_CG(iso1,iso2,iso)
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
+                                            gVXCg_s(ia,l)*&
+                                            harmonics%slm(ia,iso)*&
+                                            my_CG(iso1,iso2,iso)
+                    END DO ! ia
 
                     !test reduce expansion local densities
-                    END IF ! failure
 
                  END DO
 
@@ -1346,25 +1329,22 @@ CONTAINS
                     l = indso(1,iso1) + indso(1,iso2)
                     !test reduce expansion local densities
                     CPASSERT(l<=lmax_expansion)
-                    IF(.NOT. failure) THEN
+                    DO ia = 1,na
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
+                            (gVXGg_h(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
+                             gVXGg_h(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
+                             gVXGg_h(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
+                             harmonics%slm(ia,iso)
 
-                       DO ia = 1,na
-                          matso_h(iso1,iso2) = matso_h(iso1,iso2) + &
-                               (gVXGg_h(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
-                                gVXGg_h(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
-                                gVXGg_h(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
-                                harmonics%slm(ia,iso)
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
+                            (gVXGg_s(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
+                             gVXGg_s(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
+                             gVXGg_s(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
+                             harmonics%slm(ia,iso)
 
-                          matso_s(iso1,iso2) = matso_s(iso1,iso2) + &
-                               (gVXGg_s(1,ia,l)*my_CG_dxyz(1,iso1,iso2,iso)+&
-                                gVXGg_s(2,ia,l)*my_CG_dxyz(2,iso1,iso2,iso)+&
-                                gVXGg_s(3,ia,l)*my_CG_dxyz(3,iso1,iso2,iso))*&
-                                harmonics%slm(ia,iso)
-
-                       END DO ! ia
+                    END DO ! ia
 
                     !test reduce expansion local densities
-                    END IF ! failure
 
                  END DO ! icg
               END DO ! iso
@@ -1421,7 +1401,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dd, g1, g2, gg, gr, ww
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgr, dvth, dvts, matso_h, &
                                                 matso_s, vth, vts
@@ -1439,7 +1418,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(harmonics,grid_atom)
     CALL get_qs_kind(qs_kind,basis_set=orb_basis,&

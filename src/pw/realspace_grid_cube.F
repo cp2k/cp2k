@@ -57,12 +57,11 @@ CONTAINS
 
     INTEGER :: checksum, dest, gid, handle, i, I1, I2, I3, iat, ip, L1, L2, &
       L3, my_rank, my_stride(3), np, num_pe, rank(2), source, tag, U1, U2, U3
-    LOGICAL                                  :: failure, my_zero_tails
+    LOGICAL                                  :: my_zero_tails
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: buf
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_zero_tails = .FALSE.
     IF(PRESENT(zero_tails)) my_zero_tails = zero_tails
     my_stride=1
@@ -228,7 +227,6 @@ CPSourceFileRef,&
     INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
                                                 npoints, npoints_local, &
                                                 ubounds, ubounds_local
-    LOGICAL                                  :: failure
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
     TYPE(cp_logger_type), POINTER            :: logger
@@ -236,7 +234,6 @@ CPSourceFileRef,&
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     !get rs grids and parallel envnment

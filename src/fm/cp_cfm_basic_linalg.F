@@ -142,11 +142,9 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, b
     INTEGER                                  :: handle, mypcol, myprow
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_beta=CMPLX(0.0_dp,0.0_dp,dp)
     IF(PRESENT(beta)) my_beta=beta
     NULLIFY(a,b)
@@ -177,8 +175,7 @@ CONTAINS
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
             message="matrixes must be in the same blacs context"//&
-CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN
@@ -235,12 +232,10 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: handle, mypcol, myprow
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(a,b)
 
     CPASSERT(ASSOCIATED(matrix_a))
@@ -265,8 +260,7 @@ CPSourceFileRef,&
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
             message="matrices must be in the same blacs context"//&
-CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN
@@ -599,14 +593,12 @@ CPSourceFileRef,&
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: handle, info, my_n
-    LOGICAL                                  :: failure
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
     IF (PRESENT(n)) THEN
@@ -683,10 +675,9 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CHARACTER                                :: side_char, transa, unit_diag, &
                                                 uplo
     INTEGER                                  :: handle, m, n
-    LOGICAL                                  :: failure, invert
+    LOGICAL                                  :: invert
     COMPLEX(KIND=dp)                            :: al
 
-  failure=.FALSE.
 
   CALL timeset(routineN,handle)
   side_char='L'
@@ -763,14 +754,12 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CHARACTER                                :: unit_diag, uplo
     INTEGER                                  :: handle, info, ncol_global
-    LOGICAL                                  :: failure
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

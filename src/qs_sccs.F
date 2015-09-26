@@ -144,7 +144,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: lb, ub
     LOGICAL                                  :: append_cube, &
                                                 calculate_stress_tensor, &
-                                                failure, should_output
+                                                should_output
     REAL(KIND=dp) :: cavity_surface, cavity_volume, cell_volume, dphi2, dvol, &
       eps0, f, norm_drho2, polarisation_charge, rho_delta, rho_delta_avg, &
       rho_delta_max, rho_iter_new, tot_rho_elec, tot_rho_solute
@@ -173,8 +173,6 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(sccs_control_type), POINTER         :: sccs_control
     TYPE(section_vals_type), POINTER         :: input
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -978,7 +976,6 @@ CONTAINS
 
     INTEGER                                  :: border_points, handle, i
     INTEGER, DIMENSION(3)                    :: lb, n, ub
-    LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(2)            :: work_g1d
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
@@ -988,7 +985,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(f))
     CPASSERT(ASSOCIATED(pw_env))

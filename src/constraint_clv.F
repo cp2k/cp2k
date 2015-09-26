@@ -82,7 +82,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv_int', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -91,7 +90,6 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     NULLIFY(fixd_list)
-    failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list=colv_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, lcolv=lcolv )
@@ -118,11 +116,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_update_colv_int', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list=colv_list)
     ! Real update of the Shake target
@@ -524,11 +520,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iconst
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
                                                 fdotf_sum
 
-    failure = .FALSE.
     dtsqby2 = dt*dt*.5_dp
     dtby2   = dt*.5_dp
     IF (ishake==1) THEN
@@ -594,14 +588,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iconst, irep, n_rep
-    LOGICAL                                  :: do_update_colvar, explicit, &
-                                                failure
+    LOGICAL                                  :: do_update_colvar, explicit
     REAL(KIND=dp)                            :: clv_target, limit, &
                                                 new_clv_target, value
     TYPE(section_vals_type), POINTER         :: collective_sections
 
-    failure = .FALSE.
-    ! Update globally for restart
+! Update globally for restart
+
     collective_sections => section_vals_get_subs_vals(motion_section,"CONSTRAINT%COLLECTIVE")
     CALL section_vals_get(collective_sections, n_repetition=n_rep)
     IF (n_rep/=0) THEN
@@ -926,10 +919,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatm, ind
-    LOGICAL                                  :: failure, my_roll
+    LOGICAL                                  :: my_roll
     REAL(KIND=dp), DIMENSION(3)              :: f_roll
 
-    failure = .FALSE.
     my_roll = .FALSE.
     IF (PRESENT(roll)) THEN
        my_roll = roll
@@ -974,10 +966,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iatom
-    LOGICAL                                  :: failure, my_roll
+    LOGICAL                                  :: my_roll
     REAL(KIND=dp), DIMENSION(3)              :: tmp1, tmp2, tmp3
 
-    failure = .FALSE.
     my_roll = .FALSE.
     IF (PRESENT(roll)) THEN
        my_roll = roll
@@ -1028,11 +1019,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatm, ind
-    LOGICAL                                  :: failure, my_roll
+    LOGICAL                                  :: my_roll
     REAL(KIND=dp)                            :: tmp(3)
     REAL(KIND=dp), DIMENSION(3)              :: f_roll, pos, v_roll
 
-    failure = .FALSE.
     my_roll = .FALSE.
     IF (PRESENT(roll)) THEN
        my_roll = roll

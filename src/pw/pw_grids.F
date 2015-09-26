@@ -120,9 +120,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_local
+    LOGICAL                                  :: my_local
 
-    failure =.FALSE.
     my_local=.FALSE.
     IF (PRESENT(local)) my_local = local
     CPASSERT(.NOT.ASSOCIATED(pw_grid))
@@ -238,9 +237,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pw_grid_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(pw_grid%ref_count>0)
 
     IF ( PRESENT(id_nr) ) id_nr = pw_grid%id_nr
@@ -284,9 +280,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_pw_grid_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(pw_grid%ref_count>0)
 
     IF ( PRESENT(grid_span) ) THEN
@@ -481,12 +474,10 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: nmapl, nmapm, nmapn, npts, &
                                                 pmapl, pmapm, pmapn
     INTEGER, DIMENSION(:, :), POINTER        :: g_hat, g_hatmap, yzq
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     ! some checks
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pw_grid))
     CPASSERT(pw_grid%ref_count>0)
 
@@ -598,14 +589,12 @@ CONTAINS
 
     INTEGER                                  :: handle, ires, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ecut
 
 !------------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pw_grid))
     CPASSERT(pw_grid%ref_count>0)
 
@@ -1539,13 +1528,11 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
                                                 n_upperlimit, nn
     INTEGER(KIND=int_8)                      :: gpt_global
     INTEGER, DIMENSION(2, 3)                 :: bol, bounds
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: length, length_x, length_y, &
                                                 length_z
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     bounds = pw_grid % bounds
     lby = pw_grid % bounds ( 1, 2 )
@@ -1859,14 +1846,13 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
                                                 it, ng, ngr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: idx
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: int_tmp
-    LOGICAL                                  :: failure, g_found
+    LOGICAL                                  :: g_found
     REAL(KIND=dp)                            :: gig, gigr
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: real_tmp
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ng = SIZE ( pw_grid % gsq  )
     ALLOCATE ( idx ( ng ))
@@ -2044,7 +2030,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     REAL(KIND=dp), PARAMETER                 :: small = 5.e-16_dp
 
     INTEGER                                  :: handle, ig, ng, s1, s2
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: s_begin
 
     CALL timeset(routineN,handle)
@@ -2052,7 +2037,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 ! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
 ! might need to call lapack for machine precision.
 
-    failure = .FALSE.
 
     ng = SIZE ( gsq )
     s_begin = -1.0_dp
@@ -2094,10 +2078,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     INTEGER                                  :: i, ii, n1, n2, n3, ns
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indl
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: slen
-
-    failure = .FALSE.
 
     IF ( s2 <= s1 ) RETURN
     ns = s2 - s1 + 1
@@ -2144,9 +2125,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     INTEGER                                  :: gpt, handle, i, ip, is, j, m, &
                                                 n, ny, nz
     INTEGER, DIMENSION(:), POINTER           :: mapm, mapn
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF ( pw_grid % para % mode == PW_MODE_LOCAL ) RETURN
 
@@ -2269,10 +2247,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(pw_grid))
     CPASSERT(pw_grid%ref_count>0)
     pw_grid%ref_count=pw_grid%ref_count+1
@@ -2298,10 +2272,6 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     INTEGER, POINTER :: dummy_ptr
     INTEGER          :: stat
 #endif
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(pw_grid)) THEN
        CPASSERT(pw_grid%ref_count>0)

@@ -107,11 +107,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     IF(qmmm_env%image_charge_pot%coeff_iterative) THEN
        !calculate preconditioner matrix for CG if necessary
@@ -168,14 +166,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, natom
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eta, V0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pot_const
 
     CALL timeset(routineN,handle)
 
     NULLIFY(pot_const)
-    failure=.FALSE.
     
     !minus sign V0: account for the fact that v_hartree has the opposite sign
     V0=-qmmm_env%image_charge_pot%V0
@@ -229,7 +225,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iter_steps, natom, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, eta, rsnew, rsold, V0
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Ad, d, pot_const, r, &
                                                 vmetal_const, z
@@ -241,7 +236,6 @@ CONTAINS
     CALL timeset(routineN,handle)
    
     NULLIFY(pot_const,vmetal_const,logger,input)
-    failure=.FALSE.
     logger => cp_get_default_logger()
    
     !minus sign V0: account for the fact that v_hartree has the opposite sign
@@ -486,7 +480,7 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, j, &
                                                 natom, npme
     INTEGER, DIMENSION(:), POINTER           :: cores
-    LOGICAL                                  :: failure, use_virial
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
@@ -502,7 +496,6 @@ CONTAINS
    
     NULLIFY(cores,hab,pab,cell,auxbas_rs_desc,pw_env,para_env,&
            dft_control,rs_v,virial)
-    failure=.FALSE.
     use_virial=.FALSE.
    
     ALLOCATE (hab(1,1))
@@ -651,7 +644,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, iatom_ref, j, &
                                                 k, natom, output_unit, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -665,7 +657,6 @@ CONTAINS
    
     NULLIFY(pw_env, auxbas_pw_pool, poisson_env, para_env, int_res,&
             input, logger)
-    failure=.FALSE.
     logger => cp_get_default_logger()
    
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
@@ -790,7 +781,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: en_external, &
                                                 en_vmetal_rhohartree, &
                                                 total_rho_metal
@@ -802,7 +792,6 @@ CONTAINS
     CALL timeset(routineN,handle)
    
     NULLIFY(pw_env,auxbas_pw_pool,poisson_env)
-    failure=.FALSE.
     en_vmetal_rhohartree=0.0_dp
     en_external=0.0_dp
    
@@ -868,14 +857,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
    
     NULLIFY(input,logger)
-    failure=.FALSE.
     logger => cp_get_default_logger()
    
     !add image charge potential
@@ -912,7 +899,6 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, rst_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: print_key, qmmm_section
@@ -921,7 +907,6 @@ CONTAINS
 
     NULLIFY(qmmm_section, print_key, logger, para_env)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     rst_unit = -1
 
     CALL get_qs_env(qs_env=qs_env,para_env=para_env,&
@@ -976,7 +961,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: image_filename
     INTEGER                                  :: handle, natom, output_unit, &
                                                 rst_unit
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: qmmm_section
@@ -985,7 +970,6 @@ CONTAINS
 
     NULLIFY(qmmm_section, logger, para_env)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     exist= .FALSE.
     rst_unit=-1
 

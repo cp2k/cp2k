@@ -74,9 +74,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, n, nkind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(qs_force)) CALL deallocate_qs_force(qs_force)
 
     nkind = SIZE(natom_of_kind)
@@ -131,9 +129,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_force))
 
     nkind = SIZE(qs_force)
@@ -256,9 +252,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_force))
 
     DO ikind=1,SIZE(qs_force)
@@ -313,12 +307,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, iatom, ikind, natom_kind
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
 !   ------------------------------------------------------------------------
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_force))
 
     SELECT CASE (forcetype)

@@ -117,14 +117,12 @@ CONTAINS
 
     INTEGER                                  :: npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: e_0, e_ndrho, e_rho, &
                                                 norm_drho, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    failure=.FALSE.
     NULLIFY(bo,e_0, e_ndrho, e_rho, norm_drho, rho)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -200,7 +198,6 @@ CONTAINS
       gamma_css = 0.200_dp, gamma_xss = 0.004_dp
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: cx_vwn_e, cx_vwn_v, dgcabddrho, dgcabdrho, dgcabds, &
       dgcssddrho, dgcssdrho, dgcssds, dgdrs, dgxssddrho, dgxssdrho, dgxssds, &
       drho, drhos, drsdrho, ecab, ecss, exss, g, gcab, gcss, gs2, gxss, &
@@ -208,7 +205,6 @@ CONTAINS
       s2, two13, u, vcab, vcss, vxss, x, y
     REAL(KIND=dp), DIMENSION(0:4)            :: ccab, ccss, cxss
 
-    failure=.FALSE.
     cx_vwn_e = -0.75_dp*(3.0_dp/pi)**f13
     cx_vwn_v = f43*cx_vwn_e
     rsfac = (f43*pi)**(-f13)

@@ -255,9 +255,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_all_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -281,9 +278,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_fist_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -312,9 +306,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_local_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -342,9 +333,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gth_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) CALL deallocate_potential(potential)
 
     ALLOCATE (potential)
@@ -388,9 +376,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_all_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        DEALLOCATE (potential%elec_conf)
        DEALLOCATE (potential)
@@ -413,9 +398,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fist_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(potential)) THEN
        ! Nothing exciting here yet.
        DEALLOCATE (potential)
@@ -438,10 +420,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_local_potential', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(potential)) THEN
 
@@ -475,10 +453,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gth_potential', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(potential)) THEN
 
@@ -1101,7 +1075,7 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
     INTEGER                                  :: irep, l, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(KIND=dp)                            :: alpha, r
     TYPE(cp_parser_type), POINTER            :: parser
@@ -1112,7 +1086,6 @@ CONTAINS
     symbol2 = ""
     apname2 = ""
     NULLIFY(parser)
-    failure = .FALSE.
     CALL cite_reference(Krack2000)
 
     potential%name = potential_name
@@ -1280,7 +1253,7 @@ CONTAINS
     CHARACTER(LEN=LEN(potential_name)+2)     :: apname2
     INTEGER                                  :: igau, ipol, irep, l, ngau, &
                                                 npol, strlen1, strlen2
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cval
@@ -1292,7 +1265,6 @@ CONTAINS
     symbol2 = ""
     apname2 = ""
     NULLIFY(parser,alpha,cval)
-    failure = .FALSE.
 
     potential%name = potential_name
     read_from_input = .FALSE.
@@ -1463,7 +1435,7 @@ CONTAINS
     INTEGER :: i, ic, ipot, irep, istr, j, l, lppnl, lprj_ppnl_max, maxlppl, &
       n, nppnl, nprj_ppnl, nprj_ppnl_max, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: elec_conf
-    LOGICAL                                  :: failure, found, is_ok, match, &
+    LOGICAL                                  :: found, is_ok, match, &
                                                 read_from_input
     REAL(KIND=dp)                            :: alpha, ci, r, rc2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_vals
@@ -1477,7 +1449,6 @@ CONTAINS
     symbol2 = ""
     apname2 = ""
     NULLIFY(parser,tmp_vals)
-    failure = .FALSE.
     CALL cite_reference(Goedecker1996)
     CALL cite_reference(Hartwigsen1998)
     CALL cite_reference(Krack2005)

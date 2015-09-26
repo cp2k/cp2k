@@ -111,7 +111,7 @@ CONTAINS
       row_blk_sizes
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(nexp_max)             :: nct
-    LOGICAL                                  :: failure, found, new_atom_pair
+    LOGICAL                                  :: found, new_atom_pair
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, radius
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
@@ -143,7 +143,6 @@ CONTAINS
       CALL timeset(routineN,handle)
     ENDIF
 
-    failure = .FALSE.
 
     NULLIFY(matrix_kg)
     IF (ASSOCIATED(kg_env%tnadd_mat)) THEN
@@ -231,7 +230,7 @@ CONTAINS
 !$OMP          radius, alpha, nct, imol, jmol, kmol,&
 !$OMP          npol, ngau, cval, ccval, ap_iterator, rac, dac, rbc, dbc, &
 !$OMP          set_radius_a,  rpgfa, force_a, force_b, ppl_fwork, mepos, &
-!$OMP          f0, failure, katom, ppl_work, atom_c,&
+!$OMP          f0, katom, ppl_work, atom_c,&
 !$OMP          ldai,tnadd_potential)
 
         mepos=0

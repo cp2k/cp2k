@@ -427,10 +427,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (.NOT.ASSOCIATED(logger)) CALL mp_abort(routineP//&
          " logger not associated")
     IF (logger%ref_count<1) CALL mp_abort(routineP//&
@@ -824,10 +820,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_generate_filename', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, loc
+    LOGICAL                                  :: loc
     TYPE(cp_logger_type), POINTER            :: lggr
 
-    failure=.FALSE.
     loc=.FALSE.
     res=' '
     lggr => logger

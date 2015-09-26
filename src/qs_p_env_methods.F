@@ -136,7 +136,6 @@ CONTAINS
 
     INTEGER                                  :: handle, n_ao, n_mo, n_spins, &
                                                 natom, spin
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -149,7 +148,6 @@ CONTAINS
 ! code
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools, matrix_s, dft_control, para_env, blacs_env)
     CALL get_qs_env(qs_env,&
                     matrix_s=matrix_s,&
@@ -326,14 +324,13 @@ CONTAINS
 
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, gapw_xc
+    LOGICAL                                  :: gapw_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
 
     CPASSERT(ASSOCIATED(p_env))
@@ -379,10 +376,6 @@ SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_did_change', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(p_env))
   CPASSERT(p_env%ref_count>0)
@@ -434,7 +427,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, lfomo, n_spins, nmo, &
                                                 output_unit, spin
-    LOGICAL                                  :: failure, was_present
+    LOGICAL                                  :: was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_ao
@@ -454,7 +447,6 @@ END SUBROUTINE p_env_did_change
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
          logger, input,lr_section, energy, matrix_ks, dft_control, rho_ao)
     logger => cp_get_default_logger()
@@ -663,12 +655,9 @@ END SUBROUTINE p_env_did_change
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_spins, spin
-    LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
 
 ! code
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(p_env))
     CPASSERT(p_env%ref_count>0)
@@ -709,7 +698,6 @@ END SUBROUTINE p_env_did_change
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: k_p
@@ -722,7 +710,6 @@ END SUBROUTINE p_env_did_change
 
     CALL timeset(routineN,handle)
     NULLIFY(tmp, matrix_ks, matrix_s, dft_control)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env, &
                     para_env=para_env,&
@@ -792,7 +779,7 @@ END SUBROUTINE p_env_did_change
 
     INTEGER                                  :: handle, ispin, n_spins
     INTEGER, SAVE                            :: iter = 0
-    LOGICAL                                  :: failure, gapw, gapw_xc
+    LOGICAL                                  :: gapw, gapw_xc
     REAL(KIND=dp)                            :: my_alpha, my_beta
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho1_ao
@@ -800,7 +787,6 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(dft_control, rho, rho1_ao)
 
     CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho)
@@ -874,7 +860,6 @@ END SUBROUTINE p_env_did_change
     INTEGER                                  :: cols, handle, max_cols, &
                                                 maxnmo, n_spins, nmo2, spin, &
                                                 v_cols, v_rows
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: maxmo_maxmo_fm_pool
     TYPE(cp_fm_struct_type), POINTER         :: maxmo_maxmo_fmstruct, &
                                                 tmp_fmstruct
@@ -885,7 +870,6 @@ END SUBROUTINE p_env_did_change
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(tmp_matrix,maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct,tmp_fmstruct,&
          dft_control)
@@ -979,7 +963,6 @@ END SUBROUTINE p_env_did_change
     INTEGER                                  :: cols, handle, max_cols, &
                                                 maxnmo, n_spins, nmo2, spin, &
                                                 v_cols, v_rows
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: maxmo_maxmo_fm_pool
     TYPE(cp_fm_struct_type), POINTER         :: maxmo_maxmo_fmstruct, &
                                                 tmp_fmstruct
@@ -990,7 +973,6 @@ END SUBROUTINE p_env_did_change
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(tmp_matrix,maxmo_maxmo_fm_pool, maxmo_maxmo_fmstruct,tmp_fmstruct,&
          dft_control)
 

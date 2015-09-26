@@ -67,13 +67,11 @@ CONTAINS
                                                 precond_kind
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, SAVE                            :: ifile = 0
-    LOGICAL                                  :: failure, pbc, &
-                                                safe_computation, success
+    LOGICAL                                  :: pbc, safe_computation, success
     REAL(kind=dp)                            :: eps_r, eps_x
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(pw_type), POINTER                   :: coeffs, values
 
-    failure=.FALSE.
     ifile=ifile+1
     CALL timeset(routineN,handle)
     CALL section_vals_val_get(param_section,"safe_computation", &
@@ -169,13 +167,10 @@ CONTAINS
                                                 precond_kind
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, SAVE                            :: ifile = 0
-    LOGICAL                                  :: failure, pbc, &
-                                                safe_computation, success
+    LOGICAL                                  :: pbc, safe_computation, success
     REAL(kind=dp)                            :: eps_r, eps_x
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(pw_type), POINTER                   :: coeffs
-
-    failure=.FALSE.
 
     ifile=ifile+1
     CALL timeset(routineN,handle)

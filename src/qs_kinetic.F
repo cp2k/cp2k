@@ -120,7 +120,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_forces, do_symmetric, &
-                                                dokp, failure, found, trans, &
+                                                dokp, found, trans, &
                                                 use_cell_mapping, use_virial
     REAL(KIND=dp)                            :: f0, ff, rab2, tab
     REAL(KIND=dp), ALLOCATABLE, &
@@ -147,8 +147,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
-
-     failure = .FALSE.
 
      CALL timeset(routineN,handle)
 

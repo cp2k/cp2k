@@ -129,11 +129,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 !   ------------------------------------------------------------------------
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(eip_env))
     CPASSERT(eip_env%ref_count>0)
@@ -154,11 +150,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 !   ------------------------------------------------------------------------
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(eip_env)) THEN
       CPASSERT(eip_env%ref_count>0)
@@ -261,15 +253,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
 
 !   ------------------------------------------------------------------------
-
-    failure = .FALSE.
 
     NULLIFY(atomic_kinds, particles, molecules_new, molecule_kinds_new)
 
@@ -380,15 +369,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
 
 !   ------------------------------------------------------------------------
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(eip_env))
     CPASSERT(eip_env%ref_count>0)
@@ -475,11 +461,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_clear', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 !   ------------------------------------------------------------------------
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(eip_env))
 
@@ -521,10 +503,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_env_create', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     ALLOCATE(eip_env)
 

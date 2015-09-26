@@ -83,8 +83,7 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
       my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure, has_pos, has_vel, &
-                                                my_dump_lm
+    LOGICAL                                  :: has_pos, has_vel, my_dump_lm
     REAL(KIND=dp)                            :: mydt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_pos, my_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -97,7 +96,6 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
@@ -255,7 +253,7 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
       my_lagrange_mult, my_log_unit, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure, has_vel, my_dump_lm
+    LOGICAL                                  :: has_vel, my_dump_lm
     REAL(KIND=dp)                            :: mydt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -267,8 +265,6 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(particle_list_type), POINTER        :: particles
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
@@ -382,19 +378,18 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iparticle
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: force(3), max_value, mod_force
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: rescale_force_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(force_env%ref_count>0)
     rescale_force_section => section_vals_get_subs_vals(force_env%force_env_section,"RESCALE_FORCES")
     CALL section_vals_get(rescale_force_section, explicit=explicit)
-    IF (.NOT.failure.AND.explicit) THEN
+    IF (explicit) THEN
        CALL section_vals_val_get(rescale_force_section,"MAX_FORCE",r_val=max_value)
        CALL force_env_get(force_env,subsys=subsys)
        CALL cp_subsys_get(subsys,particles=particles)
@@ -438,11 +433,8 @@ CONTAINS
     CHARACTER(LEN=27)                        :: fmtstr5
     CHARACTER(LEN=31)                        :: fmtstr1
     INTEGER                                  :: n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: eigval
     REAL(KIND=dp), DIMENSION(3, 3)           :: eigvec, stress_tensor
-
-    failure = .FALSE.
 
     IF (output_unit > 0) THEN
       CPASSERT(ASSOCIATED(cell))
@@ -521,9 +513,6 @@ CONTAINS
     CHARACTER(LEN=36)                        :: fmtstr2
     CHARACTER(LEN=46)                        :: fmtstr1
     INTEGER                                  :: i, ikind, iparticle, n
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (output_unit > 0) THEN
       CPASSERT(ASSOCIATED(particles))

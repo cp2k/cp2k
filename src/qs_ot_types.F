@@ -309,11 +309,9 @@ CONTAINS
 
     INTEGER                                  :: i, k, m_diis, my_ortho_k, n, &
                                                 ncoef, special_data_type
-    LOGICAL                                  :: failure, mixed_precision
+    LOGICAL                                  :: mixed_precision
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_para_env_type), POINTER          :: para_env
-
-    failure = .FALSE.
 
     CALL cite_reference(VandeVondele2003)
 
@@ -652,10 +650,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ot_destroy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     CALL cp_para_env_release( qs_ot_env%para_env)
     CALL cp_blacs_env_release( qs_ot_env%blacs_env)
 
@@ -761,9 +755,6 @@ CONTAINS
     INTEGER                                  :: handle, ls_method, &
                                                 ot_algorithm, ot_method, &
                                                 ot_ortho_irac
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

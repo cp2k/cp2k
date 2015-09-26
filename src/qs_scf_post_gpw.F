@@ -222,7 +222,7 @@ CONTAINS
       nlumo_stm, nlumo_tddft, nlumos, nmo, output_unit, unit_nr
     INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, &
-      do_stm, do_wannier_cubes, failure, has_homo, has_lumo, loc_explicit, &
+      do_stm, do_wannier_cubes, has_homo, has_lumo, loc_explicit, &
       loc_print_explicit, my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo
     REAL(dp)                                 :: e_kin
     REAL(KIND=dp)                            :: gap, homo_lumo(2,2)
@@ -271,7 +271,6 @@ CONTAINS
     ! Writes the data that is already available in qs_env
     CALL write_available_results(qs_env,scf_env)
 
-    failure=.FALSE.
     my_localized_wfn = .FALSE.
     NULLIFY(admm_env, dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
          mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo,qs_loc_env_lumo, scf_control, &
@@ -738,7 +737,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, mystate, ns, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: lstates, marked_states_spin
-    LOGICAL                                  :: do_homo, failure
+    LOGICAL                                  :: do_homo
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: scenter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_rmpv, matrix_s
@@ -752,7 +751,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: wc
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(mos, ks_rmpv, dft_control, loc_print_section, marked_states_spin,&
             matrix_s, molecule_set, scenter,wc)
     CALL get_qs_env(qs_env,mos=mos,matrix_ks=ks_rmpv,molecule_set=molecule_set,&
@@ -1038,8 +1036,7 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zphase
     INTEGER                                  :: handle, i, ikind, ispins, j, &
                                                 n_rep, reference, unit_nr
-    LOGICAL                                  :: do_berry, failure, &
-                                                first_time, ghost
+    LOGICAL                                  :: do_berry, first_time, ghost
     REAL(KIND=dp)                            :: charge_tot, theta, zeff, zwfc
     REAL(KIND=dp), DIMENSION(3)              :: ci, dipole, dipole_old, gvec, &
                                                 rcc, ria
@@ -1054,7 +1051,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     print_key => section_vals_get_subs_vals(input,"DFT%LOCALIZE%PRINT%TOTAL_DIPOLE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,first_time=first_time)&
          ,cp_p_file)) THEN
@@ -1517,13 +1513,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: do_et, failure
+    LOGICAL                                  :: do_et
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: my_mos
     TYPE(section_vals_type), POINTER         :: et_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     do_et=.FALSE.
     et_section =>  section_vals_get_subs_vals(input,"PROPERTIES%ET_COUPLING")
@@ -1570,8 +1565,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube, title
     INTEGER                                  :: handle, ispin, output_unit, &
                                                 unit_nr
-    LOGICAL                                  :: append_cube, do_elf, failure, &
-                                                gapw
+    LOGICAL                                  :: append_cube, do_elf, gapw
     REAL(dp)                                 :: rho_cutoff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_list_type), POINTER        :: particles
@@ -1584,7 +1578,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: elf_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     output_unit= cp_logger_get_default_io_unit(logger)
 
     do_elf=.FALSE.
@@ -1680,7 +1673,7 @@ CONTAINS
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: deriv_pw, drho_r_valid, &
-                                                failure, tau_r_valid
+                                                tau_r_valid
     REAL(kind=dp)                            :: cfermi, dum, elf_kernel, &
                                                 norm_drho, rho_53, udvol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -1702,7 +1695,6 @@ CONTAINS
 ! for spin restricted systems
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(rho_struct,rho_r, drho_g, drho_r, tau_r, tau_g, pw_env, auxbas_pw_pool, pw_pools,tmp_g, ks_env )
     NULLIFY(rho_struct_ao,rho_struct_r,tau_struct_r,drho_struct_r)
@@ -1987,7 +1979,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, ispin, nmo, &
                                                 output_unit
-    LOGICAL                                  :: all_equal, do_kpoints, failure
+    LOGICAL                                  :: all_equal, do_kpoints
     REAL(KIND=dp)                            :: maxocc, s_square, &
                                                 s_square_ideal, &
                                                 total_abs_spin_dens
@@ -2024,7 +2016,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, mo_coeff, &
          mo_coeff_deriv, mo_eigenvalues, mos, atomic_kind_set, qs_kind_set,&
          particle_set, rho, ks_rmpv, matrix_s, scf_control, dft_section, &
@@ -2199,9 +2190,9 @@ CONTAINS
       n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
       print_level, tile_npts, unit_nr
     LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
-      do_dirichlet_bc_cube, do_kpoints, failure, has_dirichlet_bc, &
-      has_implicit_ps, omit_headers, print_it, print_total_density, &
-      rho_r_valid, smooth, tile_cubes, write_ks, write_xc, xrd_interface
+      do_dirichlet_bc_cube, do_kpoints, has_dirichlet_bc, has_implicit_ps, &
+      omit_headers, print_it, print_total_density, rho_r_valid, smooth, &
+      tile_cubes, write_ks, write_xc, xrd_interface
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: x_glbl, x_locl, y_glbl, &
                                                 y_locl, z_glbl, z_locl
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
@@ -2249,7 +2240,6 @@ CONTAINS
                                                 print_key, xc_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, &
          atomic_kind_set, qs_kind_set, particle_set, rho, ks_rmpv, rho_ao, rho_r,&
          dft_section, xc_section, input, particles, subsys, matrix_vxc,v_hartree_rspace, vee)
@@ -2258,194 +2248,282 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CPASSERT(ASSOCIATED(qs_env))
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,&
-                       atomic_kind_set=atomic_kind_set,&
-                       qs_kind_set=qs_kind_set,&
-                       particle_set=particle_set,&
-                       cell=cell,&
-                       para_env=para_env,&
-                       dft_control=dft_control, &
-                       input=input,&
-                       do_kpoints=do_kpoints, &
-                       subsys=subsys)
-       dft_section => section_vals_get_subs_vals(input,"DFT")
-       CALL qs_subsys_get(subsys,particles=particles)
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    particle_set=particle_set,&
+                    cell=cell,&
+                    para_env=para_env,&
+                    dft_control=dft_control, &
+                    input=input,&
+                    do_kpoints=do_kpoints, &
+                    subsys=subsys)
+    dft_section => section_vals_get_subs_vals(input,"DFT")
+    CALL qs_subsys_get(subsys,particles=particles)
 
-       ! Print the total density (electronic + core charge)
-       CALL get_qs_env(qs_env,rho=rho)
-       CALL qs_rho_get(rho,rho_r=rho_r)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%TOT_DENSITY_CUBE"),cp_p_file)) THEN
-          NULLIFY(rho_core,rho0_s_gs)
-          append_cube = section_get_lval(input,"DFT%PRINT%TOT_DENSITY_CUBE%APPEND")
-          my_pos_cube="REWIND"
-          IF(append_cube) THEN
-            my_pos_cube="APPEND"
-          END IF
-
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
-               rho0_s_gs=rho0_s_gs)
-          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-               pw_pools=pw_pools)
-          CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE)
-          IF (dft_control%qs_control%gapw) THEN
-             CALL pw_transfer(rho0_s_gs%pw,wf_r%pw)
-             IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
-                CALL pw_axpy(rho_core%pw,wf_r%pw)
-             END IF
-          ELSE
-             CALL pw_transfer(rho_core%pw,wf_r%pw)
-          END IF
-          DO ispin=1,dft_control%nspins
-             CALL pw_axpy(rho_r(ispin)%pw,wf_r%pw)
-          END DO
-          filename = "TOTAL_DENSITY"
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
-               extension=".cube",middle_name=TRIM(filename),file_position=my_pos_cube,&
-               log_filename=.FALSE.)
-          CALL cp_pw_to_cube(wf_r%pw,unit_nr,"TOTAL DENSITY",&
-               particles=particles,&
-               stride=section_get_ivals(dft_section,"PRINT%TOT_DENSITY_CUBE%STRIDE"))
-          CALL cp_print_key_finished_output(unit_nr,logger,input,&
-               "DFT%PRINT%TOT_DENSITY_CUBE")
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
+    ! Print the total density (electronic + core charge)
+    CALL get_qs_env(qs_env,rho=rho)
+    CALL qs_rho_get(rho,rho_r=rho_r)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%TOT_DENSITY_CUBE"),cp_p_file)) THEN
+       NULLIFY(rho_core,rho0_s_gs)
+       append_cube = section_get_lval(input,"DFT%PRINT%TOT_DENSITY_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+         my_pos_cube="APPEND"
        END IF
 
-       ! Write cube file with electron density
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%E_DENSITY_CUBE"),cp_p_file)) THEN
-          CALL section_vals_val_get(dft_section,&
-                                    keyword_name="PRINT%E_DENSITY_CUBE%TOTAL_DENSITY",&
-                                    l_val=print_total_density)
-          append_cube = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%APPEND")
-          my_pos_cube="REWIND"
-          IF(append_cube) THEN
-            my_pos_cube="APPEND"
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,rho_core=rho_core,&
+            rho0_s_gs=rho0_s_gs)
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+            pw_pools=pw_pools)
+       CALL pw_pool_create_pw(auxbas_pw_pool,wf_r%pw,&
+            use_data = REALDATA3D,&
+            in_space = REALSPACE)
+       IF (dft_control%qs_control%gapw) THEN
+          CALL pw_transfer(rho0_s_gs%pw,wf_r%pw)
+          IF(dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
+             CALL pw_axpy(rho_core%pw,wf_r%pw)
           END IF
-          ! Write the info on core densities for the interface between cp2k and the XRD code
-          ! together with the valence density they are used to compute the form factor (Fourier transform)
-          xrd_interface = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%XRD_INTERFACE")
-          IF(xrd_interface) THEN
-             !cube file only contains soft density (GAPW)
-             IF(dft_control%qs_control%gapw) print_total_density = .FALSE.
+       ELSE
+          CALL pw_transfer(rho_core%pw,wf_r%pw)
+       END IF
+       DO ispin=1,dft_control%nspins
+          CALL pw_axpy(rho_r(ispin)%pw,wf_r%pw)
+       END DO
+       filename = "TOTAL_DENSITY"
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%TOT_DENSITY_CUBE",&
+            extension=".cube",middle_name=TRIM(filename),file_position=my_pos_cube,&
+            log_filename=.FALSE.)
+       CALL cp_pw_to_cube(wf_r%pw,unit_nr,"TOTAL DENSITY",&
+            particles=particles,&
+            stride=section_get_ivals(dft_section,"PRINT%TOT_DENSITY_CUBE%STRIDE"))
+       CALL cp_print_key_finished_output(unit_nr,logger,input,&
+            "DFT%PRINT%TOT_DENSITY_CUBE")
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,wf_r%pw)
+    END IF
 
-             filename = "ELECTRON_DENSITY"
-             unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                                            extension=".xrd",middle_name=TRIM(filename),&
-                                            file_position=my_pos_cube,log_filename=.FALSE.)
-             ngto = section_get_ival(input,"DFT%PRINT%E_DENSITY_CUBE%NGAUSS")
-             IF (output_unit>0) THEN
-                 INQUIRE (UNIT=unit_nr,NAME=filename)
-                 WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
-                     "The electron density (atomic part) is written to the file:",&
-                     TRIM(filename)
-             END IF
+    ! Write cube file with electron density
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+              "DFT%PRINT%E_DENSITY_CUBE"),cp_p_file)) THEN
+       CALL section_vals_val_get(dft_section,&
+                                 keyword_name="PRINT%E_DENSITY_CUBE%TOTAL_DENSITY",&
+                                 l_val=print_total_density)
+       append_cube = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+         my_pos_cube="APPEND"
+       END IF
+       ! Write the info on core densities for the interface between cp2k and the XRD code
+       ! together with the valence density they are used to compute the form factor (Fourier transform)
+       xrd_interface = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%XRD_INTERFACE")
+       IF(xrd_interface) THEN
+          !cube file only contains soft density (GAPW)
+          IF(dft_control%qs_control%gapw) print_total_density = .FALSE.
 
-             xc_section => section_vals_get_subs_vals(input,"DFT%XC")
-             nkind = SIZE(atomic_kind_set)
+          filename = "ELECTRON_DENSITY"
+          unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                         extension=".xrd",middle_name=TRIM(filename),&
+                                         file_position=my_pos_cube,log_filename=.FALSE.)
+          ngto = section_get_ival(input,"DFT%PRINT%E_DENSITY_CUBE%NGAUSS")
+          IF (output_unit>0) THEN
+              INQUIRE (UNIT=unit_nr,NAME=filename)
+              WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                  "The electron density (atomic part) is written to the file:",&
+                  TRIM(filename)
+          END IF
+
+          xc_section => section_vals_get_subs_vals(input,"DFT%XC")
+          nkind = SIZE(atomic_kind_set)
+          IF (unit_nr>0) THEN
+             WRITE(unit_nr,*) "Atomic (core) densities"
+             WRITE(unit_nr,*) "Unit cell"
+             WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(1,1),cell%hmat(1,2),cell%hmat(1,3)
+             WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(2,1),cell%hmat(2,2),cell%hmat(2,3)
+             WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(3,1),cell%hmat(3,2),cell%hmat(3,3)
+             WRITE(unit_nr,*) "Atomic types"
+             WRITE(unit_nr,*) nkind
+          END IF
+          ! calculate atomic density and core density
+          ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind))
+          DO ikind=1,nkind
+            atomic_kind => atomic_kind_set(ikind)
+            qs_kind     => qs_kind_set(ikind)
+            CALL get_atomic_kind(atomic_kind,name=name,element_symbol=element_symbol)
+            CALL calculate_atomic_density(ppdens(:,:,ikind),atomic_kind,qs_kind, ngto,&
+                                          iunit=output_unit, confine=.TRUE.)
+            CALL calculate_atomic_density(aedens(:,:,ikind),atomic_kind,qs_kind, ngto,&
+                        iunit=output_unit,allelectron=.TRUE.,confine=.TRUE.)
+            ccdens(:,1,ikind) = aedens(:,1,ikind)
+            ccdens(:,2,ikind) = 0._dp
+            CALL project_function_a(ccdens(1:ngto,2,ikind),ccdens(1:ngto,1,ikind),&
+                 ppdens(1:ngto,2,ikind),ppdens(1:ngto,1,ikind),0)
+            ccdens(:,2,ikind) = aedens(:,2,ikind) - ccdens(:,2,ikind)
+            IF (unit_nr>0) THEN
+               WRITE(unit_nr,FMT="(I6,A10,A20)") ikind,TRIM(element_symbol),TRIM(name)
+               WRITE(unit_nr,FMT="(I6)") ngto
+               WRITE(unit_nr,*) "   Total density"
+               WRITE(unit_nr,FMT="(2G24.12)") (aedens(i,1,ikind),aedens(i,2,ikind),i=1,ngto)
+               WRITE(unit_nr,*) "    Core density"
+               WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
+            END IF
+            NULLIFY(atomic_kind)
+          END DO
+
+          IF (dft_control%qs_control%gapw) THEN
+             CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set)
+
              IF (unit_nr>0) THEN
-                WRITE(unit_nr,*) "Atomic (core) densities"
-                WRITE(unit_nr,*) "Unit cell"
-                WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(1,1),cell%hmat(1,2),cell%hmat(1,3)
-                WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(2,1),cell%hmat(2,2),cell%hmat(2,3)
-                WRITE(unit_nr,FMT="(3F20.12)") cell%hmat(3,1),cell%hmat(3,2),cell%hmat(3,3)
-                WRITE(unit_nr,*) "Atomic types"
-                WRITE(unit_nr,*) nkind
+                WRITE(unit_nr,*) "Coordinates and GAPW density"
              END IF
-             ! calculate atomic density and core density
-             ALLOCATE(ppdens(ngto,2,nkind),aedens(ngto,2,nkind),ccdens(ngto,2,nkind))
-             DO ikind=1,nkind
-               atomic_kind => atomic_kind_set(ikind)
-               qs_kind     => qs_kind_set(ikind)
-               CALL get_atomic_kind(atomic_kind,name=name,element_symbol=element_symbol)
-               CALL calculate_atomic_density(ppdens(:,:,ikind),atomic_kind,qs_kind, ngto,&
-                                             iunit=output_unit, confine=.TRUE.)
-               CALL calculate_atomic_density(aedens(:,:,ikind),atomic_kind,qs_kind, ngto,&
-                           iunit=output_unit,allelectron=.TRUE.,confine=.TRUE.)
-               ccdens(:,1,ikind) = aedens(:,1,ikind)
-               ccdens(:,2,ikind) = 0._dp
-               CALL project_function_a(ccdens(1:ngto,2,ikind),ccdens(1:ngto,1,ikind),&
-                    ppdens(1:ngto,2,ikind),ppdens(1:ngto,1,ikind),0)
-               ccdens(:,2,ikind) = aedens(:,2,ikind) - ccdens(:,2,ikind)
-               IF (unit_nr>0) THEN
-                  WRITE(unit_nr,FMT="(I6,A10,A20)") ikind,TRIM(element_symbol),TRIM(name)
-                  WRITE(unit_nr,FMT="(I6)") ngto
-                  WRITE(unit_nr,*) "   Total density"
-                  WRITE(unit_nr,FMT="(2G24.12)") (aedens(i,1,ikind),aedens(i,2,ikind),i=1,ngto)
-                  WRITE(unit_nr,*) "    Core density"
-                  WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
-               END IF
-               NULLIFY(atomic_kind)
-             END DO
+             np = particles%n_els
+             DO iat=1,np
+                CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind)
+                CALL get_qs_kind(qs_kind_set(ikind), grid_atom=grid_atom)
+                rho_atom => rho_atom_set(iat)
+                IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
+                   nr = SIZE(rho_atom%rho_rad_h(1)%r_coef,1)
+                   niso = SIZE(rho_atom%rho_rad_h(1)%r_coef,2)
+                ELSE
+                   nr = 0
+                   niso = 0
+                ENDIF
+                CALL mp_sum(nr,para_env%group)
+                CALL mp_sum(niso,para_env%group)
 
-             IF (dft_control%qs_control%gapw) THEN
-                CALL get_qs_env(qs_env=qs_env,rho_atom_set=rho_atom_set)
-
+                ALLOCATE(bfun(nr,niso))
+                bfun = 0._dp
+                DO ispin = 1,dft_control%nspins
+                   IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
+                      bfun(:,:) = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
+                   END IF
+                END DO
+                CALL mp_sum(bfun,para_env%group)
+                ccdens(:,1,ikind) = ppdens(:,1,ikind)
+                ccdens(:,2,ikind) = 0._dp
                 IF (unit_nr>0) THEN
-                   WRITE(unit_nr,*) "Coordinates and GAPW density"
+                   WRITE(unit_nr,'(I10,I5,3f12.6)') iat,ikind,particles%els(iat)%r
                 END IF
+                DO iso=1,niso
+                   l = indso(1,iso)
+                   CALL project_function_b(ccdens(:,2,ikind),ccdens(:,1,ikind),bfun(:,iso),grid_atom,l)
+                   IF (unit_nr>0) THEN
+                      WRITE(unit_nr,FMT="(3I6)") iso,l,ngto
+                      WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
+                   END IF
+                END DO
+                DEALLOCATE(bfun)
+             END DO
+          ELSE
+             IF (unit_nr>0) THEN
+                WRITE(unit_nr,*) "Coordinates"
                 np = particles%n_els
                 DO iat=1,np
                    CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind)
-                   CALL get_qs_kind(qs_kind_set(ikind), grid_atom=grid_atom)
-                   rho_atom => rho_atom_set(iat)
-                   IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
-                      nr = SIZE(rho_atom%rho_rad_h(1)%r_coef,1)
-                      niso = SIZE(rho_atom%rho_rad_h(1)%r_coef,2)
-                   ELSE
-                      nr = 0
-                      niso = 0
-                   ENDIF
-                   CALL mp_sum(nr,para_env%group)
-                   CALL mp_sum(niso,para_env%group)
-
-                   ALLOCATE(bfun(nr,niso))
-                   bfun = 0._dp
-                   DO ispin = 1,dft_control%nspins
-                      IF(ASSOCIATED(rho_atom%rho_rad_h(1)%r_coef)) THEN
-                         bfun(:,:) = bfun + rho_atom%rho_rad_h(ispin)%r_coef - rho_atom%rho_rad_s(ispin)%r_coef
-                      END IF
-                   END DO
-                   CALL mp_sum(bfun,para_env%group)
-                   ccdens(:,1,ikind) = ppdens(:,1,ikind)
-                   ccdens(:,2,ikind) = 0._dp
-                   IF (unit_nr>0) THEN
-                      WRITE(unit_nr,'(I10,I5,3f12.6)') iat,ikind,particles%els(iat)%r
-                   END IF
-                   DO iso=1,niso
-                      l = indso(1,iso)
-                      CALL project_function_b(ccdens(:,2,ikind),ccdens(:,1,ikind),bfun(:,iso),grid_atom,l)
-                      IF (unit_nr>0) THEN
-                         WRITE(unit_nr,FMT="(3I6)") iso,l,ngto
-                         WRITE(unit_nr,FMT="(2G24.12)") (ccdens(i,1,ikind),ccdens(i,2,ikind),i=1,ngto)
-                      END IF
-                   END DO
-                   DEALLOCATE(bfun)
+                   WRITE(unit_nr,'(I10,I5,3f12.6)') iat,ikind,particles%els(iat)%r
                 END DO
-             ELSE
-                IF (unit_nr>0) THEN
-                   WRITE(unit_nr,*) "Coordinates"
-                   np = particles%n_els
-                   DO iat=1,np
-                      CALL get_atomic_kind(particles%els(iat)%atomic_kind,kind_number=ikind)
-                      WRITE(unit_nr,'(I10,I5,3f12.6)') iat,ikind,particles%els(iat)%r
-                   END DO
-                END IF
              END IF
-
-             DEALLOCATE(ppdens,aedens,ccdens)
-
-             CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                                               "DFT%PRINT%E_DENSITY_CUBE")
-
           END IF
-          IF (dft_control%qs_control%gapw.AND.print_total_density) THEN
-             ! total density in g-space not implemented for k-points
-             CPASSERT(.NOT.do_kpoints)
-             ! Print total electronic density
+
+          DEALLOCATE(ppdens,aedens,ccdens)
+
+          CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                                            "DFT%PRINT%E_DENSITY_CUBE")
+
+       END IF
+       IF (dft_control%qs_control%gapw.AND.print_total_density) THEN
+          ! total density in g-space not implemented for k-points
+          CPASSERT(.NOT.do_kpoints)
+          ! Print total electronic density
+          CALL get_qs_env(qs_env=qs_env,&
+                          pw_env=pw_env)
+          CALL pw_env_get(pw_env=pw_env,&
+                          auxbas_pw_pool=auxbas_pw_pool,&
+                          pw_pools=pw_pools)
+          CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                                 pw=rho_elec_rspace%pw,&
+                                 use_data=REALDATA3D,&
+                                 in_space=REALSPACE)
+          CALL pw_zero(rho_elec_rspace%pw)
+          CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
+                                 pw=rho_elec_gspace%pw,&
+                                 use_data=COMPLEXDATA1D,&
+                                 in_space=RECIPROCALSPACE)
+          CALL pw_zero(rho_elec_gspace%pw)
+          CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
+                                dr=dr,&
+                                vol=volume)
+          q_max = SQRT(SUM((pi/dr(:))**2))
+          CALL calculate_rhotot_elec_gspace(qs_env=qs_env,&
+                                            auxbas_pw_pool=auxbas_pw_pool,&
+                                            rhotot_elec_gspace=rho_elec_gspace,&
+                                            q_max=q_max,&
+                                            rho_hard=rho_hard,&
+                                            rho_soft=rho_soft)
+          rho_total = rho_hard + rho_soft
+          CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
+                                vol=volume)
+          CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
+          rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
+          filename = "TOTAL_ELECTRON_DENSITY"
+          unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                         extension=".cube",middle_name=TRIM(filename),&
+                                         file_position=my_pos_cube,log_filename=.FALSE.)
+          IF (output_unit>0) THEN
+             INQUIRE (UNIT=unit_nr,NAME=filename)
+             WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+               "The total electron density is written in cube file format to the file:",&
+               TRIM(filename)
+             WRITE (UNIT=output_unit,FMT="(/,(T2,A,F20.10))")&
+               "q(max) [1/Angstrom]              :",q_max/angstrom,&
+               "Soft electronic charge (G-space) :",rho_soft,&
+               "Hard electronic charge (G-space) :",rho_hard,&
+               "Total electronic charge (G-space):",rho_total,&
+               "Total electronic charge (R-space):",rho_total_rspace
+          END IF
+          CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"TOTAL ELECTRON DENSITY",&
+               particles=particles,&
+               stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
+          CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                                            "DFT%PRINT%E_DENSITY_CUBE")
+          ! Print total spin density for spin-polarized systems
+          IF (dft_control%nspins > 1) THEN
+             CALL pw_zero(rho_elec_gspace%pw)
+             CALL pw_zero(rho_elec_rspace%pw)
+             CALL calculate_rhotot_elec_gspace(qs_env=qs_env,&
+                                               auxbas_pw_pool=auxbas_pw_pool,&
+                                               rhotot_elec_gspace=rho_elec_gspace,&
+                                               q_max=q_max,&
+                                               rho_hard=rho_hard,&
+                                               rho_soft=rho_soft,&
+                                               fsign=-1.0_dp)
+             rho_total = rho_hard + rho_soft
+             CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
+             rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
+             filename = "TOTAL_SPIN_DENSITY"
+             unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                            extension=".cube",middle_name=TRIM(filename),&
+                                            file_position=my_pos_cube,log_filename=.FALSE.)
+             IF (output_unit>0) THEN
+                INQUIRE (UNIT=unit_nr,NAME=filename)
+                WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                  "The total spin density is written in cube file format to the file:",&
+                  TRIM(filename)
+                WRITE (UNIT=output_unit,FMT="(/,(T2,A,F20.10))")&
+                  "q(max) [1/Angstrom]                    :",q_max/angstrom,&
+                  "Soft part of the spin density (G-space):",rho_soft,&
+                  "Hard part of the spin density (G-space):",rho_hard,&
+                  "Total spin density (G-space)           :",rho_total,&
+                  "Total spin density (R-space)           :",rho_total_rspace
+             END IF
+             CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"TOTAL SPIN DENSITY",&
+                  particles=particles,&
+                  stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
+          END IF
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_gspace%pw)
+          CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_rspace%pw)
+       ELSE
+          IF (dft_control%nspins > 1) THEN
              CALL get_qs_env(qs_env=qs_env,&
                              pw_env=pw_env)
              CALL pw_env_get(pw_env=pw_env,&
@@ -2455,523 +2533,432 @@ CONTAINS
                                     pw=rho_elec_rspace%pw,&
                                     use_data=REALDATA3D,&
                                     in_space=REALSPACE)
-             CALL pw_zero(rho_elec_rspace%pw)
-             CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
-                                    pw=rho_elec_gspace%pw,&
-                                    use_data=COMPLEXDATA1D,&
-                                    in_space=RECIPROCALSPACE)
-             CALL pw_zero(rho_elec_gspace%pw)
-             CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
-                                   dr=dr,&
-                                   vol=volume)
-             q_max = SQRT(SUM((pi/dr(:))**2))
-             CALL calculate_rhotot_elec_gspace(qs_env=qs_env,&
-                                               auxbas_pw_pool=auxbas_pw_pool,&
-                                               rhotot_elec_gspace=rho_elec_gspace,&
-                                               q_max=q_max,&
-                                               rho_hard=rho_hard,&
-                                               rho_soft=rho_soft)
-             rho_total = rho_hard + rho_soft
-             CALL get_pw_grid_info(pw_grid=rho_elec_gspace%pw%pw_grid,&
-                                   vol=volume)
-             CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
-             rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
-             filename = "TOTAL_ELECTRON_DENSITY"
+             CALL pw_copy(rho_r(1)%pw,rho_elec_rspace%pw)
+             CALL pw_axpy(rho_r(2)%pw,rho_elec_rspace%pw)
+             filename = "ELECTRON_DENSITY"
              unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
                                             extension=".cube",middle_name=TRIM(filename),&
                                             file_position=my_pos_cube,log_filename=.FALSE.)
              IF (output_unit>0) THEN
                 INQUIRE (UNIT=unit_nr,NAME=filename)
                 WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
-                  "The total electron density is written in cube file format to the file:",&
+                  "The sum of alpha and beta density is written in cube file format to the file:",&
                   TRIM(filename)
-                WRITE (UNIT=output_unit,FMT="(/,(T2,A,F20.10))")&
-                  "q(max) [1/Angstrom]              :",q_max/angstrom,&
-                  "Soft electronic charge (G-space) :",rho_soft,&
-                  "Hard electronic charge (G-space) :",rho_hard,&
-                  "Total electronic charge (G-space):",rho_total,&
-                  "Total electronic charge (R-space):",rho_total_rspace
              END IF
-             CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"TOTAL ELECTRON DENSITY",&
+             CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"SUM OF ALPHA AND BETA DENSITY",&
+                  particles=particles,stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                                      "DFT%PRINT%E_DENSITY_CUBE")
+             CALL pw_copy(rho_r(1)%pw,rho_elec_rspace%pw)
+             CALL pw_axpy(rho_r(2)%pw,rho_elec_rspace%pw,alpha=-1.0_dp)
+             filename = "SPIN_DENSITY"
+             unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                            extension=".cube",middle_name=TRIM(filename),&
+                                            file_position=my_pos_cube,log_filename=.FALSE.)
+             IF (output_unit>0) THEN
+                INQUIRE (UNIT=unit_nr,NAME=filename)
+                WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                  "The spin density is written in cube file format to the file:",&
+                  TRIM(filename)
+             END IF
+             CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"SPIN DENSITY",&
                   particles=particles,&
                   stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                                                "DFT%PRINT%E_DENSITY_CUBE")
-             ! Print total spin density for spin-polarized systems
-             IF (dft_control%nspins > 1) THEN
-                CALL pw_zero(rho_elec_gspace%pw)
-                CALL pw_zero(rho_elec_rspace%pw)
-                CALL calculate_rhotot_elec_gspace(qs_env=qs_env,&
-                                                  auxbas_pw_pool=auxbas_pw_pool,&
-                                                  rhotot_elec_gspace=rho_elec_gspace,&
-                                                  q_max=q_max,&
-                                                  rho_hard=rho_hard,&
-                                                  rho_soft=rho_soft,&
-                                                  fsign=-1.0_dp)
-                rho_total = rho_hard + rho_soft
-                CALL pw_transfer(rho_elec_gspace%pw,rho_elec_rspace%pw,debug=.FALSE.)
-                rho_total_rspace = pw_integrate_function(rho_elec_rspace%pw,isign=-1)/volume
-                filename = "TOTAL_SPIN_DENSITY"
-                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                                               extension=".cube",middle_name=TRIM(filename),&
-                                               file_position=my_pos_cube,log_filename=.FALSE.)
-                IF (output_unit>0) THEN
-                   INQUIRE (UNIT=unit_nr,NAME=filename)
-                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
-                     "The total spin density is written in cube file format to the file:",&
-                     TRIM(filename)
-                   WRITE (UNIT=output_unit,FMT="(/,(T2,A,F20.10))")&
-                     "q(max) [1/Angstrom]                    :",q_max/angstrom,&
-                     "Soft part of the spin density (G-space):",rho_soft,&
-                     "Hard part of the spin density (G-space):",rho_hard,&
-                     "Total spin density (G-space)           :",rho_total,&
-                     "Total spin density (R-space)           :",rho_total_rspace
-                END IF
-                CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"TOTAL SPIN DENSITY",&
-                     particles=particles,&
-                     stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-             END IF
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_gspace%pw)
              CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_rspace%pw)
           ELSE
-             IF (dft_control%nspins > 1) THEN
-                CALL get_qs_env(qs_env=qs_env,&
-                                pw_env=pw_env)
-                CALL pw_env_get(pw_env=pw_env,&
-                                auxbas_pw_pool=auxbas_pw_pool,&
-                                pw_pools=pw_pools)
-                CALL pw_pool_create_pw(pool=auxbas_pw_pool,&
-                                       pw=rho_elec_rspace%pw,&
-                                       use_data=REALDATA3D,&
-                                       in_space=REALSPACE)
-                CALL pw_copy(rho_r(1)%pw,rho_elec_rspace%pw)
-                CALL pw_axpy(rho_r(2)%pw,rho_elec_rspace%pw)
-                filename = "ELECTRON_DENSITY"
-                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                                               extension=".cube",middle_name=TRIM(filename),&
-                                               file_position=my_pos_cube,log_filename=.FALSE.)
-                IF (output_unit>0) THEN
-                   INQUIRE (UNIT=unit_nr,NAME=filename)
-                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
-                     "The sum of alpha and beta density is written in cube file format to the file:",&
-                     TRIM(filename)
-                END IF
-                CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"SUM OF ALPHA AND BETA DENSITY",&
-                     particles=particles,stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-                CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                                         "DFT%PRINT%E_DENSITY_CUBE")
-                CALL pw_copy(rho_r(1)%pw,rho_elec_rspace%pw)
-                CALL pw_axpy(rho_r(2)%pw,rho_elec_rspace%pw,alpha=-1.0_dp)
-                filename = "SPIN_DENSITY"
-                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                                               extension=".cube",middle_name=TRIM(filename),&
-                                               file_position=my_pos_cube,log_filename=.FALSE.)
-                IF (output_unit>0) THEN
-                   INQUIRE (UNIT=unit_nr,NAME=filename)
-                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
-                     "The spin density is written in cube file format to the file:",&
-                     TRIM(filename)
-                END IF
-                CALL cp_pw_to_cube(rho_elec_rspace%pw,unit_nr,"SPIN DENSITY",&
-                     particles=particles,&
-                     stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-                CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                                                  "DFT%PRINT%E_DENSITY_CUBE")
-                CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_elec_rspace%pw)
-             ELSE
-                filename = "ELECTRON_DENSITY"
-                unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-                                               extension=".cube",middle_name=TRIM(filename),&
-                                               file_position=my_pos_cube,log_filename=.FALSE.)
-                IF (output_unit>0) THEN
-                   INQUIRE (UNIT=unit_nr,NAME=filename)
-                   WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
-                     "The electron density is written in cube file format to the file:",&
-                     TRIM(filename)
-                END IF
-                CALL cp_pw_to_cube(rho_r(1)%pw,unit_nr,"ELECTRON DENSITY",&
-                     particles=particles,&
-                     stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-                CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                                                  "DFT%PRINT%E_DENSITY_CUBE")
-             END IF ! nspins
-          END IF ! total density for GAPW
-       END IF ! print key
-
-
-       ! Print the hartree potential
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%V_HARTREE_CUBE"),cp_p_file)) THEN
-
-          CALL get_qs_env(qs_env=qs_env,&
-                          pw_env=pw_env,&
-                          v_hartree_rspace=v_hartree_rspace)
-          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-          CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
-                                  use_data = REALDATA3D,&
-                                  in_space = REALSPACE)
-
-          append_cube = section_get_lval(input,"DFT%PRINT%V_HARTREE_CUBE%APPEND")
-          my_pos_cube="REWIND"
-          IF(append_cube) THEN
-            my_pos_cube="APPEND"
-          END IF
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-          CALL pw_env_get(pw_env)
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
-               extension=".cube",middle_name="v_hartree",file_position=my_pos_cube)
-          udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
-
-          CALL pw_copy(v_hartree_rspace,aux_r%pw)
-          CALL pw_scale(aux_r%pw,udvol)
-
-          CALL cp_pw_to_cube(aux_r%pw,unit_nr,"HARTREE POTENTIAL",particles=particles,&
-               stride=section_get_ivals(dft_section,&
-               "PRINT%V_HARTREE_CUBE%STRIDE"))
-          CALL cp_print_key_finished_output(unit_nr,logger,input,&
-               "DFT%PRINT%V_HARTREE_CUBE")
-
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw)
-       ENDIF
-
-       ! Print the external potential
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE"),cp_p_file)) THEN
-          IF(dft_control%apply_external_potential)THEN
-             CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,vee=vee)
-             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-             CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
-                                  use_data = REALDATA3D,&
-                                  in_space = REALSPACE)
-
-             append_cube = section_get_lval(input,"DFT%PRINT%EXTERNAL_POTENTIAL_CUBE%APPEND")
-             my_pos_cube="REWIND"
-             IF(append_cube) THEN
-                my_pos_cube="APPEND"
+             filename = "ELECTRON_DENSITY"
+             unit_nr = cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
+                                            extension=".cube",middle_name=TRIM(filename),&
+                                            file_position=my_pos_cube,log_filename=.FALSE.)
+             IF (output_unit>0) THEN
+                INQUIRE (UNIT=unit_nr,NAME=filename)
+                WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A)")&
+                  "The electron density is written in cube file format to the file:",&
+                  TRIM(filename)
              END IF
-             CALL pw_env_get(pw_env)
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%EXTERNAL_POTENTIAL_CUBE",&
-                  extension=".cube",middle_name="ext_pot",file_position=my_pos_cube)
-
-             CALL pw_copy(vee%pw,aux_r%pw)
-
-             CALL cp_pw_to_cube(aux_r%pw,unit_nr,"EXTERNAL POTENTIAL",particles=particles,&
-                  stride=section_get_ivals(dft_section,&
-                  "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE"))
+             CALL cp_pw_to_cube(rho_r(1)%pw,unit_nr,"ELECTRON DENSITY",&
+                  particles=particles,&
+                  stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE")
+                                               "DFT%PRINT%E_DENSITY_CUBE")
+          END IF ! nspins
+       END IF ! total density for GAPW
+    END IF ! print key
 
-             CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw)
-          ENDIF
-       ENDIF
 
+    ! Print the hartree potential
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%V_HARTREE_CUBE"),cp_p_file)) THEN
 
-       ! Print the Electrical Field Components
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%EFIELD_CUBE"),cp_p_file)) THEN
+       CALL get_qs_env(qs_env=qs_env,&
+                       pw_env=pw_env,&
+                       v_hartree_rspace=v_hartree_rspace)
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
+                               use_data = REALDATA3D,&
+                               in_space = REALSPACE)
 
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       append_cube = section_get_lval(input,"DFT%PRINT%V_HARTREE_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+         my_pos_cube="APPEND"
+       END IF
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       CALL pw_env_get(pw_env)
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
+            extension=".cube",middle_name="v_hartree",file_position=my_pos_cube)
+       udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
+
+       CALL pw_copy(v_hartree_rspace,aux_r%pw)
+       CALL pw_scale(aux_r%pw,udvol)
+
+       CALL cp_pw_to_cube(aux_r%pw,unit_nr,"HARTREE POTENTIAL",particles=particles,&
+            stride=section_get_ivals(dft_section,&
+            "PRINT%V_HARTREE_CUBE%STRIDE"))
+       CALL cp_print_key_finished_output(unit_nr,logger,input,&
+            "DFT%PRINT%V_HARTREE_CUBE")
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw)
+    ENDIF
+
+    ! Print the external potential
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE"),cp_p_file)) THEN
+       IF(dft_control%apply_external_potential)THEN
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,vee=vee)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
           CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
-                                  use_data = REALDATA3D,&
-                                  in_space = REALSPACE)
-          CALL pw_pool_create_pw(auxbas_pw_pool,aux_g%pw,&
-                                  use_data = COMPLEXDATA1D,&
-                                  in_space = RECIPROCALSPACE)
+                               use_data = REALDATA3D,&
+                               in_space = REALSPACE)
 
-          append_cube = section_get_lval(input,"DFT%PRINT%EFIELD_CUBE%APPEND")
+          append_cube = section_get_lval(input,"DFT%PRINT%EXTERNAL_POTENTIAL_CUBE%APPEND")
           my_pos_cube="REWIND"
           IF(append_cube) THEN
-            my_pos_cube="APPEND"
+             my_pos_cube="APPEND"
           END IF
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env)
-          udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
-          DO id=1,3
-            unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%EFIELD_CUBE",&
-              extension=".cube",middle_name="efield_"//cdir(id),file_position=my_pos_cube)
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%EXTERNAL_POTENTIAL_CUBE",&
+               extension=".cube",middle_name="ext_pot",file_position=my_pos_cube)
 
-            CALL pw_transfer(v_hartree_rspace,aux_g%pw)
-            nd=0
-            nd(id)=1
-            CALL pw_derive(aux_g%pw,nd)
-            CALL pw_transfer(aux_g%pw,aux_r%pw)
-            CALL pw_scale(aux_r%pw,udvol)
+          CALL pw_copy(vee%pw,aux_r%pw)
 
-            CALL cp_pw_to_cube(aux_r%pw,&
-               unit_nr,"ELECTRIC FIELD",particles=particles,&
+          CALL cp_pw_to_cube(aux_r%pw,unit_nr,"EXTERNAL POTENTIAL",particles=particles,&
                stride=section_get_ivals(dft_section,&
-               "PRINT%EFIELD_CUBE%STRIDE"))
-            CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                 "DFT%PRINT%EFIELD_CUBE")
-          END DO
+               "PRINT%EXTERNAL_POTENTIAL_CUBE%STRIDE"))
+          CALL cp_print_key_finished_output(unit_nr,logger,input,&
+               "DFT%PRINT%EXTERNAL_POTENTIAL_CUBE")
 
           CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw)
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_g%pw)
-       END IF
-
-       ! Write the dielectric constant into a cube file
-       do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                                  "DFT%PRINT%DIELECTRIC_CUBE"),cp_p_file)
-       has_implicit_ps = .FALSE.
-       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-       IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
-
-       IF (has_implicit_ps .AND. do_dielectric_cube) THEN
-          append_cube = section_get_lval(input,"DFT%PRINT%DIELECTRIC_CUBE%APPEND")
-          my_pos_cube="REWIND"
-          IF(append_cube) THEN
-             my_pos_cube="APPEND"
-          END IF
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIELECTRIC_CUBE",&
-               extension=".cube", middle_name="DIELCTRIC_CONSTANT", file_position=my_pos_cube)
-          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-
-          CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r%pw)
-
-          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIELECTRIC CONSTANT", particles=particles,&
-               stride=section_get_ivals(dft_section, "PRINT%DIELECTRIC_CUBE%STRIDE"))
-          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIELECTRIC_CUBE")
-
-          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
        ENDIF
+    ENDIF
 
-       ! Write Dirichlet constraint charges into a cube file
-       do_cstr_charge_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                                  "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE"),cp_p_file)
-       has_implicit_ps = .FALSE.
-       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-       IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
 
-       IF (has_implicit_ps .AND. do_cstr_charge_cube) THEN
-          append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE%APPEND")
-          my_pos_cube="REWIND"
-          IF(append_cube) THEN
-             my_pos_cube="APPEND"
-          END IF
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE",&
-               extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube)
-          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
+    ! Print the Electrical Field Components
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%EFIELD_CUBE"),cp_p_file)) THEN
 
-          CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r%pw)
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
+                               use_data = REALDATA3D,&
+                               in_space = REALSPACE)
+       CALL pw_pool_create_pw(auxbas_pw_pool,aux_g%pw,&
+                               use_data = COMPLEXDATA1D,&
+                               in_space = RECIPROCALSPACE)
 
-          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles,&
-               stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"))
-          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE")
-
-          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-       ENDIF
-
-       ! Write Dirichlet type constranits into cube files
-       has_implicit_ps = .FALSE.
-       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-       IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
-
-       do_dirichlet_bc_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                                  "DFT%PRINT%DIRICHLET_BC_CUBE"),cp_p_file)
-       has_dirichlet_bc = .FALSE.
-       IF (has_implicit_ps) THEN
-          IF ((pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_PERIODIC_BC) .OR. &
-              (pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_BC)) THEN
-             has_dirichlet_bc = .TRUE.
-          END IF
+       append_cube = section_get_lval(input,"DFT%PRINT%EFIELD_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+         my_pos_cube="APPEND"
        END IF
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       CALL pw_env_get(pw_env)
+       udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
+       DO id=1,3
+         unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%EFIELD_CUBE",&
+           extension=".cube",middle_name="efield_"//cdir(id),file_position=my_pos_cube)
 
-       IF (has_implicit_ps .AND. has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
-          append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%APPEND")
-          my_pos_cube="REWIND"
-          IF(append_cube) THEN
-             my_pos_cube="APPEND"
-          END IF
-          tile_cubes = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%TILE_CUBES")
+         CALL pw_transfer(v_hartree_rspace,aux_g%pw)
+         nd=0
+         nd(id)=1
+         CALL pw_derive(aux_g%pw,nd)
+         CALL pw_transfer(aux_g%pw,aux_r%pw)
+         CALL pw_scale(aux_r%pw,udvol)
 
-          CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-          CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-          CALL pw_zero(aux_r%pw)
-          
-          IF (.NOT. tile_cubes) THEN
+         CALL cp_pw_to_cube(aux_r%pw,&
+            unit_nr,"ELECTRIC FIELD",particles=particles,&
+            stride=section_get_ivals(dft_section,&
+            "PRINT%EFIELD_CUBE%STRIDE"))
+         CALL cp_print_key_finished_output(unit_nr,logger,input,&
+              "DFT%PRINT%EFIELD_CUBE")
+       END DO
 
-             CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_g%pw)
+    END IF
 
-             NULLIFY(dirichlet_tile)
-             CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE)
-             CALL pw_zero(dirichlet_tile)
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
-                  extension=".cube", middle_name="DIRICHLET_CSTR", file_position=my_pos_cube)
+    ! Write the dielectric constant into a cube file
+    do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                               "DFT%PRINT%DIELECTRIC_CUBE"),cp_p_file)
+    has_implicit_ps = .FALSE.
+    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+    IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
 
-             n_cstr = SIZE(poisson_env%implicit_env%gates)
-             DO j = 1 , n_cstr
-                n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
-                smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
-                zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
-                IF (smooth) THEN
-                   DO i = 1, n_tiles
-                      CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
-                                   poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw,&
-                                   dirichlet_tile)
-                      CALL pw_axpy(dirichlet_tile, aux_r%pw)
-                   END DO
-                ELSE
-                   DO i = 1, n_tiles
-                      tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                      CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
-                                   dirichlet_tile)
-                      CALL pw_axpy(dirichlet_tile, aux_r%pw, REAL(tile_npts,kind=dp))
-                   END DO
-                END IF
-             END DO
+    IF (has_implicit_ps .AND. do_dielectric_cube) THEN
+       append_cube = section_get_lval(input,"DFT%PRINT%DIELECTRIC_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIELECTRIC_CUBE",&
+            extension=".cube", middle_name="DIELCTRIC_CONSTANT", file_position=my_pos_cube)
+       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
-             CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
-             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
-             CALL pw_pool_give_back_pw(auxbas_pw_pool, dirichlet_tile)
+       CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r%pw)
 
-          ELSE 
+       CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIELECTRIC CONSTANT", particles=particles,&
+            stride=section_get_ivals(dft_section, "PRINT%DIELECTRIC_CUBE%STRIDE"))
+       CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIELECTRIC_CUBE")
 
-             CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+    ENDIF
 
-             n_cstr = SIZE(poisson_env%implicit_env%gates)
-             DO j = 1 , n_cstr
-                n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
-                smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
-                zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
-                IF (smooth) THEN
-                   DO i = 1, n_tiles
-                      filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
-                                          "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
-                      unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
-                                   extension=".cube", middle_name=filename, file_position=my_pos_cube)
-   
-                      CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
-                                   poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r%pw)
-   
-                      CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
-                      CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
-                   END DO
-                ELSE
-                   DO i = 1, n_tiles
-                      filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
-                                          "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
-                      unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
-                                   extension=".cube", middle_name=filename, file_position=my_pos_cube)
-   
-                      tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                      CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
-                                   aux_r%pw)
-                      CALL pw_scale(aux_r%pw, REAL(tile_npts,kind=dp))
-   
-                      CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
-                      CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
-                   END DO
-                END IF
-             END DO
+    ! Write Dirichlet constraint charges into a cube file
+    do_cstr_charge_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                               "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE"),cp_p_file)
+    has_implicit_ps = .FALSE.
+    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+    IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
 
-          END IF
+    IF (has_implicit_ps .AND. do_cstr_charge_cube) THEN
+       append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE",&
+            extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube)
+       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
-          CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-       ENDIF
+       CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r%pw)
 
-       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
-       ! Write the density matrices
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/DENSITY"),cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
-                                    extension=".Log")
-          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-          CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
-          after = MIN(MAX(after,1),16)
-          DO ispin=1,dft_control%nspins
-             DO img=1,dft_control%nimages
-                CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin,img)%matrix,4,after,qs_env,&
-                                                  para_env,output_unit=iw,omit_headers=omit_headers)
-             END DO
+       CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles,&
+            stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"))
+       CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE")
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+    ENDIF
+
+    ! Write Dirichlet type constranits into cube files
+    has_implicit_ps = .FALSE.
+    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+    IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
+
+    do_dirichlet_bc_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                               "DFT%PRINT%DIRICHLET_BC_CUBE"),cp_p_file)
+    has_dirichlet_bc = .FALSE.
+    IF (has_implicit_ps) THEN
+       IF ((pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_PERIODIC_BC) .OR. &
+           (pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_BC)) THEN
+          has_dirichlet_bc = .TRUE.
+       END IF
+    END IF
+
+    IF (has_implicit_ps .AND. has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
+       append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
+       tile_cubes = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%TILE_CUBES")
+
+       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
+       CALL pw_zero(aux_r%pw)
+       
+       IF (.NOT. tile_cubes) THEN
+
+          CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
+
+          NULLIFY(dirichlet_tile)
+          CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE)
+          CALL pw_zero(dirichlet_tile)
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+               extension=".cube", middle_name="DIRICHLET_CSTR", file_position=my_pos_cube)
+
+          n_cstr = SIZE(poisson_env%implicit_env%gates)
+          DO j = 1 , n_cstr
+             n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
+             smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
+             zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
+             IF (smooth) THEN
+                DO i = 1, n_tiles
+                   CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
+                                poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw,&
+                                dirichlet_tile)
+                   CALL pw_axpy(dirichlet_tile, aux_r%pw)
+                END DO
+             ELSE
+                DO i = 1, n_tiles
+                   tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
+                   CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
+                                dirichlet_tile)
+                   CALL pw_axpy(dirichlet_tile, aux_r%pw, REAL(tile_npts,kind=dp))
+                END DO
+             END IF
           END DO
-          CALL cp_print_key_finished_output(iw,logger,input,&
-                                            "DFT%PRINT%AO_MATRICES/DENSITY")
-       END IF
 
-       ! Write the Kohn-Sham matrices
-       write_ks = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                        "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX"),cp_p_file)
-       write_xc = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                        "DFT%PRINT%AO_MATRICES/MATRIX_VXC"),cp_p_file)
-       ! we need to update stuff before writing, potentially computing the matrix_vxc
-       IF (write_ks.OR.write_xc) THEN
-          IF (write_xc) qs_env%requires_matrix_vxc = .TRUE.
-          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
-          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
-                                   just_energy=.FALSE.)
-          IF (write_xc) qs_env%requires_matrix_vxc = .FALSE.
-       END IF
+          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
+          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, dirichlet_tile)
 
-       ! Write the Kohn-Sham matrices
-       IF (write_ks) THEN
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-                                    extension=".Log")
-          CALL get_qs_env(qs_env=qs_env, matrix_ks_kp=ks_rmpv)
-          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-          after = MIN(MAX(after,1),16)
-          DO ispin=1,dft_control%nspins
-             DO img=1,dft_control%nimages
-                CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin,img)%matrix,4,after,qs_env,&
-                                                  para_env,output_unit=iw,omit_headers=omit_headers)
-             END DO
+       ELSE 
+
+          CALL setup_grid_axes(auxbas_pw_pool%pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
+
+          n_cstr = SIZE(poisson_env%implicit_env%gates)
+          DO j = 1 , n_cstr
+             n_tiles = poisson_env%implicit_env%gates(j)%dirichlet_bc%n_tiles
+             smooth = poisson_env%implicit_env%gates(j)%dirichlet_bc%smooth 
+             zeta = poisson_env%implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
+             IF (smooth) THEN
+                DO i = 1, n_tiles
+                   filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
+                                       "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+                                extension=".cube", middle_name=filename, file_position=my_pos_cube)
+   
+                   CALL pw_mollifier(auxbas_pw_pool, zeta, x_glbl, y_glbl, z_glbl, &
+                                poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r%pw)
+   
+                   CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
+                   CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
+                END DO
+             ELSE
+                DO i = 1, n_tiles
+                   filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
+                                       "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                   unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
+                                extension=".cube", middle_name=filename, file_position=my_pos_cube)
+   
+                   tile_npts = poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
+                   CALL pw_copy(poisson_env%implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw, &
+                                aux_r%pw)
+                   CALL pw_scale(aux_r%pw, REAL(tile_npts,kind=dp))
+   
+                   CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                                stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
+                   CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
+                END DO
+             END IF
           END DO
-          CALL cp_print_key_finished_output(iw,logger,input,&
-                                            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX")
+
        END IF
 
-       ! Write the xc matrix
-       IF (write_xc) THEN
-          CALL get_qs_env(qs_env=qs_env, matrix_vxc_kp=matrix_vxc)
-          CPASSERT(ASSOCIATED(matrix_vxc))
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
-                                    extension=".Log")
-          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-          after = MIN(MAX(after,1),16)
-          DO ispin=1,dft_control%nspins
-             DO img=1,dft_control%nimages
-                CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin,img)%matrix,4,after,qs_env,&
-                                                  para_env,output_unit=iw,omit_headers=omit_headers)
-             END DO
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+    ENDIF
+
+    CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
+    ! Write the density matrices
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+              "DFT%PRINT%AO_MATRICES/DENSITY"),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
+                                 extension=".Log")
+       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+       CALL qs_rho_get(rho, rho_ao_kp=rho_ao)
+       after = MIN(MAX(after,1),16)
+       DO ispin=1,dft_control%nspins
+          DO img=1,dft_control%nimages
+             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin,img)%matrix,4,after,qs_env,&
+                                               para_env,output_unit=iw,omit_headers=omit_headers)
           END DO
-          CALL cp_print_key_finished_output(iw,logger,input,&
-                                            "DFT%PRINT%AO_MATRICES/MATRIX_VXC")
-       END IF
+       END DO
+       CALL cp_print_key_finished_output(iw,logger,input,&
+                                         "DFT%PRINT%AO_MATRICES/DENSITY")
+    END IF
 
-       ! Compute the Mulliken charges
-       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN")
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
+    ! Write the Kohn-Sham matrices
+    write_ks = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                     "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX"),cp_p_file)
+    write_xc = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                     "DFT%PRINT%AO_MATRICES/MATRIX_VXC"),cp_p_file)
+    ! we need to update stuff before writing, potentially computing the matrix_vxc
+    IF (write_ks.OR.write_xc) THEN
+       IF (write_xc) qs_env%requires_matrix_vxc = .TRUE.
+       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE.,&
+                                just_energy=.FALSE.)
+       IF (write_xc) qs_env%requires_matrix_vxc = .FALSE.
+    END IF
+
+    ! Write the Kohn-Sham matrices
+    IF (write_ks) THEN
+       iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+                                 extension=".Log")
+       CALL get_qs_env(qs_env=qs_env, matrix_ks_kp=ks_rmpv)
+       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+       after = MIN(MAX(after,1),16)
+       DO ispin=1,dft_control%nspins
+          DO img=1,dft_control%nimages
+             CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(ispin,img)%matrix,4,after,qs_env,&
+                                               para_env,output_unit=iw,omit_headers=omit_headers)
+          END DO
+       END DO
+       CALL cp_print_key_finished_output(iw,logger,input,&
+                                         "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX")
+    END IF
+
+    ! Write the xc matrix
+    IF (write_xc) THEN
+       CALL get_qs_env(qs_env=qs_env, matrix_vxc_kp=matrix_vxc)
+       CPASSERT(ASSOCIATED(matrix_vxc))
+       iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/MATRIX_VXC",&
+                                 extension=".Log")
+       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+       after = MIN(MAX(after,1),16)
+       DO ispin=1,dft_control%nspins
+          DO img=1,dft_control%nimages
+             CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(ispin,img)%matrix,4,after,qs_env,&
+                                               para_env,output_unit=iw,omit_headers=omit_headers)
+          END DO
+       END DO
+       CALL cp_print_key_finished_output(iw,logger,input,&
+                                         "DFT%PRINT%AO_MATRICES/MATRIX_VXC")
+    END IF
+
+    ! Compute the Mulliken charges
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%MULLIKEN")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",extension=".mulliken",&
+                                    middle_name="",log_filename=.FALSE.)
+       print_level = 1
+       CALL section_vals_val_get(print_key,"PRINT_GOP",l_val=print_it)
+       IF (print_it) print_level = 2
+       CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it)
+       IF (print_it) print_level = 3
+       CALL mulliken_population_analysis(qs_env,unit_nr,print_level)
+       CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN")
+    END IF
+
+    ! Compute the Hirshfeld charges
+    print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSHFELD")
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
+       ! we check if real space density is available
+       NULLIFY(rho)
+       CALL get_qs_env(qs_env=qs_env,rho=rho)
+       CALL qs_rho_get(rho,rho_r_valid=rho_r_valid)
+       IF(rho_r_valid) THEN
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%HIRSHFELD",extension=".hirshfeld",&
                                        middle_name="",log_filename=.FALSE.)
-          print_level = 1
-          CALL section_vals_val_get(print_key,"PRINT_GOP",l_val=print_it)
-          IF (print_it) print_level = 2
-          CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it)
-          IF (print_it) print_level = 3
-          CALL mulliken_population_analysis(qs_env,unit_nr,print_level)
-          CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%MULLIKEN")
+          CALL hirshfeld_charges(qs_env,print_key,unit_nr)
+          CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%HIRSHFELD")
        END IF
-
-       ! Compute the Hirshfeld charges
-       print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSHFELD")
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-          ! we check if real space density is available
-          NULLIFY(rho)
-          CALL get_qs_env(qs_env=qs_env,rho=rho)
-          CALL qs_rho_get(rho,rho_r_valid=rho_r_valid)
-          IF(rho_r_valid) THEN
-             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%HIRSHFELD",extension=".hirshfeld",&
-                                          middle_name="",log_filename=.FALSE.)
-             CALL hirshfeld_charges(qs_env,print_key,unit_nr)
-             CALL cp_print_key_finished_output(unit_nr, logger,input,"DFT%PRINT%HIRSHFELD")
-          END IF
-       END IF
-
     END IF
 
     CALL timestop(handle)
@@ -2995,7 +2982,7 @@ CONTAINS
     INTEGER                                  :: i, iat, ikind, natom, nkind, &
                                                 nspin, refc, shapef
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_sc, failure, paw_atom
+    LOGICAL                                  :: do_sc, paw_atom
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -3014,8 +3001,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
-
-    failure = .FALSE.
 
     NULLIFY(hirshfeld_env)
     CALL create_hirshfeld_type(hirshfeld_env)
@@ -3111,11 +3096,8 @@ CONTAINS
 
     INTEGER                                  :: info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, tmat, v
-
-    failure = .FALSE.
 
     n = SIZE(ca)
     ALLOCATE(smat(n,n),tmat(n,n),v(n,1),ipiv(n))
@@ -3151,12 +3133,9 @@ CONTAINS
 
     INTEGER                                  :: i, info, n, nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: afun
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: smat, v
-
-    failure=.FALSE.
 
     n = SIZE(ca)
     nr = grid_atom%nr

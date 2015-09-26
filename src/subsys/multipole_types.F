@@ -76,12 +76,11 @@ CONTAINS
 
     INTEGER                                  :: i, ind2, iparticle, j, n_rep, &
                                                 nparticles
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     ALLOCATE(multipoles)
 
     last_multipole_id_nr=last_multipole_id_nr+1
@@ -169,9 +168,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_multipole_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure =.FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPASSERT(multipoles%ref_count>0)
        multipoles%ref_count=multipoles%ref_count-1
@@ -206,9 +202,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_multipole_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPASSERT(multipoles%ref_count>0)
        multipoles%ref_count=multipoles%ref_count+1

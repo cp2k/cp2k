@@ -78,7 +78,6 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
       natom, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rxyz
@@ -105,7 +104,6 @@ CONTAINS
 
     ekin = 0.0_dp
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     CPASSERT(ASSOCIATED(eip_env))
@@ -251,7 +249,6 @@ CONTAINS
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
       natom, nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rxyz
@@ -278,7 +275,6 @@ CONTAINS
 
     ekin = 0.0_dp
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     CPASSERT(ASSOCIATED(eip_env))

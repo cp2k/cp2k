@@ -61,11 +61,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_constraint_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="constraint",&
@@ -164,10 +161,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_rest_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY( keyword)
     CALL section_create(section,name="COLVAR_RESTART",&
@@ -198,10 +193,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_f_a_rest_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY( keyword)
     CALL section_create(section,name="FIX_ATOM_RESTART",&
@@ -230,11 +223,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'restraint_info_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     NULLIFY(subsection, keyword)
@@ -266,10 +256,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_collective_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="COLLECTIVE",&
@@ -359,10 +346,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fixed_atom_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="fixed_atoms",&
          description="This section is used to constraint the overall atomic position (X,Y,Z). In case "//&
@@ -463,10 +448,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_g3x3_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="g3x3",&
@@ -540,10 +522,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hbonds_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="HBONDS",&
@@ -613,10 +592,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_g4x6_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="g4x6",&
@@ -690,10 +666,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_vsite_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="virtual_site",&

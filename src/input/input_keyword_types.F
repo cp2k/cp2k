@@ -196,9 +196,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
-    LOGICAL                                  :: check, failure
-
-    failure=.FALSE.
+    LOGICAL                                  :: check
 
     CPASSERT(.NOT.ASSOCIATED(keyword))
     ALLOCATE(keyword)
@@ -215,7 +213,7 @@ CONTAINS
        END DO
     ELSE
        ALLOCATE(keyword%names(1))
-       IF (.not.failure) keyword%names(1)=name
+       keyword%names(1)=name
     END IF
     DO i=1,SIZE(keyword%names)
        CALL uppercase(keyword%names(i))
@@ -265,8 +263,7 @@ CONTAINS
             PRESENT(default_r_val).or.PRESENT(default_r_vals).OR.&
             PRESENT(default_c_val).OR.PRESENT(default_c_vals)),cp_failure_level,&
             cp_assertion_failed,routineP,&
-            "you should pass either default_val or a default value, not both",&
-            failure)
+            "you should pass either default_val or a default value, not both")
        keyword%default_value => default_val
        IF (ASSOCIATED(default_val%enum)) THEN
           IF (ASSOCIATED(keyword%enum)) THEN
@@ -298,14 +295,13 @@ CONTAINS
        ELSE
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "keyword "//TRIM(keyword%names(1))//&
-               " assumed undefined type by default",failure)
+               " assumed undefined type by default")
        END IF
     ELSE IF (PRESENT(type_of_var)) THEN
        CALL cp_assert(keyword%type_of_var==type_of_var,cp_failure_level,&
             cp_assertion_failed,routineP, &
             "keyword "//TRIM(keyword%names(1))//&
-            " has a type different from the type of the default_value",&
-            failure)
+            " has a type different from the type of the default_value")
        keyword%type_of_var=type_of_var
     END IF
 
@@ -319,21 +315,18 @@ CONTAINS
             PRESENT(lone_keyword_r_val).OR.PRESENT(lone_keyword_r_vals).OR.&
             PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals)),&
             cp_failure_level, cp_assertion_failed,routineP,&
-            "you should pass either lone_keyword_val or a lone_keyword value, not both",&
-            failure)
+            "you should pass either lone_keyword_val or a lone_keyword value, not both")
        keyword%lone_keyword_value => lone_keyword_val
        CALL val_retain(lone_keyword_val)
        IF (ASSOCIATED(lone_keyword_val%enum)) THEN
           IF (ASSOCIATED(keyword%enum)) THEN
              CALL cp_assert(keyword%enum%id_nr==lone_keyword_val%enum%id_nr, &
                   cp_failure_level,cp_assertion_failed,routineP, &
-                  "keyword%enum%id_nr==lone_keyword_val%enum%id_nr", &
-                  failure)
+                  "keyword%enum%id_nr==lone_keyword_val%enum%id_nr")
           ELSE
              IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
                 CALL cp_assert(.FALSE., cp_failure_level, cp_precondition_failed, &
-                     routineP, ".NOT. ASSOCIATED(keyword%lone_keyword_value)", &
-                     failure)
+                     routineP, ".NOT. ASSOCIATED(keyword%lone_keyword_value)")
              END IF
              keyword%enum => lone_keyword_val%enum
              CALL enum_retain(keyword%enum)
@@ -355,7 +348,7 @@ CONTAINS
           CALL cp_assert(keyword%lone_keyword_value%type_of_var==keyword%type_of_var,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "lone_keyword_value type incompatible with "//&
-               "keyword type",failure)
+               "keyword type")
           ! lc_val cannot have lone_keyword_value!
           IF (keyword%type_of_var==enum_t) THEN
              IF (keyword%enum%strict) THEN
@@ -364,8 +357,7 @@ CONTAINS
                    check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
                 END DO
                 CALL cp_assert(check,cp_failure_level,&
-                     cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1), &
-                     failure)
+                     cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1))
              ENDIF
           ENDIF
        END IF
@@ -386,7 +378,7 @@ CONTAINS
              END DO
              CALL cp_assert(check,cp_failure_level,&
                   cp_assertion_failed,routineP,"default value not in enumeration : "//&
-                  keyword%names(1),failure)
+                  keyword%names(1))
           ENDIF
           keyword%n_var=SIZE(keyword%default_value%i_val)
        CASE(real_t)
@@ -404,7 +396,7 @@ CONTAINS
     IF (PRESENT(n_var)) keyword%n_var=n_var
     CALL cp_assert(keyword%type_of_var/=lchar_t.or.keyword%n_var==1,cp_failure_level,&
          cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
-         //keyword%names(1),failure)
+         //keyword%names(1))
 
     IF (PRESENT(unit_str)) THEN
        CALL cp_unit_create(keyword%unit,unit_str)
@@ -422,9 +414,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
     keyword%ref_count=keyword%ref_count+1
@@ -441,9 +430,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     IF (ASSOCIATED(keyword)) THEN
        CPASSERT(keyword%ref_count>0)
        keyword%ref_count=keyword%ref_count-1
@@ -495,10 +481,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'keyword_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
     IF (PRESENT(names)) names => keyword%names
@@ -531,13 +513,10 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: c_string
     INTEGER                                  :: i, l
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
-    IF (.NOT. failure.AND.level>0.AND.(unit_nr>0)) THEN
+    IF (level>0.AND.(unit_nr>0)) THEN
        WRITE(unit_nr,"(a,a,a)") "                           ---",&
             TRIM(keyword%names(1)),"---"
        IF (level>1) THEN
@@ -670,9 +649,7 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: c_string, my_unit
     INTEGER                                  :: i, iref
-    LOGICAL                                  :: any_description, failure
-
-    failure=.FALSE.
+    LOGICAL                                  :: any_description
 
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
@@ -827,9 +804,7 @@ CONTAINS
     CHARACTER(LEN=3)                         :: repeats
     CHARACTER(LEN=8)                         :: short_string
     INTEGER                                  :: i, l0, l1, l2, l3, l4
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
 
@@ -1010,9 +985,7 @@ CONTAINS
 
     CHARACTER(LEN=LEN(matching_string(1)))   :: line
     INTEGER                                  :: i, imatch, imax, irank, j, k
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(keyword))
     CPASSERT(keyword%ref_count>0)
 

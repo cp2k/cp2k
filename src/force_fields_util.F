@@ -140,8 +140,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: Ainfo
     INTEGER                                  :: handle, iw, iw2, iw3, iw4, &
                                                 output_unit
-    LOGICAL                                  :: do_zbl, explicit, failure, &
-                                                fatal, ignore_fatal, my_qmmm
+    LOGICAL                                  :: do_zbl, explicit, fatal, &
+                                                ignore_fatal, my_qmmm
     REAL(KIND=dp)                            :: ewald_rcut, verlet_skin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     TYPE(amber_info_type), POINTER           :: amb_info
@@ -154,7 +154,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: charges_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     fatal   = .FALSE.
     ignore_fatal = ff_type%ignore_missing_critical
     NULLIFY(logger, Ainfo, charges_section, charges)
@@ -367,9 +366,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(array)) THEN
        IF (output_unit>0) THEN
           WRITE(output_unit,*)
@@ -433,7 +430,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: atmname, molname
     INTEGER                                  :: first, handle, iatom, imol, &
                                                 iw, j, jatom
-    LOGICAL                                  :: failure, shell_active
+    LOGICAL                                  :: shell_active
     REAL(KIND=dp)                            :: mass, mass_mol, mass_sum, &
                                                 qeff, qeff_mol, qeff_sum
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
@@ -444,7 +441,6 @@ CONTAINS
     TYPE(shell_kind_type), POINTER           :: shell
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -531,7 +527,7 @@ CONTAINS
       itorsion, iub, iw, j, k, nbend, nbond, newkind, ng3x3, ng4x6, nimpr, &
       nopbend, ntorsion, nub
     INTEGER, POINTER                         :: bad1(:), bad2(:)
-    LOGICAL                                  :: failure, unsetme, valid_kind
+    LOGICAL                                  :: unsetme, valid_kind
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set, &
                                                 new_bend_kind_set
@@ -566,7 +562,6 @@ CONTAINS
     TYPE(ub_type), DIMENSION(:), POINTER     :: new_ub_list, ub_list
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -1297,10 +1292,9 @@ CONTAINS
     INTEGER                                  :: i, ind, irep, isize, j, &
                                                 mydim, n_par, n_units, n_val, &
                                                 nblank
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val, my_val_tmp
 
-    failure = .FALSE.
     NULLIFY(my_var, my_par, my_val, my_par_tmp, my_val_tmp)
     NULLIFY (my_units)
     NULLIFY (my_units_tmp)

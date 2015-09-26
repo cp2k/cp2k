@@ -84,14 +84,12 @@ CONTAINS
     INTEGER :: handle, iatom, ikind, input_unit, istat, iw, natom, natomkind, &
       ncore, nmolecule, nmoleculekind, nshell
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ibuf, id_name
-    LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(root_section))
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(subsys_section))
@@ -359,7 +357,7 @@ CONTAINS
                                                 iparticle, istat, iw, nbuf, &
                                                 nparticle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ibuf
-    LOGICAL                                  :: exit_routine, failure
+    LOGICAL                                  :: exit_routine
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     TYPE(cp_logger_type), POINTER            :: logger
@@ -368,7 +366,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(root_section))
     CPASSERT(ASSOCIATED(subsys_section))
     logger => cp_get_default_logger()
@@ -579,7 +576,7 @@ CONTAINS
     INTEGER                                  :: handle, i, input_unit, &
                                                 iparticle, istat, iw, nbuf, &
                                                 nparticle
-    LOGICAL                                  :: failure, have_velocities
+    LOGICAL                                  :: have_velocities
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rbuf
     TYPE(cp_logger_type), POINTER            :: logger
@@ -587,7 +584,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY (logger)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(root_section))
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(subsys_section))
@@ -773,13 +769,12 @@ CONTAINS
     INTEGER                                  :: handle, i, idx, input_unit, &
                                                 istat, j, nhc_size, &
                                                 output_unit
-    LOGICAL                                  :: debug, failure
+    LOGICAL                                  :: debug
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rbuf
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(nhc))
     CPASSERT(ASSOCIATED(para_env))
 

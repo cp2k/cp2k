@@ -74,7 +74,6 @@ CONTAINS
                                                 mom_conserv_region, &
                                                 mom_conserv_type
     INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: delta_a(3), delta_f(3), &
                                                 mom_conserv_mass, total_f(3)
     TYPE(cp_subsys_type), POINTER            :: subsys_primary, &
@@ -90,7 +89,7 @@ CONTAINS
        CALL cp_assert(.NOT.require_consistent_energy_force,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "qmmmx_energy_and_forces got require_consistent_energy_force but force mixing is active. "//&
-            CPSourceFileRef,failure)
+            CPSourceFileRef)
     ENDIF
 
     ! Possibly translate the system

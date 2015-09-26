@@ -128,11 +128,10 @@ CONTAINS
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
 
     INTEGER                                  :: handle, ikey, ires, ispin
-    LOGICAL                                  :: failure, write_kp
+    LOGICAL                                  :: write_kp
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -197,14 +196,13 @@ CONTAINS
     INTEGER                                  :: handle, ic, ik, ikk, iogroup, &
                                                 is, mosource, nc, ns, &
                                                 request, tag
-    LOGICAL                                  :: failure, is_source, moalloc
+    LOGICAL                                  :: is_source, moalloc
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_inter_kp
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set, mop
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     ! first we dump the kpoint info
     IF (ires > 0) THEN
@@ -328,11 +326,9 @@ CONTAINS
       "REAL_TIME_PROPAGATION%PRINT%RESTART        "/)
 
     INTEGER                                  :: handle, ikey, ires
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -623,12 +619,11 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: group, handle, ispin, natom, &
                                                 nspin, restart_unit, source
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mo_array)
     restart_unit = -1
@@ -718,12 +713,11 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: group, handle, ispin, natom, &
                                                 nspin, restart_unit, source
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mo_array)
     restart_unit = -1
@@ -778,26 +772,25 @@ CONTAINS
 
     INTEGER                                  :: handle, ic, ik, ikk, is, jc, &
                                                 jk, js, nc, nkp, ns
-    LOGICAL                                  :: failure, is_source, moalloc
+    LOGICAL                                  :: is_source, moalloc
     REAL(KIND=dp)                            :: dd, wkp, xkp(3)
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set, mop
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     ! first we read the kpoint info
     IF (ires > 0) THEN
        READ (ires) 
        READ (ires) nkp
        CALL cp_assert(nkp==kpoints%nkp,cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Different number of kpoints",failure)
+                      "Different number of kpoints")
        DO ik=1,kpoints%nkp
           READ (ires) wkp,xkp(1:3)
           dd = ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
           CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",failure)
+                         "Different order/position of kpoints")
        END DO
     END IF
 
@@ -814,7 +807,7 @@ CONTAINS
           dd = ABS(ik-jk)
           dd = dd + ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
           CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints",failure)
+                         "Different order/position of kpoints")
        END IF
        is_source = .FALSE.
        IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
@@ -830,7 +823,7 @@ CONTAINS
                 IF (ires > 0) THEN
                    READ (ires) jc,js
                    CALL cp_assert((ic==jc .AND. is==js),cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position/type of kpoints",failure)
+                         "Different order/position/type of kpoints")
                 END IF
                 mo_set => mos(ic,is)%mo_set
                 CALL read_mo_set_basic(mo_set, ires)
@@ -1196,7 +1189,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mao, mmo, nao, nmo
-    LOGICAL                                  :: failure
 
     mao = mo_set%nao
     mmo = mo_set%nmo
@@ -1204,9 +1196,9 @@ CONTAINS
     IF ((ires>0).AND.(nmo > 0)) THEN
        READ (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
        CALL cp_assert(mao==nao,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different size of basis set",failure)
+                         "Different size of basis set")
        CALL cp_assert(mmo==nmo,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different number of MOs",failure)
+                         "Different number of MOs")
        READ (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
     END IF
     CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires)
@@ -1267,9 +1259,9 @@ CONTAINS
       scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: mo_index_range, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: failure, ionode, my_last, &
-                                                p_cart, p_eval, p_evec, &
-                                                p_occ, should_output
+    LOGICAL                                  :: ionode, my_last, p_cart, &
+                                                p_eval, p_evec, p_occ, &
+                                                should_output
     REAL(KIND=dp)                            :: gap
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1284,7 +1276,6 @@ CONTAINS
 
     logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
-    failure = .FALSE.
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval)
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ)

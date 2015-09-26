@@ -88,8 +88,8 @@ CONTAINS
 
     INTEGER :: handle, i_rep, ispin, mark_ind, mark_number, n_rep, &
       orig_mo_index, orig_spin_index, result_mo_index, result_spin_index
-    LOGICAL                                  :: explicit, failure, &
-                                                orig_is_virtual, overwrite_mos
+    LOGICAL                                  :: explicit, orig_is_virtual, &
+                                                overwrite_mos
     REAL(KIND=dp)                            :: orig_scale, orthonormality, &
                                                 result_scale
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_vector
@@ -99,7 +99,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: update_section, &
                                                 wfn_mix_section
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX")
     CALL section_vals_get(wfn_mix_section,explicit=explicit)

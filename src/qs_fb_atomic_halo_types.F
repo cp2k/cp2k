@@ -149,9 +149,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     CPASSERT(atomic_halo%obj%ref_count>0)
     atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
@@ -171,9 +168,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(atomic_halo%obj)) THEN
        CPASSERT(atomic_halo%obj%ref_count>0)
        atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
@@ -260,9 +254,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(atomic_halo%obj))
     ALLOCATE(atomic_halo%obj)
     atomic_halo%obj%owner_atom = 0
@@ -290,9 +281,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     ! if halo_atoms are associated, then deallocate and de-associate
     IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
@@ -341,9 +329,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     IF (PRESENT(owner_atom)) owner_atom = atomic_halo%obj%owner_atom
     IF (PRESENT(owner_id_in_halo)) owner_id_in_halo = atomic_halo%obj%owner_id_in_halo
@@ -391,9 +376,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halo%obj))
     IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
     IF (PRESENT(owner_id_in_halo)) atomic_halo%obj%owner_id_in_halo = owner_id_in_halo
@@ -424,9 +406,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_index
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(SIZE(atomic_halo%obj%halo_atoms) > 0)
     ALLOCATE(tmp_index(atomic_halo%obj%natoms))
     CALL sort(atomic_halo%obj%halo_atoms, atomic_halo%obj%natoms, tmp_index)
@@ -460,11 +440,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
     CPASSERT(atomic_halo%obj%sorted)
     iatom_halo = locate(atomic_halo%obj%halo_atoms, iatom_global)
     IF (iatom_halo == 0) THEN
@@ -498,10 +476,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom_global, iatom_halo, z
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    failure = .FALSE.
     nelectrons = 0
     IF (ASSOCIATED(atomic_halo%obj)) THEN
        DO iatom_halo = 1, atomic_halo%obj%natoms
@@ -598,12 +574,11 @@ CONTAINS
 
     INTEGER                                  :: iatom, ikind, jatom, jkind, &
                                                 natoms_global
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     REAL(KIND=dp)                            :: rij
     REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    failure = .FALSE.
     check_ok = .NOT. ASSOCIATED(halo_atoms)
     CPASSERT(check_ok)
 
@@ -655,9 +630,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     CPASSERT(atomic_halos%obj%ref_count>0)
     atomic_halos%obj%ref_count = atomic_halos%obj%ref_count + 1
@@ -678,9 +650,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(atomic_halos%obj)) THEN
        CPASSERT(atomic_halos%obj%ref_count>0)
        atomic_halos%obj%ref_count = atomic_halos%obj%ref_count - 1
@@ -772,9 +742,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(atomic_halos%obj))
     ALLOCATE(atomic_halos%obj)
     atomic_halos%obj%nhalos = 0
@@ -800,9 +767,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     ! if the arrays are associated, then deallocate and de-associate
     IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
@@ -837,9 +802,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     IF (PRESENT(nhalos)) nhalos = atomic_halos%obj%nhalos
     IF (PRESENT(max_nhalos)) max_nhalos = atomic_halos%obj%max_nhalos
@@ -870,9 +832,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ihalo
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atomic_halos%obj))
     IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
     IF (PRESENT(max_nhalos)) atomic_halos%obj%max_nhalos = max_nhalos
@@ -910,12 +870,11 @@ CONTAINS
                                                 nhalo_atoms, nhalos, &
                                                 owner_atom, print_unit
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
@@ -986,13 +945,11 @@ CONTAINS
 
     INTEGER :: ihalo, max_natoms, min_natoms, nhalo_atoms, nhalos, &
       total_n_halo_atoms, total_n_halos, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ave_natoms
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos
 
-    failure = .FALSE.
     NULLIFY(logger, halos)
     logger => cp_get_default_logger()
     unit_nr = cp_print_key_unit_nr(logger, scf_section, &

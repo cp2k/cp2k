@@ -93,9 +93,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
        nkind = SIZE(atomic_kind_set)
@@ -364,9 +362,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(atomic_kind)) THEN
 

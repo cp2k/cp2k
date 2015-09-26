@@ -170,7 +170,6 @@ CONTAINS
     INTEGER                                  :: handle, ii, non_coer, &
                                                 npoints, unit_nr
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -180,7 +179,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL cite_reference(tao2003)
@@ -290,7 +288,6 @@ CONTAINS
     INTEGER                                  :: handle, ii, non_coer, &
                                                 npoints, unit_nr
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
@@ -300,7 +297,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL cite_reference(tao2003)
@@ -445,7 +441,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: abs_grad_deriv, ii
-    LOGICAL                                  :: failure, t571, t639
+    LOGICAL                                  :: t571, t639
     REAL(kind=dp) :: A, A_1, A_2, A_s1, A_s1rho, A_s2, A_s2rho, alpha, &
       alpha_1_1, alpha_1_2, alphanorm_drho, alpharho, alphatau, Arho, b, &
       beta, beta_1_1, beta_1_2, beta_2_1, beta_2_2, beta_3_1, beta_3_2, &
@@ -479,8 +475,6 @@ CONTAINS
       t_s1rho, t_s2, t_s2norm_drho, t_s2rho, tau_w, tau_wnorm_drho, tau_wrho, &
       tildeq_b, tildeq_bnorm_drho, tildeq_brho, tildeq_btau, tnorm_drho, &
       trho, z, znorm_drho, zrho, ztau
-
-    failure=.FALSE.
 
     IF (.FALSE.) THEN
        ! useful for testing, we just hack in a well defined functional of tau, ndrho and rho
@@ -999,7 +993,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: abs_grad_deriv, ii
-    LOGICAL                                  :: failure, t784, t863
+    LOGICAL                                  :: t784, t863
     REAL(kind=dp) :: A, A_1, A_2, A_3, A_s1, A_s1rhoa, A_s2, A_s2rhob, &
       alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, alpha_sp1, &
       alpha_sp1norm_drhoa, alpha_sp1rhoa, alpha_sp1tau_a, alpha_sp2, &
@@ -1075,7 +1069,6 @@ CONTAINS
     err_taua=0._dp
     err_taub=0._dp
 
-    failure=.FALSE.
 
     kappa = 0.804e0_dp
     beta = 0.66725e-1_dp

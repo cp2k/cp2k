@@ -119,8 +119,7 @@ MODULE mp2_optimize_ri_basis
       iiter, ikind, ipgf, iset, ishell, j, local_unit_nr, max_l_am, &
       max_num_iter, ndof, nkind, number_groups, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_list_proc, index_table_RI
-    LOGICAL                                  :: failure, hess_up, &
-                                                open_shell_case, &
+    LOGICAL                                  :: hess_up, open_shell_case, &
                                                 reset_boundary
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: basis_was_assoc
     REAL(KIND=dp) :: DI, DI_new, DRI, DRI_new, Emp2_AA, Emp2_AA_Cou, &
@@ -147,7 +146,6 @@ MODULE mp2_optimize_ri_basis
       POINTER                                :: qs_kind_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     open_shell_case=.FALSE.
@@ -647,13 +645,11 @@ MODULE mp2_optimize_ri_basis
 
     INTEGER                                  :: handle, ideriv, ikind, iset, &
                                                 nseta
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: DI, DRI, Emp2_RI, &
                                                 new_basis_val, orig_basis_val
     REAL(KIND=dp), VOLATILE                  :: step, temp
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     step=eps
 
@@ -786,7 +782,6 @@ MODULE mp2_optimize_ri_basis
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: DI_AA, DI_AB, DI_BB, DRI_AA, &
                                                 DRI_AB, DRI_BB, Emp2_RI_AA, &
                                                 Emp2_RI_AB, Emp2_RI_BB
@@ -794,7 +789,6 @@ MODULE mp2_optimize_ri_basis
       DIMENSION(:, :, :)                     :: Lai, Lai_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL libint_ri_mp2(dimen,dimen_RI,homo,natom,mp2_biel,mp2_env,C,&
                        kind_of,RI_basis_parameter,RI_basis_info,basis_S0,index_table_RI,&
@@ -936,7 +930,6 @@ MODULE mp2_optimize_ri_basis
                                                 ipos_p, iset, la
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nf_per_l
     INTEGER, DIMENSION(ndof)                 :: change_expo
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: has_to_be_changed
     REAL(KIND=dp)                            :: expo, geom_fact, pmax
     REAL(KIND=dp), ALLOCATABLE, &
@@ -945,9 +938,8 @@ MODULE mp2_optimize_ri_basis
                                                 old_lower_B, old_max_dev, &
                                                 old_max_rel_dev, old_pnew
 
-    failure=.FALSE.
+! make a copy of the original parameters
 
-    ! make a copy of the original parameters
     old_pnew        = pnew
     old_lower_B     = lower_B
     old_max_dev     = max_dev
@@ -1110,12 +1102,9 @@ MODULE mp2_optimize_ri_basis
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a, b, i, ij_counter, j
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: t_iajb, t_iajb_RI
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_ab
-
-    failure=.FALSE.
 
     ALLOCATE(mat_ab(virtual,virtual_beta))
   
@@ -1176,9 +1165,6 @@ MODULE mp2_optimize_ri_basis
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ij_counter, j
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     elements_ij_proc=0
     ij_counter=-1
@@ -1252,7 +1238,7 @@ MODULE mp2_optimize_ri_basis
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: l_tab
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, nl
-    LOGICAL                                  :: external_num_of_func, failure
+    LOGICAL                                  :: external_num_of_func
     REAL(dp)                                 :: geom_fact
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: exponents, RI_exponents
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: exp_tab, max_min_exp_l
@@ -1265,7 +1251,6 @@ MODULE mp2_optimize_ri_basis
     TYPE(qs_kind_type), POINTER              :: atom_kind
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     basis_quality=mp2_env%ri_opt_param%basis_quality
     external_num_of_func=.FALSE.
@@ -1651,13 +1636,11 @@ MODULE mp2_optimize_ri_basis
                                                 nmin, nset, nsgf
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(lmax, lmin, npgf, nshell, l, n, zet, gcc)
 
     ! allocate the basis

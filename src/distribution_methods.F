@@ -549,8 +549,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER :: cluster_col_distribution, &
       cluster_row_distribution, col_distribution, row_distribution
     LOGICAL :: basic_cluster_optimization, basic_optimization, &
-      basic_spatial_optimization, failure, molecular_distribution, &
-      skip_optimization
+      basic_spatial_optimization, molecular_distribution, skip_optimization
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coords, pbc_scaled_coords
     REAL(KIND=dp), DIMENSION(3)              :: center
@@ -563,8 +562,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: distribution_section
 
 !...
-
-    failure = .FALSE.
 
     CALL timeset(routineN, handle)
 
@@ -712,7 +709,7 @@ CONTAINS
        ELSE
           IF(basic_cluster_optimization)THEN
           CALL cp_assert(.NOT. molecular_distribution,cp_failure_level,cp_assertion_failed,&
-                         routineP,"clustering and molecular blocking NYI",failure)
+                         routineP,"clustering and molecular blocking NYI")
              ALLOCATE(pbc_scaled_coords(3, natom),coords(3, natom))
              DO iatom=1, natom
                 CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
@@ -949,7 +946,7 @@ CONTAINS
 
     INTEGER :: bin, bin_price, cluster, cluster_index, cluster_price, nbins, &
       nclusters, pcol, pgrid_gcd, prow, timing_handle
-    LOGICAL                                  :: failure, found, heap_error
+    LOGICAL                                  :: found, heap_error
     TYPE(heap_t)                             :: bin_heap
 
 !   ---------------------------------------------------------------------------
@@ -975,14 +972,12 @@ CONTAINS
        CALL cp_assert (found, cp_fatal_level, cp_internal_error, &
             routineN, "No topmost heap element found.")
        !
-       failure = .FALSE.
        prow = INT (bin*pgrid_gcd / npcols)
        CALL cp_assert (prow .LT. nprows, cp_fatal_level, cp_internal_error, &
-            routineN, "Invalid process row.", failure=failure)
-       failure = .TRUE.
+            routineN, "Invalid process row.")
        pcol = INT (bin*pgrid_gcd / nprows)
        CALL cp_assert (pcol .LT. npcols, cp_fatal_level, cp_internal_error, &
-            routineN, "Invalid process column.", failure=failure)
+            routineN, "Invalid process column.")
        row_distribution (cluster) = prow + 1
        col_distribution (cluster) = pcol + 1
        !

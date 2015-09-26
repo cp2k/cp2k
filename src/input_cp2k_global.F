@@ -80,11 +80,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_global_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, sub_section
 
-    failure=.FALSE.
     NULLIFY(print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GLOBAL",&
@@ -502,11 +500,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dbcsr_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DBCSR",&

@@ -128,9 +128,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_molsym', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF ( ASSOCIATED(sym) ) CALL release_molsym(sym)
 
     ALLOCATE(sym)
@@ -151,9 +148,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_molsym', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(sym))
 
     IF ( ASSOCIATED(sym%aw) ) THEN
@@ -203,11 +197,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isec
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
-    failure = .FALSE.
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -245,11 +237,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ises
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
-    failure = .FALSE.
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -285,11 +275,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isig
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: length_of_a, scapro
     REAL(dp), DIMENSION(3)                   :: d
 
-    failure = .FALSE.
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
     d(:) = a(:)/length_of_a
 
@@ -1719,10 +1707,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natoms
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tt
 
-    failure = .FALSE.
 ! Find the vector center_of_mass to molecular center of mass
 
     natoms = SIZE(coord,2)

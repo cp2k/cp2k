@@ -105,7 +105,7 @@ CONTAINS
                                                 jdir, nao, nmo, nspins, &
                                                 output_unit
     LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
-                                                failure, should_stop
+                                                should_stop
     REAL(dp)                                 :: chk, fro
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fc_psi0, h1_psi0, psi0_order, &
@@ -124,7 +124,6 @@ CONTAINS
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(section_vals_type), POINTER         :: issc_section, lr_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     !
     NULLIFY(dft_control, linres_control, lr_section, issc_section)
@@ -459,7 +458,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ixyz, jatom, &
                                                 jxyz, natom, nmo, nspins
     LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
-                                                failure, gapw
+                                                gapw
     REAL(dp)                                 :: buf, facdso, facfc, facpso, &
                                                 facsd, g, issc_dso, issc_fc, &
                                                 issc_pso, issc_sd, maxocc
@@ -482,7 +481,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: issc_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(cell,dft_control,particle_set,issc,psi1_fc,psi1_efg,psi1_pso)
@@ -676,7 +674,7 @@ CONTAINS
     INTEGER                                  :: iatom, jatom, natom, &
                                                 output_unit, unit_atoms
     LOGICAL                                  :: do_dso, do_fc, do_pso, do_sd, &
-                                                failure, gapw
+                                                gapw
     REAL(dp) :: eig(3), issc_iso_dso, issc_iso_fc, issc_iso_pso, issc_iso_sd, &
       issc_iso_tot, issc_tmp(3,3)
     REAL(dp), DIMENSION(:, :, :, :, :), &
@@ -688,8 +686,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: issc_section
-
-    failure = .FALSE.
 
     NULLIFY(logger,particle_set,atom_kind_i,atom_kind_j,dft_control)
 
@@ -809,7 +805,7 @@ CONTAINS
                                                 output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: list, row_blk_sizes
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -830,7 +826,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(linres_control)
     NULLIFY(logger,issc_section)
@@ -875,11 +870,10 @@ CONTAINS
     natom = SIZE(particle_set,1)
     !
     ! check that the psi0 are localized and you have all the centers
-    CPASSERT(linres_control%localized_psi0)
-    IF(failure.AND.(output_unit>0)) THEN
-       WRITE(output_unit,'(A)') &
-            ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals '
-    ENDIF
+    CALL cp_assert(linres_control%localized_psi0, cp_warning_level, &
+                   cp_assertion_failed, routineP, &
+                   ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals ',&
+                   only_ionode=.TRUE.)
     !
     !
     ! read terms need to be calculated
@@ -1086,9 +1080,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idir, ispin
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     issc_env%ref_count = issc_env%ref_count - 1
     IF(issc_env%ref_count == 0 ) THEN

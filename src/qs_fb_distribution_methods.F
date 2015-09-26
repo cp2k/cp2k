@@ -128,8 +128,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:) :: common_set_ids, local_atoms_all, &
       local_atoms_sizes, local_atoms_starts, pe, pos_in_preferred_list
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, local_atoms
-    LOGICAL                                  :: acceptable_move, failure, &
-                                                move_happened
+    LOGICAL                                  :: acceptable_move, move_happened
     REAL(KIND=dp)                            :: average_cost
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cost_per_atom, cost_per_proc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -152,7 +151,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(mat_ks, rcut, cell, para_env, particle_set, qs_kind_set, &
             halo_atoms, local_atoms)
@@ -387,12 +385,9 @@ CONTAINS
 
     INTEGER                                  :: ii, max_natoms, min_natoms, &
                                                 natoms, nprocs, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ave_cost, ave_natoms, &
                                                 max_cost, min_cost, total_cost
     TYPE(cp_logger_type), POINTER            :: logger
-
-    failure = .FALSE.
 
     nprocs = SIZE(dist_set)
     natoms = 0
@@ -471,11 +466,10 @@ CONTAINS
 
     INTEGER                                  :: icol, nprows, pcol, prow
     INTEGER, DIMENSION(:), POINTER           :: col_dist
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(dbcsr_mp_obj)                       :: dbcsr_mp
 
-    failure = .FALSE.
     check_ok = natoms .LE. cp_dbcsr_nblkcols_total(dbcsr_mat)
     CPASSERT(check_ok)
     check_ok = SIZE(preferred_procs_set) .GE. natoms
@@ -521,9 +515,6 @@ CONTAINS
       routineN = 'fb_preferred_procs_list_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(preferred_procs_list%list)) THEN
        DEALLOCATE(preferred_procs_list%list)
     END IF
@@ -555,9 +546,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatom, ipe, n_procs, pos
-    LOGICAL                                  :: check_ok, failure
-
-    failure = .FALSE.
+    LOGICAL                                  :: check_ok
 
     n_procs = SIZE(dist_set)
 
@@ -596,9 +585,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     my_nmax = 0
     IF (PRESENT(nmax)) my_nmax = nmax
     IF (ASSOCIATED(dist%list)) THEN
@@ -631,11 +618,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: failure
     TYPE(fb_distribution_element), &
       DIMENSION(:), POINTER                  :: new_list
 
-    failure = .FALSE.
     IF (.NOT. ASSOCIATED(dist%list)) THEN
        my_nmax = MAX(nmax, 1)
        ALLOCATE(dist%list(my_nmax))
@@ -670,9 +655,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, new_nelements, pos
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     new_nelements = dist%nelements + 1
 
     ! resize list if necessary
@@ -749,9 +732,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = pos .GT. 0
     CPASSERT(check_ok)
     IF (pos .LE. dist%nelements) THEN
@@ -813,10 +795,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_ind', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     TYPE(fb_distribution_element)            :: element
 
-    failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
     CPASSERT(check_ok)
     check_ok = pos .LE. dist_from%nelements
@@ -844,9 +825,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_move_el', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = ASSOCIATED(dist_from%list)
     CPASSERT(check_ok)
     CALL fb_distribution_add(dist_to, element)
@@ -865,9 +845,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_distribution_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(dist%list)) THEN
        DEALLOCATE(dist%list)
     END IF

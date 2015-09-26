@@ -159,7 +159,7 @@ CONTAINS
 
     INTEGER                                  :: ispin, istate, nmoloc(2), &
                                                 output_unit
-    LOGICAL                                  :: failure, my_centers_only
+    LOGICAL                                  :: my_centers_only
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mos_localized
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -172,7 +172,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: loc_print_section, &
                                                 loc_section, lr_section
 
-    failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section, loc_print_section,localized_wfn_control)
     logger => cp_get_default_logger()
     lr_section  => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES")
@@ -272,7 +271,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, iter, maxnmo, &
                                                 maxnmo_o, nao, ncol, nmo, &
                                                 nspins, output_unit
-    LOGICAL                                  :: failure, restart
+    LOGICAL                                  :: restart
     REAL(dp)                                 :: norm_res, t1, t2
     REAL(dp), DIMENSION(:), POINTER          :: alpha, beta, tr_pAp, tr_rz0, &
                                                 tr_rz00, tr_rz1
@@ -292,9 +291,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: lr_section
 
 !
+!
 
-    failure = .FALSE.
-    !
     CALL timeset(routineN,handle)
 
     NULLIFY(dft_control,linres_control,matrix_s,matrix_t,matrix_ks,para_env)
@@ -670,7 +668,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: chksum
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho1_ao
@@ -680,7 +677,6 @@ CONTAINS
 
 !
 
-    failure = .FALSE.
     NULLIFY(dft_control,matrix_ks,matrix_s,linres_control,rho1_ao)
     !
     !
@@ -777,12 +773,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, ncol, nspins
-    LOGICAL                                  :: failure
 
 !
 !
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(c0))
     CPASSERT(ASSOCIATED(c1))
@@ -825,12 +818,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol, nrow
-    LOGICAL                                  :: failure
 
 !
+!
 
-    failure = .FALSE.
-    !
     CALL timeset(routineN,handle)
     !
     CPASSERT(ASSOCIATED(v))
@@ -878,8 +869,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ncol, ns, &
                                                 nspins
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, gapw, gapw_xc, &
-                                                lr_triplet, lsd
+    LOGICAL                                  :: gapw, gapw_xc, lr_triplet, lsd
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -907,7 +897,6 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set, rho1_ao, rho_ao, &
@@ -975,254 +964,250 @@ CONTAINS
        CALL prepare_gapw_den(qs_env,p_env%local_rho_set, do_rho0=(.NOT.gapw_xc))
 
 ! *** calculate the hartree potential on the total density ***
-    IF (.NOT. failure) THEN
+    CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
+         use_data = COMPLEXDATA1D,&
+         in_space = RECIPROCALSPACE)
 
-       CALL pw_pool_create_pw(auxbas_pw_pool, rho1_tot_gspace%pw,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE)
+    CALL qs_rho_get(rho1, rho_g=rho1_g)
+    CALL pw_copy(rho1_g(1)%pw,rho1_tot_gspace%pw)
+    DO ispin=2,nspins
+       CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw)
+    END DO
+    IF (gapw) &
+         CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
 
-       CALL qs_rho_get(rho1, rho_g=rho1_g)
-       CALL pw_copy(rho1_g(1)%pw,rho1_tot_gspace%pw)
-       DO ispin=2,nspins
-          CALL pw_axpy(rho1_g(ispin)%pw, rho1_tot_gspace%pw)
-       END DO
-       IF (gapw) &
-            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs%pw, rho1_tot_gspace%pw)
+    !IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
+    !     /=0) THEN
+    !   output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
+    !        extension=".scfLog")
+    !   CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit)
+    !   CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+    !        "PRINT%TOTAL_DENSITIES")
+    !END IF
 
-       !IF (cp_print_key_should_output(logger%iter_info,scf_section,"PRINT%TOTAL_DENSITIES",&
-       !     /=0) THEN
-       !   output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
-       !        extension=".scfLog")
-       !   CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, output_unit)
-       !   CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-       !        "PRINT%TOTAL_DENSITIES")
-       !END IF
+    IF (.NOT.(nspins==1 .AND. lr_triplet )) THEN
+       CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
+                              energy_hartree, &
+                              v_hartree_gspace%pw)
+       CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw)
+    ENDIF
 
-       IF (.NOT.(nspins==1 .AND. lr_triplet )) THEN
-          CALL pw_poisson_solve(poisson_env,rho1_tot_gspace%pw, &
-                                 energy_hartree, &
-                                 v_hartree_gspace%pw)
-          CALL pw_transfer(v_hartree_gspace%pw,v_hartree_rspace%pw)
-       ENDIF
-
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool, rho1_tot_gspace%pw)
 
 ! *** calculate the xc potential ***
-       IF(gapw_xc) THEN
-         CALL qs_rho_get(rho1_xc, rho_r=rho1_r)
-       ELSE
-         CALL qs_rho_get(rho1, rho_r=rho1_r)
-       END IF
+    IF(gapw_xc) THEN
+      CALL qs_rho_get(rho1_xc, rho_r=rho1_r)
+    ELSE
+      CALL qs_rho_get(rho1, rho_r=rho1_r)
+    END IF
 
-       IF (nspins == 1 .AND.  (lr_triplet)) THEN
+    IF (nspins == 1 .AND.  (lr_triplet)) THEN
 
-          lsd = .TRUE.
-          ALLOCATE(rho1_r_pw(2))
-          DO ispin=1, 2
-             NULLIFY(rho1_r_pw(ispin)%pw)
-             CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
-                  rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
-             CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
-          END DO
+       lsd = .TRUE.
+       ALLOCATE(rho1_r_pw(2))
+       DO ispin=1, 2
+          NULLIFY(rho1_r_pw(ispin)%pw)
+          CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
+               rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
+          CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
+       END DO
 
-       ELSE
+    ELSE
 
-          ALLOCATE(rho1_r_pw(nspins))
-          DO ispin=1, nspins
-             rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
-             CALL pw_retain(rho1_r_pw(ispin)%pw)
-          END DO
-
-       END IF
-
-       NULLIFY(tau_pw)
-
-       !------!
-       ! rho1 !
-       !------!
-       bo = rho1_r(1)%pw%pw_grid%bounds_local
-       ! create the place where to store the argument for the functionals
-       CALL xc_rho_set_create(rho1_set, bo, &
-                           rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                           drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                           tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-
-       xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
-       needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.)
-
-       ! calculate the arguments needed by the functionals
-       CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
-                             section_get_ival(xc_section,"XC_GRID%XC_DERIV"),&
-                             section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO"),&
-                             auxbas_pw_pool)
-
-       ALLOCATE(v_xc(nspins))
+       ALLOCATE(rho1_r_pw(nspins))
        DO ispin=1, nspins
-          NULLIFY(v_xc(ispin)%pw)
-          CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
-                                 use_data = REALDATA3D,&
-                                 in_space = REALSPACE)
-          CALL pw_zero(v_xc(ispin)%pw)
+          rho1_r_pw(ispin)%pw => rho1_r(ispin)%pw
+          CALL pw_retain(rho1_r_pw(ispin)%pw)
        END DO
-
-       fac=0._dp
-       IF (nspins==1) THEN
-          IF (lr_triplet) fac=-1.0_dp
-       END IF
-
-       CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
-            rho1_set, auxbas_pw_pool,xc_section=xc_section,&
-            tddfpt_fac=fac)
-
-       DO ispin=1,nspins
-          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
-       END DO
-       DEALLOCATE(v_xc)
-
-       IF(gapw) CALL calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft=.FALSE.,&
-                                                 do_triplet=lr_triplet)
-
-       CALL xc_rho_set_release(rho1_set)
-
-       DO ispin=1,SIZE(rho1_r_pw)
-          CALL pw_release(rho1_r_pw(ispin)%pw)
-       END DO
-       DEALLOCATE(rho1_r_pw)
-
-       !-------------------------------!
-       ! Add both hartree and xc terms !
-       !-------------------------------!
-       DO ispin=1,nspins
-
-          IF(gapw_xc) THEN
-          ! XC and Hartree are integrated separatedly
-          ! XC uses the sofft basis set only
-             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
-                                        v_rspace_new(ispin)%pw%pw_grid%dvol
-
-             IF ( nspins==1) THEN
-
-                IF (.NOT.(lr_triplet)) THEN
-
-                   v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
-
-                END IF
-                CALL qs_rho_get(rho1, rho_ao=rho1_ao)
-                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-                CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
-                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     pmat=rho1_ao(ispin),&
-                     hmat=p_env%kpp1_env%v_ao(ispin),&
-                     qs_env=qs_env,&
-                     calculate_forces=.FALSE.,gapw=gapw_xc)
-
-               ! add hartree only for SINGLETS
-                IF (.NOT.lr_triplet) THEN
-                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                               v_hartree_rspace%pw%pw_grid%dvol
-                   v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
-
-                   CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         pmat=rho_ao(ispin),&
-                         hmat=p_env%kpp1_env%v_ao(ispin),&
-                         qs_env=qs_env,&
-                         calculate_forces=.FALSE.,gapw=gapw)
-                END IF
-             ELSE
-                ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-                CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
-                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     pmat=rho_ao(ispin),&
-                     hmat=p_env%kpp1_env%v_ao(ispin),&
-                     qs_env=qs_env,&
-                     calculate_forces=.FALSE.,gapw=gapw_xc)
-
-                IF (ispin == 1) THEN
-                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                             v_hartree_rspace%pw%pw_grid%dvol
-                END IF
-                v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
-                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         pmat=rho_ao(ispin),&
-                         hmat=p_env%kpp1_env%v_ao(ispin),&
-                         qs_env=qs_env,&
-                         calculate_forces=.FALSE.,gapw=gapw)
-             END IF
-
-          ELSE
-
-             v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
-                                          v_rspace_new(ispin)%pw%pw_grid%dvol
-
-             IF ( nspins==1) THEN
-
-                IF(.NOT.(lr_triplet)) THEN
-                   v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
-
-                ENDIF
-
-               ! add hartree only for SINGLETS
-               !IF (res_etype == tddfpt_singlet) THEN
-                IF (.NOT.lr_triplet) THEN
-                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                             v_hartree_rspace%pw%pw_grid%dvol
-                   v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
-                                             2.0_dp * v_hartree_rspace%pw%cr3d
-                END IF
-             ELSE
-                IF (ispin == 1) THEN
-                   v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
-                                             v_hartree_rspace%pw%pw_grid%dvol
-                END IF
-                v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
-                                              v_hartree_rspace%pw%cr3d
-             END IF
-
-            ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
-             CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
-
-             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                 pmat=rho_ao(ispin),&
-                 hmat=p_env%kpp1_env%v_ao(ispin),&
-                 qs_env=qs_env,&
-                 calculate_forces=.FALSE.,gapw=gapw)
-
-          END IF
-
-          CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,p_env%kpp1_env%v_ao(ispin)%matrix)
-       END DO
-
-       IF (gapw) THEN
-
-          IF (.NOT. ( (nspins == 1 .AND.  lr_triplet))) THEN
-             CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, tddft=.TRUE., do_triplet=lr_triplet, &
-                                     p_env=p_env)
-
-             CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
-                                        .FALSE., tddft=.TRUE., do_triplet=lr_triplet, &
-                                        p_env=p_env)
-          END IF
-
-!         ***  Add single atom contributions to the KS matrix ***
-
-          ! remap pointer 
-          ns = SIZE(p_env%kpp1)
-          ksmat(1:ns,1:1) => p_env%kpp1(1:ns)
-          ns = SIZE(rho_ao)
-          psmat(1:ns,1:1) => rho_ao(1:ns)
-
-          CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env)
-
-       END IF
-
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw)
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw)
-       DO ispin=1,nspins
-          CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
-       END DO
-       DEALLOCATE(v_rspace_new)
 
     END IF
+
+    NULLIFY(tau_pw)
+
+    !------!
+    ! rho1 !
+    !------!
+    bo = rho1_r(1)%pw%pw_grid%bounds_local
+    ! create the place where to store the argument for the functionals
+    CALL xc_rho_set_create(rho1_set, bo, &
+                        rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                        drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                        tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
+
+    xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
+    needs=xc_functionals_get_needs(xc_fun_section,lsd,.TRUE.)
+
+    ! calculate the arguments needed by the functionals
+    CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,&
+                          section_get_ival(xc_section,"XC_GRID%XC_DERIV"),&
+                          section_get_ival(xc_section,"XC_GRID%XC_SMOOTH_RHO"),&
+                          auxbas_pw_pool)
+
+    ALLOCATE(v_xc(nspins))
+    DO ispin=1, nspins
+       NULLIFY(v_xc(ispin)%pw)
+       CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
+                              use_data = REALDATA3D,&
+                              in_space = REALSPACE)
+       CALL pw_zero(v_xc(ispin)%pw)
+    END DO
+
+    fac=0._dp
+    IF (nspins==1) THEN
+       IF (lr_triplet) fac=-1.0_dp
+    END IF
+
+    CALL xc_calc_2nd_deriv(v_xc, p_env%kpp1_env%deriv_set, p_env%kpp1_env%rho_set, &
+         rho1_set, auxbas_pw_pool,xc_section=xc_section,&
+         tddfpt_fac=fac)
+
+    DO ispin=1,nspins
+       v_rspace_new(ispin)%pw => v_xc(ispin)%pw
+    END DO
+    DEALLOCATE(v_xc)
+
+    IF(gapw) CALL calculate_xc_2nd_deriv_atom(p_env,qs_env,xc_section,do_tddft=.FALSE.,&
+                                              do_triplet=lr_triplet)
+
+    CALL xc_rho_set_release(rho1_set)
+
+    DO ispin=1,SIZE(rho1_r_pw)
+       CALL pw_release(rho1_r_pw(ispin)%pw)
+    END DO
+    DEALLOCATE(rho1_r_pw)
+
+    !-------------------------------!
+    ! Add both hartree and xc terms !
+    !-------------------------------!
+    DO ispin=1,nspins
+
+       IF(gapw_xc) THEN
+       ! XC and Hartree are integrated separatedly
+       ! XC uses the sofft basis set only
+          v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                     v_rspace_new(ispin)%pw%pw_grid%dvol
+
+          IF ( nspins==1) THEN
+
+             IF (.NOT.(lr_triplet)) THEN
+
+                v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+
+             END IF
+             CALL qs_rho_get(rho1, rho_ao=rho1_ao)
+             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+             CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                  pmat=rho1_ao(ispin),&
+                  hmat=p_env%kpp1_env%v_ao(ispin),&
+                  qs_env=qs_env,&
+                  calculate_forces=.FALSE.,gapw=gapw_xc)
+
+            ! add hartree only for SINGLETS
+             IF (.NOT.lr_triplet) THEN
+                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                            v_hartree_rspace%pw%pw_grid%dvol
+                v_rspace_new(1)%pw%cr3d  = 2.0_dp * v_hartree_rspace%pw%cr3d
+
+                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                      pmat=rho_ao(ispin),&
+                      hmat=p_env%kpp1_env%v_ao(ispin),&
+                      qs_env=qs_env,&
+                      calculate_forces=.FALSE.,gapw=gapw)
+             END IF
+          ELSE
+             ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+             CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                  pmat=rho_ao(ispin),&
+                  hmat=p_env%kpp1_env%v_ao(ispin),&
+                  qs_env=qs_env,&
+                  calculate_forces=.FALSE.,gapw=gapw_xc)
+
+             IF (ispin == 1) THEN
+                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                          v_hartree_rspace%pw%pw_grid%dvol
+             END IF
+             v_rspace_new(ispin)%pw%cr3d  = v_hartree_rspace%pw%cr3d
+             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                      pmat=rho_ao(ispin),&
+                      hmat=p_env%kpp1_env%v_ao(ispin),&
+                      qs_env=qs_env,&
+                      calculate_forces=.FALSE.,gapw=gapw)
+          END IF
+
+       ELSE
+
+          v_rspace_new(ispin)%pw%cr3d = v_rspace_new(ispin)%pw%cr3d * &
+                                       v_rspace_new(ispin)%pw%pw_grid%dvol
+
+          IF ( nspins==1) THEN
+
+             IF(.NOT.(lr_triplet)) THEN
+                v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+
+             ENDIF
+
+            ! add hartree only for SINGLETS
+            !IF (res_etype == tddfpt_singlet) THEN
+             IF (.NOT.lr_triplet) THEN
+                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                          v_hartree_rspace%pw%pw_grid%dvol
+                v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
+                                          2.0_dp * v_hartree_rspace%pw%cr3d
+             END IF
+          ELSE
+             IF (ispin == 1) THEN
+                v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
+                                          v_hartree_rspace%pw%pw_grid%dvol
+             END IF
+             v_rspace_new(ispin)%pw%cr3d  = v_rspace_new(ispin)%pw%cr3d + &
+                                           v_hartree_rspace%pw%cr3d
+          END IF
+
+         ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
+          CALL cp_dbcsr_set(p_env%kpp1_env%v_ao(ispin)%matrix,0.0_dp)
+
+          CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+              pmat=rho_ao(ispin),&
+              hmat=p_env%kpp1_env%v_ao(ispin),&
+              qs_env=qs_env,&
+              calculate_forces=.FALSE.,gapw=gapw)
+
+       END IF
+
+       CALL cp_dbcsr_copy(p_env%kpp1(ispin)%matrix,p_env%kpp1_env%v_ao(ispin)%matrix)
+    END DO
+
+    IF (gapw) THEN
+
+       IF (.NOT. ( (nspins == 1 .AND.  lr_triplet))) THEN
+          CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, tddft=.TRUE., do_triplet=lr_triplet, &
+                                  p_env=p_env)
+
+          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
+                                     .FALSE., tddft=.TRUE., do_triplet=lr_triplet, &
+                                     p_env=p_env)
+       END IF
+
+!      ***  Add single atom contributions to the KS matrix ***
+
+       ! remap pointer 
+       ns = SIZE(p_env%kpp1)
+       ksmat(1:ns,1:1) => p_env%kpp1(1:ns)
+       ns = SIZE(rho_ao)
+       psmat(1:ns,1:1) => rho_ao(1:ns)
+
+       CALL update_ks_atom(qs_env,ksmat,psmat,.FALSE.,.TRUE.,p_env)
+
+    END IF
+
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_gspace%pw)
+    CALL pw_pool_give_back_pw(auxbas_pw_pool,v_hartree_rspace%pw)
+    DO ispin=1,nspins
+       CALL pw_pool_give_back_pw(auxbas_pw_pool,v_rspace_new(ispin)%pw)
+    END DO
+    DEALLOCATE(v_rspace_new)
 
     DO ispin = 1,nspins
        CALL cp_fm_get_info(c0(ispin)%matrix,ncol_global=ncol)
@@ -1251,14 +1236,13 @@ CONTAINS
 
     CHARACTER(len=25)                        :: name
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, gapw_xc
+    LOGICAL                                  :: gapw_xc
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(dft_control,matrix_s)
 
     CPASSERT(ASSOCIATED(p_env))
@@ -1312,7 +1296,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1323,7 +1306,6 @@ CONTAINS
 
 ! ------------------------------------------------------------------
 
-    failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
 
     CPASSERT(ASSOCIATED(kpp1_env))
@@ -1373,8 +1355,7 @@ CONTAINS
           END DO
        END IF
 
-       !ALLOCATE(my_rho_r(SIZE(rho_r)),stat=stat)
-       !CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+       !ALLOCATE(my_rho_r(SIZE(rho_r)))
        !DO ispin=1,SIZE(rho_r)
        !   my_rho_r(ispin)%pw => rho_r(ispin)%pw
        !   CALL pw_retain(my_rho_r(ispin)%pw)
@@ -1414,12 +1395,10 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, mp, mt, mv, &
                                                 np, nspins, nt, nv
-    LOGICAL                                  :: failure
 
 !
+!
 
-    failure = .FALSE.
-    !
     CALL timeset(routineN,handle)
     !
     CPASSERT(ASSOCIATED(v))
@@ -1470,10 +1449,9 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, mp, mt, mv, &
                                                 np, nspins, nt, nv
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
-    !
+!
+
     CALL timeset(routineN,handle)
     !
     CPASSERT(ASSOCIATED(v))
@@ -1531,7 +1509,6 @@ CONTAINS
                                                 ispin, j, max_block, nao, &
                                                 nmo, nspins, output_unit, &
                                                 rst_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1539,8 +1516,6 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: print_key
-
-    failure = .FALSE.
 
     NULLIFY(logger, mo_coeff, mos, para_env, print_key, vecbuffer)
 
@@ -1638,11 +1613,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit, rst_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-
-    failure = .FALSE.
-
 
     CALL timeset(routineN,handle)
 
@@ -1695,7 +1666,7 @@ CONTAINS
     INTEGER :: group, handle, i, i_block, ia, ie, iostat, ispin, iv, iv1, &
       ivec_tmp, j, max_block, n_rep_val, nao, nao_tmp, nmo, nmo_tmp, nspins, &
       nspins_tmp, output_unit, rst_unit, source
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1704,7 +1675,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     file_exists = .FALSE.
 
     CALL timeset(routineN,handle)
@@ -1859,9 +1829,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, ncol, nrow
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     p_env%iter = 0
     p_env%only_energy = .FALSE.

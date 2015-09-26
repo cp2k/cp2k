@@ -212,11 +212,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, lenwa, n
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     ALLOCATE(optimizer)
     NULLIFY(optimizer%kind_of_bound,&
@@ -307,10 +305,6 @@ SUBROUTINE cp_opt_gopt_retain(optimizer)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(optimizer))
   CPASSERT(optimizer%ref_count>0)
   optimizer%ref_count=optimizer%ref_count+1
@@ -331,10 +325,8 @@ SUBROUTINE cp_opt_gopt_release(optimizer)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
 
   IF (ASSOCIATED(optimizer)) THEN
      CPASSERT(optimizer%ref_count>0)
@@ -434,8 +426,6 @@ END SUBROUTINE cp_opt_gopt_release
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 !  call timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(optimizer))
@@ -481,8 +471,7 @@ END SUBROUTINE cp_opt_gopt_release
             PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
             cp_warning_level,cp_assertion_failed,&
             routineP, "asked undefined types in "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END IF
 
     !  call timestop(handle)
@@ -522,8 +511,7 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=5)                         :: wildcard
     INTEGER                                  :: dataunit, handle, its
-    LOGICAL                                  :: conv, failure, is_master, &
-                                                justEntred
+    LOGICAL                                  :: conv, is_master, justEntred
     REAL(KIND=dp)                            :: t_diff, t_now, t_old
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xold
     TYPE(cp_logger_type), POINTER            :: logger
@@ -531,7 +519,6 @@ CPSourceFileRef,&
     NULLIFY(logger,xold)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     justEntred=.TRUE.
     is_master=optimizer%master==optimizer%para_env%mepos
     IF (PRESENT(converged)) converged = optimizer%status==4
@@ -704,14 +691,12 @@ CPSourceFileRef)
           ! deallocated
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"step on a deallocated opt structure "//&
-CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
        CASE default
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown status "//cp_to_string(optimizer%status)//&
                " in "//&
-CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
           optimizer%status=5
           EXIT
        END SELECT
@@ -818,11 +803,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_next', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!call timeset(routineN,handle)
 
-    failure=.FALSE.
-
-    !call timeset(routineN,handle)
     CPASSERT(ASSOCIATED(optimizer))
     CPASSERT(optimizer%ref_count>0)
     CALL cp_opt_gopt_step(optimizer,n_iter=n_iter,f=f,&
@@ -849,11 +831,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_opt_gopt_stop', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!  call timeset(routineN,handle)
 
-    failure=.FALSE.
-
-    !  call timeset(routineN,handle)
     CPASSERT(ASSOCIATED(optimizer))
     CPASSERT(optimizer%ref_count>0)
 

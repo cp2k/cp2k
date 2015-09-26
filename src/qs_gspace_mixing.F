@@ -86,7 +86,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ic, ispin, nimg, &
                                                 nspins
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_q, p_in
@@ -95,7 +94,6 @@ CONTAINS
 
     NULLIFY(matrix_q, p_in)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(p_out))
     NULLIFY(matrix_q, p_in)
     p_in => rho_ao
@@ -146,7 +144,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, ig, ispin, &
                                                 natom, ng, nspin
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: alpha
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -159,7 +157,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store))
     NULLIFY(auxbas_pw_pool, dft_control, pw_env, rho_atom, rho_g, rho_r, tot_rho_r)
 
@@ -290,14 +287,13 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:), POINTER       :: cc_new
     INTEGER                                  :: handle, iatom, ig, ispin, &
                                                 natom, ng, nspin
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: alpha, f_mix
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%rhoin))
     CPASSERT(ASSOCIATED(mixing_store%kerker_factor))
 
@@ -375,7 +371,6 @@ CONTAINS
     INTEGER                                  :: handle, i, ib, ibb, ig, &
                                                 ispin, jb, nb, nb1, nbuffer, &
                                                 ng, nspin
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha_kerker, alpha_pulay, &
                                                 beta, f_mix, inv_err, norm, &
                                                 norm_c_inv, vol
@@ -383,7 +378,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a, b, c, c_inv
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%res_buffer))
     CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
     NULLIFY(rho_g)
@@ -548,7 +542,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, ib, ibb, &
                                                 ig, ispin, j, jb, kb, n1, n2, &
                                                 natom, nb, nbuffer, ng, nspin
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: alpha, beta, dcpc_h_res, &
                                                 dcpc_s_res, delta_norm, &
                                                 f_mix, inv_err, res_norm, &
@@ -560,7 +554,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%res_buffer))
     CPASSERT(ASSOCIATED(mixing_store%rhoin))
     CPASSERT(ASSOCIATED(mixing_store%rhoin_old))
@@ -827,7 +820,7 @@ CONTAINS
                                                 ispin, jb, kb, kkb, lwork, &
                                                 nb, nbuffer, ng, nspin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: IWORK
-    LOGICAL                                  :: failure, skip_bq
+    LOGICAL                                  :: skip_bq
     REAL(dp) :: alpha, beta, delta, delta_p, delta_rhog, delta_rhog_p, f_mix, &
       imp, imp_j, inv_err, norm, norm_ig, rep, rep_j, sqt_uvol, sqt_vol, &
       uvol, vol, wc, wmax
@@ -842,7 +835,6 @@ CONTAINS
       POINTER                                :: delta_res, u_vec, z_vec
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store%rhoin_buffer))
 
     CALL timeset(routineN,handle)
@@ -1248,8 +1240,7 @@ CONTAINS
                                                 ig, ig_global, iig, ispin, &
                                                 jb, kb, nb, nbuffer, ng, &
                                                 ng_global, nspin
-    LOGICAL                                  :: failure, use_zgemm, &
-                                                use_zgemm_rev
+    LOGICAL                                  :: use_zgemm, use_zgemm_rev
     REAL(dp) :: alpha, f_mix, gn_norm, gn_norm_old, inv_err, n_low, n_up, &
       pgn_norm, prec, r_step, reg_par, sigma_max, sigma_tilde, step_size
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: norm_res, norm_res_low, &
@@ -1259,7 +1250,6 @@ CONTAINS
     REAL(dp), SAVE                           :: sigma_old = 1.0_dp
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(mixing_store))
 
     CALL timeset(routineN,handle)
@@ -1618,7 +1608,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iat, ic, ispin, &
                                                 natom, nbuffer, nimg
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: refmatrix
@@ -1627,8 +1616,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1850,7 +1837,6 @@ CONTAINS
     INTEGER                                  :: handle, iat, ib, ig, ig1, &
                                                 ig_count, iproc, ispin, n1, &
                                                 n2, natom, nbuffer, ng, nspin
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: bconst, beta, fdamp, g2max, &
                                                 g2min, kmin
     REAL(dp), DIMENSION(:), POINTER          :: g2
@@ -1860,7 +1846,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(g2,g_vec,rho_g)
-    failure = .FALSE.
     CALL qs_rho_get(rho, rho_g=rho_g)
 
     nspin = SIZE(rho_g)

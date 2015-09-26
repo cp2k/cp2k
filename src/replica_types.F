@@ -141,9 +141,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ierr
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     IF (ASSOCIATED(rep_env)) THEN
        CPASSERT(rep_env%ref_count>0)
@@ -212,11 +210,10 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(replica_env_type), POINTER          :: rep_env
 
-    failure=.FALSE.
+    failure = .FALSE.
     rep_env => rep_envs_get_rep_env(rep_env_id,ierr=stat)
     CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
-         routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
-         failure=failure)
+         routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id))
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
          failure=failure)
     logger => cp_get_default_logger()
@@ -238,9 +235,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))
     CPASSERT(rep_env%ref_count>0)
@@ -262,9 +257,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     IF (ASSOCIATED(rep_env)) THEN
@@ -327,9 +319,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, irep
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))
     CPASSERT(rep_env%ref_count>0)
@@ -359,9 +349,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, irep, nrep, source
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     nrep=rep_env%nrep
     CPASSERT(ASSOCIATED(rep_env))
@@ -423,12 +411,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
     TYPE(replica_env_p_type), DIMENSION(:), &
       POINTER                                :: new_rep_envs
     TYPE(replica_env_type), POINTER          :: rep_env2
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(rep_env)) THEN
        rep_env2 => rep_envs_get_rep_env(rep_env%id_nr,ierr=stat)
@@ -465,11 +450,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii
-    LOGICAL                                  :: failure
     TYPE(replica_env_p_type), DIMENSION(:), &
       POINTER                                :: new_rep_envs
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(rep_env)) THEN
        CPASSERT(module_initialized)
@@ -506,9 +488,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     CPASSERT(ASSOCIATED(rep_env))

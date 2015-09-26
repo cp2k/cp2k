@@ -71,7 +71,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k
     INTEGER, DIMENSION(3)                    :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: h
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: drdx, drdy, drdz, r
@@ -81,7 +80,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(f))
 
@@ -149,7 +147,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k
     INTEGER, DIMENSION(3)                    :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: h
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: drdx, drdy, drdz, r
@@ -159,7 +156,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(f))
 
@@ -227,7 +223,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k
     INTEGER, DIMENSION(3)                    :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: h
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: drdx, drdy, drdz, r
@@ -237,7 +232,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(f))
 

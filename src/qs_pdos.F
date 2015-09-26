@@ -169,7 +169,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: bo, l
     LOGICAL                                  :: append, do_ldos, do_r_ldos, &
-                                                do_virt, failure, ionode, &
+                                                do_virt, ionode, &
                                                 separate_components, &
                                                 should_output
     LOGICAL, DIMENSION(:, :), POINTER        :: read_r
@@ -204,7 +204,6 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_get_default_logger()
     ionode = logger%para_env%mepos==logger%para_env%source
-    failure = .FALSE.
     should_output = BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
                           "PRINT%PDOS"),cp_p_file)
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -931,7 +930,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: nmo, nrow_global
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ks_matrix, s_matrix
@@ -941,7 +939,6 @@ CONTAINS
     TYPE(preconditioner_type), POINTER       :: local_preconditioner
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    failure = .FALSE.
     NULLIFY(evals_virt,mo_virt)
     ALLOCATE(evals_virt(nvirt))
 

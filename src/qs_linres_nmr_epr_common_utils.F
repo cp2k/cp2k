@@ -70,7 +70,6 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: my_chi
 
     INTEGER                                  :: handle, ig, ng
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: g2
     TYPE(pw_grid_type), POINTER              :: grid
     CHARACTER(len=*), PARAMETER :: routineN = 'mult_G_ov_G2_grid', &
@@ -78,7 +77,6 @@ CONTAINS
 
     TYPE(pw_type), POINTER                   :: frho, influence_fn
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(cell))

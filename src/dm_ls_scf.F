@@ -163,7 +163,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_logger_type), POINTER            :: logger
@@ -177,7 +176,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CALL cite_reference(VandeVondele2012)
 
@@ -725,7 +723,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mu
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
@@ -737,7 +734,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     CALL cite_reference(VandeVondele2012)
-    failure=.FALSE.
     ls_scf_section => section_vals_get_subs_vals(input,"DFT%LS_SCF")
     curvy_section => section_vals_get_subs_vals(ls_scf_section,"CURVY_STEPS")
 
@@ -1359,13 +1355,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspin, unit_nr
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: eps_max, eps_min, homo, lumo
     TYPE(cp_dbcsr_type)                      :: matrix_k, matrix_p
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! get a useful output_unit
     logger => cp_get_default_logger()

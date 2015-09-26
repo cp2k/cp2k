@@ -73,10 +73,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mm",&
@@ -115,11 +112,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in MM code.",&
@@ -217,11 +212,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_forcefield_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FORCEFIELD",&
@@ -380,10 +372,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_SPLINE_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="SPLINE",&
@@ -461,10 +450,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_TORSION_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TORSION",&
@@ -529,10 +515,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_IMPROPER_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="IMPROPER",&
@@ -590,10 +573,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_OPBEND_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="OPBEND",&
@@ -653,11 +633,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_BEND_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BEND",&
@@ -774,10 +751,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: tag
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY(keyword)
@@ -866,10 +840,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_charges_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="charges",&
@@ -898,10 +869,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_charge_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="charge",&
@@ -937,10 +905,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_quadrupole_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="QUADRUPOLE",&
@@ -977,11 +942,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dipole_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIPOLE",&
@@ -1021,10 +983,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_damping_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DAMPING",&
@@ -1082,10 +1041,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_shell_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section, name="SHELL",&
@@ -1182,10 +1138,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED14_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="nonbonded14",&
@@ -1224,10 +1177,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_NONBONDED_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="nonbonded",&
@@ -1303,10 +1253,7 @@ CONTAINS
       routineN = 'create_neighbor_lists_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -1354,10 +1301,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_GENPOT_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GENPOT",&
@@ -1449,10 +1393,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_EAM_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EAM",&
@@ -1497,10 +1438,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_QUIP_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="QUIP",&
@@ -1559,10 +1497,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_LJ_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="lennard-jones",&
@@ -1628,10 +1563,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_Williams_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="williams",&
@@ -1704,10 +1636,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_Goodwin_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="goodwin",&
@@ -1793,10 +1722,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ipbv_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="ipbv",&
@@ -1848,10 +1774,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFT_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BMHFT",&
@@ -1939,10 +1862,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_BMHFTD_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BMHFTD",&
@@ -2046,10 +1966,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_Buck4r_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BUCK4RANGES",&
@@ -2164,10 +2081,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_Buckmorse_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BUCKMORSE",&
@@ -2283,10 +2197,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_Tersoff_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TERSOFF",&
@@ -2438,10 +2349,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_Siepmann_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-   failure=.FALSE.
 
    CPASSERT(.NOT.ASSOCIATED(section))
    CALL section_create(section,name="SIEPMANN",&
@@ -2538,10 +2446,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dipoles_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(print_key))
     CALL cp_print_key_section_create(print_key_section=print_key,name=TRIM(label),&
          description="Section controlling the calculation of "//TRIM(label)//"."//&

@@ -82,9 +82,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iab, isub
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CALL timeset(routineN, handle)
 

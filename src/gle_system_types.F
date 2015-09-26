@@ -74,11 +74,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ir, j, k, n_rep
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:), POINTER          :: list
     REAL(KIND=dp)                            :: a_scale
 
-    failure = .FALSE.
     NULLIFY(gle%nvt)
     NULLIFY(gle%gle_s)
     NULLIFY(gle%gle_t)
@@ -176,12 +174,10 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: name
     INTEGER                                  :: i, ithermo, my_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed, my_seed
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gle))
     CPASSERT(.NOT.ASSOCIATED(gle%nvt))
 
@@ -233,9 +229,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(gle)) THEN
        IF ( ASSOCIATED(gle%a_mat)) THEN

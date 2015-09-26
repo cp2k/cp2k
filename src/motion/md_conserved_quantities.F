@@ -91,12 +91,10 @@ CONTAINS
 
     INTEGER                                  :: ikind, nfree_qm, nkind
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: failure, init
+    LOGICAL                                  :: init
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(simpar_type), POINTER               :: simpar
-
-    failure = .FALSE.
 
     NULLIFY(itimes, para_env, simpar)
 
@@ -489,7 +487,7 @@ CONTAINS
     INTEGER :: i, iparticle, iparticle_kind, iparticle_local, nparticle_kind, &
       nparticle_local, shell_index
     INTEGER, POINTER                         :: cur_indices(:), cur_labels(:)
-    LOGICAL                                  :: failure, is_shell
+    LOGICAL                                  :: is_shell
     REAL(KIND=dp)                            :: ekin_c, ekin_com, ekin_s, mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -508,8 +506,6 @@ CONTAINS
     TYPE(qmmmx_env_type), POINTER            :: qmmmx_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(shell_kind_type), POINTER           :: shell
-
-    failure = .FALSE.
 
     NULLIFY(force_env, qmmm_env, qmmmx_env, subsys, force_env_section)
     CALL get_md_env ( md_env, force_env = force_env)

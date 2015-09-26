@@ -111,10 +111,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat, wg
-    LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: tmp_element
 
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(cancel_list)) RETURN
     NULLIFY(tmp_element)
 
@@ -123,7 +121,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(tmc_env%m_env))
     CPASSERT(ASSOCIATED(work_list))
     CPASSERT(ASSOCIATED(para_env))
-
 
     stat = TMC_STATUS_FAILED
     wg   = -1
@@ -195,7 +192,6 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(ana_worker_info))
     CPASSERT(ASSOCIATED(para_env))
-
 
     wg_loop:DO wg=1, SIZE(ana_worker_info)
       IF(.NOT.ASSOCIATED(ana_list)) EXIT wg_loop
@@ -970,9 +966,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_walltime_delay', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(time.GE.0.0_dp)
 
     IF(time.GT.walltime_delay)THEN

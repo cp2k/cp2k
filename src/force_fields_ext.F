@@ -81,14 +81,13 @@ CONTAINS
     INTEGER                                  :: handle, iatom, icon, itemp, &
                                                 itype, iw, jatom, ncon, &
                                                 ntype, offset
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: cosphi0, cost2, csq, sdet
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(gromos_info_type), POINTER          :: gro_info
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,parser)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -335,13 +334,12 @@ CONTAINS
     INTEGER                                  :: dummy, handle, ilab, iw, &
                                                 nbend, nbond, nimpr, &
                                                 nnonbond, nonfo, ntorsion, nub
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,parser)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
@@ -699,12 +697,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iw
-    LOGICAL                                  :: failure
     TYPE(amber_info_type), POINTER           :: amb_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&

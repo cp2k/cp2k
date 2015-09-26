@@ -49,7 +49,7 @@ PROGRAM graph
                                               inds(:), iperd(:), iprd(:), &
                                               ngrid(:), nn(:,:), nn_max(:), &
                                               tmp(:)
-  LOGICAL                                  :: failure, fix, l_cp2k, l_cpmd, &
+  LOGICAL                                  :: fix, l_cp2k, l_cpmd, &
                                               l_dp, l_fes_int, l_fmin, &
                                               l_grid, l_math, l_orac, &
                                               l_pmin, lstride, l_popt, l_int,&
@@ -62,7 +62,6 @@ PROGRAM graph
   TYPE(mep_input_data_type)                :: mep_input_data
 
 
-  failure=.FALSE.
   ! Initialize variables
   nprd    = 0
   ndim    = 1

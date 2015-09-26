@@ -76,13 +76,12 @@ CONTAINS
 
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: std_deriv_desc
-    LOGICAL                                  :: failure, my_allocate_deriv
+    LOGICAL                                  :: my_allocate_deriv
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: cr3d_ptr
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-    failure=.FALSE.
     NULLIFY(pos,deriv_att,cr3d_ptr)
 
     CPASSERT(ASSOCIATED(derivative_set))
@@ -124,10 +123,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(pw_grid_type), POINTER              :: pw_grid
 
-    failure=.FALSE.
     NULLIFY(pw_grid)
     CPASSERT(.not.ASSOCIATED(derivative_set))
 
@@ -143,7 +140,7 @@ CONTAINS
        IF (PRESENT(local_bounds)) THEN
           CALL cp_assert(ALL(pw_pool%pw_grid%bounds_local==local_bounds),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "incompatible local_bounds and pw_pool",failure)
+               "incompatible local_bounds and pw_pool")
        END IF
     ELSE
        !FM ugly hack, should be replaced by a pool only for 3d arrays
@@ -168,11 +165,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
-
-    failure=.FALSE.
 
     NULLIFY(deriv_att,pos)
     CPASSERT(ASSOCIATED(derivative_set))
@@ -206,10 +200,6 @@ SUBROUTINE xc_dset_retain(deriv_set)
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(deriv_set))
   CPASSERT(deriv_set%ref_count>0)
   deriv_set%ref_count=deriv_set%ref_count+1
@@ -226,11 +216,9 @@ SUBROUTINE xc_dset_zero_all(deriv_set)
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_dset_zero_all', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(xc_derivative_type), POINTER        :: deriv_att
 
-  failure = .FALSE.
   NULLIFY(pos, deriv_att)
 
   CPASSERT(ASSOCIATED(deriv_set))

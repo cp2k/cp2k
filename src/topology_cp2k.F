@@ -66,7 +66,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: handle, i, iw, natom, &
                                                 newsize, number_of_atoms
-    LOGICAL                                  :: eof, explicit, failure, &
+    LOGICAL                                  :: eof, explicit, &
                                                 scaled_coordinates
     REAL(KIND=dp)                            :: pfactor, unit_conv
     REAL(KIND=dp), DIMENSION(3)              :: r
@@ -81,7 +81,6 @@ CONTAINS
     NULLIFY (coord_section)
     NULLIFY (logger)
     NULLIFY (parser)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/XYZ_INFO",&
                               extension=".subsysLog")

@@ -84,7 +84,7 @@ CONTAINS
 
     INTEGER                                  :: i, ilevel, j, Ndim, &
                                                 num_geep_gauss, output_unit
-    LOGICAL                                  :: Failure, Found, use_geep_lib
+    LOGICAL                                  :: Found, use_geep_lib
     REAL(KIND=dp)                            :: alpha, mymaxradius, Prefactor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c_radius, radius
     TYPE(cp_logger_type), POINTER            :: logger
@@ -96,7 +96,6 @@ CONTAINS
 ! Statements
 
     NULLIFY(mypgf, gridlevel_info, radius, c_radius, logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL section_vals_val_get(qmmm_section,"USE_GEEP_LIB",i_val=num_geep_gauss)
     IF (num_geep_gauss == 0) THEN

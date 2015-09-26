@@ -142,7 +142,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: list_cubes, row_blk_sizes
     INTEGER, DIMENSION(:, :, :), POINTER     :: statetrueindex
-    LOGICAL                                  :: append_cube, failure, ionode, &
+    LOGICAL                                  :: append_cube, ionode, &
                                                 should_stop
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
@@ -178,7 +178,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: current_section, lr_section, &
                                                 print_key
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     !
     NULLIFY(cell, dft_control, linres_control, lr_section, current_section,&
@@ -607,8 +606,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: state_list
     INTEGER, DIMENSION(:), POINTER           :: bounds, list, nbox, &
                                                 selected_states_on_atom_list
-    LOGICAL                                  :: failure, gapw, is0, &
-                                                uniform_occupation
+    LOGICAL                                  :: gapw, is0, uniform_occupation
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
     REAL(dp)                                 :: center(3), center2(3), dist, &
                                                 mdist, r(3), rab(3)
@@ -644,7 +642,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind_set, qs_kind_set, cell, dft_control, linres_control, scf_control,&
             logger, mos, mpools, current_section, particle_set, mo_coeff,&
@@ -783,11 +780,9 @@ CONTAINS
     !
     ! check that the psi0 are localized and you have all the centers
     CPASSERT(linres_control%localized_psi0)
-    IF(failure) THEN
-       IF(output_unit>0) THEN
-          WRITE(output_unit,'(A)') &
-               ' To get CURRENT parameters within PBC you need localized zero order orbitals '
-       ENDIF
+    IF(output_unit>0) THEN
+       WRITE(output_unit,'(A)') &
+            ' To get CURRENT parameters within PBC you need localized zero order orbitals '
     ENDIF
     qs_loc_env => linres_control%qs_loc_env
     CALL get_qs_loc_env(qs_loc_env,localized_wfn_control=localized_wfn_control)
@@ -1369,142 +1364,137 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idir, ispin
-    LOGICAL                                  :: failure
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_desc_p_type), &
       DIMENSION(:), POINTER                  :: rs_descs
 
-    failure=.FALSE.
-
     NULLIFY(pw_env,rs_descs)
 
-    IF(.NOT.failure) THEN
-       current_env%ref_count = current_env%ref_count - 1
-       IF(current_env%ref_count == 0 ) THEN
-          !
-          !psi0_order
-          IF(ASSOCIATED(current_env%psi0_order)) THEN
-             DO ispin = 1,SIZE(current_env%psi0_order,1)
-                CALL cp_fm_release(current_env%psi0_order(ispin)%matrix)
-             ENDDO
-             DEALLOCATE(current_env%psi0_order)
-          ENDIF
-          !
-          !psi1_p
-          IF(ASSOCIATED(current_env%psi1_p)) THEN
-             DO idir = 1,SIZE(current_env%psi1_p,2)
-                DO ispin = 1,SIZE(current_env%psi1_p,1)
-                   CALL cp_fm_release(current_env%psi1_p(ispin,idir)%matrix)
-                ENDDO
-             ENDDO
-             DEALLOCATE(current_env%psi1_p)
-          ENDIF
-          !
-          !psi1_rxp
-          IF(ASSOCIATED(current_env%psi1_rxp)) THEN
-             DO idir = 1,SIZE(current_env%psi1_rxp,2)
-                DO ispin = 1,SIZE(current_env%psi1_rxp,1)
-                   CALL cp_fm_release(current_env%psi1_rxp(ispin,idir)%matrix)
-                ENDDO
-             ENDDO
-             DEALLOCATE(current_env%psi1_rxp)
-          ENDIF
-          !
-          !psi1_D
-          IF(ASSOCIATED(current_env%psi1_D)) THEN
-             DO idir = 1,SIZE(current_env%psi1_D,2)
-                DO ispin = 1,SIZE(current_env%psi1_D,1)
-                   CALL cp_fm_release(current_env%psi1_D(ispin,idir)%matrix)
-                ENDDO
-             ENDDO
-             DEALLOCATE(current_env%psi1_D)
-          END IF
-          !
-          !p_psi0
-          IF(ASSOCIATED(current_env%p_psi0)) THEN
-             DO idir = 1,SIZE(current_env%p_psi0,2)
-                DO ispin = 1,SIZE(current_env%p_psi0,1)
-                   CALL cp_fm_release(current_env%p_psi0(ispin,idir)%matrix)
-                ENDDO
-             ENDDO
-             DEALLOCATE(current_env%p_psi0)
-          ENDIF
-          !
-          !rxp_psi0
-          IF(ASSOCIATED(current_env%rxp_psi0)) THEN
-             DO idir = 1,SIZE(current_env%rxp_psi0,2)
-                DO ispin = 1,SIZE(current_env%rxp_psi0,1)
-                   CALL cp_fm_release(current_env%rxp_psi0(ispin,idir)%matrix)
-                ENDDO
-             ENDDO
-             DEALLOCATE(current_env%rxp_psi0)
-          ENDIF
-          !
-          !
-          DO ispin = 1,SIZE(current_env%centers_set,1)
-             DEALLOCATE(current_env%centers_set(ispin)%array)
-          END DO
-          DEALLOCATE(current_env%centers_set)
-
-          DO ispin = 1,SIZE(current_env%center_list,1)
-             DEALLOCATE(current_env%center_list(ispin)%array)
-          END DO
-          DEALLOCATE(current_env%center_list)
-
-          IF(ASSOCIATED(current_env%list_cubes)) THEN
-             DEALLOCATE(current_env%list_cubes)
-          END IF
-          ! Current density on the grid
-          IF(ASSOCIATED(current_env%jrho1_set)) THEN
-             DO idir = 1,3
-                CALL qs_rho_clear(current_env%jrho1_set(idir)%rho)
-                DEALLOCATE(current_env%jrho1_set(idir)%rho)
-             END DO
-             DEALLOCATE(current_env%jrho1_set)
-          END IF
-          !
-          ! Local current density, atom by atom (only gapw)
-          IF(ASSOCIATED(current_env%jrho1_atom_set)) THEN
-             CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set)
-          END IF
-
-          !fullnmr_done
-          IF(ASSOCIATED(current_env%full_done)) THEN
-             DEALLOCATE(current_env%full_done)
-          END IF
-          IF(ASSOCIATED(current_env%basisfun_center)) THEN
-             DEALLOCATE(current_env%basisfun_center)
-          END IF
-          IF(ASSOCIATED(current_env%statetrueindex)) THEN
-             DEALLOCATE(current_env%statetrueindex)
-          END IF
-          IF(ASSOCIATED(current_env%selected_states_on_atom_list)) THEN
-             DEALLOCATE(current_env%selected_states_on_atom_list)
-          END IF
-          ! give back the gauge
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-          CALL pw_env_get(pw_env,rs_descs=rs_descs)
-          DO idir=1,3
-             IF(ASSOCIATED(current_env%rs_gauge(idir)%rs)) THEN
-                DO i=1,SIZE(current_env%rs_gauge(idir)%rs)
-                  CALL rs_grid_release(current_env%rs_gauge(idir)%rs(i)%rs_grid)
-                END DO
-                DEALLOCATE(current_env%rs_gauge(idir)%rs)
-             ENDIF
+    current_env%ref_count = current_env%ref_count - 1
+    IF(current_env%ref_count == 0 ) THEN
+       !
+       !psi0_order
+       IF(ASSOCIATED(current_env%psi0_order)) THEN
+          DO ispin = 1,SIZE(current_env%psi0_order,1)
+             CALL cp_fm_release(current_env%psi0_order(ispin)%matrix)
           ENDDO
-          !
-          DEALLOCATE(current_env%rs_gauge)
+          DEALLOCATE(current_env%psi0_order)
+       ENDIF
+       !
+       !psi1_p
+       IF(ASSOCIATED(current_env%psi1_p)) THEN
+          DO idir = 1,SIZE(current_env%psi1_p,2)
+             DO ispin = 1,SIZE(current_env%psi1_p,1)
+                CALL cp_fm_release(current_env%psi1_p(ispin,idir)%matrix)
+             ENDDO
+          ENDDO
+          DEALLOCATE(current_env%psi1_p)
+       ENDIF
+       !
+       !psi1_rxp
+       IF(ASSOCIATED(current_env%psi1_rxp)) THEN
+          DO idir = 1,SIZE(current_env%psi1_rxp,2)
+             DO ispin = 1,SIZE(current_env%psi1_rxp,1)
+                CALL cp_fm_release(current_env%psi1_rxp(ispin,idir)%matrix)
+             ENDDO
+          ENDDO
+          DEALLOCATE(current_env%psi1_rxp)
+       ENDIF
+       !
+       !psi1_D
+       IF(ASSOCIATED(current_env%psi1_D)) THEN
+          DO idir = 1,SIZE(current_env%psi1_D,2)
+             DO ispin = 1,SIZE(current_env%psi1_D,1)
+                CALL cp_fm_release(current_env%psi1_D(ispin,idir)%matrix)
+             ENDDO
+          ENDDO
+          DEALLOCATE(current_env%psi1_D)
+       END IF
+       !
+       !p_psi0
+       IF(ASSOCIATED(current_env%p_psi0)) THEN
+          DO idir = 1,SIZE(current_env%p_psi0,2)
+             DO ispin = 1,SIZE(current_env%p_psi0,1)
+                CALL cp_fm_release(current_env%p_psi0(ispin,idir)%matrix)
+             ENDDO
+          ENDDO
+          DEALLOCATE(current_env%p_psi0)
+       ENDIF
+       !
+       !rxp_psi0
+       IF(ASSOCIATED(current_env%rxp_psi0)) THEN
+          DO idir = 1,SIZE(current_env%rxp_psi0,2)
+             DO ispin = 1,SIZE(current_env%rxp_psi0,1)
+                CALL cp_fm_release(current_env%rxp_psi0(ispin,idir)%matrix)
+             ENDDO
+          ENDDO
+          DEALLOCATE(current_env%rxp_psi0)
+       ENDIF
+       !
+       !
+       DO ispin = 1,SIZE(current_env%centers_set,1)
+          DEALLOCATE(current_env%centers_set(ispin)%array)
+       END DO
+       DEALLOCATE(current_env%centers_set)
 
-          ! give back the buf
-          IF(ASSOCIATED(current_env%rs_buf)) THEN
-             DO i=1,SIZE(current_env%rs_buf)
-               CALL rs_grid_release(current_env%rs_buf(i)%rs_grid)
+       DO ispin = 1,SIZE(current_env%center_list,1)
+          DEALLOCATE(current_env%center_list(ispin)%array)
+       END DO
+       DEALLOCATE(current_env%center_list)
+
+       IF(ASSOCIATED(current_env%list_cubes)) THEN
+          DEALLOCATE(current_env%list_cubes)
+       END IF
+       ! Current density on the grid
+       IF(ASSOCIATED(current_env%jrho1_set)) THEN
+          DO idir = 1,3
+             CALL qs_rho_clear(current_env%jrho1_set(idir)%rho)
+             DEALLOCATE(current_env%jrho1_set(idir)%rho)
+          END DO
+          DEALLOCATE(current_env%jrho1_set)
+       END IF
+       !
+       ! Local current density, atom by atom (only gapw)
+       IF(ASSOCIATED(current_env%jrho1_atom_set)) THEN
+          CALL deallocate_jrho_atom_set(current_env%jrho1_atom_set)
+       END IF
+
+       !fullnmr_done
+       IF(ASSOCIATED(current_env%full_done)) THEN
+          DEALLOCATE(current_env%full_done)
+       END IF
+       IF(ASSOCIATED(current_env%basisfun_center)) THEN
+          DEALLOCATE(current_env%basisfun_center)
+       END IF
+       IF(ASSOCIATED(current_env%statetrueindex)) THEN
+          DEALLOCATE(current_env%statetrueindex)
+       END IF
+       IF(ASSOCIATED(current_env%selected_states_on_atom_list)) THEN
+          DEALLOCATE(current_env%selected_states_on_atom_list)
+       END IF
+       ! give back the gauge
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       CALL pw_env_get(pw_env,rs_descs=rs_descs)
+       DO idir=1,3
+          IF(ASSOCIATED(current_env%rs_gauge(idir)%rs)) THEN
+             DO i=1,SIZE(current_env%rs_gauge(idir)%rs)
+               CALL rs_grid_release(current_env%rs_gauge(idir)%rs(i)%rs_grid)
              END DO
-             DEALLOCATE(current_env%rs_buf)
+             DEALLOCATE(current_env%rs_gauge(idir)%rs)
           ENDIF
+       ENDDO
+       !
+       DEALLOCATE(current_env%rs_gauge)
 
-       END IF  ! ref count
-    END IF ! failure
+       ! give back the buf
+       IF(ASSOCIATED(current_env%rs_buf)) THEN
+          DO i=1,SIZE(current_env%rs_buf)
+            CALL rs_grid_release(current_env%rs_buf(i)%rs_grid)
+          END DO
+          DEALLOCATE(current_env%rs_buf)
+       ENDIF
+
+    END IF  ! ref count
 
   END SUBROUTINE current_env_cleanup
 

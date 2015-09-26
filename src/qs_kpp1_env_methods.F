@@ -113,10 +113,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE(kpp1_env)
     NULLIFY(kpp1_env%v_rspace, kpp1_env%v_ao, kpp1_env%drho_r,&
          kpp1_env%rho_set, &
@@ -158,9 +154,8 @@ CONTAINS
                                                 ns, nspins, output_unit, &
                                                 res_etype
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: explicit, failure, gapw, &
-                                                gapw_xc, ionode, lsd, &
-                                                lsd_singlets
+    LOGICAL                                  :: explicit, gapw, gapw_xc, &
+                                                ionode, lsd, lsd_singlets
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 energy_hartree_1c, fac
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -185,7 +180,6 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho1_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
             rho1_r, rho1_g_pw, tau_pw, v_xc, rho1_set,&
@@ -614,8 +608,7 @@ CONTAINS
 
     INTEGER                                  :: excitations, ispin, nspins, &
                                                 res_etype
-    LOGICAL                                  :: explicit, failure, &
-                                                lsd_singlets
+    LOGICAL                                  :: explicit, lsd_singlets
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -626,7 +619,6 @@ CONTAINS
 
 ! ------------------------------------------------------------------
 
-    failure=.FALSE.
     NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,input)
 
     CPASSERT(ASSOCIATED(kpp1_env))
@@ -729,10 +721,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_psi0_changed, &
+    LOGICAL                                  :: my_psi0_changed, &
                                                 my_s_struct_changed
 
-    failure=.FALSE.
     my_s_struct_changed=.FALSE.
     my_psi0_changed=.FALSE.
 

@@ -100,7 +100,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: exit_fname, exit_fname_level, &
                                                 exit_gname, exit_gname_level
     INTEGER                                  :: handle, i, tag, unit_number
-    LOGICAL                                  :: failure, should_wait
+    LOGICAL                                  :: should_wait
     LOGICAL, SAVE                            :: check_always = .FALSE.
     REAL(KIND=dp)                            :: my_start_time, &
                                                 my_target_time, t1, t2, &
@@ -110,7 +110,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
     should_stop = .FALSE.
 

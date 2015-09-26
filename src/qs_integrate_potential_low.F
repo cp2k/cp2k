@@ -142,10 +142,7 @@ CONTAINS
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
 
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
-    LOGICAL  :: failure
 
-
-    failure = .FALSE.
     subpatch_integrate = .FALSE.
 
     IF(PRESENT(use_subpatch)) THEN

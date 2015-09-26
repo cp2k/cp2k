@@ -71,12 +71,10 @@ CONTAINS
 
     INTEGER                                  :: e_dim, handle, ig, igauss, &
                                                 s_dim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, gcut2, rc, rc2
 
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
-    failure = .FALSE.
     !
     s_dim = rho_tot_g % pw_grid % first_gne0
     e_dim = rho_tot_g % pw_grid % ngpts_cut_local
@@ -132,12 +130,10 @@ CONTAINS
     INTEGER                                  :: e_dim, handle, idim, ig, &
                                                 igauss, igmax, iparticle, &
                                                 s_dim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
                                                 rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_bv, my_bvw
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(my_bv, my_bvw)
     gcut2 = gcut * gcut
@@ -210,15 +206,12 @@ CONTAINS
                                                 ig, igauss1, igauss2, igmax, &
                                                 iparticle1, iparticle2, &
                                                 istart_g, s_dim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, gcut2, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: my_Am, my_Amw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: gfunc_sq(:,:,:)
 
 !NB precalculate as many things outside of the innermost loop as possible, in particular w(ig)*gfunc(ig,igauus1)*gfunc(ig,igauss2)
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
@@ -302,14 +295,12 @@ CONTAINS
     INTEGER                                  :: e_dim, handle, idim, ig, &
                                                 igauss, igmax, iparticle, &
                                                 s_dim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, g2, gcut2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: my_dbvw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: my_dbv
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
     s_dim = rho_tot_g % pw_grid % first_gne0
@@ -392,7 +383,6 @@ CONTAINS
     INTEGER                                  :: e_dim, handle, ig, igauss2, &
                                                 igmax, iparticle1, &
                                                 iparticle2, s_dim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, gcut2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: arg1_v_sin
 
@@ -403,7 +393,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE :: lhs(:,:), rhs(:,:)
     INTEGER :: Nr, Np, Ng, icomp, ipp
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     gcut2 = gcut * gcut
     s_dim = rho_tot_g % pw_grid % first_gne0
@@ -584,7 +573,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ndim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: condition_number, inv_error
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: AmE, cv
     REAL(KIND=dp), ALLOCATABLE, &
@@ -593,7 +581,6 @@ CONTAINS
 
 !NB for precomputation of sin(g.r) and cos(g.r)
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     ndim = SIZE(particle_set)*SIZE(radii)
     ALLOCATE(Am(ndim, ndim))
@@ -672,14 +659,13 @@ CONTAINS
     INTEGER :: ewmdim, handle, idim, idim1, idim2, idimo, igauss1, igauss2, &
       ip1, ip2, iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3
-    LOGICAL                                  :: analyt, failure
+    LOGICAL                                  :: analyt
     REAL(KIND=dp) :: alpha, eps, ew_neut, fac, fac3, fs, g_ewald, galpha, &
       gsq, gsqi, ij_fac, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, &
       rcut, rcut2, t1, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
 
-    failure = .FALSE.
     NULLIFY(EwM)
     CALL timeset(routineN,handle)
     CPASSERT(.NOT.ASSOCIATED(M))
@@ -856,7 +842,7 @@ CONTAINS
       iparticle2, istart_g, j, l, lmax, n_rep1, n_rep2, ndim, output_unit, &
       weight
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, fixed_center
+    LOGICAL                                  :: fixed_center
     REAL(KIND=dp)                            :: center(3), eps_in, eps_out, &
                                                 factor, mass, mycos, r1, r2, &
                                                 Rs, rvec(3)
@@ -864,7 +850,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cost, LocP
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     fixed_center = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()

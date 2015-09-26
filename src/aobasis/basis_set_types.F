@@ -151,9 +151,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CALL deallocate_gto_basis_set(gto_basis_set)
 
     ALLOCATE (gto_basis_set)
@@ -203,9 +200,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_gto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(gto_basis_set))  THEN
        IF (ASSOCIATED(gto_basis_set%cgf_symbol)) THEN
           DEALLOCATE (gto_basis_set%cgf_symbol)
@@ -257,10 +251,7 @@ CONTAINS
 
     INTEGER                                  :: maxco, maxpgf, maxshell, &
                                                 ncgf, nset, nsgf
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bin, bout
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(basis_set_in))
 
@@ -341,10 +332,7 @@ CONTAINS
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     INTEGER :: iset, ishell, lshell, maxco, maxpgf, maxshell, nc, ncgf, &
       ncgfn, ncgfo, ns, nset, nsetn, nseto, nsgf, nsgfn, nsgfo
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: bad, bout
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(basis_set))
     CPASSERT(ASSOCIATED(basis_set_add))
@@ -782,7 +770,6 @@ CONTAINS
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, jco, jpgf, ll, lmax, &
                                                 lmin, lx, ly, lz, n, npgfa
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fnorm, gcca, gccb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ff
     REAL(KIND=dp), ALLOCATABLE, &
@@ -793,7 +780,6 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
     n = 0
     ll = 0
     DO iset=1,gto_basis_set%nset
@@ -1079,14 +1065,12 @@ CONTAINS
       maxl, maxpgf, maxshell, nbasis, ncgf, nmin, nset, nsgf, strlen1, strlen2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: basis_found, failure, found, &
-                                                match
+    LOGICAL                                  :: basis_found, found, match
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     TYPE(cp_parser_type), POINTER            :: parser
 
-    failure = .FALSE.
     line = ""
     line2 = ""
     symbol = ""
@@ -1413,14 +1397,13 @@ CONTAINS
                                                 nset, nsgf
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: failure, is_ok
+    LOGICAL                                  :: is_ok
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(val_type), POINTER                  :: val
 
-    failure = .FALSE.
     line = ""
     line2 = ""
     symbol = ""
@@ -1917,11 +1900,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
     CALL deallocate_sto_basis_set(sto_basis_set)
 
     ALLOCATE (sto_basis_set)
@@ -1945,11 +1925,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_sto_basis_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 ! -------------------------------------------------------------------------
 
-    failure = .FALSE.
     IF (ASSOCIATED(sto_basis_set)) THEN
        IF (ASSOCIATED(sto_basis_set%symbol)) THEN
           DEALLOCATE (sto_basis_set%symbol)
@@ -2104,11 +2081,9 @@ CONTAINS
                                                 maxco, maxl, ncgf, ng, np, &
                                                 nset, nsgf, nshell
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     REAL(KIND=dp), DIMENSION(maxng)          :: gcc, zetg
 
-    failure = .FALSE.
     ng = 6
     IF (PRESENT(ngauss)) ng=ngauss
     IF (ng > maxng) CALL stop_program(routineN,moduleN,__LINE__,&

@@ -76,8 +76,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, imol
-    LOGICAL                                  :: failure, my_unique, &
-                                                skip_inter_colvar
+    LOGICAL                                  :: my_unique, skip_inter_colvar
     TYPE(colvar_counters)                    :: ncolv
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(global_constraint_type), POINTER    :: gci
@@ -87,7 +86,6 @@ CONTAINS
                                                 molecule_kind_set(:)
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
 
-    failure = .FALSE.
     NULLIFY(subsys, molecules, molecule_kind, molecule, molecule_set, gci)
     CALL timeset(routineN,handle)
     skip_inter_colvar = .FALSE.
@@ -142,7 +140,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, ind, nkind
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
@@ -152,7 +149,6 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     NULLIFY(cell, subsys, molecule_kinds, molecule_kind, gci, colv_list)
     CALL timeset(routineN,handle)
     CALL force_env_get(force_env=force_env, subsys=subsys, cell=cell)
@@ -216,7 +212,7 @@ CONTAINS
                                                 n_tot, natom, nkind, &
                                                 nmol_per_kind, offset
     INTEGER, DIMENSION(:), POINTER           :: map, wrk
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     REAL(KIND=dp)                            :: inv_error
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: bwrk, Gmatrix, Gmatrix_i
@@ -233,7 +229,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), POINTER             :: particle_set( : )
 
-    failure = .FALSE.
     NULLIFY(cell, subsys, local_molecules, molecule_kinds, &
          molecules, molecule_kind, molecule, &
          molecule_set, particles, particle_set, gci)
@@ -405,7 +400,6 @@ CPSourceFileRef)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_colv_int', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -415,7 +409,6 @@ CPSourceFileRef)
 
     NULLIFY(fixd_list)
 
-    failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, lcolv=lcolv )
@@ -510,9 +503,7 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatm, iconst, ind, ival
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ival = offset
     DO iconst = 1, SIZE(colv_list)
        n_tot = n_tot  + 1
@@ -564,12 +555,10 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: MassI, wrk
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Amatrix, Bmatrix
 
-    failure = .FALSE.
     ALLOCATE(Bmatrix(nsize_xyz,nsize_int))
     ALLOCATE(MassI(nsize_xyz))
     ! Transform gradients if requested
@@ -623,9 +612,7 @@ CPSourceFileRef)
     CHARACTER(len=3)                         :: name_kind
     INTEGER                                  :: i, ii, j, natoms, nkinds, &
                                                 nr_frame, stat
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     natoms = SIZE(particles)
     IF (colvar%type_id == coord_colvar_id) THEN
        IF (colvar%coord_param%use_kinds_from.OR.colvar%coord_param%use_kinds_to) THEN

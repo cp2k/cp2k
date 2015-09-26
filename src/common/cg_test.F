@@ -47,13 +47,11 @@ SUBROUTINE clebsch_gordon_test ()
       DIMENSION(:)                           :: a1, a2, a3
     INTEGER                                  :: il, iw, l1, l2, ll, lp, m1, &
                                                 m2, mm, mp, na
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ca, cga(10), cn, rga(10,21), &
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: b1, b2, b3, wa
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger=>cp_get_default_logger()
     iw = cp_logger_get_default_io_unit(logger)
 

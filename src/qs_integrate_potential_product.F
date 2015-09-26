@@ -172,9 +172,9 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, &
-      failure, found, h_duplicated, map_consistent, my_compute_tau, &
-      my_force_adm, my_gapw, new_set_pair_coming, p_duplicated, pab_required, &
-      scatter, use_subpatch, use_virial
+      found, h_duplicated, map_consistent, my_compute_tau, my_force_adm, &
+      my_gapw, new_set_pair_coming, p_duplicated, pab_required, scatter, &
+      use_subpatch, use_virial
     REAL(KIND=dp)                            :: admm_scal_fac, dab, &
                                                 eps_gvg_rspace, rab2, scalef, &
                                                 zetp
@@ -228,7 +228,6 @@ CONTAINS
        CPASSERT(PRESENT(hmat_kp))
     END IF
 
-    failure=.FALSE.
     NULLIFY(pw_env, rs_descs, tasks, dist_ab, admm_env)
 
     debug_count=debug_count+1
@@ -455,7 +454,7 @@ CONTAINS
 !$omp shared(maxpgf,my_basis_type,my_gapw,dhmat,deltap,use_virial,admm_scal_fac), &
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
-!$omp shared(gridlevel_info,task_list,failure,block_touched,nthread,qs_kind_set), &
+!$omp shared(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
 !$omp shared(nimages,do_kp), &
 !$omp private(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
 !$omp private(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &

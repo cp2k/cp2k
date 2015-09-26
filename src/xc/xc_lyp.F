@@ -133,7 +133,6 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params)
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
                                                 epsilon_rho, sc
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
@@ -143,7 +142,6 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,lyp_params)
 
     CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(bo)
 
   CALL section_vals_val_get(lyp_params,"scale_c",r_val=sc)
@@ -763,7 +761,6 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params)
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho, sc
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndr, &
       e_ndr_ndr, e_ndr_ra, e_ndr_rb, e_ndra, e_ndra_ndra, e_ndra_ra, &
@@ -772,7 +769,6 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,lyp_params)
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-  failure=.FALSE.
   NULLIFY(deriv, bo)
 
   CALL section_vals_val_get(lyp_params,"scale_c",r_val=sc)
@@ -954,7 +950,6 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: cf, my_ndrho, my_ndrhoa, my_ndrhob, my_rho, my_rhoa, &
       my_rhob, t1, t100, t101, t102, t103, t104, t107, t108, t109, t112, &
       t115, t118, t12, t120, t124, t129, t13, t130, t132, t135, t138, t14, &
@@ -970,7 +965,6 @@ SUBROUTINE lyp_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
       t52, t520, t54, t56, t57, t6, t61, t62, t64, t66, t7, t72, t75, t78, &
       t8, t82, t85, t86, t87, t88, t90, t92, t94, t95, t98, t99
 
-  failure=.FALSE.
   cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
 
   !$omp do

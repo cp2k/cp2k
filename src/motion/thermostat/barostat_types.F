@@ -84,11 +84,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_barostat_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, explicit, failure
+    LOGICAL                                  :: check, explicit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: barostat_section
 
-    failure =.FALSE.
     check = .NOT.ASSOCIATED(barostat)
     CPASSERT(check)
     barostat_section => section_vals_get_subs_vals(md_section,"BAROSTAT")
@@ -149,10 +148,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_barostat_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (ASSOCIATED(barostat)) THEN
        CPASSERT(barostat%ref_count>0)
        barostat%ref_count=barostat%ref_count+1
@@ -172,9 +167,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'release_barostat_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure =.FALSE.
     IF (ASSOCIATED(barostat)) THEN
        check = barostat%ref_count>0
        CPASSERT(check)

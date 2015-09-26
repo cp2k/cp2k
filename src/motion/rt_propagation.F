@@ -98,7 +98,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: aspc_order
-    LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_energy_type), POINTER            :: energy
@@ -109,7 +108,6 @@ CONTAINS
                                                 ls_scf_section, md_section, &
                                                 motion_section
 
-    failure=.FALSE.
     NULLIFY(qs_env,rtp_control,dft_control)
 
     CALL force_env_get(force_env=force_env,qs_env=qs_env,globenv=globenv)
@@ -266,7 +264,7 @@ CONTAINS
 
     INTEGER                                  :: aspc_order, handle, i_iter, &
                                                 i_step, max_iter, max_steps
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     REAL(Kind=dp)                            :: eps_ener, time_iter_start, &
                                                 time_iter_stop, used_time
     TYPE(cp_logger_type), POINTER            :: logger
@@ -275,7 +273,6 @@ CONTAINS
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(rtp_control_type), POINTER          :: rtp_control
 
-    failure=.FALSE.
     should_stop=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger,dft_control,energy,rtp,rtp_control)
@@ -331,8 +328,7 @@ CONTAINS
 
     IF(.NOT.rtp%converged)&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-         routineP,"propagation did not converge, either increase MAX_ITER or use a smaller TIMESTEP",&
-         failure)
+         routineP,"propagation did not converge, either increase MAX_ITER or use a smaller TIMESTEP")
 
     CALL timestop(handle)
 

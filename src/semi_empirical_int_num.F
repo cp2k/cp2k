@@ -235,11 +235,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'terep_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure           = .FALSE.
     ft                = taper_eval(se_taper%taper, rij)
     ! In case of dumped integrals compute an additional taper term
     IF (se_int_control%integral_screening==do_se_IS_kdso_d) THEN
@@ -287,10 +285,8 @@ CONTAINS
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    failure = .FALSE.
     lasti = sepi%natorb
     lastj = sepj%natorb
     DO i = 1, MIN(lasti,4)
@@ -354,10 +350,8 @@ CONTAINS
     INTEGER                                  :: i, ij, j, k, kl, l, lasti, &
                                                 lastj, li, lj, lk, ll, nold, &
                                                 numb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
 
-    failure = .FALSE.
     lasti = sepi%natorb
     lastj = sepj%natorb
     DO i = 1, lasti
@@ -759,13 +753,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ssss_nucint_num', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure   = .FALSE.
+! Computing Tapering function
 
-    ! Computing Tapering function
     ft               = 1.0_dp
     IF (itype /=do_method_pchg) THEN
        ft = taper_eval(se_taper%taper, rij)
@@ -816,12 +808,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ft
     TYPE(se_int_screen_type)                 :: se_int_screen
 
-    failure   = .FALSE.
-    ! Computing the Tapering function
+! Computing the Tapering function
+
     ft               = 1.0_dp
     IF (itype /=do_method_pchg) THEN
        ft = taper_eval(se_taper%taper, rij)
@@ -887,10 +878,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl
-    LOGICAL                                  :: failure, l_core, l_ssss, si, &
-                                                sj
+    LOGICAL                                  :: l_core, l_ssss, si, sj
 
-    failure = .FALSE.
     l_core  = PRESENT(core)
     l_ssss  = PRESENT(ssss)
     IF (.NOT.(l_core.OR.l_ssss)) RETURN
@@ -972,10 +961,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ij, kl
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
-    ! Check if d-orbitals are present
+! Check if d-orbitals are present
+
     IF (sepi%dorb.OR.sepj%dorb) THEN
        ij = indexa(1, 1)
        IF (sepj%dorb) THEN

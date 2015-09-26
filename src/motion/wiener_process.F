@@ -68,7 +68,6 @@ CONTAINS
     CHARACTER(LEN=40)                        :: name
     INTEGER :: iparticle, iparticle_kind, iparticle_local, nparticle, &
       nparticle_kind, nparticle_local
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
@@ -82,7 +81,6 @@ CONTAINS
                                                 subsys_section, work_section
     TYPE(simpar_type), POINTER               :: simpar
 
-    failure = .FALSE.
     NULLIFY(work_section,force_env)
     CPASSERT(ASSOCIATED(md_env))
 
@@ -182,11 +180,9 @@ CONTAINS
     INTEGER                                  :: iparticle, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_local
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
 
 ! -------------------------------------------------------------------------
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(distribution_1d))
 
@@ -232,12 +228,10 @@ CONTAINS
 
     CHARACTER(LEN=40)                        :: name
     INTEGER                                  :: i_c
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
 
-    failure=.FALSE.
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
 
     initial_seed = next_rng_seed()

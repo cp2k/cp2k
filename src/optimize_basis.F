@@ -154,7 +154,7 @@ CONTAINS
     INTEGER                                  :: handle, icalc, iopt, mp_id, &
                                                 stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: f_env_id
-    LOGICAL                                  :: failure, write_basis
+    LOGICAL                                  :: write_basis
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tot_time
     TYPE(cp_fm_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix_S_inv
@@ -164,7 +164,6 @@ CONTAINS
     NULLIFY(f_env)
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! ======  initialize the f_env and precompute some matrices ===== 
     mp_id=opt_bas%opt_id
@@ -360,6 +359,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input_file
 
     CALL timeset(routineN,handle)
+
+    failure = .FALSE.
     NULLIFY(matrix_s, blacs_env, ks_env)
 
     mp_id=opt_bas%opt_id

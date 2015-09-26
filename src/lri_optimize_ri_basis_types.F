@@ -109,9 +109,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-   failure=.FALSE.
 
    IF(ASSOCIATED(lri_opt)) THEN
      IF(ASSOCIATED(lri_opt%subset)) THEN
@@ -157,10 +154,8 @@ CONTAINS
     INTEGER                                  :: il, ipgf, iset, ishell, l, &
                                                 maxpgf, maxshell, nl, nset
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, ncont_l
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
-    failure  = .FALSE.
     maxpgf   = SIZE(gto_basis_set%gcc,1)
     maxshell = SIZE(gto_basis_set%gcc,2)
     nset     = SIZE(gto_basis_set%gcc,3)
@@ -226,10 +221,7 @@ CONTAINS
     INTEGER                                  :: il, iset, ishell, ishell1, &
                                                 ishell2, istart, nset
     INTEGER, DIMENSION(:), POINTER           :: nshell
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: gs_scale
-
-    failure  = .FALSE.
 
     CALL get_gto_basis_set(gto_basis_set=gto_basis_set,nset=nset,nshell=nshell)
  

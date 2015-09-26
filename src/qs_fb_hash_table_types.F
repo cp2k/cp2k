@@ -111,9 +111,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: islot
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     ! check hash table size, if too small rehash in a larger table
@@ -163,9 +162,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: my_nmax
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = .NOT. fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     ALLOCATE(hash_table%obj)
@@ -201,9 +199,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: islot
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     found = .FALSE.
@@ -246,9 +243,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax, power
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     my_nmax = hash_table%obj%nmax
@@ -304,11 +300,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii, my_nmax
-    LOGICAL                                  :: failure
     TYPE(fb_hash_table_element), &
       ALLOCATABLE, DIMENSION(:)              :: tmp_table
 
-    failure = .FALSE.
     IF (.NOT. fb_hash_table_has_data(hash_table)) THEN
        CALL fb_hash_table_create(hash_table, nmax)
        RETURN
@@ -344,9 +338,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     IF (ASSOCIATED(hash_table%obj)) THEN
        check_ok = hash_table%obj%ref_count > 0
        CPASSERT(check_ok)
@@ -378,9 +371,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: islot
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     islot = fb_hash_table_linear_probe(hash_table, key)
@@ -413,9 +405,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = ASSOCIATED(hash_table%obj)
     CPASSERT(check_ok)
     check_ok = hash_table%obj%ref_count > 0
@@ -438,9 +429,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_hash_table_status', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
 
-    failure = .FALSE.
     check_ok = fb_hash_table_has_data(hash_table)
     CPASSERT(check_ok)
     IF (PRESENT(nelements)) nelements = hash_table%obj%nelements

@@ -56,11 +56,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ls_scf_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"LS_SCF",&
@@ -291,11 +288,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_chebyshev_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -373,10 +367,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ls_curvy_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"CURVY_STEPS",&
@@ -449,10 +440,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_pexsi_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 

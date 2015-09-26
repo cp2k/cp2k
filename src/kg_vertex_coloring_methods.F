@@ -293,9 +293,7 @@ CONTAINS
     INTEGER                                  :: i, nnodes
     INTEGER(kind=valt), ALLOCATABLE, &
       DIMENSION(:)                           :: values
-    LOGICAL                                  :: failure, heap_error
-
-    failure = .FALSE.
+    LOGICAL                                  :: heap_error
 
     nnodes = SIZE(graph)
 
@@ -327,9 +325,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER(KIND=valt)                       :: value
-    LOGICAL                                  :: failure, found, heap_error
-
-    failure=.FALSE.
+    LOGICAL                                  :: found, heap_error
 
     CALL heap_pop (heap, key, value, found, heap_error)
     CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
@@ -409,12 +405,9 @@ CONTAINS
     INTEGER                                  :: color_limit, handle, i, j, &
                                                 key, maxdegree, nneighbors, &
                                                 nnodes
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: color_present
     TYPE(heap_t)                             :: heap
     TYPE(vertex), POINTER                    :: neighbor, this
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -709,14 +702,13 @@ CONTAINS
 
     INTEGER                                  :: color, handle, i, nnodes, &
                                                 unit_nr
-    LOGICAL                                  :: failure, valid
+    LOGICAL                                  :: valid
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(vertex_p_type), DIMENSION(:), &
       POINTER                                :: graph
 
-    failure = .FALSE.
+! get a useful output_unit
 
-    ! get a useful output_unit
     logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)

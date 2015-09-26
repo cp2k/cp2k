@@ -127,8 +127,7 @@ CONTAINS
                                                 ikind, iw, maxatom, &
                                                 natom_local_a, nkind, &
                                                 output_unit
-    LOGICAL                                  :: failure, &
-                                                present_local_particles, &
+    LOGICAL                                  :: present_local_particles, &
                                                 print_subcell_grid
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     LOGICAL, DIMENSION(:, :), POINTER        :: my_full_nl
@@ -137,7 +136,6 @@ CONTAINS
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -315,8 +313,8 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
                                                 periodic
     LOGICAL                                  :: any_full, atom_order, &
-                                                check_spline, failure, &
-                                                is_full, subcell000
+                                                check_spline, is_full, &
+                                                subcell000
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
                                                 rab_max
@@ -331,7 +329,6 @@ CONTAINS
       POINTER                                :: subcell_a, subcell_b
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     nkind = SIZE(atom)
     nsubcell = 1
     isubcell = 0
@@ -765,10 +762,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj
     INTEGER, DIMENSION(:), POINTER           :: work
     INTEGER, DIMENSION(:, :), POINTER        :: list_copy
-    LOGICAL                                  :: failure
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
-    failure = .FALSE.
     NULLIFY(neighbor_kind_pair)
     CALL timeset(routineN,handle)
     ! define a lookup table to get jkind for a given id_kind

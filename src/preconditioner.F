@@ -109,14 +109,12 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, k, my_solver_type
-    LOGICAL :: failure, my_convert_precond_to_dbcsr, my_mixed_precision, &
+    LOGICAL :: my_convert_precond_to_dbcsr, my_mixed_precision, &
       needs_full_spectrum, needs_homo, use_mo_coeff_b
     REAL(KIND=dp)                            :: energy_homo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues_ot
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_b
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -325,8 +323,8 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     CHARACTER(LEN=default_string_length)     :: msg
     INTEGER                                  :: handle, icall, ispin, n_loops
-    LOGICAL :: do_co_rotate, failure, my_convert_to_dbcsr, &
-      my_has_unit_metric, my_mixed_precision, use_mo_coeff_b
+    LOGICAL :: do_co_rotate, my_convert_to_dbcsr, my_has_unit_metric, &
+      my_mixed_precision, use_mo_coeff_b
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: kinetic
@@ -337,7 +335,6 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
 
     CALL timeset(routineN,handle)
     NULLIFY(matrix_t, mo_coeff_b, mo_coeff, kinetic, dft_control, para_env, blacs_env)
-    failure = .FALSE.
     my_has_unit_metric = .FALSE.
     IF(PRESENT(has_unit_metric)) my_has_unit_metric = has_unit_metric
     my_mixed_precision = .FALSE.

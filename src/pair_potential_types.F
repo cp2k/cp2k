@@ -302,9 +302,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, mycompare
+    LOGICAL                                  :: mycompare
 
-    failure=.FALSE.
     compare=.FALSE.
     ! Preliminary checks
 
@@ -416,9 +415,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, lnset
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(potparm))
     ALLOCATE(potparm)
     lnset = 1
@@ -461,9 +458,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     potparm % type          = nn_type
     potparm % shell_type    = nosh_nosh
     potparm % undef         = .TRUE.
@@ -510,9 +505,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(potparm_source))
     IF (.NOT.ASSOCIATED(potparm_dest)) THEN
        CALL pair_potential_single_create(potparm_dest,SIZE(potparm_source%type))
@@ -569,11 +562,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, size_dest, size_source
-    LOGICAL                                  :: allocate_new, check, failure
+    LOGICAL                                  :: allocate_new, check
     TYPE(pair_potential_single_type), &
       POINTER                                :: potparm_tmp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(potparm_source))
     ! At this level we expect all splines types
     ! be not allocated.. No sense add splines at this level.. in case fail!
@@ -697,9 +689,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(potparm))
     CALL spline_data_p_release( potparm% pair_spline_data)
     CALL spline_factor_release( potparm% spl_f)
@@ -737,9 +727,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(potparm))
     ALLOCATE ( potparm)
     ALLOCATE ( potparm%pot( nkinds, nkinds ))
@@ -772,9 +760,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF ( ASSOCIATED ( potparm ) ) THEN
        IF (ASSOCIATED (potparm%pot)) THEN
           DO i = 1, SIZE ( potparm%pot, 1 )
@@ -806,9 +792,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, loc_lb, loc_ub
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(potparm))
     ALLOCATE ( potparm)
     IF (PRESENT(ndim)) THEN
@@ -849,9 +833,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF ( ASSOCIATED ( potparm ) ) THEN
        IF (ASSOCIATED (potparm%pot)) THEN
@@ -881,9 +862,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, l_end, l_start
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(source))
     CPASSERT(ASSOCIATED(dest))
     l_start = LBOUND(source%pot,1)
@@ -931,13 +910,11 @@ CONTAINS
 
     INTEGER                                  :: i, ipot, lb1_old, std_dim, &
                                                 ub1_old
-    LOGICAL :: check, failure, lbmhft, lbmhftd, lbuck4r, lbuckmo, leam, &
-      lgoodwin, lgp, lipbv, llj, llj_charmm, lquip, lsiepmann, ltersoff, &
-      lwilliams
+    LOGICAL :: check, lbmhft, lbmhftd, lbuck4r, lbuckmo, leam, lgoodwin, lgp, &
+      lipbv, llj, llj_charmm, lquip, lsiepmann, ltersoff, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)
-    failure = .FALSE.
     ipot = 0
     llj       = .FALSE. ; IF (PRESENT(lj))        llj       = lj
     llj_charmm= .FALSE. ; IF (PRESENT(lj_charmm)) llj_charmm= lj_charmm
@@ -1113,9 +1090,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(gp))
     ALLOCATE(gp)
     NULLIFY (gp%parameters)
@@ -1136,9 +1110,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idim
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(gp_source)) RETURN
     IF (ASSOCIATED(gp_dest)) CALL pair_potential_gp_release(gp_dest)
     CALL pair_potential_gp_create(gp_dest)
@@ -1168,9 +1140,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(gp)) RETURN
     gp%myid      = 0
     gp%potential = ""
@@ -1194,9 +1163,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_gp_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(gp)) THEN
        IF (ASSOCIATED(gp%parameters)) THEN
           DEALLOCATE(gp%parameters)
@@ -1220,9 +1186,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(lj))
     ALLOCATE(lj)
     CALL pair_potential_lj_clean(lj)
@@ -1240,9 +1203,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(lj_source)) RETURN
     IF (ASSOCIATED(lj_dest)) CALL pair_potential_lj_release(lj_dest)
     CALL pair_potential_lj_create(lj_dest)
@@ -1262,9 +1222,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(lj)) RETURN
     lj%epsilon = 0.0_dp
     lj%sigma6  = 0.0_dp
@@ -1282,9 +1239,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_lj_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(lj)) THEN
        DEALLOCATE(lj)
     END IF
@@ -1303,9 +1257,6 @@ CONTAINS
       routineN = 'pair_potential_williams_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(willis))
     ALLOCATE(willis)
     CALL pair_potential_williams_clean(willis)
@@ -1323,9 +1274,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_williams_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(willis_source)) RETURN
     IF (ASSOCIATED(willis_dest)) CALL pair_potential_williams_release(willis_dest)
     CALL pair_potential_williams_create(willis_dest)
@@ -1346,9 +1294,6 @@ CONTAINS
       routineN = 'pair_potential_williams_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(willis)) RETURN
     willis%a = 0.0_dp
     willis%b = 0.0_dp
@@ -1367,9 +1312,6 @@ CONTAINS
       routineN = 'pair_potential_williams_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(willis)) THEN
        DEALLOCATE(willis)
     END IF
@@ -1388,9 +1330,6 @@ CONTAINS
       routineN = 'pair_potential_goodwin_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(goodwin))
     ALLOCATE(goodwin)
     CALL pair_potential_goodwin_clean(goodwin)
@@ -1408,9 +1347,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(goodwin_source)) RETURN
     IF (ASSOCIATED(goodwin_dest)) CALL pair_potential_goodwin_release(goodwin_dest)
     CALL pair_potential_goodwin_create(goodwin_dest)
@@ -1432,9 +1368,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_goodwin_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(goodwin)) RETURN
     goodwin%vr0 = 0.0_dp
     goodwin%d   = 0.0_dp
@@ -1455,9 +1388,6 @@ CONTAINS
       routineN = 'pair_potential_goodwin_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(goodwin)) THEN
        DEALLOCATE(goodwin)
     END IF
@@ -1475,9 +1405,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(eam))
     ALLOCATE(eam)
     NULLIFY(eam%rho, eam%phi, eam%frho, eam%rhoval, eam%rval,&
@@ -1497,9 +1424,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(eam_source)) RETURN
     IF (ASSOCIATED(eam_dest)) CALL pair_potential_eam_release(eam_dest)
     CALL pair_potential_eam_create(eam_dest)
@@ -1538,9 +1462,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(eam)) RETURN
     eam%eam_file_name = 'NULL'
     eam%drar          = 0.0_dp
@@ -1568,9 +1489,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_eam_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(eam)) THEN
        IF (ASSOCIATED(eam%rho)) THEN
           DEALLOCATE(eam%rho)
@@ -1611,9 +1529,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_quip_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(quip))
     ALLOCATE(quip)
     quip%quip_file_name=""
@@ -1634,9 +1549,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_quip_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(quip_source)) RETURN
     IF (ASSOCIATED(quip_dest)) CALL pair_potential_quip_release(quip_dest)
     CALL pair_potential_quip_create(quip_dest)
@@ -1656,9 +1568,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_quip_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(quip)) RETURN
     quip%quip_file_name = 'NULL'
     quip%init_args = ''
@@ -1676,9 +1585,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_quip_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(quip)) THEN
        DEALLOCATE(quip)
     END IF
@@ -1695,9 +1601,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ft))
     ALLOCATE(ft)
     CALL pair_potential_bmhft_clean(ft)
@@ -1715,9 +1618,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(ft_source)) RETURN
     IF (ASSOCIATED(ft_dest)) CALL pair_potential_bmhft_release(ft_dest)
     CALL pair_potential_bmhft_create(ft_dest)
@@ -1738,9 +1638,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(ft)) RETURN
     ft%A = 0.0_dp
     ft%B = 0.0_dp
@@ -1759,9 +1656,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhft_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(ft)) THEN
        DEALLOCATE(ft)
     END IF
@@ -1779,9 +1673,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhftd_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ftd))
     ALLOCATE(ftd)
     CALL pair_potential_bmhftd_clean(ftd)
@@ -1799,9 +1690,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhftd_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(ftd_source)) RETURN
     IF (ASSOCIATED(ftd_dest)) CALL pair_potential_bmhftd_release(ftd_dest)
     CALL pair_potential_bmhftd_create(ftd_dest)
@@ -1823,9 +1711,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_bmhftd_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(ftd)) RETURN
     ftd%A = 0.0_dp
     ftd%B = 0.0_dp
@@ -1846,9 +1731,6 @@ CONTAINS
       routineN = 'pair_potential_bmhftd_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(ftd)) THEN
        DEALLOCATE(ftd)
     END IF
@@ -1866,9 +1748,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(ipbv))
     ALLOCATE(ipbv)
     CALL pair_potential_ipbv_clean(ipbv)
@@ -1886,9 +1765,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(ipbv_source)) RETURN
     IF (ASSOCIATED(ipbv_dest)) CALL pair_potential_ipbv_release(ipbv_dest)
     CALL pair_potential_ipbv_create(ipbv_dest)
@@ -1909,9 +1785,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(ipbv)) RETURN
     ipbv%a     = 0.0_dp
     ipbv%rcore = 0.0_dp
@@ -1930,9 +1803,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_ipbv_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(ipbv)) THEN
        DEALLOCATE(ipbv)
     END IF
@@ -1950,9 +1820,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(buck4r))
     ALLOCATE(buck4r)
     CALL pair_potential_buck4r_clean(buck4r)
@@ -1970,9 +1837,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(buck4r_source)) RETURN
     IF (ASSOCIATED(buck4r_dest)) CALL pair_potential_buck4r_release(buck4r_dest)
     CALL pair_potential_buck4r_create(buck4r_dest)
@@ -1999,9 +1863,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buck4r_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(buck4r)) RETURN
     buck4r%a  = 0.0_dp
     buck4r%b  = 0.0_dp
@@ -2027,9 +1888,6 @@ CONTAINS
       routineN = 'pair_potential_buck4r_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(buck4r)) THEN
        DEALLOCATE(buck4r)
     END IF
@@ -2047,9 +1905,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(buckmo))
     ALLOCATE(buckmo)
     CALL pair_potential_buckmo_clean(buckmo)
@@ -2067,9 +1922,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(buckmo_source)) RETURN
     IF (ASSOCIATED(buckmo_dest)) CALL pair_potential_buckmo_release(buckmo_dest)
     CALL pair_potential_buckmo_create(buckmo_dest)
@@ -2095,9 +1947,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_buckmo_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(buckmo)) RETURN
     buckmo%f0 = 0.0_dp
     buckmo%a1 = 0.0_dp
@@ -2122,9 +1971,6 @@ CONTAINS
       routineN = 'pair_potential_buckmo_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(buckmo)) THEN
        DEALLOCATE(buckmo)
     END IF
@@ -2143,9 +1989,6 @@ CONTAINS
       routineN = 'pair_potential_tersoff_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(tersoff))
     ALLOCATE(tersoff)
     CALL pair_potential_tersoff_clean(tersoff)
@@ -2163,9 +2006,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tersoff_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(tersoff_source)) RETURN
     IF (ASSOCIATED(tersoff_dest)) CALL pair_potential_tersoff_release(tersoff_dest)
     CALL pair_potential_tersoff_create(tersoff_dest)
@@ -2196,9 +2036,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_tersoff_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(tersoff)) RETURN
     tersoff%A       = 0.0_dp
     tersoff%B       = 0.0_dp
@@ -2228,9 +2065,6 @@ CONTAINS
       routineN = 'pair_potential_tersoff_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(tersoff)) THEN
        DEALLOCATE(tersoff)
     END IF
@@ -2249,9 +2083,6 @@ CONTAINS
       routineN = 'pair_potential_siepmann_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(siepmann))
     ALLOCATE(siepmann)
     CALL pair_potential_siepmann_clean(siepmann)
@@ -2268,9 +2099,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pair_potential_siepmann_copy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (.NOT.ASSOCIATED(siepmann_source)) RETURN
     IF (ASSOCIATED(siepmann_dest)) CALL pair_potential_siepmann_release(siepmann_dest)
     CALL pair_potential_siepmann_create(siepmann_dest)
@@ -2295,9 +2123,6 @@ CONTAINS
       routineN = 'pair_potential_siepmann_clean', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(.NOT.ASSOCIATED(siepmann)) RETURN
     siepmann%B       = 0.0_dp
     siepmann%D       = 0.0_dp
@@ -2320,9 +2145,6 @@ CONTAINS
       routineN = 'pair_potential_siepmann_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(siepmann)) THEN
        DEALLOCATE(siepmann)
     END IF

@@ -91,8 +91,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: explicit, failure, &
-                                                my_localized_wfn
+    LOGICAL                                  :: explicit, my_localized_wfn
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -109,7 +108,6 @@ CONTAINS
     ! Writes the data that is already available in qs_env
     CALL write_available_results(qs_env)
 
-    failure=.FALSE.
     my_localized_wfn = .FALSE.
     NULLIFY(dft_control, mos, rho, &
          subsys, particles, input, print_key, para_env)
@@ -631,7 +629,7 @@ CONTAINS
 
     INTEGER                                  :: after, handle, ispin, iw, &
                                                 output_unit
-    LOGICAL                                  :: failure, omit_headers
+    LOGICAL                                  :: omit_headers
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -652,7 +650,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, mos, atomic_kind_set, particle_set, rho, &
          ks_rmpv, dft_section, input, &
          particles, subsys, para_env, rho_ao)
@@ -660,120 +657,118 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
 
     CPASSERT(ASSOCIATED(qs_env))
-    IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,&
-                       dft_control=dft_control,&
-                       mos=mos,&
-                       atomic_kind_set=atomic_kind_set,&
-                       qs_kind_set=qs_kind_set,&
-                       particle_set=particle_set,&
-                       rho=rho,&
-                       matrix_ks=ks_rmpv,&
-                       input=input,&
-                       cell=cell,&
-                       subsys=subsys,&
-                       para_env=para_env)
-       CALL qs_subsys_get(subsys,particles=particles)
+    CALL get_qs_env(qs_env,&
+                    dft_control=dft_control,&
+                    mos=mos,&
+                    atomic_kind_set=atomic_kind_set,&
+                    qs_kind_set=qs_kind_set,&
+                    particle_set=particle_set,&
+                    rho=rho,&
+                    matrix_ks=ks_rmpv,&
+                    input=input,&
+                    cell=cell,&
+                    subsys=subsys,&
+                    para_env=para_env)
+    CALL qs_subsys_get(subsys,particles=particles)
 
-       CALL qs_rho_get(rho, rho_ao=rho_ao)
-       ! *** if the dft_section tells you to do so, write last wavefunction to screen
-       dft_section => section_vals_get_subs_vals(input,"DFT")
-       IF (dft_control%nspins == 2) THEN
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
-                           dft_section,spin="ALPHA",last=.TRUE.)
-         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
-                           dft_section,spin="BETA",last=.TRUE.)
-       ELSE
-         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
-                           dft_section,last=.TRUE.)
-       END IF
+    CALL qs_rho_get(rho, rho_ao=rho_ao)
+    ! *** if the dft_section tells you to do so, write last wavefunction to screen
+    dft_section => section_vals_get_subs_vals(input,"DFT")
+    IF (dft_control%nspins == 2) THEN
+      CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
+                        dft_section,spin="ALPHA",last=.TRUE.)
+      CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
+                        dft_section,spin="BETA",last=.TRUE.)
+    ELSE
+      CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
+                        dft_section,last=.TRUE.)
+    END IF
 
-       ! *** at the end of scf print out the projected dos per kind
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS")&
-           ,cp_p_file) ) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="PDOS not implemented for Semi-Empirical calculations!!", &
-               error_level=cp_warning_level)
-       ENDIF
+    ! *** at the end of scf print out the projected dos per kind
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS")&
+        ,cp_p_file) ) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="PDOS not implemented for Semi-Empirical calculations!!", &
+            error_level=cp_warning_level)
+    ENDIF
 
-       ! Print the total density (electronic + core charge)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%TOT_DENSITY_CUBE"),cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="TOT_DENSITY_CUBE  not implemented for Semi-Empirical calculations!!", &
-               error_level=cp_warning_level)
-       END IF
+    ! Print the total density (electronic + core charge)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%TOT_DENSITY_CUBE"),cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="TOT_DENSITY_CUBE  not implemented for Semi-Empirical calculations!!", &
+            error_level=cp_warning_level)
+    END IF
 
-       ! Write cube file with electron density
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%E_DENSITY_CUBE"),cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="E_DENSITY_CUBE not implemented for Semi-Empirical calculations!!", &
-               error_level=cp_warning_level)
-       END IF ! print key
+    ! Write cube file with electron density
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+              "DFT%PRINT%E_DENSITY_CUBE"),cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="E_DENSITY_CUBE not implemented for Semi-Empirical calculations!!", &
+            error_level=cp_warning_level)
+    END IF ! print key
 
-       ! Write cube file with EFIELD 
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%EFIELD_CUBE"),cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="EFIELD_CUBE not implemented for Semi-Empirical calculations!!", &
-               error_level=cp_warning_level)
-       END IF ! print key
+    ! Write cube file with EFIELD 
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+              "DFT%PRINT%EFIELD_CUBE"),cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="EFIELD_CUBE not implemented for Semi-Empirical calculations!!", &
+            error_level=cp_warning_level)
+    END IF ! print key
 
-       ! Write cube file with ELF
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%ELF_CUBE"),cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="ELF function not implemented for Semi-Empirical calculations!!", &
-               error_level=cp_warning_level)
-       END IF ! print key
+    ! Write cube file with ELF
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+              "DFT%PRINT%ELF_CUBE"),cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="ELF function not implemented for Semi-Empirical calculations!!", &
+            error_level=cp_warning_level)
+    END IF ! print key
 
-       ! Print the hartree potential
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%V_HARTREE_CUBE"),cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!", &
-               error_level=cp_warning_level)
-       ENDIF
+    ! Print the hartree potential
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%V_HARTREE_CUBE"),cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!", &
+            error_level=cp_warning_level)
+    ENDIF
 
-       ! Print the XC potential
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-            "DFT%PRINT%V_XC_CUBE"),cp_p_file)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="V_XC_CUBE not available for Semi-Empirical calculations!!", &
-               error_level=cp_warning_level)
-       ENDIF
+    ! Print the XC potential
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+         "DFT%PRINT%V_XC_CUBE"),cp_p_file)) THEN
+       CALL cp_unimplemented_error(fromWhere=routineP, &
+            message="V_XC_CUBE not available for Semi-Empirical calculations!!", &
+            error_level=cp_warning_level)
+    ENDIF
 
-       ! Write the density matrix
-       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/DENSITY"),cp_p_file)) THEN
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
-               extension=".Log")
-          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-          after = MIN(MAX(after,1),16)
-          DO ispin=1,dft_control%nspins
-             CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
-                  para_env,output_unit=iw,omit_headers=omit_headers)
-          END DO
-          CALL cp_print_key_finished_output(iw,logger,input,&
-               "DFT%PRINT%AO_MATRICES/DENSITY")
-       END IF
-
-       ! The Kohn-Sham matrix itself
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                 "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX"),cp_p_file)) THEN
-          CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
-          CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
-          iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-               extension=".Log")
-          CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-          after = MIN(MAX(after,1),16)
-          CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,after,qs_env,&
+    ! Write the density matrix
+    CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+              "DFT%PRINT%AO_MATRICES/DENSITY"),cp_p_file)) THEN
+       iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
+            extension=".Log")
+       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+       after = MIN(MAX(after,1),16)
+       DO ispin=1,dft_control%nspins
+          CALL cp_dbcsr_write_sparse_matrix(rho_ao(ispin)%matrix,4,after,qs_env,&
                para_env,output_unit=iw,omit_headers=omit_headers)
-          CALL cp_print_key_finished_output(iw,logger,input,&
-               "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX")
-       END IF
+       END DO
+       CALL cp_print_key_finished_output(iw,logger,input,&
+            "DFT%PRINT%AO_MATRICES/DENSITY")
+    END IF
+
+    ! The Kohn-Sham matrix itself
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
+              "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX"),cp_p_file)) THEN
+       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
+       iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+            extension=".Log")
+       CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
+       after = MIN(MAX(after,1),16)
+       CALL cp_dbcsr_write_sparse_matrix(ks_rmpv(1)%matrix,4,after,qs_env,&
+            para_env,output_unit=iw,omit_headers=omit_headers)
+       CALL cp_print_key_finished_output(iw,logger,input,&
+            "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX")
     END IF
 
     CALL timestop(handle)

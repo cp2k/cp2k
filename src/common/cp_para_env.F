@@ -52,10 +52,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(.NOT.ASSOCIATED(para_env))
     ALLOCATE(para_env)
     para_env%group=group
@@ -87,10 +83,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(para_env%ref_count>0)
     para_env%ref_count=para_env%ref_count+1
@@ -112,10 +104,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(para_env)) THEN
       CPASSERT(para_env%ref_count>0)
@@ -143,10 +131,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_update', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(para_env%ref_count>0)
     CALL mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
@@ -170,9 +154,6 @@ SUBROUTINE cp_para_env_write(para_env,unit_nr)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iostat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(para_env)) THEN
      WRITE (unit=unit_nr,&
@@ -215,10 +196,6 @@ SUBROUTINE cp_cart_create(cart, group, ndims,owns_group)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(.NOT.ASSOCIATED(cart))
     ALLOCATE(cart)
     cart%owns_group=.TRUE.
@@ -248,10 +225,6 @@ SUBROUTINE cp_cart_update(cart)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_update', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(cart))
   CPASSERT(cart%ref_count>0)
   CALL mp_environ( cart%group, cart%ndims, cart%num_pe, task_coor=cart%mepos, &
@@ -269,10 +242,6 @@ SUBROUTINE cp_cart_release(cart)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(cart)) THEN
      CPASSERT(cart%ref_count>0)
@@ -299,10 +268,6 @@ SUBROUTINE cp_cart_retain(cart)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(cart))
   CPASSERT(cart%ref_count>0)
   cart%ref_count=cart%ref_count+1
@@ -322,9 +287,6 @@ SUBROUTINE cp_cart_write(cart,unit_nr)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iostat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(cart)) THEN
      WRITE (unit=unit_nr,&

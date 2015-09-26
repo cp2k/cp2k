@@ -84,12 +84,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, nao, nmo
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: chc_diag, csc_diag
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: block_mat, matrix_tmp
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -163,8 +160,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv, inotconv
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iconv_set, inotconv_set
     LOGICAL                                  :: converged, &
-                                                do_apply_preconditioner, &
-                                                failure
+                                                do_apply_preconditioner
     REAL(dp)                                 :: lambda, max_norm, min_norm, &
                                                 t1, t2
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ritz_coeff, vnorm
@@ -175,8 +171,6 @@ CONTAINS
     TYPE(cp_fm_type), POINTER :: c_conv, c_notconv, c_out, c_pz, c_z, &
       h_block, h_fm, m_hc, m_sc, m_tmp, mo_coeff, mt_tmp, s_block, s_fm, &
       v_block, w_block
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -569,8 +563,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iconv, inotconv
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iconv_set, inotconv_set
     LOGICAL                                  :: converged, &
-                                                do_apply_preconditioner, &
-                                                failure
+                                                do_apply_preconditioner
     REAL(dp)                                 :: lambda, max_norm, min_norm, &
                                                 t1, t2
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig_not_conv, evals, &
@@ -583,7 +576,6 @@ CONTAINS
       matrix_nm_fm, matrix_z_fm, mo_coeff, mo_conv_fm, mo_notconv_fm, &
       s_block, v_block, w_block
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     do_apply_preconditioner = .FALSE.
@@ -1034,9 +1026,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

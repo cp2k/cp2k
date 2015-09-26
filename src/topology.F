@@ -148,15 +148,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, iw2
-    LOGICAL                                  :: binary_coord_read, failure, &
-                                                my_qmmm
+    LOGICAL                                  :: binary_coord_read, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: cell_section, &
                                                 constraint_section, &
                                                 topology_section
     TYPE(topology_parameters_type)           :: topology
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
@@ -294,11 +292,10 @@ CONTAINS
       ALLOCATABLE, DIMENSION(:)              :: elements
     INTEGER                                  :: handle, handle2, i, id, itmp, &
                                                 iw, j, k
-    LOGICAL                                  :: check, failure, my_qmmm, &
+    LOGICAL                                  :: check, my_qmmm, &
                                                 use_mm_map_first
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
@@ -461,10 +458,8 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: filename
     INTEGER                                  :: i_rep, imol, loc_conn_type, &
                                                 n_rep, nmol
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: section
 
-    failure = .FALSE.
     NULLIFY (section)
 
     SELECT CASE (conn_type)
@@ -493,8 +488,7 @@ CONTAINS
             "Number of atoms in connectivity control is larger than the "//&
             "number of atoms in coordinate control. check coordinates and "//&
             "connectivity. "//&
- CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
 
        ! Merge defined structures
        section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES")
@@ -535,11 +529,10 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: handle, handle2, istat, iw
-    LOGICAL                                  :: failure, found, save_mem
+    LOGICAL                                  :: found, save_mem
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
@@ -606,8 +599,7 @@ CONTAINS
     ! Check on atom numbers
     CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&
          "No atomic coordinates have been found! "//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO")
@@ -656,10 +648,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 3)           :: hmat_ref
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(cell_muc))
 
     CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&

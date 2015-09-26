@@ -51,10 +51,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, itype, j, nkinds
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
 
-    failure     = .FALSE.
     IF (se_control%do_ewald_r3) THEN
        NULLIFY(sepi, sepj)
        nkinds  = SIZE(qs_kind_set)
@@ -103,13 +102,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ij, j, kl, kr, li, lk
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: core_core, e1b(9), e2a(9), r, &
                                                 zi, zj
 
-    failure = .FALSE.
-    ! Set the distance to 0 (the coefficient is anyway independent of the atomic
-    ! position)
+! Set the distance to 0 (the coefficient is anyway independent of the atomic
+! position)
+
     r   = 0.0_dp
     ! Nuclei-Nuclei     contribution
     ij  = indexa(1, 1)

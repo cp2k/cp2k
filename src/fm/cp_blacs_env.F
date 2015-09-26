@@ -144,7 +144,6 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ipcol, iprow, stat
-    LOGICAL                                  :: failure
 #if defined(__parallel)
     INTEGER                                  :: gcd_max, ipe, jpe,&
                                                 my_blacs_grid_layout, &
@@ -153,14 +152,13 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
                                                 my_row_major
 #endif
 
-  failure = .FALSE.
 
 #ifdef __parallel
 #ifndef __SCALAPACK
   CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
        fromWhere=routineP,message="to USE the blacs environment "//&
        "you need the blacs/scalapack library : recompile with -D__SCALAPACK (and link scalapack and blacs) "//&
-CPSourceFileRef)
+       CPSourceFileRef)
 #endif
 #endif
 
@@ -269,9 +267,6 @@ SUBROUTINE cp_blacs_env_retain(blacs_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(blacs_env))
   CPASSERT(blacs_env%ref_count>0)
   blacs_env%ref_count=blacs_env%ref_count+1
@@ -289,10 +284,6 @@ SUBROUTINE cp_blacs_env_release(blacs_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_blacs_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(blacs_env)) THEN
      CPASSERT(blacs_env%ref_count>0)
@@ -325,9 +316,6 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iostat
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(blacs_env)) THEN
      WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&

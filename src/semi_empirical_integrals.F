@@ -84,10 +84,9 @@ CONTAINS
                                                 memory_usage, nbits, &
                                                 new_size, nints
     INTEGER(KIND=int_8)                      :: mem_compression_counter
-    LOGICAL                                  :: buffer_overflow, failure
+    LOGICAL                                  :: buffer_overflow
     REAL(KIND=dp)                            :: eps_storage
 
-    failure = .FALSE.
     w(:) = 0.0_dp
     IF (.NOT.store_int_env%memory_parameter%do_all_on_the_fly) THEN
        nints      = (sepi%natorb*(sepi%natorb+1)/2)*(sepj%natorb*(sepj%natorb+1)/2)
@@ -241,10 +240,9 @@ CONTAINS
       memory_usage, nbits, new_size, nints, nints_1, nints_2
     INTEGER(KIND=int_8)                      :: mem_compression_counter
     LOGICAL                                  :: buffer_overflow, &
-                                                do_all_on_the_fly, failure
+                                                do_all_on_the_fly
     REAL(KIND=dp)                            :: eps_storage, w(90)
 
-    failure           = .FALSE.
     do_all_on_the_fly = .TRUE.
     IF (PRESENT(e1b)) e1b(:) = 0.0_dp
     IF (PRESENT(e2a)) e2a(:) = 0.0_dp

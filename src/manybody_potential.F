@@ -96,7 +96,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_quip, any_siepmann, &
-                                                any_tersoff, failure
+                                                any_tersoff
     REAL(KIND=dp)                            :: drij, embed, pot_loc, &
                                                 pot_quip, qr, rab2_max, rij(3)
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
@@ -117,7 +117,6 @@ CONTAINS
     any_tersoff = .FALSE.
     any_siepmann = .FALSE.
     any_quip = .FALSE.
-    failure = .FALSE.
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, r_last_update_pbc=r_last_update_pbc,&
          potparm = potparm , eam_data=eam_data)
@@ -370,7 +369,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: glob_loc_list_a, work_list
     INTEGER, DIMENSION(:, :), POINTER        :: glob_loc_list, list, sort_list
     LOGICAL                                  :: any_quip, any_siepmann, &
-                                                any_tersoff, failure
+                                                any_tersoff
     REAL(KIND=dp) :: f_eam, fac, fr(3), ptens11, ptens12, ptens13, ptens21, &
       ptens22, ptens23, ptens31, ptens32, ptens33, rab(3), rab2, rab2_max, &
       rtmp(3)
@@ -387,7 +386,6 @@ CONTAINS
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(tersoff_pot_type), POINTER          :: tersoff
 
-    failure     = .FALSE.
     any_tersoff = .FALSE.
     any_quip = .FALSE.
     any_siepmann = .FALSE.

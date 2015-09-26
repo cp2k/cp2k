@@ -240,9 +240,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(qmmm_env))
     ALLOCATE(qmmm_env)
     qmmm_env%ref_count=1
@@ -272,10 +269,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(qmmm_env))
     CPASSERT(qmmm_env%ref_count>0)
     qmmm_env%ref_count=qmmm_env%ref_count+1
@@ -293,9 +286,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_mm_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     IF (ASSOCIATED(qmmm_env)) THEN
        CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
@@ -337,9 +327,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(qmmm_env))
     ALLOCATE(qmmm_env)
     qmmm_env%ref_count=1
@@ -385,10 +372,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(qmmm_env))
     CPASSERT(qmmm_env%ref_count>0)
     qmmm_env%ref_count=qmmm_env%ref_count+1
@@ -406,9 +389,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     IF (ASSOCIATED(qmmm_env)) THEN
        CPASSERT(qmmm_env%ref_count>0)
        qmmm_env%ref_count=qmmm_env%ref_count-1
@@ -483,9 +463,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO I=1,SIZE(pgfs)
        IF (ASSOCIATED(pgfs(I)%pgf)) THEN
           IF (ASSOCIATED(pgfs(I)%pgf%Ak)) THEN
@@ -691,9 +669,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_add_set_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(added_charges)) CALL add_set_release(added_charges)
     ALLOCATE(added_charges)
 
@@ -731,9 +706,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_image_charge_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(image_charge_pot)) CALL qmmm_image_charge_dealloc(image_charge_pot)
     ALLOCATE(image_charge_pot)
 

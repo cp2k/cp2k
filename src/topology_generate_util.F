@@ -101,13 +101,13 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: molname
     INTEGER                                  :: i, N, nmol
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
 
-    failure = .FALSE.
-    ! convert a simple list of bonds to a list of bonds per atom
-    ! (each bond is present in the forward and backward direction
+! convert a simple list of bonds to a list of bonds per atom
+! (each bond is present in the forward and backward direction
+
     ALLOCATE(atom_bond_list(natom))
     DO I=1,natom
        ALLOCATE(atom_bond_list(I)%array1(0))
@@ -154,9 +154,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, k
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (debug_this_module) THEN
        WRITE(*,*)"Entered with :",i
        WRITE(*,*)TRIM(molname)//": entering with i:",i," full series to test:: ",atom_bond_list(i)%array1
@@ -203,15 +201,13 @@ CONTAINS
       last, max_mol_num, mol_num, mol_res, mol_typ, myind, N, natom, nlocl, &
       ntype, resid
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, wrk1, wrk2
-    LOGICAL                                  :: do_again, failure, found, &
-                                                my_qmmm
+    LOGICAL                                  :: do_again, found, my_qmmm
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -591,7 +587,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
     INTEGER, DIMENSION(:), POINTER           :: isolated_atoms, tmp_v
     LOGICAL                                  :: connectivity_ok, explicit, &
-                                                failure, print_info
+                                                print_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
     REAL(KIND=dp)                            :: bondparm_factor, cell_v(3), &
                                                 dr(3), ksign, my_maxrad, r2, &
@@ -614,7 +610,6 @@ CONTAINS
                                                 generate_section, &
                                                 isolated_section
 
-    failure = .FALSE.
     NULLIFY(logger, particle_set, atomic_kind_set, nonbonded, bond_section, generate_section)
     NULLIFY(isolated_atoms, tmp_v)
     CALL timeset(routineN,handle)
@@ -967,14 +962,12 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mol_info_tmp
     INTEGER, DIMENSION(:), POINTER           :: mol_map, mol_map_o, wrk
     INTEGER, DIMENSION(:, :), POINTER        :: mol_info
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:), POINTER           :: icheck
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
 
     CALL timeset(routineN,handle)
     conn_ok = .TRUE.
-    failure = .FALSE.
     natom   = SIZE(atom_info%id_atmname)
     ALLOCATE(bond_list(natom))
     DO I = 1, natom
@@ -1119,9 +1112,8 @@ CONTAINS
                                                 new_size, nsize
     INTEGER, DIMENSION(:), POINTER           :: atlist, Ilist1, Ilist2, &
                                                 Ilist3, Ilist4
-    LOGICAL                                  :: explicit, failure, ip3, ip4
+    LOGICAL                                  :: explicit, ip3, ip4
 
-    failure = .FALSE.
     natom   = topology%natoms
     ! Preliminary sort of arrays
     ip3   = PRESENT(Iarray3)
@@ -1534,14 +1526,12 @@ CONTAINS
     INTEGER                                  :: handle, handle2, i, iw, &
                                                 natom, nbond, nsize, ntheta, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: bend_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -1647,11 +1637,10 @@ CONTAINS
 
     INTEGER                                  :: i, ind, j, my_levl, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_list
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: wrk
 
-    failure = .FALSE.
     check   = max_levl>=2.AND.max_levl<=4
     CPASSERT(check)
     IF (.NOT.PRESENT(Ilist)) THEN
@@ -1783,11 +1772,9 @@ CONTAINS
 
     INTEGER                                  :: handle, itheta, iw, ntheta, &
                                                 output_unit
-    LOGICAL                                  :: failure
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -1831,14 +1818,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iw, natom, nbond, &
                                                 nphi, nsize, output_unit
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: torsion_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -1923,7 +1908,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ind, iw, j, natom, &
                                                 nbond, nimpr, nsize, &
                                                 output_unit
-    LOGICAL                                  :: accept_impr, failure
+    LOGICAL                                  :: accept_impr
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -1931,7 +1916,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: impr_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
@@ -2034,14 +2018,12 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, handle, i, &
                                                 ionfo, iw, natom, nbond, &
                                                 nphi, ntheta, output_unit
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list, phi_list, &
                                                 theta_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&

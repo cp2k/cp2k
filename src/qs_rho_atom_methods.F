@@ -122,7 +122,6 @@ MODULE qs_rho_atom_methods
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dacg_list, dbcg_list
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, o2nindex
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: done_vgg
     REAL(dp)                                 :: c1, c2, rho_h, rho_s, &
                                                 root_zet12, zet12
@@ -141,7 +140,6 @@ MODULE qs_rho_atom_methods
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_dCG,my_CG_dxyz,coeff)
@@ -283,26 +281,22 @@ MODULE qs_rho_atom_methods
 
                           l = indso(1,iso1) + indso(1,iso2)
                           CPASSERT(l<=lmax_expansion)
-                          IF(.NOT. failure) THEN
+                          IF(done_vgg(l,l_iso)) CYCLE
+                          L_sum = l + l_iso
+                          L_sub = l - l_iso
 
-                             IF(done_vgg(l,l_iso)) CYCLE
-                             L_sum = l + l_iso
-                             L_sub = l - l_iso
+                          IF(l_sum == 0) THEN
+                             vgg(1:nr,l,l_iso) = erf_zet12(1:nr)* grid_atom%oorad2l(1:nr,1) * c2
+                          ELSE
+                             CALL whittaker_c0a(int1,grid_atom%rad,gg0,erf_zet12,zet12,l,l_iso,nr)
+                             CALL whittaker_ci(int2,grid_atom%rad,gg0,zet12,L_sub,nr)
 
-                             IF(l_sum == 0) THEN
-                                vgg(1:nr,l,l_iso) = erf_zet12(1:nr)* grid_atom%oorad2l(1:nr,1) * c2
-                             ELSE
-                                CALL whittaker_c0a(int1,grid_atom%rad,gg0,erf_zet12,zet12,l,l_iso,nr)
-                                CALL whittaker_ci(int2,grid_atom%rad,gg0,zet12,L_sub,nr)
-
-                                DO ir = 1,nr
-                                   int2(ir) = grid_atom%rad2l(ir,l_iso)*int2(ir)
-                                   vgg(ir,l,l_iso) = c1 * (int1(ir) + int2(ir))
-                                END DO
-                             END IF
-                             done_vgg(l,l_iso) = .TRUE.
-                          END IF ! failure
-
+                             DO ir = 1,nr
+                                int2(ir) = grid_atom%rad2l(ir,l_iso)*int2(ir)
+                                vgg(ir,l,l_iso) = c1 * (int1(ir) + int2(ir))
+                             END DO
+                          END IF
+                          done_vgg(l,l_iso) = .TRUE.
                        END DO
                     END DO
                  END IF ! lmax_expansion
@@ -337,50 +331,47 @@ MODULE qs_rho_atom_methods
                                   + 4._dp*zet(ipgf1,iset1)*zet(ipgf2,iset2)*grid_atom%rad2(1:nr)
                              l = indso(1,iso1) + indso(1,iso2)
                              CPASSERT(l<=lmax_expansion)
-                             IF(.NOT. failure) THEN
-                                rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) +&
-                                     gg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%rho_rad_h(i)%r_coef(1:nr,iso) +&
+                                  gg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr,iso) +&
-                                     gg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%rho_rad_s(i)%r_coef(1:nr,iso) +&
+                                  gg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr,iso) +&
-                                     dgg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%drho_rad_h(i)%r_coef(1:nr,iso) +&
+                                  dgg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%drho_rad_s(i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%drho_rad_s(i)%r_coef(1:nr,iso) +&
-                                     dgg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%drho_rad_s(i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%drho_rad_s(i)%r_coef(1:nr,iso) +&
+                                  dgg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(1:nr,iso) +&
-                                     vgg(1:nr,l,l_iso)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%vrho_rad_h(i)%r_coef(1:nr,iso) +&
+                                  vgg(1:nr,l,l_iso)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr,iso) +&
-                                     vgg(1:nr,l,l_iso)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr,iso) +&
+                                  vgg(1:nr,l,l_iso)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%trho_rad_h(1,i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%trho_rad_h(1,i)%r_coef(1:nr,iso) +&
-                                     0.5_dp*gg(1:nr,l)*dd(1:nr)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%trho_rad_h(1,i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%trho_rad_h(1,i)%r_coef(1:nr,iso) +&
+                                  0.5_dp*gg(1:nr,l)*dd(1:nr)*CPCH_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%trho_rad_s(1,i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%trho_rad_s(1,i)%r_coef(1:nr,iso) +&
-                                     0.5_dp*gg(1:nr,l)*dd(1:nr)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                             rho_atom_set(iatom)%trho_rad_s(1,i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%trho_rad_s(1,i)%r_coef(1:nr,iso) +&
+                                  0.5_dp*gg(1:nr,l)*dd(1:nr)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                                rho_atom_set(iatom)%trho_rad_h(3,i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%trho_rad_h(3,i)%r_coef(1:nr,iso) +&
-                                     0.5_dp*REAL(m1*m2,dp)*gg(1:nr,l)*CPCH_sphere(iso1,iso2)*&
-                                     my_CG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
+                             rho_atom_set(iatom)%trho_rad_h(3,i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%trho_rad_h(3,i)%r_coef(1:nr,iso) +&
+                                  0.5_dp*REAL(m1*m2,dp)*gg(1:nr,l)*CPCH_sphere(iso1,iso2)*&
+                                  my_CG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
 
-                                rho_atom_set(iatom)%trho_rad_s(3,i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%trho_rad_s(3,i)%r_coef(1:nr,iso) +&
-                                     0.5_dp*REAL(m1*m2,dp)*gg(1:nr,l)*CPCS_sphere(iso1,iso2)*&
-                                     my_CG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
-
-                             END IF !failure
+                             rho_atom_set(iatom)%trho_rad_s(3,i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%trho_rad_s(3,i)%r_coef(1:nr,iso) +&
+                                  0.5_dp*REAL(m1*m2,dp)*gg(1:nr,l)*CPCS_sphere(iso1,iso2)*&
+                                  my_CG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
 
                           ENDDO  ! icg
 
@@ -393,17 +384,15 @@ MODULE qs_rho_atom_methods
                              iso2 = dacg_list(2,icg,iso)
                              l = indso(1,iso1) + indso(1,iso2)
                              CPASSERT(l<=lmax_expansion)
-                             IF(.NOT. failure) THEN
-                                DO j = 1,3
-                                   rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) =&
-                                        rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) +&
-                                        gg_lm1(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
+                             DO j = 1,3
+                                rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) =&
+                                     rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) +&
+                                     gg_lm1(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
 
-                                   rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) =&
-                                        rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) +&
-                                        gg_lm1(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
-                                END DO
-                             END IF !failure
+                                rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) =&
+                                     rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) +&
+                                     gg_lm1(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
+                             END DO
                           END DO  ! icg
 
                        ENDDO  ! iso
@@ -419,15 +408,15 @@ MODULE qs_rho_atom_methods
 
                              l = indso(1,iso1) + indso(1,iso2)
                              CPASSERT(l<=lmax_expansion)
-                             IF(.NOT.failure) THEN
-                                rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) +&
-                                     0.5_dp*gg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_dCG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
+                             rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%trho_rad_h(2,i)%r_coef(1:nr,iso) +&
+                                  0.5_dp*gg(1:nr,l)*CPCH_sphere(iso1,iso2)*&
+                                  my_dCG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
 
-                                rho_atom_set(iatom)%trho_rad_s(2,i)%r_coef(1:nr,iso) =&
-                                     rho_atom_set(iatom)%trho_rad_s(2,i)%r_coef(1:nr,iso) +&
-                                     0.5_dp*gg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_dCG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
-                             END IF !failure
+                             rho_atom_set(iatom)%trho_rad_s(2,i)%r_coef(1:nr,iso) =&
+                                  rho_atom_set(iatom)%trho_rad_s(2,i)%r_coef(1:nr,iso) +&
+                                  0.5_dp*gg(1:nr,l)*CPCS_sphere(iso1,iso2)*&
+                                  my_dCG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
                           END DO  ! icg
                        ENDDO  ! iso
 
@@ -498,8 +487,8 @@ MODULE qs_rho_atom_methods
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: a_list, list_a, list_b
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: dista, distab, distb, &
-                                                failure, found, paw_atom
+    LOGICAL                                  :: dista, distab, distb, found, &
+                                                paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: p_matrix
     REAL(KIND=dp)                            :: eps_cpc, factor, pmax
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: CPC, PC1
@@ -532,7 +521,6 @@ MODULE qs_rho_atom_methods
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(dft_control)
     NULLIFY(qs_kind_set)
@@ -783,7 +771,7 @@ MODULE qs_rho_atom_methods
       lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
       maxl, maxlgto, maxs, mm, mp, na, nat, natom, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -798,7 +786,6 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom_set
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(rho_atom_set)
     NULLIFY(qs_kind_set, atomic_kind_set)
@@ -948,7 +935,7 @@ MODULE qs_rho_atom_methods
     INTEGER :: bo(2), handle, iat, iatom, ikind, ispin, istat, j, &
       max_iso_not0, mepos, nat, natom, nr, nsatbas, nsotot, nspins, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -961,7 +948,6 @@ MODULE qs_rho_atom_methods
     CALL timeset(routineN,handle)
 
     NULLIFY(qs_kind_set,para_env,rho_atom_set,dft_control)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env,&
                     qs_kind_set=qs_kind_set, &
@@ -1111,10 +1097,8 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, istat, j
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
          ALLOCATE(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef(1:nr,1:max_iso_not0), &
                   rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef(1:nr,1:max_iso_not0), &
@@ -1176,9 +1160,6 @@ MODULE qs_rho_atom_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
       rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef = 0.0_dp
       rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef = 0.0_dp

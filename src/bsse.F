@@ -82,14 +82,13 @@ CONTAINS
     INTEGER                                  :: i, istart, k, num_of_conf, &
                                                 Num_of_Frag
     INTEGER, DIMENSION(:, :), POINTER        :: conf
-    LOGICAL                                  :: explicit, failure, should_stop
+    LOGICAL                                  :: explicit, should_stop
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: bsse_section, &
                                                 fragment_energies_section, &
                                                 n_frags, root_section
 
-    failure = .FALSE.
     NULLIFY(bsse_section, n_frags, Em, conf)
     logger => cp_get_default_logger()
     root_section => force_env%root_section
@@ -173,11 +172,9 @@ CONTAINS
     INTEGER                                  :: i, j, k, Num_of_sub_conf, &
                                                 Num_of_sub_frag
     INTEGER, DIMENSION(:, :), POINTER        :: conf_loc
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em_loc
 
-    failure = .FALSE.
     NULLIFY(conf_loc, Em_loc)
     should_stop = .FALSE.
     ! Count the number of subconfiguration to evaluate..
@@ -247,7 +244,6 @@ CONTAINS
       num_of_frag, old_size, present_charge, present_multpl
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, tmplist
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys, subsys_loc
@@ -258,7 +254,6 @@ CONTAINS
                                                 force_env_section, &
                                                 subsys_section
 
-    failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag)
     CPASSERT(SIZE(conf)==num_of_frag)
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
@@ -377,10 +372,8 @@ CONTAINS
 
     INTEGER                                  :: i, istat, iw
     CHARACTER(len=20*SIZE(conf))             :: conf_loc_s, conf_s
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -436,12 +429,11 @@ CONTAINS
 
     INTEGER                                  :: i, nconf
     INTEGER, DIMENSION(:), POINTER           :: glb_conf, sub_conf
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: configurations
 
     present_charge = 0
     present_multpl = 0
-    failure = .FALSE.
     NULLIFY(configurations, glb_conf, sub_conf)
     ! Loop over all configurations to pick up the right one
     configurations => section_vals_get_subs_vals(bsse_section,"CONFIGURATION")
@@ -493,10 +485,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iw
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -643,10 +633,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ires
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     ires = cp_print_key_unit_nr(logger,bsse_section,"PRINT%RESTART",&
          extension=".restart",  do_backup=.FALSE., file_position="REWIND")

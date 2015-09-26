@@ -130,9 +130,6 @@ SUBROUTINE wfs_release(snapshot)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(snapshot)) THEN
      CPASSERT(snapshot%ref_count>0)
@@ -177,10 +174,6 @@ SUBROUTINE wfi_retain(wf_history)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(wf_history))
   wf_history%ref_count=wf_history%ref_count+1
 
@@ -201,9 +194,6 @@ SUBROUTINE wfi_release(wf_history)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(wf_history)) THEN
      CPASSERT(wf_history%ref_count>0)
@@ -238,9 +228,6 @@ FUNCTION wfi_get_snapshot(wf_history, index) RESULT(res)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_get_snapshot', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
   NULLIFY(res)
 
   CPASSERT(ASSOCIATED(wf_history))

@@ -134,10 +134,6 @@ SUBROUTINE p_proj_retain(p_proj)
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(p_proj))
   CPASSERT(p_proj%ref_count>0)
   p_proj%ref_count=p_proj%ref_count+1
@@ -156,10 +152,6 @@ SUBROUTINE p_proj_release(p_proj)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'p_proj_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(p_proj)) THEN
      CPASSERT(p_proj%ref_count>0)
@@ -203,12 +195,10 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
 
     INTEGER :: blocksize, handle, i, icol, my_ncol, my_start_col_full, &
       my_start_col_min, ncol_full, ncol_min, nrow_full, nrow_min, stat
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tmp_full, tmp_min
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(p_proj))
   CPASSERT(p_proj%ref_count>0)
@@ -280,12 +270,10 @@ SUBROUTINE p_proj_restrain_f(p_proj, full_m,start_col, ncol)
                                                 my_end_col, my_start_col, &
                                                 row_index
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: keep_row
 
   CALL timeset(routineN,handle)
 
-  failure=.FALSE.
   NULLIFY(row_indices,col_indices)
 
   CPASSERT(ASSOCIATED(p_proj))

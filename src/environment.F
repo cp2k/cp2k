@@ -418,11 +418,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: input_seed, iw
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(cp_logger_type), POINTER            :: logger
-
-    failure = .FALSE.
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -508,8 +505,8 @@ CONTAINS
       SReclaimable, SReclaimable_avr, SReclaimable_max, SReclaimable_min
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, do_echo_all_hosts, efl, &
-                                                explicit, failure, time_mpi, &
-                                                trace, trace_master
+                                                explicit, time_mpi, trace, &
+                                                trace_master
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
@@ -519,7 +516,6 @@ CONTAINS
                                                 global_section, qmmm_section, &
                                                 subsys_section
 
-    failure = .FALSE.
     NULLIFY(dft_section,global_section, i_force_eval)
 
     global_section => section_vals_get_subs_vals(root_section,"GLOBAL")
@@ -1079,17 +1075,14 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: cg_filename
     CHARACTER(LEN=default_string_length)     :: dev_flag
     INTEGER                                  :: cg_mode, iw, unit_exit
-    LOGICAL                                  :: delete_it, failure, &
-                                                sort_by_self_time
+    LOGICAL                                  :: delete_it, sort_by_self_time
     REAL(KIND=dp)                            :: r_timings
     TYPE(cp_logger_type), POINTER            :: logger
 
 ! look if we inherited a failure, more care is needed if so
 ! i.e. the input is most likely not available
+! Set flag if this is a development version
 
-    failure = .FALSE.
-
-    ! Set flag if this is a development version
     dev_flag = ""
     IF (id_cp2k_version==id_development_version) dev_flag=" (Development Version)"
 

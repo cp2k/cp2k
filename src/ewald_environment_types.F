@@ -149,9 +149,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(ewald_env))
 
     IF (PRESENT(id_nr)) id_nr = ewald_env%id_nr
@@ -218,9 +215,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(ewald_env))
 
     IF (PRESENT(id_nr)) ewald_env%id_nr = id_nr
@@ -258,10 +252,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE( ewald_env)
     ewald_env%ref_count=1
     last_ewald_env_id_nr=last_ewald_env_id_nr+1
@@ -285,10 +275,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(ewald_env))
     CPASSERT(ewald_env%ref_count>0)
     ewald_env%ref_count=ewald_env%ref_count+1
@@ -306,10 +292,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ewald_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(ewald_env)) THEN
        CPASSERT(ewald_env%ref_count>0)
@@ -341,7 +323,7 @@ CONTAINS
 
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: gmax_read
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: dummy
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
@@ -351,7 +333,6 @@ CONTAINS
 
     NULLIFY(enum, keyword, section, multipole_section)
     logger=>cp_get_default_logger()
-    failure = .FALSE.
     CALL section_vals_val_get(ewald_section,"EWALD_TYPE",i_val=ewald_env%ewald_type)
     CALL section_vals_val_get(ewald_section,"ALPHA",r_val=ewald_env%alpha)
     CALL section_vals_val_get(ewald_section,"EWALD_ACCURACY",r_val=ewald_env%precs)
@@ -474,10 +455,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'find_ewald_optimal_value', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: func, func1, func2, s, s1, s2
 
-    failure = .FALSE.
     s    =  0.1_dp
     func =  EXP(-s**2)/s**2 - precs
     CPASSERT(func>0.0_dp)

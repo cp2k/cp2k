@@ -88,7 +88,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ihistory, n
-    LOGICAL                                  :: failure, is_constraint
+    LOGICAL                                  :: is_constraint
     TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -97,7 +97,6 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, &
          dft_control=dft_control,energy=energy)
@@ -169,7 +168,6 @@ CONTAINS
                                                 ihistory, ilow, j, jbuf, nb, &
                                                 optimizer_type
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: interval, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
     REAL(KIND=dp), ALLOCATABLE, &
@@ -177,7 +175,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     ihistory=scf_env%outer_scf%iter_count
     optimizer_type=scf_control%outer_scf%optimizer
 
@@ -291,14 +288,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ihistory, n
-    LOGICAL                                  :: failure, is_constraint
+    LOGICAL                                  :: is_constraint
     TYPE(becke_restraint_type), POINTER      :: becke_control
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(scf_control_type), POINTER          :: scf_control
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -349,7 +344,7 @@ CONTAINS
     INTEGER                                  :: handle, ihis, ivec, n, &
                                                 nhistory, nvariables, nvec, &
                                                 outer_scf_ihistory
-    LOGICAL                                  :: failure, is_constraint
+    LOGICAL                                  :: is_constraint
     REAL(kind=dp)                            :: alpha
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: extrapolation
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
@@ -359,7 +354,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env,outer_scf_history=outer_scf_history, &
          outer_scf_ihistory=outer_scf_ihistory, &

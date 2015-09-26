@@ -57,10 +57,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l1, l2, lij, lkl
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: add, ccc, chrg, pij, pkl, sum
 
-    failure = .FALSE.
     sum = 0.0_dp
     l1  = ABS (li-lj)
     lij = indexb(li+1, lj+1)
@@ -133,10 +131,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'charg_int_3', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Computing only residual Integral Values
 
-    failure = .FALSE.
-    ! Computing only residual Integral Values
     charg = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
@@ -169,10 +165,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'coeff_int_3', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Computing only residual Integral Values
 
-    failure = .FALSE.
-    ! Computing only residual Integral Values
     coeff = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN
@@ -208,10 +202,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dcharg_int_3', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+! Computing only residual Integral Derivatives
 
-    failure = .FALSE.
-    ! Computing only residual Integral Derivatives
     charg = 0.0_dp
     ! Q - Q.
     IF (l1 == 0 .AND. l2 == 0) THEN

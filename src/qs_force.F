@@ -139,8 +139,7 @@ CONTAINS
                                                 nkind, nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
-    LOGICAL                                  :: failure, has_unit_metric, &
-                                                omit_headers
+    LOGICAL                                  :: has_unit_metric, omit_headers
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -168,7 +167,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
 

@@ -300,13 +300,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/AMBER_INFO",&
@@ -403,12 +401,11 @@ CPSourceFileRef,&
       icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
       jth, kp, kph, kt, kth, lp, lph
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: full_torsions
-    LOGICAL                                  :: check, failure, valid_format
+    LOGICAL                                  :: check, valid_format
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: asol, bsol, cn1, cn2, phase, &
                                                 pk, pn, req, rk, teq, tk
     TYPE(cp_parser_type), POINTER            :: parser
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(parser)
     IF (output_unit>0) WRITE(output_unit,'(/,A)')" AMBER_INFO| Reading Amber Topology File: "//&
@@ -965,11 +962,9 @@ CPSourceFileRef,&
     INTEGER                                  :: counter, gind, handle, iend, &
                                                 ind, isize, j, k, kend, kstart
     INTEGER, DIMENSION(:), POINTER           :: cindx, lindx
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ctmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cwork
 
-    failure = .FALSE.
     CALL timeset(routineN, handle)
     iend = i - 1
     isize= iend-istart+1
@@ -1040,9 +1035,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
-
-    failure = .FALSE.
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1056,7 +1049,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,failure=failure)
+          CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i1
 
 ! *****************************************************************************
@@ -1081,9 +1074,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
-    failure = .FALSE.
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
@@ -1107,8 +1099,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-CPSourceFileRef,&
-         failure=failure)
+         CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i3
 
 ! *****************************************************************************
@@ -1134,9 +1125,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
-    failure = .FALSE.
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
@@ -1165,8 +1155,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-CPSourceFileRef,&
-         failure=failure)
+         CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i4
 
 ! *****************************************************************************
@@ -1195,9 +1184,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
 
-    failure = .FALSE.
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
     DO WHILE ((i<=dim).AND.(.NOT.my_end))
@@ -1231,8 +1219,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-CPSourceFileRef,&
-         failure=failure)
+         CPSourceFileRef)
   END SUBROUTINE rd_amber_section_i5
 
 ! *****************************************************************************
@@ -1256,9 +1243,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
-
-    failure = .FALSE.
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1272,7 +1257,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,failure=failure)
+          CPSourceFileRef)
   END SUBROUTINE rd_amber_section_c1
 
 ! *****************************************************************************
@@ -1295,9 +1280,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_end
-
-    failure = .FALSE.
+    LOGICAL                                  :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1311,7 +1294,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef,failure=failure)
+          CPSourceFileRef)
   END SUBROUTINE rd_amber_section_r1
 
 ! *****************************************************************************
@@ -1332,9 +1315,8 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: end_f, indflag, start_f
-    LOGICAL                                  :: failure, found, my_end
+    LOGICAL                                  :: found, my_end
 
-    failure = .FALSE.
     CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.)
     IF (found) THEN
        ! section label
@@ -1348,8 +1330,7 @@ CPSourceFileRef,&
        CALL cp_assert((INDEX(parser%input_line,"%FORMAT")/=0).AND.(.NOT.my_end),&
             cp_fatal_level, cp_assertion_failed, routineP,&
             "Expecting %FORMAT. Not found! Abort reading of AMBER topology file! "//&
-CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
 
        start_f = INDEX(parser%input_line,"(")
        end_f   = INDEX(parser%input_line,")")
@@ -1375,15 +1356,11 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure        = .FALSE.
     CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.)
     CALL cp_assert(found_AMBER_V8, cp_failure_level, cp_assertion_failed, routineP,&
             "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
             "AMBER file formats. "//&
-CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
     IF (output_unit>0) WRITE(output_unit,'(" AMBER_INFO| ",A)')"Amber PrmTop V.8 or greater.",&
          TRIM(parser%input_line)
 
@@ -1425,9 +1402,8 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure, l_dum
+    LOGICAL                                  :: l_dum
 
-    failure        = .FALSE.
     CALL timeset(routineN, handle)
     IF (nbond/=0) THEN
        ALLOCATE(work_label(2,nbond))
@@ -1517,9 +1493,8 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure, l_dum
+    LOGICAL                                  :: l_dum
 
-    failure        = .FALSE.
     CALL timeset(routineN,handle)
     IF (ntheta/=0) THEN
        ALLOCATE(work_label(3,ntheta))
@@ -1625,9 +1600,8 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:, :)           :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure, l_dum
+    LOGICAL                                  :: l_dum
 
-    failure        = .FALSE.
     CALL timeset(routineN, handle)
     IF (nphi/=0) THEN
        ALLOCATE(work_label(6,nphi))
@@ -1752,11 +1726,10 @@ CPSourceFileRef,&
       ALLOCATABLE, DIMENSION(:)              :: work_label
     INTEGER                                  :: handle, i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: check, failure, l_dum
+    LOGICAL                                  :: check, l_dum
     REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
                                                 sigma6
 
-    failure = .FALSE.
     CALL timeset(routineN, handle)
     ALLOCATE(work_label(natom))
     ALLOCATE(iwork(natom))

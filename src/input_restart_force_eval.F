@@ -91,7 +91,7 @@ CONTAINS
 
     INTEGER                                  :: iforce_eval, myid, nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
-    LOGICAL                                  :: failure, multiple_subsys, &
+    LOGICAL                                  :: multiple_subsys, &
                                                 skip_vel_section
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -101,7 +101,6 @@ CONTAINS
                                                 subsys_section
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY(rng_section, subsys_section, cell_section, virial, subsys, cell)
     ! If it's not a dynamical run don't update the velocity section
     CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid)
@@ -165,10 +164,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_qmmm', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
 
-    failure = .FALSE.
     SELECT CASE(force_env%in_use)
     CASE(use_qmmm)
        CALL section_vals_get(qmmm_section, explicit=explicit)
@@ -266,7 +264,7 @@ CONTAINS
     INTEGER                                  :: coord_file_format, handle, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: multiple_unit_cell
-    LOGICAL                                  :: failure, scale, use_ref_cell
+    LOGICAL                                  :: scale, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -277,7 +275,6 @@ CONTAINS
                                                 shell_particles
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     NULLIFY (work_section, core_particles, particles, shell_particles, &
              subsys, cell, para_env, multipoles)
     CALL timeset(routineN,handle)
@@ -478,8 +475,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_tag, name
     INTEGER                                  :: handle, ik, imol, irk, &
                                                 last_atom, Nlist
-    LOGICAL                                  :: failure, ldum, &
-                                                molname_generated, my_shell
+    LOGICAL                                  :: ldum, molname_generated, &
+                                                my_shell
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(molecule_type), POINTER             :: molecule_now
@@ -488,7 +485,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     my_shell = .FALSE.
     IF(PRESENT(shell)) my_shell = shell
@@ -498,7 +494,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
 
     DO
        IF (SIZE(coord_section%values,2)==1) EXIT
@@ -617,14 +613,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ik, irk, Nlist, nloop
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(dipoles_section))
     CPASSERT(dipoles_section%ref_count>0)
@@ -632,7 +626,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
 
     ! At least one of the two arguments must be present..
     nloop = SIZE(dipoles,2)
@@ -697,14 +691,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ik, ind, irk, j, &
                                                 Nlist, nloop
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
     CPASSERT(ASSOCIATED(quadrupoles_section))
     CPASSERT(quadrupoles_section%ref_count>0)
@@ -712,7 +704,7 @@ CONTAINS
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",failure)
+         "_DEFAULT_KEYWORD_")
 
     ! At least one of the two arguments must be present..
     nloop = SIZE(quadrupoles,2)
@@ -797,14 +789,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: kind_name, tag
     INTEGER                                  :: handle, imolecule, iparticle, &
                                                 last_atom
-    LOGICAL                                  :: failure, ldum, &
-                                                molname_generated
+    LOGICAL                                  :: ldum, molname_generated
     REAL(KIND=dp), DIMENSION(3)              :: r, s
     TYPE(molecule_type), POINTER             :: molecule
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(particles))
     IF (.NOT.core_or_shell) THEN
        CPASSERT(ASSOCIATED(molecules))

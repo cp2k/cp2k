@@ -73,7 +73,6 @@ CONTAINS
 
     INTEGER :: handle, i, ifixd, ii, ikind, imol, iparticle, &
       n3x3con_restraint, n4x6con_restraint, n_restraint, nkind, nmol_per_kind
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: energy_3x3, energy_4x6, energy_colv, energy_fixd, &
       extended_energies, k0, rab(3), rab2, targ(3)
     REAL(KIND=dp), ALLOCATABLE, &
@@ -96,7 +95,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), POINTER             :: particle_set(:)
 
-    failure = .FALSE.
     NULLIFY(cell, subsys, local_molecules, local_particles, fixd_list, molecule_kinds,&
          molecules, molecule_kind, molecule_kind_set, molecule, molecule_set, particles,&
          particle_set, gci, lfixd_list)
@@ -327,7 +325,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv_int', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -337,7 +334,6 @@ CONTAINS
 
     NULLIFY(fixd_list)
 
-    failure = .FALSE.
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, colv_list = colv_list, fixd_list=fixd_list )
     CALL get_molecule ( molecule, lcolv=lcolv )
@@ -626,10 +622,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iatm, iconst, ind
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: k, tab, targ
 
-    failure = .FALSE.
     DO iconst = 1, SIZE(colv_list)
        IF (.NOT.colv_list(iconst)%restraint%active) CYCLE
        ! Update colvar

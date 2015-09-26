@@ -84,9 +84,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: neb_nr_replica
-    LOGICAL                                  :: allocate_all, failure
+    LOGICAL                                  :: allocate_all
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(neb_var))
     allocate_all = .FALSE.
     IF (PRESENT(full_allocation)) allocate_all = full_allocation
@@ -128,9 +127,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'neb_var_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(neb_var))
     IF (ASSOCIATED(neb_var%xyz)) THEN
        DEALLOCATE(neb_var%xyz)

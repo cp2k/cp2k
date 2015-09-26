@@ -69,7 +69,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo_global, bo_local
-    LOGICAL                                  :: failure, read_from_cube, &
+    LOGICAL                                  :: read_from_cube, &
                                                 static_potential
     REAL(kind=dp)                            :: dvol, efunc, scaling_factor
     REAL(kind=dp), DIMENSION(3)              :: dr, grid_p
@@ -77,7 +77,6 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: v_ee
     TYPE(section_vals_type), POINTER         :: ext_pot_section, input
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(v_ee, input, ext_pot_section, dft_control)
     CALL get_qs_env(qs_env,&
@@ -138,7 +137,7 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: list
-    LOGICAL                                  :: failure, my_force, pot_on_grid
+    LOGICAL                                  :: my_force, pot_on_grid
     REAL(KIND=dp)                            :: ee_core_ener, efunc, zeff
     REAL(KIND=dp), DIMENSION(3)              :: dfunc, r
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -155,7 +154,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: ext_pot_section, input
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(dft_control)
 
@@ -243,11 +241,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: my_par
     INTEGER                                  :: handle, j
-    LOGICAL                                  :: check, failure, my_force
+    LOGICAL                                  :: check, my_force
     REAL(KIND=dp)                            :: dedf, dx, err, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(my_par, my_val)
     my_force = .FALSE.
@@ -312,7 +309,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
                                                 lower_inds, ubounds, &
                                                 ubounds_local, upper_inds
-    LOGICAL                                  :: check, failure, my_force
+    LOGICAL                                  :: check, my_force
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bcast_buffer
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: grid_buffer
@@ -320,7 +317,6 @@ CONTAINS
       DIMENSION(:, :, :, :)                  :: dgrid
     REAL(KIND=dp), DIMENSION(3)              :: dr, subgrid_origin
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     my_force = .FALSE.
     IF (PRESENT(calc_derivatives)) my_force=calc_derivatives

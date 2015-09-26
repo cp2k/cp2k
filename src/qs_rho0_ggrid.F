@@ -104,7 +104,7 @@ MODULE qs_rho0_ggrid
     INTEGER :: auxbas_grid, handle, iat, iatom, igrid, ikind, istat, ithread, &
       j, l0_ikind, lmax0, nat, nch_ik, nch_max, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
     REAL(KIND=dp)                            :: eps_rho_rspace, rpgf0, zet0
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm_c
@@ -136,7 +136,6 @@ MODULE qs_rho0_ggrid
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(atomic_kind_set,qs_kind_set,cores,pab,Qlm_c)
 
     NULLIFY(dft_control,pw_env,particle_set,para_env,cell,rho0_s_gs,rho0_s_rs)
@@ -301,12 +300,11 @@ MODULE qs_rho0_ggrid
     CHARACTER(len=*), PARAMETER :: routineN = 'rho0_s_grid_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_tddft
+    LOGICAL                                  :: my_tddft
     TYPE(pw_env_type), POINTER               :: new_pw_env
     TYPE(pw_p_type), POINTER                 :: rho_gs, rho_rs
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
-  failure=.FALSE.
   my_tddft = .FALSE.
   IF(PRESENT(tddft)) my_tddft = tddft
 
@@ -380,8 +378,8 @@ MODULE qs_rho0_ggrid
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
-    LOGICAL                                  :: failure, grid_distributed, &
-                                                my_tddft, paw_atom, use_virial
+    LOGICAL                                  :: grid_distributed, my_tddft, &
+                                                paw_atom, use_virial
     REAL(dp)                                 :: c4pi, eps_rho_rspace, &
                                                 force_tmp(3), ra(3), rpgf0, &
                                                 scale, zet0
@@ -423,7 +421,6 @@ MODULE qs_rho0_ggrid
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(virial_type), POINTER               :: virial
 
-    failure=.FALSE.
     c4pi = fourpi
 
     CALL timeset(routineN,handle)

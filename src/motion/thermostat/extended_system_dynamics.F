@@ -211,11 +211,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imap, n
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
+! Force on the first bead in every thermostat chain
 
-    ! Force on the first bead in every thermostat chain
     DO n = 1, nhc%loc_num_nhc
        imap = nhc%map_info%map_index(n)
        IF (nhc%nvt(1,n)%nkt==0.0_dp) CYCLE

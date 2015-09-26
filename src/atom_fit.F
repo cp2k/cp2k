@@ -74,13 +74,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n10
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: co
     REAL(KIND=dp), DIMENSION(2)              :: x
     TYPE(opgrid_type), POINTER               :: density
     TYPE(opt_state_type)                     :: ostate
 
-    failure = .FALSE.
     ALLOCATE(co(num_gto))
     co = 0._dp
     NULLIFY(density)
@@ -180,15 +178,13 @@ CONTAINS
     INTEGER                                  :: i, j, k, l, ll, m, n, n10, &
                                                 nl, nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
-    LOGICAL                                  :: explicit, failure, mult
+    LOGICAL                                  :: explicit, mult
     REAL(KIND=dp)                            :: al, ear, fopt, pf, rk
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: wem
     REAL(KIND=dp), DIMENSION(:), POINTER     :: w
     TYPE(opt_state_type)                     :: ostate
-
-    failure = .FALSE.
 
     SELECT CASE (basis%basis_type)
        CASE DEFAULT
@@ -472,7 +468,7 @@ CONTAINS
     INTEGER                                  :: i, iw, j, k, l, m, n, n10, np
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: xtob
     INTEGER, DIMENSION(0:3)                  :: ncore
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp) :: charge, deig, drho, eig, fopt, oc, pchg, peig, pv, rcm, &
       rcov, rmax, t_semi, t_valence, t_virt, w_node, w_psir0, w_semi, &
       w_valence, w_virt
@@ -485,7 +481,6 @@ CONTAINS
     TYPE(atom_type), POINTER                 :: atom
     TYPE(opt_state_type)                     :: ostate
 
-    failure = .FALSE.
 ! weights for the optimization
 
     CALL section_vals_val_get(powell_section,"ACCURACY", r_val=ostate%rhoend)
@@ -859,12 +854,9 @@ CONTAINS
 
     INTEGER                                  :: i, info, ip, ipiv(1000), iq, &
                                                 k, nr
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: a, rk, zval
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: den, pe, uval
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: bf, smat, tval
-
-    failure = .FALSE.
 
     ALLOCATE(pe(n))
     nr = atom%basis%grid%nr
@@ -939,12 +931,10 @@ CONTAINS
 
     INTEGER                                  :: do_eric, do_erie, im, in, nm, &
                                                 nn, reltyp, zval
-    LOGICAL                                  :: eri_c, eri_e, failure
+    LOGICAL                                  :: eri_c, eri_e
     TYPE(atom_integrals), POINTER            :: atint
     TYPE(atom_potential_type), POINTER       :: pot
     TYPE(atom_type), POINTER                 :: atom
-
-    failure = .FALSE.
 
     ALLOCATE(atint)
 
@@ -1326,15 +1316,14 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: t23 = 2._dp/3._dp
 
     INTEGER                                  :: i, ig, ip, iw, j, n10
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: co
     TYPE(opgrid_type), POINTER               :: density
     TYPE(opt_state_type)                     :: ostate
 
-    failure = .FALSE.
-    ! at least one parameter to be optimized
+! at least one parameter to be optimized
+
     CPASSERT(num_pol*num_gau > 0)
 
     ALLOCATE(co(num_pol+1,num_gau),x(num_pol*num_gau+num_gau))

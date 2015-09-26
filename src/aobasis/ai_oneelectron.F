@@ -119,13 +119,12 @@ CONTAINS
       lb_max, lb_min, llr, m, ma, mb, mmax, na, nb
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: iiap
     LOGICAL                                  :: calculate_force_a, &
-                                                calculate_force_b, failure
+                                                calculate_force_b
     REAL(KIND=dp)                            :: aai, abx, fax, fay, faz, fbx, &
                                                 fby, fbz, ftz, orho, rho, s1, &
                                                 s2
     REAL(KIND=dp), DIMENSION(3)              :: pai, pbi, pci
 
-    failure = .FALSE.
     IF (PRESENT(pab)) THEN
       CPASSERT(PRESENT(fs))
       IF (PRESENT(force_a)) THEN

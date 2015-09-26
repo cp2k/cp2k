@@ -196,12 +196,10 @@ vkin = 0.0_dp
     INTEGER                                  :: hbeads, hi, i, ig, &
                                                 num_chlorine, num_hydrogen, &
                                                 num_oxygen, qi
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: d, d2, dd, ep, eps, s1, s2, &
                                                 sig
     REAL(KIND=dp), DIMENSION(3)              :: dr, helium_r, solute_r
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(pint_env))
 

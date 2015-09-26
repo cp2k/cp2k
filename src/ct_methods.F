@@ -66,7 +66,6 @@ CONTAINS
 
     INTEGER                                  :: handle, n, &
                                                 preconditioner_type, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: gap_estimate, safety_margin
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
     TYPE(cp_dbcsr_type) :: matrix_pp, matrix_pq, matrix_qp, matrix_qp_save, &
@@ -82,7 +81,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)

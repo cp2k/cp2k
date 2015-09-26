@@ -133,7 +133,7 @@ CONTAINS
     INTEGER                                  :: handle, info, my_per, natom, &
                                                 nvar, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: failure, has_resp
+    LOGICAL                                  :: has_resp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -153,7 +153,6 @@ CONTAINS
     NULLIFY(logger,atomic_kind_set,cell,subsys,particles,particle_set,input,&
             resp_section,cons_section,rest_section,poisson_section,resp_env,rep_sys)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, input=input,&
@@ -161,7 +160,7 @@ CONTAINS
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP")
     CALL section_vals_get(resp_section, explicit=has_resp)
 
-    IF (.NOT. failure .AND. has_resp) THEN
+    IF (has_resp) THEN
        logger => cp_get_default_logger()
        poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON")
        CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=my_per)
@@ -248,9 +247,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_resp_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(resp_env)) CALL resp_dealloc(resp_env,rep_sys)
     ALLOCATE(resp_env)
 
@@ -348,13 +344,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, nrep
     INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, my_stride
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: slab_section, sphere_section
 
     CALL timeset(routineN,handle)
 
     NULLIFY(atom_list_cons, my_stride, sphere_section, slab_section)
-    failure=.FALSE.
 
     ! get the subsections
     sphere_section=>section_vals_get_subs_vals(resp_section,"SPHERE_SAMPLING")
@@ -468,11 +463,10 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: ikind, j, kind_number, nkind, &
                                                 nrep_rmax, nrep_rmin
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: rmax, rmin
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    failure=.FALSE.
     nrep_rmin=0
     nrep_rmax=0
     nkind=SIZE(atomic_kind_set)
@@ -562,12 +556,11 @@ CPSourceFileRef,&
                                                 irep, j, max_index, n_var, &
                                                 num_atom
     INTEGER, DIMENSION(:), POINTER           :: indexes
-    LOGICAL                                  :: failure, index_in_range
+    LOGICAL                                  :: index_in_range
 
     CALL timeset(routineN,handle)
  
     NULLIFY(indexes)
-    failure=.FALSE.
     irep=1
     IF(PRESENT(rep)) irep=rep 
 
@@ -640,7 +633,6 @@ CPSourceFileRef,&
                                                 ikind, jx, jy, jz, k, &
                                                 kind_number, l, m, nkind, &
                                                 now, np(3), p
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: not_in_range
     REAL(KIND=dp)                            :: delta, dh(3,3), dvol, r(3), &
                                                 rmax, rmin, vec(3), &
@@ -655,7 +647,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     NULLIFY(logger,input,particle_set,print_key,resp_section,v_hartree_pw)
-    failure=.FALSE.
     delta = 1.0E-13_dp
 
     IF (.NOT.cell%orthorhombic) THEN
@@ -806,7 +797,6 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ip, j, jx, jy, jz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: normalize_factor
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vpot
@@ -818,7 +808,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(pw_env, para_env,auxbas_pw_pool,poisson_env)
 
     IF(.NOT.ALL(cell%perd/=0)) THEN
@@ -916,7 +905,6 @@ CPSourceFileRef,&
 
     INTEGER :: bo(2,3), gbo(2,3), handle, i, iatom, ikind, in_x, in_y, in_z, &
       jx, jy, jz, k, kind_number, l, m, natom, nkind, now, output_unit, p
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: not_in_range
     REAL(KIND=dp)                            :: delta, dh(3,3), r(3), rmax, &
                                                 rmin, vec_pbc(3)
@@ -934,7 +922,6 @@ CPSourceFileRef,&
 
     NULLIFY(atomic_kind_set,v_hartree_pw,para_env,logger,input,particle_set,&
             resp_section)   
-    failure=.FALSE.
     delta = 1.0E-13_dp
  
     CALL get_qs_env(qs_env,&
@@ -1084,13 +1071,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ip, jx, jy, jz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dvol, vj
     TYPE(pw_type), POINTER                   :: v_hartree_pw
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(v_hartree_pw)
     CALL get_qs_env(qs_env, v_hartree_rspace=v_hartree_pw)
@@ -1138,7 +1123,6 @@ CPSourceFileRef,&
                                                 jz, k, l, my_pos, p, req(6)
     INTEGER, DIMENSION(:), POINTER           :: tmp_npoints, tmp_size
     INTEGER, DIMENSION(:, :), POINTER        :: tmp_points
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: conv, r(3)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1148,7 +1132,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(para_env,input,logger,resp_section,print_key,particle_set,tmp_size,&
             tmp_points,tmp_npoints)   
  
@@ -1271,7 +1254,7 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, k, m, ncons_v, z
     INTEGER, DIMENSION(:), POINTER           :: atom_list_cons, atom_list_res
-    LOGICAL                                  :: explicit_coeff, failure
+    LOGICAL                                  :: explicit_coeff
     REAL(KIND=dp)                            :: my_atom_coef(2), strength, &
                                                 TARGET
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_coef
@@ -1280,7 +1263,6 @@ CPSourceFileRef,&
     CALL timeset(routineN,handle)
 
     NULLIFY(atom_coef,atom_list_res,atom_list_cons,dft_control)
-    failure=.FALSE.
 
     CALL get_qs_env(qs_env, dft_control=dft_control)
 
@@ -1475,7 +1457,6 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: handle, output_file
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -1485,7 +1466,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(particle_set,qs_kind_set,input,logger,resp_section,print_key)
  
     CALL get_qs_env(qs_env,input=input,particle_set=particle_set,&
@@ -1546,7 +1526,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: my_pos_cube
     INTEGER                                  :: handle, ip, jx, jy, jz, &
                                                 unit_nr
-    LOGICAL                                  :: append_cube, failure
+    LOGICAL                                  :: append_cube
     REAL(KIND=dp)                            :: normalize_factor, rms, rrms, &
                                                 sum_diff, sum_hartree, udvol
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1561,7 +1541,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(auxbas_pw_pool,logger,pw_env,poisson_env,input,print_key,&
             para_env,resp_section,v_hartree_rspace)
     normalize_factor=SQRT((resp_env%eta/pi)**3)

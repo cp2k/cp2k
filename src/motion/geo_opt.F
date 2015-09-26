@@ -63,7 +63,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, step_start_val
-    LOGICAL                                  :: failure, my_rm_restart_info
+    LOGICAL                                  :: my_rm_restart_info
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -71,7 +71,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 geo_section, root_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
@@ -123,11 +122,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, step_start_val
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: force_env_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY (force_env_section)
     logger => cp_get_default_logger()
@@ -171,9 +168,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_geo_opt_low', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(force_env))
     CPASSERT(ASSOCIATED(globenv))
     CPASSERT(ASSOCIATED(gopt_param))

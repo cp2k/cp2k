@@ -111,8 +111,7 @@ CONTAINS
     INTEGER                                  :: handle, idir, idir2, idir3, &
                                                 iiB, iiiB, ispin, natom, &
                                                 nspins
-    LOGICAL                                  :: failure, gapw, &
-                                                interpolate_shift
+    LOGICAL                                  :: gapw, interpolate_shift
     REAL(dp)                                 :: scale_fac
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_loc, &
@@ -135,7 +134,6 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
     TYPE(section_vals_type), POINTER         :: nmr_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(chemical_shift,chemical_shift_loc,chemical_shift_nics,chemical_shift_nics_loc,&
@@ -277,7 +275,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: list_j, list_nics_j
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_nics, failure, paw_atom
+    LOGICAL                                  :: do_nics, paw_atom
     REAL(dp) :: ddiff, dist, dum, itegrated_jrho, r_jatom(3), rdiff(3), &
       rij(3), s_1, s_2, scale_fac_1, shift_gapw_radius
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: j_grid
@@ -305,7 +303,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !
-    failure =.FALSE.
     NULLIFY(atomic_kind_set,qs_kind_set,cell,dft_control,para_env,particle_set,&
             chemical_shift_loc,chemical_shift_nics_loc,jrho1_atom_set,&
             jrho1_atom,r_nics,jrho_h_grid,jrho_s_grid,&
@@ -538,7 +535,7 @@ CONTAINS
                                                 iatom, max_iter, n_nics, &
                                                 natom, precond_kind
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: do_nics, failure, success
+    LOGICAL                                  :: do_nics, success
     REAL(dp)                                 :: eps_r, eps_x, R_iatom(3), &
                                                 ra(3), shift_val
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
@@ -549,8 +546,8 @@ CONTAINS
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
 
-    failure = .FALSE.
-    !
+!
+
     CALL timeset(routineN,handle)
     !
     NULLIFY (interp_section)
@@ -645,16 +642,15 @@ CONTAINS
     INTEGER                                  :: handle, iat, iatom, n_nics, &
                                                 natom
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: do_nics, failure
+    LOGICAL                                  :: do_nics
     REAL(dp)                                 :: R_iatom(3), ra(3)
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_nics
 
 !
+!
 
-    failure = .FALSE.
-    !
     CALL timeset(routineN,handle)
     !
     NULLIFY(cs_atom_list,chemical_shift,chemical_shift_nics,r_nics)
@@ -743,7 +739,7 @@ CONTAINS
                                                 natom, output_unit, &
                                                 unit_atoms, unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: do_nics, failure, gapw
+    LOGICAL                                  :: do_nics, gapw
     REAL(dp) :: chi_aniso, chi_iso, chi_sym_tot(3,3), chi_tensor(3,3,2), &
       chi_tensor_loc(3,3,2), chi_tensor_loc_tmp(3,3), chi_tensor_tmp(3,3), &
       chi_tmp(3,3), eig(3), rpos(3), shift_aniso, shift_iso, &
@@ -759,8 +755,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: nmr_section
-
-    failure = .FALSE.
 
     NULLIFY(cs,cs_nics,r_nics,cs_loc,cs_nics_loc,logger,particle_set,atom_kind,dft_control)
 

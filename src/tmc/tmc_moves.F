@@ -84,11 +84,9 @@ CONTAINS
                                                 i, ind, ind_e, m, nr_molec, &
                                                 nr_sub_box_elem
     INTEGER, DIMENSION(:), POINTER           :: mol_in_sb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: direction, elem_center
 
-    failure = .FALSE.
     NULLIFY(direction, elem_center, mol_in_sb)
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -113,9 +111,7 @@ CONTAINS
 
     ! at least one atom should be in the sub box
     CPASSERT(ANY(elem%elem_stat(:).EQ.status_ok))
-    IF(failure) THEN
-      act_nr_elem_mv = -1
-    ELSE IF(tmc_params%nr_elem_mv.EQ.0) THEN
+    IF(tmc_params%nr_elem_mv.EQ.0) THEN
       ! move all elements (could be all atoms or all molecules)
       act_nr_elem_mv = 0 
     ELSE
@@ -130,8 +126,7 @@ CONTAINS
     CASE(mv_type_gausian_adapt)
        ! just for Gaussian Adaptation
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "gaussian adaptation is not imlemented yet.",&
-                 failure)
+                 "gaussian adaptation is not imlemented yet.")
 !TODO       CALL new_pos_gauss_adapt(acc=ASSOCIATED(elem%parent%acc, elem), &
 !                    pos=elem%pos, covari=elem%frc, pot=elem%potential, &
 !                    step_size=elem%ekin, pos_aver=elem%vel, temp=elem%ekin_before_md, &
@@ -388,9 +383,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     start_ind = -1
     end_ind   = -1
@@ -440,10 +432,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pos_tmp
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(pos))
     CPASSERT(ASSOCIATED(subbox_center))
@@ -497,12 +487,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
     REAL(KIND=dp), DIMENSION(3)              :: box_size
     REAL(KIND=dp), DIMENSION(:), POINTER     :: atom_tmp, center_of_sub_box
 
-    failure = .FALSE.
     NULLIFY(center_of_sub_box, atom_tmp)
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -513,8 +501,7 @@ CONTAINS
 
     IF(ANY(tmc_params%sub_box_size(:).LE.0.1_dp)) THEN
       !CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-      !       "try to count elements in sub box without sub box.",&
-      !       failure)
+      !       "try to count elements in sub box without sub box.")
       elem%elem_stat = status_ok
       nr_of_sub_box_elements = SIZE(elem%elem_stat)
     ELSE
@@ -580,13 +567,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a1, a2, a3, q0, q1, q2, q3, &
                                                 rnd
     REAL(KIND=dp), DIMENSION(3, 3)           :: rot
     REAL(KIND=dp), DIMENSION(:), POINTER     :: elem_center
 
-    failure = .FALSE.
     NULLIFY(elem_center)
 
     CPASSERT(ASSOCIATED(pos))
@@ -646,11 +631,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: d
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: delta_vel, kB, rnd1, rnd2, &
                                                 rnd3, rnd_g
 
-    failure = .FALSE.
     kB = boltzmann/joule
 
     CPASSERT(ASSOCIATED(rng_stream))
@@ -815,11 +798,9 @@ CONTAINS
     INTEGER                                  :: handle, ind, ind_e, ind_n, &
                                                 mol_tmp, nr_mol
     INTEGER, DIMENSION(2)                    :: neighbor_mol
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dist_tmp, rnd
     REAL(KIND=dp), DIMENSION(:), POINTER     :: distH1, distH2, distO
 
-    failure = .FALSE.
     NULLIFY(distO, distH1, distH2)
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(tmc_params))
@@ -854,8 +835,7 @@ CONTAINS
       IF(MOD(ind_e-ind_n,3).GT.0) THEN
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                  routineP,"selected a molecule with more than 3 atoms, "//&
-                 "the proton reordering does not support, skip molecule",&
-                 failure)
+                 "the proton reordering does not support, skip molecule")
         CYCLE list_distances
       END IF
       IF(donor_acceptor.EQ.proton_acceptor) THEN
@@ -955,10 +935,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_donor_acceptor', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(4)              :: distances
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(i_orig.GE.1.AND.i_orig.LE.SIZE(elem%pos))
     CPASSERT(i_neighbor.GE.1.AND.i_neighbor.LE.SIZE(elem%pos))
@@ -1018,7 +996,6 @@ CONTAINS
 
     INTEGER                                  :: H_offset, handle, i, ind
     INTEGER, DIMENSION(:), POINTER           :: ind_arr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dihe_angle, dist_near, tmp
     REAL(KIND=dp), DIMENSION(3)              :: rot_axis, tmp_1, tmp_2, &
                                                 vec_1O, vec_2H_f, vec_2H_m, &
@@ -1026,7 +1003,6 @@ CONTAINS
                                                 vec_rotated
     TYPE(cell_type), POINTER                 :: tmp_cell
 
-    failure = .FALSE.
     NULLIFY(ind_arr, tmp_cell)
 
     CPASSERT(ASSOCIATED(tmc_params))
@@ -1176,13 +1152,11 @@ CONTAINS
 
     INTEGER                                  :: atom, dir, handle, ind, &
                                                 ind_e, mol
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd, vol
     REAL(KIND=dp), DIMENSION(3)              :: box_length_new, &
                                                 box_length_orig, box_scale_old
     REAL(KIND=dp), DIMENSION(:), POINTER     :: disp, scaling
 
-    failure = .FALSE.
     NULLIFY(scaling, disp)
 
     CPASSERT(ASSOCIATED(conf))
@@ -1308,10 +1282,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: a_1, a_2, ind_1, ind_2
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pos_tmp
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(conf))
     CPASSERT(ASSOCIATED(move_types))

@@ -110,8 +110,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: diis_section, force_env_section, &
       md_section, motion_section, neb_section, print_section
 
-    CALL timeset(routineN,handle)
     failure = .FALSE.
+    CALL timeset(routineN,handle)
     NULLIFY(logger, subsys, f_env, rep_env)
     NULLIFY(forces, coords, vels, neb_env)
     logger => cp_get_default_logger()
@@ -241,8 +241,7 @@ CONTAINS
     INTEGER                                  :: handle, iatom, ic, is, istep, &
                                                 iw, max_steps, natom, &
                                                 shell_index
-    LOGICAL                                  :: converged, failure, &
-                                                should_stop
+    LOGICAL                                  :: converged, should_stop
     REAL(KIND=dp)                            :: dt
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
     REAL(KIND=dp), ALLOCATABLE, &
@@ -251,7 +250,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: tc_section, vc_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY( Dcoords, tc_section, vc_section)
     CPASSERT(ASSOCIATED(coords))
     CPASSERT(ASSOCIATED(vels))
@@ -391,8 +389,8 @@ CONTAINS
                                                 n_diis
     INTEGER, DIMENSION(:), POINTER           :: set_err
     LOGICAL                                  :: check_diis, converged, &
-                                                diis_on, do_ls, failure, &
-                                                should_stop, skip_ls
+                                                diis_on, do_ls, should_stop, &
+                                                skip_ls
     REAL(KIND=dp)                            :: max_stepsize, norm, stepsize, &
                                                 stepsize0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: distances, energies
@@ -400,7 +398,6 @@ CONTAINS
     TYPE(neb_var_type), POINTER              :: sline
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(sline, crr, err)
     neb_env%opt_type_label = "SD"
     do_ls = .TRUE.

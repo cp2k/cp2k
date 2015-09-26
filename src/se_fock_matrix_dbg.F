@@ -52,11 +52,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ecoul
 
-    failure = .FALSE.
-    ! Zero structures only for debugging purpose
+! Zero structures only for debugging purpose
+
     CALL init_qs_energy(energy)
     DO ispin = 1, nspins
        CALL cp_dbcsr_set(ks_matrix(ispin)%matrix,0.0_dp)

@@ -85,9 +85,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nint
-    LOGICAL                                  :: do_colvars, failure
+    LOGICAL                                  :: do_colvars
 
-    failure = .FALSE.
     ALLOCATE (averages)
     NULLIFY(averages%virial)
     NULLIFY(averages%avecolvar)
@@ -151,10 +150,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_averages', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(averages))
     CPASSERT(averages%ref_count>0)
     averages%ref_count=averages%ref_count+1
@@ -171,10 +166,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_averages', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure=.FALSE.
     IF (ASSOCIATED(averages)) THEN
        CPASSERT(averages%ref_count>0)
        averages%ref_count=averages%ref_count-1
@@ -240,13 +233,12 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: ctmp
     INTEGER                                  :: delta_t, handle, i, nint, &
                                                 output_unit
-    LOGICAL                                  :: failure, restart_averages
+    LOGICAL                                  :: restart_averages
     REAL(KIND=dp)                            :: start_time
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cvalues, Mmatrix, tmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restart_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CALL section_vals_val_get(averages%averages_section,"ACQUISITION_START_TIME",&
          r_val=start_time)
@@ -461,9 +453,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_averages_rs', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     avg = (avg*REAL(delta_t-1,dp) + add)/REAL(delta_t,dp)
   END SUBROUTINE get_averages_rs
 
@@ -484,9 +473,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure = .FALSE.
     check = SIZE(avg)==SIZE(add)
     CPASSERT(check)
     DO i = 1, SIZE(avg)
@@ -512,9 +500,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure = .FALSE.
     check = SIZE(avg,1)==SIZE(add,1)
     CPASSERT(check)
     check = SIZE(avg,2)==SIZE(add,2)

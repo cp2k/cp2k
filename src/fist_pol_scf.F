@@ -165,7 +165,7 @@ CONTAINS
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, j, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, iwarn
+    LOGICAL                                  :: iwarn
     REAL(KIND=dp)                            :: apol, cpol, eps_pol, &
                                                 pot_nonbond_local, rmsd, &
                                                 tmp_trace
@@ -175,7 +175,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,atomic_kind)
     logger => cp_get_default_logger()
 
@@ -385,7 +384,7 @@ CONTAINS
     INTEGER :: ewald_type, handle, i, iatom, ii, ikind, iter, iw, iw2, &
       max_ipol_iter, natom_of_kind, natoms, nkind, ntot
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, iwarn
+    LOGICAL                                  :: iwarn
     REAL(KIND=dp)                            :: alpha, apol, beta, denom, &
                                                 eps_pol, pot_nonbond_local, &
                                                 rmsd
@@ -397,7 +396,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger,atomic_kind)
     logger => cp_get_default_logger()
 
@@ -718,10 +716,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     pot_nonbond = 0.0_dp ! Initialization..
     vg_coulomb  = 0.0_dp ! Initialization..

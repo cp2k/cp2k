@@ -64,10 +64,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, skip
+    LOGICAL                                  :: skip
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     skip=.FALSE.
     IF(PRESENT(skip_recursive_colvar))skip=skip_recursive_colvar
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -110,10 +109,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_clv_info_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     NULLIFY( keyword)
     CALL section_create(section,name="COLVAR_FUNC_INFO",&
@@ -146,9 +143,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_var_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(subsection))
     CPASSERT(ASSOCIATED(section))
 
@@ -259,11 +253,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_coord_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coordination",&
@@ -395,11 +386,8 @@ CONTAINS
       routineN = 'create_colvar_cond_dist_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONDITIONED_DISTANCE",&
@@ -504,11 +492,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_pop_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="population",&
@@ -607,11 +592,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_gyr_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="GYRATION_RADIUS",&
@@ -654,11 +636,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dfunct_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DISTANCE_FUNCTION",&
@@ -712,11 +691,8 @@ CONTAINS
       routineN = 'create_colvar_torsion_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="torsion",&
@@ -752,11 +728,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rot_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="bond_rotation",&
@@ -817,11 +790,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_angle_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="angle",&
@@ -856,11 +826,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dist_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="distance",&
@@ -903,11 +870,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_d_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="XYZ_DIAG",&
@@ -970,11 +934,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_xyz_od_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="XYZ_OUTERDIAG",&
@@ -1039,11 +1000,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_u_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="u",&
@@ -1124,11 +1082,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_d_pl_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="distance_point_plane",&
@@ -1181,11 +1136,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_a_pl_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="angle_plane_plane",&
@@ -1246,10 +1198,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_point_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="POINT",&
@@ -1306,11 +1255,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_qparm_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="qparm",&
@@ -1375,11 +1321,8 @@ CONTAINS
       routineN = 'create_colvar_hydronium_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="hydronium",&
@@ -1505,11 +1448,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rmsd_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, subsubsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="rmsd",&
@@ -1583,10 +1523,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rpath_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="REACTION_PATH",&
          description="Section defining a one dimensional reaction path in an Q-dimensional space of colvars. "//&
@@ -1610,9 +1546,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_dpath_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DISTANCE_FROM_PATH",&
          description="Section defining the distance from a one dimensional reaction "//&
@@ -1781,11 +1714,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_comb_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="COMBINE_COLVAR",&
@@ -1865,10 +1795,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_coord_section_cv', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coord",&
@@ -1895,11 +1822,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_wc_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="wc",&
@@ -1943,11 +1867,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_hbp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="hbp",&
@@ -2006,11 +1927,8 @@ CONTAINS
       routineN = 'create_colvar_ring_puckering_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="RING_PUCKERING",&

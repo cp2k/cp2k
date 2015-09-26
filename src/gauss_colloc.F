@@ -217,7 +217,7 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     INTEGER, DIMENSION(0:2)                  :: cellShift, l_shift, l_ub, &
                                                 ndim, period, shiftPos,ldim2
     INTEGER, DIMENSION(2, 0:2)               :: l_bounds
-    LOGICAL                                  :: failure, has_overlap
+    LOGICAL                                  :: has_overlap
     REAL(dp) :: cci0, cci1, cci2, ccj0, ccj0_i0, ccj0_i1, ccj0_i2, ccj1, &
       ccj1_i0, ccj1_i1, ccj2, cck0, cck0_0, cck0_0_p, cck0_i, cck0_i2, &
       cck0_ij, cck0_j, cck0_j2, cck0_j_p, cck1, cck1_0, cck1_0_p, cck1_i, &
@@ -250,7 +250,6 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     nthread = 1
 !$  nthread = omp_get_num_threads()
 
-    failure=.FALSE.
 
     IF (integrate) THEN
        poly=0.0_dp
@@ -304,7 +303,6 @@ SUBROUTINE colloc_int_body(h,h_inv,grid,poly,alphai,posi,max_r2,&
     DO i=0,2
         CPASSERT(l_ub(i)<ldim2(i))
     END DO
-    IF (failure) RETURN
 
     DO i=0,2
         period(permut(i))=periodic(i)

@@ -64,10 +64,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hirshfeld_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     IF(ASSOCIATED(hirshfeld_env)) THEN
        CALL release_hirshfeld_type(hirshfeld_env)
     END IF
@@ -93,10 +89,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
     TYPE(shape_fn), DIMENSION(:), POINTER    :: kind_shape
-
-    failure = .FALSE.
 
     IF(ASSOCIATED(hirshfeld_env)) THEN
 
@@ -147,9 +140,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hirshfeld_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(hirshfeld_env))
 
     IF(PRESENT(shape_function_type)) THEN
@@ -186,9 +176,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_hirshfeld_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(hirshfeld_env))
 
     IF(PRESENT(shape_function_type)) THEN

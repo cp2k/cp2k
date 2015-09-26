@@ -90,11 +90,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: seed
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(al))
     CPASSERT(.NOT.ASSOCIATED(al%nvt))
     
@@ -118,9 +116,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'al_dealloc', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(al)) THEN
        CALL al_thermo_dealloc(al%nvt)
        CALL release_map_info_type(al%map_info)
@@ -141,9 +136,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'al_thermo_dealloc', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(nvt)) THEN
        DEALLOCATE (nvt)
     ENDIF

@@ -213,10 +213,6 @@ MODULE qs_local_rho_types
     CHARACTER(len=*), PARAMETER :: routineN = 'local_rho_set_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE(local_rho_set)
 
     NULLIFY (local_rho_set%rho_atom_set)

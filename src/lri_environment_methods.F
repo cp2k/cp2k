@@ -127,7 +127,6 @@ CONTAINS
 
     INTEGER :: handle, iac, iatom, ikind, ilist, jatom, jkind, jneighbor, &
       nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     TYPE(cell_type), POINTER                 :: cell
@@ -143,7 +142,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, dft_control, fbasa, fbasb, lrii, lri_ints, nl_iterator, &
          obasa, obasb, particle_set, soo_list, virial)
@@ -264,7 +262,6 @@ CONTAINS
                                                 ilist, jatom, jkind, &
                                                 jneighbor, nba, nbb, nkind, &
                                                 nlist, nneighbor
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     TYPE(cell_type), POINTER                 :: cell
@@ -278,7 +275,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(cell, lriir, lri_ints_rho, nl_iterator, obasa, obasb,&
             particle_set,soo_list)
@@ -392,7 +388,7 @@ CONTAINS
 
     INTEGER :: handle, i, iac, iatom, ikind, ilist, ispin, jatom, jkind, &
       jneighbor, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, nspin
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: m
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbij
@@ -405,7 +401,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(lrii, lri_rho, nl_iterator, pbij, pmat, soo_list)
 
@@ -545,7 +540,6 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iac, iatom, ikind, ilist, ispin, &
       jatom, jkind, jneighbor, nat, natom, nfa, nfb, nkind, nspin
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: aci, acj, tot_rho_r
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -559,7 +553,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: soo_list
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(aci, acj, atomic_kind, atom_of_kind, lri_coef, lri_rho, &
          nl_iterator, soo_list, rho_r, rho_g, tot_rho_r)
@@ -748,7 +741,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nba, nbb, nfa, nfb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: scon_orba, scon_orbb, &
@@ -760,7 +752,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(scon_orba,scon_orbb,scon_ria,scon_rib,Waux_mat,dWaux_mat)
-    failure = .FALSE.
 
     dab = SQRT(SUM(rab*rab))
     nba = obasa%nsgf
@@ -840,13 +831,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nn
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dlambdadp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: abxint_work, Q, R
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     nn = nfa + nfb
@@ -913,13 +902,11 @@ CONTAINS
 
     INTEGER                                  :: handle, info, n
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: anorm, rcond, rskip
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s
     REAL(KIND=dp), EXTERNAL                  :: dlange
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(s)

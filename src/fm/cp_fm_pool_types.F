@@ -89,10 +89,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE(pool)
     pool%el_struct=> el_struct
     CALL cp_fm_struct_retain(pool%el_struct)
@@ -116,10 +112,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
 
@@ -139,11 +131,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_flush_cache', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: el_att
     TYPE(cp_sll_fm_type), POINTER            :: iterator
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -167,10 +156,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(pool)) THEN
        CPASSERT(pool%ref_count>0)
@@ -205,10 +190,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_create_fm', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -253,9 +234,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: did_insert, failure
-
-    failure=.FALSE.
+    LOGICAL                                  :: did_insert
 
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
@@ -263,8 +242,7 @@ CONTAINS
     CALL cp_assert(pool%el_struct%id_nr==element%matrix_struct%id_nr,&
       cp_failure_level, cp_assertion_failed, routineP,&
       "pool cannot reuse matrixes with another structure "//&
-CPSourceFileRef,&
-      failure=failure)
+      CPSourceFileRef)
 
     CPASSERT(element%ref_count==1)
     IF (cp_debug) THEN
@@ -292,10 +270,6 @@ FUNCTION fm_pool_get_el_struct(pool) RESULT(res)
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_get_el_struct', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(pool))
   CPASSERT(pool%ref_count>0)
   res => pool%el_struct
@@ -319,9 +293,6 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(source_pools))
   ALLOCATE(target_pools(SIZE(source_pools)))
@@ -346,9 +317,6 @@ SUBROUTINE fm_pools_dealloc(pools)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
@@ -379,10 +347,8 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: pool
 
-  failure=.FALSE.
   NULLIFY(pool)
 
   CPASSERT(ASSOCIATED(pools))
@@ -422,9 +388,6 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pools))
   CPASSERT(ASSOCIATED(elements))

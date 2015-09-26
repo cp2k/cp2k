@@ -71,7 +71,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iset_s2h
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, n
-    LOGICAL                                  :: failure, my_gpw_type_forced
+    LOGICAL                                  :: my_gpw_type_forced
     REAL(KIND=dp)                            :: minzet, radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zet
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -84,7 +84,6 @@ CONTAINS
       paw_atom = .TRUE.
       my_gpw_type_forced = .FALSE.
     END IF
-    failure = .FALSE.
     IF (.NOT.my_gpw_type_forced) THEN
        CALL get_gto_basis_set(gto_basis_set=orb_basis,name=bsname,&
             maxpgf=maxpgf,maxshell=maxshell,nset=nset)

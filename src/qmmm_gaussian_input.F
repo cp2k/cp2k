@@ -264,10 +264,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: IRad, istart, Nog, Nval
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_radius, radius, rc
 
-    failure = .FALSE.
     Nval = SIZE(qmmm_gaussian_fns)
     DO IRad = 1, Nval
        qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians = num_geep_gauss
@@ -704,10 +702,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: IRad, istart, Nog, Nval
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: radius, rc
 
-    failure = .FALSE.
     Nval = SIZE(qmmm_gaussian_fns)
     DO IRad = 1, Nval
        qmmm_gaussian_fns(IRad)%pgf%Number_of_Gaussians = num_geep_gauss

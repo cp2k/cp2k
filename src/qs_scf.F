@@ -161,8 +161,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: max_scf_tmp
-    LOGICAL                                  :: converged, failure, &
-                                                outer_scf_loop, should_stop
+    LOGICAL                                  :: converged, outer_scf_loop, &
+                                                should_stop
     LOGICAL, SAVE                            :: first_step_flag = .TRUE.
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -172,7 +172,6 @@ CONTAINS
                                                 scf_section
 
     NULLIFY(scf_env)
-    failure=.FALSE.
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(qs_env))
     CALL get_qs_env(qs_env,scf_env=scf_env,input=input, &
@@ -253,8 +252,7 @@ CONTAINS
     INTEGER :: ext_master_id, external_comm, handle, handle2, i_tmp, ic, &
       ispin, iter_count, output_unit, scf_energy_message_tag, total_steps
     LOGICAL :: diis_step, do_kpoints, energy_only, exit_inner_loop, &
-      exit_outer_loop, failure, inner_loop_converged, just_energy, &
-      outer_loop_converged
+      exit_outer_loop, inner_loop_converged, just_energy, outer_loop_converged
     REAL(KIND=dp)                            :: t1, t2
     REAL(KIND=dp), DIMENSION(3)              :: res_val_3
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -283,7 +281,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(dft_control,rho,energy, &
             logger,qs_charges,ks_env,mos,atomic_kind_set,qs_kind_set, &
@@ -517,8 +514,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nmo, &
                                                 number_of_OT_envs
-    LOGICAL                                  :: do_rotation, failure, &
-                                                has_unit_metric, is_full_all
+    LOGICAL                                  :: do_rotation, has_unit_metric, &
+                                                is_full_all
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: orthogonality_metric
@@ -532,7 +529,6 @@ CONTAINS
 
     NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,mo_coeff)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)
@@ -756,11 +752,9 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)

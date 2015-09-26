@@ -84,15 +84,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: natom, nline_to_skip, nskip
-    LOGICAL                                  :: failure, my_end
+    LOGICAL                                  :: my_end
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: msd_section
     TYPE(simpar_type), POINTER               :: simpar
-
-    failure = .FALSE.
 
     NULLIFY (force_env, msd_section, particles, simpar, subsys)
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
@@ -171,7 +169,6 @@ CPSourceFileRef,&
                                                 imol, last_atom, natom_read, &
                                                 nkind, nmol, nmolecule, &
                                                 nmolkind, npart
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, &
                                                 x, y, z
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -189,8 +186,6 @@ CPSourceFileRef,&
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-
-    failure = .FALSE.
 
     NULLIFY (molecule, molecules, molecule_kind, molecule_kind_set,&
              molecule_kinds, molecule_set, subsys, force_env, particles, particle_set)
@@ -343,7 +338,6 @@ CPSourceFileRef,&
     INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, &
       last_atom, mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: com(3), diff2_com(4), dr2, &
                                                 dx, dy, dz, mass, mass_mol, &
                                                 msd_mkind(4), rcom(3)
@@ -362,7 +356,6 @@ CPSourceFileRef,&
       POINTER                                :: molecule_set
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     NULLIFY(force_env,para_env,subsys)
     NULLIFY(atomic_kind,atomic_kinds,atom_list)
     NULLIFY(local_molecules, molecule, molecule_kind, molecule_kinds,&

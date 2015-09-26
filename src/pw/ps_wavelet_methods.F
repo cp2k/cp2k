@@ -65,7 +65,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iproc, nproc, nx, ny, &
                                                 nz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
 
     CALL timeset(routineN,handle)
@@ -73,7 +72,6 @@ CONTAINS
     CALL cite_reference(Genovese2006)
     CALL cite_reference(Genovese2007)
 
-    failure=.FALSE.
 
     ALLOCATE(wavelet)
 
@@ -100,12 +98,10 @@ CONTAINS
     IF (poisson_params%wavelet_method==WAVELET0D) THEN
        IF (hx.NE.hy) &
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Poisson solver for non cubic cells not yet implemented",&
-                failure=failure)
+               "Poisson solver for non cubic cells not yet implemented")
         IF(hz.NE.hy) &
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                "Poisson solver for non cubic cells not yet implemented",&
-                 failure=failure)
+                "Poisson solver for non cubic cells not yet implemented")
     END IF
 
     CALL RS_z_slice_distribution(wavelet,pw_grid)
@@ -131,10 +127,7 @@ CONTAINS
                                                 md1, md2, md3, n1, n2, n3, &
                                                 nd1, nd2, nd3, nproc, nx, ny, &
                                                 nz, z_dim
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hx, hy, hz
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     nproc=PRODUCT(pw_grid % para % rs_dims)
@@ -193,12 +186,10 @@ CONTAINS
                                                 sdispl, tmp
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
     INTEGER, DIMENSION(3)                    :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: max_val_low, max_val_up
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(wavelet))
 
@@ -373,10 +364,8 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy, min_x, &
                                                 min_y
     INTEGER, DIMENSION(3)                    :: lb, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(wavelet))
 
     nproc=PRODUCT(pw_grid % para % rs_dims)

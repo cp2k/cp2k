@@ -127,10 +127,6 @@ SUBROUTINE mc_env_retain(mc_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(mc_env))
   CPASSERT(mc_env%ref_count>0)
   mc_env%ref_count=mc_env%ref_count+1
@@ -148,10 +144,6 @@ SUBROUTINE mc_env_release(mc_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (ASSOCIATED(mc_env)) THEN
      CPASSERT(mc_env%ref_count>0)

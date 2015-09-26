@@ -408,12 +408,10 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nblock, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(p_matrix))
     CPASSERT(ASSOCIATED(s_matrix))
     ! here we get the numbers for charges
@@ -520,7 +518,6 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ic, nblock, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, charges_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -528,7 +525,6 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(p_matrix_kp))
     CPASSERT(ASSOCIATED(s_matrix_kp))
 
@@ -572,7 +568,6 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ic, natom, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mcharge_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix
@@ -580,7 +575,6 @@ END SUBROUTINE rf_deriv_check
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     IF(ASSOCIATED(p_matrix_kp) .AND. ASSOCIATED(s_matrix_kp)) THEN
 
        mcharge = 0.0_dp
@@ -626,14 +620,12 @@ END SUBROUTINE rf_deriv_check
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ic, natom, nder, nspin
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dmcharge_im, mcharge_im
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_matrix, s_matrix
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     IF(ASSOCIATED(p_matrix_kp) .AND. ASSOCIATED(s_matrix_kp)) THEN
 
        mcharge = 0.0_dp

@@ -51,9 +51,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_buffer_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(buffer))
     ALLOCATE(buffer)
     buffer%size = buffer_size
@@ -79,9 +76,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_buffer_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(buffer))
     DEALLOCATE(buffer%input_lines)
     DEALLOCATE(buffer%input_line_numbers)
@@ -107,9 +101,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_force
+    LOGICAL                                  :: my_force
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(buffer_in))
     CPASSERT(ASSOCIATED(buffer_out))
     CPASSERT(buffer_in%size==buffer_out%size)
@@ -146,9 +139,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_sub_buffer', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(buffer))
     CPASSERT(.NOT.ASSOCIATED(sub_buffer))
     CALL create_buffer_type(sub_buffer)
@@ -170,9 +160,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_sub_buffer', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(buffer))
     CPASSERT(ASSOCIATED(sub_buffer))
     CALL copy_buffer_type(sub_buffer,buffer)

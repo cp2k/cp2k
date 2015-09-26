@@ -82,9 +82,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(mpole))
     ALLOCATE (mpole(ndim))
     DO i = 1, ndim
@@ -108,9 +106,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(mpole)) THEN
        DO i = 1, SIZE(mpole)
           CALL semi_empirical_mpole_release(mpole(i)%mpole)
@@ -131,9 +127,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(mpole))
     ALLOCATE (mpole)
     mpole%task = .FALSE.
@@ -159,9 +152,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'semi_empirical_mpole_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(mpole)) THEN
        DEALLOCATE (mpole)
     END IF
@@ -179,9 +169,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(nddo_mpole))
     ALLOCATE (nddo_mpole)
     NULLIFY(nddo_mpole%charge)
@@ -203,9 +190,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'nddo_mpole_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(nddo_mpole)) THEN
        IF (ASSOCIATED(nddo_mpole%charge)) THEN
           DEALLOCATE(nddo_mpole%charge)

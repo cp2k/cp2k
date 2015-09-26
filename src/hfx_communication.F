@@ -96,7 +96,7 @@ MODULE hfx_communication
       jatom, jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, &
       req(2), source, source_cpu
     INTEGER, DIMENSION(:), POINTER           :: nsgfa, nsgfb
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(dp)                                 :: symmfac
     REAL(dp), DIMENSION(:), POINTER          :: recbuffer, sendbuffer, &
                                                 swapbuffer
@@ -105,8 +105,6 @@ MODULE hfx_communication
     TYPE(cp_dbcsr_iterator)                  :: iter
 
 !debREAL(dp), DIMENSION(:), POINTER          :: full_density
-
-    failure = .FALSE.
 
     full_density = 0.0_dp
     ALLOCATE(sendbuffer(number_of_p_entries))
@@ -475,11 +473,8 @@ MODULE hfx_communication
                                                 counter, rcount, rdispl
     INTEGER, DIMENSION(:), POINTER           :: iatom_list, jatom_list, &
                                                 nsgfa, nsgfb
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(cp_dbcsr_iterator)                  :: iter
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 

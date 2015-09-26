@@ -60,9 +60,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, need_to_cancel
-
-    failure = .FALSE.
+    LOGICAL                                  :: need_to_cancel
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -94,13 +92,12 @@ CONTAINS
       CASE(status_deleted_result, status_deleted)
          ! if deallocation is deactivated, should not be
          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                  routineP,"try to add deleted element cancelation list ",&
-                  failure)
+                  routineP,"try to add deleted element cancelation list ")
          WRITE(*,*)"WARNING: try to cancel subtree, element ",elem%sub_tree_nr, elem%nr, ", with status ", elem%stat
       CASE DEFAULT
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"try to add element with unknown status to cancelation list (stat="&
-                  //cp_to_string(elem%stat),failure)
+                  //cp_to_string(elem%stat))
       END SELECT
       ! set dot color
       IF(tmc_env%params%DRAW_TREE) &
@@ -127,10 +124,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'free_cancelation_list', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(elem_list_type), POINTER            :: tmp_element
-
-    failure = .FALSE.
 
     cancel_elem_loop: DO WHILE(ASSOCIATED(cancel_list))
       tmp_element => cancel_list%next

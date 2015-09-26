@@ -96,10 +96,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: pstring
     INTEGER                                  :: i, i1, i2, ielem, is, jd, jf, &
                                                 jp, js, k, l, mult, n, no
-    LOGICAL                                  :: failure
     REAL(Kind=dp)                            :: e0, el, oo
-
-    failure = .FALSE.
 
     occupation = 0._dp
 
@@ -360,11 +357,9 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: my_typ
     INTEGER                                  :: i, j, l, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ff
 
     my_typ = "RHO"
-    failure = .FALSE.
     IF(PRESENT(typ)) my_typ = typ(1:3)
     IF(my_typ == "KIN") THEN
       CPASSERT(PRESENT(rr))
@@ -658,11 +653,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: den
 
-    failure = .FALSE.
     charge=0._dp
     m=SIZE(basis%bf,1)
     ALLOCATE(den(m))
@@ -700,12 +693,10 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: my_typ
     INTEGER                                  :: i, j, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
 
     my_typ = "RHO"
-    failure = .FALSE.
     IF(PRESENT(typ)) my_typ = typ(1:3)
 
     IF(gthpot%nlcc) THEN
@@ -750,11 +741,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
 
-    failure = .FALSE.
     m = SIZE(locpot)
     ALLOCATE(fe(m),rc(m))
     rc(:)=rr(:)/gthpot%rc
@@ -799,11 +788,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dorb
 
-    failure = .FALSE.
     m=SIZE(basis%bf,1)
     ALLOCATE(dorb(m))
     n=basis%nbas(l)
@@ -842,11 +829,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: orb
 
-    failure = .FALSE.
     node=0
     m=SIZE(basis%bf,1)
     ALLOCATE(orb(m))
@@ -911,12 +896,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: info, l, lwork, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: a
 
-    failure = .FALSE.
     CPASSERT(ALL(nb >= nv))
 
     orb = 0._dp
@@ -1038,11 +1021,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nc
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: int1, int2
     REAL(dp), DIMENSION(:), POINTER          :: r, wr
 
-    failure = .FALSE.
     nc = MIN(SIZE(cpot),SIZE(density))
     r => grid%rad
     wr => grid%wr
@@ -1084,13 +1065,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, ff, oab, sab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: unp
 
-    failure = .FALSE.
     m = SIZE(cpot)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m))
 
@@ -1198,14 +1177,12 @@ CONTAINS
 
     INTEGER                                  :: i, ia, ib, k, lad, lbc, lh, &
                                                 ll, nbas, norb, nr, nu
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: almn
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, nai, nbi
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: orb
     REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
 
-    failure = .FALSE.
     arho = 0._dp
     DO ll=0,maxfac,2
       lh=ll/2
@@ -1278,7 +1255,6 @@ CONTAINS
 
     INTEGER                                  :: i, ia, ib, k, lad, lbc, lh, &
                                                 ll, nbas, norb, nr, nu
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: almn
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, nai, nbi
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1287,7 +1263,6 @@ CONTAINS
       DIMENSION(:, :, :)                     :: pot
     REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
 
-    failure = .FALSE.
     arho = 0._dp
     DO ll=0,maxfac,2
       lh=ll/2
@@ -1359,11 +1334,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, nc
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: int1, int2
     REAL(dp), DIMENSION(:), POINTER          :: r, wr
 
-    failure = .FALSE.
     nc = MIN(SIZE(cpot),SIZE(density))
     r => grid%rad
     wr => grid%wr
@@ -1399,11 +1372,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, l, ll, m
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: a, b, oab, sab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erfa, expa, z
 
-    failure = .FALSE.
     m = SIZE(cpot,1)
     ALLOCATE ( erfa(1:m), expa(1:m), z(1:m))
 
@@ -1622,9 +1593,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, l, n
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     SELECT CASE (derivatives)
       CASE (0)
@@ -1689,10 +1657,9 @@ CONTAINS
 
     INTEGER                                  :: i1, i2, ij1, ij2, j1, j2, l1, &
                                                 l2, ll, n1, n2
-    LOGICAL                                  :: failure, have_all_nu
+    LOGICAL                                  :: have_all_nu
     REAL(KIND=dp)                            :: eint, f1, f2
 
-    failure = .FALSE.
     IF ( PRESENT(all_nu) ) THEN
       have_all_nu = all_nu
     ELSE
@@ -1765,11 +1732,8 @@ CONTAINS
 
     INTEGER                                  :: i1, i2, ij1, ij2, j1, j2, l1, &
                                                 l2, lh, ll, n1, n2, nu
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: almn, eint, f1, f2
     REAL(KIND=dp), DIMENSION(0:maxfac)       :: arho
-
-    failure = .FALSE.
 
     arho = 0._dp
     DO ll=0,maxfac,2
@@ -1846,11 +1810,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tkmat, tpmat
 
-    failure = .FALSE.
     emat = 0._dp
     DO l=0,3
       n = nval(l)

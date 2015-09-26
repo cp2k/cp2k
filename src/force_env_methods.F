@@ -165,7 +165,7 @@ CONTAINS
     INTEGER                                  :: i, j, nat, ndigits, &
                                                 output_unit, print_forces
     LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, &
-      eval_ef, failure, linres_run, my_skip
+      eval_ef, linres_run, my_skip
     REAL(KIND=dp)                            :: checksum, e_pot, sum_energy, &
                                                 sum_pv_virial, &
                                                 sum_stress_tensor
@@ -182,7 +182,6 @@ CONTAINS
 
     NULLIFY (logger, virial, subsys, atprop_env, cell)
     logger => cp_get_default_logger()
-    failure = .FALSE.
     eval_ef = .TRUE.
     my_skip = .FALSE.
     calculate_forces = .TRUE.
@@ -453,7 +452,6 @@ CONTAINS
     INTEGER                                  :: i, ip, iq, j, k, natom, &
                                                 ncore, ndigits, nshell, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx_w
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
     REAL(KIND=dp), DIMENSION(3)              :: s
@@ -480,7 +478,6 @@ CONTAINS
     nshell = 0
     numer_stress = 0.0_dp
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
 
 
@@ -666,10 +663,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE ( force_env)
     NULLIFY (force_env%fist_env, force_env%qs_env, &
          force_env%para_env, force_env%globenv, &
@@ -782,7 +775,7 @@ CONTAINS
     INTEGER :: iforce_eval, iparticle, jparticle, mixing_type, my_group, &
       natom, nforce_eval, source, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: glob_natoms, map_index
-    LOGICAL                                  :: dip_exists, failure
+    LOGICAL                                  :: dip_exists
     REAL(KIND=dp) :: coupling_parameter, dedf, der_1, der_2, dx, energy, err, &
       lambda, lerr, restraint_strength, restraint_target, sd
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix
@@ -808,7 +801,6 @@ CONTAINS
       POINTER                                :: virials
     TYPE(virial_type), POINTER               :: loc_virial, virial_mix
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(force_env))
     ! Get infos about the mixed subsys

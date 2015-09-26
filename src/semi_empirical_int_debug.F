@@ -33,14 +33,13 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
        routineN = 'check_rotmat_der', routineP = moduleN//':'//routineN
 
-  LOGICAL                                  :: failure, check_value
+  LOGICAL                                  :: check_value
   REAL(KIND=dp)                            :: dx, r, r0(3), x(3)
   TYPE(rotmat_type), POINTER               :: matrix, matrix_m, matrix_n, &
        matrix_p
   INTEGER                                  :: imap(3),i,j,k,l
 
   NULLIFY(matrix_m, matrix_p, matrix_n, matrix)
-  failure = .FALSE.
   CALL rotmat_create(matrix_p)
   CALL rotmat_create(matrix_m)
   CALL rotmat_create(matrix_n)
@@ -178,13 +177,12 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
   LOGICAL, DIMENSION(45, 45)               :: logv
   REAL(KIND=dp), DIMENSION(45, 45)         :: v_n, v_p, v_m
 
-  LOGICAL                                  :: failure, check_value
+  LOGICAL                                  :: check_value
   REAL(KIND=dp)                            :: dx, r, r0(3), x(3)
   TYPE(rotmat_type), POINTER               :: matrix
   INTEGER                                  :: imap(3),i,j,k, limkl
 
   NULLIFY(matrix)
-  failure = .FALSE.
   dx = 1.0E-6_dp
   imap(1) = 1
   imap(2) = 2

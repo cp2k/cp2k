@@ -298,8 +298,7 @@ CONTAINS
       ispin, max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gapw, paw_atom, &
-                                                success
+    LOGICAL                                  :: gapw, paw_atom, success
     REAL(dp)                                 :: eps_r, eps_x, hard_radius, &
                                                 temp_so_soft, vks_ra_idir2, &
                                                 vks_ra_idir3
@@ -347,7 +346,6 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog")
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     atomic_kind_set=atomic_kind_set,&
@@ -578,8 +576,8 @@ CONTAINS
       max_iter, natom, nkind, nspins, output_unit, precond_kind
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gapw, paw_atom, &
-                                                soo_rho_hard, success
+    LOGICAL                                  :: gapw, paw_atom, soo_rho_hard, &
+                                                success
     REAL(dp)                                 :: bind_ra_idir1, &
                                                 chi_tensor(3,3,2), eps_r, &
                                                 eps_x, hard_radius, rho_spin, &
@@ -631,7 +629,6 @@ CONTAINS
 
     CALL section_vals_val_get(g_section,"soo_rho_hard",l_val=soo_rho_hard)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
                     dft_control=dft_control,para_env=para_env,particle_set=particle_set,&
@@ -814,7 +811,7 @@ CONTAINS
     INTEGER                                  :: handle, idir, idir2, idir3, &
                                                 iiB, iiiB, ispin, natom, &
                                                 nspins
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: gapw
     REAL(dp)                                 :: scale_fac
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -832,7 +829,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY(cell, dft_control, pw_env, auxbas_rs_desc, auxbas_pw_pool, &

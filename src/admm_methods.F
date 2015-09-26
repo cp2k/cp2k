@@ -1790,7 +1790,7 @@ MODULE admm_methods
     INTEGER                                  :: handle, ispin, iw, &
                                                 nao_aux_fit, nao_orb, natom, &
                                                 neighbor_list_id, nmo
-    LOGICAL                                  :: failure, omit_headers
+    LOGICAL                                  :: omit_headers
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: admm_force
     TYPE(admm_type), POINTER                 :: admm_env
@@ -1819,7 +1819,6 @@ MODULE admm_methods
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     NULLIFY(admm_env, logger, dft_control, para_env, mos, mo_coeff, matrix_w_q, matrix_w_s,&
             rho, rho_aux_fit, energy, sab_aux_fit, sab_aux_fit_asymm, &

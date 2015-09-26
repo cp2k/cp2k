@@ -92,11 +92,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idg, j, nparticle
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
-
-    failure = .FALSE.
 
     NULLIFY (cell)
     NULLIFY (subsys)
@@ -263,10 +260,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_io', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: pres_diff, pres_int, pres_tol
 
-    failure = .FALSE.
     SELECT CASE (gopt_env%type_id)
     CASE (default_ts_method_id,default_minimization_method_id)
        ! Geometry Optimization (Minimization and Transition State Search)
@@ -723,15 +718,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_final_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: etot
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-
-    failure = .FALSE.
 
     CALL force_env_get(force_env, cell=cell, subsys=subsys)
     CALL cp_subsys_get(subsys=subsys, particles=particles)
@@ -772,16 +764,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_geo_traj', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, shell_adiabatic, &
-                                                shell_present
+    LOGICAL                                  :: shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: core_particles, &
                                                 shell_particles
-
-    failure = .FALSE.
 
     NULLIFY (atomic_kinds)
     NULLIFY (atomic_kind_set)
@@ -909,7 +898,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'geo_opt_io', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -922,7 +910,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY(para_env, atomic_kind_set, subsys, particle_set, &
          local_particles, atomic_kinds, particles)
 
@@ -970,15 +957,12 @@ CONTAINS
 
     INTEGER                                  :: i, iatom, idg, j, natom, &
                                                 nparticle, shell_index
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fc, fs, mass
     REAL(KIND=dp), DIMENSION(3)              :: s
     TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: core_particles, particles, &
                                                 shell_particles
-
-     failure = .FALSE.
 
      NULLIFY (cell_ref)
      NULLIFY (core_particles)

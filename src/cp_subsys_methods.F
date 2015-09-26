@@ -230,9 +230,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ig, ncol
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CALL section_vals_get(colvar_section,n_repetition=ncol)
     ALLOCATE(subsys%colvar_p(ncol))
     DO ig= 1, ncol
@@ -281,7 +279,6 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: my_element, strtmp1
     INTEGER                                  :: iat, id_, nat
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -296,7 +293,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(topology_parameters_type)           :: topology
 
-    failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
          molecule_kind_set,molecule_set,particles,atomic_kinds)
 
@@ -304,7 +300,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(big_subsys))
     CALL cp_assert(big_subsys%para_env%group==small_para_env%group, &
          cp_failure_level, cp_assertion_failed, routineP, &
-         "big_subsys%para_env%group==small_para_env%group",failure)
+         "big_subsys%para_env%group==small_para_env%group")
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

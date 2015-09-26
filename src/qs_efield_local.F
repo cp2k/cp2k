@@ -120,14 +120,12 @@ MODULE qs_efield_local
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: dipmat, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(efield_berry_type), POINTER         :: efield
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control)

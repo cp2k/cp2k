@@ -68,13 +68,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dftb_dispersion', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dftb_control_type), POINTER         :: dftb_control
     TYPE(qs_dispersion_type), POINTER        :: dispersion_env
     TYPE(qs_energy_type), POINTER            :: energy
 
-    failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     dft_control=dft_control)

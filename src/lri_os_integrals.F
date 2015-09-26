@@ -73,7 +73,6 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sint
@@ -83,7 +82,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb,&
             first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb,&
@@ -229,7 +227,6 @@ CONTAINS
                                                 nsgfb, nsgfca
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfca
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, dac, dbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: saba
@@ -242,7 +239,6 @@ CONTAINS
                                                 sphi_b, sphi_ca, zeta, zetb, &
                                                 zetca
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, lca_max, lca_min, npgfa, npgfb,&
              npgfca, nsgfa, nsgfb, nsgfca) 
@@ -404,7 +400,6 @@ CONTAINS
                                                 nsgfb, nsgfcb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb, &
                                                 first_sgfcb
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dab, dac, dbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: sabb
@@ -417,7 +412,6 @@ CONTAINS
                                                 sphi_b, sphi_cb, zeta, zetb, &
                                                 zetcb
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, lcb_max, lcb_min, npgfa, npgfb,&
             npgfcb, nsgfa, nsgfb, nsgfcb)
@@ -562,8 +556,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: asets_equal, bsets_equal, &
-                                                failure
+    LOGICAL                                  :: asets_equal, bsets_equal
     REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: swork
@@ -573,7 +566,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb,&
             first_sgfa, first_sgfb, set_radius_a, set_radius_b, rpgfa, rpgfb,&

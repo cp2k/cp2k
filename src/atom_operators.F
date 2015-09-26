@@ -79,14 +79,11 @@ CONTAINS
                                                 ipiv(1000), l, l1, l2, ll, &
                                                 lwork, m, m1, m2, mm1, mm2, &
                                                 n, n1, n2, nn1, nn2, nu, nx
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rc, sc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, w, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: omat, vmat
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: eri
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -327,14 +324,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ii, j, k, l, m, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: al, alpha, rc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, xmat
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: omat, spmat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rad
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -603,7 +597,6 @@ CONTAINS
 
     INTEGER                                  :: dkhorder, handle, i, k1, k2, &
                                                 l, m, n, nl
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: ascal, cspeed
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: cpot
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: modpot
@@ -611,8 +604,6 @@ CONTAINS
       DIMENSION(:, :)                        :: ener, sps
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: hmat, pvp, sp, tp, vp, wfn
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -802,10 +793,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: l, m, n
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :, :), POINTER    :: hdkh
 
-    failure = .FALSE.
     CPASSERT(order>=0)
 
     hdkh => integrals%hdkh
@@ -846,9 +835,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ll
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF ( ASSOCIATED(integrals%ovlp) ) THEN
       DEALLOCATE (integrals%ovlp)
@@ -887,10 +873,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_ppint_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     IF ( ASSOCIATED(integrals%hnl) ) THEN
       DEALLOCATE (integrals%hnl)
     END IF
@@ -913,10 +895,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_relint_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF ( ASSOCIATED(integrals%tzora) ) THEN
       DEALLOCATE (integrals%tzora)
@@ -1051,10 +1029,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i1, i2, m1, m2, mm1, &
                                                 mm2, n1, n2, nn1, nn2
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: amat, atran, bmat, btran, hint
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     m1 = SIZE(cm1,1)

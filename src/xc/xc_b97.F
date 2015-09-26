@@ -172,10 +172,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: param
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
     CALL section_vals_val_get(b97_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(b97_params,"scale_c",r_val=sc)
@@ -210,10 +208,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: param
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: sc, sx
 
-    failure=.FALSE.
     CALL section_vals_val_get(b97_params,"parametrization",i_val=param)
     CALL section_vals_val_get(b97_params,"scale_x",r_val=sx)
     CALL section_vals_val_get(b97_params,"scale_c",r_val=sc)
@@ -249,7 +245,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints, param
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, &
                                                 epsilon_rho, scale_c, scale_x
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
@@ -259,7 +254,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(bo)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -382,7 +376,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints, param
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, scale_c, scale_x
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndra, &
       e_ndra_ndra, e_ndra_ndrb, e_ndra_ra, e_ndra_rb, e_ndrb, e_ndrb_ndrb, &
@@ -391,7 +384,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(deriv, bo)
 
     CPASSERT(ASSOCIATED(rho_set))
@@ -597,7 +589,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: A_1, A_2, A_3, alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, &
       alpha_c1rhoa, alpha_c1rhob, alpha_crhoa, alpha_crhob, beta_1_1, &
       beta_1_2, beta_1_3, beta_2_1, beta_2_2, beta_2_3, beta_3_1, beta_3_2, &
@@ -681,8 +672,6 @@ CONTAINS
       u_x_arhoarhoa, u_x_b, u_x_b1rhob, u_x_bnorm_drhob, &
       u_x_bnorm_drhobnorm_drhob, u_x_brhob, u_x_brhobnorm_drhob, u_x_brhobrhob
     REAL(kind=dp), DIMENSION(10)             :: coeffs
-
-    failure=.FALSE.
 
     p_1 = 0.10e1_dp
     A_1 = 0.31091e-1_dp
@@ -1637,7 +1626,6 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: A_1, A_2, A_3, alpha_1_1, alpha_1_2, alpha_1_3, alpha_c, &
       alpha_c1rhoa, alpha_c1rhob, alpha_crhoa, alpha_crhob, beta_1_1, &
       beta_1_2, beta_1_3, beta_2_1, beta_2_2, beta_2_3, beta_3_1, beta_3_2, &
@@ -1721,8 +1709,6 @@ SUBROUTINE b97_lda_calc(rho_tot, norm_drho,&
       u_x_arhoarhoa, u_x_b, u_x_b1rhob, u_x_bnorm_drhob, &
       u_x_bnorm_drhobnorm_drhob, u_x_brhob, u_x_brhobnorm_drhob, u_x_brhobrhob
     REAL(kind=dp), DIMENSION(10)             :: coeffs
-
-  failure=.FALSE.
 
   p_1 = 0.10e1_dp
   A_1 = 0.31091e-1_dp

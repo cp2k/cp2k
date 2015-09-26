@@ -69,7 +69,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: TYPE
-    LOGICAL                                  :: failure
 
     CALL section_vals_val_get(vwn_params,"functional_type",i_val=TYPE)
     eps_rho = cutoff
@@ -99,9 +98,8 @@ CONTAINS
           ca  = 13.0045_dp
           x0a = -0.00475840_dp
        CASE DEFAULT
-         failure = .FALSE.
          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                        " Only functionals VWN3 and VWN5 are supported",failure)
+                        " Only functionals VWN3 and VWN5 are supported")
 
     END SELECT
 
@@ -152,7 +150,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho, sc
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: x
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -161,7 +158,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc)
@@ -528,7 +524,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints, TYPE
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho, sc
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0, e_a, e_aa, e_aaa, &
@@ -537,7 +532,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(vwn_params,"scale_c",r_val=sc)
@@ -656,9 +650,8 @@ CONTAINS
         !$omp end parallel
 
       CASE DEFAULT
-        failure = .FALSE.
         CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                      " Only functionals VWN3 and VWN5 are supported",failure)
+                      " Only functionals VWN3 and VWN5 are supported")
     END SELECT
 
     IF (cp_debug) THEN

@@ -110,9 +110,7 @@ CONTAINS
 
     INTEGER                                  :: ikind, iparticle, isgf, &
                                                 nparticle, ns
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(particle_set))
 
     nparticle = SIZE(particle_set)
@@ -193,8 +191,7 @@ CONTAINS
     CHARACTER(LEN=4)                         :: name
     CHARACTER(LEN=default_string_length)     :: atm_name, my_format
     INTEGER                                  :: handle, iatom, natom, stat
-    LOGICAL                                  :: dummy, failure, &
-                                                my_charge_beta, &
+    LOGICAL                                  :: dummy, my_charge_beta, &
                                                 my_charge_extended, &
                                                 my_charge_occup
     REAL(KIND=dp)                            :: angle_alpha, angle_beta, &
@@ -210,7 +207,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     natom = SIZE(particle_set)
     IF (PRESENT(array)) THEN
        SELECT CASE(TRIM(content))
@@ -642,7 +638,6 @@ CONTAINS
     INTEGER                                  :: handle, iatom, iw, jatom, &
                                                 natom
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: conv, dab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: distance_matrix
@@ -651,7 +646,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,&
@@ -709,9 +703,7 @@ CONTAINS
                                                 katom, my_el_per_part, natom, &
                                                 to
     INTEGER, DIMENSION(:), POINTER           :: my_list
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     my_el_per_part = 1
     IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
     IF (PRESENT(Ilist)) THEN
@@ -776,14 +768,13 @@ CONTAINS
                                                 wrk3(3), wrk4(4)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
     INTEGER, DIMENSION(:), POINTER           :: atomic_indices, index_list
-    LOGICAL                                  :: failure, unique
+    LOGICAL                                  :: unique
     REAL(KIND=dp)                            :: conv, dab
     REAL(KIND=dp), DIMENSION(3)              :: r, rab, rbc, rcd, s
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY (atomic_indices)
     NULLIFY (index_list)
     NULLIFY (logger)

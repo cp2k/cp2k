@@ -50,13 +50,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_eip_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
 !   ------------------------------------------------------------------------
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="EIP", &
@@ -99,12 +96,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_eip_print_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
 !   ------------------------------------------------------------------------
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section, name="PRINT", &

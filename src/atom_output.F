@@ -83,9 +83,7 @@ CONTAINS
 
     INTEGER                                  :: j, l, mc, mlc, mlo, mm(0:3), &
                                                 mo
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     WRITE(iw,'(/,T2,A)') "Electronic structure"
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of core electrons",SUM(state%core)
     WRITE(iw,'(T5,A,T71,F10.2)') "Total number of valence electrons",SUM(state%occ)
@@ -290,9 +288,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, l
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     WRITE(iw,'(/,A)') TRIM(title)
     SELECT CASE (atom_basis%basis_type)
       CASE (GTO_BASIS)
@@ -368,9 +364,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iw
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL open_file(file_name="OPT_BASIS",file_status="UNKNOWN",file_action="WRITE",unit_number=iw)
     SELECT CASE (atom_basis%basis_type)
       CASE (GTO_BASIS)
@@ -451,11 +445,10 @@ CONTAINS
     CHARACTER(len=80), DIMENSION(:), POINTER :: func_name
     INTEGER                                  :: ifun, ifunc_name, il, meth, &
                                                 myfun, reltyp
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: lsd
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section, &
                                                 xc_section
 
-    failure = .FALSE.
     NULLIFY(xc_fun,xc_fun_section,xc_section)
 
     meth = atom%method_type
@@ -602,9 +595,7 @@ CONTAINS
 
     CHARACTER(len=60)                        :: pline
     INTEGER                                  :: i, j, k, l
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     SELECT CASE (potential%ppot_type)
       CASE (NO_PSEUDO)
         WRITE(iw,'(/," ",28("*"),A,27("*"))') " All Electron Potential "
@@ -732,10 +723,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'atom_print_orbitals', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     SELECT CASE (atom%method_type)
       CASE DEFAULT

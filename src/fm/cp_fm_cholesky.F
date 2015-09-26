@@ -51,7 +51,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, info, my_n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp
 #if defined(__SCALAPACK)
@@ -60,7 +59,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
@@ -119,14 +117,12 @@ CONTAINS
     REAL(KIND = sp), DIMENSION(:,:), POINTER  :: a_sp
     INTEGER                                   :: info,handle
     INTEGER                                   :: my_n
-    LOGICAL                                   :: failure
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                     :: desca
 #endif
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     my_n = MIN(matrix%matrix_struct%nrow_global,&
          matrix%matrix_struct%ncol_global)
@@ -186,7 +182,6 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: a, b
     INTEGER                                   :: info, handle
     INTEGER                                   :: n, my_itype
-    LOGICAL                                   :: failure
 #if defined(__SCALAPACK)
     REAL(KIND=dp)                             :: scale
     INTEGER, DIMENSION(9)                     :: desca, descb
@@ -194,7 +189,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n = matrix%matrix_struct%nrow_global
 
     my_itype =1
@@ -215,8 +209,7 @@ CONTAINS
     CALL cp_assert(scale == 1.0_dp, cp_failure_level,cp_assertion_failed,&
          routineP,&
          "scale not equal 1 (scale="//cp_to_string(scale)//")"//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
 #else
 
     CALL dsygst(my_itype,'U',n,a(1,1),n,b(1,1),n,info)
@@ -258,7 +251,6 @@ CPSourceFileRef,&
     REAL(KIND = sp), DIMENSION(:,:), POINTER         :: a_sp,b_sp,out_sp
     INTEGER                                   :: itype, handle
     INTEGER                                   :: n
-    LOGICAL                                   :: failure
     REAL(KIND = dp)                           :: alpha
     INTEGER                                   :: myprow, mypcol
     TYPE(cp_blacs_env_type), POINTER          :: context
@@ -270,7 +262,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     context => matrix%matrix_struct%context
     myprow = context%mepos(1)
     mypcol = context%mepos(2)
@@ -279,8 +270,7 @@ CPSourceFileRef,&
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
          cp_failure_level,cp_assertion_failed,routineP,&
          "wrong argument op"//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -292,8 +282,7 @@ CPSourceFileRef,&
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "wrong argument pos"//&
-CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
        END SELECT
     ELSE
        chol_pos='L'
@@ -306,8 +295,7 @@ CPSourceFileRef,&
          cp_failure_level,cp_assertion_failed,&
          routineP,&
          "not the same precision"//&
-CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
 
     ! notice b is the cholesky guy
     a => matrix%local_data

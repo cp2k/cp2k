@@ -70,7 +70,6 @@ CONTAINS
                                                 ispin, isurf, iup, jsurf
     INTEGER, DIMENSION(3)                    :: ngrid
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dh(3,3), dip_fac, dip_hh, &
                                                 dsurf, height_min, hh, &
                                                 rhoav_min, surfarea, vdip, &
@@ -90,7 +89,6 @@ CONTAINS
     TYPE(qs_subsys_type), POINTER            :: subsys
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(cell, dft_control, rho, pw_env, rho_core, rho0_s_gs, auxbas_pw_pool, &
              pw_pools,subsys,v_hartree_rspace,rho_r)
 

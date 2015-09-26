@@ -60,13 +60,12 @@ MODULE qs_dispersion_utils
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: exfun, explicit, failure
+    LOGICAL                                  :: exfun, explicit
     REAL(dp), POINTER                        :: params(:), scal(:)
     TYPE(section_vals_type), POINTER         :: nl_section, pp_section, &
                                                 vdw_section, xc_fun_section
 
     CPASSERT(ASSOCIATED(dispersion_env))
-    failure = .FALSE.
 
     ! set general defaults
     dispersion_env%doabc=.FALSE.
@@ -189,7 +188,6 @@ MODULE qs_dispersion_utils
 
     CHARACTER(LEN=2)                         :: symbol
     INTEGER                                  :: i, ikind, nkind, output_unit
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -197,8 +195,6 @@ MODULE qs_dispersion_utils
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: dft_section
-
-    failure=.FALSE.
 
     IF(PRESENT(ounit)) THEN
        output_unit = ounit

@@ -91,14 +91,13 @@ CONTAINS
     INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, &
       natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
       ntheta_prev, output_unit
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
     NULLIFY(parser, logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
@@ -157,8 +156,7 @@ CONTAINS
             "Number of atoms in connectivity control is larger than the "//&
             "number of atoms in coordinate control. check coordinates and "//&
             "connectivity. "//&
-CPSourceFileRef,&
-             failure=failure)
+            CPSourceFileRef)
        IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ',natom
        !malloc the memory that we need
        CALL reallocate(atom_info%id_molname,1,natom_prev+natom)
@@ -429,7 +427,6 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, i, iatom, ibond, &
                                                 ionfo, iw, jatom, N, natom, &
                                                 nbond, nonfo, nphi, ntheta
-    LOGICAL                                  :: failure
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bend_list, ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -437,7 +434,6 @@ CPSourceFileRef,&
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog")
@@ -582,7 +578,7 @@ CPSourceFileRef,&
                                                 mol_id, n_rep, natom, nbond, &
                                                 nimpr, noe, nphi, ntheta
     INTEGER, DIMENSION(:), POINTER           :: tag_mols, tmp, wrk
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -591,7 +587,6 @@ CPSourceFileRef,&
     TYPE(section_vals_type), POINTER         :: subsection
 
     NULLIFY(logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog")
@@ -750,14 +745,13 @@ CPSourceFileRef,&
       DIMENSION(:), POINTER                  :: charge_atm
     INTEGER                                  :: handle, i, iw, j, my_index, &
                                                 nchg
-    LOGICAL                                  :: explicit, failure, ldum
+    LOGICAL                                  :: explicit, ldum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp, charges
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key, tmp_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     print_key => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%DUMP_PSF")

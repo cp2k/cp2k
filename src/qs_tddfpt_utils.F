@@ -169,7 +169,6 @@ CONTAINS
 
     INTEGER                                  :: i, n_cols, n_lumos, n_orbits, &
                                                 n_rows, n_spins, oo, spin, vo
-    LOGICAL                                  :: failure
     REAL(KIND=DP)                            :: evd
     REAL(KIND=DP), ALLOCATABLE, &
       DIMENSION(:, :)                        :: guess, lumos
@@ -182,7 +181,6 @@ CONTAINS
 ! number of vectors to initialize
 
     NULLIFY(dft_control)
-    failure=.FALSE.
 
     CALL get_qs_env(qs_env, dft_control=dft_control)
     tddfpt_control => dft_control%tddfpt_control
@@ -300,7 +298,6 @@ CONTAINS
     INTEGER                                  :: i, j, n_ev, n_spins, occ, &
                                                 output_unit, spin, virt
     INTEGER, DIMENSION(2)                    :: nhomos, nlumos, nrows
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: contribution, &
                                                 summed_contributions
     REAL(KIND=dp), ALLOCATABLE, &
@@ -314,7 +311,6 @@ CONTAINS
     TYPE(tddfpt_control_type)                :: t_control
 
     NULLIFY(S_lumos, logger, matrix_s, dft_control)
-    failure = .FALSE.
     logger    => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
     CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control)

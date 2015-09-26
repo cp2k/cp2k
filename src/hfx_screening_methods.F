@@ -333,7 +333,6 @@ MODULE hfx_screening_methods
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
     REAL(dp) :: kind_radius_a, kind_radius_b, max_contraction_a, &
       max_contraction_b, max_val, max_val_temp, R1, ra(3), radius, rb(3), x(2)
     REAL(dp), DIMENSION(:), POINTER          :: set_radius_a, set_radius_b
@@ -346,8 +345,6 @@ MODULE hfx_screening_methods
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
-
-    failure = .FALSE.
 
 !$OMP MASTER
     CALL timeset(routineN,handle)
@@ -695,7 +692,6 @@ MODULE hfx_screening_methods
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure
     REAL(dp) :: cutoff, ff, max_contraction_a, max_contraction_b, prefactor, &
       R1, R_max, ra(3), rab(3), rab2, radius, rap(3), rb(3), rp(3), x(2), zetp
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, rpgfb, sphi_a, sphi_b, &
@@ -705,9 +701,6 @@ MODULE hfx_screening_methods
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
-
-    failure = .FALSE.
-
 
 !$OMP MASTER
     CALL timeset(routineN,handle)

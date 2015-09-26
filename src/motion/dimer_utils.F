@@ -47,10 +47,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: output_unit
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -82,11 +81,9 @@ CONTAINS
 
     INTEGER                                  :: i, i_rep_val, isize, j, &
                                                 size_array
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
     TYPE(section_vals_type), POINTER         :: nvec_section
 
-    failure = .FALSE.
     nvec_section => section_vals_get_subs_vals(motion_section,&
          "GEO_OPT%TRANSITION_STATE%DIMER%DIMER_VECTOR")
     ! Clean the content of the section first..

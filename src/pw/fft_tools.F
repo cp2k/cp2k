@@ -977,7 +977,7 @@ CONTAINS
     INTEGER :: handle, lg(2), lz(3), mcx2, mcy3, mcz1, mcz2, mx1, mx2, mx3, &
       my1, my2, my3, my_pos, mz1, mz2, mz3, np, output_unit, sign, stat
     INTEGER, DIMENSION(2)                    :: dim, pos
-    LOGICAL                                  :: failure, test
+    LOGICAL                                  :: test
     REAL(KIND=dp)                            :: norm, sum_data
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
@@ -1003,7 +1003,6 @@ CONTAINS
 ! distribution is not covered.
 !------------------------------------------------------------------------------
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
@@ -2617,9 +2616,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL release_fft_scratch_pool()
 
     ! Allocate first scratch and mark it as used
@@ -2684,14 +2681,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_fft_scratch_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
     INTEGER                   :: ierr
     COMPLEX(KIND=dp), POINTER :: dummy_ptr_z
 #endif
 
-    failure = .FALSE.
     ! deallocate structures
     IF(ASSOCIATED(fft_scratch%ziptr)) THEN
        DEALLOCATE(fft_scratch%ziptr)
@@ -2870,11 +2864,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_fft_scratch_pool', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch, &
                                                 fft_scratch_current
-
-    failure = .FALSE.
 
     IF (init_fft_pool == 0) NULLIFY(fft_scratch_first)
 
@@ -2907,11 +2898,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: last_tick, nscratch
-    LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_old
 
-    failure=.FALSE.
     nscratch=0
 
     last_tick=HUGE(last_tick)
@@ -2989,7 +2978,7 @@ CONTAINS
       mcx2, mcy3, mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
       nbx, nbz, nm, nmax, nmray, nn, np, nx, ny, nyzray, nz, pos(2)
     INTEGER, DIMENSION(3)                    :: pcoord
-    LOGICAL                                  :: equal, failure
+    LOGICAL                                  :: equal
     LOGICAL, DIMENSION(2)                    :: dims
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                 fft_scratch_last, &
@@ -3002,7 +2991,6 @@ CONTAINS
 #endif
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ! this is the place to check that the scratch_pool does not grow without limits
     ! before we add a new scratch check the size of the pool and release some of the list if needed
@@ -3409,10 +3397,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: scratch_id
-    LOGICAL                                  :: failure
     TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current
-
-    FAILURE = .FALSE.
 
     scratch_id = fft_scratch%fft_scratch_id
 

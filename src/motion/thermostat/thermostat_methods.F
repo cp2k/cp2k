@@ -122,8 +122,7 @@ CONTAINS
     LOGICAL :: apply_general_thermo, apply_thermo_adiabatic, &
       apply_thermo_baro, apply_thermo_shell, explicit_adiabatic_fast, &
       explicit_adiabatic_slow, explicit_baro, explicit_barostat_section, &
-      explicit_part, explicit_shell, failure, save_mem, shell_adiabatic, &
-      shell_present
+      explicit_part, explicit_shell, save_mem, shell_adiabatic, shell_present
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -140,7 +139,6 @@ CONTAINS
       work_section
 
     NULLIFY(qmmm_env,cell)
-    failure =.FALSE.
     CALL allocate_thermostats(thermostats)
     adiabatic_fast_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_FAST")
     adiabatic_slow_section  => section_vals_get_subs_vals(md_section,"ADIABATIC_DYNAMICS%THERMOSTAT_SLOW")
@@ -477,11 +475,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kin_energy, pot_energy, tmp
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw=cp_print_key_unit_nr(logger,section,"PRINT%THERMOSTAT_INFO",extension=".log")
@@ -544,9 +540,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_baro', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
@@ -601,9 +594,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_particles', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat
@@ -665,9 +655,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'apply_thermostat_shells', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
           ! Apply Nose-Hoover Thermostat

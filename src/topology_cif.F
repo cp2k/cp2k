@@ -98,7 +98,7 @@ CONTAINS
                                                 natom, natom_orig, newsize
     INTEGER, DIMENSION(20)                   :: ifield
     INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: check, failure, found, my_end
+    LOGICAL                                  :: check, found, my_end
     REAL(KIND=dp)                            :: pfactor
     REAL(KIND=dp), DIMENSION(3)              :: cell_angles, cell_lengths, r, &
                                                 r1, r2, s, s_tmp
@@ -108,7 +108,6 @@ CONTAINS
     TYPE(cp_parser_type), POINTER            :: parser
 
     NULLIFY(parser, logger)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/CIF_INFO",&
          extension=".subsysLog")

@@ -134,12 +134,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_rm_restart_info
+    LOGICAL                                  :: my_rm_restart_info
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section
 
-    failure = .FALSE.
     my_rm_restart_info = .TRUE.
     IF (PRESENT(rm_restart_info)) my_rm_restart_info = rm_restart_info
     NULLIFY(md_env, para_env)
@@ -193,7 +192,7 @@ CONTAINS
     INTEGER                                  :: handle, i, istep, md_stride, &
                                                 run_type_id
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: check, ehrenfest_md, failure, &
+    LOGICAL                                  :: check, ehrenfest_md, &
                                                 save_mem, should_stop, &
                                                 write_binary_restart_file
     REAL(KIND=dp)                            :: dummy, time_iter_start, &
@@ -222,7 +221,6 @@ CONTAINS
     CPASSERT(ASSOCIATED(globenv))
     CPASSERT(ASSOCIATED(force_env))
 
-    failure=.FALSE.
     NULLIFY (particles, cell, simpar, itimes, used_time, subsys, &
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          reftraj_section, work_section, atomic_kinds, &
@@ -285,8 +283,7 @@ CONTAINS
     IF(simpar%ensemble == reftraj_ensemble .AND. ehrenfest_md)&
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Ehrenfest MD does not support reftraj ensemble "//&
-                     CPSourceFileRef,&
-                     failure)
+                     CPSourceFileRef)
     IF(simpar%ensemble == reftraj_ensemble) THEN
         reftraj_section => section_vals_get_subs_vals(md_section,"REFTRAJ")
         CALL create_reftraj(reftraj, reftraj_section, para_env)
@@ -344,9 +341,7 @@ CONTAINS
             routineP,"Virial evaluation not requested for this run in the input file! "//&
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you are using can compute the virial! "//&
- CPSourceFileRef,&
-                 
-            failure)
+            CPSourceFileRef)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -360,8 +355,7 @@ CONTAINS
             routineP,"Virial evaluation not requested for all the force_eval sections present in"//&
             " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR "//&
             " in each force_eval section. Be sure the method you are using can compute the virial!"//&
- CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END IF
 
     ! Computing Forces at zero MD step
@@ -410,8 +404,7 @@ CONTAINS
                        check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
                        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
                           "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
-                          " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE",&
-                          failure)
+                          " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE")
                     ELSE
                        force_env%meta_env%delta_t = dummy
                     ENDIF

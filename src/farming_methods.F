@@ -124,12 +124,11 @@ CONTAINS
     INTEGER                                  :: i, iunit, n_rep_val, &
                                                 num_slaves, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: dependencies, i_vals
-    LOGICAL                                  :: explicit, failure, has_dep
+    LOGICAL                                  :: explicit, has_dep
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: farming_section, &
                                                 jobs_section, print_key
 
-    failure=.FALSE.
     NULLIFY(farming_section, jobs_section, print_key, logger, dependencies, i_vals)
     logger => cp_get_default_logger()
     farming_env%group_size_wish_set=.FALSE.

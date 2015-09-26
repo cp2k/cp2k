@@ -120,7 +120,6 @@ CONTAINS
                                                 print_section, vib_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env, intensities,&
             vib_section, print_section)
     logger => cp_get_default_logger()
@@ -455,7 +454,6 @@ CONTAINS
                                                 ndim, nfixed_atoms, &
                                                 nfixed_atoms_total, nkind
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ifixd_list, work
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
@@ -467,7 +465,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CALL force_env_get(force_env=force_env, subsys=subsys)
 
@@ -614,14 +611,13 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ifound, iseq, j, &
                                                 nvib
-    LOGICAL                                  :: failure, my_full
+    LOGICAL                                  :: my_full
     REAL(KIND=dp)                            :: norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: D
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     my_full = .TRUE.
     IF (PRESENT(full)) my_full = full
     ! Generate the missing vectors of the orthogonal basis set

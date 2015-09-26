@@ -85,7 +85,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: failure, s_mstruct_changed
+    LOGICAL                                  :: s_mstruct_changed
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r_aux
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -104,7 +104,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
     TYPE(rt_prop_type), POINTER              :: rtp
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, matrix_p_aux, matrix_p_aux_im, mos, &
          mos_aux_fit, para_env,matrix_s_aux_fit,matrix_s_aux_fit_vs_orb, rho,&
@@ -180,9 +179,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -454,7 +450,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
@@ -462,7 +457,6 @@ CONTAINS
                                                 matrix_ks_im
     TYPE(dft_control_type), POINTER          :: dft_control
 
-    failure = .FALSE.
     NULLIFY(admm_env, dft_control,&
             matrix_ks, matrix_ks_im, matrix_ks_aux_fit, matrix_ks_aux_fit_im)
     CALL timeset(routineN,handle)
@@ -513,11 +507,8 @@ CONTAINS
     INTEGER                                  :: handle, nao_aux_fit, nao_orb, &
                                                 nmo
     INTEGER, SAVE                            :: counter = 0
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_type)                      :: matrix_ks_nosym
     TYPE(cp_dbcsr_type), POINTER             :: matrix_k_tilde
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

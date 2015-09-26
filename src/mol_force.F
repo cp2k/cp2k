@@ -298,10 +298,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_torsions', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cosphi, phi
 
-    failure = .FALSE.
     cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
     IF(cosphi >  1.0_dp) cosphi = 1.0_dp
     IF(cosphi < -1.0_dp) cosphi = -1.0_dp
@@ -364,11 +362,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cosphi, phi
 
-    failure = .FALSE.
-    ! define cosphi
+! define cosphi
+
     cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
     IF(cosphi >  1.0_dp) cosphi = 1.0_dp
     IF(cosphi < -1.0_dp) cosphi = -1.0_dp
@@ -435,29 +432,24 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: b, C, cosphi, D, E, is41, phi
     REAL(KIND=dp), DIMENSION(3)              :: db_dq1, db_dq2, db_dq3, &
                                                 dC_dq1, dC_dq2, dC_dq3, &
                                                 dD_dq1, dD_dq2, dD_dq3, &
                                                 dE_dq1, dE_dq2, dE_dq3
 
-    failure = .FALSE.
+!compute the energy and the gradients of cos(phi), see
+!   "Efficient treatment of out-of-plane bend and improper torsion interactions in
+!   MM2, MM3 and MM4 Molecular mechanicsd calculations.", Robert E. Tuzun, Donald W.Noid,
+!   Bobby G Sumpter, Chemical and Analytical Sciences Division, Oak Ridge National
+!   Laboratory, P.O. Box 2008, Oak Ridge, Tennesse 37831-6497
+!CAUTION: in the paper r_ij = rj - ri
+!in fist_intra_force.F t_ij = ri - rj
+!hence a minus sign needs to be added to convert r_ij vectors in t_ij vectors
+!tm is the normal of the plane 123, tm = t32 x t12 (= w from paper)
+!tn = - t41 x tm (= a from paper, for minus sign see CAUTION above)
+!Computing some necessary variables (see paper)
 
-    !compute the energy and the gradients of cos(phi), see
-    !   "Efficient treatment of out-of-plane bend and improper torsion interactions in
-    !   MM2, MM3 and MM4 Molecular mechanicsd calculations.", Robert E. Tuzun, Donald W.Noid,
-    !   Bobby G Sumpter, Chemical and Analytical Sciences Division, Oak Ridge National
-    !   Laboratory, P.O. Box 2008, Oak Ridge, Tennesse 37831-6497
-
-    !CAUTION: in the paper r_ij = rj - ri
-    !in fist_intra_force.F t_ij = ri - rj
-    !hence a minus sign needs to be added to convert r_ij vectors in t_ij vectors
-
-    !tm is the normal of the plane 123, tm = t32 x t12 (= w from paper)
-    !tn = - t41 x tm (= a from paper, for minus sign see CAUTION above)
-
-    !Computing some necessary variables (see paper)
     E = DOT_PRODUCT(-t41,tm)
     C = DOT_PRODUCT(tm,tm)
     D = E**2/C

@@ -143,13 +143,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
@@ -221,13 +219,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     gbo = spline_g%pw_grid%bounds
 
@@ -302,13 +298,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff, inv64
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -386,14 +380,12 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
     REAL(KIND=dp), DIMENSION(4)              :: r_coeffs
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -466,13 +458,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: c23, coeff, inv27
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cosIVals, cosJVals, cosKVals
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -550,7 +540,7 @@ CONTAINS
     INTEGER                                  :: handle, i, idir, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: diag, failure, my_transpose
+    LOGICAL                                  :: diag, my_transpose
     REAL(KIND=dp)                            :: dVal1, dVal2, dVal3, &
                                                 my_scale, scalef
     REAL(KIND=dp), DIMENSION(3, 3)           :: dh_inv, h_grid
@@ -559,7 +549,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_transpose=.FALSE.
     IF (PRESENT(transpose)) my_transpose=transpose
     my_scale=1.0_dp
@@ -645,13 +634,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: coeff, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
@@ -786,13 +773,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: coeff, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: csIVals, csJVals, csKVals
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds
@@ -931,14 +916,12 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: v0, v1, v2
 
 !1:n_el), &
 !1:n_el), &
 
   IF (n_el<1) RETURN
-  failure=.FALSE.
   v0=in_val_first
   v1=in_val(1)
   IF (weights(1)==0.0_dp) THEN
@@ -1044,11 +1027,9 @@ SUBROUTINE pw_compose_stripe2(weights,in_val,in_val_first,in_val_last,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n_el
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: v0, v1, v2
 
   IF (last_val-first_val<0) RETURN
-  failure=.FALSE.
   v0=in_val_first
   v1=in_val(first_val,myj,myk)
   IF (weights(1)==0.0_dp) THEN
@@ -1237,10 +1218,8 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(pw_in))
   CPASSERT(pw_in%in_space==REALSPACE)
   CPASSERT(pw_in%in_use==REALDATA3D)
@@ -1250,7 +1229,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out)
   IF (.NOT.ALL(pw_in%pw_grid%bounds_local(:,2:3) == pw_in%pw_grid%bounds(:,2:3))) THEN
      CALL cp_assert(.FALSE.,&
           cp_failure_level,cp_assertion_failed,routineP,&
-          "wrong pw distribution",failure)
+          "wrong pw distribution")
   END IF
   CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
        out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local)
@@ -1329,11 +1308,9 @@ END SUBROUTINE pw_nn_compose_r
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, idirVal, j, k
-    LOGICAL                                  :: failure
     REAL(kind=dp), &
       DIMENSION(-1:1, -1:1, -1:1)            :: weights
 
-    failure=.FALSE.
     DO k=-1,1
        DO j=-1,1
           DO i=-1,1
@@ -1346,8 +1323,7 @@ END SUBROUTINE pw_nn_compose_r
                 idirVal=k
              CASE default
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                     routineP,"invalid idir ("//TRIM(cp_to_string(idir))//")",&
-                     failure)
+                     routineP,"invalid idir ("//TRIM(cp_to_string(idir))//")")
              END SELECT
              IF (idirVal==0) THEN
                 weights(i,j,k)=0.0_dp
@@ -1429,9 +1405,8 @@ END SUBROUTINE pw_nn_compose_r
                                                 fine_bo, fine_gbo, &
                                                 my_coarse_bo
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
-    LOGICAL                                  :: failure, has_i_lbound, &
-                                                has_i_ubound, is_split, &
-                                                safe_calc
+    LOGICAL                                  :: has_i_lbound, has_i_ubound, &
+                                                is_split, safe_calc
     REAL(kind=dp)                            :: v0, v1, v2, v3, wi, wj, wk
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: rcv_buf, send_buf
     REAL(kind=dp), DIMENSION(3)              :: w_0, ww0
@@ -1441,7 +1416,6 @@ END SUBROUTINE pw_nn_compose_r
 
     CALL timeset(routineN,handle)
 !    CALL timeset(routineN//"_pre",handle2)
-    failure=.FALSE.
     safe_calc=.FALSE.
     IF (PRESENT(safe_computation)) safe_calc=safe_computation
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
@@ -1587,8 +1561,7 @@ END SUBROUTINE pw_nn_compose_r
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Error calculating rcv_tot_size "//&
-CPSourceFileRef,&
-               failure)
+               CPSourceFileRef)
        END IF
        ALLOCATE(rcv_buf(0:rcv_tot_size-1))
 
@@ -1940,7 +1913,7 @@ CPSourceFileRef,&
                               cp_assertion_failed,routineN,&
                               "unexpected start index "//&
                               TRIM(cp_to_string(coarse_bo(1,1)))//" "//&
-                              TRIM(cp_to_string(fi)),failure)
+                              TRIM(cp_to_string(fi)))
                       END IF
                    END IF
                    fi=fi+1
@@ -2239,9 +2212,9 @@ CPSourceFileRef,&
                                                 fine_bo, fine_gbo, &
                                                 my_coarse_bo
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
-    LOGICAL                                  :: failure, has_i_lbound, &
-                                                has_i_ubound, is_split, &
-                                                local_data, safe_calc
+    LOGICAL                                  :: has_i_lbound, has_i_ubound, &
+                                                is_split, local_data, &
+                                                safe_calc
     REAL(kind=dp)                            :: vv0, vv1, vv2, vv3, vv4, vv5, &
                                                 vv6, vv7, wi, wj, wk
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: rcv_buf, send_buf
@@ -2250,7 +2223,6 @@ CPSourceFileRef,&
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: coarse_coeffs, fine_values
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
 
     safe_calc=.FALSE.
@@ -2520,8 +2492,7 @@ CPSourceFileRef,&
                    IF (.NOT.FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4) THEN
                       CALL cp_assert(.FALSE.,&
                            cp_failure_level,cp_assertion_failed,routineP,&
-                           "FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4",&
-                           failure)
+                           "FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)>=4")
                    END IF
                    rest_b=MODULO(FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-coarse_bo(1,1)-6,4)
                    i=FLOOR((fine_bo(2,1)-f_shift(1))/2._dp)-3-rest_b+4
@@ -2815,8 +2786,7 @@ CPSourceFileRef,&
             (coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "Error calculating send_tot_size "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        ALLOCATE(send_buf(0:send_tot_size-1))
 
        rcv_tot_size=0
@@ -2844,13 +2814,11 @@ CPSourceFileRef,&
        CALL cp_assert(ALL(sent_size(0:n_procs-2)==send_offset(1:n_procs-1)),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 1 filling send buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        CALL cp_assert(sent_size(n_procs-1)==send_tot_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 2 filling send buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
 
     IF (local_data) THEN
        DEALLOCATE(coarse_coeffs)
@@ -2918,13 +2886,11 @@ CPSourceFileRef,&
        CALL cp_assert(ALL(sent_size(0:n_procs-2)==rcv_offset(1:n_procs-1)),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 1 handling the rcv buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        CALL cp_assert(sent_size(n_procs-1)==rcv_tot_size,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "error 2 handling the rcv buffer "//&
-CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
 
        ! dealloc
        DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset)
@@ -2958,10 +2924,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE(preconditioner)
     last_precond_id=last_precond_id+1
     preconditioner%id_nr=last_precond_id
@@ -2991,10 +2953,8 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_set_kind', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: do_3d_coeff, failure
+    LOGICAL                                  :: do_3d_coeff
     REAL(kind=dp)                            :: s
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>0)
@@ -3079,10 +3039,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>1)
     preconditioner%ref_count=preconditioner%ref_count+1
@@ -3098,10 +3054,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_precond_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(preconditioner)) THEN
        CPASSERT(preconditioner%ref_count>0)
@@ -3127,10 +3079,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_do_precond', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(preconditioner))
     CPASSERT(preconditioner%ref_count>0)
@@ -3202,13 +3150,12 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, iiter, iter, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, last
+    LOGICAL                                  :: last
     REAL(kind=dp)                            :: alpha, beta, eps_r_att, &
                                                 eps_x_att, r_z, r_z_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: Ap, p, r, z
 
-    failure=.FALSE.
     last=.FALSE.
 
     res=.FALSE.
@@ -3691,7 +3638,7 @@ CPSourceFileRef,&
     INTEGER                                  :: i, ivec(3), j, k, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, bo_l
     INTEGER, DIMENSION(4)                    :: ii, ij, ik
-    LOGICAL                                  :: failure, my_mpsum
+    LOGICAL                                  :: my_mpsum
     REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, dr1, &
       dr2, dr3, e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, &
       q1, q2, q3, r1, r2, r3, s1, s2, s3, s4, t1, t2, t3, t4, u1, u2, u3, v1, &
@@ -3701,7 +3648,6 @@ CPSourceFileRef,&
       POINTER                                :: grid
 
     NULLIFY(grid)
-    failure=.FALSE.
     my_mpsum = (pw%pw_grid%para%mode/=PW_MODE_LOCAL)
     npts = pw%pw_grid%npts
     ivec = FLOOR(vec/pw%pw_grid%dr)
@@ -3846,7 +3792,7 @@ CPSourceFileRef,&
     INTEGER                                  :: i, ivec(3), j, k, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, bo_l
     INTEGER, DIMENSION(4)                    :: ii, ij, ik
-    LOGICAL                                  :: failure, my_mpsum
+    LOGICAL                                  :: my_mpsum
     REAL(KIND=dp) :: a1, a2, a3, b1, b2, b3, c1, c2, c3, d1, d2, d3, dr1, &
       dr1i, dr2, dr2i, dr3, dr3i, e1, e2, e3, f1, f2, f3, g1, g2, g3, h1, h2, &
       h3, p1, p2, p3, q1, q2, q3, r1, r2, r3, s1, s1d, s1o, s2, s2d, s2o, s3, &
@@ -3858,7 +3804,6 @@ CPSourceFileRef,&
       POINTER                                :: grid
 
     NULLIFY(grid)
-    failure=.FALSE.
     my_mpsum = (pw%pw_grid%para%mode/=PW_MODE_LOCAL)
     npts = pw%pw_grid%npts
     ivec = FLOOR(vec/pw%pw_grid%dr)

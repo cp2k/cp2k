@@ -98,12 +98,9 @@ MODULE qs_rho0_methods
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: zet1, zet2
     REAL(dp), DIMENSION(:, :), POINTER       :: zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -207,7 +204,6 @@ MODULE qs_rho0_methods
                                                 ir, is, iso, ispin, l, lmax0, &
                                                 lshell, lx, ly, lz, nr, &
                                                 nsotot, nspins
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: sum1
     REAL(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: cpc_ah, cpc_as
@@ -225,7 +221,6 @@ MODULE qs_rho0_methods
     NULLIFY(mpole_rho)
     NULLIFY(g0_h, vg0_h)
     NULLIFY(norm_g0l_h)
-    failure = .FALSE.
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
@@ -380,7 +375,7 @@ MODULE qs_rho0_methods
       maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, nset, nsotot, &
       output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, my_tddft, paw_atom
+    LOGICAL                                  :: my_tddft, paw_atom
     REAL(dp)                                 :: alpha_core, eps_Vrho0, &
                                                 max_rpgf0_s, radius, rc_min, &
                                                 rc_orb, total_rho_core_rspace
@@ -402,7 +397,6 @@ MODULE qs_rho0_methods
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

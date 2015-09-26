@@ -123,8 +123,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: img, ispin, nimg, nspin
-    LOGICAL                                  :: failure, has_unit_metric, &
-                                                molecule_only
+    LOGICAL                                  :: has_unit_metric, molecule_only
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_w_mp2
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -133,7 +132,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    failure = .FALSE.
     NULLIFY(ks_env, matrix_w, matrix_w_mp2, matrix_s, dft_control)
 
     CALL qs_energies_init_kg(qs_env,molecule_only)
@@ -268,7 +266,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: do_kpoints, failure
+    LOGICAL                                  :: do_kpoints
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
@@ -280,7 +278,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL get_qs_env(qs_env,&
                     input=input,&
                     dft_control=dft_control,&
@@ -364,8 +361,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, is, ispin, nao, nspin
-    LOGICAL                                  :: do_kpoints, failure, &
-                                                has_unit_metric
+    LOGICAL                                  :: do_kpoints, has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, &
                                                 matrix_w, matrix_w_mp2, &
@@ -388,7 +384,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     ! if calculate forces, time to compute the w matrix
     CALL get_qs_env(qs_env, has_unit_metric=has_unit_metric)

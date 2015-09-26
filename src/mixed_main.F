@@ -63,11 +63,10 @@ CONTAINS
                                                 lp, n_rep_val, ngroup_wish, &
                                                 output_unit, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: group_partition, i_vals
-    LOGICAL                                  :: failure, group_size_wish_set, &
+    LOGICAL                                  :: group_size_wish_set, &
                                                 ngroup_wish_set
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     output_unit=cp_print_key_unit_nr(logger,force_env_section,"MIXED%PRINT%PROGRAM_RUN_INFO",&

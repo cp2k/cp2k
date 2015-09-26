@@ -120,9 +120,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
-    LOGICAL                                  :: failure
 
-   failure=.FALSE.
    CPASSERT(ASSOCIATED(blacs_env))
    CPASSERT(.NOT.ASSOCIATED(distribution_2d))
 
@@ -146,7 +144,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       IF (ASSOCIATED(distribution_2d%col_distribution)) THEN
          CALL cp_assert(n_col_distribution<=distribution_2d%n_col_distribution,&
               cp_assertion_failed,cp_failure_level,routineP,&
-              "n_col_distribution<=distribution_2d%n_col_distribution",failure)
+              "n_col_distribution<=distribution_2d%n_col_distribution")
          ! else alloc col_distribution?
       END IF
       distribution_2d%n_col_distribution=n_col_distribution
@@ -160,7 +158,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       IF (ASSOCIATED(distribution_2d%row_distribution)) THEN
          CALL cp_assert(n_row_distribution<=distribution_2d%n_row_distribution,&
               cp_failure_level,cp_assertion_failed,routineP,&
-              "n_row_distribution<=distribution_2d%n_row_distribution",failure)
+              "n_row_distribution<=distribution_2d%n_row_distribution")
          ! else alloc row_distribution?
       END IF
       distribution_2d%n_row_distribution=n_row_distribution
@@ -183,11 +181,11 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
    IF (PRESENT(n_local_rows)) THEN
       CALL cp_assert(SIZE(distribution_2d%n_local_rows)==SIZE(n_local_rows),&
            cp_failure_level,cp_assertion_failed,routineP,&
-           "SIZE(distribution_2d%n_local_rows)==SIZE(n_local_rows)",failure)
+           "SIZE(distribution_2d%n_local_rows)==SIZE(n_local_rows)")
       DO i=1,SIZE(distribution_2d%n_local_rows)
          CALL cp_assert(SIZE(distribution_2d%local_rows(i)%array)>=n_local_rows(i),&
               cp_failure_level,cp_assertion_failed,routineP,&
-              "SIZE(distribution_2d%local_rows(i)%array)>=n_local_rows(i)",failure)
+              "SIZE(distribution_2d%local_rows(i)%array)>=n_local_rows(i)")
          distribution_2d%n_local_rows(i) = n_local_rows(i)
       END DO
    ELSE
@@ -214,11 +212,11 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
    IF (PRESENT(n_local_cols)) THEN
       CALL cp_assert(SIZE(distribution_2d%n_local_cols)==SIZE(n_local_cols),&
            cp_failure_level,cp_assertion_failed,routineP,&
-           "SIZE(distribution_2d%n_local_cols)==SIZE(n_local_cols)",failure)
+           "SIZE(distribution_2d%n_local_cols)==SIZE(n_local_cols)")
       DO i=1,SIZE(distribution_2d%n_local_cols)
          CALL cp_assert(SIZE(distribution_2d%local_cols(i)%array)>=n_local_cols(i),&
               cp_failure_level,cp_assertion_failed,routineP,&
-              "SIZE(distribution_2d%local_cols(i)%array)>=n_local_cols(i)",failure)
+              "SIZE(distribution_2d%local_cols(i)%array)>=n_local_cols(i)")
          distribution_2d%n_local_cols(i) = n_local_cols(i)
       END DO
    ELSE
@@ -244,9 +242,6 @@ SUBROUTINE distribution_2d_retain(distribution_2d)
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(distribution_2d))
   CPASSERT(distribution_2d%ref_count>0)
   distribution_2d%ref_count=distribution_2d%ref_count+1
@@ -263,9 +258,7 @@ SUBROUTINE distribution_2d_release(distribution_2d)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-   failure=.FALSE.
    IF (ASSOCIATED(distribution_2d)) THEN
       CPASSERT(distribution_2d%ref_count>0)
       distribution_2d%ref_count=distribution_2d%ref_count-1
@@ -328,11 +321,9 @@ SUBROUTINE distribution_2d_write(distribution_2d, unit_nr, local,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_local, &
-                                                my_long_description
+    LOGICAL                                  :: my_local, my_long_description
     TYPE(cp_logger_type), POINTER            :: logger
 
-  failure=.FALSE.
   logger => cp_get_default_logger()
 
   my_long_description=.FALSE.
@@ -542,9 +533,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
     INTEGER                                  :: iblock_atomic, iblock_min, &
                                                 ikind, ikind_min, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: multiindex
-    LOGICAL                                  :: failure
 
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(distribution_2d))
   CPASSERT(distribution_2d%ref_count>0)
   IF (PRESENT(row_distribution)) row_distribution => distribution_2d%row_distribution

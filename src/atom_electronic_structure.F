@@ -67,9 +67,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, method
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -106,17 +103,14 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iter, l, max_iter, &
                                                 method, reltyp
-    LOGICAL                                  :: do_hfx, doguess, failure, &
-                                                need_vxc, need_x, need_xc, &
-                                                need_zmp
+    LOGICAL                                  :: do_hfx, doguess, need_vxc, &
+                                                need_x, need_xc, need_zmp
     REAL(KIND=dp)                            :: deps, eps_scf, hf_frac
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ext_density, ext_vxc, tmp_dens
     TYPE(atom_history_type)                  :: history
     TYPE(opgrid_type), POINTER               :: cpot, density
     TYPE(opmat_type), POINTER                :: fmat, hcore, jmat, kmat, xcmat
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -427,8 +421,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iter, k, l, &
                                                 max_iter, method, reltyp
-    LOGICAL                                  :: do_hfx, doguess, failure, &
-                                                lsdpot, need_x, need_xc
+    LOGICAL                                  :: do_hfx, doguess, lsdpot, &
+                                                need_x, need_xc
     REAL(KIND=dp)                            :: deps, depsa, depsb, eps_scf, &
                                                 hf_frac, ne, nm
     TYPE(atom_history_type)                  :: historya, historyb
@@ -437,8 +431,6 @@ CONTAINS
                                                 jmat, kmata, kmatb, xcmata, &
                                                 xcmatb
     TYPE(section_vals_type), POINTER         :: hfx_sections, xc_section
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

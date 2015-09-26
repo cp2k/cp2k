@@ -210,7 +210,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, myinfo, n, nmo
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig
 #if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_new
@@ -232,7 +231,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     myinfo = 0
 
     n = matrix%matrix_struct%nrow_global
@@ -406,7 +404,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 #if defined(__SCALAPACK)
     TYPE(cp_blacs_env_type), POINTER         :: context
     INTEGER                                  :: liwork, lwork, &
@@ -422,7 +419,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
 #if defined(__SCALAPACK)
 
@@ -524,7 +520,7 @@ CONTAINS
                                                     myprow, n, nb, npcol, &
                                                     nprow, output_unit, &
                                                     neig_local
-    LOGICAL                                      :: failure, ionode, needs_evecs
+    LOGICAL                                      :: ionode, needs_evecs
     INTEGER, DIMENSION(:), ALLOCATABLE           :: ifail, iwork
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: w, work
     REAL(KIND=dp), DIMENSION(:,:), POINTER       :: a, z
@@ -544,7 +540,6 @@ CONTAINS
     INTEGER, EXTERNAL                            :: ilaenv
 #endif
 
-    failure = .FALSE.
     ! by default all
     n = matrix%matrix_struct%nrow_global
     neig_local=n
@@ -759,7 +754,7 @@ CONTAINS
                                                   lwork, liwork, mypcol,&
                                                   myprow, n, neig
     INTEGER, DIMENSION(:), ALLOCATABLE         :: iwork
-    LOGICAL                                    :: failure, ionode, needs_evecs
+    LOGICAL                                    :: ionode, needs_evecs
     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: w, work
     REAL(KIND=dp), DIMENSION(:,:), POINTER     :: a, z
 
@@ -793,7 +788,6 @@ CONTAINS
     IF (neig <= 0) RETURN
 
     CALL timeset(routineN,handle)
-    failure =.FALSE.
 
     needs_evecs=PRESENT(eigenvectors)
 
@@ -934,7 +928,7 @@ CONTAINS
     INTEGER                                  :: comm_col, comm_row, group, &
                                                 mypcol, &
                                                 myprow, n, n_rows, nblk, neig
-    LOGICAL                                  :: failure, success
+    LOGICAL                                  :: success
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -944,7 +938,6 @@ CONTAINS
 
 #if defined(__SCALAPACK)
 
-    failure = .FALSE.
     success = .TRUE.
 
     n = matrix%matrix_struct%nrow_global
@@ -983,7 +976,7 @@ CONTAINS
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
      CALL cp_assert(success,cp_failure_level,cp_assertion_failed,&
      routineP,"ELPA failed to diagonalize a matrix at "//&
-CPSourceFileRef)
+     CPSourceFileRef)
 #endif
 
 #else
@@ -1034,7 +1027,7 @@ CPSourceFileRef)
                                                  mypcol,myprow,&
                                                  ncol_global,npcol,nprow,&
                                                  nrow_global
-   LOGICAL                                    :: failure,my_verbose
+   LOGICAL                                    :: my_verbose
    REAL(KIND=dp)                              :: condition_number,f,p
    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: eigenvalues
    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: eigenvectors
@@ -1048,7 +1041,6 @@ CPSourceFileRef)
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     my_verbose = .FALSE.
     IF(PRESENT(verbose)) my_verbose = verbose
 
@@ -1415,11 +1407,9 @@ CPSourceFileRef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nao, nmo
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL cp_fm_get_info(amatrix,nrow_global=nao)
     nmo = SIZE(eigenvalues)

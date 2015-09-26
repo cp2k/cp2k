@@ -107,8 +107,7 @@ CONTAINS
     INTEGER                                  :: handle, irep, ispin, n_rep, &
                                                 ndim, nmo, nspin, output_unit
     INTEGER, DIMENSION(:), POINTER           :: nadd_unocc, stm_th_torb
-    LOGICAL                                  :: append_cube, failure, &
-                                                use_ref_energy
+    LOGICAL                                  :: append_cube, use_ref_energy
     REAL(KIND=dp)                            :: efermi, ref_energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occ, &
                                                 stm_biases
@@ -133,7 +132,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
 
@@ -296,7 +294,6 @@ CONTAINS
                                                 ispin, istates, nmo, nspin, &
                                                 nstates(2), state_start(2), &
                                                 unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, total_rho
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: occ_tot
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -305,7 +302,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
     NULLIFY(fm_struct_tmp)
 

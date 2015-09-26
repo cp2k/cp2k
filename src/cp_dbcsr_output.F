@@ -97,12 +97,11 @@ CONTAINS
     INTEGER                                  :: col1, col2, group, &
                                                 ncol_global, nrow_global, &
                                                 nsgf, row1, row2
-    LOGICAL                                  :: failure, my_omit_headers
+    LOGICAL                                  :: my_omit_headers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     group = para_env%group
     IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,nrow_global=nrow_global,&
@@ -190,13 +189,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: matrix_name
     INTEGER                                  :: col1, col2, dim_col, dim_row, &
                                                 group, row1, row2
-    LOGICAL                                  :: failure, my_omit_headers, &
-                                                print_sym
+    LOGICAL                                  :: my_omit_headers, print_sym
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     group = para_env%group
 
     NULLIFY (matrix)
@@ -290,11 +287,8 @@ CONTAINS
                                                 nblkrows_total, nc, nr, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: c_offset, r_offset
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: DATA
     TYPE(cp_dbcsr_iterator)                  :: iter
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -384,7 +378,6 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: lshell
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -393,7 +386,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    failure = .FALSE.
     group = para_env%group
 
     IF (output_unit>0) THEN
@@ -553,9 +545,7 @@ CONTAINS
     INTEGER                                  :: from, group, icol, irow, &
                                                 jcol, left, ncol, ndigits, &
                                                 right, to, width
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     group = para_env%group
 
     IF (output_unit>0) THEN
@@ -649,11 +639,10 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: nblock_sum, nblock_tot, &
                                                 nelement_sum
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: occupation
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

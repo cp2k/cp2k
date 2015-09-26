@@ -66,11 +66,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_cutoff_compatible', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit1, explicit2, failure
+    LOGICAL                                  :: explicit1, explicit2
     REAL(KIND=dp)                            :: rc
 
-    failure = .FALSE.
-    ! Coulomb Cutoff Taper
+! Coulomb Cutoff Taper
+
     CALL section_vals_val_get(se_section,"COULOMB%CUTOFF",explicit=explicit1)
     CALL section_vals_val_get(se_section,"COULOMB%RC_TAPER",explicit=explicit2)
     IF ((.NOT.explicit1).AND.se_control%do_ewald_gks) THEN
@@ -174,10 +174,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'initialize_se_taper', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure, l_coulomb, &
-                                                l_exchange, l_lrc
+    LOGICAL                                  :: check, l_coulomb, l_exchange, &
+                                                l_lrc
 
-    failure = .FALSE.
     check = .NOT.ASSOCIATED(se_taper%taper)
     CPASSERT(check)
     l_coulomb  = .FALSE.
@@ -214,9 +213,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'finalize_se_taper', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure = .FALSE.
     check = ASSOCIATED(se_taper%taper)
     CPASSERT(check)
     NULLIFY(se_taper%taper)
@@ -239,10 +237,8 @@ CONTAINS
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: symbol
     INTEGER                                  :: l, nshell
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
 
-    failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
        CALL allocate_sto_basis_set (sep%basis)
        nshell = 0
@@ -298,9 +294,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'se_param_set_default', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(sep)) THEN
        IF (z<0) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&

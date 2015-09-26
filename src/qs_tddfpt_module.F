@@ -69,14 +69,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(section_vals_type), POINTER         :: dft_section, input
     TYPE(tddfpt_env_type)                    :: t_env
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     NULLIFY(input,ks_env)
@@ -131,7 +129,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: oe_corr, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
     TYPE(cp_logger_type), POINTER            :: logger
@@ -142,7 +139,6 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(qs_env))
 
-    failure = .FALSE.
     NULLIFY(logger, scf_env, input, energy, matrix_ks, rho)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)

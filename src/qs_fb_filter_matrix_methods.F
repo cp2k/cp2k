@@ -124,7 +124,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, &
                                                 dummy_halo_atoms, ntfns, &
                                                 row_blk_size
-    LOGICAL                                  :: failure, send_data_only
+    LOGICAL                                  :: send_data_only
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(fb_atomic_halo_obj)                 :: dummy_atomic_halo
@@ -133,7 +133,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(halos, atomic_kind, ntfns, dummy_halo_atoms, row_blk_size, col_blk_size)
     CALL fb_atomic_halo_nullify(dummy_atomic_halo)
@@ -286,7 +285,7 @@ CONTAINS
       nblkcols_total, nblks_recv, nhalos, nmax
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, ntfns, &
                                                 row_blk_size
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dbcsr_distribution_obj)             :: dbcsr_dist
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
@@ -298,7 +297,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(halos, atomic_kind, row_blk_size, col_blk_size, ntfns)
 
@@ -503,7 +501,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms, ntfns, &
                                                 row_block_size_data
     INTEGER, DIMENSION(:, :), POINTER        :: tfns
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: atomic_filter_mat, atomic_H, &
@@ -513,7 +510,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind, halo_atoms, ntfns, pairs_send, pairs_recv, &
             row_block_size_data, tfns)
@@ -1009,12 +1005,11 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: failure, transpose
+    LOGICAL                                  :: transpose
     TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(tasks_send)
     CALL fb_com_tasks_nullify(com_tasks_send)
@@ -1162,14 +1157,13 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: failure, transpose
+    LOGICAL                                  :: transpose
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos
     TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(tasks_send)
     CALL fb_com_tasks_nullify(com_tasks_send)
@@ -1314,7 +1308,7 @@ CONTAINS
     INTEGER                                  :: handle, handle_dgemm, &
                                                 handle_dsygv, ii, info, jj, &
                                                 mat_dim, work_array_size
-    LOGICAL                                  :: check_ok, failure
+    LOGICAL                                  :: check_ok
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues, filter_function, &
                                                 work
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1323,7 +1317,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     ! This subroutine assumes atomic_filter_mat is not zero size, in
     ! other words, it really has to be constructed, instead of just
@@ -1469,11 +1462,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_mu', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kTS, ne
 
-    failure = .FALSE.
-    ! we want fermi function max at 1, so maxocc = 1 here
+! we want fermi function max at 1, so maxocc = 1 here
+
     CALL Fermi(f, ne, kTS, eigenvals, mu, T, 1.0_dp)
   END SUBROUTINE fb_fltrmat_fermi_dirac_mu
 
@@ -1496,13 +1488,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_fltrmat_fermi_dirac_ne', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: kTS, mu
 
-    failure = .FALSE.
-    ! mu is the calculated fermi level
-    ! kTS is the calculated entropic contribution to the energy i.e. -TS
-    ! kTS = kT*[f ln f + (1-f) ln (1-f)]
+! mu is the calculated fermi level
+! kTS is the calculated entropic contribution to the energy i.e. -TS
+! kTS = kT*[f ln f + (1-f) ln (1-f)]
+
     CALL FermiFixed(f, mu, kTS, eigenvals, ne, T, maxocc)
   END SUBROUTINE fb_fltrmat_fermi_dirac_ne
 

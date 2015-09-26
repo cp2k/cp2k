@@ -81,8 +81,8 @@ CONTAINS
     INTEGER                                  :: i, ip, iw, j, k, np, &
                                                 stress_tensor
     LOGICAL                                  :: check_failed, debug_forces, &
-                                                debug_stress_tensor, failure, &
-                                                skip, stop_on_mismatch
+                                                debug_stress_tensor, skip, &
+                                                stop_on_mismatch
     REAL(KIND=dp)                            :: dx, eps_no_error_check, &
                                                 std_value
     REAL(KIND=dp), DIMENSION(2)              :: numer_energy
@@ -99,8 +99,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section, subsys_section
     TYPE(virial_type), POINTER               :: virial, virial_analytical, &
                                                 virial_numerical
-
-    failure = .FALSE.
 
     NULLIFY (analyt_forces, numer_forces, subsys, particles)
     

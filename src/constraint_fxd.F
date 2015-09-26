@@ -72,7 +72,7 @@ CONTAINS
     INTEGER :: handle, i, ifixd, ii, ikind, iparticle, iparticle_local, &
       my_atm_fixed, natom, ncore, nfixed_atoms, nkind, nparticle, &
       nparticle_local, nshell, shell_index
-    LOGICAL                                  :: failure, shell_present
+    LOGICAL                                  :: shell_present
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: force
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -92,8 +92,6 @@ CONTAINS
       POINTER                                :: core_particle_set, &
                                                 particle_set, &
                                                 shell_particle_set
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -450,13 +448,11 @@ CONTAINS
                                                 kind_index_all, &
                                                 local_particle_all, work0, &
                                                 work1, work2
-    LOGICAL                                  :: failure
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(lfixd_list))
     nsize = 0
     DO ikind = 1, nkind
@@ -565,9 +561,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_local_fixd_list', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(lfixd_list))
     DEALLOCATE(lfixd_list)
   END SUBROUTINE release_local_fixd_list

@@ -68,8 +68,7 @@ CONTAINS
                                                 iatom, ikind, jatom, jkind, &
                                                 natom, nkind
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: atener, defined, failure, &
-                                                use_virial
+    LOGICAL                                  :: atener, defined, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: scptb_defined
     REAL(KIND=dp)                            :: dr1, enuc, enucij, enuclear
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
@@ -95,7 +94,6 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a, scptb_kind_b
     TYPE(virial_type), POINTER               :: virial
 
-    failure  = .FALSE.
     enuclear = 0.0_dp
     NULLIFY(atprop)
     CALL timeset(routineN,handle)

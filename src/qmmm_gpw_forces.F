@@ -113,8 +113,7 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, image_IndMM, &
                                                 Imm, IndMM, ispin, iw
-    LOGICAL                                  :: failure, gapw, need_f, &
-                                                periodic
+    LOGICAL                                  :: gapw, need_f, periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -133,7 +132,6 @@ CONTAINS
                                                 interp_section, print_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     need_f = .TRUE.
     periodic = qmmm_env%periodic
     IF (PRESENT(calc_force)) need_f = calc_force
@@ -424,13 +422,11 @@ CONTAINS
                                                 request, stat
     INTEGER, DIMENSION(3)                    :: glb, gub, lb, ub
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
 ! Statements
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grids,tmp)
     CPASSERT(ASSOCIATED(mm_particles))
@@ -801,7 +797,6 @@ CONTAINS
       ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_i, my_j, my_k, &
       myind, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: a1, a2, a3, abc_X(4,4), abc_X_Y(4), b1, b2, b3, c1, c2, &
       c3, d1, d2, d3, dr1, dr1c, dr1i, dr2, dr2c, dr2i, dr3, dr3c, dr3i, &
       dvol, e1, e2, e3, f1, f2, f3, fac, ft1, ft2, ft3, g1, g2, g3, h1, h2, &
@@ -818,7 +813,6 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grid)
     ALLOCATE(LForces(3,num_mm_atoms))
@@ -1220,7 +1214,6 @@ CONTAINS
                                                 my_i, my_j, my_k, myind, n1, &
                                                 n2, n3
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: dr1, dr2, dr3, dvol, dx, fac, ft1, ft2, ft3, qt, r, r2, &
       rd1, rd2, rd3, rt1, rt2, rt3, rv1, rv2, rv3, rx, rx2, sph_chrg_factor, &
       Term, xs1, xs2, xs3
@@ -1233,7 +1226,6 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     ALLOCATE(LForces(3,num_mm_atoms))
     LForces = 0.0_dp
     n1   = cgrid%pw_grid%npts(1)
@@ -1543,7 +1535,6 @@ CONTAINS
     INTEGER                                  :: handle, i, igrid, k, ngrids
     INTEGER, DIMENSION(2, 3)                 :: bo2
     INTEGER, SAVE                            :: Icount
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err, force, myrp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
@@ -1551,7 +1542,6 @@ CONTAINS
 
     DATA Icount /0/
     ! Statements
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grids)
     !Statements

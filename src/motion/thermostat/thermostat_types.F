@@ -112,9 +112,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_thermostats', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure =.FALSE.
     check = .NOT.ASSOCIATED(thermostats)
     CPASSERT(check)
 
@@ -160,10 +159,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'retain_thermostats', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (ASSOCIATED(thermostats)) THEN
        CPASSERT(thermostats%ref_count>0)
        thermostats%ref_count=thermostats%ref_count+1
@@ -184,9 +179,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostats', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure =.FALSE.
     check = ASSOCIATED(thermostats)
     IF (check) THEN
        check = thermostats%ref_count>0
@@ -244,11 +238,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: region
-    LOGICAL                                  :: failure, skip_region_loc
+    LOGICAL                                  :: skip_region_loc
     TYPE(section_vals_type), POINTER         :: al_section, csvr_section, &
                                                 gle_section, nose_section
 
-    failure = .FALSE.
     skip_region_loc = .FALSE.
     IF (PRESENT(skip_region)) skip_region_loc = skip_region
     ALLOCATE(thermostat)
@@ -304,9 +297,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostat_info', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure =.FALSE.
     IF (ASSOCIATED(thermostat_info)) THEN
        IF (ASSOCIATED(thermostat_info%map_loc_thermo_gen)) THEN
           DEALLOCATE(thermostat_info%map_loc_thermo_gen)
@@ -328,9 +318,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_thermostat_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
-    failure =.FALSE.
     check = ASSOCIATED(thermostat)
     IF (check) THEN
        check = thermostat%ref_count>0
@@ -370,9 +359,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set_thermostats', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure =.FALSE.
     IF (ASSOCIATED(thermostats)) THEN
        IF (PRESENT(dt_fact)) THEN
           ! Particles

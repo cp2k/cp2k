@@ -271,10 +271,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_low', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(section_vals_type), POINTER         :: tmp_section
 
-    failure = .FALSE.
     NULLIFY(tmp_section)
     CALL section_vals_val_get(md_section,"ENSEMBLE",i_val=simpar%ensemble)
     CALL section_vals_val_get(md_section,"STEPS",i_val=simpar%nsteps)

@@ -110,8 +110,7 @@ CONTAINS
       map_atom_type(:), map_mol_hash(:), mm_indexes_n(:), mm_indexes_v(:), &
       mol_bnd(:,:), mol_hash(:), mol_num(:), new_position(:), order(:), &
       tmp_n(:), tmp_v(:), wrk(:)
-    LOGICAL                                  :: explicit, failure, matches, &
-                                                my_qmmm
+    LOGICAL                                  :: explicit, matches, my_qmmm
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tr
     REAL(KIND=dp), POINTER                   :: tatm_charge(:), tatm_mass(:)
     TYPE(array1_list_type), ALLOCATABLE, &
@@ -126,7 +125,6 @@ CONTAINS
                                                 qmmm_section
     TYPE(vertex), DIMENSION(:), POINTER      :: reference, unordered
 
-    failure = .FALSE.
     NULLIFY(logger,generate_section,isolated_section,tmp_v,tmp_n)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -480,10 +478,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ldim
-    LOGICAL                                  :: failure
     TYPE(graph_type), DIMENSION(:), POINTER  :: tmp_graph_set
 
-    failure = .FALSE.
     ldim = 0
     NULLIFY(tmp_graph_set)
     IF (ASSOCIATED(graph_set)) THEN
@@ -515,9 +511,7 @@ CONTAINS
 
     INTEGER                                  :: b_dim, i, j, mydim_in, &
                                                 mydim_out, v_dim
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(graph_set_out))
     mydim_in  = 0
     mydim_out = 0
@@ -578,9 +572,7 @@ CONTAINS
 
     INTEGER                                  :: i, idim, ifirst, ilast, j, &
                                                 nbonds, nelement
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (PRESENT(atm_map3)) THEN
        CPASSERT(.NOT.ASSOCIATED(atm_map3))
     END IF
@@ -629,9 +621,7 @@ CONTAINS
 
     INTEGER                                  :: i, iend, istart, ldim
     INTEGER, DIMENSION(:), POINTER           :: tmp, wrk
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(nsize>0)
     ALLOCATE(wrk(Ndim))
     CALL sort(Ilist1,Ndim,wrk)
@@ -697,9 +687,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: tmp_2, tmp_3, tmp_4
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     SELECT CASE(nsize)
     CASE(2)
        ALLOCATE(tmp_2(ldim))
@@ -816,9 +804,7 @@ CONTAINS
 
     INTEGER                                  :: I, index1, index2, Nsize
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO I=1,N
        index1=list1(I)
        index2=list2(I)
@@ -862,9 +848,7 @@ CONTAINS
     INTEGER                                  :: I, index1, index2, index3, &
                                                 Nsize
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO I=1,N
        index1=list1(I)
        index2=list2(I)
@@ -981,13 +965,12 @@ CONTAINS
       DIMENSION(:), POINTER                  :: keyword
     INTEGER                                  :: handle, i, i_rep, iatom, &
                                                 ielem_found, iw, n_rep, natom
-    LOGICAL                                  :: failure, user_defined
+    LOGICAL                                  :: user_defined
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mass
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: kind_section
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -1060,15 +1043,13 @@ CONTAINS
                                                 handle, i, iatom, iw, k, &
                                                 loc_counter, mol_num, &
                                                 mol_typ, n, natom
-    LOGICAL                                  :: failure, icheck_num, &
-                                                icheck_typ
+    LOGICAL                                  :: icheck_num, icheck_typ
     TYPE(array1_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -1204,11 +1185,10 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: atom_name, element_symbol, &
                                                 keyword
     INTEGER                                  :: i, i_rep, n_rep
-    LOGICAL                                  :: defined_kind_section, &
-                                                failure, found, in_ptable
+    LOGICAL                                  :: defined_kind_section, found, &
+                                                in_ptable
     TYPE(section_vals_type), POINTER         :: kind_section
 
-    failure = .FALSE.
     found          = .FALSE.
     element_symbol = element_in
     atom_name      = atom_name_in

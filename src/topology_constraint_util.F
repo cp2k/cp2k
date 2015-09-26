@@ -111,10 +111,10 @@ CONTAINS
       offset
     INTEGER, DIMENSION(:), POINTER           :: constr_x_glob, inds, &
                                                 molecule_list
-    LOGICAL :: exclude_mm, exclude_qm, failure, fix_atom_mm, &
-      fix_atom_molname, fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, &
-      found_molname, is_qm, ishbond, ldummy, restart_restraint_clv, &
-      restart_restraint_pos, use_clv_info
+    LOGICAL :: exclude_mm, exclude_qm, fix_atom_mm, fix_atom_molname, &
+      fix_atom_qm, fix_atom_qmmm, fix_fixed_atom, found_molname, is_qm, &
+      ishbond, ldummy, restart_restraint_clv, restart_restraint_pos, &
+      use_clv_info
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist, r
@@ -149,7 +149,6 @@ CONTAINS
     TYPE(vsite_constraint_type), &
       DIMENSION(:), POINTER                  :: vsite_list
 
-    failure = .FALSE.
     NULLIFY(logger, constr_x_mol, constr_x_glob)
     logger => cp_get_default_logger()
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
@@ -924,11 +923,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, kdim, kk, ncolv_mol
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rmod
     TYPE(colvar_type), POINTER               :: local_colvar
 
-    failure = .FALSE.
     ncolv_mol = 0
     DO kk = 1, SIZE(ilist)
        j = ilist(kk)
@@ -997,9 +994,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, ng3x3
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ng3x3_restraint = 0
     DO ng3x3 = 1, SIZE(ilist)
        j = ilist(ng3x3)
@@ -1038,9 +1033,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, ng4x6
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ng4x6 = 0
     ng4x6_restraint = 0
     DO ng4x6 = 1, SIZE(ilist)
@@ -1083,9 +1076,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j, nvsite
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     nvsite = 0
     nvsite_restraint = 0
     DO nvsite = 1, SIZE(ilist)
@@ -1136,10 +1127,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ind, k, kk
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
-    failure = .FALSE.
     DO kk=1,SIZE(ilist)
        k = ilist(kk)
        lcolv(kk)%init      = .FALSE.
@@ -1231,9 +1220,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: kk
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO kk = 1, SIZE(lg3x3)
        lg3x3(kk)%init      = .FALSE.
        lg3x3(kk)%scale     = 0.0_dp
@@ -1288,9 +1275,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: kk
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO kk = 1, SIZE(lg4x6)
        lg4x6(kk)%init      = .FALSE.
        lg4x6(kk)%scale     = 0.0_dp
@@ -1368,10 +1353,9 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: myname, name
     INTEGER                                  :: handle, i, iglob, isize, k
-    LOGICAL                                  :: failure, found_molname, is_qm
+    LOGICAL                                  :: found_molname, is_qm
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(molecule_kind)
     ALLOCATE(constr_x_mol(SIZE(molecule_kind_set)))
@@ -1396,8 +1380,7 @@ CONTAINS
                   "A constraint has been specified providing the molecule index. But the "//&
                   " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
                   " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//")."//&
-CPSourceFileRef,&
-                  failure=failure)
+                  CPSourceFileRef)
              isize = SIZE(constr_x_mol(k)%constr)
              CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
              constr_x_mol(k)%constr(isize+1) = i
@@ -1437,9 +1420,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'print_warning_molname', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
          " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "//&
          "is not defined. Please check carefully your PDB, PSF (has priority over PDB) or "//&

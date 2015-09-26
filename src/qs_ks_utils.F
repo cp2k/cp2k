@@ -146,8 +146,8 @@ CONTAINS
                                                 Nelectron, Nspin, Nterms
     INTEGER, DIMENSION(:), POINTER           :: ivec
     INTEGER, DIMENSION(:, :, :), POINTER     :: occupations
-    LOGICAL                                  :: compute_virial, failure, &
-                                                in_range, uniform_occupation
+    LOGICAL                                  :: compute_virial, in_range, &
+                                                uniform_occupation
     REAL(KIND=dp)                            :: exc, total_rho
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_scaling, rvec, scaling
@@ -171,7 +171,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
     IF (.NOT. dft_control%low_spin_roks) RETURN
-    failure=.FALSE.
     NULLIFY(ks_env, rho_ao)
 
     CALL timeset(routineN,handle)
@@ -401,7 +400,7 @@ CONTAINS
     INTEGER                                  :: handle, i, Iorb, k_alpha, &
                                                 k_beta, Norb
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: sic_orbital_list
-    LOGICAL                                  :: compute_virial, failure, &
+    LOGICAL                                  :: compute_virial, &
                                                 uniform_occupation
     REAL(KIND=dp)                            :: ener, exc, total_rho
     REAL(KIND=dp), DIMENSION(3, 3)           :: virial_xc_tmp
@@ -432,7 +431,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(tau,vxc_tau, mo_derivs, ks_env,rho_ao)
 
@@ -730,7 +728,6 @@ CONTAINS
 
     INTEGER                                  :: i, nelec, nelec_a, nelec_b, &
                                                 nforce
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: ener, full_scaling, scaling
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: store_forces
@@ -741,14 +738,13 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
 
-    failure = .FALSE.
     NULLIFY(mo_array, rho_g)
 
     IF (dft_control%sic_method_id == sic_none) RETURN
     IF (dft_control%sic_method_id == sic_eo) RETURN
 
     CALL cp_assert(.NOT. dft_control%qs_control%gapw, cp_failure_level,cp_assertion_failed,routineP,&
-                   "sic and GAPW not yet compatible",failure)
+                   "sic and GAPW not yet compatible")
 
     ! OK, right now we like two spins to do sic, could be relaxed for AD
     CPASSERT(dft_control%nspins == 2)
@@ -1222,7 +1218,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, nspins
-    LOGICAL                                  :: do_ppl, failure, gapw, gapw_xc
+    LOGICAL                                  :: do_ppl, gapw, gapw_xc
     REAL(dp)                                 :: dvol
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: ksmat, matrix_ks_aux_fit, &
@@ -1240,7 +1236,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (auxbas_pw_pool, dft_control, pw_env, matrix_ks_aux_fit, &
          v_rspace%pw, rho_aux_fit, vee, rho_ao, rho_ao_kp, rho_ao_aux, &
          ksmat, matrix_ks_aux_fit_dft)
@@ -1491,8 +1486,7 @@ CONTAINS
     INTEGER                                  :: handle, my_val, nelectron, &
                                                 nspins, stat
     INTEGER, DIMENSION(2)                    :: nelectron_spin
-    LOGICAL                                  :: do_zmp_read, failure, &
-                                                fermi_amaldi
+    LOGICAL                                  :: do_zmp_read, fermi_amaldi
     REAL(KIND=dp)                            :: factor, lambda, total_rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_ext_r
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -1507,7 +1501,6 @@ CONTAINS
 
 !, v_h_gspace, &
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY (auxbas_pw_pool)
     NULLIFY (pw_env)

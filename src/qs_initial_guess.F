@@ -131,8 +131,10 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, kind_of, last_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, &
                                                 nelec_kind, sort_kind
-    LOGICAL :: did_guess, do_kpoints, do_std_diag, exist, failure, &
-      has_unit_metric, natom_mismatch, ofgpw
+    LOGICAL                                  :: did_guess, do_kpoints, &
+                                                do_std_diag, exist, &
+                                                has_unit_metric, &
+                                                natom_mismatch, ofgpw
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, length, &
@@ -174,7 +176,6 @@ CONTAINS
                                                 subsys_section
 
     logger => cp_get_default_logger()
-    failure = .FALSE.
     NULLIFY(atomic_kind, qs_kind, mo_coeff, sv, orb_basis_set, atomic_kind_set,&
          qs_kind_set, particle_set, ortho, work2, work1, mo_array, s_sparse, &
          scf_control, dft_control, p_rmpv, ortho, work2, work1, para_env,&
@@ -973,7 +974,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     INTEGER                                  :: blk, handle, icol, ikind, &
                                                 irow, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: scale, trps1
     TYPE(atom_matrix_type), ALLOCATABLE, &
@@ -981,8 +981,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(qs_kind_type), POINTER              :: qs_kind
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

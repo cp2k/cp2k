@@ -68,10 +68,6 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   ALLOCATE(qs_charges)
   qs_charges%total_rho_core_rspace=0.0_dp
   IF (PRESENT(total_rho_core_rspace)) &
@@ -102,10 +98,6 @@ SUBROUTINE qs_charges_retain(qs_charges)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_charges_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(qs_charges))
   CPASSERT(qs_charges%ref_count>0)

@@ -72,9 +72,6 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,desc,strict)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, n
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(enum))
   CPASSERT(SIZE(c_vals)==SIZE(i_vals))
@@ -120,9 +117,6 @@ SUBROUTINE enum_retain(enum)
     CHARACTER(len=*), PARAMETER :: routineN = 'enum_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(enum))
   CPASSERT(enum%ref_count>0)
   enum%ref_count=enum%ref_count+1
@@ -140,9 +134,7 @@ SUBROUTINE enum_release(enum)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-  failure=.FALSE.
   IF (ASSOCIATED(enum)) THEN
        CPASSERT(enum%ref_count>0)
        enum%ref_count=enum%ref_count-1
@@ -175,9 +167,7 @@ FUNCTION enum_i2c(enum,i) RESULT(res)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: j
-    LOGICAL                                  :: failure, found
-
-  failure=.FALSE.
+    LOGICAL                                  :: found
 
   CPASSERT(ASSOCIATED(enum))
   CPASSERT(enum%ref_count>0)
@@ -199,8 +189,7 @@ FUNCTION enum_i2c(enum,i) RESULT(res)
        PRINT *, enum%i_vals
      END IF
      CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
-          routineP,"invalid value for enumeration:"//cp_to_string(i),&
-          failure)
+          routineP,"invalid value for enumeration:"//cp_to_string(i))
      res=ADJUSTL(cp_to_string(i))
   END IF
 END FUNCTION enum_i2c
@@ -222,9 +211,7 @@ FUNCTION enum_c2i(enum,c) RESULT(res)
 
     CHARACTER(len=default_string_length)     :: upc
     INTEGER                                  :: iostat, j
-    LOGICAL                                  :: failure, found
-
-  failure=.FALSE.
+    LOGICAL                                  :: found
 
   CPASSERT(ASSOCIATED(enum))
   CPASSERT(enum%ref_count>0)
@@ -241,12 +228,10 @@ FUNCTION enum_c2i(enum,c) RESULT(res)
 
   IF (.NOT.found) THEN
      CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
-          routineP,"invalid value for enumeration:"//TRIM(c),&
-          failure=failure)
+          routineP,"invalid value for enumeration:"//TRIM(c))
      READ(c,"(i10)",iostat=iostat) res
      CALL cp_assert(iostat==0,cp_failure_level,cp_assertion_failed,&
-          routineP,"invalid value for enumeration2:"//TRIM(c),&
-          failure=failure)
+          routineP,"invalid value for enumeration2:"//TRIM(c))
   END IF
 END FUNCTION enum_c2i
 

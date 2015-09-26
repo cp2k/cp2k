@@ -93,7 +93,7 @@ CONTAINS
       jatom, jkind, jneighbor, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, &
       nneighbor, row
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: failure, found, trans
+    LOGICAL                                  :: found, trans
     REAL(KIND=dp)                            :: dab, rab(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: h_work
@@ -104,7 +104,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: soo_list
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(atom_of_kind, h_block, lrii, nl_iterator, soo_list)
 

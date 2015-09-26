@@ -131,10 +131,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     DO ikind=1,SIZE(atom2d)
        NULLIFY (atom2d(ikind)%list)
        IF (ASSOCIATED(atom2d(ikind)%list_local_a_index)) THEN
@@ -201,12 +199,11 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, &
                                                 local_cols_array, &
                                                 local_rows_array
-    LOGICAL                                  :: do_kg, failure
+    LOGICAL                                  :: do_kg
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     do_kg=.FALSE.
     IF(PRESENT(kg)) do_kg=kg
@@ -344,8 +341,8 @@ CONTAINS
     INTEGER                                  :: handle, ikind, iw, maxatom, &
                                                 nkind, numshells, zat
     LOGICAL :: all_potential_present, almo, dftb, do_hfx, dokp, explicit, &
-      failure, gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, &
-      nddo, paw_atom, paw_atom_present, scptb
+      gth_potential_present, lri_optbas, lrigpw, mic, molecule_only, nddo, &
+      paw_atom, paw_atom_present, scptb
     LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, aux_fit_present, &
       aux_present, core_present, default_present, oce_present, orb_present, &
       ppl_present, ppnl_present
@@ -390,7 +387,6 @@ CONTAINS
                                                 neighbor_list_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
@@ -974,7 +970,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: index_list
-    LOGICAL                                  :: failure, include_ab, my_mic, &
+    LOGICAL                                  :: include_ab, my_mic, &
                                                 my_molecular, my_symmetric
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: pres_a, pres_b
     REAL(dp)                                 :: rab2, rab2_max, rab_max, rabm, deth, subcell_scale
@@ -990,7 +986,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: r_pbc
 
     CALL timeset(routineN//"_"//TRIM(name),handle)
-    failure = .FALSE.
 
     ! input options
     my_mic = .FALSE.
@@ -1344,9 +1339,6 @@ CONTAINS
 
     INTEGER                                  :: i, ib, na, nb
     INTEGER, DIMENSION(:), POINTER           :: lista, listb
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(list))
 
@@ -1443,13 +1435,11 @@ CONTAINS
                                                 nelement_max, nelement_sum, &
                                                 tmp(2)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement, nnsgf
-    LOGICAL                                  :: failure
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     group = para_env%group
     mype = para_env%mepos + 1
     npe = para_env%num_pe
@@ -1561,14 +1551,12 @@ CONTAINS
     INTEGER                                  :: iatom, inode, iw, jatom, &
                                                 mype, nneighbor, nnode
     INTEGER, DIMENSION(3)                    :: cell_b
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: dab, unit_conv
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     IF (BTEST(cp_print_key_should_output(logger%iter_info,neighbor_list_section,&

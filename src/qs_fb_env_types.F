@@ -105,9 +105,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(fb_env%obj))
     CPASSERT(fb_env%obj%ref_count>0)
     fb_env%obj%ref_count = fb_env%obj%ref_count + 1
@@ -126,9 +123,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(fb_env%obj)) THEN
        CPASSERT(fb_env%obj%ref_count>0)
        fb_env%obj%ref_count = fb_env%obj%ref_count - 1
@@ -217,9 +211,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(fb_env%obj))
     ALLOCATE(fb_env%obj)
     NULLIFY(fb_env%obj%rcut)
@@ -249,9 +240,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(fb_env%obj))
     IF (ASSOCIATED(fb_env%obj%rcut)) THEN
        DEALLOCATE(fb_env%obj%rcut)
@@ -311,9 +299,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(fb_env%obj))
     CPASSERT(fb_env%obj%ref_count>0)
     IF (PRESENT(rcut)) &
@@ -374,9 +359,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(fb_env%obj))
     IF (PRESENT(rcut)) THEN
        IF (ASSOCIATED(fb_env%obj%rcut)) THEN

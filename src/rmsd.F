@@ -67,14 +67,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ix, j, k, natom
-    LOGICAL                                  :: failure, my_rotate
+    LOGICAL                                  :: my_rotate
     REAL(KIND=dp) :: dm_r(4,4,3), lambda(4), loc_tr(3), M(4,4), mtot, &
       my_rot(3,3), Q(0:3), rr(3), rr0(3), rrsq, s, xx, yy, Z(4,4), zz
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: w
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r0p, rp
 
-    failure   = .FALSE.
     CPASSERT(SIZE(r)==SIZE(r0))
     natom     = SIZE(particle_set)
     my_rotate = .FALSE.

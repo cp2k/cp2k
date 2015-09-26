@@ -646,10 +646,8 @@ CONTAINS
     INTEGER                                  :: iparticle, iparticle_kind, &
                                                 iparticle_local, &
                                                 nparticle_local, stat
-    LOGICAL                                  :: failure
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: wrk
 
-    failure = .FALSE.
     ALLOCATE (wrk(SIZE(particle_set)),stat=stat)
     IF (stat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "wrk",int_size*SIZE(particle_set))

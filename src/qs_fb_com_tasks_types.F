@@ -169,9 +169,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     CPASSERT(com_tasks%obj%ref_count>0)
     com_tasks%obj%ref_count = com_tasks%obj%ref_count + 1
@@ -190,9 +187,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     CPASSERT(atom_pairs%obj%ref_count>0)
     atom_pairs%obj%ref_count = atom_pairs%obj%ref_count + 1
@@ -212,9 +206,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(com_tasks%obj)) THEN
        CPASSERT(com_tasks%obj%ref_count>0)
        com_tasks%obj%ref_count = com_tasks%obj%ref_count - 1
@@ -246,9 +237,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(atom_pairs%obj)) THEN
        CPASSERT(atom_pairs%obj%ref_count>0)
        atom_pairs%obj%ref_count = atom_pairs%obj%ref_count - 1
@@ -385,9 +373,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(com_tasks%obj))
     ALLOCATE(com_tasks%obj)
     com_tasks%obj%task_dim = TASK_N_RECORDS
@@ -413,9 +398,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(atom_pairs%obj))
     ALLOCATE(atom_pairs%obj)
     atom_pairs%obj%npairs = 0
@@ -439,9 +421,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (ASSOCIATED(com_tasks%obj%tasks)) THEN
        DEALLOCATE(com_tasks%obj%tasks)
@@ -465,9 +444,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (ASSOCIATED(atom_pairs%obj%pairs)) THEN
        DEALLOCATE(atom_pairs%obj%pairs)
@@ -502,9 +478,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (PRESENT(task_dim)) task_dim = com_tasks%obj%task_dim
     IF (PRESENT(ntasks)) ntasks = com_tasks%obj%ntasks
@@ -536,9 +509,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (PRESENT(npairs)) npairs = atom_pairs%obj%npairs
     IF (PRESENT(natoms_encode)) natoms_encode = atom_pairs%obj%natoms_encode
@@ -571,9 +541,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_tasks_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(com_tasks%obj))
     IF (PRESENT(task_dim)) com_tasks%obj%task_dim = task_dim
     IF (PRESENT(ntasks)) com_tasks%obj%ntasks = ntasks
@@ -611,9 +578,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_com_atom_pairs_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(atom_pairs%obj))
     IF (PRESENT(npairs)) atom_pairs%obj%npairs = npairs
     IF (PRESENT(natoms_encode)) atom_pairs%obj%natoms_encode = natoms_encode
@@ -664,11 +628,9 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_buf, recv_disps, &
                                                 recv_sizes, send_buf, &
                                                 send_disps, send_sizes
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(tasks_in, tasks_out)
 
@@ -846,12 +808,10 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_index
-    LOGICAL                                  :: check_ok, failure, &
-                                                my_symmetric
+    LOGICAL                                  :: check_ok, my_symmetric
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(pairs, tasks)
 
@@ -1109,9 +1069,7 @@ CONTAINS
                                                 npairs, nrows_blk, pe
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs
-    LOGICAL                                  :: check_ok, failure
-
-    failure = .FALSE.
+    LOGICAL                                  :: check_ok
 
     NULLIFY(pairs)
 
@@ -1195,13 +1153,12 @@ CONTAINS
       send_pair_disps, send_sizes
     INTEGER, DIMENSION(:), POINTER           :: col_block_size_data, &
                                                 row_block_size_data
-    LOGICAL                                  :: check_ok, failure, found
+    LOGICAL                                  :: check_ok, found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, mat_block, &
             row_block_size_data, col_block_size_data)
@@ -1392,13 +1349,12 @@ CONTAINS
       send_pair_disps, send_sizes
     INTEGER, DIMENSION(:), POINTER           :: col_block_size_data, &
                                                 row_block_size_data
-    LOGICAL                                  :: check_ok, failure, found
+    LOGICAL                                  :: check_ok, found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf, send_buf
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
 
     CALL timeset(routineN, handle)
 
-    failure = .FALSE.
 
     NULLIFY(pairs_send, pairs_recv, mat_block, &
             row_block_size_data, col_block_size_data)

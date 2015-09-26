@@ -108,10 +108,10 @@ CONTAINS
     INTEGER                                  :: handle, hesunit_read, indf, &
                                                 info, iter_nr, its, maxiter, &
                                                 ndf, nfree, output_unit
-    LOGICAL                                  :: cell_opt, conv, failure, &
-                                                hesrest, ionode, &
-                                                shell_present, should_stop, &
-                                                use_mod_hes, use_rfo
+    LOGICAL                                  :: cell_opt, conv, hesrest, &
+                                                ionode, shell_present, &
+                                                should_stop, use_mod_hes, &
+                                                use_rfo
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step, t_diff, &
                                                 t_now, t_old
@@ -128,7 +128,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: print_key, root_section
 
-    failure = .FALSE.
     NULLIFY(logger, g,blacs_env)
     logger       => cp_get_default_logger()
     para_env     => force_env%para_env
@@ -952,7 +951,6 @@ CONTAINS
                                                 nrow_local, z
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: at_row
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: d_ij, rho_ij
     REAL(KIND=dp), ALLOCATABLE, &
@@ -963,7 +961,6 @@ CONTAINS
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
      CALL force_env_get(force_env=force_env,subsys=subsys,cell=cell)
      CALL cp_subsys_get(subsys,&
                  particles=particles)

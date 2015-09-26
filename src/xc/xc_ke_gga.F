@@ -185,7 +185,6 @@ CONTAINS
 
     INTEGER                                  :: handle, m, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: drho_cutoff, rho_cutoff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
     REAL(KIND=dp), ALLOCATABLE, &
@@ -197,7 +196,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo,rho, rho13,e_0,e_rho,e_ndrho,&
          e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho)
@@ -230,13 +228,11 @@ CONTAINS
     CASE (ke_ol1)
        CALL efactor_ol1 ( s, fs, m )
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"OL1 functional currently not working properly",&
-            failure)
+            routineP,"OL1 functional currently not working properly")
     CASE (ke_ol2)
        CALL efactor_ol2 ( s, fs, m )
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"OL2 functional currently not working properly",&
-            failure)
+            routineP,"OL2 functional currently not working properly")
     CASE (ke_llp)
        CALL efactor_llp ( s, fs, m )
     CASE (ke_pw86)
@@ -343,7 +339,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, m, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rho_cutoff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
     REAL(KIND=dp), ALLOCATABLE, &
@@ -355,7 +350,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(e_0,e_ndrho, e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_rho_ndrho_ndrho, &
          e_rho_ndrho, e_rho_rho_ndrho, e_rho, e_rho_rho, e_rho_rho_rho)
     DO ispin=1,2

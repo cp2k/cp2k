@@ -379,8 +379,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure= .FALSE.
-
+    failure = .FALSE.
     output_unit = cp_logger_get_default_unit_nr()
     CALL create_force_env(f_env_id, &
                           input_declaration=input_declaration,&

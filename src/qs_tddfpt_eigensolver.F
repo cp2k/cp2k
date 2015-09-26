@@ -80,7 +80,7 @@ CONTAINS
 
     INTEGER                                  :: handle, n_ev, nspins, &
                                                 output_unit, restarts
-    LOGICAL                                  :: do_kernel_save, failure
+    LOGICAL                                  :: do_kernel_save
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ievals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -88,7 +88,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     NULLIFY(logger, dft_control)
-    failure   = .FALSE.
 
     logger    => cp_get_default_logger()
     output_unit  = cp_logger_get_default_io_unit(logger)
@@ -184,7 +183,6 @@ CONTAINS
     INTEGER :: col, handle, i, iev, iter, j, k, max_krylovspace_dim, max_kv, &
       n_ev, n_kv, nspins, output_unit, row, spin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: must_improve
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: Atilde_ij, convergence, tmp, &
                                                 tmp2
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: evals_difference, evals_tmp
@@ -208,7 +206,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
-    failure   = .FALSE.
     res       = .FALSE.
 
     CALL timeset(routineN,handle)

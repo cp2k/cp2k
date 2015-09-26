@@ -94,7 +94,7 @@ CONTAINS
                                                 n_colvar, n_rep, &
                                                 number_allocated_colvars
     INTEGER, DIMENSION(:), POINTER           :: walkers_status
-    LOGICAL                                  :: check, explicit, failure
+    LOGICAL                                  :: check, explicit
     REAL(kind=dp)                            :: dt
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: md_section, metadyn_section, &
@@ -104,7 +104,6 @@ CONTAINS
     NULLIFY(subsys)
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CALL section_vals_get(fe_section,explicit=explicit)
     IF (explicit) THEN
        number_allocated_colvars = 0
@@ -448,12 +447,10 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, n_walls
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: wall_section, work_section
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar)
     CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s)
     ! Walls
@@ -530,7 +527,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: filename, tmpname
     INTEGER                                  :: delta_hills, handle, i, &
                                                 i_hills, ih, iw, unit_nr
-    LOGICAL                                  :: exist, failure
+    LOGICAL                                  :: exist
     REAL(KIND=dp)                            :: invdt, ww
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_s_save, ss0_save
     REAL(KIND=dp), ALLOCATABLE, &
@@ -540,7 +537,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     logger  => cp_get_default_logger()
     para_env => logger%para_env
 
@@ -679,13 +675,13 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure, wtcontrol
+    LOGICAL                                  :: wtcontrol
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tnp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.; wtcontrol=PRESENT(invdt)
+    wtcontrol=PRESENT(invdt)
     NULLIFY(tmp, tnp)
     IF(SIZE(hills_env%ss_history,2)< n_hills+1)THEN
        ALLOCATE(tmp(n_colvar,n_hills+100))
@@ -763,14 +759,14 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, ndum
-    LOGICAL                                  :: explicit, failure, wtcontrol
+    LOGICAL                                  :: explicit, wtcontrol
     REAL(KIND=dp)                            :: rval
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
     TYPE(section_vals_type), POINTER         :: hills_history
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.; wtcontrol=PRESENT(invdt_history)
+    wtcontrol=PRESENT(invdt_history)
     NULLIFY(rvals)
     hills_history => section_vals_get_subs_vals(metadyn_section,"SPAWNED_HILLS_POS")
     CALL section_vals_get(hills_history, explicit=explicit)
@@ -910,13 +906,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ih, iwall
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: ddp, delta_s, dfunc, diff_ss, &
                                                 dp2, efunc, ww
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
 
-    failure = .FALSE.
     colvars => meta_env%metavar
     ! Forces from the Walls
     DO ih=1,SIZE(colvars)

@@ -95,7 +95,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: headline
     INTEGER                                  :: handle, i, ic, nimg, nspins
-    LOGICAL                                  :: do_kpoints, failure, my_admm, &
+    LOGICAL                                  :: do_kpoints, my_admm, &
                                                 my_rebuild_ao, &
                                                 my_rebuild_grids
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r
@@ -116,7 +116,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY (pw_env,auxbas_pw_pool,matrix_s,matrix_s_kp,dft_control)
     NULLIFY (tot_rho_r,rho_ao_kp,rho_r,rho_g,drho_r,drho_g,tau_r,tau_g)
@@ -343,7 +342,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
     INTEGER                                  :: handle, img, ispin, nimg, &
                                                 nspins
-    LOGICAL                                  :: failure, gapw, gapw_xc
+    LOGICAL                                  :: gapw, gapw_xc
     REAL(KIND=dp)                            :: dum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_r, tot_rho_r_xc
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -367,7 +366,6 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(dft_control,rho_xc, ks_env, rho_ao, rho_r, rho_g, drho_r, drho_g, tau_r, tau_g)
     NULLIFY(rho_xc_ao,rho_xc_g,rho_xc_r,drho_xc_g, tau_xc_r, tau_xc_g, tot_rho_r, tot_rho_r_xc)
@@ -554,7 +552,7 @@ END SUBROUTINE qs_rho_update_rho
 
     INTEGER                                  :: handle, i, nspins, &
                                                 rebuild_each_in
-    LOGICAL :: drho_g_valid_in, drho_r_valid_in, failure, rho_g_valid_in, &
+    LOGICAL :: drho_g_valid_in, drho_r_valid_in, rho_g_valid_in, &
       rho_r_valid_in, soft_valid_in, tau_g_valid_in, tau_r_valid_in
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tot_rho_g_in, tot_rho_g_out, &
                                                 tot_rho_r_in, tot_rho_r_out
@@ -570,7 +568,6 @@ END SUBROUTINE qs_rho_update_rho
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(dft_control, pw_env, auxbas_pw_pool)
     NULLIFY(rho_ao_in, rho_ao_out)
     NULLIFY(rho_r_in, rho_r_out, rho_g_in, rho_g_out, drho_r_in, drho_r_out)

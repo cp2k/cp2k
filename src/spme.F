@@ -125,7 +125,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center, core_center, &
                                                 shell_center
     INTEGER, DIMENSION(3)                    :: nd, npts
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa, ffb
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
@@ -142,7 +142,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
 
-    failure = .FALSE.
     NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, rden, rpot)
     CALL timeset ( routineN, handle )
     CALL cite_reference(Essmann1995)
@@ -493,7 +492,6 @@ CONTAINS
                                                 npart_a, npart_b, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols, fat1
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
@@ -505,7 +503,6 @@ CONTAINS
     TYPE(realspace_grid_desc_type), POINTER  :: rs_desc
     TYPE(realspace_grid_type), POINTER       :: rden, rpot
 
-    failure = .FALSE.
     NULLIFY(grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, pw_pool, &
          rden, rpot)
     CALL timeset ( routineN, handle )
@@ -635,7 +632,6 @@ CONTAINS
                                                 npart_a, npart_b, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: npts
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
@@ -651,7 +647,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: drpot
     TYPE(realspace_grid_type), POINTER       :: rden
 
-    failure = .FALSE.
     NULLIFY(drpot, grid_spme, green, poisson_env, phi_g, rhob_g, rhob_r, &
          pw_pool, rden)
     CALL timeset ( routineN, handle )

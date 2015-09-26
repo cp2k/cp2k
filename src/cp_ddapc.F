@@ -101,7 +101,7 @@ CONTAINS
     INTEGER                                  :: ddapc_size, handle, i, my_id
     LOGICAL                                  :: ddapc_restraint_is_spin, &
                                                 et_coupling_calc, &
-                                                explicit_potential, failure
+                                                explicit_potential
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -113,7 +113,6 @@ CONTAINS
     CALL timeset(routineN,handle)
     CALL cite_reference(Blochl1995)
     ! In case decouple periodic images and/or apply restraints to charges
-    failure        = .FALSE.
     logger         => cp_get_default_logger()
     ddapc_restraint_is_spin =.FALSE.
     et_coupling_calc        =.FALSE.
@@ -246,7 +245,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: apply_decpl, failure, need_f
+    LOGICAL                                  :: apply_decpl, need_f
     REAL(KINd=dp)                            :: e_decpl, e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -260,12 +259,11 @@ CONTAINS
       qmmm_periodic_section
 
     CALL timeset(routineN,handle)
-    failure        = .FALSE.
     need_f         = .FALSE.
     IF (PRESENT(calculate_forces)) need_f   = calculate_forces
     logger         => cp_get_default_logger()
     apply_decpl    = qs_env%cp_ddapc_ewald%do_decoupling.OR.qs_env%cp_ddapc_ewald%do_qmmm_periodic_decpl
-    IF ((.NOT.failure).AND.(apply_decpl)) THEN
+    IF (apply_decpl) THEN
        ! Initialize
        NULLIFY(multipole_section,&
                poisson_section,&
@@ -384,8 +382,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, my_id
-    LOGICAL                                  :: apply_restrain, failure, &
-                                                need_f
+    LOGICAL                                  :: apply_restrain, need_f
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dq
@@ -401,7 +398,6 @@ CONTAINS
     CALL timeset(routineN,handle)
     NULLIFY(dft_control,restraint_section, force_env_section, particle_set, &
             charges, radii, dq, cell, density_fit_section, super_cell)
-    failure        = .FALSE.
     need_f         = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -414,7 +410,7 @@ CONTAINS
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     apply_restrain = dft_control%qs_control%ddapc_restraint
     logger         => cp_get_default_logger()
-    IF ((.NOT.failure).AND.apply_restrain) THEN
+    IF (apply_restrain) THEN
        ! Initialize
        density_fit_section => section_vals_get_subs_vals(force_env_section,"DFT%DENSITY_FITTING")
        restraint_section => section_vals_get_subs_vals(force_env_section,"DFT%QS%DDAPC_RESTRAINT")
@@ -495,8 +491,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
-    LOGICAL                                  :: apply_solvation, failure, &
-                                                need_f
+    LOGICAL                                  :: apply_solvation, need_f
     REAL(KINd=dp)                            :: e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -510,12 +505,11 @@ CONTAINS
                                                 solvation_section
 
     CALL timeset(routineN,handle)
-    failure         = .FALSE.
     need_f          = .FALSE.
     IF (PRESENT(calculate_forces)) need_f = calculate_forces
     logger          => cp_get_default_logger()
     apply_solvation = qs_env%cp_ddapc_ewald%do_solvation
-    IF ((.NOT.failure).AND.(apply_solvation)) THEN
+    IF (apply_solvation) THEN
        ! Initialize
        NULLIFY(force_env_section, particle_set, charges, &
             radii, dq, cell, super_cell)

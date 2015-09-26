@@ -232,8 +232,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, method_id, natom, nkind
-    LOGICAL :: do_et, do_exx, do_hfx, do_kpoints, failure, mp2_present, &
-      my_qmmm, qmmm_decoupl, use_ref_cell
+    LOGICAL                                  :: do_et, do_exx, do_hfx, &
+                                                do_kpoints, mp2_present, &
+                                                my_qmmm, qmmm_decoupl, &
+                                                use_ref_cell
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rtmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -252,7 +254,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, &
       hfx_section, kpoint_section, mp2_section, transport_section
 
-    failure = .FALSE.
     NULLIFY(my_cell, my_cell_ref, atomic_kind_set, particle_set, &
          qs_kind_set, kpoint_section, dft_section, &
          subsys, ks_env, dft_control, blacs_env)
@@ -437,8 +438,7 @@ CONTAINS
       n_ao_aux_fit, n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
-                                                failure, has_unit_metric, &
-                                                was_present
+                                                has_unit_metric, was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -485,7 +485,6 @@ CONTAINS
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: se_store_int_env
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_get_default_logger()

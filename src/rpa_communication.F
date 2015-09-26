@@ -79,10 +79,8 @@ MODULE rpa_communication
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index_counter, proc2counter
     INTEGER, DIMENSION(:), POINTER           :: col_indices_d, col_indices_s, &
                                                 row_indices_d, row_indices_s
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! create the RPA proc_map
     IF(.NOT.(ALLOCATED(RPA_proc_map))) THEN
@@ -340,10 +338,8 @@ MODULE rpa_communication
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: req_send
     INTEGER, DIMENSION(:), POINTER           :: col_indices_d, col_indices_s, &
                                                 row_indices_d, row_indices_s
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     ! get info for the source
     CALL cp_fm_get_info(matrix=fm_mat_source,&
@@ -526,10 +522,8 @@ MODULE rpa_communication
 
     INTEGER                                  :: handle, rec_counter, &
                                                 send_counter
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     IF(ALLOCATED(RPA_proc_map))   DEALLOCATE(RPA_proc_map)
     IF(ALLOCATED(map_send_size))  DEALLOCATE(map_send_size)

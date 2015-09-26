@@ -56,10 +56,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, li
-    LOGICAL                                  :: failure
     REAL(kind=dp), DIMENSION(p)              :: lambda
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(normalmode_env))
     ALLOCATE(normalmode_env)
@@ -124,10 +121,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF (ASSOCIATED(normalmode_env)) THEN
       CPASSERT(normalmode_env%ref_count>0)
       normalmode_env%ref_count=normalmode_env%ref_count-1
@@ -153,10 +146,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
@@ -189,9 +178,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, ib
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (PRESENT(Q)) THEN
       Q=normalmode_env%Q_bead
@@ -236,10 +222,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_x2u', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
     CALL DGEMM('N','N',normalmode_env%p,SIZE(x,2),normalmode_env%p,1.0_dp,&
@@ -266,10 +248,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_u2x', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
     CALL DGEMM('N','N',normalmode_env%p,SIZE(ux,2),normalmode_env%p,1.0_dp,&
@@ -294,10 +272,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_f2uf', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(normalmode_env))
     CPASSERT(normalmode_env%ref_count>0)
@@ -325,10 +299,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ibead, idim
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: f
-
-    failure=.FALSE.
 
     e_h = 0.0_dp
     DO idim = 1, SIZE(mass_beads,2)

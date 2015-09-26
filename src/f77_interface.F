@@ -325,9 +325,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(f_env))
     CALL force_env_release(f_env%force_env)
@@ -363,10 +360,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE(f_env)
     f_env%force_env => force_env
     CALL force_env_retain(f_env%force_env)
@@ -395,9 +388,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_env_pos
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
@@ -427,18 +418,16 @@ CONTAINS
   SUBROUTINE f_env_add_defaults(f_env_id,f_env,failure, handle)
     INTEGER, INTENT(in)                      :: f_env_id
     TYPE(f_env_type), POINTER                :: f_env
-    LOGICAL                                  :: failure
+    LOGICAL, INTENT(out)                     :: failure
     INTEGER, INTENT(out), OPTIONAL           :: handle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_env_pos, ierr
-    LOGICAL                                  :: my_failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    my_failure=.FALSE.
-
+    failure = .FALSE.
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
@@ -484,12 +473,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr2
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: d_logger, logger
     TYPE(mp_perf_env_type), POINTER          :: d_mp_perf_env
     TYPE(timer_env_type), POINTER            :: d_timer_env
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(f_env)) THEN
        IF (PRESENT(handle)) THEN
@@ -505,7 +491,7 @@ CONTAINS
        CPASSERT(ASSOCIATED(d_timer_env))
        CPASSERT(ASSOCIATED(d_mp_perf_env))
        CPASSERT(logger%id_nr==d_logger%id_nr)
-       ! CPPrecondition(d_timer_env%id_nr==f_env%timer_env%id_nr,cp_failure_level,routineP,failure)
+       ! CPASSERT(d_timer_env%id_nr==f_env%timer_env%id_nr)
        CPASSERT(d_mp_perf_env%id_nr==f_env%mp_perf_env%id_nr)
        IF (f_env%old_path/=f_env%my_path) THEN
           CALL m_chdir(TRIM(f_env%old_path),ierr2)
@@ -575,8 +561,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: group_distribution, &
                                                 i_force_eval, &
                                                 lgroup_distribution
-    LOGICAL :: check, do_qmmm_force_mixing, failure, multiple_subsys, &
-      my_echo, my_owns_out_unit, use_motion_section, use_multiple_para_env
+    LOGICAL :: check, do_qmmm_force_mixing, multiple_subsys, my_echo, &
+      my_owns_out_unit, use_motion_section, use_multiple_para_env
     TYPE(cp_logger_type), POINTER            :: logger, my_logger
     TYPE(cp_para_env_type), POINTER          :: my_para_env, para_env
     TYPE(eip_environment_type), POINTER      :: eip_env
@@ -598,8 +584,6 @@ CONTAINS
       force_env_sections, fp_section, input_file, qmmm_section, &
       qmmmx_section, root_section, subsys_section, wrk_section
     TYPE(timer_env_type), POINTER            :: timer_env
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(input_declaration))
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
@@ -912,7 +896,7 @@ CPSourceFileRef,&
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: root_section
 
-    failure=.FALSE.
+    failure = .FALSE.
     NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,failure)
     env_pos=get_pos_of_env(env_id)
@@ -1444,12 +1428,11 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure, my_echo_input
+    LOGICAL                                  :: my_echo_input
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input_file
 
-    failure=.FALSE.
     my_echo_input=.FALSE.
     IF (PRESENT(echo_input)) my_echo_input=echo_input
 
@@ -1514,8 +1497,7 @@ CPSourceFileRef,&
     LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure=.FALSE.
-
+    failure = .FALSE.
     NULLIFY(f_env)
     CALL f_env_add_defaults(f_env_id,f_env,failure)
     CALL force_env_shake(f_env%force_env,&

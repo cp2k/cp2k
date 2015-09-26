@@ -137,8 +137,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cellind, periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: do_ewald, failure, found, &
-                                                use_virial
+    LOGICAL                                  :: do_ewald, found, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij, &
                                                 zeff
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
@@ -177,7 +176,6 @@ CONTAINS
 
     NULLIFY(gamma_matrix, matrix_p, matrix_s, virial, atprop, dft_control)
 
-    failure=.FALSE.
     use_virial=.FALSE.
 
     IF ( calculate_forces ) THEN
@@ -480,7 +478,7 @@ CONTAINS
                                                 natom, nmat
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
-    LOGICAL                                  :: failure, found, use_virial
+    LOGICAL                                  :: found, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dfr, dr, fi, fr, &
                                                 gmij
     REAL(KIND=dp), DIMENSION(3)              :: fij, rij
@@ -510,7 +508,6 @@ CONTAINS
 
     NULLIFY(gamma_matrix, matrix_p, matrix_s, virial, atprop, dft_control)
 
-    failure=.FALSE.
     use_virial=.FALSE.
 
     IF ( calculate_forces ) THEN
@@ -708,7 +705,6 @@ CONTAINS
                                                 j, n, npart, o_spline, p1
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: center
     INTEGER, DIMENSION(3)                    :: nd, npts
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvols, fat(3), ffa, &
                                                 ffb, fint, vgc
     REAL(KIND=dp), ALLOCATABLE, &
@@ -728,7 +724,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     !-------------- INITIALISATION ---------------------
-    failure = .FALSE.
     CALL ewald_env_get ( ewald_env, alpha=alpha, o_spline = o_spline, group = group, &
          para_env=para_env)
     NULLIFY(green, poisson_env, pw_pool)

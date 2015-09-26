@@ -79,9 +79,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ncoef
-    LOGICAL                                  :: failure, mixed_precision
-
-    failure = .FALSE.
+    LOGICAL                                  :: mixed_precision
 
     qs_ot_env%preconditioner => preconditioner
     qs_ot_env%os_valid = .FALSE.
@@ -297,11 +295,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, k, n
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: eig, fun
     TYPE(cp_dbcsr_type), POINTER             :: V, W
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
     !

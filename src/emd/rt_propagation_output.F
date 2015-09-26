@@ -482,7 +482,6 @@ CONTAINS
 
     INTEGER                                  :: col_atom, handle, i, ispin, &
                                                 row_atom
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha, max_alpha
     REAL(dp), DIMENSION(:), POINTER          :: block_values
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -492,7 +491,6 @@ CONTAINS
 
    CALL timeset(routineN,handle)
 
-   failure=.FALSE.
 
    CALL get_rtp(rtp=rtp,rho_new=rho_new)
 
@@ -645,12 +643,10 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, project_name
     INTEGER                                  :: handle, im, ispin, re, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cs_pos
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN
        unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)

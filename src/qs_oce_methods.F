@@ -97,8 +97,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: fp_cara, fp_spha, lb_max, &
                                                 lb_min, npgfb, nprjla, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfb
-    LOGICAL                                  :: calculate_forces, failure, &
-                                                paw_atom_a, paw_atom_b
+    LOGICAL                                  :: calculate_forces, paw_atom_a, &
+                                                paw_atom_b
     REAL(dp)                                 :: dab, hard_radius_a, &
                                                 hard_radius_b, radius, rcprja
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: c2s, ovs, spa_sb
@@ -111,7 +111,6 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a, orb_basis_b
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_a, paw_proj_b
 
-   failure = .FALSE.
    NULLIFY(orb_basis_a,paw_proj_a)
    CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a,&
@@ -291,13 +290,12 @@ CONTAINS
                                                 nseta, nsgfa
     INTEGER, DIMENSION(:), POINTER           :: n2oindex, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, paw_atom_a
+    LOGICAL                                  :: paw_atom_a
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: prjloc_h, prjloc_s
     REAL(dp), DIMENSION(:, :), POINTER       :: local_oce_h, local_oce_s
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_a
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_a
 
-    failure = .FALSE.
     NULLIFY(orb_basis_a,paw_proj_a)
     CALL get_qs_kind(qs_kind=atom_ka,basis_set=orb_basis_a,&
                          paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
@@ -388,7 +386,7 @@ CONTAINS
                                                 la_min, npgfa, nprjla, &
                                                 nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: failure, local, paw_atom_b, &
+    LOGICAL                                  :: local, paw_atom_b, &
                                                 sgf_soft_only
     REAL(KIND=dp)                            :: dab, rcprj
     REAL(KIND=dp), ALLOCATABLE, &
@@ -408,7 +406,6 @@ CONTAINS
     TYPE(paw_proj_set_type), POINTER         :: paw_proj_b
     TYPE(qs_kind_type), POINTER              :: at_a, at_b, qs_kind
 
-    failure = .FALSE.
     IF (calculate_forces) THEN
       CALL timeset(routineN//"_forces",handle)
     ELSE

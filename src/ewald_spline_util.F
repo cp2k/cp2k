@@ -89,15 +89,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: bo(2,3), iounit
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: pw
 
-    failure = .FALSE.
-    !
-    ! Setting Up Fit Procedure
-    !
+!
+! Setting Up Fit Procedure
+!
+
     CPASSERT(.NOT.ASSOCIATED(pw_grid))
     CPASSERT(.NOT.ASSOCIATED(pw_pool))
     CPASSERT(.NOT.ASSOCIATED(coeff))

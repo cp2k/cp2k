@@ -90,7 +90,6 @@ CONTAINS
     INTEGER                                  :: m1, m2, m3, md1, md2, md3, &
                                                 n1, n2, n3, nd1, nd2, nd3, &
                                                 nlimd, nlimk
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hgrid
 
   hgrid=MAX(hx,hy,hz)
@@ -139,7 +138,7 @@ CONTAINS
 
      CALL cp_assert(.FALSE.,cp_assertion_failed,&
           cp_failure_level,routineP,&
-          "No wavelet based poisson solver for given geometry",failure)
+          "No wavelet based poisson solver for given geometry")
 
   END IF
 !!!  IF (iproc==0) THEN

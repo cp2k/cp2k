@@ -48,13 +48,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'init_efield_matrices', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: field_energy
     REAL(KIND=dp), DIMENSION(3)              :: polarisation
 
-    failure=.FALSE.
+! retain possible values for energy and polarisation
 
-    ! retain possible values for energy and polarisation
     IF(ASSOCIATED(efield)) THEN
        field_energy = efield%field_energy
        polarisation = efield%polarisation
@@ -106,9 +104,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'efield_berry_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure =.FALSE.
     IF(ASSOCIATED(efield))THEN
        IF(ASSOCIATED(efield%sinmat).AND.ASSOCIATED(efield%cosmat))THEN
           CALL cp_dbcsr_deallocate_matrix_set ( efield%cosmat)

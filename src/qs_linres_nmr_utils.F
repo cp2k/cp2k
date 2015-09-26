@@ -84,7 +84,7 @@ CONTAINS
                                                 n_rep, nao, nat_print, natom, &
                                                 nmoloc, nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
-    LOGICAL                                  :: failure, gapw, my_end
+    LOGICAL                                  :: gapw, my_end
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -103,7 +103,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(atomic_kind_set, cell, dft_control, linres_control, scf_control)
     NULLIFY(logger, mpools, nmr_section, particle_set)
@@ -174,11 +173,11 @@ CONTAINS
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
-    CPASSERT(linres_control%localized_psi0)
-    IF(failure .AND. (output_unit>0)) THEN
-       WRITE(output_unit,'(A)') &
-            ' To get NMR parameters within PBC you need localized zero order orbitals '
-    ENDIF
+    CALL cp_assert(linres_control%localized_psi0, cp_warning_level, &
+                   cp_assertion_failed, routineP, &
+                   ' To get NMR parameters within PBC you need localized zero order orbitals ', &
+                   only_ionode=.TRUE.)
+    
     gapw = dft_control%qs_control%gapw
     nspins = dft_control%nspins
     natom = SIZE(particle_set,1)
@@ -319,10 +318,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_env_cleanup', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     nmr_env%ref_count = nmr_env%ref_count - 1
     IF(nmr_env%ref_count == 0 ) THEN

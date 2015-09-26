@@ -68,10 +68,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-      failure=.FALSE.
 
       CPASSERT(.NOT.ASSOCIATED(fp_env))
       ALLOCATE(fp_env)
@@ -96,11 +94,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-     failure=.FALSE.
      IF (ASSOCIATED(fp_env)) THEN
         CPASSERT(fp_env%ref_count>0)
         fp_env%ref_count=fp_env%ref_count-1
@@ -126,9 +122,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fp_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-      failure=.FALSE.
       CPASSERT(ASSOCIATED(fp_env))
       fp_env%ref_count=fp_env%ref_count+1
 
@@ -150,10 +143,8 @@ CONTAINS
 
     INTEGER                                  :: handle
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(fp_env))
     CALL section_vals_get(fp_section,explicit=fp_env%use_fp)
     IF (fp_env%use_fp) THEN
@@ -196,12 +187,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: PRINT
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
     CPASSERT(ASSOCIATED(fp_env))
 

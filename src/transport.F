@@ -91,11 +91,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: input
     TYPE(transport_env_type), POINTER        :: transport_env
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -265,15 +262,13 @@ CONTAINS
 
     PROCEDURE(c_scf_routine), POINTER        :: c_method
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     CALL C_F_PROCPOINTER(transport_env%ext_c_method_ptr, c_method)
     CALL cp_assert(C_ASSOCIATED(transport_env%ext_c_method_ptr),cp_fatal_level,cp_assertion_failed,routineP,&
                   "MISSING C/C++ ROUTINE: The TRANSPORT section is meant to be used together with an external "//&
-                  "program, e.g. the quantum transport code OMEN, that provides CP2K with a density matrix.",&
-                  failure)
+                  "program, e.g. the quantum transport code OMEN, that provides CP2K with a density matrix.")
 
     transport_env%params%n_occ = nelectron_spin
     transport_env%params%n_atoms = natoms
@@ -322,7 +317,6 @@ CONTAINS
     INTEGER(C_INT), DIMENSION(:), POINTER    :: colind_local, rowptr_local, nzerow_local
     REAL(C_DOUBLE), DIMENSION(:), POINTER    :: nzvals_local
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -379,8 +373,7 @@ CONTAINS
     IF (csr_mat%nze_total>HUGE(csr_interop_mat%nze_total)) THEN
         ! overflow in nze
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,CPSourceFileRef,&
-             failure)
+             routineP,CPSourceFileRef)
     ENDIF
     csr_interop_mat%nze_total = INT(csr_mat%nze_total,KIND=KIND(csr_interop_mat%nze_total))
     csr_interop_mat%nrows_local = csr_mat%nrows_local

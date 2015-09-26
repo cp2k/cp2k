@@ -314,12 +314,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: maxchrg
     REAL(KIND=dp), DIMENSION(:), POINTER     :: maxradius, maxradius2
     TYPE(pw_env_type), POINTER               :: pw_env
 
-    failure=.FALSE.
     NULLIFY(maxradius, maxradius2, pw_env)
 
     maxchrg = MAXVAL(ABS(mm_atom_chrg(:)))
@@ -540,8 +538,7 @@ CONTAINS
                                                 my_type, n_rep_val, nkind, &
                                                 size_mm_system
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
-    LOGICAL                                  :: explicit, failure, is_mm, &
-                                                is_qm
+    LOGICAL                                  :: explicit, is_mm, is_qm
     REAL(KIND=dp)                            :: tmp_radius, tmp_radius_c
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_sph_cut
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -553,7 +550,6 @@ CONTAINS
     NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
     NULLIFY(image_charge_section)
     qmmm_link = .FALSE.
-    failure   = .FALSE.
 
     CALL section_vals_get(qmmm_section,explicit=explicit)
     IF (explicit) THEN
@@ -576,7 +572,7 @@ CONTAINS
           CALL cp_assert(tmp_radius>0.0_dp,cp_failure_level,cp_assertion_failed,routineP,&
                "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "//&
                "the Spherical Cutoff in order to satisfy the previous condition!"//&
-               CPSourceFileRef,failure)
+               CPSourceFileRef)
        END IF
        !
        ! Initialization of arrays and core_charge_radius...
@@ -785,14 +781,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: n_gd, n_gp, n_lj, n_wl, np
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: gd_section, gp_section, &
                                                 lj_section, wl_section
 
-    failure = .FALSE.
-    !
-    ! NONBONDED
-    !
+!
+! NONBONDED
+!
+
     lj_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%LENNARD-JONES")
     wl_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%WILLIAMS")
     gd_section => section_vals_get_subs_vals(qmmm_ff_section,"NONBONDED%GOODWIN")
@@ -889,11 +884,10 @@ CONTAINS
                                                 link_type, mm_index, n_var, &
                                                 nkind, nlinks, num_qm_atom_tot
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: scale_f
     TYPE(section_vals_type), POINTER         :: qm_kinds, qmmm_links
 
-    failure         = .FALSE.
     num_qm_atom_tot = 0
     link_involv_mm  = 0
     nlinks          = 0
@@ -1024,12 +1018,10 @@ CONTAINS
                                                 n_rep_val, n_tot, nlinks, &
                                                 qm_index
     INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, my_radius
     TYPE(section_vals_type), POINTER         :: qmmm_link_section
 
     NULLIFY(wrk_tmp)
-    failure = .FALSE.
     n_imomm = 0
     n_gho   = 0
     n_pseudo= 0
@@ -1150,13 +1142,12 @@ CONTAINS
 
     INTEGER :: i_add, icount, ikind, ind1, Index1, Index2, n_add_tot, n_adds, &
       n_move_tot, n_moves, n_rep_val, nlinks
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: alpha, c_radius, charge, &
                                                 radius
     TYPE(section_vals_type), POINTER         :: add_section, move_section, &
                                                 qmmm_link_section
 
-    failure = .FALSE.
     explicit = .FALSE.
     move_mm_charges = .FALSE.
     add_mm_charges  = .FALSE.
@@ -1281,11 +1272,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, my_move
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_c_radius, my_charge, &
                                                 my_radius
 
-     failure = .FALSE.
      my_move = 0
      my_radius   = radius
      my_c_radius = c_radius
@@ -1333,12 +1322,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_origin_mm_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: center_grid, failure
+    LOGICAL                                  :: center_grid
     REAL(KIND=dp), DIMENSION(3)              :: tmp
     REAL(KINd=dp), DIMENSION(:), POINTER     :: vec
 
-     failure = .FALSE.
-     ! This is the vector that corrects position to apply properly the PBC
+! This is the vector that corrects position to apply properly the PBC
+
      tmp(1) =  qm_cell_small%hmat(1,1)
      tmp(2) =  qm_cell_small%hmat(2,2)
      tmp(3) =  qm_cell_small%hmat(3,3)
@@ -1382,13 +1371,11 @@ CONTAINS
                                                 num_const_atom, &
                                                 num_image_mm_atom
     INTEGER, DIMENSION(:), POINTER           :: mm_indexes
-    LOGICAL                                  :: failure, fix_xyz, &
-                                                imageind_in_range
+    LOGICAL                                  :: fix_xyz, imageind_in_range
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind
 
     NULLIFY(mm_indexes,molecule_kind)
-    failure=.FALSE.
     imageind_in_range=.FALSE.
     num_image_mm_atom=0
     max_index=0

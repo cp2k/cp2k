@@ -121,9 +121,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(bend_kind_set)
     ALLOCATE (bend_kind_set(nkind))
     DO ikind=1,nkind
@@ -155,9 +153,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(bond_kind_set)
     ALLOCATE (bond_kind_set(nkind))
     DO ikind=1,nkind
@@ -184,9 +180,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(torsion_kind_set)
     ALLOCATE (torsion_kind_set(nkind))
 
@@ -215,9 +209,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(ub_kind_set)
     ALLOCATE (ub_kind_set(nkind))
     DO ikind=1,nkind
@@ -243,9 +235,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(impr_kind_set)
     ALLOCATE (impr_kind_set(nkind))
     DO ikind=1,nkind
@@ -271,9 +261,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(opbend_kind_set)
     ALLOCATE (opbend_kind_set(nkind))
     DO ikind=1,nkind
@@ -296,9 +284,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bend_kind_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     DEALLOCATE (bend_kind_set)
   END SUBROUTINE deallocate_bend_kind_set
 
@@ -314,9 +299,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bond_kind_set', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     DEALLOCATE (bond_kind_set)
 
   END SUBROUTINE deallocate_bond_kind_set
@@ -331,10 +313,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'torsion_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF(ASSOCIATED(torsion_kind%k)) THEN
        DEALLOCATE(torsion_kind%k)
@@ -359,9 +337,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ub_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     DEALLOCATE(ub_kind_set)
 
   END SUBROUTINE ub_kind_dealloc_ref
@@ -375,13 +350,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'impr_kind_dealloc_ref', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+!
+! Questa e' la migliore routine che mente umana abbia concepito! ;-)
+! Translation to english: This is the best subroutine that humanity can imagine! ;-)
+!
 
-    failure = .FALSE.
-    !
-    ! Questa e' la migliore routine che mente umana abbia concepito! ;-)
-    ! Translation to english: This is the best subroutine that humanity can imagine! ;-)
-    !
   END SUBROUTINE impr_kind_dealloc_ref
 
 END MODULE force_field_kind_types

@@ -80,7 +80,7 @@ CONTAINS
     INTEGER                                  :: handle, i, j, na, nalpha, nb, &
                                                 nbeta, ncol_local, nrow, &
                                                 nrow_local
-    LOGICAL                                  :: failure, uniform_occupation
+    LOGICAL                                  :: uniform_occupation
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_blacs_env_type), POINTER         :: context
@@ -92,7 +92,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     NULLIFY(fm_struct_tmp,matrix_sc_a,matrix_sc_b,matrix_overlap,para_env,context,local_data)
 
@@ -189,11 +188,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: s_square, s_square_ideal
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     SELECT CASE(s2_restraint_control%functional_form)
     CASE(do_s2_constraint)

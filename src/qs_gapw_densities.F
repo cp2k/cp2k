@@ -58,7 +58,7 @@ CONTAINS
     INTEGER                                  :: handle, ikind, ispin, natom, &
                                                 nspins, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, my_do_rho0, paw_atom
+    LOGICAL                                  :: my_do_rho0, paw_atom
     REAL(dp)                                 :: rho0_h_tot, tot_rs_int
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot, rho1_s_tot
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -94,7 +94,6 @@ CONTAINS
     NULLIFY(rho0_atom_set)
     NULLIFY(logger)
 
-    failure = .FALSE.
 
     my_do_rho0 = .TRUE.
     IF (PRESENT(do_rho0)) my_do_rho0 = do_rho0

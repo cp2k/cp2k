@@ -63,7 +63,6 @@ CONTAINS
     INTEGER                                  :: handle, info, istat, liwork, &
                                                 lrwork, lwork, n
     INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: descm, descv
@@ -75,7 +74,6 @@ CONTAINS
 #endif
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(matrix))
     CPASSERT(ASSOCIATED(eigenvectors))
@@ -173,12 +171,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nao, nmo
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CALL cp_cfm_get_info(amatrix,nrow_global=nao)
     ALLOCATE (evals(nao))

@@ -161,9 +161,6 @@ CONTAINS
 
     INTEGER                                  :: i, my_n_keywords, &
                                                 my_n_subsections, n
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     my_n_keywords=10
@@ -219,10 +216,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
     section%ref_count=section%ref_count+1
@@ -240,9 +233,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
@@ -323,9 +313,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: message
     INTEGER                                  :: ikeyword, isub, my_recurse
-    LOGICAL                                  :: failure, my_hide_root
+    LOGICAL                                  :: my_hide_root
 
-    failure =.FALSE.
     IF (unit_nr>0) THEN
        my_hide_root =.FALSE.
        IF (PRESENT(hide_root)) my_hide_root=hide_root
@@ -394,9 +383,8 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: message
     INTEGER                                  :: idepth, ikeyword, iref, isub, &
                                                 unit_nr
-    LOGICAL                                  :: failure, has_keywords
+    LOGICAL                                  :: has_keywords
 
-    failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
        CPASSERT(section%ref_count>0)
@@ -497,9 +485,7 @@ CONTAINS
 
     CHARACTER(LEN=1000)                      :: local_prefix
     INTEGER                                  :: isub
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
        local_prefix=TRIM(prefix//"~"//TRIM(section%name))
@@ -534,9 +520,6 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: upc_name
     INTEGER                                  :: isub
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -596,9 +579,6 @@ CONTAINS
 
     INTEGER                                  :: ik, in
     CHARACTER(len=default_string_length)     :: upc_name
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -642,9 +622,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, my_index
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (INDEX(keyword_name,"%")/=0) THEN
        my_index = INDEX(keyword_name,"%") + 1
        CPASSERT(ASSOCIATED(section%subsections))
@@ -688,10 +666,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
     IF (PRESENT(frozen)) frozen=section%frozen
@@ -717,11 +691,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k
-    LOGICAL                                  :: failure
     TYPE(keyword_p_type), DIMENSION(:), &
       POINTER                                :: new_keywords
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -743,7 +714,7 @@ CONTAINS
                    CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                         "trying to add a keyword with a name ("//&
                         TRIM(keyword%names(k))//") that was already used in section "&
-                        //TRIM(section%name),failure)
+                        //TRIM(section%name))
                 ENDIF
              END DO
           END DO
@@ -778,11 +749,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     TYPE(section_p_type), DIMENSION(:), &
       POINTER                                :: new_subsections
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section))
     CPASSERT(section%ref_count>0)
@@ -804,7 +772,7 @@ CONTAINS
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "trying to add a subsection with a name ("//&
             TRIM(subsection%name)//") that was already used in section "&
-            //TRIM(section%name),failure)
+            //TRIM(section%name))
     END DO
     CALL section_retain(subsection)
     section%n_subsections=section%n_subsections+1
@@ -825,9 +793,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section_vals))
     ALLOCATE(section_vals)
@@ -858,9 +823,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     section_vals%ref_count=section_vals%ref_count+1
@@ -878,11 +840,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(val_type), POINTER                  :: el
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(section_vals)) THEN
        CPASSERT(section_vals%ref_count>0)
@@ -937,10 +896,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     IF (PRESENT(ref_count)) ref_count=section_vals%ref_count
@@ -973,10 +928,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: irep, isection, my_index
-    LOGICAL                                  :: failure, is_path, &
-                                                my_can_return_null
+    LOGICAL                                  :: is_path, my_can_return_null
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
 
@@ -1005,8 +958,7 @@ CONTAINS
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
          "could not find subsection "//TRIM(subsection_name(1:my_index))//" in section "//&
          TRIM(section_vals%section%name)//" at "//&
-         CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
     IF (is_path .AND. ASSOCIATED(res) ) THEN
        res=>section_vals_get_subs_vals(res,subsection_name(my_index+2:LEN_TRIM(subsection_name)),&
             i_rep_section,can_return_null)
@@ -1034,9 +986,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, irep, isect_att
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     NULLIFY(res)
@@ -1076,9 +1026,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i_section, irep
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     NULLIFY(res)
@@ -1101,13 +1049,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_p_type), &
       DIMENSION(:, :), POINTER               :: new_values
     TYPE(section_vals_p_type), &
       DIMENSION(:, :), POINTER               :: new_sps
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1155,13 +1100,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_p_type), &
       DIMENSION(:, :), POINTER               :: new_values
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(val_type), POINTER                  :: el
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(section_vals)) THEN
        CPASSERT(section_vals%ref_count>0)
@@ -1332,14 +1274,12 @@ CONTAINS
 
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure, valRequested
+    LOGICAL                                  :: valRequested
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: my_val
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1371,13 +1311,13 @@ CONTAINS
     IF(ik==-2) &
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         TRIM(keyword_name(my_index:len_key)),failure)
+         TRIM(keyword_name(my_index:len_key)))
     keyword => section%keywords(ik)%keyword
     IF(.NOT.(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2)))&
           CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
           routineP,"section repetition requested ("//cp_to_string(irs)//&
          ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
-         //")",failure)
+         //")")
     NULLIFY(my_val)
     IF (PRESENT(n_rep_val)) n_rep_val=0
     IF (irs<=SIZE(s_vals%values,2)) THEN ! the section was parsed
@@ -1404,7 +1344,7 @@ CONTAINS
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"Value requested, but no value set getting value from "//&
             "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
-            TRIM(section%name),failure)
+            TRIM(section%name))
        CALL val_get(my_val,l_val=l_val,i_val=i_val,r_val=r_val,&
             c_val=c_val,l_vals=l_vals,i_vals=i_vals,r_vals=r_vals,&
             c_vals=c_vals)
@@ -1435,11 +1375,8 @@ CONTAINS
 
     INTEGER                                  :: ik, irs, len_key, my_index, &
                                                 tmp_index
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1464,12 +1401,12 @@ CONTAINS
     IF(ik==-2)&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         TRIM(keyword_name(my_index:len_key)),failure)
+         TRIM(keyword_name(my_index:len_key)))
     IF(.NOT.(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2)))&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
          "section repetition requested ("//cp_to_string(irs)//&
          ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
-         //")",failure)
+         //")")
     list => s_vals%values(ik,irs)%list
 
   END SUBROUTINE section_vals_list_get
@@ -1518,14 +1455,12 @@ CONTAINS
 
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure, valSet
+    LOGICAL                                  :: valSet
     TYPE(cp_sll_val_type), POINTER           :: vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: my_val, old_val
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1552,7 +1487,7 @@ CONTAINS
     IF(ik==-2)&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         TRIM(keyword_name(my_index:len_key)),failure)
+         TRIM(keyword_name(my_index:len_key)))
     ! Add values..
     DO
        IF (irs<=SIZE(s_vals%values,2)) EXIT
@@ -1562,7 +1497,7 @@ CONTAINS
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
          "section repetition requested ("//cp_to_string(irs)//&
          ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
-         //")",failure)
+         //")")
     keyword => s_vals%section%keywords(ik)%keyword
     NULLIFY(my_val)
     IF (PRESENT(val)) my_val => val
@@ -1576,14 +1511,14 @@ CONTAINS
             cp_failure_level,cp_assertion_failed,routineP,&
             " both val and values present, in setting "//&
             "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
-            TRIM(section%name),failure)
+            TRIM(section%name))
     ELSE
        ! ignore ?
        IF(.NOT.valSet)&
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             " empty value in setting "//&
             "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
-            TRIM(section%name),failure)
+            TRIM(section%name))
        CPASSERT(valSet)
        IF (keyword%type_of_var==lchar_t) THEN
           CALL val_create(my_val, lc_val=c_val, lc_vals_ptr=c_vals_ptr)
@@ -1604,7 +1539,7 @@ CONTAINS
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"invalid irk "//TRIM(ADJUSTL(cp_to_string(irk)))//&
             " in keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
-            TRIM(section%name),failure)
+            TRIM(section%name))
        old_val => cp_sll_val_get_el_at(vals,index=irk)
        CALL val_release(old_val)
        CALL cp_sll_val_set_el_at(vals,value=my_val,index=irk)
@@ -1613,7 +1548,7 @@ CONTAINS
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"cannot add extra keyword repetitions to keyword"&
             //TRIM(keyword_name(my_index:len_key))//" of section "//&
-            TRIM(section%name),failure)
+            TRIM(section%name))
     ELSE
        CALL cp_sll_val_insert_el_at(vals,my_val,index=irk)
     END IF
@@ -1645,13 +1580,11 @@ CONTAINS
 
     INTEGER                                  :: ik, irk, irs, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: pos
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: s_vals
     TYPE(val_type), POINTER                  :: old_val
 
-    failure=.FALSE.
     NULLIFY(pos)
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
@@ -1678,14 +1611,14 @@ CONTAINS
     IF(ik==-2)&
          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
          "section "//TRIM(section%name)//" does not contain keyword "//&
-         TRIM(keyword_name(my_index:len_key)),failure)
+         TRIM(keyword_name(my_index:len_key)))
     ! ignore unset of non set values
     IF (irs<=SIZE(s_vals%values,2)) THEN
        IF(.NOT.(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2)))&
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "section repetition requested ("//cp_to_string(irs)//&
             ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
-            //")",failure)
+            //")")
        IF (irk==-1) THEN
           pos => cp_sll_val_get_rest(s_vals%values(ik,irs)%list, iter=-1)
        ELSE
@@ -1724,15 +1657,13 @@ CONTAINS
                                                 nval
     INTEGER, SAVE                            :: indent = 1
     LOGICAL                                  :: defaultSection, explicit, &
-                                                failure, my_hide_defaults, &
-                                                my_hide_root
+                                                my_hide_defaults, my_hide_root
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
     TYPE(section_vals_type), POINTER         :: sval
     TYPE(val_type), POINTER                  :: val
 
-    failure=.FALSE.
     my_hide_root=.FALSE.
     my_hide_defaults=.TRUE.
     IF (PRESENT(hide_root)) my_hide_root=hide_root
@@ -1740,7 +1671,7 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
-    IF ((.NOT.failure).AND.(unit_nr>0)) THEN
+    IF (unit_nr>0) THEN
        CALL section_vals_get(section_vals, explicit=explicit, n_repetition=nr, section=section)
        IF (explicit.OR.(.NOT.my_hide_defaults)) THEN
           DO i_rep_s=1,nr
@@ -1810,7 +1741,6 @@ CONTAINS
                          END IF
                       END IF
                    END IF
-                   IF (failure) EXIT
                 END DO
                 IF (ASSOCIATED(section_vals%subs_vals)) THEN
                    DO isec=1,SIZE(section_vals%subs_vals,1)
@@ -1849,9 +1779,6 @@ CONTAINS
     CHARACTER(LEN=3)                         :: repeats
     CHARACTER(LEN=8)                         :: short_string
     INTEGER                                  :: i, l0, l1, l2
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(section)) THEN
 
@@ -1927,9 +1854,7 @@ CONTAINS
 
     CHARACTER(LEN=LEN(matching_string(1)))   :: line
     INTEGER                                  :: i, imatch, imax, irank
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
        imatch=typo_match(TRIM(section%name),TRIM(unknown_string))
@@ -1985,10 +1910,8 @@ CONTAINS
 
     INTEGER                                  :: irep, isection, len_key, &
                                                 my_index, tmp_index
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: s_vals
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(section_vals%ref_count>0)
     CPASSERT(ASSOCIATED(new_section_vals))
@@ -2018,8 +1941,7 @@ CONTAINS
          cp_assertion_failed,routineP,&
          "could not find subsection "//subsection_name(my_index:LEN_TRIM(subsection_name))//" in section "//&
          TRIM(section_vals%section%name)//" at "//&
-         CPSourceFileRef,&
-         failure)
+         CPSourceFileRef)
     CALL section_vals_retain(new_section_vals)
     CALL section_vals_release(s_vals%subs_vals(isection,irep)%section_vals)
     s_vals%subs_vals(isection,irep)%section_vals => new_section_vals
@@ -2042,10 +1964,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_duplicate', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(section_vals_in))
     CPASSERT(.NOT.ASSOCIATED(section_vals_out))
@@ -2073,19 +1991,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iend, irep, isec, istart, ival
-    LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: v1, v2
     TYPE(val_type), POINTER                  :: el
 
-    failure=.FALSE.
     NULLIFY(v2,el)
 
     CPASSERT(ASSOCIATED(section_vals_in))
     CPASSERT(ASSOCIATED(section_vals_out))
     !  IF(section_vals_in%section%id_nr/=section_vals_out%section%id_nr)&
-    !     CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-    !          CPSourceFileRef,&
-    !          failure)
+    !     CPASSERT(.FALSE.)
+
     istart = 1
     iend   = SIZE(section_vals_in%values,2)
     IF (PRESENT(i_rep_low)) istart=i_rep_low
@@ -2111,14 +2026,8 @@ CONTAINS
        END DO
     END DO
     IF (.NOT.PRESENT(i_rep_low).AND.(.NOT.PRESENT(i_rep_high))) THEN
-       CALL cp_assert(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2),&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            CPSourceFileRef,&
-            failure)
-       CALL cp_assert(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2),&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            CPSourceFileRef,&
-            failure)
+       CPASSERT(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2))
+       CPASSERT(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2))
     END IF
     iend   = SIZE(section_vals_in%subs_vals,2)
     IF (PRESENT(i_rep_high)) iend=i_rep_high

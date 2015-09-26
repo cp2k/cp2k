@@ -100,8 +100,7 @@ MODULE mp2_laplace
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_size_source, &
                                                 local_size_source_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, first_cycle, &
-                                                my_open_shell
+    LOGICAL                                  :: first_cycle, my_open_shell
     REAL(KIND=dp) :: actual_flop_rate, alpha_old, E_Range, Emax, Emax_beta, &
       Emin, Emin_beta, laplace_transf, my_flop_rate, t_end, t_start, &
       trace_XX, w_old
@@ -111,7 +110,6 @@ MODULE mp2_laplace
                                                 buffer_send, buffer_send_beta
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     
     my_open_shell=.FALSE.
     IF(PRESENT(homo_beta).AND.&

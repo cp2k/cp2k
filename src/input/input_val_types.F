@@ -132,9 +132,6 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, len_c, narg, nVal
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(val))
   ALLOCATE(val)
@@ -289,10 +286,6 @@ SUBROUTINE val_release(val)
     CHARACTER(len=*), PARAMETER :: routineN = 'val_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   IF (ASSOCIATED(val)) THEN
      CPASSERT(val%ref_count>0)
      val%ref_count=val%ref_count-1
@@ -327,10 +320,6 @@ SUBROUTINE val_retain(val)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'val_retain', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(val))
   CPASSERT(val%ref_count>0)
@@ -385,9 +374,6 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, l_in, l_out
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   IF (PRESENT(has_l)) has_l=ASSOCIATED(val%l_val)
   IF (PRESENT(has_i)) has_i=ASSOCIATED(val%i_val)
@@ -443,7 +429,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
                    LEN_TRIM(val%c_val(SIZE(val%c_val)))
               CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&
                    routineP,"val_get will truncate value, value beginning with '"//&
-                   TRIM(val%c_val(1))//"' is too long for variable",failure)
+                   TRIM(val%c_val(1))//"' is too long for variable")
               DO i=1,SIZE(val%c_val)
                  c_val((i-1)*default_string_length+1:MIN(l_out,i*default_string_length))=&
                       val%c_val(i)(1:MIN(80,l_out-(i-1)*default_string_length))
@@ -455,7 +441,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
               l_in=LEN_TRIM(val%c_val(1))
               CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&
                    routineP,"val_get will truncate value, value '"//&
-                   TRIM(val%c_val(1))//"' is too long for variable",failure)
+                   TRIM(val%c_val(1))//"' is too long for variable")
               c_val=val%c_val(1)
            END IF
         ELSE
@@ -524,10 +510,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
 
     CHARACTER(len=default_string_length)     :: c_string, myfmt, rcval
     INTEGER                                  :: i, iend, item, j, l
-    LOGICAL                                  :: failure
     TYPE(cp_unit_type), POINTER              :: my_unit
-
-  failure=.FALSE.
 
   NULLIFY(my_unit)
   myfmt = ""
@@ -658,7 +641,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
         WRITE(unit=unit_nr,fmt="(' *empty*')",advance="NO")
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,"unexpected type_of_var for val ",failure)
+             routineP,"unexpected type_of_var for val ")
      END SELECT
   ELSE
      WRITE(unit=unit_nr,fmt="(' *null*')",advance="NO")
@@ -689,12 +672,9 @@ END SUBROUTINE val_write
 
     CHARACTER(LEN=default_string_length)     :: enum_string
     INTEGER                                  :: i, ipos
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: value
 
 ! -------------------------------------------------------------------------
-
-    failure = .FALSE.
 
     string = ""
 
@@ -760,8 +740,7 @@ END SUBROUTINE val_write
         END IF
       CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP,"unexpected type_of_var for val ",&
-                       failure)
+                       routineP,"unexpected type_of_var for val ")
       END SELECT
 
     END IF
@@ -780,9 +759,6 @@ SUBROUTINE val_duplicate(val_in,val_out)
     CHARACTER(len=*), PARAMETER :: routineN = 'val_duplicate', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
   CPASSERT(ASSOCIATED(val_in))
   CPASSERT(.NOT.ASSOCIATED(val_out))
   ALLOCATE(val_out)

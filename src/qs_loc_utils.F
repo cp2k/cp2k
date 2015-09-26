@@ -119,10 +119,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ncol_hist, ncol_loc
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     IF (.NOT. ASSOCIATED(mo_loc_history)) THEN
        ALLOCATE(mo_loc_history(SIZE(mo_loc)))
@@ -158,13 +156,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ncol, ncol_ref, nrow
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: o1, o2, o3, o4, smo
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     CALL cp_fm_get_info(mo_new, nrow_global=nrow, ncol_global=ncol)
     CALL cp_fm_get_info(mo_ref, ncol_global=ncol_ref)
@@ -243,12 +239,9 @@ CONTAINS
 
     INTEGER                                  :: iatom, istate, jstate, natom, &
                                                 nstate
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aij, bij, ct, mii, mij, mjj, &
                                                 ratio, st, theta, tolerance
     TYPE(cp_fm_type), POINTER                :: rmat
-
-    failure = .FALSE.
 
     NULLIFY(rmat)
 
@@ -324,9 +317,7 @@ CONTAINS
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desc
 #endif
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL cp_fm_get_info(rmat, nrow_global=nstate)
 #if defined(__SCALAPACK)
     desc(:) = rmat%matrix_struct%descriptor(:)
@@ -363,9 +354,7 @@ CONTAINS
 #else
     INTEGER                                  :: stride
 #endif
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL cp_fm_get_info(zij(1,1)%matrix,nrow_global = nstate)
 
     natom = SIZE(zij, 1)
@@ -409,12 +398,9 @@ CONTAINS
                                                 ncol_local, nrow_global, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: grad_ij, zii, zij, zjj
     REAL(dp), DIMENSION(:, :), POINTER       :: diag
     TYPE(cp_fm_type), POINTER                :: force
-
-    failure = .FALSE.
 
     NULLIFY( force , diag, col_indices, row_indices )
     natom = SIZE(zij_fm_set,1)
@@ -485,7 +471,6 @@ CONTAINS
 
     INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, j, l_spin, lb, &
       my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, s_spin, ub
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: my_occ, occ_imo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
@@ -505,7 +490,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(mos,matrix_s,moloc_coeff,particle_set,para_env,cell,local_molecules,occupations,mat_ptr)
     IF (PRESENT(do_localize)) qs_loc_env%do_localize = do_localize
@@ -712,7 +696,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: failure, found, new_atom_b
+    LOGICAL                                  :: found, new_atom_b
     REAL(KIND=dp)                            :: dab, kvec(3), rab2, &
                                                 vector_k(3,6)
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
@@ -740,7 +724,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (qs_kind, qs_kind_set)
     NULLIFY (cell, op_sm_set, particle_set)
     NULLIFY (sab_orb)
@@ -949,13 +932,11 @@ CONTAINS
     INTEGER                                  :: handle, ispin, max_block, &
                                                 nao, nloc, nmo, output_unit, &
                                                 rst_unit
-    LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
@@ -1066,7 +1047,7 @@ CONTAINS
     INTEGER :: group, handle, homo_read, i, ispin, lfomo_read, max_nloc, &
       n_rep_val, nao, nelectron_read, nloc, nmo, nmo_read, nspin, &
       output_unit, rst_unit, source
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: file_exists
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1075,7 +1056,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     logger => cp_get_default_logger()
-    failure = .FALSE.
 
     nspin = SIZE(mos_localized)
     nao = mos(1)%mo_set%nao
@@ -1471,12 +1451,11 @@ CONTAINS
     INTEGER                                  :: i, ind, ir, n_list, n_rep, &
                                                 n_state, nline, output_unit
     INTEGER, DIMENSION(:), POINTER           :: list, loc_list
-    LOGICAL                                  :: failure, my_do_xas
+    LOGICAL                                  :: my_do_xas
     REAL(dp), POINTER                        :: ene(:)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: loc_print_section
 
-    failure=.FALSE.
     my_do_xas=.FALSE.
     IF(PRESENT(do_xas)) THEN
        my_do_xas=do_xas
@@ -1486,229 +1465,227 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
-    IF(.NOT. failure)  THEN
-       CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",l_val=localize)
-       IF(localize) THEN
-          loc_print_section => section_vals_get_subs_vals(loc_section,"PRINT")
-          NULLIFY (list)
-          NULLIFY (loc_list)
-          localized_wfn_control%lu_bound_states = 0
-          localized_wfn_control%lu_ene_bound = 0.0_dp
-          localized_wfn_control%nloc_states     = 0
-          localized_wfn_control%set_of_states   = 0
-          n_state = 0
+    CALL section_vals_val_get(loc_section,"_SECTION_PARAMETERS_",l_val=localize)
+    IF(localize) THEN
+       loc_print_section => section_vals_get_subs_vals(loc_section,"PRINT")
+       NULLIFY (list)
+       NULLIFY (loc_list)
+       localized_wfn_control%lu_bound_states = 0
+       localized_wfn_control%lu_ene_bound = 0.0_dp
+       localized_wfn_control%nloc_states     = 0
+       localized_wfn_control%set_of_states   = 0
+       n_state = 0
 
-          CALL section_vals_val_get(loc_section,"MAX_ITER",&
-               i_val=localized_wfn_control%max_iter)
-          CALL section_vals_val_get(loc_section,"MAX_CRAZY_ANGLE",&
-               r_val=localized_wfn_control%max_crazy_angle)
-          CALL section_vals_val_get(loc_section,"CRAZY_SCALE",&
-               r_val=localized_wfn_control%crazy_scale)
-          CALL section_vals_val_get(loc_section,"EPS_OCCUPATION",&
-               r_val=localized_wfn_control%eps_occ)
-          CALL section_vals_val_get(loc_section,"CRAZY_USE_DIAG",&
-               l_val=localized_wfn_control%crazy_use_diag)
-          CALL section_vals_val_get(loc_section,"OUT_ITER_EACH",&
-               i_val=localized_wfn_control%out_each)
-          CALL section_vals_val_get(loc_section,"EPS_LOCALIZATION",&
-               r_val=localized_wfn_control%eps_localization)
-          CALL section_vals_val_get(loc_section,"MIN_OR_MAX",&
-               i_val=localized_wfn_control%min_or_max)
-          CALL section_vals_val_get(loc_section,"JACOBI_FALLBACK",&
-               l_val=localized_wfn_control%jacobi_fallback)
-          CALL section_vals_val_get(loc_section,"METHOD",&
-               i_val=localized_wfn_control%localization_method)
-          CALL section_vals_val_get(loc_section,"OPERATOR",&
-               i_val=localized_wfn_control%operator_type)
-          CALL section_vals_val_get(loc_section,"RESTART",&
-               l_val=localized_wfn_control%loc_restart)
-          CALL section_vals_val_get(loc_section,"USE_HISTORY",&
-               l_val=localized_wfn_control%use_history)
+       CALL section_vals_val_get(loc_section,"MAX_ITER",&
+            i_val=localized_wfn_control%max_iter)
+       CALL section_vals_val_get(loc_section,"MAX_CRAZY_ANGLE",&
+            r_val=localized_wfn_control%max_crazy_angle)
+       CALL section_vals_val_get(loc_section,"CRAZY_SCALE",&
+            r_val=localized_wfn_control%crazy_scale)
+       CALL section_vals_val_get(loc_section,"EPS_OCCUPATION",&
+            r_val=localized_wfn_control%eps_occ)
+       CALL section_vals_val_get(loc_section,"CRAZY_USE_DIAG",&
+            l_val=localized_wfn_control%crazy_use_diag)
+       CALL section_vals_val_get(loc_section,"OUT_ITER_EACH",&
+            i_val=localized_wfn_control%out_each)
+       CALL section_vals_val_get(loc_section,"EPS_LOCALIZATION",&
+            r_val=localized_wfn_control%eps_localization)
+       CALL section_vals_val_get(loc_section,"MIN_OR_MAX",&
+            i_val=localized_wfn_control%min_or_max)
+       CALL section_vals_val_get(loc_section,"JACOBI_FALLBACK",&
+            l_val=localized_wfn_control%jacobi_fallback)
+       CALL section_vals_val_get(loc_section,"METHOD",&
+            i_val=localized_wfn_control%localization_method)
+       CALL section_vals_val_get(loc_section,"OPERATOR",&
+            i_val=localized_wfn_control%operator_type)
+       CALL section_vals_val_get(loc_section,"RESTART",&
+            l_val=localized_wfn_control%loc_restart)
+       CALL section_vals_val_get(loc_section,"USE_HISTORY",&
+            l_val=localized_wfn_control%use_history)
 
-          IF(localized_wfn_control%do_homo)THEN
-            ! List of States HOMO
-            CALL section_vals_val_get(loc_section,"LIST",  n_rep_val=n_rep)
-            IF(n_rep>0) THEN
-              n_list = 0
-              DO ir = 1,n_rep
-                 NULLIFY(list)
-                 CALL section_vals_val_get(loc_section,"LIST",i_rep_val=ir,i_vals=list)
-                 IF(ASSOCIATED(list)) THEN
-                    CALL reallocate(loc_list,1,n_list+SIZE(list))
-                    DO i = 1, SIZE(list)
-                       loc_list(n_list+i) = list(i)
-                    END DO ! i
-                    n_list = n_list +  SIZE(list)
-                 END IF
-              END DO ! ir
-              IF(n_list/=0) THEN
-                 localized_wfn_control%set_of_states=state_loc_list
-                 ALLOCATE(localized_wfn_control%loc_states(n_list,2))
-                 localized_wfn_control%loc_states = 0
-                 localized_wfn_control%loc_states(:,1) = loc_list(:)
-                 localized_wfn_control%loc_states(:,2) = loc_list(:)
-                 localized_wfn_control%nloc_states(1) = n_list
-                 IF(my_do_xas) THEN
-                   localized_wfn_control%nloc_states(2) = 0
-                   localized_wfn_control%loc_states(:,2) = 0
-                 END IF
-                 DEALLOCATE(loc_list)
-               END IF
-            END IF
-
-          ELSE
-            ! List of States LUMO
-            CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep)
-            IF(n_rep>0) THEN
-              n_list = 0
-              DO ir = 1,n_rep
-                 NULLIFY(list)
-                 CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",i_rep_val=ir,i_vals=list)
-                 IF(ASSOCIATED(list)) THEN
-                    CALL reallocate(loc_list,1,n_list+SIZE(list))
-                    DO i = 1, SIZE(list)
-                       loc_list(n_list+i) = list(i)
-                    END DO ! i
-                    n_list = n_list +  SIZE(list)
-                 END IF
-              END DO ! ir
-              IF(n_list/=0) THEN
-                 localized_wfn_control%set_of_states=state_loc_list
-                 ALLOCATE(localized_wfn_control%loc_states(n_list,2))
-                 localized_wfn_control%loc_states = 0
-                 localized_wfn_control%loc_states(:,1) = loc_list(:)
-                 localized_wfn_control%loc_states(:,2) = loc_list(:)
-                 localized_wfn_control%nloc_states(1) = n_list
-                 DEALLOCATE(loc_list)
+       IF(localized_wfn_control%do_homo)THEN
+         ! List of States HOMO
+         CALL section_vals_val_get(loc_section,"LIST",  n_rep_val=n_rep)
+         IF(n_rep>0) THEN
+           n_list = 0
+           DO ir = 1,n_rep
+              NULLIFY(list)
+              CALL section_vals_val_get(loc_section,"LIST",i_rep_val=ir,i_vals=list)
+              IF(ASSOCIATED(list)) THEN
+                 CALL reallocate(loc_list,1,n_list+SIZE(list))
+                 DO i = 1, SIZE(list)
+                    loc_list(n_list+i) = list(i)
+                 END DO ! i
+                 n_list = n_list +  SIZE(list)
               END IF
+           END DO ! ir
+           IF(n_list/=0) THEN
+              localized_wfn_control%set_of_states=state_loc_list
+              ALLOCATE(localized_wfn_control%loc_states(n_list,2))
+              localized_wfn_control%loc_states = 0
+              localized_wfn_control%loc_states(:,1) = loc_list(:)
+              localized_wfn_control%loc_states(:,2) = loc_list(:)
+              localized_wfn_control%nloc_states(1) = n_list
+              IF(my_do_xas) THEN
+                localized_wfn_control%nloc_states(2) = 0
+                localized_wfn_control%loc_states(:,2) = 0
+              END IF
+              DEALLOCATE(loc_list)
             END IF
-          END IF
-
-          IF(localized_wfn_control%set_of_states == 0) THEN
-            CALL section_vals_val_get(loc_section,"ENERGY_RANGE",r_vals=ene)
-            IF(ene(1)/=ene(2)) THEN
-               localized_wfn_control%set_of_states = energy_loc_range
-               localized_wfn_control%lu_ene_bound(1) = ene(1)
-               localized_wfn_control%lu_ene_bound(2) = ene(2)
-            END IF
-          END IF
-
-          ! All States or XAS specific states
-          IF(localized_wfn_control%set_of_states == 0)  THEN
-             IF(my_do_xas) THEN
-                localized_wfn_control%set_of_states = state_loc_range
-                localized_wfn_control%nloc_states(1) =  nloc_xas
-                localized_wfn_control%lu_bound_states(1,1) = 1
-                localized_wfn_control%lu_bound_states(2,1) = nloc_xas
-                localized_wfn_control%nloc_states(2) =  0
-                localized_wfn_control%lu_bound_states(1,2) = 0
-                localized_wfn_control%lu_bound_states(2,2) = 0
-             ELSE
-                localized_wfn_control%set_of_states = state_loc_all
-             END IF
-          END IF
-
-          localized_wfn_control%print_centers = &
-               BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
-               "WANNIER_CENTERS"),cp_p_file)
-          localized_wfn_control%print_spreads = &
-               BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
-               "WANNIER_SPREADS"),cp_p_file)
-          localized_wfn_control%print_cubes = &
-               BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
-               "WANNIER_CUBES"),cp_p_file)
-
-          output_unit = cp_print_key_unit_nr(logger,loc_print_section,"PROGRAM_RUN_INFO",&
-               extension=".Log")
-
-          IF (output_unit > 0) THEN
-             WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
-                  "LOCALIZE| The spread relative to a set of orbitals is computed"
-
-             SELECT CASE (localized_wfn_control%set_of_states)
-             CASE (state_loc_all)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| Orbitals to be localized: All the occupied"
-                WRITE (UNIT=output_unit,FMT="(T2,A,F16.8)")&
-                     "LOCALIZE| If fractional occupation, fully occupied MOs are those within occupation tolerance of ", &
-                       localized_wfn_control%eps_occ
-             CASE (state_loc_range)
-                WRITE (UNIT=output_unit,FMT="(T2,A,T65,I8,A,I8)")&
-                     "LOCALIZE| Orbitals to be localized: Those with index between ",&
-                     localized_wfn_control%lu_bound_states(1,1), " and ",&
-                     localized_wfn_control%lu_bound_states(2,1)
-             CASE (state_loc_list)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| Orbitals to be localized: Those with index in the following list"
-                nline = localized_wfn_control%nloc_states(1)/10+1
-                ind = 0
-                DO i = 1,nline
-                  IF(ind+10<localized_wfn_control%nloc_states(1)) THEN
-                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") localized_wfn_control%loc_states(ind+1:ind+10,1)
-                    ind=ind+10
-                  ELSE
-                    WRITE (UNIT=output_unit,FMT="(T8,10I7)") &
-                        localized_wfn_control%loc_states(ind+1:localized_wfn_control%nloc_states(1),1)
-                    ind = localized_wfn_control%nloc_states(1)
-                  END IF
-                END DO
-             CASE (energy_loc_range)
-                WRITE (UNIT=output_unit,FMT="(T2,A,T65,/,f16.6,A,f16.6,A)")&
-                   "LOCALIZE| Orbitals to be localized: Those with energy in the range between ",&
-                   localized_wfn_control%lu_ene_bound(1), " and ",  localized_wfn_control%lu_ene_bound(2)," a.u."
-             CASE DEFAULT
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| Orbitals to be localized: None "
-             END SELECT
-
-             SELECT CASE (localized_wfn_control%operator_type)
-             CASE(op_loc_berry)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| Spread defined by the Berry phase operator "
-             CASE(op_loc_boys)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| Spread defined by the Boys phase operator "
-             CASE DEFAULT
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| Spread defined by the Pipek phase operator "
-             END SELECT
-
-             SELECT CASE (localized_wfn_control%localization_method)
-             CASE (do_loc_jacobi)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| The optimal unitary transformation is generated by the Jacobi algorithm"
-             CASE (do_loc_crazy)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| The optimal unitary transformation is generated by the Crazy angle algorithm"
-                WRITE (UNIT=output_unit,FMT="(T2,A,F16.8)")&
-                     "LOCALIZE| maximum angle: ",localized_wfn_control%max_crazy_angle
-                WRITE (UNIT=output_unit,FMT="(T2,A,F16.8)")&
-                     "LOCALIZE| scaling: ",localized_wfn_control%crazy_scale
-                WRITE (UNIT=output_unit,FMT="(T2,A,L1)")&
-                     "LOCALIZE| use diag:",localized_wfn_control%crazy_use_diag
-             CASE (do_loc_direct)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| The optimal unitary transformation is generated by the direct algorithm"
-             CASE (do_loc_l1_norm_sd)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| The optimal unitary transformation is generated by the "//&
-                     " steepest descent algorithm applyed on an approximate l1 norm"
-             CASE (do_loc_none)
-                WRITE (UNIT=output_unit,FMT="(T2,A)")&
-                     "LOCALIZE| No unitary transformation is applied"
-             END SELECT
-
-          END IF ! process has output_unit
-
-          CALL cp_print_key_finished_output(output_unit,logger,loc_print_section,"PROGRAM_RUN_INFO")
+         END IF
 
        ELSE
-          localized_wfn_control%localization_method = do_loc_none
-          localized_wfn_control%localization_method = state_loc_none
-          localized_wfn_control%print_centers  = .FALSE.
-          localized_wfn_control%print_spreads  = .FALSE.
-          localized_wfn_control%print_cubes  = .FALSE.
+         ! List of States LUMO
+         CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",  n_rep_val=n_rep)
+         IF(n_rep>0) THEN
+           n_list = 0
+           DO ir = 1,n_rep
+              NULLIFY(list)
+              CALL section_vals_val_get(loc_section,"LIST_UNOCCUPIED",i_rep_val=ir,i_vals=list)
+              IF(ASSOCIATED(list)) THEN
+                 CALL reallocate(loc_list,1,n_list+SIZE(list))
+                 DO i = 1, SIZE(list)
+                    loc_list(n_list+i) = list(i)
+                 END DO ! i
+                 n_list = n_list +  SIZE(list)
+              END IF
+           END DO ! ir
+           IF(n_list/=0) THEN
+              localized_wfn_control%set_of_states=state_loc_list
+              ALLOCATE(localized_wfn_control%loc_states(n_list,2))
+              localized_wfn_control%loc_states = 0
+              localized_wfn_control%loc_states(:,1) = loc_list(:)
+              localized_wfn_control%loc_states(:,2) = loc_list(:)
+              localized_wfn_control%nloc_states(1) = n_list
+              DEALLOCATE(loc_list)
+           END IF
+         END IF
        END IF
+
+       IF(localized_wfn_control%set_of_states == 0) THEN
+         CALL section_vals_val_get(loc_section,"ENERGY_RANGE",r_vals=ene)
+         IF(ene(1)/=ene(2)) THEN
+            localized_wfn_control%set_of_states = energy_loc_range
+            localized_wfn_control%lu_ene_bound(1) = ene(1)
+            localized_wfn_control%lu_ene_bound(2) = ene(2)
+         END IF
+       END IF
+
+       ! All States or XAS specific states
+       IF(localized_wfn_control%set_of_states == 0)  THEN
+          IF(my_do_xas) THEN
+             localized_wfn_control%set_of_states = state_loc_range
+             localized_wfn_control%nloc_states(1) =  nloc_xas
+             localized_wfn_control%lu_bound_states(1,1) = 1
+             localized_wfn_control%lu_bound_states(2,1) = nloc_xas
+             localized_wfn_control%nloc_states(2) =  0
+             localized_wfn_control%lu_bound_states(1,2) = 0
+             localized_wfn_control%lu_bound_states(2,2) = 0
+          ELSE
+             localized_wfn_control%set_of_states = state_loc_all
+          END IF
+       END IF
+
+       localized_wfn_control%print_centers = &
+            BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
+            "WANNIER_CENTERS"),cp_p_file)
+       localized_wfn_control%print_spreads = &
+            BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
+            "WANNIER_SPREADS"),cp_p_file)
+       localized_wfn_control%print_cubes = &
+            BTEST(cp_print_key_should_output(logger%iter_info,loc_print_section,&
+            "WANNIER_CUBES"),cp_p_file)
+
+       output_unit = cp_print_key_unit_nr(logger,loc_print_section,"PROGRAM_RUN_INFO",&
+            extension=".Log")
+
+       IF (output_unit > 0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+               "LOCALIZE| The spread relative to a set of orbitals is computed"
+
+          SELECT CASE (localized_wfn_control%set_of_states)
+          CASE (state_loc_all)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| Orbitals to be localized: All the occupied"
+             WRITE (UNIT=output_unit,FMT="(T2,A,F16.8)")&
+                  "LOCALIZE| If fractional occupation, fully occupied MOs are those within occupation tolerance of ", &
+                    localized_wfn_control%eps_occ
+          CASE (state_loc_range)
+             WRITE (UNIT=output_unit,FMT="(T2,A,T65,I8,A,I8)")&
+                  "LOCALIZE| Orbitals to be localized: Those with index between ",&
+                  localized_wfn_control%lu_bound_states(1,1), " and ",&
+                  localized_wfn_control%lu_bound_states(2,1)
+          CASE (state_loc_list)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| Orbitals to be localized: Those with index in the following list"
+             nline = localized_wfn_control%nloc_states(1)/10+1
+             ind = 0
+             DO i = 1,nline
+               IF(ind+10<localized_wfn_control%nloc_states(1)) THEN
+                 WRITE (UNIT=output_unit,FMT="(T8,10I7)") localized_wfn_control%loc_states(ind+1:ind+10,1)
+                 ind=ind+10
+               ELSE
+                 WRITE (UNIT=output_unit,FMT="(T8,10I7)") &
+                     localized_wfn_control%loc_states(ind+1:localized_wfn_control%nloc_states(1),1)
+                 ind = localized_wfn_control%nloc_states(1)
+               END IF
+             END DO
+          CASE (energy_loc_range)
+             WRITE (UNIT=output_unit,FMT="(T2,A,T65,/,f16.6,A,f16.6,A)")&
+                "LOCALIZE| Orbitals to be localized: Those with energy in the range between ",&
+                localized_wfn_control%lu_ene_bound(1), " and ",  localized_wfn_control%lu_ene_bound(2)," a.u."
+          CASE DEFAULT
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| Orbitals to be localized: None "
+          END SELECT
+
+          SELECT CASE (localized_wfn_control%operator_type)
+          CASE(op_loc_berry)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| Spread defined by the Berry phase operator "
+          CASE(op_loc_boys)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| Spread defined by the Boys phase operator "
+          CASE DEFAULT
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| Spread defined by the Pipek phase operator "
+          END SELECT
+
+          SELECT CASE (localized_wfn_control%localization_method)
+          CASE (do_loc_jacobi)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| The optimal unitary transformation is generated by the Jacobi algorithm"
+          CASE (do_loc_crazy)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| The optimal unitary transformation is generated by the Crazy angle algorithm"
+             WRITE (UNIT=output_unit,FMT="(T2,A,F16.8)")&
+                  "LOCALIZE| maximum angle: ",localized_wfn_control%max_crazy_angle
+             WRITE (UNIT=output_unit,FMT="(T2,A,F16.8)")&
+                  "LOCALIZE| scaling: ",localized_wfn_control%crazy_scale
+             WRITE (UNIT=output_unit,FMT="(T2,A,L1)")&
+                  "LOCALIZE| use diag:",localized_wfn_control%crazy_use_diag
+          CASE (do_loc_direct)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| The optimal unitary transformation is generated by the direct algorithm"
+          CASE (do_loc_l1_norm_sd)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| The optimal unitary transformation is generated by the "//&
+                  " steepest descent algorithm applyed on an approximate l1 norm"
+          CASE (do_loc_none)
+             WRITE (UNIT=output_unit,FMT="(T2,A)")&
+                  "LOCALIZE| No unitary transformation is applied"
+          END SELECT
+
+       END IF ! process has output_unit
+
+       CALL cp_print_key_finished_output(output_unit,logger,loc_print_section,"PROGRAM_RUN_INFO")
+
+    ELSE
+       localized_wfn_control%localization_method = do_loc_none
+       localized_wfn_control%localization_method = state_loc_none
+       localized_wfn_control%print_centers  = .FALSE.
+       localized_wfn_control%print_spreads  = .FALSE.
+       localized_wfn_control%print_cubes  = .FALSE.
     END IF
 
   END SUBROUTINE read_loc_section
@@ -1731,9 +1708,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     DO ispin = 1,nspins
        ALLOCATE(localized_wfn_control%centers_set(ispin)%array(6,nmoloc(ispin)))
@@ -1762,11 +1736,9 @@ CONTAINS
 
     INTEGER                                  :: i, ispin, max_iloc, &
                                                 max_nmoloc, state
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,state)
 
-    failure = .FALSE.
 
     localized_wfn_control%nloc_states(1:2) = nmoloc(1:2)
     max_nmoloc = MAX(nmoloc(1),nmoloc(2))

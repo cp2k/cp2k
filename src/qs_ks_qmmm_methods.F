@@ -94,7 +94,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, igrid
-    LOGICAL                                  :: failure
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -103,7 +102,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(ks_qmmm_env))
     ALLOCATE(ks_qmmm_env)
 
@@ -166,14 +164,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_p_type), POINTER                 :: rho0_s_rs
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(rho))
     NULLIFY(dft_control,input,logger)
     logger => cp_get_default_logger()
@@ -223,11 +219,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     fac = v_qmmm%pw%pw_grid%dvol*scale
     v_hartree%pw%cr3d = v_hartree%pw%cr3d + fac*v_qmmm%pw%cr3d

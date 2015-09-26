@@ -115,10 +115,6 @@ SUBROUTINE p_env_retain(p_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(p_env))
   CPASSERT(p_env%ref_count>0)
   p_env%ref_count=p_env%ref_count+1
@@ -139,9 +135,6 @@ END SUBROUTINE p_env_retain
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ip
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(p_env)) THEN
        CPASSERT(p_env%ref_count>0)

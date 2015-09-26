@@ -101,7 +101,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_b
     INTEGER, DIMENSION(:), POINTER           :: atom_list, list_a, list_b
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: dista, distb, failure, found, &
+    LOGICAL                                  :: dista, distb, found, &
                                                 my_tddft, paw_atom, use_virial
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_matrix, p_matrix
     REAL(dp), DIMENSION(3)                   :: rac, rbc
@@ -140,8 +140,6 @@ CONTAINS
       POINTER                                :: rho_atom
     TYPE(rho_atom_type), POINTER             :: rho_at
     TYPE(virial_type), POINTER               :: virial
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

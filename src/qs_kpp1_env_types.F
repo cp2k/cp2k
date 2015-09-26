@@ -102,9 +102,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(kpp1_env)) THEN
        CPASSERT(kpp1_env%ref_count>0)
@@ -163,10 +160,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(kpp1_env))
     CPASSERT(kpp1_env%ref_count>0)
     kpp1_env%ref_count=kpp1_env%ref_count+1
@@ -197,12 +190,12 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: base_filename, filename
     INTEGER                                  :: file_unit, idir, ispin, &
                                                 my_unit_nr
-    LOGICAL                                  :: failure, my_local, &
+    LOGICAL                                  :: my_local, &
                                                 my_long_description, should_w
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
+    my_local=.FALSE.; my_long_description=.FALSE.
 
     IF (PRESENT(local)) my_local=local
     IF (PRESENT(long_description)) my_long_description=long_description

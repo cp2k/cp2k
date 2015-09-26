@@ -125,7 +125,7 @@ CONTAINS
                                                 ikind, ispin, lmaxscp, natom, &
                                                 natom_kind, nkind, nspins, &
                                                 output_unit
-    LOGICAL                                  :: do_es, do_scp, failure
+    LOGICAL                                  :: do_es, do_scp
     REAL(KIND=dp)                            :: zeff
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
@@ -155,7 +155,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(dft_control, logger, scf_section)
     NULLIFY(particle_set, ks_env, ks_matrixkp, rho, energy)
     CPASSERT(ASSOCIATED(qs_env))
@@ -1159,7 +1158,7 @@ CONTAINS
                                                 lmaxscp, nai, naj, ni, nj, &
                                                 nkind
     INTEGER, DIMENSION(:), POINTER           :: atomi_list, atomj_list
-    LOGICAL                                  :: defined, failure, use_virial
+    LOGICAL                                  :: defined, use_virial
     REAL(KIND=dp)                            :: alpha, beta, ehartree
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: aintegral, maint, paint
@@ -1188,7 +1187,6 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,force=force,virial=virial,para_env=para_env)
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
@@ -1335,7 +1333,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: mi, mj, ni, nj, nl
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dr2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vij
@@ -1344,7 +1341,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(0:9)            :: f
     REAL(KIND=dp), DIMENSION(1)              :: zi, zj
 
-    failure = .FALSE.
     dr2 = SUM(rij(:)**2)
     zi(1) = alpha
     zj(1) = beta

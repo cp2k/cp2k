@@ -121,9 +121,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_map_info_type', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     ALLOCATE(map_info)
     NULLIFY(map_info%index, map_info%map_index)
     NULLIFY(map_info%v_scale)
@@ -143,10 +140,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_map_info_type', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(map_info)) THEN
        IF (ASSOCIATED (map_info%p_kin)) THEN
@@ -182,10 +175,6 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'lnhc_dealloc', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(lnhc)) THEN
        IF ( ASSOCIATED(lnhc%dt_yosh)) THEN

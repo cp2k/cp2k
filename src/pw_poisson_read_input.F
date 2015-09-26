@@ -63,12 +63,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: periodic
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: ewald_section, mt_section, &
                                                 wavelet_section
 
     NULLIFY(ewald_section, mt_section, wavelet_section)
-    failure=.FALSE.
 
     CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=params%solver)
 
@@ -123,10 +121,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_green', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     SELECT CASE(periodic)
       CASE(use_perd_x)
          params%periodic = (/1,0,0/)
@@ -166,10 +160,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'decode_periodic_wavelet', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     params%wavelet_special_dimension=0
 

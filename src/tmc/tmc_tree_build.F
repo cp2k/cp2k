@@ -111,9 +111,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, itmp
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(next_el))
 
     ! start the timing
@@ -147,9 +145,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_elem))
 
     ! start the timing
@@ -179,9 +175,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(next_el))
 
     ! start the timing
@@ -240,9 +234,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tree_elem))
 
     ! start the timing
@@ -448,9 +440,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(gt_tree_ptr))
     CPASSERT(.NOT.ASSOCIATED(gt_tree_ptr%parent))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -519,12 +509,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, swap_conf
-    LOGICAL                                  :: failure, keep_on, n_acc
+    LOGICAL                                  :: keep_on, n_acc
     REAL(KIND=dp)                            :: prob, rnd, rnd2
     TYPE(global_tree_type), POINTER          :: tmp_elem
     TYPE(tree_type), POINTER                 :: tree_elem
 
-    failure = .FALSE.
     NULLIFY(tmp_elem, tree_elem, new_elem)
 
     CPASSERT(ASSOCIATED(tmc_env))
@@ -586,8 +575,7 @@ CONTAINS
               cp_to_string(new_elem%nr)//" st elem "//&
               cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%nr)//&
               " with stat "//&
-              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat),&
-              failure)
+              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
         END SELECT
         ! change the status of the reactivated subtree element
         ! move is only done by the master, 
@@ -601,8 +589,7 @@ CONTAINS
           CALL cp_assert(new_elem%conf(new_elem%mv_conf)%elem%stat.EQ.&
               status_canceled_nmc, cp_warning_level,cp_assertion_failed,&
               routineP,"reactivating tree element with wrong status"//&
-              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat),& 
-              failure)
+              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
           new_elem%conf(new_elem%mv_conf)%elem%stat = status_calculate_NMC_steps
           
           !IF(DEBUG.GE.1) WRITE(tmc_out_file_nr,*)"ATTENTION: reactivation of canceled subtree ", &
@@ -613,12 +600,10 @@ CONTAINS
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
               routineP,"reactivated st element has no NMC or MD move type, "//&
               "but seems to be canceled. Move type"//&
-              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%move_type), &
-              failure)
+              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%move_type))
         CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"Unknown move type while reactivating subtree element.",&
-              failure)
+              routineP,"Unknown move type while reactivating subtree element.")
         END SELECT
       ELSE
         !-- if end is found (NOT already existing element), create new elem at the end and if nessecarry new subtree element
@@ -633,14 +618,12 @@ CONTAINS
         IF(n_acc)THEN
           CALL cp_assert(.NOT.ASSOCIATED(tmp_elem%acc),cp_failure_level,&
               cp_assertion_failed, routineP,&
-              "creating new subtree element on an occupied acc branch",&
-              failure)
+              "creating new subtree element on an occupied acc branch")
           tmp_elem%acc => new_elem
         ELSE
           CALL cp_assert(.NOT.ASSOCIATED(tmp_elem%nacc),cp_failure_level,&
               cp_assertion_failed, routineP,&
-              "creating new subtree element on an occupied nacc branch", &
-              failure)
+              "creating new subtree element on an occupied nacc branch")
           tmp_elem%nacc => new_elem
         END IF
         new_elem%parent   => tmp_elem
@@ -789,8 +772,7 @@ CONTAINS
                      new_elem%stat.NE.status_rejected .AND. &
                      new_elem%stat.NE.status_rejected_result, &
                      cp_failure_level, cp_assertion_failed, routineP,&
-                     "selected existing RESULT gt node",&
-                     failure)
+                     "selected existing RESULT gt node")
       !-- set status of global tree element for decision in master routine
       SELECT CASE(new_elem%conf(new_elem%mv_conf)%elem%stat)
       CASE(status_rejected_result,status_rejected,status_accepted,&
@@ -845,8 +827,7 @@ CONTAINS
                        routineP, "unknown stat "//&
                        cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat)//&
                        "of subtree element "//&
-                       "for creating new gt element", &
-                       failure)
+                       "for creating new gt element")
       END SELECT
 
       ! set stat TMC_STATUS_WAIT_FOR_NEW_TASK if no new calculation neccessary 
@@ -873,12 +854,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: conf, handle, itmp
-    LOGICAL                                  :: failure, mv_rejected, &
-                                                new_subbox
+    LOGICAL                                  :: mv_rejected, new_subbox
     REAL(KIND=dp)                            :: rnd
     TYPE(tree_type), POINTER                 :: new_elem, parent_elem
 
-    failure = .FALSE.
     NULLIFY(new_elem, parent_elem)
 
     CPASSERT(ASSOCIATED(act_gt_el))
@@ -1035,9 +1014,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(gt_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -1099,9 +1075,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure, ready
+    LOGICAL                                  :: ready
 
-    failure = .FALSE.
     ready = .TRUE.
     CPASSERT(ASSOCIATED(ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -1115,8 +1090,7 @@ CONTAINS
                    routineP,"try to deallocate subtree element"//&
                    cp_to_string(ptr%sub_tree_nr)//cp_to_string(ptr%nr)//&
                    " still with global tree element references e.g."//&
-                   cp_to_string(ptr%gt_nodes_references%gt_elem%nr),&
-                   failure)
+                   cp_to_string(ptr%gt_nodes_references%gt_elem%nr))
       CPASSERT(ASSOCIATED(ptr%gt_nodes_references%gt_elem))
     ELSE
       SELECT CASE(ptr%stat)
@@ -1185,11 +1159,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: acc_removed, failure, &
-                                                nacc_removed
+    LOGICAL                                  :: acc_removed, nacc_removed
     TYPE(global_tree_type), POINTER          :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     NULLIFY(acc_ptr, nacc_ptr, tmp_ptr)
 
     CPASSERT(ASSOCIATED(begin_ptr))
@@ -1234,7 +1206,7 @@ CONTAINS
         CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"try to dealloc unused tree element with status of begin element"& 
-                  //cp_to_string(begin_ptr%stat),failure)
+                  //cp_to_string(begin_ptr%stat))
         END SELECT
       END IF
     END IF
@@ -1266,11 +1238,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: acc_removed, failure, &
-                                                nacc_removed, remove_this
+    LOGICAL                                  :: acc_removed, nacc_removed, &
+                                                remove_this
     TYPE(tree_type), POINTER                 :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     NULLIFY(acc_ptr, nacc_ptr, tmp_ptr)
     remove_this  = .FALSE.
     removed      = .FALSE.
@@ -1383,10 +1354,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(global_tree_type), POINTER          :: tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(end_of_clean_tree))
     CPASSERT(ASSOCIATED(actual_ptr))
 
@@ -1428,10 +1397,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     TYPE(tree_type), POINTER                 :: tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(end_of_clean_tree))
     CPASSERT(ASSOCIATED(actual_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
@@ -1480,11 +1447,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, tree
-    LOGICAL                                  :: change_trajec, failure, flag
+    LOGICAL                                  :: change_trajec, flag
     TYPE(global_tree_type), POINTER          :: tmp_gt_ptr
     TYPE(tree_type), POINTER                 :: last_acc_st_elem, tmp_ptr
 
-    failure = .FALSE.
     NULLIFY(last_acc_st_elem, tmp_ptr, tmp_gt_ptr)
 
     CPASSERT(ASSOCIATED(working_elem_list))
@@ -1573,11 +1539,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_whole_g_tree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: acc_removed, failure, &
-                                                nacc_removed
+    LOGICAL                                  :: acc_removed, nacc_removed
     TYPE(global_tree_type), POINTER          :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(begin_ptr))
     CPASSERT(ASSOCIATED(tmc_env))
 
@@ -1619,11 +1583,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dealloc_whole_subtree', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: acc_removed, failure, &
-                                                nacc_removed
+    LOGICAL                                  :: acc_removed, nacc_removed
     TYPE(tree_type), POINTER                 :: acc_ptr, nacc_ptr, tmp_ptr
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(begin_ptr))
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -1663,10 +1625,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     TYPE(global_tree_type), POINTER          :: global_tree
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%m_env))
 

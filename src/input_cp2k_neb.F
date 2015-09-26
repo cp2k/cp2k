@@ -63,12 +63,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_band_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="band",&
          description="The section that controls a BAND run",&
@@ -322,12 +320,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_band_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(section))
     NULLIFY(keyword, print_key, subsection, subsubsection)
 

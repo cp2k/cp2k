@@ -514,14 +514,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'corecore_gks', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, l_denuc, l_enuc
+    LOGICAL                                  :: l_denuc, l_enuc
     REAL(dp)                                 :: alpi, alpj, dscale, rij, &
                                                 scale, zz
     REAL(kind=dp), DIMENSION(3, 45, 45)      :: dCoul, dCoulE
     REAL(kind=dp), DIMENSION(45, 45)         :: Coul, CoulE
     TYPE(se_int_control_type)                :: se_int_control_off
-
-    failure = .FALSE.
 
     rij=DOT_PRODUCT(rijv,rijv)
 

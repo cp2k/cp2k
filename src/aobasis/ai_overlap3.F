@@ -1037,7 +1037,6 @@ CONTAINS
     INTEGER :: handle, i, ipgf, ix, j, jpgf, k, kpgf, l, la, la_max, la_min, &
       lai, lam, lamm, lb, lb_max, lb_min, lbi, lbm, lbmm, lc, lc_max, lc_min, &
       lci, lcm, lcmm, na, nb, nc, nda, ndc
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aai, aax, aay, f0, f1, f2, &
                                                 rcp2, zetg, zetp
     REAL(KIND=dp), DIMENSION(3)              :: rag, rbg, rcg, rcp
@@ -1050,7 +1049,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(s, sda, sdc)
 
     lai = 0
@@ -1344,7 +1342,6 @@ CONTAINS
       cocy, cocz, cx, cy, cz, handle, i, ipgf, j, jpgf, k, kpgf, l, la, &
       la_max, la_min, la_start, lai, lb, lb_max, lb_min, lbi, lc, lc_max, &
       lc_min, lci, na, nb, nc, nda, ndc
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: f0, f1, f2, f3, fcx, fcy, &
                                                 fcz, fx, fy, fz, rcp2, zetg, &
                                                 zetp
@@ -1358,7 +1355,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(s, sda, sdc)
 
     lai = 0

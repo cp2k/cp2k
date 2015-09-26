@@ -243,9 +243,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: k
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     ncolv%ndist          = 0
     ncolv%nangle         = 0
     ncolv%ndfunct        = 0
@@ -342,9 +340,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule_kind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(molecule_kind_set)) THEN
       CALL deallocate_molecule_kind_set(molecule_kind_set)
     END IF
@@ -417,9 +413,7 @@ CONTAINS
 
     INTEGER                                  :: i, imolecule_kind, j, &
                                                 nmolecule_kind
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     IF (ASSOCIATED(molecule_kind_set)) THEN
 
       nmolecule_kind = SIZE(molecule_kind_set)
@@ -1025,10 +1019,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: iatom, imolecule, natom, &
                                                 nmolecule
-    LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    failure = .FALSE.
     IF (output_unit>0) THEN
       IF (ASSOCIATED(molecule_kind)) THEN
         natom = SIZE(molecule_kind%atom_list)
@@ -1107,13 +1099,12 @@ CONTAINS
 
     INTEGER :: handle, imolecule_kind, natom, nbend, nbond, nimpr, nmolecule, &
       nmolecule_kind, nopbend, ntors, ntotal, nub, output_unit
-    LOGICAL                                  :: all_single_atoms, failure
+    LOGICAL                                  :: all_single_atoms
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     output_unit = cp_print_key_unit_nr(logger,subsys_section,&

@@ -47,11 +47,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC",&
@@ -377,11 +374,9 @@ CONTAINS
       routineN = 'create_TMC_NMC_move_type_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
     NULLIFY(subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -443,10 +438,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_move_type_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MOVE_TYPE",&
@@ -521,10 +513,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC_ANALYSIS",&
          description="Analysing the Markov Chain elments with the specified methods",&
@@ -545,11 +533,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_files', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
     NULLIFY(keyword)
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="TMC_ANALYSIS_FILES",&
@@ -647,13 +633,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_TMC_ana_kinds', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
     NULLIFY(subsection, keyword)
 
-    failure=.FALSE.
 
     CALL keyword_create(keyword=keyword,&
          name="RESTART",&

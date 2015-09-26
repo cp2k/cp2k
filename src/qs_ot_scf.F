@@ -73,11 +73,9 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, nspin, &
                                                 output_unit
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -146,7 +144,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin, k, n, nspin, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ener_nondiag, trace
     TYPE(cp_1d_r_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: expectation_values, &
@@ -159,7 +156,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
 

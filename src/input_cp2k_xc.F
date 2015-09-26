@@ -76,11 +76,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_fun_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="xc_functional",&
@@ -724,10 +721,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_libxc_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CPASSERT(name == "LIBXC" .OR. name == "KE_LIBXC")
@@ -772,11 +766,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_potential_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="xc_potential",&
@@ -834,11 +825,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_vdw_potential_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="vdw_potential",&
@@ -1052,11 +1040,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"xc",&
@@ -1177,10 +1162,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_adiabatic_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ADIABATIC_RESCALING",&

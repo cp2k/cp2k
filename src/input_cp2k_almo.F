@@ -57,11 +57,8 @@ SUBROUTINE create_almo_scf_section(section)
     CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_scf_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ALMO_SCF",&
@@ -552,10 +549,7 @@ SUBROUTINE create_almo_eda_section(section)
     CHARACTER(len=*), PARAMETER :: routineN = 'create_almo_eda_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
    
@@ -605,10 +599,7 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: optimizer_type
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
    
@@ -729,13 +720,7 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
 !!    CHARACTER(len=*), PARAMETER :: routineN = 'create_developer_section', &
 !!      routineP = moduleN//':'//routineN
 !!
-!!    LOGICAL                                  :: failure
 !!    TYPE(keyword_type), POINTER              :: keyword
-!!
-!!    failure=.FALSE.
-!!
-!!    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,failure)
-!!    IF (.NOT. failure) THEN
 !!      
 !!       CALL section_create(section,"DEVELOPER",&
 !!            description="Developer section for all ALMO-based methods. "//&
@@ -745,9 +730,6 @@ SUBROUTINE create_optimizer_section(section,optimizer_id)
 !!             
 !!
 !!       NULLIFY (keyword)
-!!   
-!!
-!!    END IF
 !!
 !!  END SUBROUTINE create_developer_section
 

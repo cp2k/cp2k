@@ -101,9 +101,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(shell))
     ALLOCATE(shell)
     shell%ref_count = 1
@@ -125,9 +122,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(shell_list))
     ALLOCATE(shell_list(ndim))
@@ -151,10 +145,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     CPASSERT(ASSOCIATED(shell))
     CPASSERT(shell%ref_count>0)
     shell%ref_count=shell%ref_count+1
@@ -172,9 +162,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'shell_release', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF(ASSOCIATED(shell)) THEN
       CPASSERT(shell%ref_count>0)
       shell%ref_count=shell%ref_count-1

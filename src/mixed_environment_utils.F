@@ -80,11 +80,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: description
     INTEGER                                  :: iparticle, jparticle, natom, &
                                                 nres
-    LOGICAL                                  :: dip_exists, failure
+    LOGICAL                                  :: dip_exists
     REAL(KIND=dp), DIMENSION(3)              :: dip_mix, dip_tmp
 
-    failure = .FALSE.
-    ! Get Mapping index array
+! Get Mapping index array
+
     natom = SIZE(global_forces(iforce_eval)%forces,2)
     CALL get_subsys_map_index(mapping_section, natom, iforce_eval, nforce_eval, map_index)
     DO iparticle = 1, natom
@@ -154,11 +154,10 @@ CONTAINS
                                                 n_rep, n_rep_loc, n_rep_map, &
                                                 n_rep_sys, tmp
     INTEGER, DIMENSION(:), POINTER           :: index_glo, index_loc, list
-    LOGICAL                                  :: check, explicit, failure
+    LOGICAL                                  :: check, explicit
     TYPE(section_vals_type), POINTER         :: fragments_loc, fragments_sys, &
                                                 map_force_ev, map_full_sys
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(map_index))
     ALLOCATE(map_index(natom))
     CALL section_vals_get(mapping_section, explicit=explicit)

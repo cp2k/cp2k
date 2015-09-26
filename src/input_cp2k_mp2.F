@@ -61,11 +61,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"WF_CORRELATION",&
@@ -221,10 +218,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_direct', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"DIRECT_CANONICAL",&
@@ -256,10 +250,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_mp2', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_MP2",&
@@ -313,10 +304,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_opt_ri_basis', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"OPT_RI_BASIS",&
@@ -398,10 +386,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_laplace', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_LAPLACE",&
@@ -443,12 +428,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_rpa', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
 
-    failure=.FALSE.
-    
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_RPA",&
          description="Parameters influencing the RI RPA method",&
@@ -535,10 +517,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ri_g0w0', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"RI_G0W0",&
@@ -715,10 +694,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_wfc_gpw', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"WFC_GPW",&
@@ -790,10 +766,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cphf', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"CPHF",&
@@ -833,10 +806,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mp2_potential', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"INTERACTION_POTENTIAL",&

@@ -91,10 +91,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ns
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zr
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
     IF ( pw%in_use == REALDATA1D ) THEN
@@ -140,11 +138,9 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
                                                 ns, output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zc
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
@@ -317,10 +313,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ns
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -367,10 +361,8 @@ CONTAINS
 
     COMPLEX(KIND=dp)                         :: im
     INTEGER                                  :: cnt, handle, i, m
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
     CPASSERT(ALL(n>=0))
@@ -468,10 +460,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cnt, handle, ig
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop, gg, o3
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -530,12 +520,10 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: i, j
 
     INTEGER                                  :: cnt, handle, ig
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop, gg, o3
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_dr2_gg', &
       routineP = moduleN//':'//routineN
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -597,10 +585,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cnt, handle, ig
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, f, flop
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -651,13 +637,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
     !sample peak memory
     CALL m_memory()
 
-    failure = .FALSE.
     CPASSERT(pw1%ref_count>0)
     CPASSERT(pw2%ref_count>0)
 
@@ -723,11 +707,9 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: flop, my_alpha
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
@@ -939,10 +921,8 @@ CONTAINS
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -1012,10 +992,8 @@ CONTAINS
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -1096,10 +1074,8 @@ CONTAINS
     INTEGER                                  :: gpt, handle, l, m, n, ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -1207,10 +1183,8 @@ CONTAINS
                                                 ngpts
     INTEGER, DIMENSION(:), POINTER           :: mapl, mapm, mapn
     INTEGER, DIMENSION(:, :), POINTER        :: ghat, yzq
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cpy
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(pw%ref_count>0)
 
@@ -1343,11 +1317,10 @@ CONTAINS
                                                 output_unit, stat
     INTEGER, DIMENSION(3)                    :: nloc
     INTEGER, DIMENSION(:), POINTER           :: n
-    LOGICAL                                  :: failure, test, use_pw_cuda
+    LOGICAL                                  :: test, use_pw_cuda
     REAL(KIND=dp)                            :: norm
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     CALL timeset(routineN,handle2)
     logger => cp_get_default_logger()
     output_unit = cp_logger_get_default_io_unit(logger)
@@ -1655,9 +1628,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fftselect', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF ( space1 == REALSPACE ) THEN
        mode ( 1 : 3 ) = "FW_"
     ELSE IF ( space1 == RECIPROCALSPACE ) THEN
@@ -1712,9 +1682,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iostat
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     WRITE (unit=unit_nr, fmt="('<pw>:{ id_nr=',i8,',')",iostat=iostat)&
          pw%id_nr
@@ -1789,9 +1756,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compatible', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     compat = .FALSE.
     IF ( grida%id_nr == gridb%id_nr ) THEN
        compat = .TRUE.
@@ -1821,9 +1785,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_ab', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Grids incompatible")
     END IF
@@ -1893,9 +1854,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_integral_a2b', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
        CALL stop_program(routineN,moduleN,__LINE__,"Grids incompatible")
     END IF
@@ -1944,10 +1902,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: cnt, handle, ig
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, flop
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPASSERT(sf%ref_count>0)
     flop = 0.0_dp
@@ -1992,9 +1948,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iop
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     iop = 0
     IF ( PRESENT(oprt) ) THEN
        SELECT CASE (oprt)

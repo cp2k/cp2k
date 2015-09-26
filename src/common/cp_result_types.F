@@ -99,10 +99,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     ALLOCATE(results)
     NULLIFY(results%result_value, results%result_label)
     results%ref_count=1
@@ -126,10 +124,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     IF(ASSOCIATED(results))THEN
        CPASSERT(results%ref_count>0)
        results%ref_count=results%ref_count-1
@@ -163,10 +159,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     IF(ASSOCIATED(results))THEN
        ! Description
        IF(ASSOCIATED(results%result_label))THEN
@@ -196,9 +190,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(results))
     CPASSERT(results%ref_count>0)
     results%ref_count=results%ref_count+1
@@ -216,10 +207,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     ALLOCATE(value)
     value%type_in_use = -1
     NULLIFY(value%real_type)
@@ -243,10 +232,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(value))
     value%type_in_use = type_in_use
     SELECT CASE(value%type_in_use)
@@ -275,10 +262,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     IF (ASSOCIATED(value)) THEN
        SELECT CASE(value%type_in_use)
        CASE(result_type_real)
@@ -321,10 +306,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ndim
-    LOGICAL                                  :: check, failure
+    LOGICAL                                  :: check
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(results_in))
     CPASSERT(ASSOCIATED(results_out))
     CALL cp_result_clean(results_out)
@@ -356,10 +340,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, isize
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(value_in))
     CPASSERT(ASSOCIATED(value_out))
     value_out%type_in_use = value_in%type_in_use
@@ -399,12 +381,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, lb_size, ub_size
-    LOGICAL                                  :: failure
     TYPE(cp_result_value_p_type), &
       DIMENSION(:), POINTER                  :: tmp_value
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     ub_size  = 0
     lb_size  = 0
     IF (ASSOCIATED(result_value)) THEN

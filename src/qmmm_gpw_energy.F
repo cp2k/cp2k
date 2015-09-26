@@ -103,7 +103,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, iw2
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -117,7 +116,6 @@ CONTAINS
                                                 interp_section, print_section
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
     NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,input_section, dft_control)
     CALL get_qs_env(qs_env=qs_env,&
@@ -277,10 +275,8 @@ CONTAINS
     INTEGER                                  :: handle, handle2, igrid, &
                                                 ilevel, kind_interp, lb(3), &
                                                 ngrids, ub(3)
-    LOGICAL                                  :: failure
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(mm_particles))
     CPASSERT(ASSOCIATED(qmmm_env%mm_atom_chrg))
     CPASSERT(ASSOCIATED(qmmm_env%mm_atom_index))
@@ -556,7 +552,6 @@ CONTAINS
       ik3, ik4, Imm, IndMM, IRadTyp, ivec(3), j, k, LIndMM, my_j, my_k, &
       myind, npts(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: a1, a2, a3, abc_X(4,4), abc_X_Y(4), b1, b2, b3, c1, c2, &
       c3, d1, d2, d3, dr1, dr1c, dr2, dr2c, dr3, dr3c, e1, e2, e3, f1, f2, &
       f3, g1, g2, g3, h1, h2, h3, p1, p2, p3, q1, q2, q3, qt, r1, r2, r3, &
@@ -568,7 +563,6 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(grid, pw)
     dr1c = cgrid%pw_grid%dr(1)
@@ -768,7 +762,6 @@ CONTAINS
                                                 IRadTyp, ix, j, k, LIndMM, &
                                                 my_j, my_k, myind, n1, n2, n3
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dr1, dr2, dr3, dx, qt, r, r2, &
                                                 rt1, rt2, rt3, rv1, rv2, rv3, &
                                                 rx, rx2, rx3, &
@@ -781,7 +774,6 @@ CONTAINS
     TYPE(qmmm_pot_type), POINTER             :: pot
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     n1   = grid%pw_grid%npts(1)
     n2   = grid%pw_grid%npts(2)
     n3   = grid%pw_grid%npts(3)

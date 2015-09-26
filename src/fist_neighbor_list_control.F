@@ -95,8 +95,8 @@ CONTAINS
     INTEGER :: counter, handle, ikind, iparticle, iparticle_kind, &
       iparticle_local, ishell, jkind, last_update, nparticle, nparticle_kind, &
       nparticle_local, nshell, num_update, output_unit
-    LOGICAL :: build_from_scratch, failure, geo_check, shell_adiabatic, &
-      shell_present, update_neighbor_lists
+    LOGICAL :: build_from_scratch, geo_check, shell_adiabatic, shell_present, &
+      update_neighbor_lists
     LOGICAL, DIMENSION(:, :), POINTER        :: full_nl
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, &
                                                 ei_scale14, lup, vdw_scale14, &
@@ -112,7 +112,6 @@ CONTAINS
                                                 rcore_last_update_pbc, &
                                                 rshell_last_update_pbc
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger)
     logger => cp_get_default_logger()

@@ -143,7 +143,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_forces, do_symmetric, &
-                                                dokp, failure, found, trans, &
+                                                dokp, found, trans, &
                                                 use_cell_mapping, use_virial
     REAL(KIND=dp)                            :: dab, f, f0, ff, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -174,7 +174,6 @@ CONTAINS
     TYPE(virial_type), POINTER               :: virial
 
      NULLIFY(dft_control)
-     failure = .FALSE.
 
      CALL timeset(routineN,handle)
 
@@ -486,7 +485,7 @@ CONTAINS
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: do_symmetric, failure, found, &
+    LOGICAL                                  :: do_symmetric, found, &
                                                 new_atom_b, trans, use_virial
     REAL(KIND=dp)                            :: dab, f0, ff, rab2
     REAL(KIND=dp), ALLOCATABLE, &
@@ -506,8 +505,6 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(virial_type), POINTER               :: virial
-
-     failure = .FALSE.
 
      CALL timeset(routineN,handle)
 
@@ -681,14 +678,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: mname, name
     INTEGER                                  :: i, maxs, natom
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
-    LOGICAL                                  :: failure
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-
-     failure = .FALSE.
 
      CALL get_ks_env(ks_env=ks_env,particle_set=particle_set,&
                      qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist)
@@ -784,14 +778,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: mname, name
     INTEGER                                  :: i1, i2, maxs1, maxs2, natom
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
-    LOGICAL                                  :: failure
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-
-    failure = .FALSE.
 
     CALL get_ks_env(ks_env=ks_env,particle_set=particle_set,&
                     qs_kind_set=qs_kind_set, dbcsr_dist=dbcsr_dist)

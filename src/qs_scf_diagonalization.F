@@ -343,8 +343,8 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: kp_range
     INTEGER, DIMENSION(:, :), POINTER        :: kp_dist
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: do_level_shift, failure, &
-                                                my_kpgrp, use_real_wfn
+    LOGICAL                                  :: do_level_shift, my_kpgrp, &
+                                                use_real_wfn
     REAL(kind=dp), DIMENSION(:), POINTER     :: eigenvalues
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: xkp
     TYPE(cp_cfm_type), POINTER               :: cksmat, cmos, csmat, cwork
@@ -361,7 +361,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
 
-    failure = .FALSE.
     diis_step = .FALSE.
     nspin = SIZE(matrix_ks,1)
     NULLIFY(fmdummy)
@@ -566,7 +565,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iloop, ispin, nao, &
                                                 nmo, nspin, output_unit
-    LOGICAL                                  :: converged, failure
+    LOGICAL                                  :: converged
     REAL(dp)                                 :: ene_diff, ene_old, &
                                                 iter_delta, max_val, &
                                                 sum_band, sum_val, t1, t2
@@ -585,7 +584,6 @@ CONTAINS
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(c0, chc, energy, evec, matrix_ks, mo_coeff, mo_eigenvalues, &
          mo_occupations, work, dft_control, rho_ao, rho_ao_kp)
@@ -773,15 +771,12 @@ SUBROUTINE diag_subspace_allocate(subspace_env,qs_env,mos)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, nmo, nspin
-    LOGICAL                                  :: failure
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1353,7 +1348,7 @@ END SUBROUTINE diag_subspace_allocate
 
     INTEGER                                  :: handle, homo, ispin, iter, &
                                                 nao, nmo, output_unit
-    LOGICAL                                  :: converged, failure, &
+    LOGICAL                                  :: converged, &
                                                 my_check_moconv_only
     REAL(dp)                                 :: eps_iter, t1, t2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
@@ -1361,7 +1356,6 @@ END SUBROUTINE diag_subspace_allocate
                                                 mo_coeff, ortho, work
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
@@ -1559,11 +1553,9 @@ END SUBROUTINE diag_subspace_allocate
 
     INTEGER                                  :: handle, ispin, nspins, &
                                                 output_unit
-    LOGICAL                                  :: do_prec, failure, &
-                                                my_check_moconv_only
+    LOGICAL                                  :: do_prec, my_check_moconv_only
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 

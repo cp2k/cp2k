@@ -79,7 +79,6 @@ CONTAINS
     output_unit= cp_logger_get_default_io_unit(logger)
     ! Check for  N < 3
     IF (n  < 3 .OR. n > 5000)   THEN
-       failure = .TRUE.
        IF (output_unit>0) WRITE(output_unit,'(A)')&
             "Shapiro Wilk test: number of points less than 3 or greated than 5000."
        IF (output_unit>0) WRITE(output_unit,'(A)')&
@@ -465,11 +464,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, n
-    LOGICAL                                  :: failure
     REAL(KINd=dp)                            :: prob, pw, r, tau, u, w, z
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ydata
 
-    failure = .FALSE.
     IF (debug_this_module) THEN
        n = 50 ! original sample size
        NULLIFY(xdata)

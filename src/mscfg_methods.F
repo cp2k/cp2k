@@ -84,12 +84,9 @@ CONTAINS
                                                 first_atom_of_frag, &
                                                 last_atom_of_frag, &
                                                 multip_of_frag
-    LOGICAL                                  :: failure
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(qs_environment_type), POINTER       :: qs_env
-
-    failure = .FALSE.
 
     CALL force_env_get(force_env,qs_env=qs_env)
     CPASSERT(ASSOCIATED(qs_env))
@@ -153,8 +150,7 @@ CONTAINS
       handle, i, ifrag, imo, isize, j, k, last_atom, my_targ, &
       nmosets_of_frag, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list
-    LOGICAL                                  :: failure, &
-                                                global_almo_scf_keyword
+    LOGICAL                                  :: global_almo_scf_keyword
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys, subsys_loc
@@ -172,7 +168,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, &
          force_env_section, qs_env_loc, mscfg_env, qs_env, qs_energy)
@@ -342,10 +337,8 @@ CONTAINS
 
     CHARACTER(len=11)                        :: charI
     INTEGER                                  :: i, iw
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN

@@ -733,7 +733,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipivot
     INTEGER, DIMENSION(:), POINTER           :: col_indices, col_procs
     LOGICAL                                  :: convergence, double_col, &
-                                                double_row, failure
+                                                double_row
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: last_norm, norm1, results
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: D, mat1, mat2, mat3, N
     REAL(dp), ALLOCATABLE, &
@@ -745,7 +745,6 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: mo_struct, newstruct
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     para_env=>mos_new(1)%matrix%matrix_struct%para_env
 

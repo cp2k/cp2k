@@ -52,9 +52,6 @@ CONTAINS
     INTEGER, PARAMETER                       :: amb_imax = 47, &
                                                 chm_imax = 108, grm_imax = 22
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     SELECT CASE(ff_type)
     CASE("AMBER")
        ALLOCATE(amber_map)
@@ -140,9 +137,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_ff_map', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     SELECT CASE(ff_type)
     CASE("AMBER")
        ! deallocate substructures

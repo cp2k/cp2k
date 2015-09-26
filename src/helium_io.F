@@ -81,12 +81,11 @@ MODULE helium_io
                                                 unit_str
     INTEGER                                  :: i, itmp, j, unit_nr
     INTEGER(kind=int_8)                      :: i8tmp
-    LOGICAL                                  :: failure, first
+    LOGICAL                                  :: first
     REAL(kind=dp)                            :: rtmp, v1, v2, v3
     REAL(kind=dp), DIMENSION(3)              :: my_abc
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -281,7 +280,7 @@ MODULE helium_io
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iteration, m, unit_nr
-    LOGICAL                                  :: failure, file_is_new
+    LOGICAL                                  :: file_is_new
     REAL(kind=dp)                            :: naccptd
     REAL(kind=dp), DIMENSION(:), POINTER     :: my_energy
     TYPE(cp_logger_type), POINTER            :: logger
@@ -289,7 +288,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -360,13 +358,11 @@ MODULE helium_io
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iteration, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -406,13 +402,11 @@ MODULE helium_io
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -465,13 +459,12 @@ MODULE helium_io
 
     INTEGER                                  :: handle, i, iteration, j, &
                                                 unit_nr
-    LOGICAL                                  :: failure, file_is_new
+    LOGICAL                                  :: file_is_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -531,13 +524,12 @@ MODULE helium_io
 
     INTEGER                                  :: handle, i, iteration, j, &
                                                 offset, unit_nr
-    LOGICAL                                  :: failure, file_is_new
+    LOGICAL                                  :: file_is_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -606,9 +598,8 @@ MODULE helium_io
                                                 icycle, irank, msglen, &
                                                 offset, tmp1, tmp2, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: my_perm
-    LOGICAL                                  :: are_connected, failure, &
-                                                is_winding, ltmp, &
-                                                should_output
+    LOGICAL                                  :: are_connected, is_winding, &
+                                                ltmp, should_output
     REAL(kind=dp)                            :: xtmp, ytmp, ztmp
     REAL(kind=dp), DIMENSION(3)              :: r0, r1, r2
     TYPE(cp_logger_type), POINTER            :: logger
@@ -616,7 +607,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger,print_key)
@@ -829,14 +819,13 @@ MODULE helium_io
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, unit_nr
-    LOGICAL                                  :: failure, is_new, should_output
+    LOGICAL                                  :: is_new, should_output
     REAL(kind=dp)                            :: rtmp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -890,7 +879,7 @@ MODULE helium_io
     CHARACTER(len=default_string_length)     :: stmp
     INTEGER                                  :: handle, i, itmp, iweight, ix, &
                                                 iy, iz, N, nsteps, unit_nr
-    LOGICAL                                  :: failure, should_output
+    LOGICAL                                  :: should_output
     REAL(kind=dp)                            :: inv_norm, rtmp, rx, ry, rz
     REAL(kind=dp), DIMENSION(3)              :: r0
     REAL(kind=dp), DIMENSION(:, :, :), &
@@ -900,7 +889,6 @@ MODULE helium_io
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -1003,13 +991,12 @@ MODULE helium_io
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, unit_nr
-    LOGICAL                                  :: failure, is_new, should_output
+    LOGICAL                                  :: is_new, should_output
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
     CPASSERT(ASSOCIATED(helium%input))
 
@@ -1059,13 +1046,11 @@ MODULE helium_io
     CHARACTER(len=default_string_length)     :: msgstr
     INTEGER                                  :: handle, ia, ib, ic, idim, &
                                                 unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)
@@ -1137,13 +1122,11 @@ MODULE helium_io
     CHARACTER(len=default_string_length)     :: my_middle_name, stmp
     INTEGER                                  :: handle, ia, ib, ic, idim, &
                                                 irank, offset, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(helium))
 
     NULLIFY(logger)

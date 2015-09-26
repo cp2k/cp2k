@@ -109,10 +109,9 @@ CONTAINS
                                                 nconstraint_int, &
                                                 nrestraints_int, rot_dof, &
                                                 roto_trasl_dof
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
-    ! Retrieve information on number of atoms, constraints (external and internal)
+! Retrieve information on number of atoms, constraints (external and internal)
+
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
 
@@ -171,11 +170,10 @@ CONTAINS
                                                 nconstraint_int, &
                                                 nrestraints_int, rot_dof, &
                                                 roto_trasl_dof
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
-    ! Retrieve information on number of atoms, constraints (external and internal)
+! Retrieve information on number of atoms, constraints (external and internal)
+
     CALL get_molecule_kind_set(molecule_kind_set=molecule_kind_set,&
          natom=natom, nconstraint=nconstraint_int, nrestraints=nrestraints_int)
 
@@ -260,12 +258,11 @@ CONTAINS
       nmol_per_kind, nmolecule, nshell, number, stat, sum_of_thermostats
     INTEGER, POINTER                         :: molecule_list(:), &
                                                 thermolist(:)
-    LOGICAL                                  :: check, do_shell, failure, &
-                                                nointer, on_therm
+    LOGICAL                                  :: check, do_shell, nointer, &
+                                                on_therm
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
 
-    failure = .FALSE.
     NULLIFY(molecule_kind,molecule,thermostat_info%map_loc_thermo_gen,thermolist)
     nkind = SIZE ( molecule_kind_set )
     do_shell = .FALSE.
@@ -451,19 +448,17 @@ CONTAINS
     INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, itherm, jg, &
       last_atom, mregions, n_rep, nregions, output_unit
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     NULLIFY(tmplist, tmpstringlist, thermolist, molecule_kind, molecule, molecule_set)
     NULLIFY(logger)
     logger      => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)
-!    CPPostcondition(.NOT.(ASSOCIATED(map_loc_thermo_gen)),cp_failure_level,routineP,failure)
+    ! CPASSERT(.NOT.(ASSOCIATED(map_loc_thermo_gen)))
     CALL section_vals_get(region_sections, n_repetition=nregions)
     ALLOCATE(thermolist(particles%n_els))
     thermolist = HUGE(0)
@@ -587,11 +582,9 @@ CONTAINS
                                                 nkind, nmol_local, nmolecule, &
                                                 nshell, number, &
                                                 sum_of_thermostats
-    LOGICAL                                  :: check, do_shell, failure, &
-                                                nointer
+    LOGICAL                                  :: check, do_shell, nointer
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    failure = .FALSE.
     NULLIFY(molecule_kind)
     nkind = SIZE ( molecule_kind_set )
     do_shell = .FALSE.
@@ -646,8 +639,7 @@ CONTAINS
              CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
              CALL cp_assert((sum_of_thermostats>=1),cp_failure_level,cp_assertion_failed,routineP,&
                   "Provide at least 1 region (&DEFINE_REGION) when using the thermostat type DEFINED"//&
- CPSourceFileRef,&
-                  failure=failure)
+                  CPSourceFileRef)
           END SELECT
 
           ! Here we decide which parallel algorithm to use.
@@ -738,14 +730,12 @@ CONTAINS
     INTEGER :: first_atom, i, ig, ikind, ilist, imol, ipart, jg, last_atom, &
       mregions, n_rep, natom_local, nmol_per_kind, nregions, output_unit
     INTEGER, DIMENSION(:), POINTER           :: thermolist, tmp, tmplist
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     NULLIFY(tmplist, tmpstringlist, thermolist, molecule_kind, molecule, molecule_set)
     NULLIFY(logger)
     logger      => cp_get_default_logger()
@@ -889,10 +879,9 @@ CONTAINS
                                                 ipart, last_atom, nrep, &
                                                 thermo1
     INTEGER, DIMENSION(:), POINTER           :: atom_index1
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     label1               = "MM_SUBSYS"
     label2               = "QM_SUBSYS"
     IF (subsys_qm) THEN
@@ -968,9 +957,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, ncoef
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
     ncoef = 0
@@ -1040,12 +1027,11 @@ CONTAINS
     INTEGER                                  :: first_atom, ii, ikind, imol, &
                                                 imol_local, ipart, last_atom, &
                                                 nmol_local
-    LOGICAL                                  :: failure, present_vel
+    LOGICAL                                  :: present_vel
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
     present_vel = PRESENT(vel)
@@ -1111,12 +1097,11 @@ CONTAINS
     INTEGER                                  :: first_atom, ii, ikind, imol, &
                                                 imol_local, ipart, last_atom, &
                                                 nmol_local
-    LOGICAL                                  :: failure, present_vel
+    LOGICAL                                  :: present_vel
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_type), POINTER             :: molecule
 
-    failure = .FALSE.
     map_info%v_scale = 1.0_dp
     map_info%s_kin   = 0.0_dp
     present_vel = PRESENT(vel)
@@ -1185,7 +1170,7 @@ CONTAINS
                                                 imol_local, ipart, jj, &
                                                 last_atom, nmol_local, &
                                                 shell_index
-    LOGICAL                                  :: failure, present_vel
+    LOGICAL                                  :: present_vel
     REAL(KIND=dp)                            :: fac_massc, fac_masss, mass, &
                                                 vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -1194,7 +1179,6 @@ CONTAINS
 
     ii = 0
     jj = 0
-    failure = .FALSE.
     present_vel = PRESENT(vel)
     ! Just few checks for consistency
     IF (present_vel) THEN
@@ -1292,12 +1276,11 @@ CONTAINS
 
     INTEGER :: ii, iparticle, iparticle_kind, iparticle_local, &
       nparticle_kind, nparticle_local, shell_index
-    LOGICAL                                  :: failure, is_shell, present_vel
+    LOGICAL                                  :: is_shell, present_vel
     REAL(dp)                                 :: mass, mu_mass, v_sc(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure = .FALSE.
     present_vel = PRESENT(shell_vel)
     ! Preliminary checks for consistency usage
     IF (present_vel) THEN
@@ -1374,13 +1357,12 @@ CONTAINS
 
     INTEGER :: ii, iparticle, iparticle_kind, iparticle_local, &
       nparticle_kind, nparticle_local, shell_index
-    LOGICAL                                  :: failure, is_shell, present_vel
+    LOGICAL                                  :: is_shell, present_vel
     REAL(dp)                                 :: mass, massc, masss, umass, &
                                                 v(3), vc(3), vs(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure = .FALSE.
     present_vel = PRESENT(vel)
     ! Preliminary checks for consistency usage
     IF (present_vel) THEN
@@ -1456,10 +1438,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imap, l, n, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, vpot
 
-    failure = .FALSE.
     number = nhc%glob_num_nhc
     ALLOCATE(akin(number))
     ALLOCATE(vpot(number))
@@ -1534,10 +1514,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imap, n, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin
 
-    failure = .FALSE.
     number = glob_num
     ALLOCATE(akin(number))
     akin     = 0.0_dp
@@ -1602,11 +1580,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imap, imap2, n, number
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fdeg_of_free
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: akin, deg_of_free
 
-    failure = .FALSE.
     number = glob_num
     ALLOCATE(akin(number))
     ALLOCATE(deg_of_free(number))
@@ -1671,10 +1647,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: thermo_energy
-
-    failure = .FALSE.
 
     thermostat_pot = 0.0_dp
     thermostat_kin = 0.0_dp
@@ -1734,10 +1707,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: dof, nkt
-
-    failure = .FALSE.
 
     IF (ASSOCIATED(thermostat)) THEN
        IF      (thermostat%type_of_thermostat==do_thermo_nose) THEN
@@ -1820,10 +1790,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_thermostats_status', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
     IF (ASSOCIATED(thermostats)) THEN
        IF (ASSOCIATED(thermostats%thermostat_part)) THEN
           CALL print_thermostat_status(thermostats%thermostat_part, para_env, my_pos, my_act, itimes, time)
@@ -1861,7 +1827,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, unit
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(KIND=dp)                            :: thermo_kin, thermo_pot, &
                                                 tot_temperature
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array_kin, array_pot, &
@@ -1869,7 +1835,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     NULLIFY(logger, print_key, array_pot, array_kin, array_temp)
     logger => cp_get_default_logger()
 
@@ -1943,10 +1908,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, icheck, ncheck
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work, work2
 
-    failure = .FALSE.
     ALLOCATE(work(para_env%num_pe))
     DO i = 1, number
        work = 0.0_dp
@@ -1991,9 +1954,7 @@ CONTAINS
 
     INTEGER                                  :: i, icheck, j, ncheck
     INTEGER, DIMENSION(:, :), POINTER        :: work, work2
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ALLOCATE(work(number1,para_env%num_pe))
     DO i = 1, number2
        work = 0

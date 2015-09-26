@@ -75,7 +75,6 @@ CONTAINS
                                                 nforce_eval, output_unit, &
                                                 stat_sign_points
     INTEGER, POINTER                         :: istep
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: beta, dx, lerr
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_val
     TYPE(cp_logger_type), POINTER            :: logger
@@ -88,7 +87,6 @@ CONTAINS
     NULLIFY(force_env, istep, subsys, cv, simpar)
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
-    failure   = .FALSE.
     converged = .FALSE.
     CALL get_md_env(md_env, force_env=force_env, fe_env=fe_env, simpar=simpar,&
          itimes=istep)
@@ -213,12 +211,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, k, &
                                                 my_reject, ncolvar, &
                                                 ng_points, rejected_points
-    LOGICAL                                  :: failure, test_avg, test_std
+    LOGICAL                                  :: test_avg, test_std
     REAL(KIND=dp)                            :: prob, tau, z
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
 
     CALL timeset(routineN,handle)
-    failure    = .FALSE.
     trend_free = .FALSE.
     test_avg   = .TRUE.
     test_std   = .TRUE.
@@ -316,9 +313,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     ALLOCATE(fe_env%cg_data(ng_points))
     DO i = 1, ng_points
        ALLOCATE(fe_env%cg_data(i)%avg(ncolvar))
@@ -347,9 +342,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     DO i = 1, ng_points
        DEALLOCATE(fe_env%cg_data(i)%avg)
        DEALLOCATE(fe_env%cg_data(i)%var)
@@ -407,10 +400,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ng_points
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
-    failure     = .FALSE.
     test_passed = .FALSE.
     DO WHILE(fe_env%conv_par%cg_width<fe_env%conv_par%max_cg_width)
        ng_points = nr_points/fe_env%conv_par%cg_width
@@ -449,13 +440,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k, ncolvar, &
                                                 ng_points
-    LOGICAL                                  :: avg_test_passed, failure, &
+    LOGICAL                                  :: avg_test_passed, &
                                                 sdv_test_passed
     REAL(KIND=dp)                            :: prob, pw, r, u, w
     REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
 
     CALL timeset(routineN,handle)
-    failure     = .FALSE.
     ncolvar     = fe_env%ncolvar
     ! Compute the Coarse Grained data set using a reverse cumulative strategy
     fe_env%conv_par%test_sw = .FALSE.
@@ -545,13 +535,12 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ic, ncolvar, &
                                                 ng_points
-    LOGICAL                                  :: failure, test_passed
+    LOGICAL                                  :: test_passed
     REAL(KIND=dp)                            :: max_error_avg, max_error_std
     REAL(KIND=dp), DIMENSION(:), POINTER     :: avg_std, avgmx
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cov_std, covmx
 
     CALL timeset(routineN,handle)
-    failure   = .FALSE.
     converged = .FALSE.
     ncolvar   = fe_env%ncolvar
     NULLIFY(avgmx, avg_std, covmx, cov_std)
@@ -642,13 +631,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ind, j, k, nvar
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     REAL(KIND=dp), DIMENSION(:), POINTER     :: awrk, eig, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: wrk
 
-    failure = .FALSE.
-    ! Averages
+! Averages
+
     nvar = ncolvar
     ALLOCATE(wrk(nvar,nvar))
     ALLOCATE(eig(nvar))
@@ -835,13 +823,11 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: def_error, par, this_error
     INTEGER                                  :: i, iforce_eval, ipar, isize, &
                                                 iw, j, NEquilStep
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: avg_BP, avg_DET, avg_DUE, d_ene_w, dedf, ene_w, err, &
       Err_DET, Err_DUE, std_DET, std_DUE, tmp, tmp2, wfac
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: alch_section
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     alch_section => section_vals_get_subs_vals(fe_section,"ALCHEMICAL_CHANGE")
     CALL section_vals_val_get(alch_section,"PARAMETER",c_val=par)

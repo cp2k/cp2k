@@ -88,10 +88,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_create', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     ALLOCATE(kg_env)
     CALL init_kg_env(kg_env, input)
   END SUBROUTINE kg_env_create
@@ -113,12 +109,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ke_sections
-    LOGICAL                                  :: failure, is_set
+    LOGICAL                                  :: is_set
     TYPE(section_vals_type), POINTER         :: kef_section, xc_fun_section, &
                                                 xc_fun_section_kg, &
                                                 xc_section, xc_section_kg
-
-    failure=.FALSE.
 
     CALL timeset(routineN, handle)
 
@@ -254,7 +248,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ikind, nkind
-    LOGICAL                                  :: failure, molecule_only
+    LOGICAL                                  :: molecule_only
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present, tpot_present
     REAL(dp)                                 :: subcells
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius, tpot_radius
@@ -278,7 +272,6 @@ CONTAINS
 
     CALL timeset(routineN, handle)
     NULLIFY(para_env)
-    failure = .FALSE.
 
     molecule_only = .FALSE.
     IF (PRESENT(molecular)) molecule_only = molecular
@@ -451,11 +444,9 @@ CONTAINS
                                                 npairs, unit_nr
     INTEGER(KIND=int_4), ALLOCATABLE, &
       DIMENSION(:, :)                        :: sorted_pairs
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN, handle)
 
-    failure=.FALSE.
 
     ! get the number of disjunct pairs
     npairs=SIZE(pairs,2)

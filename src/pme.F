@@ -122,7 +122,7 @@ CONTAINS
     INTEGER                                  :: group, handle, i, ig, ipart, &
                                                 j, nd(3), npart, nshell, p1, &
                                                 p2
-    LOGICAL                                  :: failure, is1_core, is2_core
+    LOGICAL                                  :: is1_core, is2_core
     REAL(KIND=dp)                            :: alpha, dvols, fat1, ffa, ffb
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
@@ -142,7 +142,6 @@ CONTAINS
 
     CALL timeset ( routineN, handle )
     NULLIFY( poisson_env, rden, drpot)
-    failure = .FALSE.
     CALL cite_reference(Darden1993)
     CALL ewald_env_get (ewald_env, alpha=alpha, group = group)
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, &
@@ -531,9 +530,9 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: ex1, ex2, ey1, ey2, ez1, ez2
     INTEGER, DIMENSION(:), POINTER           :: center1, center2
-    LOGICAL                                  :: failure, my_is1_core, &
-                                                my_is1_shell, my_is2_core, &
-                                                my_is2_shell, use_charge_array
+    LOGICAL                                  :: my_is1_core, my_is1_shell, &
+                                                my_is2_core, my_is2_shell, &
+                                                use_charge_array
     REAL(KIND=dp)                            :: q1, q2
     REAL(KIND=dp), DIMENSION(3)              :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -541,7 +540,6 @@ CONTAINS
     TYPE(pw_p_type), POINTER                 :: rho0
     TYPE(shell_kind_type), POINTER           :: shell
 
-    failure = .FALSE.
     NULLIFY(shell)
     use_charge_array=PRESENT(charges)
     IF (use_charge_array) use_charge_array=ASSOCIATED(charges)

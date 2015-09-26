@@ -70,9 +70,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(harmonics)) CALL deallocate_harmonics_atom(harmonics)
 
     ALLOCATE (harmonics)
@@ -109,9 +106,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     IF (ASSOCIATED(harmonics)) THEN
 
        IF(ASSOCIATED(harmonics%slm)) THEN
@@ -193,7 +187,6 @@ CONTAINS
                                                 is2, iso, iso1, iso2, iso_mm, &
                                                 iso_mm1, iso_mp1, l, l1, l2, &
                                                 lx, ly, lz, m, m1, m2, n
-    LOGICAL                                  :: failure
     REAL(dp)                                 :: abs_m, cosmp1, drx, dry, drz, &
                                                 int1, int2, int3, l_r, m_r, &
                                                 rx, ry, rz, sinmp1
@@ -201,7 +194,6 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: dc, dy, slm
     REAL(dp), DIMENSION(:, :, :), POINTER    :: dslm_dxyz
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     NULLIFY (y,dy,slm,dslm_dxyz,dc)
@@ -519,9 +511,7 @@ CONTAINS
                                                 dmax_iso_not0, handle, is1, &
                                                 is2, itmp, max_iso_not0, nset
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(harmonics))

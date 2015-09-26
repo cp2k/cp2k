@@ -72,10 +72,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_motion_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="motion",&
@@ -151,11 +148,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mc_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mc",&
@@ -371,10 +365,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_avbmc_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -428,11 +419,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_move_prob_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -506,10 +494,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mol_prob_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -569,10 +554,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_box_prob_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -612,10 +594,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_update_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -654,10 +633,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_max_disp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -689,10 +665,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mol_disp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -752,10 +725,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_box_disp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -792,11 +762,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_geoopt_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name=label, description=description,&
@@ -1051,14 +1018,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ts_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsection2, subsection3
 
-    failure=.FALSE.
+! Create the Transition State subsection
 
-    ! Create the Transition State subsection
     NULLIFY(section,keyword,subsection, subsection2)
     CALL section_create(section,name="TRANSITION_STATE",&
          description="Specifies parameters to perform a transition state search",&
@@ -1163,12 +1128,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_bfgs_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
-    ! create the BFGS subsection
+! create the BFGS subsection
+
     NULLIFY(section,keyword,print_key)
     CALL section_create(section,name="BFGS",&
          description="Provides parameters to tune the BFGS optimization",&
@@ -1232,13 +1196,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cg_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection, subsubsection
 
-    failure=.FALSE.
+! create the CG subsection
 
-    ! create the CG subsection
     NULLIFY(section,subsection,subsubsection,keyword)
     CALL section_create(section,name="CG",&
          description="Provides parameters to tune the conjugate gradient optimization",&
@@ -1366,12 +1328,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_lbfgs_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
-    failure=.FALSE.
+! create the LBFGS section
 
-    ! create the LBFGS section
     NULLIFY(section,keyword)
     CALL section_create(section,name="LBFGS",&
          description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization",&
@@ -1434,11 +1394,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_fp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="FLEXIBLE_PARTITIONING",&
@@ -1536,10 +1493,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_driver_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DRIVER",&
@@ -1583,12 +1537,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_pint_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PINT",&
@@ -1866,16 +1817,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_helium_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
-    IF (failure) THEN
-      CPASSERT(.FALSE.)
-    END IF
 
     CALL section_create(section,name="HELIUM",&
          description="The section that controls optional helium solvent"// &

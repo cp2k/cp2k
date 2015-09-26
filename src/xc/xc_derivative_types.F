@@ -72,9 +72,6 @@ CONTAINS
 
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: my_desc
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     ALLOCATE(derivative)
 
@@ -101,10 +98,6 @@ SUBROUTINE xc_derivative_retain(deriv)
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(deriv))
   CPASSERT(deriv%ref_count>0)
   deriv%ref_count=deriv%ref_count+1
@@ -123,10 +116,6 @@ END SUBROUTINE xc_derivative_retain
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(derivative))
     CPASSERT(derivative%ref_count>=1)
@@ -179,9 +168,8 @@ SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_derivative_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, my_accept_null_data
+    LOGICAL                                  :: my_accept_null_data
 
-  failure=.FALSE.
   my_accept_null_data=.FALSE.
   IF (PRESENT(accept_null_data)) my_accept_null_data=accept_null_data
 

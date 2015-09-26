@@ -148,10 +148,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: unit_str
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
-    LOGICAL                                  :: failure, ionode, lbias, &
-                                                ldiscrete, lhmc, &
-                                                lnew_bias_env, loverlap, &
-                                                lreject, lstop, should_stop
+    LOGICAL                                  :: ionode, lbias, ldiscrete, &
+                                                lhmc, lnew_bias_env, &
+                                                loverlap, lreject, lstop, &
+                                                should_stop
     REAL(dp), DIMENSION(:), POINTER          :: pbias, pmavbmc_mol, &
                                                 pmhmc_box, pmrot_mol, &
                                                 pmtraion_mol, pmtrans_mol, &
@@ -189,7 +189,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles_bias
     TYPE(section_vals_type), POINTER         :: root_section
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
@@ -1182,7 +1181,7 @@ CONTAINS
       start_atom
     INTEGER, DIMENSION(:), POINTER           :: mol_type, nunits, nunits_tot
     INTEGER, DIMENSION(:, :), POINTER        :: nchains
-    LOGICAL                                  :: failure, ionode, loverlap
+    LOGICAL                                  :: ionode, loverlap
     REAL(dp), DIMENSION(:), POINTER          :: BETA, virial_cutoffs, &
                                                 virial_stepsize, virial_temps
     REAL(dp), DIMENSION(:, :), POINTER       :: mass, mayer, r_old
@@ -1202,7 +1201,6 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
 
-    failure = .FALSE.
     logger => cp_get_default_logger()
     ! these are current magic numbers for how we compute the virial...
     ! we break it up into three parts to integrate the function so provide

@@ -105,12 +105,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ic, ispin
-    LOGICAL                                  :: failure, my_diis, my_invert
+    LOGICAL                                  :: my_diis, my_invert
     REAL(KIND=dp)                            :: my_p_mix, tmp
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     my_diis=.FALSE.
     IF (PRESENT(diis)) my_diis=diis
     my_invert=.FALSE.
@@ -476,13 +475,12 @@ CONTAINS
 
     INTEGER                                  :: blk, handle, i, iblock_col, &
                                                 iblock_row, j
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_delta_block, p_new_block, &
                                                 p_old_block
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     delta = 0.0_dp
 
     CALL cp_dbcsr_iterator_start(iter, m1)
@@ -552,7 +550,7 @@ CONTAINS
                                                 irow_local, j, ncol_local, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: compatible_matrices, failure
+    LOGICAL                                  :: compatible_matrices
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fa, fb
     TYPE(cp_fm_struct_type), POINTER         :: ksa_struct, ksb_struct
 
@@ -560,7 +558,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ksa))
     CPASSERT(ASSOCIATED(ksb))
@@ -632,7 +629,7 @@ CONTAINS
                                                 irow_local, ncol_local, &
                                                 nrow_local
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: compatible_matrices, failure
+    LOGICAL                                  :: compatible_matrices
     REAL(KIND=dp)                            :: beta, t1, t2, ta, tb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fa, fb
     TYPE(cp_fm_struct_type), POINTER         :: ksa_struct, ksb_struct
@@ -641,7 +638,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ksa))
     CPASSERT(ASSOCIATED(ksb))

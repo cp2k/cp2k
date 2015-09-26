@@ -49,10 +49,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: func_name
     INTEGER                                  :: ifun, ifunc_name, il, myfun
-    LOGICAL                                  :: failure
     TYPE(section_vals_type), POINTER         :: xc_fun, xc_fun_section
 
-    failure = .FALSE.
     IF (output_unit>0) THEN
 
        xc_fun_section => section_vals_get_subs_vals(xc_section,&

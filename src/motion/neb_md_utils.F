@@ -183,14 +183,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, temp_tol_steps
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: ext_temp, f_annealing, scale, &
                                                 temp_tol, temploc, tmp_r1, &
                                                 tmp_r2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: temperatures
 
-    failure = .FALSE.
-    ! Temperature control
+! Temperature control
+
     CALL section_vals_get(tc_section,explicit=explicit)
     IF (explicit) THEN
        CALL section_vals_val_get(tc_section,"TEMP_TOL_STEPS",i_val=temp_tol_steps)

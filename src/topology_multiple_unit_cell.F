@@ -52,13 +52,11 @@ CONTAINS
     INTEGER                                  :: handle, i, ind, j, k, m, n, &
                                                 natoms, nrep
     INTEGER, DIMENSION(:), POINTER           :: iwork, multiple_unit_cell
-    LOGICAL                                  :: check, explicit, failure, &
-                                                scale
+    LOGICAL                                  :: check, explicit, scale
     REAL(KIND=dp), DIMENSION(3)              :: trsl, trsl_i, trsl_j, trsl_k
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: work_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(multiple_unit_cell,iwork,cell)
     CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&

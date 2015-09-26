@@ -54,9 +54,6 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: m, na, nc
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   na = SIZE ( alpha )
   nc = SIZE ( coef )

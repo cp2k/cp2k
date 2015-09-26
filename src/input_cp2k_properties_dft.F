@@ -70,11 +70,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_properties_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PROPERTIES",&
@@ -131,11 +128,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_linres_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,subsection,print_key)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -273,11 +268,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_current_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key, subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -467,11 +460,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_nmr_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key, subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -619,11 +610,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_spin_spin_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key,subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -725,12 +714,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_epr_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection, &
                                                 subsubsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key, subsection, subsubsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -864,11 +851,9 @@ CONTAINS
       routineN = 'create_polarizability_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword,print_key,subsection)
 
     CPASSERT(.NOT.ASSOCIATED(section))
@@ -928,11 +913,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_et_coupling_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
 
-    failure=.FALSE.
     NULLIFY(keyword)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"ET_COUPLING",&
@@ -990,11 +973,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_restraint_A', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     NULLIFY(keyword, print_key)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,TRIM(ADJUSTL(section_name)),&

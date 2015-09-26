@@ -135,7 +135,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: dokp, failure, my_soft
+    LOGICAL                                  :: dokp, my_soft
     REAL(KIND=dp)                            :: kind_radius_a, kind_radius_b
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
@@ -167,7 +167,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     ! by default, the full density is calculated
     my_soft=.FALSE.
@@ -924,11 +923,9 @@ CONTAINS
 
     INTEGER                                  :: handle
     INTEGER, DIMENSION(:, :, :), POINTER     :: list
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(list)
     ! here we create for each cpu (0:ncpu-1) a list of possible destinations.
     ! if a destination would not be in this list, it is a bug
@@ -1123,11 +1120,9 @@ CONTAINS
                                                 jcpu, maxdest, ncpu
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: load_all, load_per_source
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: list_global
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     ncpu=SIZE(list,3)
     maxdest=SIZE(list,2)
@@ -1227,7 +1222,6 @@ CONTAINS
       DIMENSION(:)                           :: loads
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_dests, index
     INTEGER, DIMENSION(6)                    :: options
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -1235,7 +1229,6 @@ CONTAINS
     CALL get_current_loads(loads, rs_descs, grid_level, ntasks, nimages, natoms, maxset, maxpgf, &
                            tasks, use_reordered_ranks=.FALSE.)
 
-    failure=.FALSE.
 
     maxdest=SIZE(list,2)
     ncpu=SIZE(list,3)
@@ -1443,9 +1436,6 @@ CONTAINS
     INTEGER                                  :: handle, i, icpu, j, maxcount, &
                                                 ncpu, ultimate_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, sublist
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
 
@@ -1527,12 +1517,10 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: total_cost_local
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
-    LOGICAL                                  :: failure
     TYPE(realspace_grid_desc_type), POINTER  :: desc
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     desc => rs_descs(grid_level)%rs_desc
 
@@ -1606,12 +1594,10 @@ CONTAINS
       DIMENSION(:)                           :: load_imbalance, loads, &
                                                 recv_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
-    LOGICAL                                  :: failure
     TYPE(realspace_grid_desc_type), POINTER  :: desc
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     desc=>rs_descs(1)%rs_desc
 
@@ -1771,13 +1757,11 @@ CONTAINS
       DIMENSION(:)                           :: recv_buf_i, send_buf_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: recv_disps, recv_sizes, &
                                                 send_disps, send_sizes
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     TYPE(realspace_grid_desc_type), POINTER  :: desc
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     desc=>rs_descs(1)%rs_desc
 
@@ -1956,14 +1940,13 @@ CONTAINS
       POINTER                                :: loads, tasks_recv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, real2virtual, &
                                                 total_index
-    LOGICAL                                  :: distributed_grids, failure, &
+    LOGICAL                                  :: distributed_grids, &
                                                 fixed_first_grid
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rval_recv
     TYPE(realspace_grid_desc_type), POINTER  :: desc
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tasks))
 
     ! *** figure out if we have distributed grids
@@ -2195,12 +2178,9 @@ CONTAINS
                                                 jpgf, jset
     INTEGER(KIND=int_8)                      :: natom8, nim8
     INTEGER, DIMENSION(:), POINTER           :: index
-    LOGICAL                                  :: failure
 
 ! calculate list of atom pairs
 ! fill pair list taking into acount symmetry
-
-  failure = .FALSE.
 
   natom8 = natoms
   nim8 = nimages
@@ -2291,7 +2271,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
     INTEGER, ALLOCATABLE, DIMENSION(:) :: first_col, first_row, last_col, &
       last_row, recv_disps, recv_pair_count, recv_pair_disps, recv_sizes, &
       send_disps, send_pair_count, send_pair_disps, send_sizes
-    LOGICAL                                  :: failure, found
+    LOGICAL                                  :: found
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: recv_buf_r, send_buf_r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     TYPE(cp_dbcsr_type), POINTER             :: hmat, pmat
@@ -2301,7 +2281,6 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 
   CALL timeset(routineN,handle)
 
-  failure = .FALSE.
   IF (.not.scatter) THEN
     CPASSERT(PRESENT(hmats))
   END IF
@@ -2398,7 +2377,7 @@ SUBROUTINE rs_distribute_matrix( rs_descs, pmats, atom_pair_send, atom_pair_recv
 !$omp          shared(atom_pair_recv,recv_buf_r,scatter,recv_pair_disps), &
 !$omp          shared(recv_sizes,recv_disps,recv_pair_count,locks), &
 !$omp          private(i,img,pair,arow,acol,nrow,ncol,p_block,found,j,k,l),&
-!$omp          private(nthread,h_block,nthread_left,hmat,pmat,failure)
+!$omp          private(nthread,h_block,nthread_left,hmat,pmat)
 
   nthread = 1
 !$ nthread = omp_get_num_threads()
@@ -2624,14 +2603,13 @@ END SUBROUTINE rs_distribute_matrix
       itask, ix, iy, iz, lb_coord(3), lb_domain(3), lbc(3), ub_coord(3), &
       ub_domain(3), ubc(3)
     INTEGER(KIND=int_8)                      :: bit_pattern
-    LOGICAL                                  :: dir_periodic(3), failure
+    LOGICAL                                  :: dir_periodic(3)
 
     coord(1)=rs_desc % x2coord(cube_center(1))
     coord(2)=rs_desc % y2coord(cube_center(2))
     coord(3)=rs_desc % z2coord(cube_center(3))
     dest=rs_desc%coord2rank(coord(1),coord(2),coord(3))
 
-    failure=.FALSE.
 
     ! the real cube coordinates
     lbc=lb_cube+cube_center

@@ -106,13 +106,11 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, icoef, kkk
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: L_b, R_max, R_min, R_transf, &
                                                 U_b
     REAL(KIND=dp), DIMENSION(0:12, 2*k)      :: fit_coef
 
      CALL timeset(routineN,handle)
-     failure=.FALSE.
      ierr=0
      R_min=0.0_dp
      R_max=0.0_dp

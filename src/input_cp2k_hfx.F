@@ -54,11 +54,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hfx_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"HF",&
@@ -143,11 +140,8 @@ CONTAINS
       routineN = 'create_hf_load_balance_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"LOAD_BALANCE",&
@@ -220,10 +214,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_potential_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"INTERACTION_POTENTIAL",&
@@ -321,10 +312,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_screening_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"SCREENING",&
@@ -400,10 +388,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_pbc_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"PERIODIC",&
@@ -437,10 +422,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_hf_memory_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"MEMORY",&

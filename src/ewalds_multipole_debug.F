@@ -64,7 +64,6 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
        routineP = "ewalds_multipole_debug"//':'//routineN
 
   INTEGER                                  :: nparticles
-  LOGICAL                                  :: failure
   LOGICAL, DIMENSION(3)                    :: task
   REAL(KIND=dp)                            :: e_neut, e_self, g_energy, &
                                               r_energy, debug_energy
@@ -79,7 +78,6 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   TYPE(multi_charge_type), DIMENSION(:),&
        POINTER                             :: multipoles
 
-  failure = .FALSE.
   NULLIFY(random_stream, multipoles, charges, dipoles, g_forces, g_pv,&
           r_forces, r_pv, e_field1, e_field2)
   CALL create_rng_stream(random_stream,name="DEBUG_EWALD_MULTIPOLE",&
@@ -338,7 +336,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipole_low', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: atom_a, atom_b, iend, igrp, &
                                                 ikind, ilist, ipair, istart, &
                                                 jkind, nkinds, npairs,k,k1,l,l1,&
@@ -351,7 +348,6 @@ CONTAINS
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
 
-    failure = .FALSE.
     energy  = 0.0_dp
     CALL fist_nonbond_env_get (nonbond_env, nonbonded=nonbonded, natom_types = nkinds,&
          r_last_update=r_last_update,r_last_update_pbc=r_last_update_pbc)
@@ -479,11 +475,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_multi_type', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i, isize, k, l, m
     REAL(KIND=dp)                            :: dx, rvec(3), rvec1(3), rvec2(3), r2
 
-    failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        CPASSERT(SIZE(multipoles)==idim)
     ELSE
@@ -584,10 +578,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'release_multi_type', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i, j
 
-    failure = .FALSE.
     IF (ASSOCIATED(multipoles)) THEN
        DO i = 1, SIZE(multipoles)
           DO j = 1, SIZE(multipoles(i)%charge_typ)
@@ -616,12 +608,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'reallocate_charge_type', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-    LOGICAL                                  :: failure
     INTEGER                                  :: i, isize, jsize, jsize1, jsize2, j
         TYPE(charge_mono_type), DIMENSION(:),&
          POINTER                             :: charge_typ_bk
 
-    failure = .FALSE.
     IF (ASSOCIATED(charge_typ)) THEN
        isize = SIZE(charge_typ)
        ALLOCATE(charge_typ_bk(1:isize))

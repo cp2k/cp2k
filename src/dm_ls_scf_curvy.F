@@ -61,13 +61,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, lsstep
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
     CALL cite_reference(Shao2003)
 
-    failure=.FALSE.
 
 ! Upon first call initialize all matrices needed curing optimization
 ! In addtion transform P into orthonormal basis. Will be scaled by 0.5 in closed shell case

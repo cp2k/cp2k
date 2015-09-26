@@ -133,10 +133,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(rho_struct))
     CPASSERT(rho_struct%ref_count>0)
     rho_struct%ref_count=rho_struct%ref_count+1
@@ -156,10 +152,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(rho_struct)) THEN
        CPASSERT(rho_struct%ref_count>0)
@@ -292,10 +284,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     CPASSERT(ASSOCIATED(rho_struct))
     CPASSERT(rho_struct%ref_count>0)
 
@@ -371,10 +359,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_set', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rho_struct))
     CPASSERT(rho_struct%ref_count>0)

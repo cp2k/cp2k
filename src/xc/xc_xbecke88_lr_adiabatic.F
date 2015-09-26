@@ -140,7 +140,6 @@ CONTAINS
 
     INTEGER                                  :: handle, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, lambda, omega, sx
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrho_ndrho, e_ndrho_ndrho_ndrho, e_ndrho_ndrho_rho, e_ndrho_rho, &
@@ -148,7 +147,6 @@ CONTAINS
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(bo)
 
     CALL section_vals_val_get(xb88_lr_ad_params,"SCALE_X",r_val=sx)
@@ -298,7 +296,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(KIND=dp) :: Cx, epsilon_rho43, my_epsilon_rho, my_ndrho, my_rho, t1, &
       t10, t1000, t1002, t1004, t1008, t1012, t1014, t1019, t102, t1021, &
       t1024, t1026, t103, t1030, t1033, t1034, t1036, t104, t1040, t1044, &
@@ -465,7 +462,6 @@ CONTAINS
       t959, t962, t963, t966, t969, t97, t972, t973, t974, t975, t976, t979, &
       t98, t980, t983, t984, t987, t99, t991, t995, t997, xx
 
-    failure=.FALSE.
     my_epsilon_rho=epsilon_rho
     epsilon_rho43 = my_epsilon_rho**(4.0_dp/3.0_dp)
     Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)
@@ -2923,7 +2919,6 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ispin, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_rho, lambda, omega, sx
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: dummy, e_0
@@ -2936,7 +2931,6 @@ CONTAINS
 
     CALL cite_reference(Becke1988)
 
-    failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2
        NULLIFY(norm_drho(i)%array, rho(i)%array)
@@ -3132,7 +3126,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ii
-    LOGICAL                                  :: failure
     REAL(kind=dp) :: Cx, epsilon_rho43, my_epsilon_rho, ndrho, rho, t1, t10, &
       t1000, t1002, t1004, t1008, t1012, t1014, t1019, t102, t1021, t1024, &
       t1026, t103, t1030, t1033, t1034, t1036, t104, t1040, t1044, t1046, &
@@ -3299,7 +3292,6 @@ CONTAINS
       t963, t966, t969, t97, t972, t973, t974, t975, t976, t979, t98, t980, &
       t983, t984, t987, t99, t991, t995, t997, xx
 
-    failure=.FALSE.
     my_epsilon_rho=0.5_dp*epsilon_rho
     epsilon_rho43 = my_epsilon_rho**(4.0_dp/3.0_dp)
     Cx = 1.5_dp*(3.0_dp/4.0_dp/pi)**(1.0_dp/3.0_dp)

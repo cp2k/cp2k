@@ -83,7 +83,6 @@ CONTAINS
                                                 ncol_global, nproc, &
                                                 nrow_global, nstates(2), &
                                                 output_unit, unit_mat
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: unit_conv
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: b, c, d
@@ -96,7 +95,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(logger, para_env)
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env, para_env=para_env)
     nproc = para_env%num_pe

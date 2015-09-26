@@ -101,9 +101,8 @@ CONTAINS
                                                 potential_file_name
     INTEGER                                  :: excitations, i, method_id, &
                                                 nrep, stat, xc_deriv_method_id
-    LOGICAL                                  :: do_ot, do_rtp, failure, &
-                                                is_present, l_param, not_SE, &
-                                                was_present
+    LOGICAL                                  :: do_ot, do_rtp, is_present, &
+                                                l_param, not_SE, was_present
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pol
@@ -113,7 +112,6 @@ CONTAINS
                                                 xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
-    failure = .FALSE.
     was_present = .FALSE.
 
     logger => cp_get_default_logger()
@@ -478,15 +476,13 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, igrid_level, &
                                                 ngrid_level
-    LOGICAL                                  :: explicit, failure, &
-                                                multigrid_set
+    LOGICAL                                  :: explicit, multigrid_set
     REAL(dp)                                 :: cutoff
     REAL(dp), DIMENSION(:), POINTER          :: cutofflist
     TYPE(section_vals_type), POINTER         :: mgrid_section
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(mgrid_section, cutofflist)
     mgrid_section => section_vals_get_subs_vals(dft_section,"MGRID")
 
@@ -536,7 +532,7 @@ CPSourceFileRef,&
       IF(ASSOCIATED(cutofflist)) THEN
          CALL cp_assert(SIZE(cutofflist,1) == ngrid_level,&
               cp_failure_level,cp_assertion_failed,routineN,&
-              "Inconsistent values for number of multi grids",failure)
+              "Inconsistent values for number of multi grids")
          DO igrid_level = 1,ngrid_level
             qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)*0.5_dp
          ENDDO
@@ -588,7 +584,7 @@ CPSourceFileRef,&
     INTEGER                                  :: handle, itmp, j, jj, k, &
                                                 n_rep, n_var, nrep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: explicit, failure, was_present
+    LOGICAL                                  :: explicit, was_present
     REAL(dp)                                 :: tmp, tmpsqrt, value
     REAL(dp), POINTER                        :: scal(:)
     TYPE(enumeration_type), POINTER          :: enum
@@ -601,7 +597,6 @@ CPSourceFileRef,&
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     was_present = .FALSE.
     NULLIFY(mull_section,se_section,dftb_section,scptb_section,lri_optbas_section)
 
@@ -866,8 +861,7 @@ CPSourceFileRef,&
           CALL cp_assert((qs_control%se_control%integral_screening==do_se_IS_slater),&
                cp_warning_level,cp_assertion_failed,routineP,&
                "PNNL semi-empirical parameterization supports only the Slater type "//&
-               "integral scheme. Revert to Slater and continue the calculation.",&
-               failure=failure)
+               "integral scheme. Revert to Slater and continue the calculation.")
           qs_control%se_control%integral_screening = do_se_IS_slater
        END IF
        ! Global Arrays variable
@@ -936,8 +930,7 @@ CPSourceFileRef,&
                cp_fatal_level,cp_assertion_failed,routineP,&
                "A periodic semi-empirical calculation was requested with a long-range  "//&
                "summation on the single integral evaluation. This scheme is supported  "//&
-               "only by the PNNL parameterization.",&
-               failure=failure)
+               "only by the PNNL parameterization.")
        CASE(do_se_lr_ewald_r3)
           qs_control%se_control%do_ewald     = .TRUE.
           qs_control%se_control%do_ewald_r3  = .TRUE.
@@ -947,8 +940,7 @@ CPSourceFileRef,&
                "A periodic semi-empirical calculation was requested with a long-range  "//&
                "summation for the slowly convergent part 1/R^3, which is not congruent "//&
                "with the integral screening chosen. The only integral screening supported "//&
-               "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.",&
-               failure=failure)
+               "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.")
        END SELECT
 
        ! dispersion pair potentials
@@ -1081,10 +1073,9 @@ CPSourceFileRef,&
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_tddfpt_control', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, kenergy_den
+    LOGICAL                                  :: kenergy_den
     TYPE(section_vals_type), POINTER         :: sic_section, t_section
 
-    failure=.FALSE.
     kenergy_den = .FALSE.
     NULLIFY(sic_section, t_section)
     t_section => section_vals_get_subs_vals(dft_section,"TDDFPT")
@@ -1125,7 +1116,6 @@ CPSourceFileRef,&
 
     CHARACTER(LEN=20)                        :: tmpStr
     INTEGER                                  :: handle, output_unit
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
                                                 gradient_cut, tau_cut
@@ -1140,7 +1130,6 @@ CPSourceFileRef,&
     IF (dft_control%qs_control%scptb) RETURN
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (logger)
     logger => cp_get_default_logger()
 
@@ -1331,7 +1320,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: handle, i, igrid_level, &
                                                 ngrid_level, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(enumeration_type), POINTER          :: enum
@@ -1342,7 +1330,6 @@ CPSourceFileRef,&
     IF (qs_control%dftb)           RETURN
     IF (qs_control%scptb)           RETURN
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     NULLIFY(logger, enum, keyword, section)
     logger => cp_get_default_logger()
 
@@ -1530,10 +1517,6 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_rho_smooth_label', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     SELECT CASE(xc_rho_smooth_id)
     CASE (xc_rho_no_smooth)
        res="NONE"
@@ -1565,10 +1548,6 @@ CPSourceFileRef,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_deriv_method_label', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     SELECT CASE(xc_deriv_method_id)
     CASE (xc_deriv_pw)
@@ -1641,7 +1620,6 @@ CPSourceFileRef,&
 
     INTEGER                                  :: i, j, jj, k, n_rep
     INTEGER, DIMENSION(:), POINTER           :: tmplist
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rtmplist
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
     TYPE(section_vals_type), POINTER         :: ddapc_section
@@ -1732,8 +1710,7 @@ CPSourceFileRef,&
             do_ddapc_constraint)k=k+1
     END DO
     IF(k==2)CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-         "Only a single constraint possible yet, try to use restraints instead ",&
-         failure=failure)
+         "Only a single constraint possible yet, try to use restraints instead ")
 
   END SUBROUTINE read_ddapc_section
 
@@ -1820,12 +1797,9 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_vals
     TYPE(efield_type), POINTER               :: efield
     TYPE(section_vals_type), POINTER         :: tmp_section
-
-    failure=.FALSE.
 
     DO i=1,SIZE(dft_control%efield_fields)
        NULLIFY(dft_control%efield_fields(i)%efield)
@@ -1891,9 +1865,7 @@ CPSourceFileRef,&
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: tmp
-    LOGICAL                                  :: failure
 
-    failure=.FALSE.
     ALLOCATE(dft_control%rtp_control)
     CALL section_vals_val_get(rtp_section,"MAX_ITER",&
       i_val=dft_control%rtp_control%max_iter)

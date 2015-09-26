@@ -131,9 +131,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(rho_set))
     ALLOCATE(rho_set)
@@ -174,9 +171,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(rho_set))
     CPASSERT(rho_set%ref_count>0)
     rho_set%ref_count=rho_set%ref_count+1
@@ -195,9 +189,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(rho_set)) THEN
        CPASSERT(rho_set%ref_count>0)
@@ -354,9 +345,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_can_return_null
+    LOGICAL                                  :: my_can_return_null
 
-    failure=.FALSE.
     my_can_return_null=.FALSE.
     IF (PRESENT(can_return_null)) my_can_return_null=can_return_null
 
@@ -471,9 +461,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: idir
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(rho_set))
     CPASSERT(rho_set%ref_count>0)
@@ -612,8 +599,7 @@ CONTAINS
 
     INTEGER                                  :: i, idir, ispin, j, k, nspins
     INTEGER, DIMENSION(3, 3)                 :: nd, nd_laplace
-    LOGICAL                                  :: failure, gradient_f, &
-                                                my_rho_g_local, &
+    LOGICAL                                  :: gradient_f, my_rho_g_local, &
                                                 my_rho_r_local, needs_rho_g
     REAL(kind=dp)                            :: rho_cutoff
     TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
@@ -621,7 +607,6 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r, laplace_rho_r
     TYPE(pw_type), POINTER                   :: my_rho_g, tmp_g
 
-    failure=.FALSE.
     DO ispin=1,2
        NULLIFY(my_rho_r(ispin)%pw)
        DO idir=1,3
@@ -639,7 +624,7 @@ CONTAINS
     CPASSERT(rho_set%ref_count>0)
     CALL cp_assert(ALL(rho_set%local_bounds==pw_pool%pw_grid%bounds_local),&
          cp_failure_level,cp_assertion_failed,routineP,&
-         "pw_pool cr3d have different size than expected",failure)
+         "pw_pool cr3d have different size than expected")
     nspins = SIZE(rho_r)
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff

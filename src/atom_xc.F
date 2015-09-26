@@ -80,14 +80,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: extunit, handle, ir, nr, z
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: int1, int2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: deltarho, rho_dum, vxc, vxc1, &
                                                 vxc2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
 
     nr = atom%basis%grid%nr
     z  = atom%z
@@ -156,11 +154,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: extunit, handle, ir, nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     nr = atom%basis%grid%nr
 
     ALLOCATE(rho(nr,1))
@@ -207,7 +203,7 @@ CONTAINS
                                                 myfun, n1, n2, n3, nr, &
                                                 nspins, unit_nr
     INTEGER, DIMENSION(2, 3)                 :: bounds
-    LOGICAL                                  :: failure, lsd, nlcc
+    LOGICAL                                  :: lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxc
@@ -220,7 +216,6 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-    failure = .FALSE.
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
@@ -388,7 +383,7 @@ CONTAINS
     INTEGER                                  :: deriv_order, handle, l, &
                                                 myfun, n1, n2, n3, nr, nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: lsd
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxca, vxcb
@@ -401,7 +396,6 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
-    failure = .FALSE.
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
@@ -586,9 +580,6 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: f13 = (1.0_dp/3.0_dp)
 
     INTEGER                                  :: ia
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     SELECT CASE(nspins)
     CASE(1)
@@ -722,11 +713,8 @@ CONTAINS
       rsfac = 0.6203504908994000166680065_dp
 
     INTEGER                                  :: i, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: depade, dpv, dq, epade, p, q, &
                                                 rs
-
-    failure = .FALSE.
 
     n = SIZE(rho)
     exc(1:n) = 0._dp
@@ -779,15 +767,12 @@ CONTAINS
       rsfac = 0.6203504908994000166680065_dp
 
     INTEGER                                  :: i, n
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dc, dpv, dq, dr, dx, fa0, &
                                                 fa1, fa2, fa3, fb1, fb2, fb3, &
                                                 fb4, fx1, fx2, p, q, rhoab, &
                                                 rs, x, xp, xq
 
 ! 1/(2^(4/3) - 2)
-
-    failure = .FALSE.
 
     n = SIZE(rhoa)
     exc(1:n) = 0._dp

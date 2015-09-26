@@ -141,10 +141,6 @@ SUBROUTINE pw_env_get(pw_env, pw_pools, cube_info, gridlevel_info,&
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_get', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(pw_env))
   CPASSERT(pw_env%ref_count>0)
   IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
@@ -182,10 +178,6 @@ SUBROUTINE pw_env_retain(pw_env)
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_retain', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-
   CPASSERT(ASSOCIATED(pw_env))
   CPASSERT(pw_env%ref_count>0)
   pw_env%ref_count=pw_env%ref_count+1
@@ -207,9 +199,8 @@ SUBROUTINE pw_env_release(pw_env, kg)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, igrid_level
-    LOGICAL                                  :: failure, my_kg
+    LOGICAL                                  :: my_kg
 
-  failure=.FALSE.
   my_kg = .FALSE.
   IF(PRESENT(kg)) my_kg = kg
   IF (ASSOCIATED(pw_env)) THEN
@@ -269,10 +260,6 @@ SUBROUTINE pw_env_flush_cache(pw_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_flush_cache', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
 
   CPASSERT(ASSOCIATED(pw_env))
   IF (ASSOCIATED(pw_env%pw_pools)) THEN

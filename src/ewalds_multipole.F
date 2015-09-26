@@ -155,8 +155,7 @@ CONTAINS
     INTEGER                                  :: group, handle, i, j, size1, &
                                                 size2
     LOGICAL                                  :: check_debug, check_efield, &
-                                                check_forces, do_task(3), &
-                                                failure
+                                                check_forces, do_task(3)
     LOGICAL, DIMENSION(3, 3)                 :: my_task
     REAL(KIND=dp)                            :: e_bonded, e_bonded_t, &
                                                 e_rspace, e_rspace_t, &
@@ -165,7 +164,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: efield1_lr, efield1_sr, &
                                                 efield2_lr, efield2_sr
 
-    failure = .FALSE.
     CALL cite_reference(Aguado2003)
     CALL cite_reference(Laino2008)
     CALL timeset(routineN,handle)
@@ -384,8 +382,7 @@ CONTAINS
       nkdamp_ij, nkdamp_ji, nkinds, npairs
     INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: do_efield0, do_efield1, &
-                                                do_efield2, failure, &
-                                                force_eval
+                                                do_efield2, force_eval
     REAL(KIND=dp) :: alpha, beta, ch_i, ch_j, dampa_ij, dampa_ji, dampaexpi, &
       dampaexpj, dampfac_ij, dampfac_ji, dampfuncdiffi, dampfuncdiffj, &
       dampfunci, dampfuncj, dampsumfi, dampsumfj, ef0_i, ef0_j, eloc, fac, &
@@ -409,7 +406,6 @@ CONTAINS
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
 
-    failure = .FALSE.
     CALL timeset ( routineN, handle )
     NULLIFY(nonbonded,r_last_update, r_last_update_pbc)
     do_efield0 = do_efield.AND.ASSOCIATED(efield0)

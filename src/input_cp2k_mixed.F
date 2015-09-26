@@ -56,12 +56,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mix_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: sub2section, sub3section, &
                                                 subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="MIXED",&
@@ -307,10 +304,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_print_mix_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="print",&
          description="Section of possible print options in MIXED env.",&

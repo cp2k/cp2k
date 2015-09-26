@@ -83,7 +83,7 @@ CONTAINS
     INTEGER                                  :: i, ikind, is, l, nkind, &
                                                 nshell, output_unit
     INTEGER, DIMENSION(:), POINTER           :: lq, nq
-    LOGICAL                                  :: failure, print_info
+    LOGICAL                                  :: print_info
     REAL(KIND=dp)                            :: a, c, d, eff, r, rmax, rmin
     REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
     TYPE(cp_logger_type), POINTER            :: logger
@@ -92,7 +92,6 @@ CONTAINS
     TYPE(scptb_parameter_type), POINTER      :: scptb_parameter
     TYPE(sto_basis_set_type), POINTER        :: sto_basis
 
-    failure = .FALSE.
     output_unit = -1
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -567,9 +566,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, source
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     source = para_env%source
     group = para_env%group
@@ -599,9 +595,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, source
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     source = para_env%source
     group = para_env%group

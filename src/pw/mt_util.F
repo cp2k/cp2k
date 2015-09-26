@@ -68,14 +68,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ig, iz
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha2, g2, g3d, gxy, gz, &
                                                 zlength
     TYPE(pw_pool_type), POINTER              :: pw_pool_aux
     TYPE(pw_type), POINTER                   :: Vloc, Vlocg
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     NULLIFY(Vloc, Vlocg, pw_pool_aux)
     !
     ! For Martyna-Tuckerman we set up an auxiliary pw_pool at an higher cutoff
@@ -155,14 +153,12 @@ CONTAINS
     INTEGER                                  :: handle, i, ii, j, jj, k, kk
     INTEGER, DIMENSION(:), POINTER           :: glb
     INTEGER, DIMENSION(:, :), POINTER        :: bo
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dy, dz, fact, omega, r, &
                                                 r2, x, y, y2, z, z2
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
     TYPE(pw_grid_type), POINTER              :: grid
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     grid => Vloc%pw_grid
     bo   => grid%bounds_local
@@ -216,13 +212,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, dy, dz, omega
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
     TYPE(pw_grid_type), POINTER              :: grid
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     grid => screen_function%pw_grid
     box = REAL(grid%npts,kind=dp)*grid%dr
     box2 = box/2.0_dp

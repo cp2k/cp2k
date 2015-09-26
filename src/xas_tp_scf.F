@@ -144,7 +144,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, ispin, &
                                                 iter_count, nspin, output_unit
     LOGICAL                                  :: diis_step, energy_only, &
-                                                exit_loop, failure, gapw
+                                                exit_loop, gapw
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -170,7 +170,6 @@ CONTAINS
 
     logger => cp_get_default_logger()
     t1 = m_walltime()
-    failure=.FALSE.
     converged = .TRUE.
 
     CPASSERT(ASSOCIATED(xas_env))
@@ -399,7 +398,6 @@ CONTAINS
       nao, natom, nexc_search, nmo, nvirtual2, uno_iter, xas_estate
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: mykind_of_kind
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
     REAL(KIND=dp)                            :: component, dist, max_overlap, &
                                                 ra(3), rac(3), rc(3), &
@@ -440,7 +438,6 @@ CONTAINS
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
     NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals,para_env,blacs_env)
 
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(xas_env))
 
@@ -650,7 +647,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin, istate, nmo, &
                                                 nvirtual, nvirtual2, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks
@@ -666,7 +662,6 @@ CONTAINS
                                                 xas_section
     TYPE(xas_control_type), POINTER          :: xas_control
 
-    failure = .FALSE.
     NULLIFY(dft_control,scf_control,scf_env,matrix_ks,mos,para_env,xas_control)
     NULLIFY(dft_section, xas_section,scf_section,all_vectors,mo_coeff,all_evals, eigenvalues)
     NULLIFY(logger)
@@ -676,74 +671,70 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(xas_env))
-    IF(.NOT. failure) THEN
-       CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, &
-            matrix_ks=matrix_ks,mos=mos,para_env=para_env)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, &
+                    matrix_ks=matrix_ks,mos=mos,para_env=para_env)
 
-       xas_control => dft_control%xas_control
-       CALL get_xas_env(xas_env, scf_control=scf_control)
+    xas_control => dft_control%xas_control
+    CALL get_xas_env(xas_env, scf_control=scf_control)
 
-      dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
-      xas_section => section_vals_get_subs_vals(dft_section,"XAS")
-      scf_section => section_vals_get_subs_vals(xas_section,"SCF")
+    dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
+    xas_section => section_vals_get_subs_vals(dft_section,"XAS")
+    scf_section => section_vals_get_subs_vals(xas_section,"SCF")
 
+    IF(xas_env%homo_occ == 0) THEN
 
-       IF(xas_env%homo_occ == 0) THEN
+       NULLIFY(scf_env)
+       CALL get_xas_env(xas_env,scf_env=scf_env)
+       IF(.NOT. ASSOCIATED(scf_env)) THEN
+          CALL qs_scf_env_initialize(qs_env,scf_env, scf_control,scf_section)
+          CALL set_xas_env(xas_env,scf_env=scf_env)
+          CALL scf_env_release(scf_env)
+          CALL get_xas_env(xas_env=xas_env,scf_env=scf_env)
+       ELSE
+          CALL qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section)
+       ENDIF
 
-         NULLIFY(scf_env)
-         CALL get_xas_env(xas_env,scf_env=scf_env)
-         IF(.NOT. ASSOCIATED(scf_env)) THEN
-           CALL qs_scf_env_initialize(qs_env,scf_env, scf_control,scf_section)
-            CALL set_xas_env(xas_env,scf_env=scf_env)
-            CALL scf_env_release(scf_env)
-            CALL get_xas_env(xas_env=xas_env,scf_env=scf_env)
-         ELSE
-            CALL qs_scf_env_initialize(qs_env,scf_env,scf_control,scf_section)
-         ENDIF
+       CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
+                           converged=converged, should_stop=should_stop)
+       CALL scf_env_cleanup(scf_env)
 
+    END IF
 
-         CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
-              converged=converged, should_stop=should_stop)
-         CALL scf_env_cleanup(scf_env)
-
+    !   The eigenstate of the KS Hamiltonian are nedeed
+    NULLIFY(mo_coeff,eigenvalues)
+    IF(scf_control%use_ot) THEN
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+               "Get eigenstates and eigenvalues from ground state MOs"
        END IF
+       DO ispin = 1,SIZE(mos)
+          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
+               eigenvalues=eigenvalues)
+          CALL calculate_subspace_eigenvalues(mo_coeff,&
+               matrix_ks(ispin)%matrix,eigenvalues, &
+               do_rotation=.TRUE.)
+       END DO
+    END IF
+    CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
+         all_evals=all_evals,nvirtual2=nvirtual2)
+    CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff, nmo=nmo)
 
-       !   The eigenstate of the KS Hamiltonian are nedeed
-       NULLIFY(mo_coeff,eigenvalues)
-       IF(scf_control%use_ot) THEN
-          IF (output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-                  "Get eigenstates and eigenvalues from ground state MOs"
-          END IF
-          DO ispin = 1,SIZE(mos)
-             CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
-                  eigenvalues=eigenvalues)
-             CALL calculate_subspace_eigenvalues(mo_coeff,&
-                  matrix_ks(ispin)%matrix,eigenvalues, &
-                  do_rotation=.TRUE.)
-          END DO
+    CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nmo,&
+         source_start=1,target_start=1)
+    DO istate = 1,nmo
+       all_evals(istate) = eigenvalues(istate)
+    ENDDO
+
+    IF(nvirtual2/=0) THEN
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+               "WARNING: for this XES calculation additional unoccupied MOs are not needed"
        END IF
-       CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
-            all_evals=all_evals,nvirtual2=nvirtual2)
-       CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff, nmo=nmo)
+       nvirtual2=0
+       nvirtual = nmo
+       CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2)
+    END IF
 
-       CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nmo,&
-            source_start=1,target_start=1)
-       DO istate = 1,nmo
-          all_evals(istate) = eigenvalues(istate)
-       ENDDO
-
-       IF(nvirtual2/=0) THEN
-          IF (output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
-                  "WARNING: for this XES calculation additional unoccupied MOs are not needed"
-          END IF
-          nvirtual2=0
-          nvirtual = nmo
-          CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2)
-       END IF
-
-    END IF  ! failure
     CALL timestop(handle)
 
   END SUBROUTINE xes_scf_once

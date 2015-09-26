@@ -340,7 +340,6 @@ CONTAINS
     COMPLEX(KIND=dp), POINTER                :: mii( : ), mij( : ), mjj( : )
     INTEGER                                  :: dim2, handle, idim, istate, &
                                                 jstate, nstate, unit_nr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ct, st, t1, t2, theta, &
                                                 tolerance
     TYPE(cp_cfm_p_type), DIMENSION(:), &
@@ -350,7 +349,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
 
     dim2 = SIZE(zij,2)
     NULLIFY(rmat,c_rmat,c_zij)
@@ -773,15 +771,13 @@ CONTAINS
     INTEGER :: dim2, handle, i, icol, idim, irow, method, ncol_global, &
       ncol_local, norder, nrow_global, nrow_local, nsquare, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: do_emd, failure
+    LOGICAL                                  :: do_emd
     REAL(KIND=dp)                            :: eps_exp, limit_crazy_angle, &
                                                 maxeval, norm, ra, rb, theta, &
                                                 tolerance, value
     REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
     TYPE(cp_cfm_type), POINTER               :: cmat_A, cmat_R, cmat_t1
     TYPE(cp_fm_type), POINTER                :: mat_R, mat_t, mat_theta, mat_U
-
-    failure=.FALSE.
 
     CALL timeset(routineN,handle)
     NULLIFY(row_indices,col_indices)
@@ -975,7 +971,7 @@ CONTAINS
     INTEGER :: handle, i, icol, idim, irow, line_search_count, line_searches, &
       lsl, lsm, lsr, n, ncol_local, ndim, nrow_local, output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: failure, new_direction
+    LOGICAL                                  :: new_direction
     REAL(KIND=dp) :: a, b, beta_pr, c, denom, ds, ds_min, fa, fb, fc, nom, &
       normg, normg_cross, normg_old, npos, omega, tol, val, x0, x1, xa, xb, xc
     REAL(KIND=dp), DIMENSION(150)            :: energy, grad, pos
@@ -1002,7 +998,6 @@ CONTAINS
     n = zij(1,1)%matrix%matrix_struct%nrow_global
     ndim = (SIZE(zij,2))
 
-    failure=.FALSE.
 
     IF ( output_unit > 0) THEN
       WRITE(output_unit,'(T10,A )') "Localization by direct minimization of the functional; "
@@ -1395,7 +1390,7 @@ CONTAINS
       ns_partner, ns_recv_from, ns_recv_partner, nstate, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: list_pair, ns_bound
-    LOGICAL                                  :: failure, should_stop
+    LOGICAL                                  :: should_stop
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: gmat, rmat_loc, rmat_recv, &
                                                 rmat_send, rotmat, &
                                                 z_ij_loc_im, z_ij_loc_re
@@ -1413,7 +1408,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     NULLIFY(logger)
     logger => cp_get_default_logger()
     output_unit= cp_logger_get_default_io_unit(logger)

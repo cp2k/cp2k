@@ -90,7 +90,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin, natom, &
                                                 ncol_global, nspins, &
                                                 output_unit
-    LOGICAL                                  :: failure, s_mstruct_changed
+    LOGICAL                                  :: s_mstruct_changed
     REAL(KIND=dp)                            :: ecoul, qmmm_el
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -115,7 +115,6 @@ CONTAINS
       POINTER                                :: se_control
     TYPE(semi_empirical_si_type), POINTER    :: store_int_env
 
-    failure=.FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(matrix_h, dft_control, logger, scf_section, store_int_env, se_control)
     NULLIFY(atomic_kind_set, atprop)

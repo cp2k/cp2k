@@ -68,12 +68,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, number
-    LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
@@ -156,13 +154,11 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )
@@ -265,12 +261,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nkind, number, region
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => nhc%map_info
@@ -330,13 +325,11 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )
@@ -430,13 +423,11 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_atom_list
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: fac
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_atom_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )
@@ -536,12 +527,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nkind, number, region
-    LOGICAL                                  :: do_shell, failure
+    LOGICAL                                  :: do_shell
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure  = .FALSE.
     do_shell = .FALSE.
     IF (PRESENT(shell)) do_shell = shell
     map_info    => nhc%map_info
@@ -600,12 +590,10 @@ CONTAINS
                                                 sum_of_thermostats
     INTEGER, DIMENSION(:), POINTER           :: deg_of_freedom, &
                                                 massive_shell_list
-    LOGICAL                                  :: failure
     TYPE(map_info_type), POINTER             :: map_info
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY (massive_shell_list, deg_of_freedom)
 
     SELECT CASE ( simpar % ensemble )

@@ -168,7 +168,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     INTEGER :: handle, i, initialStep, iprint, isos, istep, j, md_stride, &
       nmccycles, output_unit, rand2skip, run_type_id
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: check, explicit, failure, &
+    LOGICAL                                  :: check, explicit, &
                                                 my_rm_restart_info, save_mem, &
                                                 should_stop
     REAL(KIND=dp)                            :: auxRandom, inittime, rval, &
@@ -209,7 +209,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     inittime=0.0_dp
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     my_rm_restart_info = .TRUE.
     NULLIFY(md_env, para_env,fs_section, virial)
     para_env       => force_env%para_env
@@ -225,7 +224,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     CPASSERT(ASSOCIATED(globenv))
     CPASSERT(ASSOCIATED(force_env))
 
-    failure=.FALSE.
     NULLIFY (particles, cell, simpar, itimes, used_time, subsys, &
          md_ener, thermostats, barostat, reftraj, force_env_section, &
          reftraj_section, work_section, atomic_kinds, &
@@ -401,8 +399,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
             routineP,"Virial evaluation not requested for this run in the input file! "//&
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you are using can compute the virial! "//&
- CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -416,8 +413,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
             routineP,"Virial evaluation not requested for all the force_eval sections present in"//&
             " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR "//&
             " in each force_eval section. Be sure the method you are using can compute the virial!"//&
-            CPSourceFileRef,&
-            failure)
+            CPSourceFileRef)
     END IF
 
     ! Computing Forces at zero MD step
@@ -472,8 +468,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 !                    check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
 !                    CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
 !                       "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
-!                       " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE",&
-!                       failure)
+!                       " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE")
 !                 ELSE
 !                    force_env%meta_env%delta_t = dummy
 !                 ENDIF
@@ -518,8 +513,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       CALL init_mc_moves(moves)
       CALL init_mc_moves(gmoves)
       ALLOCATE (r(1:3,SIZE(particles%els)))
-!       ALLOCATE (r_old(1:3,size(particles%els)),STAT=isos)
-!       CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+!       ALLOCATE (r_old(1:3,size(particles%els)))
       CALL mc_averages_create(MCaverages)
     !!!!! some more buffers
  ! Allocate random number for Langevin Thermostat acting on COLVARS
@@ -681,8 +675,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     CALL MC_MOVES_RELEASE(moves)
     CALL MC_MOVES_RELEASE(gmoves)
     DEALLOCATE(r)
-!     DEALLOCATE(r_old,STAT=isos)
-!     CPPostcondition(isos==0,cp_failure_level,routineP,failure)
+!     DEALLOCATE(r_old)
     DEALLOCATE(xieta)
     DEALLOCATE(An)
     DEALLOCATE(fz)
@@ -710,13 +703,11 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_c
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, fft, sigma
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
     CALL timeset(routineN,handle)
@@ -753,13 +744,11 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i_c
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, sigma
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
 !     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -801,7 +790,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, i_c, icolvar, ii
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: diff_ss, dt, rval
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
@@ -813,7 +802,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     TYPE(section_vals_type), POINTER         :: ss0_section, ss_section, &
                                                 vvp_section
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env)
     meta_env => force_env%meta_env
 !     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -936,7 +924,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     INTEGER                                  :: iprint, ivar, nparticle, &
                                                 nparticle_kind, nstep, &
                                                 output_unit
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dt, gamma, mass, sigma
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -968,7 +955,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
     output_unit = cp_logger_get_default_io_unit(logger)
 
     NULLIFY(rng_stream)
-    failure = .FALSE.
 ! quantitites to be nullified for the get_md_env
     NULLIFY(simpar,force_env,para_env)
 ! quantities to be nullified for the force_env_get environment
@@ -1209,7 +1195,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 
     INTEGER                                  :: group, handle, iatom, j, &
                                                 nAtoms, source
-    LOGICAL                                  :: failure, ionode, localise
+    LOGICAL                                  :: ionode, localise
     REAL(KIND=dp)                            :: BETA, energy_term, &
                                                 exp_max_val, exp_min_val, &
                                                 new_energy, new_epx, new_epz, &
@@ -1224,7 +1210,6 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,handle)
-      failure=.TRUE.
 
       NULLIFY(scf_env)
       CALL get_qs_env(force_env%qs_env,scf_env=scf_env,input=input)
@@ -1345,11 +1330,9 @@ SUBROUTINE metadyn_write_colvar_header(force_env)
     CHARACTER(len=255)                       :: label1, label2, label3, &
                                                 label4, label5, label6
     INTEGER                                  :: handle, i, iw, m
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN
@@ -1424,13 +1407,11 @@ SUBROUTINE metadyn_write_colvar_header(force_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, i_c, iw
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(metavar_type), POINTER              :: cv
 
-    failure=.FALSE.
     NULLIFY(logger,meta_env,cv)
     meta_env => force_env%meta_env
     IF (.NOT.ASSOCIATED(meta_env)) RETURN

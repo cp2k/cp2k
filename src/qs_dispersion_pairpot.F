@@ -120,15 +120,13 @@ CONTAINS
     INTEGER                                  :: elem, handle, i, ikind, j, &
                                                 max_elem, maxc, n_rep, nkind, &
                                                 nl, vdw_pp_type, vdw_type
-    LOGICAL                                  :: at_end, failure, found, &
-                                                is_available
+    LOGICAL                                  :: at_end, found, is_available
     REAL(KIND=dp)                            :: dum
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(qs_atom_dispersion_type), POINTER   :: disp
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     vdw_type = dispersion_env%type
     SELECT CASE (vdw_type)
@@ -301,8 +299,7 @@ CONTAINS
             "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "//&
             "Please provide a valid set of parameters through the input section or "//&
             "through an external file! "//&
- CPSourceFileRef,&
-            failure=failure)
+            CPSourceFileRef)
        CALL set_qs_kind(qs_kind_set(ikind),dispersion=disp)
     END DO
 
@@ -325,9 +322,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: functional
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -374,9 +368,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: functional
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -614,9 +605,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: functional
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CALL section_vals_val_get(vdw_section,"PAIR_POTENTIAL%REFERENCE_FUNCTIONAL",c_val=functional)
 
@@ -853,8 +841,10 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_b, cell_c, ncell, &
                                                 periodic
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL :: atenergy, atstress, debug, debugall, debugx, failure, ghost_a, &
-      ghost_b, ghost_c, is000, use_virial
+    LOGICAL                                  :: atenergy, atstress, debug, &
+                                                debugall, debugx, ghost_a, &
+                                                ghost_b, ghost_c, is000, &
+                                                use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: dodisp, ghost
     REAL(KIND=dp) :: a1, a2, alp6, alp8, ang, c6, c8, c9, cc6ab, cc6bc, &
       cc6ca, cnab, cnum, dc6a, dc6b, dc8a, dc8b, dcc6aba, dcc6abb, dcc6bcb, &
@@ -898,7 +888,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
 
     energy = 0._dp
 
@@ -1745,9 +1734,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ix, iy, iz, nx, ny, nz
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ALL(ABS(cell)<=ncell))
 
     ix = cell(1)
@@ -1844,10 +1831,8 @@ CONTAINS
 
     INTEGER                                  :: funit, iadr, iat, jadr, jat, &
                                                 kk, nl, nlines, nn
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: pars
 
-    failure = .FALSE.
     IF(para_env%source==para_env%mepos) THEN
       ! Read the DFT-D3 C6AB parameters from file "filename"
       CALL open_file(file_name=filename,unit_number=funit,file_form="FORMATTED")
@@ -2940,12 +2925,10 @@ CONTAINS
     INTEGER                                  :: group, i, ia, ipe, jn, n, &
                                                 natom, ntmax, ntot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: list, nloc
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dvals
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: rik
 
-    failure = .FALSE.
 ! we only have to do something if this is a parallel run
 
     IF (para_env%num_pe > 1) THEN

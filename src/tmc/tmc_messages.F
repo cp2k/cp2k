@@ -92,9 +92,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_if_group_master', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(para_env))
 
     master = .FALSE.
@@ -202,8 +199,7 @@ CONTAINS
         CALL create_analysis_request_message(list_elem, m_send, tmc_params)
       CASE DEFAULT
         CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "try to send unknown message type "//cp_to_string(msg_type),&
-                       failure=flag)
+                       "try to send unknown message type "//cp_to_string(msg_type))
       END SELECT
       !set message info
       message_tag = msg_type
@@ -383,8 +379,7 @@ CONTAINS
       CASE DEFAULT
         CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                        "try to receive unknown message type "//cp_to_string(msg_type)//&
-                       "from source "//cp_to_string(dest),&
-                       failure=flag)
+                       "from source "//cp_to_string(dest))
       END SELECT
       IF(m_send%info(2).GT.0) DEALLOCATE(m_send%task_int)
       IF(m_send%info(3).GT.0) DEALLOCATE(m_send%task_real)
@@ -408,9 +403,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_status_message', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
 
     ! nothing to do, send just the message tag
@@ -519,9 +511,6 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(ASSOCIATED(m_send))
@@ -572,9 +561,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GE.4)
@@ -630,9 +618,7 @@ CONTAINS
 
     INTEGER                                  :: counter, i, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(tmc_params))
@@ -715,9 +701,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter, i
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_params))
     CPASSERT(.NOT.ASSOCIATED(tmc_params%atoms))
     CPASSERT(ASSOCIATED(m_send))
@@ -794,9 +779,7 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -852,9 +835,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
     CPASSERT(ASSOCIATED(tmc_params))
@@ -905,9 +886,7 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -973,9 +952,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
@@ -1030,9 +1007,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter, msg_size_real
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -1077,9 +1052,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(2).EQ.0.AND.m_send%info(3).GT.0)
@@ -1120,9 +1093,7 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
@@ -1213,9 +1184,7 @@ CONTAINS
 
     INTEGER                                  :: counter, num_dim, &
                                                 rnd_seed_size
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(2).GT.5.AND.m_send%info(3).GT.8)
@@ -1295,9 +1264,7 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -1429,9 +1396,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: acc_counter, mv_counter, &
                                                 subbox_acc_counter, &
                                                 subbox_counter
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     NULLIFY(mv_counter, subbox_counter, acc_counter, subbox_acc_counter)
 
     CPASSERT(ASSOCIATED(elem))
@@ -1547,9 +1512,7 @@ CONTAINS
 
     INTEGER                                  :: counter, msg_size_int, &
                                                 msg_size_real
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(.NOT.ALLOCATED(m_send%task_int))
     CPASSERT(.NOT.ALLOCATED(m_send%task_real))
@@ -1606,9 +1569,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: counter
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(m_send))
     CPASSERT(m_send%info(3).GT.0)
     CPASSERT(ASSOCIATED(tmc_params))
@@ -1658,9 +1619,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_scf_step_ener', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(m_send))
 
@@ -1735,12 +1693,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: act_rank, dest_rank, stat
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: rank_stoped
 
 !    INTEGER, DIMENSION(MPI_STATUS_SIZE)      :: status_single
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(para_env))
     CPASSERT(ASSOCIATED(tmc_params))
 
@@ -1810,15 +1767,13 @@ CONTAINS
         CASE DEFAULT
           CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
                          "master received status "//cp_to_string(stat)//&
-                         " while stopping workers",&
-                         failure=flag)
+                         " while stopping workers")
         END SELECT
         IF(ALL(rank_stoped)) EXIT wait_for_receipts
       END DO wait_for_receipts
     ELSE
       CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                     "only (group) master should stop other participants",&
-                     failure=flag)
+                     "only (group) master should stop other participants")
     END IF
   END SUBROUTINE stop_whole_group
 

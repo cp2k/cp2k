@@ -133,8 +133,7 @@ MODULE mp2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
     LOGICAL                                  :: calc_ex, &
                                                 do_dynamic_load_balancing, &
-                                                do_exx, failure, &
-                                                free_hfx_buffer
+                                                do_exx, free_hfx_buffer
     REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
       Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, &
       Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2, t3
@@ -179,7 +178,6 @@ MODULE mp2
 
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     CALL cite_reference(DelBen2012)
@@ -805,11 +803,10 @@ MODULE mp2
       vector_batch_I_size_group, vector_batch_J_size_group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ij_list_proc, &
                                                 ij_list_proc_temp, ij_matrix
-    LOGICAL                                  :: alpha_beta_case, failure
+    LOGICAL                                  :: alpha_beta_case
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     alpha_beta_case=.FALSE.
     IF(PRESENT(C_j).AND.PRESENT(Auto_j)) alpha_beta_case=.TRUE.
@@ -1073,7 +1070,6 @@ MODULE mp2
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, irep, n_rep_hf, ns
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, rho_ao
@@ -1085,7 +1081,6 @@ MODULE mp2
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
 
     CALL timeset(routineN,handle)
-    failure=.FALSE.
 
     t1=m_walltime()
 

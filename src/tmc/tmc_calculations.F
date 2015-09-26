@@ -76,12 +76,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: e_pot, rnd
     TYPE(cell_type), POINTER                 :: tmp_cell
 
     rnd = 0.0_dp
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(conf))
     CPASSERT(env_id.GT.0)
@@ -169,10 +168,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_scaled_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, new_scaled_cell
+    LOGICAL                                  :: new_scaled_cell
     TYPE(cell_type), POINTER                 :: tmp_cell
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(cell))
     CPASSERT(ASSOCIATED(box_scale))
 
@@ -218,11 +216,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell_scaling', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: abc_new, abc_orig
     TYPE(cell_type), POINTER                 :: tmp_cell
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(cell))
 
     ALLOCATE(tmp_cell)
@@ -256,11 +252,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nearest_distance', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: dist_vec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: tmp_box_scale
 
-    failure = .FALSE.
     NULLIFY(tmp_box_scale)
 
     CPASSERT(ASSOCIATED(cell))
@@ -295,9 +289,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(center))
     CPASSERT(SIZE(pos).GE.SIZE(center))
 
@@ -333,10 +325,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: mass_sum, mass_tmp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(center))
     CPASSERT(SIZE(pos).GE.SIZE(center))
 
@@ -354,8 +344,7 @@ CONTAINS
         mass_sum = mass_sum + mass_tmp
       ELSE
         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                 "try to calculate center of mass without any mass.",&
-                 failure)
+                 "try to calculate center of mass without any mass.")
         center(:) = center(:) + pos(i:i+SIZE(center)-1)/&
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))
         mass_sum = 1.0_dp
@@ -458,11 +447,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'three_point_extrapolate', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: e1,e2,e3
     REAL(KIND=dp)                            :: a,b,c,d12,d23,ddd
 
-    failure = .FALSE.
     extrapolate = HUGE(extrapolate)
 
     !> solve({exp(a+b)+c = e1, exp(2*a+b)+c = e2, exp(3*a+b)+c = e3}, [a, b, c])
@@ -576,12 +563,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: E_mu_tmp, E_n_mu, E_n_sigma, &
                                                 E_o_mu, E_o_sigma, &
                                                 E_sigma_tmp, prior_sigma
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem_old))
     CPASSERT(ASSOCIATED(elem_new))
     CPASSERT(rnd_nr.GT.0.0_dp)
@@ -658,9 +643,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(tmc_env))
     CPASSERT(ASSOCIATED(tmc_env%params))
     CPASSERT(ASSOCIATED(tmc_env%m_env))

@@ -137,15 +137,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: orb_norm_r, ri_int_fbas, &
                                                 ri_norm_r, ri_norm_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: orb_ovlp, ri_ovlp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: scon_orb, scon_ri
     TYPE(gto_basis_set_type), POINTER        :: orb_basis, ri_basis
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(lri_env)) THEN
        IF (ASSOCIATED(lri_env%orb_basis)) THEN
@@ -499,10 +496,7 @@ CONTAINS
 
     INTEGER :: il, ilist, iso, iso1, iso2, l1, l1l2, l2, lc1, lc2, lp, m1, &
       m2, maxl, mm, mp, nlist, nlist_max, nsfunc, nsfunc1, nsfunc2
-    LOGICAL                                  :: failure
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
-
-    failure = .FALSE.
 
     nlist_max = 6
     nsfunc1 = nsoset(maxl1)

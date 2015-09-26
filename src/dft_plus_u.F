@@ -105,7 +105,7 @@ CONTAINS
 
     INTEGER                                  :: handle, output_unit, &
                                                 print_level
-    LOGICAL                                  :: failure, orthonormal_basis, &
+    LOGICAL                                  :: orthonormal_basis, &
                                                 should_output
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -113,7 +113,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(qs_env))
 
     NULLIFY (input, dft_control)
@@ -225,7 +224,7 @@ CONTAINS
     INTEGER, DIMENSION(1)                    :: iloc
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
-    LOGICAL :: debug, dft_plus_u_atom, failure, fm_work1_local_alloc, &
+    LOGICAL :: debug, dft_plus_u_atom, fm_work1_local_alloc, &
       fm_work2_local_alloc, found, just_energy, smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_occ
     REAL(KIND=dp)                            :: eps_scf, eps_u_ramping, &
@@ -291,7 +290,6 @@ CONTAINS
     NULLIFY (para_env)
     NULLIFY (blacs_env)
 
-    failure = .FALSE.
 
     smear = .FALSE.
     max_scf = -1
@@ -890,8 +888,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell, orbitals
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
     LOGICAL                                  :: debug, dft_plus_u_atom, &
-                                                failure, found, just_energy, &
-                                                smear
+                                                found, just_energy, smear
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_plus_u_kind, orb_occ
     REAL(KIND=dp)                            :: eps_scf, eps_u_ramping, &
                                                 fspin, occ, trq, trq2, &
@@ -949,7 +946,6 @@ CONTAINS
     NULLIFY (v_block)
     NULLIFY (para_env)
 
-    failure = .FALSE.
 
     smear = .FALSE.
     max_scf = -1
@@ -1551,8 +1547,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf_atom
     INTEGER, DIMENSION(:), POINTER           :: atom_list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgf, l, last_sgf
-    LOGICAL                                  :: dft_plus_u_atom, failure, &
-                                                found, just_energy
+    LOGICAL                                  :: dft_plus_u_atom, found, &
+                                                just_energy
     REAL(KIND=dp)                            :: eps_u_ramping, fspin, q, &
                                                 u_minus_j, u_minus_j_target, &
                                                 u_ramping, v
@@ -1602,7 +1598,6 @@ CONTAINS
     NULLIFY (w_block)
     NULLIFY (para_env)
 
-    failure = .FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&

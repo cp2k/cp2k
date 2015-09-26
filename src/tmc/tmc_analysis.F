@@ -226,9 +226,6 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: tmp_cell_file, tmp_dip_file, &
                                                 tmp_pos_file
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(nr_dim>0)
@@ -299,9 +296,8 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp, &
                                                 restart_file_name
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure, l_tmp
+    LOGICAL                                  :: l_tmp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(ana_env%last_elem))
     IF(.NOT.ana_env%restart) RETURN
@@ -400,10 +396,9 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
     INTEGER                                  :: file_ptr
-    LOGICAL                                  :: failure, l_tmp
+    LOGICAL                                  :: l_tmp
     REAL(KIND=dp)                            :: temp
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(elem))
     IF(.NOT.ana_env%restart) RETURN
@@ -502,11 +497,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, weight_act
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: dip_tmp
     TYPE(tree_type), POINTER                 :: elem_tmp
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(ana_env))
@@ -1050,12 +1042,9 @@ CONTAINS
 
     INTEGER                                  :: counter, f_n, handle, list, &
                                                 list_ind, s_n
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
     TYPE(atom_pairs_type), DIMENSION(:), &
       POINTER                                :: pairs_tmp
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_pair_correl))
     CPASSERT(.NOT.ASSOCIATED(ana_pair_correl%g_r))
@@ -1129,11 +1118,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ind, j, pair_ind
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dist
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(elem))
     CPASSERT(ASSOCIATED(elem%pos))
     CPASSERT(ALL(elem%box_scale(:).GT.0.0_dp))
@@ -1188,11 +1175,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER                                  :: bin, file_ptr, handle, pair
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: aver_box_scale(3), vol, voldr
     REAL(KIND=dp), DIMENSION(3)              :: cell_size
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_env))
     CPASSERT(ASSOCIATED(ana_env%pair_correl))
@@ -1265,9 +1249,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom, charge, handle
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     CPASSERT(ASSOCIATED(ana_dip_mom))
     CPASSERT(ASSOCIATED(ana_dip_mom%charges_inp))
@@ -1652,11 +1633,10 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name, file_name_tmp
     INTEGER                                  :: file_ptr, handle, ind
-    LOGICAL                                  :: failure, flag
+    LOGICAL                                  :: flag
     REAL(KIND=dp)                            :: disp
     REAL(KIND=dp), DIMENSION(3)              :: atom_disp
 
-    failure = .FALSE.
     disp = 0.0_dp
 
     CPASSERT(ASSOCIATED(elem))

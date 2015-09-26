@@ -95,11 +95,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_poisson_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="poisson",&
@@ -165,11 +162,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_multipole_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
@@ -236,10 +230,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_mt_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="mt",&
@@ -281,11 +272,8 @@ SUBROUTINE create_ewald_section(section)
     CHARACTER(len=*), PARAMETER :: routineN = 'create_ewald_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, subsection
-
-  failure=.FALSE.
 
   CPASSERT(.NOT.ASSOCIATED(section))
   CALL section_create(section,name="ewald",&
@@ -464,11 +452,8 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_gspace_interp_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="interpolator",&
@@ -545,10 +530,7 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_wavelet_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="wavelet",&
@@ -584,11 +566,8 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_implicit_ps_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="IMPLICIT",&
@@ -655,11 +634,8 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dielectric_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIELECTRIC", &
@@ -745,10 +721,7 @@ END SUBROUTINE create_ewald_section
       routineN = 'create_dielec_aa_cuboidal_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIELEC_AA_CUBOIDAL", &
@@ -804,10 +777,7 @@ END SUBROUTINE create_ewald_section
       routineN = 'create_dielec_xaa_annular_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIELEC_XAA_ANNULAR", &
@@ -862,11 +832,8 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dbc_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DIRICHLET_BC", &
@@ -914,10 +881,7 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_planar_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AA_PLANAR", &
@@ -1002,10 +966,7 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_planar_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PLANAR", &
@@ -1075,10 +1036,7 @@ END SUBROUTINE create_ewald_section
       routineN = 'create_xaa_cylindrical_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="XAA_CYLINDRICAL", &
@@ -1160,10 +1118,7 @@ END SUBROUTINE create_ewald_section
     CHARACTER(len=*), PARAMETER :: routineN = 'create_aa_cuboidal_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AA_CUBOIDAL", &

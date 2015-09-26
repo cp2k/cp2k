@@ -64,9 +64,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     CPASSERT(.NOT.ASSOCIATED(bdav_env))
     ALLOCATE(bdav_env(nspins))
@@ -118,10 +115,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nmox2
-    LOGICAL                                  :: failure
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(fm_struct_tmp)
 
@@ -160,9 +155,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF(ASSOCIATED(bdav_env)) THEN
 
@@ -195,9 +187,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     IF(ASSOCIATED(bdav_env)) THEN
 

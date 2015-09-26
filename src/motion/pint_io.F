@@ -127,8 +127,8 @@ MODULE pint_io
     TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle1)
-
-    failure=.FALSE.
+    
+    failure = .FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF (failure) THEN
@@ -293,7 +293,7 @@ MODULE pint_io
 
     CALL timeset(routineN,handle1)
 
-    failure=.FALSE.
+    failure = .FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
     IF (failure) THEN
@@ -434,13 +434,11 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: stmp1, stmp2
     INTEGER                                  :: ic, unit_nr
-    LOGICAL                                  :: failure, new_file, &
-                                                should_output
+    LOGICAL                                  :: new_file, should_output
     REAL(kind=dp), DIMENSION(3)              :: com_r
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)
@@ -506,15 +504,13 @@ MODULE pint_io
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ndof, unit_nr
-    LOGICAL                                  :: failure, file_is_new
+    LOGICAL                                  :: file_is_new
     REAL(kind=dp)                            :: t, temp
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF ( failure ) RETURN
 
     NULLIFY(print_key,logger)
     print_key => section_vals_get_subs_vals(pint_env%input, &
@@ -596,11 +592,9 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: msgstr, stmp, time_unit
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: time_used
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)
@@ -659,13 +653,11 @@ MODULE pint_io
 
     CHARACTER(len=default_string_length)     :: unit_str
     INTEGER                                  :: ia, ib, ic, idim, unit_nr
-    LOGICAL                                  :: failure, new_file, &
-                                                should_output
+    LOGICAL                                  :: new_file, should_output
     REAL(kind=dp)                            :: nb, ss, unit_conv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(pint_env))
 
     NULLIFY(logger)

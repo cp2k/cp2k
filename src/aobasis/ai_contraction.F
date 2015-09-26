@@ -86,14 +86,13 @@ CONTAINS
 
     INTEGER                                  :: lda, ldb, ldq, lds, ldw, mal, &
                                                 mbl, nal, nbl
-    LOGICAL                                  :: failure, my_trans
+    LOGICAL                                  :: my_trans
     REAL(KIND=dp)                            :: fs
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
 
-    failure = .FALSE.
+! Should output matrix be transposed?
 
-    ! Should output matrix be transposed?
     IF(PRESENT(trans)) THEN
        my_trans = trans
     ELSE
@@ -216,13 +215,11 @@ CONTAINS
 
     INTEGER                                  :: lda, ldb, ldc, mal, mbl, mcl, &
                                                 nal, nbl, ncl
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: work1, work2, work3, work4
 
-    failure = .FALSE.
+! Active matrix size
 
-    ! Active matrix size
     IF(PRESENT(ca)) THEN
        IF(PRESENT(na)) THEN
           nal = na
@@ -340,13 +337,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: lda, ldb, ldq, lds, ldw
-    LOGICAL                                  :: failure, my_trans
+    LOGICAL                                  :: my_trans
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: work
 
-    failure = .FALSE.
+! Should input matrix be transposed?
 
-    ! Should input matrix be transposed?
     IF(PRESENT(trans)) THEN
        my_trans = trans
     ELSE
@@ -398,9 +394,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure, my_trans
+    LOGICAL                                  :: my_trans
 
-    failure = .FALSE.
     CPASSERT(m<=SIZE(SAB,3))
     CPASSERT(m<=SIZE(force,1))
 
@@ -450,9 +445,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ja, jb
-    LOGICAL                                  :: failure, my_trans
-
-    failure = .FALSE.
+    LOGICAL                                  :: my_trans
 
     IF(PRESENT(trans)) THEN
        my_trans = trans

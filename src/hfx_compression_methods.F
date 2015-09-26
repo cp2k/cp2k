@@ -122,9 +122,6 @@ MODULE hfx_compression_methods
     INTEGER                                  :: end_idx, increment_counter, &
                                                 start_idx, tmp_elements, &
                                                 tmp_nints
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     start_idx = container%element_counter
     increment_counter = (nbits*CACHE_SIZE + 63)/64

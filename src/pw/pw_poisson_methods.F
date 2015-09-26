@@ -93,10 +93,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_cleanup', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
 
@@ -120,11 +118,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_check', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, rebuild
+    LOGICAL                                  :: rebuild
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(ps_wavelet_type), POINTER           :: wavelet
-
-    failure=.FALSE.
 
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
@@ -190,11 +186,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
     CPASSERT(ASSOCIATED(poisson_env%pw_pools))
@@ -266,7 +260,7 @@ CONTAINS
 
     INTEGER                                  :: alpha, beta, handle, i, ig, ng
     INTEGER, DIMENSION(3)                    :: n
-    LOGICAL                                  :: failure, has_dielectric
+    LOGICAL                                  :: has_dielectric
     REAL(KIND=dp)                            :: ffa
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type)                          :: dvg( 3 )
@@ -276,7 +270,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(ASSOCIATED(poisson_env))
     CPASSERT(poisson_env%ref_count>0)
     CALL pw_poisson_rebuild(poisson_env,density)
@@ -293,7 +286,7 @@ CONTAINS
        CPASSERT(ASSOCIATED(vhartree))
        CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
             cp_failure_level,routineP,&
-            "vhartree has a different grid than the poisson solver",failure)
+            "vhartree has a different grid than the poisson solver")
     END IF
     ! density in G space
     CALL pw_pool_create_pw ( pw_pool, rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE)
