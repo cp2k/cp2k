@@ -425,6 +425,8 @@ CONTAINS
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
+    failure=.FALSE.
+
     my_accept_non_compatible=.FALSE.
     logger => cp_get_default_logger()
     IF (PRESENT(accept_non_compatible)) my_accept_non_compatible=accept_non_compatible
