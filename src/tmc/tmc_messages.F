@@ -198,8 +198,7 @@ CONTAINS
         CPASSERT(PRESENT(list_elem))
         CALL create_analysis_request_message(list_elem, m_send, tmc_params)
       CASE DEFAULT
-        CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "try to send unknown message type "//cp_to_string(msg_type))
+        CPABORT("try to send unknown message type "//cp_to_string(msg_type))
       END SELECT
       !set message info
       message_tag = msg_type
@@ -377,9 +376,9 @@ CONTAINS
       CASE(TMC_STAT_ANALYSIS_REQUEST)
         CALL read_analysis_request_message(elem, m_send, tmc_params)
       CASE DEFAULT
-        CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "try to receive unknown message type "//cp_to_string(msg_type)//&
-                       "from source "//cp_to_string(dest))
+        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             "try to receive unknown message type "//cp_to_string(msg_type)//&
+             "from source "//cp_to_string(dest))
       END SELECT
       IF(m_send%info(2).GT.0) DEALLOCATE(m_send%task_int)
       IF(m_send%info(3).GT.0) DEALLOCATE(m_send%task_real)
@@ -1765,15 +1764,14 @@ CONTAINS
              TMC_STAT_SCF_STEP_ENER_RECEIVE, TMC_STAT_APPROX_ENERGY_RESULT, TMC_STAT_ANALYSIS_RESULT)
           ! nothing to do, canceling message already sent
         CASE DEFAULT
-          CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                         "master received status "//cp_to_string(stat)//&
-                         " while stopping workers")
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "master received status "//cp_to_string(stat)//&
+               " while stopping workers")
         END SELECT
         IF(ALL(rank_stoped)) EXIT wait_for_receipts
       END DO wait_for_receipts
     ELSE
-      CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                     "only (group) master should stop other participants")
+      CPABORT("only (group) master should stop other participants")
     END IF
   END SUBROUTINE stop_whole_group
 

@@ -148,11 +148,11 @@ CONTAINS
     pt_node_ref_loop: DO WHILE(ASSOCIATED(ptr%gt_nodes_references))
       tmp_gt_list_ptr => ptr%gt_nodes_references
       CPASSERT(ASSOCIATED(tmp_gt_list_ptr%gt_elem))
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                   routineP,"found reference of global tree node "//&
-                   cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
-                   ", while removing sub tree node "//&
-                   cp_to_string(ptr%sub_tree_nr)//cp_to_string(ptr%nr))
+      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           "found reference of global tree node "//&
+           cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
+           ", while removing sub tree node "//&
+           cp_to_string(ptr%sub_tree_nr)//cp_to_string(ptr%nr))
       ! check if configurations exist
       IF(ASSOCIATED(tmp_gt_list_ptr%gt_elem%conf(tmp_gt_list_ptr%gt_elem%mv_conf)%elem)) THEN
         IF(ASSOCIATED(ptr, tmp_gt_list_ptr%gt_elem%conf(tmp_gt_list_ptr%gt_elem%mv_conf)%elem)) THEN
@@ -166,22 +166,22 @@ CONTAINS
             WRITE(list_of_nr,*)TRIM(ADJUSTL(list_of_nr)), tmp_gt_list_ptr%gt_elem%conf(i)%elem%sub_tree_nr, &
                   tmp_gt_list_ptr%gt_elem%conf(i)%elem%nr, " | "
           END DO
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                   routineP,"for subtree "//&
-                   cp_to_string(ptr%sub_tree_nr)//&
-                   "element "//cp_to_string(ptr%nr)//&
-                   "global tree element"//cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
-                   "swaped"//cp_to_string(tmp_gt_list_ptr%gt_elem%swaped)//&
-                   "moved elem"//cp_to_string(tmp_gt_list_ptr%gt_elem%mv_conf)//&
-                   "with the related subtree, elements: "//&
-                   TRIM(ADJUSTL(list_of_nr)))
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               "for subtree "//&
+               cp_to_string(ptr%sub_tree_nr)//&
+               "element "//cp_to_string(ptr%nr)//&
+               "global tree element"//cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
+               "swaped"//cp_to_string(tmp_gt_list_ptr%gt_elem%swaped)//&
+               "moved elem"//cp_to_string(tmp_gt_list_ptr%gt_elem%mv_conf)//&
+               "with the related subtree, elements: "//&
+               TRIM(ADJUSTL(list_of_nr)))
         END IF
       ELSE
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                   routineP,"for subtree "//cp_to_string(ptr%sub_tree_nr)//&
-                   "element "//cp_to_string(ptr%nr)//&
-                   " is not related to global tree node "//cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
-                   "(anymore).")
+        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             "for subtree "//cp_to_string(ptr%sub_tree_nr)//&
+             "element "//cp_to_string(ptr%nr)//&
+             " is not related to global tree node "//cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
+             "(anymore).")
       END IF
       ptr%gt_nodes_references => ptr%gt_nodes_references%next
       DEALLOCATE(tmp_gt_list_ptr)

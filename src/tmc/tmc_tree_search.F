@@ -143,10 +143,9 @@ CONTAINS
         END IF
       CASE(status_cancel_nmc, status_cancel_ener)
       CASE DEFAULT
-        CALL cp_assert(.FALSE.,&
-                    cp_failure_level,cp_assertion_failed,routineP,&
-                    "unknown sub tree element status "//&
-                    cp_to_string(st_elem%stat))
+        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             "unknown sub tree element status "//&
+             cp_to_string(st_elem%stat))
       END SELECT
     END SELECT
 
@@ -353,9 +352,9 @@ CONTAINS
          status_canceled_ener)
       ! nothing to do
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"unexpected status "//cp_to_string(ptr%stat)//&
-                  "of global tree elem "//cp_to_string(ptr%nr))
+      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           "unexpected status "//cp_to_string(ptr%stat)//&
+           "of global tree elem "//cp_to_string(ptr%nr))
     END SELECT
     ! end the timing
     CALL timestop(handle)
@@ -454,9 +453,9 @@ CONTAINS
          status_cancel_nmc, status_cancel_ener)
        ! nothing to do
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,"the global tree element "//cp_to_string(tree_ptr%nr)//&
-                " stat "//cp_to_string(tree_ptr%stat)//" is UNknown")
+      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           "the global tree element "//cp_to_string(tree_ptr%nr)//&
+           " stat "//cp_to_string(tree_ptr%stat)//" is UNknown")
     END SELECT
     ! end the timing
     CALL timestop(handle)
@@ -562,9 +561,9 @@ CONTAINS
                    elem=pt_elem%conf(pt_elem%mv_conf)%elem, tmc_env=tmc_env)
 
          CASE DEFAULT
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                   routineP,"unknown status of subtree element"//&
-                   cp_to_string(pt_elem%conf(pt_elem%mv_conf)%elem%stat))
+           CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                "unknown status of subtree element"//&
+                cp_to_string(pt_elem%conf(pt_elem%mv_conf)%elem%stat))
          END SELECT
       END IF
       !-- go until the ends ot he tree, to search for elements to cancel
@@ -668,10 +667,10 @@ CONTAINS
          status_canceled_ener)
       !TODO maybe also count caneled confs for debug output
     CASE DEFAULT
-      CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                   "stat "//cp_to_string(tree_ptr%stat)//&
-                   "of elem "//cp_to_string(tree_ptr%nr)//&
-                   "unknown.")
+      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           "stat "//cp_to_string(tree_ptr%stat)//&
+           "of elem "//cp_to_string(tree_ptr%nr)//&
+           "unknown.")
     END SELECT
   END SUBROUTINE count_prepared_nodes_in_subtree
 

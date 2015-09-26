@@ -696,9 +696,7 @@ END IF
                 "Number of local quartets (", shm_local_quartet_counter, &
                 ") and number of global quartets (", shm_global_quartet_counter,&
                 ") are different. Please send in a bug report."
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                         error_msg,&
-                         only_ionode=.TRUE.)
+          CPABORT(error_msg)
         END IF
       END IF
 !$OMP END MASTER

@@ -182,14 +182,16 @@ CONTAINS
        ! Handle (persisting) read errors
        IF (istat /= 0) THEN
           IF (istat < 0) THEN ! EOF/EOR is negative other errors positive
-             CALL cp_assert(PRESENT(at_end),cp_failure_level,cp_assertion_failed,&
-                  routineP,"Unexpected EOF"//TRIM(parser_location(parser)))
-             IF (PRESENT(at_end)) at_end = .TRUE.
+             IF (PRESENT(at_end)) THEN
+                at_end = .TRUE.
+             ELSE
+                CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
+             END IF
              parser%icol  = -1
              parser%icol1 =  0
              parser%icol2 = -1
           ELSE
-             CALL cp_assert(.FALSE.,cp_failure_level,istat,routineP,&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
                   "An I/O error occurred (IOSTAT = "//&
                   TRIM(ADJUSTL(cp_to_string(istat)))//")"//&
                   TRIM(parser_location(parser)))
@@ -466,8 +468,7 @@ CONTAINS
           at_end = my_at_end
        ELSE
           IF (my_at_end) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                            "Unexpected EOF"//TRIM(parser_location(parser)))
+             CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
           END IF
        END IF
     ELSE IF (PRESENT(at_end)) THEN
@@ -532,7 +533,7 @@ CONTAINS
              ELSE
                 parser%icol1 = i
                 parser%icol2 = i
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
                      "Found non-blank tokens after the line continuation character '"//&
                      parser%continuation_character//"' "//&
                      TRIM(parser_location(parser)))
@@ -579,8 +580,8 @@ CONTAINS
 
     IF (length > 0) THEN
        ! Fixed input string length
-       CALL cp_assert(parser%icol/=-1,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpectetly reached EOF"//TRIM(parser_location(parser)))
+       IF(parser%icol==-1)&
+          CPABORT("Unexpectetly reached EOF"//TRIM(parser_location(parser)))
 
        length=MIN(LEN_TRIM(parser%input_line)-parser%icol1+1,length)
        parser%icol1 = parser%icol + 1
@@ -628,7 +629,7 @@ CONTAINS
              ELSE
                 parser%icol1 = i
                 parser%icol2 = i
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
                      "Found non-blank tokens after the line continuation character '"//&
                      parser%continuation_character//"' "//TRIM(parser_location(parser)))
                 EXIT
@@ -645,7 +646,7 @@ CONTAINS
              ELSE
                 parser%icol1 = parser%icol
                 parser%icol2 = parser%icol
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
                      "Unexpected separator token <"//parser%input_line(parser%icol:parser%icol)//&
                      "> found"//TRIM(parser_location(parser)))
                 EXIT
@@ -658,8 +659,7 @@ CONTAINS
              IF (parser%icol2 == parser%icol) THEN
                 parser%icol1 = parser%icol
                 parser%icol2 = parser%icol
-                CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "Unmatched quotation mark found"//TRIM(parser_location(parser)))
+                CPABORT("Unmatched quotation mark found"//TRIM(parser_location(parser)))
              ELSE
                 parser%icol1 = parser%icol1 - 1
                 parser%icol  = parser%icol2
@@ -858,13 +858,14 @@ CONTAINS
           found = .TRUE.
           parser%icol = ipattern - 1
           IF (PRESENT(line)) THEN
-             CALL cp_assert(LEN(line) > LEN_TRIM(parser%input_line),&
-                  cp_warning_level,cp_assertion_failed,&
-                  routineP, "The returned input line has more than "//&
-                  TRIM(ADJUSTL(cp_to_string(LEN(line))))//&
-                  " characters and is therefore too long to fit in the "//&
-                  "specified variable"//&
-                  TRIM(parser_location(parser)))
+             IF(LEN(line) < LEN_TRIM(parser%input_line)) THEN
+                CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                     "The returned input line has more than "//&
+                     TRIM(ADJUSTL(cp_to_string(LEN(line))))//&
+                     " characters and is therefore too long to fit in the "//&
+                     "specified variable"//&
+                     TRIM(parser_location(parser)))
+             END IF
           END IF
           EXIT
        END IF
@@ -1015,8 +1016,7 @@ CONTAINS
        at_end = my_at_end
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)))
+       CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     IF (parser%ilist%in_use) THEN
@@ -1026,7 +1026,7 @@ CONTAINS
        IF (parser%icol1 > parser%icol2) THEN
           parser%icol1 = parser%icol
           parser%icol2 = parser%icol
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
                "An integer type object was expected, found end of line"//&
                TRIM(parser_location(parser)))
        END IF
@@ -1043,12 +1043,11 @@ CONTAINS
        ELSE
           CALL read_integer_object(parser%input_line(parser%icol1:parser%icol2),object,error_message)
           IF (LEN_TRIM(error_message) > 0) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  TRIM(error_message)//TRIM(parser_location(parser)))
+             CPABORT(TRIM(error_message)//TRIM(parser_location(parser)))
           END IF
        END IF
     ELSE
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
             "An integer type object was expected, found <"//&
             parser%input_line(parser%icol1:parser%icol2)//">"//&
             TRIM(parser_location(parser)))
@@ -1105,8 +1104,7 @@ CONTAINS
        at_end=my_at_end
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)))
+       CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     CALL parser_next_token(parser,string_length=string_length)
@@ -1116,7 +1114,7 @@ CONTAINS
     IF (input_string_length == 0) THEN
        parser%icol1 = parser%icol
        parser%icol2 = parser%icol
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
             "A string representing a logical object was expected, found end of line"//&
             TRIM(parser_location(parser)))
     ELSE
@@ -1131,7 +1129,7 @@ CONTAINS
     CASE ("1","T",".T.","TRUE",".TRUE.","Y","YES","ON")
        object = .TRUE.
     CASE DEFAULT
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
             "A string representing a logical object was expected, found <"//&
             TRIM(input_string)//">"//TRIM(parser_location(parser)))
     END SELECT
@@ -1186,8 +1184,7 @@ CONTAINS
        at_end=my_at_end
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)))
+       CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     CALL parser_next_token(parser,string_length=string_length)
@@ -1195,7 +1192,7 @@ CONTAINS
     IF (parser%icol1 > parser%icol2) THEN
        parser%icol1 = parser%icol
        parser%icol2 = parser%icol
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
             "A floating point type object was expected, found end of the line"//&
             TRIM(parser_location(parser)))
     END IF
@@ -1203,8 +1200,7 @@ CONTAINS
     ! Possibility to have real numbers described in the input as division between two numbers
     CALL read_float_object(parser%input_line(parser%icol1:parser%icol2),object,error_message)
     IF (LEN_TRIM(error_message) > 0) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            TRIM(error_message)//TRIM(parser_location(parser)))
+       CPABORT(TRIM(error_message)//TRIM(parser_location(parser)))
     END IF
 
 
@@ -1257,8 +1253,7 @@ CONTAINS
        at_end=my_at_end
        IF (my_at_end) RETURN
     ELSE IF (my_at_end) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-            "Unexpected EOF"//TRIM(parser_location(parser)))
+       CPABORT("Unexpected EOF"//TRIM(parser_location(parser)))
     END IF
 
     CALL parser_next_token(parser,string_length)
@@ -1266,11 +1261,11 @@ CONTAINS
     input_string_length = parser%icol2 - parser%icol1 + 1
 
     IF (input_string_length <= 0) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
             "A string type object was expected, found end of line"//&
             TRIM(parser_location(parser)))
     ELSE IF (input_string_length > LEN(object)) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
             "The input string <"//parser%input_line(parser%icol1:parser%icol2)//&
             "> has more than "//cp_to_string(LEN(object))//&
             " characters and is therefore too long to fit in the "//&

@@ -151,7 +151,6 @@ MODULE hfx_energy_potential
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_four_center', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=512)                       :: error_msg
     INTEGER :: act_atomic_block_offset, act_set_offset, atomic_offset_ac, &
       atomic_offset_ad, atomic_offset_bc, atomic_offset_bd, bin, &
       bits_max_val, buffer_left, buffer_size, buffer_start, cache_size, &
@@ -420,7 +419,7 @@ MODULE hfx_energy_potential
 !$OMP         nseta,npgfa,la_max,nsgfa,primitive_integrals,pbd_buf,pbc_buf,pad_buf,pac_buf,kbd_buf,kbc_buf,&
 !$OMP         kad_buf,kac_buf,ee_work,ee_work2,ee_buffer1,ee_buffer2,ee_primitives_tmp,nspins,max_contraction,&
 !$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
-!$OMP         pgf_product_list,nimages,ks_fully_occ,error_msg,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
+!$OMP         pgf_product_list,nimages,ks_fully_occ,subtr_size_mb,use_disk_storage,counter,do_disk_storage,&
 !$OMP         maxval_container_disk,maxval_cache_disk,integral_containers_disk,integral_caches_disk,eps_schwarz,&
 !$OMP         log10_eps_schwarz,eps_storage,hf_fraction,buffer_overflow,logger,private_lib,last_sgf_global,handle_getp,&
 !$OMP         p_work,fac,handle_load,do_dynamic_load_balancing,my_bin_size,maxval_container,integral_containers,maxval_cache,&
@@ -620,12 +619,10 @@ MODULE hfx_energy_potential
       END DO outer
 
       IF ( .NOT. ks_fully_occ) THEN
-        WRITE(error_msg,'(A,A,A)') "The Kohn Sham matrix is not 100% occupied. This "//&
-             "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
-             "and EPS_FILTER_MATRIX in the QS section. "
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                       error_msg,&
-                       only_ionode=.TRUE.)
+         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+              "The Kohn Sham matrix is not 100% occupied. This "//&
+              "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
+              "and EPS_FILTER_MATRIX in the QS section.")
       END IF
     END IF
 

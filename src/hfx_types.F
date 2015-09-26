@@ -580,9 +580,7 @@ MODULE hfx_types
             WRITE(error_msg,'(A,A,A)') "Truncated hfx calculation requested. The file containing "//&
                  "the data could not be found at ", TRIM(char_val), " Please check T_C_G_DATA "//&
                  "in the INTERCATION_POTENTIAL section"
-            CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-                 error_msg , &
-                 only_ionode=.TRUE.)
+            CPABORT(error_msg)
           ELSE
             actual_x_data%potential_parameter%filename = char_val
           END IF
@@ -1177,8 +1175,7 @@ MODULE hfx_types
        IF(stat/=0) THEN
           WRITE(error_msg,'(A,A,A)') "Request for disk storage failed due to unknown error while writing to ",&
                TRIM(filename), ". Please check STORAGE_LOCATION"
-          CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
-               error_msg)
+          CPABORT(error_msg)
        END IF
        CALL m_chdir(orig_wd,stat)
 
@@ -1362,26 +1359,22 @@ MODULE hfx_types
       IF( x_data%potential_parameter%potential_type /= do_hfx_potential_truncated .AND. &
           x_data%potential_parameter%potential_type /= do_hfx_potential_short .AND. &
           x_data%potential_parameter%potential_type /= do_hfx_potential_mix_cl_trunc) THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                   "Periodic Hartree Fock calculation requested without use "//&
-                   "of a truncated or shortrange potential. This may lead to unphysical total energies. "//&
-                   "Use a truncated  potential to avoid possible problems. "//&
-                   CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+           "Periodic Hartree Fock calculation requested without use "//&
+           "of a truncated or shortrange potential. This may lead to unphysical total energies. "//&
+           "Use a truncated  potential to avoid possible problems.")
       ELSE
         l_min = MIN( plane_distance(1,0,0,cell), &
                      plane_distance(0,1,0,cell), &
                      plane_distance(0,0,1,cell) )
         l_min = 0.5_dp * l_min
         IF( x_data%potential_parameter%cutoff_radius >= l_min ) THEN
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                   "Periodic Hartree Fock calculation requested with use "//&
-                   "of a truncated or shortrange potential. The cutoff radius is larger than half "//&
-                   "the minimal cell dimension. This may lead to unphysical "//&
-                   "total energies. Reduce the cutoff radius in order to avoid "//&
-                   "possible problems. "//&
-                   CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               "Periodic Hartree Fock calculation requested with use "//&
+               "of a truncated or shortrange potential. The cutoff radius is larger than half "//&
+               "the minimal cell dimension. This may lead to unphysical "//&
+               "total energies. Reduce the cutoff radius in order to avoid "//&
+               "possible problems.")
         END IF
       END IF
     END IF
@@ -1655,10 +1648,7 @@ MODULE hfx_types
                      "of a truncated potential. The number of shells to be considered "//&
                      "might be too small. CP2K conservatively estimates to need "//TRIM(char_nshells)//" periodic images "//&
                      "Please carefully check if you get converged results."
-
-            CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                           error_msg,&
-                           only_ionode=.TRUE.)
+            CPWARN(error_msg)
           END IF
         END IF
         total_number_of_cells = 0

@@ -150,12 +150,8 @@ CONTAINS
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF")
     CALL section_vals_get(hfx_sections,explicit=do_hfx)
     !! ** ADMM can only be used with HFX
-    IF ( .NOT. do_hfx ) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "Wavefunction fitting requested without Hartree-Fock."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-    END IF
+    IF ( .NOT. do_hfx )&
+       CPWARN("Wavefunction fitting requested without Hartree-Fock.")
 
     ! ** Method only implemented for GPW
     IF( dft_control%qs_control%gapw ) THEN
@@ -166,12 +162,8 @@ CONTAINS
 
 
     CALL section_vals_get(hfx_sections,n_repetition=n_rep_hf)
-    IF ( n_rep_hf > 1 ) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                      "ADMM can handle only one HF section."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
-    END IF
+    IF ( n_rep_hf > 1 )&
+       CPWARN("ADMM can handle only one HF section.")
 
     IF (.NOT. ASSOCIATED(admm_env)) THEN
       ! setup admm environment

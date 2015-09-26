@@ -569,13 +569,13 @@ CONTAINS
           CALL add_to_references(gt_elem=new_elem)
           reactivation_cc_count = reactivation_cc_count+1
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"global tree node creation using existing sub tree element, "//&
-              "but is not a canceled one, gt elem "//&
-              cp_to_string(new_elem%nr)//" st elem "//&
-              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%nr)//&
-              " with stat "//&
-              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "global tree node creation using existing sub tree element, "//&
+               "but is not a canceled one, gt elem "//&
+               cp_to_string(new_elem%nr)//" st elem "//&
+               cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%nr)//&
+               " with stat "//&
+               cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
         END SELECT
         ! change the status of the reactivated subtree element
         ! move is only done by the master, 
@@ -597,13 +597,12 @@ CONTAINS
           !  " of existing gt elem ",new_elem%nr,", again calculate NMC steps"
         CASE(mv_type_atom_trans, mv_type_mol_trans, mv_type_mol_rot, &
              mv_type_proton_reorder)
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"reactivated st element has no NMC or MD move type, "//&
-              "but seems to be canceled. Move type"//&
-              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%move_type))
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "reactivated st element has no NMC or MD move type, "//&
+               "but seems to be canceled. Move type"//&
+               cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%move_type))
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"Unknown move type while reactivating subtree element.")
+          CPABORT("Unknown move type while reactivating subtree element.")
         END SELECT
       ELSE
         !-- if end is found (NOT already existing element), create new elem at the end and if nessecarry new subtree element
@@ -823,11 +822,11 @@ CONTAINS
            CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem,&
                                  tmc_params=tmc_env%params)
       CASE DEFAULT
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                       routineP, "unknown stat "//&
-                       cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat)//&
-                       "of subtree element "//&
-                       "for creating new gt element")
+        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             "unknown stat "//&
+             cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat)//&
+             "of subtree element "//&
+             "for creating new gt element")
       END SELECT
 
       ! set stat TMC_STATUS_WAIT_FOR_NEW_TASK if no new calculation neccessary 
@@ -982,10 +981,9 @@ CONTAINS
     CASE(mv_type_gausian_adapt)
       ! still could be implemented
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,&
-                  cp_failure_level,cp_assertion_failed,routineP,&
-                  "unknown move type ("//cp_to_string(new_elem%move_type)//&
-                  "), while creating subtree element.")
+      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           "unknown move type ("//cp_to_string(new_elem%move_type)//&
+           "), while creating subtree element.")
     END SELECT
     act_gt_el%conf(act_gt_el%mv_conf)%elem => new_elem
 
@@ -1204,9 +1202,9 @@ CONTAINS
           IF(.NOT.ASSOCIATED(tmp_ptr)) removed = .TRUE.
         CASE(status_accepted_result, status_rejected_result)
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                  routineP,"try to dealloc unused tree element with status of begin element"& 
-                  //cp_to_string(begin_ptr%stat))
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "try to dealloc unused tree element with status of begin element"&
+               //cp_to_string(begin_ptr%stat))
         END SELECT
       END IF
     END IF
@@ -1295,11 +1293,11 @@ CONTAINS
            ! -- delete when calculation is finished or aborted
            ! removed should still be .FALSE.
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                     "unknown status "//cp_to_string(begin_ptr%stat)//&
-                     "of sub tree element "//&
-                     cp_to_string(begin_ptr%sub_tree_nr)//" "//&
-                     cp_to_string(begin_ptr%nr))
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "unknown status "//cp_to_string(begin_ptr%stat)//&
+               "of sub tree element "//&
+               cp_to_string(begin_ptr%sub_tree_nr)//" "//&
+               cp_to_string(begin_ptr%nr))
         END SELECT
   
         ! delete element

@@ -245,8 +245,7 @@ CONTAINS
     CASE(status_calculate_NMC_steps)
       WRITE(file_ptr,*) TRIM(label),'style=filled, color=peru]'
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-              routineP,"element status"//cp_to_string(stat))
+      CPABORT("element status"//cp_to_string(stat))
     END SELECT
     CALL close_file(unit_number=file_ptr, keep_preconnection=.TRUE.)
   END SUBROUTINE write_color

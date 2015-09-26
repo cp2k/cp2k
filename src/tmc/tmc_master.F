@@ -633,10 +633,7 @@ CONTAINS
           ana_worker_info(wg)%busy = .FALSE.
           ana_worker_info(wg)%elem => NULL()
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "received message with unknown info/stat type", &
-                   failure=flag)
+          CPABORT("received message with unknown info/stat type")
         END SELECT
       END DO worker_request_loop
       !-- do tree update (check new results)
@@ -802,11 +799,10 @@ CONTAINS
           ! skip that task until receipt is received
           ! no status update
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                         routineP,"new task of tree element"//&
-                         cp_to_string(gt_elem_tmp%nr)//&
-                         "has unknown status"//cp_to_string(stat), &
-                         failure=flag)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "new task of tree element"//&
+               cp_to_string(gt_elem_tmp%nr)//&
+               "has unknown status"//cp_to_string(stat))
         END SELECT
         worker_info(wg)%elem => gt_elem_tmp%conf(gt_elem_tmp%mv_conf)%elem 
         worker_info(wg)%busy = .TRUE.

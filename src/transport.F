@@ -371,9 +371,7 @@ CONTAINS
     csr_interop_mat%ncols_total = csr_mat%ncols_total
     csr_interop_mat%nze_local = csr_mat%nze_local
     IF (csr_mat%nze_total>HUGE(csr_interop_mat%nze_total)) THEN
-        ! overflow in nze
-        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-             routineP,CPSourceFileRef)
+        CPABORT("overflow in nze")
     ENDIF
     csr_interop_mat%nze_total = INT(csr_mat%nze_total,KIND=KIND(csr_interop_mat%nze_total))
     csr_interop_mat%nrows_local = csr_mat%nrows_local

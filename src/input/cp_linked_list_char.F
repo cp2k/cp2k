@@ -406,7 +406,7 @@ END SUBROUTINE write_string
              IF (ASSOCIATED(res%rest)) THEN
                 res => res%rest
              ELSE
-                CPWARN("tried to go past end in ")
+                CPABORT("tried to go past end")
              END IF
           END DO
           IF (iter==-1) THEN
@@ -620,7 +620,7 @@ END SUBROUTINE write_string
        sll => sll%rest
        CALL cp_sll_char_dealloc_node(node_to_rm)
     ELSE
-       CPWARN("tried to remove first el of an empty list in ")
+       CPWARN("tried to remove first el of an empty list")
     END IF
   END SUBROUTINE cp_sll_char_rm_first_el
 

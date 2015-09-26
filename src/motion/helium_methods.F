@@ -193,8 +193,7 @@ MODULE helium_methods
         msg_str = "DROP_UNUSED_ENVS set - proceeding anyways."
         CALL helium_write_line(msg_str)
       ELSE
-        CALL cp_assert( .FALSE., cp_failure_level, &
-             cp_assertion_failed, routineP, msg_str )
+        CPABORT(msg_str)
       END IF
     END IF
 
@@ -243,8 +242,7 @@ MODULE helium_methods
         msg_str = "PBC cell shape " // &
                   TRIM(ADJUSTL(stmp)) // &
                   " not supported for HELIUM"
-        CALL cp_assert( .FALSE., cp_failure_level, &
-          cp_assertion_failed, routineP, msg_str )
+        CPABORT(msg_str)
       END IF
     ELSE
       helium%cell_shape = helium_cell_shape_none
@@ -279,8 +277,7 @@ MODULE helium_methods
            IF ( expl_dens .AND. expl_nats ) THEN
               msg_str = "DENSITY, NATOMS and CELL_SIZE options "//&
                         "contradict each other"
-              CALL cp_assert( .FALSE., cp_failure_level, &
-                   cp_assertion_failed, routineP, msg_str )
+              CPABORT(msg_str)
            END IF
            !ok we have enough freedom to resolve the conflict:
            IF ( .NOT. expl_dens ) THEN
@@ -367,8 +364,7 @@ MODULE helium_methods
     rtmp = 2**(ANINT(LOG(REAL(itmp))/LOG(2.0_dp)))
     tcheck=ABS(REAL(itmp,KIND=dp)-rtmp)
     msg_str = "BISECTION should be integer power of 2."
-    CALL cp_assert(tcheck<100.0_dp*EPSILON(0.0_dp),cp_failure_level,&
-         cp_assertion_failed, routineP, msg_str)
+    IF(tcheck>=100.0_dp*EPSILON(0.0_dp)) CPABORT(msg_str)
     helium%bisctlog2 = NINT(LOG(REAL(itmp,KIND=dp))/LOG(2.0_dp))
 
     ! hard coded He4 directly (mass so i get my original hb2m value)
@@ -519,8 +515,7 @@ MODULE helium_methods
         CALL helium_densities_restore( helium)
       ELSE
         msg_str = "Inconsistent input: densities not calculated but restarted!"
-        CALL cp_assert(.FALSE.,cp_failure_level,&
-             cp_assertion_failed, routineP, msg_str)
+        CPABORT(msg_str)
       END IF
     END IF
 
@@ -550,8 +545,7 @@ MODULE helium_methods
       ! check if tau, temperature and bead number are consistent:
       tcheck=ABS( (helium%tau*helium%beads-solute%beta) / solute%beta )
       msg_str = "Tau, temperature and bead number are inconsistent."
-      CALL cp_assert(tcheck<1.0e-14_dp,cp_failure_level,&
-        cp_assertion_failed, routineP, msg_str)
+      IF(tcheck>=1.0e-14_dp) CPABORT(msg_str)
 
       CALL helium_set_solute_indices(helium,solute)
       CALL helium_set_solute_cell(helium,solute)
@@ -1046,8 +1040,7 @@ MODULE helium_methods
     WRITE(stmp,*) msglen
     err_str = TRIM(ADJUSTL(err_str)) // &
               TRIM(ADJUSTL(stmp)) // "'."
-    CALL cp_assert(actlen==msglen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    IF(actlen/=msglen) CPABORT(err_str)
 
     ! restore forces on all processors (no message passing)
     NULLIFY(m,f)
@@ -1181,8 +1174,7 @@ MODULE helium_methods
     WRITE(stmp,*) msglen
     err_str = TRIM(ADJUSTL(err_str)) // &
               TRIM(ADJUSTL(stmp)) // ")."
-    CALL cp_assert(ic==msglen,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    IF(ic/=msglen) CPABORT(err_str)
 
     NULLIFY(message)
 
@@ -1528,8 +1520,7 @@ MODULE helium_methods
                 TRIM(ADJUSTL(stmp1)) // &
                 ") .NE. that in the runtime (" // &
                 TRIM(ADJUSTL(stmp2)) // ")."
-      CALL cp_assert(.FALSE.,cp_failure_level,&
-           cp_assertion_failed, routineP, err_str)
+      CPABORT(err_str)
     END IF
 
     itmp = helium%rho_nbin

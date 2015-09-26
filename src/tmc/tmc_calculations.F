@@ -119,9 +119,9 @@ CONTAINS
     CASE(task_type_ideal_gas)
       e_pot = 0.0_dp
     CASE DEFAULT
-      CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                     "worker task typ is unknown "//&
-                     cp_to_string(tmc_env%params%task_type))
+      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           "worker task typ is unknown "//&
+           cp_to_string(tmc_env%params%task_type))
     END SELECT
 
     ! ---     wait a bit
@@ -343,8 +343,7 @@ CONTAINS
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))*mass_tmp
         mass_sum = mass_sum + mass_tmp
       ELSE
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
-                 "try to calculate center of mass without any mass.")
+        CPWARN("try to calculate center of mass without any mass.")
         center(:) = center(:) + pos(i:i+SIZE(center)-1)/&
                     (SIZE(pos)/REAL(SIZE(center),KIND=dp))
         mass_sum = 1.0_dp

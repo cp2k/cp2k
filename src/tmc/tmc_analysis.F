@@ -138,10 +138,7 @@ CONTAINS
         ELSE IF(SIZE(i_arr_tmp(:)).EQ.0) THEN
           nr_bins(:) = 1
         ELSE
-          CALL cp_assert(.FALSE.,&
-                 cp_failure_level,cp_assertion_failed,routineP,&
-                 "unknown amount of dimentions for the binning.",&
-                 failure=flag, only_ionode=.TRUE.)
+          CPABORT("unknown amount of dimentions for the binning.")
         END IF
         CALL tmc_ana_density_create(tmc_ana%density_3d, nr_bins)
       END IF
@@ -166,10 +163,9 @@ CONTAINS
           ALLOCATE(charge(i_tmp))
           CALL read_chrg_section(charge_atm,charge,tmp_section,ntot)
         ELSE 
-          CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "to calculate the classical cell dipole moment "// &
-                       "the charges has to be specified",&
-                       failure=flag)
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "to calculate the classical cell dipole moment "// &
+               "the charges has to be specified")
         END IF
         
         CALL tmc_ana_dipole_moment_create(tmc_ana%dip_mom, charge_atm,charge,&
@@ -192,11 +188,7 @@ CONTAINS
         CASE ("SYM_XYZ")
           tmc_ana%dip_ana%ana_type = ana_type_sym_xyz
         CASE DEFAULT
-          CALL cp_assert(.FALSE.,&
-                 cp_warning_level,cp_assertion_failed,routineP,&
-                 'unknown analysis type "'//TRIM(c_tmp)//'" specified. '//&
-                 " Set to default.",&
-                 failure=flag, only_ionode=.TRUE.)
+          CPWARN('unknown analysis type "'//TRIM(c_tmp)//'" specified. Set to default.')
           tmc_ana%dip_ana%ana_type = ana_type_default
         END SELECT
       END IF
@@ -1474,11 +1466,7 @@ CONTAINS
       file_name_tmp = TRIM(expand_file_name_char(file_name_tmp,&
                          "diel_const_tensor_sym"))
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,&
-             cp_warning_level,cp_assertion_failed,routineP,&
-             'unknown analysis type "'//cp_to_string(ana_env%dip_ana%ana_type)//&
-             '" used. ',&
-             failure=flag, only_ionode=.TRUE.)
+      CPWARN('unknown analysis type "'//cp_to_string(ana_env%dip_ana%ana_type)//'" used.')
     END SELECT
 
     ! calc the dielectric constant

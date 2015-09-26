@@ -634,10 +634,7 @@ CONTAINS
     CALL section_vals_val_get(tmc_section,"NMC_MOVES%NMC_FILE_NAME",c_val=tmc_env%params%NMC_inp_file)
     IF(tmc_env%params%NMC_inp_file.EQ.tmc_default_unspecified_name)THEN
     ! file name keyword without file name
-      CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "no or a valid NMC input file has to be specified ",&
-                     only_ionode=.TRUE.)
+      CPABORT("no or a valid NMC input file has to be specified ")
     ELSE IF(tmc_env%params%NMC_inp_file.EQ."") THEN
     ! no keyword
       CALL cp_assert(tmc_env%tmc_comp_set%group_cc_size.LE.0,&
@@ -688,11 +685,9 @@ CONTAINS
       CASE ("IDEAL_GAS")
         tmc_env%params%task_type = task_type_ideal_gas
       CASE DEFAULT
-        CALL cp_assert(.FALSE.,&
-               cp_warning_level,cp_assertion_failed,routineP,&
-               'unknown TMC task type "'//TRIM(c_tmp)//'" specified. '//&
-               " Set to default.",&
-               only_ionode=.TRUE.)
+        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             'unknown TMC task type "'//TRIM(c_tmp)//'" specified. '//&
+             " Set to default.")
         tmc_env%params%task_type = task_type_MC
       END SELECT
     END IF
@@ -879,10 +874,7 @@ CONTAINS
     success = .TRUE.
 
     IF(para_env%num_pe.LE.1) THEN
-      CALL cp_assert(.FALSE.,&
-                     cp_warning_level,cp_assertion_failed,routineP,&
-                     "TMC need at least 2 cores (one for master, one for worker)",&
-                     only_ionode=.TRUE.) 
+      CPWARN("TMC need at least 2 cores (one for master, one for worker)")
       success = .FALSE.
     ELSE
       ! check if there are enougth cores available

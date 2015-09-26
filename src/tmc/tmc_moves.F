@@ -125,8 +125,7 @@ CONTAINS
     SELECT CASE(elem%move_type)
     CASE(mv_type_gausian_adapt)
        ! just for Gaussian Adaptation
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                 "gaussian adaptation is not imlemented yet.")
+       CPABORT("gaussian adaptation is not imlemented yet.")
 !TODO       CALL new_pos_gauss_adapt(acc=ASSOCIATED(elem%parent%acc, elem), &
 !                    pos=elem%pos, covari=elem%frc, pot=elem%potential, &
 !                    step_size=elem%ekin, pos_aver=elem%vel, temp=elem%ekin_before_md, &
@@ -352,10 +351,9 @@ CONTAINS
                          tmc_params=tmc_params)
 
     CASE DEFAULT
-      CALL cp_assert(.FALSE.,&
-                    cp_failure_level,cp_assertion_failed,routineP,&
-                    "unknown move type "//&
-                    cp_to_string(elem%move_type))
+      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           "unknown move type "//&
+           cp_to_string(elem%move_type))
     END SELECT
 
     CALL get_rng_stream(rng_stream=rng_stream, bg=elem%rng_seed(:,:,1), &
@@ -757,9 +755,7 @@ CONTAINS
     IF(failure) THEN
       tmp_chr=""
       WRITE(tmp_chr, *) mol_arr(1:counter)
-      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                 routineP,"selected molecules:"//TRIM(tmp_chr),&
-                 failure)
+      CPWARN("selected molecules:"//TRIM(tmp_chr))
       short_loop = .TRUE.
     END IF
     ! rotate the molecule along the not involved O-H bond 
@@ -833,9 +829,9 @@ CONTAINS
              mol=mol_tmp, start_ind=ind_n, end_ind=ind_e)
       ! check if selected molecule is water respectively consists of 3 atoms
       IF(MOD(ind_e-ind_n,3).GT.0) THEN
-        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                 routineP,"selected a molecule with more than 3 atoms, "//&
-                 "the proton reordering does not support, skip molecule")
+        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             "selected a molecule with more than 3 atoms, "//&
+             "the proton reordering does not support, skip molecule")
         CYCLE list_distances
       END IF
       IF(donor_acceptor.EQ.proton_acceptor) THEN

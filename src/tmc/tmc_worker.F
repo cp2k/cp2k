@@ -275,16 +275,10 @@ CONTAINS
                      tmc_env=tmc_env, calc_status=calc_stat)
             ELSEIF(work_stat.EQ.TMC_STAT_MD_REQUEST) THEN
               !TODO Hybrid MC routine
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "there is no Hybrid MC implemented yet.",&
-                     only_ionode=.TRUE.)
+              CPABORT("there is no Hybrid MC implemented yet.")
 
             ELSE
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "unknown task type for workers.",&
-                     only_ionode=.TRUE.)
+              CPABORT("unknown task type for workers.")
             END IF
             !-- in case of cancelation send receipt
             itmp = MASTER_COMM_ID
@@ -301,18 +295,16 @@ CONTAINS
               CASE(TMC_STAT_NMC_REQUEST)
                 work_stat = TMC_STAT_NMC_RESULT
               CASE DEFAULT
-                CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "unknown work status after possible NMC subgroup "//&
-                       "cancelation, work_stat="//cp_to_string(work_stat))
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "unknown work status after possible NMC subgroup "//&
+                     "cancelation, work_stat="//cp_to_string(work_stat))
               END SELECT
             CASE(TMC_CANCELING_MESSAGE)
               work_stat = TMC_CANCELING_RECEIPT
             CASE DEFAULT
-              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "unknown calc status before sending NMC result "//&
-                       cp_to_string(calc_stat))
+              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                   "unknown calc status before sending NMC result "//&
+                   cp_to_string(calc_stat))
             END SELECT
             ! send message back to master
             itmp = MASTER_COMM_ID
@@ -359,18 +351,16 @@ CONTAINS
                        "force environment.")
                 END IF
               CASE DEFAULT
-                CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "energy worker should handle unknown stat "//&
-                       cp_to_string(work_stat))
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "energy worker should handle unknown stat "//&
+                     cp_to_string(work_stat))
               END SELECT
             CASE(TMC_CANCELING_MESSAGE)
                work_stat = TMC_CANCELING_RECEIPT
             CASE DEFAULT
-               CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "worker while energy calc is in unknown state "//&
-                       cp_to_string(work_stat))
+               CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                    "worker while energy calc is in unknown state "//&
+                    cp_to_string(work_stat))
             END SELECT
 
             !-- send information back to master
@@ -414,24 +404,20 @@ CONTAINS
                 flag = .TRUE.
                 i1 = 0
                 i2 = ana_restart_conf(itmp)
-                CALL cp_assert(.FALSE., &
-                       cp_warning_level,cp_assertion_failed,&
-                       routineP,&
-                       "analysis old trajectory up to "//&
-                       "elem "//cp_to_string(ana_restart_conf(itmp))//&
-                       ". Read trajectory file.")
+                CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                     "analysis old trajectory up to "//&
+                     "elem "//cp_to_string(ana_restart_conf(itmp))//&
+                     ". Read trajectory file.")
               ELSE IF(ASSOCIATED(ana_list(itmp)%temp%last_elem))THEN
                 IF(.NOT.(ana_list(itmp)%temp%last_elem%nr.EQ.ana_restart_conf(itmp))) THEN
                   flag = .TRUE.
                   i1 = ana_list(itmp)%temp%last_elem%nr
                   i2 = ana_restart_conf(itmp)
-                  CALL cp_assert(.FALSE., &
-                         cp_warning_level,cp_assertion_failed,&
-                         routineP,&
-                         "analysis restart with the incorrect configuration "//&
-                         "TMC "//cp_to_string(ana_restart_conf(itmp))//&
-                         " ana "//cp_to_string(ana_list(itmp)%temp%last_elem%nr)//&
-                         ". REread trajectory file.")
+                  CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                       "analysis restart with the incorrect configuration "//&
+                       "TMC "//cp_to_string(ana_restart_conf(itmp))//&
+                       " ana "//cp_to_string(ana_list(itmp)%temp%last_elem%nr)//&
+                       ". REread trajectory file.")
                 END IF
               END IF
               IF(flag) THEN
@@ -453,10 +439,9 @@ CONTAINS
                              para_env=para_env_m_w,&
                              tmc_params=tmc_env%params, elem=conf)
           CASE DEFAULT
-            CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "worker received unknown message task type "//&
-                       cp_to_string(work_stat))
+            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                 "worker received unknown message task type "//&
+                 cp_to_string(work_stat))
           END SELECT
 
           IF(DEBUG.GE.1.AND.work_stat.NE.TMC_STATUS_WAIT_FOR_NEW_TASK) &
@@ -498,10 +483,9 @@ CONTAINS
                                            tmc_env=tmc_env)
               END IF
             CASE DEFAULT
-              CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                             routineP,&
-                             "unknown task_type for participants in "//&
-                             "START_CONF_RESULT request ")
+              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                   "unknown task_type for participants in "//&
+                   "START_CONF_RESULT request ")
             END SELECT
           !-- HMC - calculating MD steps
           CASE(TMC_STAT_NMC_REQUEST, TMC_STAT_MD_REQUEST)
@@ -513,16 +497,10 @@ CONTAINS
                      tmc_env=tmc_env, calc_status=calc_stat)
             ELSEIF(work_stat.EQ.TMC_STAT_MD_REQUEST) THEN
               !TODO Hybrid MC routine
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "there is no Hybrid MC implemented yet.",&
-                     only_ionode=.TRUE.)
+              CPABORT("there is no Hybrid MC implemented yet.")
 
             ELSE
-              CALL cp_assert(.FALSE.,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "unknown task type for workers.",&
-                     only_ionode=.TRUE.)
+              CPABORT("unknown task type for workers.")
             END IF
           !-- energy calculations
           CASE(TMC_STAT_APPROX_ENERGY_REQUEST)
@@ -540,10 +518,9 @@ CONTAINS
                                        exact_approx_pot=.TRUE., &
                                        tmc_env=tmc_env)
           CASE DEFAULT
-            CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "group participant got unknown working type "//&
-                       cp_to_string(work_stat))
+            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                 "group participant got unknown working type "//&
+                 cp_to_string(work_stat))
           END SELECT
           IF(ASSOCIATED(conf)) &
             CALL deallocate_sub_tree_node(tree_elem=conf)
@@ -685,9 +662,9 @@ CONTAINS
         ! nothing to do, because calculation CANCELING, exit with cancel status
         EXIT NMC_steps
       CASE DEFAULT
-        CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                         "unknown status "//cp_to_string(calc_status)//&
-                         "in the NMC routine, expect only caneling status. ")
+        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             "unknown status "//cp_to_string(calc_status)//&
+             "in the NMC routine, expect only caneling status. ")
       END SELECT
 
       ! set move type
@@ -713,9 +690,9 @@ CONTAINS
         !TODO implement the MD part
         !CALL calc_MD_step(...)
         !CALL calc_calc_e_kin(...)
-        CALL cp_assert(.FALSE., cp_failure_level,cp_assertion_failed,routineP,&
-                       "Hybrid MC is not implemented yet, "//&
-                       "(no MD section in TMC yet). ")
+        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             "Hybrid MC is not implemented yet, "//&
+             "(no MD section in TMC yet). ")
       END IF
 
       ! update the subbox acceptance probabilities
