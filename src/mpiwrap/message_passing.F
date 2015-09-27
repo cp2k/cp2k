@@ -19,6 +19,8 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE message_passing
+  USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
+                                             C_PTR
   USE kinds,                           ONLY: &
        default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
        real_4, real_4_size, real_8, real_8_size
@@ -26,7 +28,9 @@ MODULE message_passing
                                              m_abort,&
                                              m_flush,&
                                              m_walltime
-  USE ISO_C_BINDING,                   ONLY: C_PTR,C_LOC,C_F_POINTER
+
+!$ USE OMP_LIB,                        ONLY: omp_get_thread_num
+
 #if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
   USE mpi  ! compiler *errors* mean mpi installation and fortran compiler mismatch: see INSTALL (-D__HAS_NO_MPI_MOD)
 ! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
@@ -941,25 +945,36 @@ CONTAINS
   SUBROUTINE mp_abort (message)
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: message
 
-    INTEGER                                  :: ierr, numtask, taskid
-    REAL(KIND=dp)                            :: t1
+    INTEGER                                  :: ierr, ithread, numtask, taskid
+    REAL(KIND=dp)                            :: t1, wait_time
 
     ierr = 0
+
+    ithread = 0
+!$  ithread = omp_get_thread_num()
+
 #if defined(__parallel)
     CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
 #else
     numtask=1
     taskid=0
 #endif
-    ! delayed abort on non-master ranks, for cleaner output if all ranks call this subroutine at the same time.
-    IF (taskid.NE.0) THEN
+
+   ! delayed abort on non-master ranks/threads, for cleaner output if all ranks call this subroutine at the same time.
+    wait_time = 0.0_dp
+    IF (taskid /= 0) &
+       wait_time = wait_time + 1.0_dp ! rank-0 gets a head start of one second.
+    IF (ithread /= 0) &
+       wait_time = wait_time + 1.0_dp ! master threads gets another second
+
+    IF (wait_time > 0.0_dp) THEN
        t1=m_walltime()
        DO
-         IF (m_walltime()-t1>1.0_dp .OR. t1<0) EXIT
+         IF (m_walltime()-t1 > wait_time .OR. t1<0) EXIT
        ENDDO
     ENDIF
 
-    WRITE(default_output_unit,*) 
+    WRITE(default_output_unit,*)
     IF (PRESENT(message)) THEN
        WRITE(default_output_unit,'(A)')         ' CP2K| Error: '//TRIM(message)
     ENDIF
