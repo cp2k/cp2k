@@ -5,8 +5,9 @@
 
 MODULE acc_device
 #if defined (__ACC)
-  USE ISO_C_BINDING,     ONLY: C_INT
+  USE ISO_C_BINDING,                  ONLY: C_INT
 #endif
+ USE message_passing,                 ONLY: mp_abort
 
   IMPLICIT NONE
 
@@ -53,7 +54,7 @@ CONTAINS
      n = 0
 #if defined (__ACC)
     istat = acc_get_ndevices_cu(n)
-    IF (istat /= 0) STOP 'acc_get_ndevices: failed'
+    IF (istat /= 0) CALL mp_abort("acc_get_ndevices: failed")
 #endif
   END FUNCTION acc_get_ndevices
 
@@ -70,11 +71,11 @@ CONTAINS
 
 !$omp parallel default(none) private(istat) shared(dev_id)
     istat = acc_set_active_device_cu (dev_id)
-    IF (istat /= 0) STOP 'acc_set_active_device: failed'
+    IF (istat /= 0) CALL mp_abort("acc_set_active_device: failed")
 !$omp end parallel
 
 #else
-    STOP "__ACC not compiled in"
+    CALL mp_abort("__ACC not compiled in")
 #endif
   END SUBROUTINE acc_set_active_device
 

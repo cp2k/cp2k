@@ -1,4 +1,4 @@
 {
 "description": "Generic Accelerator API",
-"requires": ["cuda", "opencl", "mic"]
+"requires": ["../mpiwrap", "cuda", "opencl", "mic"]
 }

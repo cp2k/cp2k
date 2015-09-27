@@ -11,7 +11,7 @@
     TYPE(acc_stream_type), INTENT(IN) :: stream
 
 #if ! defined (__ACC)
-    STOP "__ACC not compiled in."
+    CALL mp_abort("__ACC not compiled in.")
 #else
     CALL host2dev_raw(this, C_LOC(hostmem(1)), real_4_size*SIZE(hostmem), stream)
 #endif
@@ -31,7 +31,7 @@
     TYPE(acc_stream_type), INTENT(IN) :: stream
 
 #if ! defined (__ACC)
-    STOP "__ACC not compiled in."
+    CALL mp_abort("__ACC not compiled in.")
 #else
     CALL host2dev_raw(this, C_LOC(hostmem(1,1)), real_4_size*SIZE(hostmem), stream)
 #endif
@@ -51,7 +51,7 @@
     TYPE(acc_stream_type), INTENT(IN) :: stream
 
 #if ! defined (__ACC)
-    STOP "__ACC not compiled in."
+    CALL mp_abort("__ACC not compiled in.")
 #else
     CALL dev2host_raw(this, C_LOC(hostmem(1)), real_4_size*SIZE(hostmem), stream)
 #endif

@@ -12,6 +12,7 @@ MODULE acc_stream
 #if defined (__ACC)
   USE ISO_C_BINDING, ONLY: C_INT, C_CHAR, C_PTR, C_NULL_PTR, C_NULL_CHAR, C_ASSOCIATED
 #endif
+  USE message_passing,   ONLY: mp_abort
 
   IMPLICIT NONE
 
@@ -123,7 +124,7 @@ SUBROUTINE acc_stream_create(this, name, priority)
     INTEGER, INTENT(IN), OPTIONAL            :: priority
 
 #if ! defined (__ACC)
-    STOP "__ACC not compiled in."
+    CALL mp_abort("__ACC not compiled in.")
 #else
     INTEGER                                  :: istat, my_priority
 
@@ -131,11 +132,11 @@ SUBROUTINE acc_stream_create(this, name, priority)
     IF(PRESENT(priority)) &
        my_priority = priority
 
-    IF(C_ASSOCIATED(this%cptr)) STOP "acc_stream_create: stream already allocated"
+    IF(C_ASSOCIATED(this%cptr)) CALL mp_abort("acc_stream_create: stream already allocated")
 
     istat = cuda_stream_create(this%cptr, name//c_null_char, my_priority)
 
-    IF(istat /= 0 .OR. .NOT. C_ASSOCIATED(this%cptr)) STOP "acc_stream_create failed"
+    IF(istat /= 0 .OR. .NOT. C_ASSOCIATED(this%cptr)) CALL mp_abort("acc_stream_create failed")
 #endif
 END SUBROUTINE acc_stream_create
 
@@ -149,12 +150,12 @@ SUBROUTINE acc_stream_destroy(this)
       INTENT(INOUT)                          :: this
 
 #if ! defined (__ACC)
-    STOP "__ACC not compiled in."
+    CALL mp_abort("__ACC not compiled in.")
 #else
     INTEGER                                  :: istat
-    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP "acc_stream_destroy: stream not allocated"
+    IF(.NOT. C_ASSOCIATED(this%cptr)) CALL mp_abort("acc_stream_destroy: stream not allocated")
     istat = cuda_stream_destroy(this%cptr)
-    IF(istat /= 0) STOP "acc_stream_destroy failed"
+    IF(istat /= 0) CALL mp_abort("acc_stream_destroy failed")
     this%cptr = C_NULL_PTR
 #endif
 END SUBROUTINE acc_stream_destroy
@@ -170,12 +171,12 @@ SUBROUTINE acc_stream_synchronize(this)
       INTENT(IN)                             :: this
 
 #if ! defined (__ACC)
-    STOP "__ACC not compiled in."
+    CALL mp_abort("__ACC not compiled in.")
 #else
     INTEGER                                  :: istat
-    IF(.NOT. C_ASSOCIATED(this%cptr)) STOP "acc_stream_synchronize: stream not allocated"
+    IF(.NOT. C_ASSOCIATED(this%cptr)) CALL mp_abort("acc_stream_synchronize: stream not allocated")
     istat = cuda_stream_sync(this%cptr)
-    IF(istat /= 0) STOP "acc_stream_synchronize failed"
+    IF(istat /= 0) CALL mp_abort("acc_stream_synchronize failed")
 #endif
 END SUBROUTINE acc_stream_synchronize
 
@@ -191,11 +192,11 @@ SUBROUTINE acc_stream_priority_range(least, greatest)
 
 #if ! defined (__ACC)
     least=-1; greatest=-1 ! assign intent-out arguments to silence compiler warnings
-    STOP "__ACC not compiled in."
+    CALL mp_abort("__ACC not compiled in.")
 #else
     INTEGER                                  :: istat
     istat = cuda_stream_priority_range(least, greatest)
-    IF(istat /= 0) STOP "acc_stream_priority_range failed"
+    IF(istat /= 0) CALL mp_abort("acc_stream_priority_range failed")
 #endif
 END SUBROUTINE acc_stream_priority_range
 

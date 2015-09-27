@@ -21,7 +21,7 @@
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*int_8_size, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
 #else
-    STOP "acc_hostmem_alloc_l: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_alloc_l: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_alloc_l
 
@@ -47,7 +47,7 @@
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
 #else
-    STOP "acc_hostmem_alloc_l_2D: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_alloc_l_2D: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_alloc_l_2D
 
@@ -74,7 +74,7 @@
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3) /))
 #else
-    STOP "acc_hostmem_alloc_l_3D: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_alloc_l_3D: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_alloc_l_3D
 
@@ -102,7 +102,7 @@
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, &
                                (/ MAX(1,n1),MAX(1,n2),MAX(1,n3),MAX(1,n4) /))
 #else
-    STOP "acc_hostmem_alloc_l_4D: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_alloc_l_4D: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_alloc_l_4D
 
@@ -125,7 +125,7 @@
 #if defined (__ACC)
     CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1)), stream)
 #else
-    STOP "acc_hostmem_dealloc_l: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_dealloc_l: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_dealloc_l
 
@@ -147,7 +147,7 @@
 #if defined (__ACC)
     CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1)), stream)
 #else
-    STOP "acc_hostmem_dealloc_l: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_dealloc_l: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_dealloc_l_2D
 
@@ -169,7 +169,7 @@
 #if defined (__ACC)
     CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1,1)), stream)
 #else
-    STOP "acc_hostmem_dealloc_l: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_dealloc_l: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_dealloc_l_3D
 
@@ -191,6 +191,6 @@
 #if defined (__ACC)
     CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1,1,1)), stream)
 #else
-    STOP "acc_hostmem_dealloc_l: ACC not compiled in."
+    CALL mp_abort("acc_hostmem_dealloc_l: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_dealloc_l_4D
