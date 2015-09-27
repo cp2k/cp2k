@@ -241,7 +241,7 @@ SUBROUTINE qs_ks_env_create(ks_env)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_env_create', &
       routineP = moduleN//':'//routineN
 
-    IF(ASSOCIATED(ks_env)) STOP routineP//"ks_env already associated"
+    IF(ASSOCIATED(ks_env)) CPABORT("ks_env already associated")
     ALLOCATE(ks_env)
     CALL qs_rho_create(ks_env%rho)
     CALL qs_rho_create(ks_env%rho_aux_fit)

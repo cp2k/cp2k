@@ -16,6 +16,7 @@
 ! *****************************************************************************
 MODULE graph_utils
   USE kinds,                           ONLY: dp
+#include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -202,7 +203,7 @@ CONTAINS
 
     IF (stat/=0) THEN 
        WRITE(*,*)"Pattern: "//TRIM(section)//" not found in input file!"
-       STOP "Search failed!"
+       CPABORT("Search failed!")
     END IF
 
     IF (PRESENT(keyword)) THEN

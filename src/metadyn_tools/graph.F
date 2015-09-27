@@ -122,7 +122,7 @@ PROGRAM graph
      WRITE(iw,*)''
      WRITE(iw,*)'DEFAULT OUTPUT: fes.dat'
      WRITE(iw,*)''
-     STOP  "Please provide arguments to run FES!"
+     CPABORT("Please provide arguments to run FES!")
   ENDIF
   
   DO i=1,argcount
@@ -197,7 +197,7 @@ PROGRAM graph
 
   END DO
   IF (COUNT((/l_orac,l_cp2k,l_cpmd/))/=1) &
-       STOP "Error! You've to specify either ORAC, CP2K or CPMD!!"
+       CPABORT("Error! You've to specify either ORAC, CP2K or CPMD!!")
 
   ! For CPMD move filename to colvar_mtd
   IF (l_cpmd) THEN
@@ -340,7 +340,7 @@ PROGRAM graph
 
      END DO
      IF (ANY(mep_input_data%minima==HUGE(0.0_dp))) &
-          STOP "-find-path requires the specification of -point-a and -point-b !"
+          CPABORT("-find-path requires the specification of -point-a and -point-b !")
   ELSE
      ALLOCATE(mep_input_data%minima(0,0))
   END IF

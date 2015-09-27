@@ -313,7 +313,7 @@ CONTAINS
           CALL cp_assert(isize.le.ncalc,cp_fatal_level,cp_assertion_failed,&
                        routineP,"Number of Groups larger than number of calculations"//&
                        " Please change input.",only_ionode=.TRUE.)
-          IF(nptot.NE.nproc)STOP
+          CPASSERT(nptot==nproc)
           ALLOCATE(opt_bas%comp_group(isize))
           ALLOCATE(opt_bas%group_partition(0:isize-1))
           IF(isize.lt.ncalc)THEN

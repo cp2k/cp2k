@@ -485,3 +485,4 @@ xyz_to_vab_optimised.F: Unused dummy argument ‘lb_min_local’ at (1) [-Wunuse
 xyz_to_vab_optimised.F: Unused dummy argument ‘rab’ at (1) [-Wunused-dummy-argument]
 xyz_to_vab_optimised.F: Unused dummy argument ‘ra’ at (1) [-Wunused-dummy-argument]
 xyz_to_vab_optimised.F: Unused dummy argument ‘rp’ at (1) [-Wunused-dummy-argument]
+message_passing.F: Found STOP statement in procedure "mp_abort"

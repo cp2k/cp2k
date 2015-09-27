@@ -3304,7 +3304,7 @@ CONTAINS
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
-       IF (ncount.GT.nbufmax) STOP
+       IF (ncount.GT.nbufmax) CALL mp_abort()
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
@@ -3328,7 +3328,7 @@ CONTAINS
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
-       IF (ncount.GT.nbufmax) STOP
+       IF (ncount.GT.nbufmax) CALL mp_abort()
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
@@ -3351,7 +3351,7 @@ CONTAINS
     ENDIF
     ncount=10**npow
     IF (ionode .AND. output_unit > 0) WRITE(output_unit,*) "For messages of ",ncount*8," bytes"
-    IF (ncount.GT.nbufmax) STOP
+    IF (ncount.GT.nbufmax) CALL mp_abort()
     DO itask=0,nprocs-1
        DO jtask=itask+1,nprocs-1
           CALL MPI_BARRIER(comm,ierror)
@@ -3386,7 +3386,7 @@ CONTAINS
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
-       IF (ncount.GT.nbufmax) STOP
+       IF (ncount.GT.nbufmax) CALL mp_abort()
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
@@ -3414,7 +3414,7 @@ CONTAINS
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
-       IF (ncount.GT.nbufmax) STOP
+       IF (ncount.GT.nbufmax) CALL mp_abort()
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
@@ -3442,7 +3442,7 @@ CONTAINS
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
-       IF (ncount.GT.nbufmax) STOP
+       IF (ncount.GT.nbufmax) CALL mp_abort()
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
@@ -3462,7 +3462,7 @@ CONTAINS
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
-       IF (ncount.GT.nbufmax) STOP
+       IF (ncount.GT.nbufmax) CALL mp_abort()
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
           t1=MPI_WTIME()
@@ -3485,7 +3485,7 @@ CONTAINS
     DO i=1,npow
        ncount=10**i
        t2=0.0E0_dp
-       IF (ncount.GT.nbufmax) STOP
+       IF (ncount.GT.nbufmax) CALL mp_abort()
        scount=ncount/nprocs
        rcount=ncount/nprocs
        DO j=1,nprocs
@@ -3549,7 +3549,7 @@ CONTAINS
        CALL mpi_allreduce(maxdiff,res2,1,MPI_DOUBLE_PRECISION,MPI_MAX,comm, ierr)
        IF (ionode .AND. output_unit > 0) WRITE(output_unit,*) "MPI_SENDRECV_REPLACE  ",res,res2
        ! *** involved shift ****
-       IF (MODULO(nprocs,2)/=0) STOP
+       IF (MODULO(nprocs,2)/=0) CALL mp_abort()
        DO j=1,Nprocs
           DO i=1,Nloc
              grid3(i,j)=MODULO(i*j*taskid,itests)

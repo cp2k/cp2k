@@ -32,7 +32,8 @@ MODULE timings_report
                                              list_push,&
                                              list_size
   USE list_routinereport,              ONLY: list_routinereport_type
-  USE message_passing,                 ONLY: mp_bcast,&
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_bcast,&
                                              mp_max,&
                                              mp_sum
   USE timings,                         ONLY: get_timer_env
@@ -112,7 +113,7 @@ MODULE timings_report
     TYPE(timer_env_type), POINTER            :: timer_env
 
     NULLIFY (r_stat, r_report, timer_env)
-    IF(.NOT. list_isready(reports)) STOP "BUG"
+    IF(.NOT. list_isready(reports)) CALL mp_abort("BUG")
 
     timer_env => get_timer_env()
 
@@ -172,7 +173,7 @@ MODULE timings_report
             r_report%max_ecost = r_stat%excl_walltime_accu
             r_report%sum_ecost = r_stat%excl_walltime_accu
           CASE DEFAULT
-            STOP "BUG"
+            CALL mp_abort("BUG")
         END SELECT
       END IF
 
@@ -219,7 +220,7 @@ MODULE timings_report
     TYPE(routine_report_type), POINTER       :: r_report_i, r_report_j
 
     NULLIFY(r_report_i, r_report_j)
-    IF(.NOT. list_isready(reports)) STOP "BUG"
+    IF(.NOT. list_isready(reports)) CALL mp_abort("BUG")
 
     ! are we printing timing or energy ?
     SELECT CASE(cost_type)
@@ -230,7 +231,7 @@ MODULE timings_report
          title = "T I M I N G"
          label = "TIME"
       CASE DEFAULT
-        STOP "BUG"
+        CALL mp_abort("BUG")
     END SELECT
 
     ! write banner

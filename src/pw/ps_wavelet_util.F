@@ -105,7 +105,7 @@ CONTAINS
     ELSE IF (geocode == 'F') THEN
        CALL F_FFT_dimensions(n01,n02,n03,m1,m2,m3,n1,n2,n3,md1,md2,md3,nd1,nd2,nd3,nproc)
     ELSE
-       STOP 'PSolver: geometry code not admitted'
+       CPABORT("PSolver: geometry code not admitted")
     END IF
     !array allocations
     ALLOCATE(zf(md1,md3,md2/nproc))

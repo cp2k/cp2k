@@ -8,7 +8,7 @@ import sys
 from os import path
 
 
-BANNED_STM  = ('GOTO', 'FORALL', 'OPEN', 'CLOSE', )
+BANNED_STM  = ('GOTO', 'FORALL', 'OPEN', 'CLOSE', 'STOP',)
 BANNED_CALL = ('CP_FM_GEMM', )
 USE_EXCEPTIONS = ("OMP_LIB", "OMP_LIB_KINDS", "LAPACK",)
 

@@ -148,7 +148,7 @@ CONTAINS
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
     nspins=dft_control%nspins
 
-    IF (.NOT.ASSOCIATED(rho)) STOP routineP//" rho not associated"
+    IF (.NOT.ASSOCIATED(rho)) CPABORT("rho not associated")
     CALL qs_rho_get(rho,&
                     tot_rho_r=tot_rho_r,&
                     rho_ao_kp=rho_ao_kp,&

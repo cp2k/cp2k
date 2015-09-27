@@ -23,6 +23,7 @@
 
 MODULE list_routinestat
 
+  USE message_passing,                 ONLY: mp_abort
   USE timings_base_type,               ONLY: routine_stat_type
 
   IMPLICIT NONE
@@ -106,13 +107,13 @@ SUBROUTINE list_routinestat_init(list, initial_capacity)
     IF(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
 
     IF(initial_capacity_ < 0) & 
-      STOP "list_routinestat_create: initial_capacity < 0"
+      CALL mp_abort("list_routinestat_create: initial_capacity < 0")
 
     IF(ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_create: list is already initialized."
+       CALL mp_abort("list_routinestat_create: list is already initialized.")
 
     ALLOCATE(list%arr(initial_capacity_), stat=stat)
-    IF (stat/=0) STOP "list_routinestat_init: allocation failed"
+    IF (stat/=0) CALL mp_abort("list_routinestat_init: allocation failed")
 
     list%size = 0
 END SUBROUTINE list_routinestat_init
@@ -133,7 +134,7 @@ SUBROUTINE list_routinestat_destroy(list)
     INTEGER                                  :: i
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_destroy: list is not initialized."
+       CALL mp_abort("list_routinestat_destroy: list is not initialized.")
 
     DO i=1, list%size
        DEALLOCATE(list%arr(i)%p)
@@ -162,9 +163,9 @@ SUBROUTINE list_routinestat_set(list, value, pos)
     INTEGER, INTENT(in)                      :: pos
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_set: list is not initialized."
-    IF(pos < 1) STOP "list_routinestat_set: pos < 1"
-    IF(pos > list%size) STOP "list_routinestat_set: pos > size"
+       CALL mp_abort("list_routinestat_set: list is not initialized.")
+    IF(pos < 1) CALL mp_abort("list_routinestat_set: pos < 1")
+    IF(pos > list%size) CALL mp_abort("list_routinestat_set: pos > size")
     list%arr(pos)%p%value => value
 END SUBROUTINE list_routinestat_set
 
@@ -186,13 +187,13 @@ SUBROUTINE list_routinestat_push(list, value)
     INTEGER                                  :: stat
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_push: list is not initialized."
+       CALL mp_abort("list_routinestat_push: list is not initialized.")
     IF(list%size == SIZE(list%arr)) &
        CALL change_capacity(list, 2*SIZE(list%arr)+1)
 
     list%size = list%size + 1
     ALLOCATE(list%arr(list%size)%p, stat=stat)
-    IF (stat/=0) STOP "list_routinestat_push: allocation failed"
+    IF (stat/=0) CALL mp_abort("list_routinestat_push: allocation failed")
     list%arr(list%size)%p%value => value
 END SUBROUTINE list_routinestat_push
 
@@ -217,9 +218,9 @@ SUBROUTINE list_routinestat_insert(list, value, pos)
     INTEGER                                  :: i, stat
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_insert: list is not initialized."
-    IF(pos < 1) STOP "list_routinestat_insert: pos < 1"
-    IF(pos > list%size+1) STOP "list_routinestat_insert: pos > size+1"
+       CALL mp_abort("list_routinestat_insert: list is not initialized.")
+    IF(pos < 1) CALL mp_abort("list_routinestat_insert: pos < 1")
+    IF(pos > list%size+1) CALL mp_abort("list_routinestat_insert: pos > size+1")
 
     IF(list%size == SIZE(list%arr)) &
        CALL change_capacity(list, 2*SIZE(list%arr)+1)
@@ -230,7 +231,7 @@ SUBROUTINE list_routinestat_insert(list, value, pos)
     END DO
 
     ALLOCATE(list%arr(pos)%p, stat=stat)
-     IF (stat/=0) STOP "list_routinestat_insert: allocation failed."
+     IF (stat/=0) CALL mp_abort("list_routinestat_insert: allocation failed.")
     list%arr(pos)%p%value => value
 END SUBROUTINE list_routinestat_insert
 
@@ -250,9 +251,9 @@ FUNCTION list_routinestat_peek(list) RESULT(value)
     TYPE(routine_stat_type), POINTER         :: value
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_peek: list is not initialized."
+       CALL mp_abort("list_routinestat_peek: list is not initialized.")
     IF(list%size < 1) &
-       STOP "list_routinestat_peek: list is empty."
+       CALL mp_abort("list_routinestat_peek: list is empty.")
 
     value => list%arr(list%size)%p%value
 END FUNCTION list_routinestat_peek
@@ -276,9 +277,9 @@ FUNCTION list_routinestat_pop(list) RESULT(value)
     TYPE(routine_stat_type), POINTER         :: value
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_pop: list is not initialized."
+       CALL mp_abort("list_routinestat_pop: list is not initialized.")
     IF(list%size < 1) &
-       STOP "list_routinestat_pop: list is empty."
+       CALL mp_abort("list_routinestat_pop: list is empty.")
 
     value => list%arr(list%size)%p%value
     DEALLOCATE(list%arr(list%size)%p)
@@ -301,7 +302,7 @@ SUBROUTINE list_routinestat_clear(list)
     INTEGER                                  :: i
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_clear: list is not initialized."
+       CALL mp_abort("list_routinestat_clear: list is not initialized.")
 
     DO i=1, list%size
        DEALLOCATE(list%arr(i)%p)
@@ -326,9 +327,9 @@ FUNCTION list_routinestat_get(list, pos) RESULT(value)
     TYPE(routine_stat_type), POINTER         :: value
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_get: list is not initialized."
-    IF(pos < 1) STOP "list_routinestat_get: pos < 1"
-    IF(pos > list%size) STOP "list_routinestat_get: pos > size"
+       CALL mp_abort("list_routinestat_get: list is not initialized.")
+    IF(pos < 1) CALL mp_abort("list_routinestat_get: pos < 1")
+    IF(pos > list%size) CALL mp_abort("list_routinestat_get: pos > size")
 
     value => list%arr(pos)%p%value
 
@@ -351,9 +352,9 @@ SUBROUTINE list_routinestat_del(list, pos)
     INTEGER                                  :: i
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_del: list is not initialized."
-    IF(pos < 1) STOP "list_routinestat_det: pos < 1"
-    IF(pos > list%size) STOP "list_routinestat_det: pos > size"
+       CALL mp_abort("list_routinestat_del: list is not initialized.")
+    IF(pos < 1) CALL mp_abort("list_routinestat_det: pos < 1")
+    IF(pos > list%size) CALL mp_abort("list_routinestat_det: pos > size")
 
     DEALLOCATE(list%arr(pos)%p)
     DO i=pos, list%size-1
@@ -377,7 +378,7 @@ FUNCTION list_routinestat_size(list) RESULT(size)
     INTEGER                                  :: size
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       STOP "list_routinestat_size: list is not initialized."
+       CALL mp_abort("list_routinestat_size: list is not initialized.")
 
     size = list%size
 END FUNCTION list_routinestat_size
@@ -402,22 +403,22 @@ SUBROUTINE change_capacity(list, new_capacity)
 
    new_cap = new_capacity
    IF(new_cap < 0) &
-      STOP "list_routinestat_change_capacity: new_capacity < 0"
+      CALL mp_abort("list_routinestat_change_capacity: new_capacity < 0")
    IF(new_cap < list%size) &
-      STOP "list_routinestat_change_capacity: new_capacity < size"
+      CALL mp_abort("list_routinestat_change_capacity: new_capacity < size")
    IF(new_cap > HUGE(i)) THEN
       IF(SIZE(list%arr) == HUGE(i)) &
-      STOP "list_routinestat_change_capacity: list has reached integer limit."
+      CALL mp_abort("list_routinestat_change_capacity: list has reached integer limit.")
       new_cap = HUGE(i) ! grow as far as possible
    END IF
 
    old_arr => list%arr
    ALLOCATE(list%arr(new_cap), stat=stat)
-   IF (stat/=0) STOP "list_routinestat_change_capacity: allocation failed"
+   IF (stat/=0) CALL mp_abort("list_routinestat_change_capacity: allocation failed")
 
    DO i=1, list%size
       ALLOCATE(list%arr(i)%p, stat=stat)
-      IF (stat/=0) STOP "list_routinestat_change_capacity: allocation failed"
+      IF (stat/=0) CALL mp_abort("list_routinestat_change_capacity: allocation failed")
       list%arr(i)%p%value => old_arr(i)%p%value
       DEALLOCATE(old_arr(i)%p)
    END DO

@@ -110,7 +110,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_rho_create', &
       routineP = moduleN//':'//routineN
 
-   IF(ASSOCIATED(rho)) STOP routineP//" rho already associated"
+   IF(ASSOCIATED(rho)) CPABORT("rho already associated")
 
    ALLOCATE(rho)
    last_rho_id_nr=last_rho_id_nr+1

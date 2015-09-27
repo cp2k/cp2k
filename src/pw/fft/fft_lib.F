@@ -19,6 +19,7 @@ MODULE fft_lib
                                              fftw3_do_cleanup,&
                                              fftw3_do_init,&
                                              fftw3_get_lengths
+#include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -65,7 +66,7 @@ SUBROUTINE fft_do_init(fft_type, wisdom_file)
 
   SELECT CASE ( fft_type )
     CASE DEFAULT
-      STOP "fft_do_init"
+      CPABORT("fft_do_init")
     CASE ( 1 )
       CALL fftsg_do_init ()
     CASE ( 3 )
@@ -87,7 +88,7 @@ SUBROUTINE fft_do_cleanup(fft_type, wisdom_file, ionode)
 
   SELECT CASE ( fft_type )
     CASE DEFAULT
-      STOP "fft_do_cleanup"
+      CPABORT("fft_do_cleanup")
     CASE ( 1 )
       CALL fftsg_do_cleanup ( )
     CASE ( 3 )
@@ -110,7 +111,7 @@ SUBROUTINE fft_get_lengths ( fft_type, DATA, max_length )
 
   SELECT CASE ( fft_type )
     CASE DEFAULT
-      STOP "fft_get_lengths"
+      CPABORT("fft_get_lengths")
     CASE ( 1 )
       CALL fftsg_get_lengths ( DATA, max_length )
     CASE ( 3 )
@@ -183,7 +184,7 @@ SUBROUTINE fft_3d ( plan, scale, zin, zout, stat )
   IF ( plan%n_3d(1)*plan%n_3d(2)*plan%n_3d(3) > 0 ) THEN
     SELECT CASE ( plan%fft_type )
       CASE DEFAULT
-        STOP "fft_3d"
+        CPABORT("fft_3d")
       CASE ( 1 )
         CALL fftsg3d ( plan%fft_in_place, stat, scale, plan%n_3d, zin, zout )
       CASE ( 3 )
@@ -282,7 +283,7 @@ SUBROUTINE fft_1dm ( plan, zin, zout, scale, stat)
   IF ( plan%n * plan%m > 0 ) THEN
     SELECT CASE ( plan%fft_type )
       CASE DEFAULT
-        STOP "fft_1dm"
+        CPABORT("fft_1dm")
       CASE ( 1 )
         CALL fftsg1dm ( stat, plan%trans, plan%n, plan%m, zin, zout, scale )
       CASE ( 3 )

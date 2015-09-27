@@ -1727,7 +1727,7 @@ CONTAINS
         zout(2,j,nout6)=ui3-vi3
         ENDDO ; ENDDO
      ELSE
-        STOP 'error fftstp'
+        CPABORT("error fftstp")
      ENDIF
 
    END SUBROUTINE fftstp

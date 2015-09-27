@@ -100,7 +100,7 @@ CONTAINS
        IAB =(P(3)-A(3))*os_overlap2(an-i3,bn) + &
               0.5_dp*(an(3)-1)/xsi*os_overlap2(an-i3-i3,bn)
      ELSE
-         STOP "I(0000)"
+         CPABORT("I(0000)")
      ENDIF
     ENDIF
          

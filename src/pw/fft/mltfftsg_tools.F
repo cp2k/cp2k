@@ -1321,7 +1321,7 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout,  trig, now, after, before, is
       END DO
     END DO
   ELSE
-    STOP 'Error fftrot'
+    CPABORT('Error fftrot')
   END IF
 
 !-----------------------------------------------------------------------------!
@@ -2396,7 +2396,7 @@ SUBROUTINE fftpre ( mm, nfft, m, nn, n, zin, zout, trig, now, after, before, isi
       END DO
     END DO
   ELSE
-    STOP 'Error fftpre'
+    CPABORT('Error fftpre')
   END IF
 
 !-----------------------------------------------------------------------------!
@@ -3472,7 +3472,7 @@ SUBROUTINE fftstp ( mm, nfft, m, nn, n, zin, zout,  trig, now, after, before, is
       END DO
     END DO
   ELSE
-    STOP 'Error fftstp'
+    CPABORT('Error fftstp')
   END IF
 
 !-----------------------------------------------------------------------------!
@@ -3564,7 +3564,7 @@ SUBROUTINE ctrig ( n, trig, after, before, now, isign, ic )
       WRITE ( *, '(A,i5,A)' ) " Value of ",n, &
             " not allowed for fft, allowed values are:"
       WRITE ( *, '(15i5)' ) ( idata ( 1, j ), j = 1, nt )
-      STOP 'ctrig'
+      CPABORT('ctrig')
     END IF
   END DO mloop
 

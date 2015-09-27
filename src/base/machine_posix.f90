@@ -263,7 +263,8 @@ CONTAINS
     IF (istat .NE. 0) THEN
       WRITE(*,*) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
       WRITE(*,*) "rename returned status: ",istat
-      STOP "Problem moving file"
+      WRITE(*,*) "Problem moving file"
+      CALL m_abort()
     ENDIF
   END SUBROUTINE m_mov
 
@@ -286,7 +287,10 @@ CONTAINS
     END INTERFACE
 
     istat = gethostname(buf, LEN(buf))
-    IF(istat /= 0) STOP "m_hostnm failed"
+    IF(istat /= 0) THEN
+       WRITE (*,*) "m_hostnm failed"
+       CALL m_abort()
+    ENDIF
     i = INDEX(buf, c_null_char) -1
     hname = buf(1:i)
   END SUBROUTINE m_hostnm
@@ -310,7 +314,10 @@ CONTAINS
     END INTERFACE
 
     stat = getcwd(tmp, LEN(tmp))
-    IF(.NOT. C_ASSOCIATED(stat)) STOP "m_getcwd failed"
+    IF(.NOT. C_ASSOCIATED(stat)) THEN
+       WRITE (*,*) "m_getcwd failed"
+       CALL m_abort()
+    ENDIF
     i = INDEX(tmp, c_null_char) -1
     curdir = tmp(1:i)
   END SUBROUTINE m_getcwd
@@ -427,7 +434,10 @@ CONTAINS
     INTEGER                                  :: istat
 
     CALL GET_COMMAND_ARGUMENT(i, tmp, status=istat)
-    IF(istat /= 0) STOP "m_getarg failed"
+    IF(istat /= 0) THEN
+       WRITE (*,*) "m_getarg failed"
+       CALL m_abort()
+    ENDIF
     arg = TRIM(tmp)
   END SUBROUTINE m_getarg
 

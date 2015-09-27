@@ -544,7 +544,7 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
                                  fft_direction, fftw_plan_type, valid)
 
     IF (.NOT. valid) THEN
-         STOP "fftw3_create_plan"
+         CPABORT("fftw3_create_plan")
     ENDIF
 
     !!!! Remainder
@@ -555,7 +555,7 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
                                  input, output, &
                                  fft_direction, fftw_plan_type, valid)
     IF (.NOT. valid) THEN
-         STOP "fftw3_create_plan (remaining)"
+         CPABORT("fftw3_create_plan (remaining)")
     ENDIF
 
 
@@ -601,7 +601,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
   CASE(4)
          fftw_plan_type = FFTW_EXHAUSTIVE
   CASE DEFAULT
-         STOP "fftw3_create_plan_3d"
+         CPABORT("fftw3_create_plan_3d")
   END SELECT
 
 #if defined (__FFTW3_UNALIGNED)
@@ -930,7 +930,7 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
   CASE(4)
          fftw_plan_type = FFTW_EXHAUSTIVE
   CASE DEFAULT
-   STOP "fftw3_create_plan_1dm"
+         CPABORT("fftw3_create_plan_1dm")
   END SELECT
 
 #if defined (__FFTW3_UNALIGNED)

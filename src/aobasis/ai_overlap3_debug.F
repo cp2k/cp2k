@@ -119,7 +119,7 @@ CONTAINS
           IACB =(G(3)-A(3))*os_overlap3(an-i3,cn,bn) + &
                  0.5_dp*(an(3)-1)/(xsi+xc)*os_overlap3(an-i3-i3,cn,bn)
         ELSE
-            STOP "I(0000)"
+            CPABORT("I(0000)")
         ENDIF
       ENDIF
     ENDIF

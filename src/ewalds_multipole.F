@@ -181,7 +181,7 @@ CONTAINS
        IF (debug_r_space) THEN
           CALL debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
                particle_set, local_particles, iw, debug_r_space)
-          STOP "Debug Multipole Requested:  Real Part!"
+          CPABORT("Debug Multipole Requested:  Real Part!")
        END IF
        ! Debug electric fields and gradients as pure derivatives
        IF (debug_e_field) THEN
@@ -190,7 +190,7 @@ CONTAINS
           CALL debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, radii, charges, dipoles,&
                quadrupoles, task, iw, atomic_kind_set, mm_section)
-          STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD!"
+          CPABORT("Debug Multipole Requested:  POT+EFIELDS+GRAD!")
        END IF
        ! Debug the potential, electric fields and electric fields gradient in oder
        ! to retrieve the correct energy
@@ -198,7 +198,7 @@ CONTAINS
           CALL debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env,&
                cell, particle_set, local_particles, radii, charges, dipoles,&
                quadrupoles, task, iw)
-          STOP "Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!"
+          CPABORT("Debug Multipole Requested:  POT+EFIELDS+GRAD to give the correct energy!!")
        END IF
     END IF
 

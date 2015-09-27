@@ -132,7 +132,7 @@ PROGRAM cp2k_shell
   IF(m_iargc()>0) THEN
      CALL m_getarg(1, out_filename)
      IF(m_iargc()>1 .OR. out_filename(:16) /= "--redirect-comm=") &
-       STOP "Usage: cp2k_shell [--redirect-comm=filename]"
+       CPABORT("Usage: cp2k_shell [--redirect-comm=filename]")
      ! Redirect shell-output away from stdout into a seperate file/pipe.
      ! This is used e.g. by the ASE calculator.
      CALL open_file(file_name=TRIM(out_filename(17:)), unit_number=sout,&
@@ -690,7 +690,7 @@ CONTAINS
        END DO
        eof_stat=stat_n
        IF (eof_stat >= 0) THEN
-          STOP 'ERROR,cp_files:get_eof_stat failed identification of EOF IOSTAT'
+          CPABORT("ERROR,cp_files:get_eof_stat failed identification of EOF IOSTAT")
           eof_stat=-1
        END IF
        CALL close_file(unit,'delete')

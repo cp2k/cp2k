@@ -277,7 +277,7 @@ CONTAINS
                                                 resto
     REAL(KIND=dp), DIMENSION(:), POINTER     :: dx, rnd, xx
 
-    IF (ndw/=ndim) STOP "Not implemented for projected FES!"
+    IF (ndw/=ndim) CPABORT("Not implemented for projected FES!")
 
     ntrust  = ngrid/10
     ntrials = PRODUCT (ngrid)
@@ -405,7 +405,7 @@ CONTAINS
                                                 fes_rep, tang, xx, yy
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dx, pos, pos_old
 
-    IF (ndw/=ndim) STOP "Not implemented for projected FES!"
+    IF (ndw/=ndim) CPABORT("Not implemented for projected FES!")
     nreplica = mep_input_data%nreplica
     ALLOCATE(xx(ndim),dx(ndim,nreplica),pos_old(ndim,nreplica),pos(ndim,nreplica),&
              ipos(ndim),fes_rep(nreplica),dxx(ndim),dyy(ndim),yy(ndim),davg1(ndim),&
@@ -707,7 +707,7 @@ CONTAINS
        END DO
        IF (i == nelem+1) THEN
           WRITE(*,*)TRIM(label), "In line: ", line
-          STOP "Element not recognized!"
+          CPABORT("Element not recognized!")
        END IF
        izat(natoms)=i
     END DO

@@ -99,7 +99,7 @@ SELECT CASE(i)
   CASE(10)
     fn_val = MAXEXPONENT(1.0e0_dp)
   CASE DEFAULT
-    STOP "unknown case"
+    CPABORT("unknown case")
 END SELECT
 
 END FUNCTION ipmpar
