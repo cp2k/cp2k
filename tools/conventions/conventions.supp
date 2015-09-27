@@ -486,3 +486,6 @@ xyz_to_vab_optimised.F: Unused dummy argument ‘rab’ at (1) [-Wunused-dummy-a
 xyz_to_vab_optimised.F: Unused dummy argument ‘ra’ at (1) [-Wunused-dummy-argument]
 xyz_to_vab_optimised.F: Unused dummy argument ‘rp’ at (1) [-Wunused-dummy-argument]
 message_passing.F: Found STOP statement in procedure "mp_abort"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_getarg"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_getcwd"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_hostnm"
