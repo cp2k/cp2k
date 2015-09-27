@@ -133,10 +133,10 @@ CONTAINS
     END IF
 
     IF (force_env%in_use==use_qmmmx) THEN
-       CALL cp_assert(iwall_type == do_qmmm_wall_none, &
-         cp_warning_level,cp_assertion_failed,routineP,&
-         "Reflective walls for QM/MM are not implemented (or useful) when "//&
-         "force mixing is active.  Skipping!"//CPSourceFileRef)
+       IF(iwall_type /= do_qmmm_wall_none)&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               "Reflective walls for QM/MM are not implemented (or useful) when "//&
+               "force mixing is active.  Skipping!")
        RETURN
     END IF
 

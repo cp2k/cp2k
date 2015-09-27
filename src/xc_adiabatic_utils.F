@@ -134,9 +134,10 @@ CONTAINS
     CASE (do_adiabatic_hybrid_mcy3)
        SELECT CASE(adiabatic_model)
        CASE(do_adiabatic_model_pade)
-          CALL cp_assert( n_rep_hf == 2 , cp_failure_level,cp_assertion_failed,routineP,&
-               " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "//&
-               " Please check your input file.")
+          IF(n_rep_hf /= 2)&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "//&
+                  " Please check your input file.")
           CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &
                adiabatic_omega, scale_dEx1, scale_ddW0, scale_dDFA,&
                scale_dEx2, total_energy_xc)

@@ -151,12 +151,11 @@ CONTAINS
        natom = 0
     ELSE
        CALL parser_get_object  (parser,natom)
-       CALL cp_assert(natom_prev+natom<=topology%natoms,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "Number of atoms in connectivity control is larger than the "//&
-            "number of atoms in coordinate control. check coordinates and "//&
-            "connectivity. "//&
-            CPSourceFileRef)
+       IF(natom_prev+natom>topology%natoms)&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "Number of atoms in connectivity control is larger than the "//&
+               "number of atoms in coordinate control. check coordinates and "//&
+               "connectivity. ")
        IF(iw>0) WRITE(iw,'(T2,A,'//TRIM(c_int)//')') 'PSF_INFO| NATOM = ',natom
        !malloc the memory that we need
        CALL reallocate(atom_info%id_molname,1,natom_prev+natom)

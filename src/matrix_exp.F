@@ -982,10 +982,8 @@ CONTAINS
        IF(convergence)EXIT
 
     END DO
-    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
-         "ARNOLDI method did not converge"//&
-         CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.convergence)&
+       CPWARN("ARNOLDI method did not converge")
     !deallocate all work matrices
 
     DO i=1,SIZE(V_mats)

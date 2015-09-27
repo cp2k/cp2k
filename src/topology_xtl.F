@@ -146,9 +146,8 @@ CONTAINS
     ! Check for   _cell_length_a
     CALL parser_search_string(parser,"CELL",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field CELL was not found in XTL file! "//&
-CPSourceFileRef)
+    IF(.NOT.found)&
+       CPABORT("The field CELL was not found in XTL file! ")
     CALL parser_get_next_line(parser,1)
     ! CELL LENGTH A
     CALL parser_get_object(parser,cell_lengths(1))
@@ -181,15 +180,13 @@ CPSourceFileRef)
     ! Check for   _atom_site_label
     CALL parser_search_string(parser,"ATOMS",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field ATOMS was not found in XTL file! "//&
-CPSourceFileRef)
+    IF(.NOT.found)&
+       CPABORT("The field ATOMS was not found in XTL file! ")
     CALL parser_get_next_line(parser,1)
     ! Paranoic syntax check.. if this fails one should improve the description of XTL files
     found = (INDEX(parser%input_line,"NAME       X          Y          Z")/=0)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field ATOMS in XTL file, is not followed by name and coordinates tags! "//&
-CPSourceFileRef)
+    IF(.NOT.found)&
+       CPABORT("The field ATOMS in XTL file, is not followed by name and coordinates tags! ")
     CALL parser_get_next_line(parser,1)
     ! Parse real info
     natom = 0
@@ -249,10 +246,8 @@ CPSourceFileRef)
     ! Check for SYM MAT
     CALL parser_search_string(parser,"SYM MAT",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
-         "The field SYM MAT was not found in XTL file! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.found)&
+       CPWARN("The field SYM MAT was not found in XTL file! ")
     IF (iw>0) WRITE(iw,'(A,I0)')" XTL_INFO| Number of atoms before applying symmetry operations :: ",natom
     IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)
     IF (found) THEN

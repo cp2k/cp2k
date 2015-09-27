@@ -137,10 +137,10 @@ CONTAINS
             WRITE (unit=output_unit, fmt='("ip, j, pos, lat_pos ",2I6,6F12.5)') ip, j, &
                particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r)
           ENDIF
-          CALL cp_assert(check, cp_failure_level, cp_assertion_failed, routinep,&
+          IF(.NOT.check)&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
                   "QM/MM QM atoms must be fully contained in the same image of the QM box "//&
-                  "- No wrapping of coordinates is allowed! "//&
-                  CPSourceFileRef)
+                  "- No wrapping of coordinates is allowed! ")
        END DO
     END DO
 

@@ -393,15 +393,17 @@ CONTAINS
                EXIT
             ENDIF
          END DO
-         CALL cp_assert(old_index > 0, cp_failure_level,cp_assertion_failed,routineP,&
-              "add_new_label found atom with a label "//&
-              "already set, but not in new_indices array"//CPSourceFileRef)
+         IF(old_index <= 0)&
+            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                 "add_new_label found atom with a label "//&
+                 "already set, but not in new_indices array")
          new_labels(old_index) = label
     ELSE
          n_new = n_new + 1
-         CALL cp_assert(n_new <= max_n_qm, cp_failure_level,cp_assertion_failed,routineP,&
-              "add_new_label tried to add more atoms "//&
-              "than allowed by &FORCE_MIXING&MAX_N_QM!"//CPSourceFileRef)
+         IF(n_new > max_n_qm)&
+            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                 "add_new_label tried to add more atoms "//&
+                 "than allowed by &FORCE_MIXING&MAX_N_QM!")
          IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices,1,n_new+9)
          IF (n_new > SIZE(new_labels))  CALL reallocate(new_labels,1,n_new+9)
          new_indices(n_new) = ip
@@ -674,8 +676,8 @@ CONTAINS
 
     ! get CUR_INDICES, CUR_LABELS
     CALL get_force_mixing_indices(force_mixing_section, cur_indices, cur_labels)
-    CALL cp_assert(SIZE(cur_indices) > 0,cp_failure_level,cp_assertion_failed,routineP,&
-         "cur_indices is empty, found no QM atoms"//CPSourceFileRef)
+    IF(SIZE(cur_indices) <= 0)&
+       CPABORT("cur_indices is empty, found no QM atoms")
 
     IF (debug_this_module.AND.output_unit>0) THEN
        WRITE(output_unit,*) "cur_indices ",cur_indices
@@ -695,19 +697,21 @@ CONTAINS
                  EXIT
               ENDIF
           END DO
-          CALL cp_assert(mapped,cp_failure_level,cp_assertion_failed,routineP,&
-               "Force-mixing failed to find QM_KIND mapping for atom of type "//&
-               TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol)//&
-               "! "//CPSourceFileRef)
+          IF(.NOT.mapped)&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  "Force-mixing failed to find QM_KIND mapping for atom of type "//&
+                  TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol)//&
+                  "! ")
        ENDIF
     END DO
 
     ! pre-existing QM_KIND section specifies list of core atom
     qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND")
     CALL section_vals_get(qm_kind_section,n_repetition=i_rep_section_core)
-    CALL cp_assert(i_rep_section_core > 0,cp_failure_level,cp_assertion_failed,routineP,&
-         "Force-mixing QM didn't find any QM_KIND sections, "//&
-         "so no core specified!"//CPSourceFileRef)
+    IF(i_rep_section_core <= 0)&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "Force-mixing QM didn't find any QM_KIND sections, "//&
+            "so no core specified!")
     i_rep_section_extended = i_rep_section_core
     DO ielem=1,n_elements
       new_element_core = .TRUE.
@@ -833,8 +837,8 @@ CONTAINS
       n_labels = n_labels + SIZE(labels_entry)
     END DO
 
-    CALL cp_assert(n_indices == n_labels, cp_failure_level,cp_assertion_failed,routineP,&
-         "got unequal numbers of force_mixing indices and labels!"//CPSourceFileRef)
+    IF(n_indices /= n_labels)&
+       CPABORT("got unequal numbers of force_mixing indices and labels!")
   END SUBROUTINE get_force_mixing_indices
 
 END MODULE qmmmx_util

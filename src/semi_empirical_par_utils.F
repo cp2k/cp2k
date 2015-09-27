@@ -557,24 +557,24 @@ CONTAINS
     z1 = sep%sto_exponents(0)
     z2 = sep%sto_exponents(1)
     z3 = sep%sto_exponents(2)
-    CALL cp_assert(z1>0.0_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-         "Trying to use s-orbitals, but the STO exponents is set to 0. "//&
-         "Please check if your parameterization supports the usage of s orbitals! "//&
-CPSourceFileRef)
+    IF(z1<=0.0_dp)&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "Trying to use s-orbitals, but the STO exponents is set to 0. "//&
+            "Please check if your parameterization supports the usage of s orbitals! ")
     amn = 0.0_dp
     nsp = nqs(sep%z)
     IF (sep%natorb>=4) THEN
-       CALL cp_assert(z2>0.0_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-            "Trying to use p-orbitals, but the STO exponents is set to 0. "//&
-            "Please check if your parameterization supports the usage of p orbitals! "//&
-CPSourceFileRef)
+       IF(z2<=0.0_dp)&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "Trying to use p-orbitals, but the STO exponents is set to 0. "//&
+               "Please check if your parameterization supports the usage of p orbitals! ")
        amn(2) = amn_l_low(z1, z2, nsp, nsp, 1)
        amn(3) = amn_l_low(z2, z2, nsp, nsp, 2)
        IF (sep%dorb) THEN
-          CALL cp_assert(z3>0.0_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-               "Trying to use d-orbitals, but the STO exponents is set to 0. "//&
-               "Please check if your parameterization supports the usage of d orbitals! "//&
-CPSourceFileRef)
+          IF(z3<=0.0_dp)&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  "Trying to use d-orbitals, but the STO exponents is set to 0. "//&
+                  "Please check if your parameterization supports the usage of d orbitals! ")
           nd     = nqd(sep%z)
           amn(4) = amn_l_low(z1, z3, nsp, nd, 2)
           amn(5) = amn_l_low(z2, z3, nsp, nd, 1)

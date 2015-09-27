@@ -1070,10 +1070,8 @@ CONTAINS
       fname_key="LOCHOMO_RESTART_FILE_NAME"
     ELSE
       fname_key="LOCLUMO_RESTART_FILE_NAME"
-      CALL cp_assert(PRESENT(evals),cp_failure_level,cp_assertion_failed,routineP,&
-          "Missing argument to localize unoccupied states."//&
-                       CPSourceFileRef,&
-                       only_ionode=.TRUE.)
+      IF(.NOT.PRESENT(evals))&
+         CPABORT("Missing argument to localize unoccupied states.")
     END IF
 
     file_exists = .FALSE.
@@ -1151,16 +1149,14 @@ CONTAINS
            eig_read = 0.0_dp
            READ (rst_unit) eig_read(1:nmo_read)
          END IF
-         CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
-              "The number of MOs on the restart unit is smaller than the number of "//&
-              "the allocated MOs. "//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
-         CALL cp_assert((nmo_read<=nmo),cp_warning_level,cp_assertion_failed,routineP,&
-             "The number of MOs on the restart unit is greater than the number of "//&
-             "the allocated MOs. The read MO set will be truncated!"//&
-             CPSourceFileRef,&
-             only_ionode=.TRUE.)
+         IF(nmo_read < nmo)&
+            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                 "The number of MOs on the restart unit is smaller than the number of "//&
+                 "the allocated MOs. ")
+         IF(nmo_read>nmo)&
+            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                 "The number of MOs on the restart unit is greater than the number of "//&
+                 "the allocated MOs. The read MO set will be truncated!")
 
          nmo = MIN(nmo,nmo_read)
          IF(do_homo) THEN

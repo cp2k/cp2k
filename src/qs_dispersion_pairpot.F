@@ -295,11 +295,11 @@ CONTAINS
           END SELECT
        END SELECT
        ! Check if the parameter is defined
-       CALL cp_assert(disp%defined,cp_failure_level,cp_assertion_failed,routineP,&
-            "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "//&
-            "Please provide a valid set of parameters through the input section or "//&
-            "through an external file! "//&
-            CPSourceFileRef)
+       IF(.NOT.disp%defined)&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "//&
+               "Please provide a valid set of parameters through the input section or "//&
+               "through an external file! ")
        CALL set_qs_kind(qs_kind_set(ikind),dispersion=disp)
     END DO
 

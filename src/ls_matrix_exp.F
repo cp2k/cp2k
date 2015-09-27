@@ -441,10 +441,8 @@ END SUBROUTINE
     CALL cp_dbcsr_filter(density_re,filter_eps)
     CALL cp_dbcsr_filter(density_im,filter_eps)
 
-    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
-         "BCH method did not converge"//&
-         CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.convergence)&
+       CPWARN("BCH method did not converge")
 
     CALL cp_dbcsr_deallocate_matrix(tmp)
     CALL cp_dbcsr_deallocate_matrix(tmp2)
@@ -542,10 +540,8 @@ END SUBROUTINE
     CALL cp_dbcsr_filter(density_re,filter_eps)
     CALL cp_dbcsr_filter(density_im,filter_eps)
 
-    CALL cp_assert(convergence,cp_warning_level,cp_assertion_failed,routineP,&
-         "BCH method did not converge "//&
-         CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.convergence)&
+       CPWARN("BCH method did not converge ")
 
     CALL cp_dbcsr_deallocate_matrix(tmp)
     CALL cp_dbcsr_deallocate_matrix(tmp2)

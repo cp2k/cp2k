@@ -148,9 +148,8 @@ CONTAINS
                    EXIT
                 END IF
              END DO
-             CALL cp_assert(LEN_TRIM(line_att(start_c:end_c-1))/=0,cp_failure_level,&
-                  cp_assertion_failed,routineP,&
-                  "incorrectly formatted line in coord section'"//line_att//"'")
+             IF(LEN_TRIM(line_att(start_c:end_c-1))==0)&
+                CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
              IF (wrd==1) THEN
                 atom_info%id_atmname(iatom)=str2id(s2s(line_att(start_c:end_c-1)))
              ELSE
@@ -200,24 +199,24 @@ CONTAINS
                    EXIT
                 END IF
              END DO
-             CALL cp_assert((LEN_TRIM(line_att(start_c:end_c-1)) /= 0),cp_failure_level,&
-                            cp_assertion_failed,routineP,&
-                            "Incorrectly formatted input line for atom "//&
-                            TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                            " found in COORD section. Input line: <"//&
-                            TRIM(line_att)//"> ")
+             IF(LEN_TRIM(line_att(start_c:end_c-1)) == 0)&
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "Incorrectly formatted input line for atom "//&
+                     TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                     " found in COORD section. Input line: <"//&
+                     TRIM(line_att)//"> ")
              SELECT CASE (wrd)
              CASE (1)
                 atom_info%id_atmname(iatom) = str2id(s2s(line_att(start_c:end_c-1)))
              CASE (2:4)
                 CALL read_float_object(line_att(start_c:end_c-1),&
                                        atom_info%r(wrd-1,iatom),error_message)
-                CALL cp_assert((LEN_TRIM(error_message) == 0),cp_failure_level,&
-                               cp_assertion_failed,routineP,&
-                               "Incorrectly formatted input line for atom "//&
-                               TRIM(ADJUSTL(cp_to_string(iatom)))//&
-                               " found in COORD section. "//TRIM(error_message)//&
-                               " Input line: <"//TRIM(line_att)//"> ")
+                IF(LEN_TRIM(error_message) /= 0)&
+                   CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                        "Incorrectly formatted input line for atom "//&
+                        TRIM(ADJUSTL(cp_to_string(iatom)))//&
+                        " found in COORD section. "//TRIM(error_message)//&
+                        " Input line: <"//TRIM(line_att)//"> ")
              CASE (5)
                 READ (line_att(start_c:end_c-1),*) strtmp
                 atom_info%id_molname(iatom) = str2id(strtmp)

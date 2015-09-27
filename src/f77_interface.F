@@ -712,12 +712,11 @@ CONTAINS
           ! Check that the order of the force_eval is the correct one
           CALL section_vals_val_get(force_env_sections, "METHOD", i_val=method_name_id, &
                i_rep_section=i_force_eval(1))
-          CALL cp_assert(method_name_id==do_mixed,cp_failure_level,cp_assertion_failed,routineP,&
-               "In case of multiple force_eval the MAIN force_eval (the first in the list of FORCE_EVAL_ORDER or "//&
-               "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "//&
-               "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+          IF(method_name_id/=do_mixed)&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  "In case of multiple force_eval the MAIN force_eval (the first in the list of FORCE_EVAL_ORDER or "//&
+                  "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "//&
+                  "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. ")
           check = ASSOCIATED(force_env%mixed_env%sub_para_env)
           CPASSERT(check)
           ngroups = force_env%mixed_env%ngroups

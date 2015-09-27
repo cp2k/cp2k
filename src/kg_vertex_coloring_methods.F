@@ -305,8 +305,8 @@ CONTAINS
 
     ! fill the heap
     CALL heap_fill (heap, values, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error initially filling heap.")
+    IF(heap_error)&
+       CPWARN("Error initially filling heap.")
 
     DEALLOCATE (values)
 
@@ -328,8 +328,8 @@ CONTAINS
     LOGICAL                                  :: found, heap_error
 
     CALL heap_pop (heap, key, value, found, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error getting topmost heap element.")
+    IF(heap_error)&
+       CPWARN("Error getting topmost heap element.")
 
   END SUBROUTINE
 
@@ -350,8 +350,8 @@ CONTAINS
     LOGICAL                                  :: heap_error
 
     CALL heap_reset_node (heap, key, value, heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error,&
-         routineP, "Error changing value of heap element.")
+    IF(heap_error)&
+       CPWARN("Error changing value of heap element.")
 
   END SUBROUTINE
 
@@ -735,8 +735,8 @@ CONTAINS
 
     valid=.FALSE.
     CALL check_coloring(graph, valid)
-    CALL cp_assert (valid, cp_fatal_level, cp_internal_error,&
-         routineP, "Coloring not valid.")
+    IF(.NOT.valid)&
+       CPABORT("Coloring not valid.")
 
     nnodes = SIZE(kg_env%molecule_set)
 

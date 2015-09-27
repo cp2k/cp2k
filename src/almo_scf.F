@@ -102,9 +102,8 @@ CONTAINS
     CALL cite_reference(Khaliullin2013)
 
     ! no forces so far 
-    CALL cp_assert(.NOT.calc_forces,cp_failure_level,cp_assertion_failed,routineP,&
-           " No forces/gradients with ALMOs.... yet(!) "//&
-                CPSourceFileRef, only_ionode=.TRUE.)
+    IF(calc_forces)&
+       CPABORT(" No forces/gradients with ALMOs.... yet(!) ")
 
     ! initialize scf
     CALL almo_scf_init(qs_env,almo_scf_env)

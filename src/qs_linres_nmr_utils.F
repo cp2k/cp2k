@@ -173,10 +173,8 @@ CONTAINS
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
-    CALL cp_assert(linres_control%localized_psi0, cp_warning_level, &
-                   cp_assertion_failed, routineP, &
-                   ' To get NMR parameters within PBC you need localized zero order orbitals ', &
-                   only_ionode=.TRUE.)
+    IF(.NOT.linres_control%localized_psi0)&
+       CPWARN(' To get NMR parameters within PBC you need localized zero order orbitals ')
     
     gapw = dft_control%qs_control%gapw
     nspins = dft_control%nspins

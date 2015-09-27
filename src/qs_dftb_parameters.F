@@ -206,11 +206,10 @@ CONTAINS
           END DO
           CALL parser_release(parser)
         END IF
-        CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-             "Failure in assigning KINDS <"//TRIM(iname)//"> and <"//TRIM(jname)//&
-             "> to a DFTB interaction pair!"//&
-             CPSourceFileRef,&
-             only_ionode=.TRUE.)
+        IF(.NOT.found)&
+           CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                "Failure in assigning KINDS <"//TRIM(iname)//"> and <"//TRIM(jname)//&
+                "> to a DFTB interaction pair!")
       END DO
     END DO
     ! reading the files

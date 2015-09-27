@@ -328,11 +328,10 @@ CONTAINS
     END IF
 
     ! Check if the element has been defined..
-    CALL cp_assert(sep%defined,cp_fatal_level,cp_assertion_failed,routineP,&
-         "Semiempirical type ("//TRIM(sep%name)//") cannot be defined for "//&
-         "the requested parameterization."//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.sep%defined)&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "Semiempirical type ("//TRIM(sep%name)//") cannot be defined for "//&
+            "the requested parameterization.")
 
     ! Fill 1 center - 2 electron integrals
     CALL setup_1c_2el_int(sep)

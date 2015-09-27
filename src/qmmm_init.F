@@ -569,10 +569,10 @@ CONTAINS
        ELSE
           IF (qmmm_env%spherical_cutoff(2)<=0.0_dp) qmmm_env%spherical_cutoff(2)=EPSILON(0.0_dp)
           tmp_radius = qmmm_env%spherical_cutoff(1)-20.0_dp*qmmm_env%spherical_cutoff(2)
-          CALL cp_assert(tmp_radius>0.0_dp,cp_failure_level,cp_assertion_failed,routineP,&
-               "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "//&
-               "the Spherical Cutoff in order to satisfy the previous condition!"//&
-               CPSourceFileRef)
+          IF(tmp_radius<=0.0_dp)&
+             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  "SPHERICAL_CUTOFF(1) > 20*SPHERICAL_CUTOFF(1)! Please correct parameters for "//&
+                  "the Spherical Cutoff in order to satisfy the previous condition!")
        END IF
        !
        ! Initialization of arrays and core_charge_radius...

@@ -281,10 +281,8 @@ CONTAINS
 
        iwarn = ((rmsd > eps_pol) .AND. (iter == max_ipol_iter))
        IF (iwarn.AND.iw>0) WRITE(iw,FMT='(T5,"POL_SCF|",1X,"Self-consistent Polarization not converged!")')
-       CALL cp_assert(.NOT.iwarn,cp_warning_level,cp_assertion_failed,routineP,&
-            "Self-consistent Polarization not converged! "//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(iwarn)&
+          CPWARN("Self-consistent Polarization not converged! ")
     END DO pol_scf
 
     ! Now evaluate after convergence to obtain forces and converged energies
@@ -580,10 +578,8 @@ CONTAINS
        ! Print warning when not converged.
        iwarn = ((rmsd > eps_pol) .AND. (iter == max_ipol_iter))
        IF (iwarn.AND.iw>0) WRITE(iw,FMT='(T5,"POL_SCF|",1X,"Self-consistent Polarization not converged!")')
-       CALL cp_assert(.NOT.iwarn,cp_warning_level,cp_assertion_failed,routineP,&
-            "Self-consistent Polarization not converged! "//&
-            CPSourceFileRef,&
-            only_ionode=.TRUE.)
+       IF(iwarn)&
+          CPWARN("Self-consistent Polarization not converged! ")
     END DO pol_scf
 
     IF (debug_this_module) THEN

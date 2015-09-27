@@ -533,10 +533,8 @@ CONTAINS
     ! compute the corresponding KS matrix and new energy, mix density if requested
     CALL qs_rho_update_rho(rho,qs_env=qs_env)
     IF(ls_scf_env%do_rho_mixing) THEN
-      CALL cp_assert(ls_scf_env%density_mixing_method .NE. direct_mixing_nr, & 
-                     cp_failure_level,cp_assertion_failed, routineP, &
-                     "Direct P mixing not implemented in linear scaling SCF. ", &
-                     only_ionode=.TRUE.) 
+      IF(ls_scf_env%density_mixing_method .EQ. direct_mixing_nr)&
+         CPABORT("Direct P mixing not implemented in linear scaling SCF. ")
       IF (ls_scf_env%density_mixing_method>=gspace_mixing_nr) THEN
         IF(iscf .GT. MAX(ls_scf_env%mixing_store%nskip_mixing,1)) THEN
          CALL gspace_mixing(qs_env, ls_scf_env%density_mixing_method, &

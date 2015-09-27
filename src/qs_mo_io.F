@@ -784,13 +784,13 @@ CONTAINS
     IF (ires > 0) THEN
        READ (ires) 
        READ (ires) nkp
-       CALL cp_assert(nkp==kpoints%nkp,cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Different number of kpoints")
+       IF(nkp/=kpoints%nkp)&
+          CPABORT("Different number of kpoints")
        DO ik=1,kpoints%nkp
           READ (ires) wkp,xkp(1:3)
           dd = ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
-          CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints")
+          IF(dd <= 1.0e-12_dp)&
+             CPABORT("Different order/position of kpoints")
        END DO
     END IF
 
@@ -806,8 +806,8 @@ CONTAINS
           READ (ires) jk,wkp,xkp(1:3)
           dd = ABS(ik-jk)
           dd = dd + ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
-          CALL cp_assert(dd > 1.0e-12_dp,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position of kpoints")
+          IF(dd <= 1.0e-12_dp)&
+             CPABORT("Different order/position of kpoints")
        END IF
        is_source = .FALSE.
        IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
@@ -999,16 +999,14 @@ CONTAINS
          occ_read = 0.0_dp
 
          nmo = MIN(nmo,nmo_read)
-         CALL cp_assert((nmo_read >= nmo),cp_warning_level,cp_assertion_failed,routineP,&
-              "The number of MOs on the restart unit is smaller than the number of "//&
-              "the allocated MOs. The MO set will be padded with zeros!"//&
-              CPSourceFileRef,&
-              only_ionode=.TRUE.)
-        CALL cp_assert((nmo_read<=nmo),cp_warning_level,cp_assertion_failed,routineP,&
-             "The number of MOs on the restart unit is greater than the number of "//&
-             "the allocated MOs. The read MO set will be truncated!"//&
-             CPSourceFileRef,&
-             only_ionode=.TRUE.)
+         IF(nmo_read < nmo)&
+            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                 "The number of MOs on the restart unit is smaller than the number of "//&
+                 "the allocated MOs. The MO set will be padded with zeros!")
+        IF(nmo_read>nmo)&
+           CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                "The number of MOs on the restart unit is greater than the number of "//&
+                "the allocated MOs. The read MO set will be truncated!")
 
         READ (rst_unit) eig_read(1:nmo_read), occ_read(1:nmo_read)
         mos(ispin)%mo_set%eigenvalues(1:nmo) = eig_read(1:nmo)
@@ -1195,10 +1193,10 @@ CONTAINS
 
     IF ((ires>0).AND.(nmo > 0)) THEN
        READ (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
-       CALL cp_assert(mao==nao,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different size of basis set")
-       CALL cp_assert(mmo==nmo,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different number of MOs")
+       IF(mao/=nao)&
+          CPABORT("Different size of basis set")
+       IF(mmo/=nmo)&
+          CPABORT("Different number of MOs")
        READ (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
     END IF
     CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires)

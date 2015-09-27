@@ -62,9 +62,10 @@ CONTAINS
 
     ik = section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
 
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-                   "section "//TRIM(section%name)//" does not contain keyword "//&
-                   "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
 
     DO
       IF (SIZE(rng_section%values,2)==1) EXIT

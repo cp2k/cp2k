@@ -118,19 +118,19 @@ CONTAINS
 
     is_large=ABS(MAXVAL(all_occ)-1.0_dp)> smear%eps_fermi_dirac
     ! this is not a real problem, but the temperature might be a bit large
-        CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Fermi-Dirac smearing includes the first MO")
+        IF(is_large)&
+           CPWARN("Fermi-Dirac smearing includes the first MO")
 
     is_large=ABS(MINVAL(all_occ))> smear%eps_fermi_dirac
-    CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
-                   "Fermi-Dirac smearing includes the last MO => "//&
-                    "Add more MOs for proper smearing.")
+    IF(is_large)&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "Fermi-Dirac smearing includes the last MO => "//&
+            "Add more MOs for proper smearing.")
 
     ! check that the total electron count is accurate
     is_large=(ABS(all_nelec - accurate_sum(all_occ(:))) > smear%eps_fermi_dirac*all_nelec)
-    CALL cp_assert(.NOT.is_large,&
-                   cp_warning_level,cp_assertion_failed,routineP,&
-                   "Total number of electrons is not accurate")
+    IF(is_large)&
+       CPWARN("Total number of electrons is not accurate")
 
     DO i = 1,all_nmo
        IF(all_index(i)<=nmo_a) THEN
@@ -264,10 +264,10 @@ CONTAINS
 
     multiplicity_old = mo_set_a%nelectron - mo_set_b%nelectron + 1
 
-    CALL cp_assert((mo_set_a%nelectron < mo_set_a%nmo),&
-                   cp_warning_level,cp_assertion_failed,routineP,&
-                   "All alpha MOs are occupied. Add more alpha MOs to "//&
-                   "allow for a higher multiplicity",only_ionode=.TRUE.)
+    IF(mo_set_a%nelectron >= mo_set_a%nmo)&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "All alpha MOs are occupied. Add more alpha MOs to "//&
+            "allow for a higher multiplicity")
     CALL cp_assert(((mo_set_b%nelectron < mo_set_b%nmo).OR.&
                     (mo_set_b%nelectron == mo_set_a%nelectron)),&
                    cp_warning_level,cp_assertion_failed,routineP,&
@@ -291,20 +291,20 @@ CONTAINS
           lumo_b = lumo_b + 1
        END IF
        IF (lumo_a > mo_set_a%nmo) THEN
-          CALL cp_assert((i == nelec),&
-                         cp_warning_level,cp_assertion_failed,routineP,&
-                         "All alpha MOs are occupied. Add more alpha MOs to "//&
-                         "allow for a higher multiplicity",only_ionode=.TRUE.)
+          IF(i /= nelec)&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  "All alpha MOs are occupied. Add more alpha MOs to "//&
+                  "allow for a higher multiplicity")
           IF (i < nelec) THEN
              lumo_a = lumo_a - 1
              lumo_b = lumo_b + 1
           END IF
        END IF
        IF (lumo_b > mo_set_b%nmo) THEN
-          CALL cp_assert((lumo_b >= lumo_a),&
-                         cp_warning_level,cp_assertion_failed,routineP,&
-                         "All beta MOs are occupied. Add more beta MOs to "//&
-                         "allow for a lower multiplicity",only_ionode=.TRUE.)
+          IF(lumo_b < lumo_a)&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  "All beta MOs are occupied. Add more beta MOs to "//&
+                  "allow for a lower multiplicity")
           IF (i < nelec) THEN
              lumo_a = lumo_a + 1
              lumo_b = lumo_b - 1
@@ -330,12 +330,11 @@ CONTAINS
     mo_set_b%nelectron = mo_set_b%homo
     multiplicity_new = mo_set_a%nelectron - mo_set_b%nelectron + 1
 
-    CALL cp_assert((multiplicity_new == multiplicity_old),&
-                   cp_note_level,cp_assertion_failed,routineP,&
-                   "Multiplicity changed from "//&
-                   TRIM(ADJUSTL(cp_to_string(multiplicity_old)))//" to "//&
-                   TRIM(ADJUSTL(cp_to_string(multiplicity_new))),&
-                   only_ionode=.TRUE.)
+    IF(multiplicity_new /= multiplicity_old)&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "Multiplicity changed from "//&
+            TRIM(ADJUSTL(cp_to_string(multiplicity_old)))//" to "//&
+            TRIM(ADJUSTL(cp_to_string(multiplicity_new))))
 
     IF (PRESENT(eval_deriv)) THEN
        CALL set_mo_occupation_1(mo_set_a,smear=smear,eval_deriv=eval_deriv)
@@ -501,8 +500,8 @@ CONTAINS
         END DO
         is_large=ABS(MAXVAL(mo_set%occupation_numbers)-mo_set%maxocc)> smear%eps_fermi_dirac
         ! this is not a real problem, but the temperature might be a bit large
-        CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Fermi-Dirac smearing includes the first MO")
+        IF(is_large)&
+           CPWARN("Fermi-Dirac smearing includes the first MO")
 
         ! Find the highest (fractional) occupied MO which will be now the HOMO
         DO imo=nmo,mo_set%lfomo,-1
@@ -512,15 +511,15 @@ CONTAINS
           END IF
         END DO
         is_large=ABS(MINVAL(mo_set%occupation_numbers))> smear%eps_fermi_dirac
-        CALL cp_assert(.NOT.is_large,cp_warning_level,cp_assertion_failed,routineP,&
-                       "Fermi-Dirac smearing includes the last MO => "//&
-                       "Add more MOs for proper smearing.")
+        IF(is_large)&
+           CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                "Fermi-Dirac smearing includes the last MO => "//&
+                "Add more MOs for proper smearing.")
 
         ! check that the total electron count is accurate
         is_large=(ABS(nelec - accurate_sum(mo_set%occupation_numbers(:))) > smear%eps_fermi_dirac*nelec)
-        CALL cp_assert(.NOT.is_large,&
-                       cp_warning_level,cp_assertion_failed,routineP,&
-                       "Total number of electrons is not accurate")
+        IF(is_large)&
+           CPWARN("Total number of electrons is not accurate")
 
       CASE (smear_energy_window)
         ! not implemented
@@ -528,13 +527,14 @@ CONTAINS
 
         ! Define the energy window for the eigenvalues
         e1 = mo_set%eigenvalues(mo_set%homo) - 0.5_dp*smear%window_size
-        CALL cp_assert((e1 > mo_set%eigenvalues(1)),cp_warning_level,cp_assertion_failed,routineP,&
-                       "Energy window for smearing includes the first MO")
+        IF(e1 <= mo_set%eigenvalues(1))&
+           CPWARN("Energy window for smearing includes the first MO")
 
         e2 = mo_set%eigenvalues(mo_set%homo) + 0.5_dp*smear%window_size
-        CALL cp_assert((e2 < mo_set%eigenvalues(nmo)),cp_warning_level,cp_assertion_failed,routineP,&
-                       "Energy window for smearing includes the last MO => "//&
-                       "Add more MOs for proper smearing.")
+        IF(e2 >= mo_set%eigenvalues(nmo))&
+           CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                "Energy window for smearing includes the last MO => "//&
+                "Add more MOs for proper smearing.")
 
         ! Find the lowest fractional occupied MO (LFOMO)
         DO imo=i_first,nomo

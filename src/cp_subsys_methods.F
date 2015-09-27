@@ -298,9 +298,8 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(small_subsys))
     CPASSERT(ASSOCIATED(big_subsys))
-    CALL cp_assert(big_subsys%para_env%group==small_para_env%group, &
-         cp_failure_level, cp_assertion_failed, routineP, &
-         "big_subsys%para_env%group==small_para_env%group")
+    IF(big_subsys%para_env%group/=small_para_env%group)&
+       CPABORT("big_subsys%para_env%group==small_para_env%group")
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

@@ -1050,11 +1050,10 @@ CONTAINS
                        nelectron_spin=nelectron_spin)
 
     ! Check and set number of added (unoccupied) MOs
-    CALL cp_assert((scf_control%added_mos(1) <= n_ao - n_mo(1)),cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "More added MOs requested than available. "//&
-                   "The full set of unoccupied MOs will be used.",&
-                   only_ionode=.TRUE.)
+    IF(scf_control%added_mos(1) > n_ao - n_mo(1))&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "More added MOs requested than available. "//&
+            "The full set of unoccupied MOs will be used.")
     scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao - n_mo(1))
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
 
@@ -1064,17 +1063,14 @@ CONTAINS
       ELSE
         n_mo_add = scf_control%added_mos(1)
       END IF
-      CALL cp_assert((n_mo_add <= n_ao - n_mo(2)),cp_warning_level,&
-                     cp_assertion_failed,routineP,&
-                     "More added MOs requested for beta spin than available.",&
-                     only_ionode=.TRUE.)
+      IF(n_mo_add > n_ao - n_mo(2))&
+         CPWARN("More added MOs requested for beta spin than available.")
       scf_control%added_mos(2) = MIN(n_mo_add,n_ao - n_mo(2))
       n_mo(2) = n_mo(2) + scf_control%added_mos(2)
-      CALL cp_assert((n_mo(2) <= n_mo(1)),cp_warning_level,&
-                     cp_assertion_failed,routineP,&
-                     "More beta than alpha MOs requested. "//&
-                     "The number of beta MOs will be reduced to the number alpha MOs.",&
-                     only_ionode=.TRUE.)
+      IF(n_mo(2) > n_mo(1))&
+         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+              "More beta than alpha MOs requested. "//&
+              "The number of beta MOs will be reduced to the number alpha MOs.")
       n_mo(2) = MIN(n_mo(1),n_mo(2))
     END IF
 
@@ -1099,10 +1095,8 @@ CONTAINS
 
     ! Compatibility checks for ROKS
     IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
-       CALL cp_assert((scf_control%roks_scheme /= general_roks),cp_warning_level,&
-            cp_assertion_failed,routineP,&
-            "General ROKS scheme is not yet tested!",&
-            only_ionode=.TRUE.)
+       IF(scf_control%roks_scheme == general_roks)&
+          CPWARN("General ROKS scheme is not yet tested!")
 
        IF (scf_control%smear%do_smear) THEN
          CALL stop_program(routineN,moduleN,__LINE__,&

@@ -611,11 +611,11 @@ CONTAINS
           CALL calculate_image_matrix(image_matrix=qs_env%image_matrix,&
           ipiv=qs_env%ipiv,qs_env=qs_env,qmmm_env=qmmm_env)
           qmmm_env%image_charge_pot%state_image_matrix = calc_once_done
-          CALL cp_assert(.NOT.qmmm_env%center_qm_subsys0,cp_warning_level,&
-               cp_assertion_failed,routineP,"The image atoms are fully "//&
-               "constrained and the image matrix is only calculated once. "//&
-               "To be safe, set CENTER to NEVER " //&
-               CPSourceFileRef,only_ionode=.TRUE.)
+          IF(qmmm_env%center_qm_subsys0)&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  "The image atoms are fully "//&
+                  "constrained and the image matrix is only calculated once. "//&
+                  "To be safe, set CENTER to NEVER ")
       CASE(calc_once_done)
           ! do nothing image matrix is stored
       CASE DEFAULT

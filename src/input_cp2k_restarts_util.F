@@ -65,9 +65,10 @@ CONTAINS
     CPASSERT(velocity_section%ref_count>0)
     section => velocity_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            "section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
 
     ! At least one of the two arguments must be present..
     check = PRESENT(particles).NEQV.PRESENT(velocity)

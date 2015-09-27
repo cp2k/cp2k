@@ -180,15 +180,12 @@ CONTAINS
          READ(rst_unit) nexc_search_read, nexc_atoms_read, occ_estate_read, xas_nelectron_read
          READ(rst_unit) xas_estate_read
 
-         CALL cp_assert(xas_method_read==xas_method,cp_failure_level,cp_assertion_failed,routineP,&
-                 " READ XAS RESTART: restart with different XAS method is not possible. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
-         CALL cp_assert(nexc_atoms_read==nexc_atoms,cp_failure_level,cp_assertion_failed,routineP,&
+         IF(xas_method_read/=xas_method)&
+            CPABORT(" READ XAS RESTART: restart with different XAS method is not possible. ")
+         IF(nexc_atoms_read/=nexc_atoms)&
+            CALL cp_abort(__SHORT_FILE__,__LINE__,&
                  " READ XAS RESTART: restart with different excited atoms "//&
-                 " is not possible. Start instead a new XAS run with the new set of atoms. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+                 " is not possible. Start instead a new XAS run with the new set of atoms. ")
       ENDIF
 
       CALL mp_bcast(xas_estate_read,source,group)
@@ -206,10 +203,8 @@ CONTAINS
         CALL cp_fm_set_all(mo_coeff,0.0_dp)
         IF (para_env%ionode) THEN
           READ (rst_unit) nao_read, nmo_read
-          CALL cp_assert(nao==nao_read,cp_failure_level,cp_assertion_failed,routineP,&
-                 "To change basis is not possible. "//&
-                 CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+          IF(nao/=nao_read)&
+             CPABORT("To change basis is not possible. ")
           ALLOCATE(eig_read(nmo_read), occ_read(nmo_read))
           eig_read = 0.0_dp
           occ_read = 0.0_dp
@@ -218,12 +213,10 @@ CONTAINS
           eigenvalues(1:nmo) = eig_read(1:nmo)
           occupation_numbers(1:nmo) = occ_read(1:nmo)
           IF(nmo_read>nmo) THEN
-            CALL cp_assert(occupation_numbers(nmo)<EPSILON(0.0_dp),&
-                 cp_warning_level,cp_assertion_failed,routineP,&
-                "The number of occupied MOs on the restart unit is larger than "//&
-                 "the allocated MOs."//&
-CPSourceFileRef,&
-                 only_ionode=.TRUE.)
+            IF(occupation_numbers(nmo)>=EPSILON(0.0_dp))&
+               CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                    "The number of occupied MOs on the restart unit is larger than "//&
+                    "the allocated MOs.")
 
           END IF
           DEALLOCATE(eig_read, occ_read)

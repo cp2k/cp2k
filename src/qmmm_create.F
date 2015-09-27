@@ -228,11 +228,11 @@ CONTAINS
     IF (explicit.and.use_multipole==do_multipole_section_on) qmmm_env_qm%multipole = .TRUE.
     IF (qmmm_env_qm%periodic.and.qmmm_env_qm%multipole) CALL cite_reference(Laino2006)
     IF (qmmm_coupl_type == do_qmmm_none) THEN
-       CALL cp_assert(.NOT.qmmm_env_qm%periodic,cp_warning_level,cp_assertion_failed,routineP,&
-            "QMMM periodic calculation with coupling NONE was requested! "//&
-            "Switching off the periodic keyword since periodic and non-periodic "//&
-            "calculation with coupling NONE represent the same method! "//&
-            CPSourceFileRef,only_ionode=.TRUE.)
+       IF(qmmm_env_qm%periodic)&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               "QMMM periodic calculation with coupling NONE was requested! "//&
+               "Switching off the periodic keyword since periodic and non-periodic "//&
+               "calculation with coupling NONE represent the same method! ")
        qmmm_env_qm%periodic = .FALSE.
     END IF
 

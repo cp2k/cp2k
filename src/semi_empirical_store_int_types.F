@@ -100,10 +100,8 @@ CONTAINS
     END IF
 
     ! Disk Storage disabled for semi-empirical methods
-    CALL cp_assert(.NOT.store_int_env%memory_parameter%do_disk_storage,cp_failure_level,&
-         cp_assertion_failed,routineP,"Disk storage for SEMIEMPIRICAL methods disabled! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(store_int_env%memory_parameter%do_disk_storage)&
+       CPABORT("Disk storage for SEMIEMPIRICAL methods disabled! ")
 
     ! Allocate containers/caches for integral storage if requested
     IF(.NOT.store_int_env%memory_parameter%do_all_on_the_fly.AND.store_int_env%compress) THEN

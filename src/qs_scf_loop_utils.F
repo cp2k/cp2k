@@ -277,8 +277,8 @@ CONTAINS
                     kpoints=kpoints)
     scf_env%iter_param = 0.0_dp
 
-    CALL cp_assert(.NOT.dft_control%roks,cp_failure_level,cp_assertion_failed,&
-         routineP,"KP code: ROKS method not available: ")
+    IF(dft_control%roks)&
+       CPABORT("KP code: ROKS method not available: ")
 
     SELECT CASE (scf_env%method)
        CASE DEFAULT

@@ -309,8 +309,8 @@ MODULE replica_methods
 
     failure = .FALSE.
     rep_env => rep_envs_get_rep_env(rep_env_id,ierr=stat)
-    CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
-         routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id))
+    IF(.NOT.ASSOCIATED(rep_env))&
+       CPABORT("could not find rep_env with id_nr"//cp_to_string(rep_env_id))
     NULLIFY(qs_env,dft_control,subsys)
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
          failure=failure)

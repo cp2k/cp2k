@@ -1375,12 +1375,11 @@ CONTAINS
           ! Intramolecular constraint
           IF (const_mol(i)/=0) THEN
              k = const_mol(i)
-             CALL cp_assert(k<=SIZE(molecule_kind_set),&
-                  cp_failure_level,cp_assertion_failed,routineP,&
-                  "A constraint has been specified providing the molecule index. But the "//&
-                  " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
-                  " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//")."//&
-                  CPSourceFileRef)
+             IF(k>SIZE(molecule_kind_set))&
+                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     "A constraint has been specified providing the molecule index. But the "//&
+                     " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
+                     " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//").")
              isize = SIZE(constr_x_mol(k)%constr)
              CALL reallocate(constr_x_mol(k)%constr, 1, isize+1)
              constr_x_mol(k)%constr(isize+1) = i
@@ -1420,14 +1419,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'print_warning_molname', &
       routineP = moduleN//':'//routineN
 
-    CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
-         " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "//&
-         "is not defined. Please check carefully your PDB, PSF (has priority over PDB) or "//&
-         "input driven CP2K coordinates. In case you may not find the reason for this warning "//&
-         "it may be a good idea to print all molecule information (including kind name) activating "//&
-         "the print_key MOLECULES specific of the SUBSYS%PRINT section. "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(.NOT.found)&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "//&
+            "is not defined. Please check carefully your PDB, PSF (has priority over PDB) or "//&
+            "input driven CP2K coordinates. In case you may not find the reason for this warning "//&
+            "it may be a good idea to print all molecule information (including kind name) activating "//&
+            "the print_key MOLECULES specific of the SUBSYS%PRINT section. ")
 
   END SUBROUTINE print_warning_molname
 

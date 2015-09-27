@@ -743,8 +743,8 @@ CONTAINS
     IF (dft_control%sic_method_id == sic_none) RETURN
     IF (dft_control%sic_method_id == sic_eo) RETURN
 
-    CALL cp_assert(.NOT. dft_control%qs_control%gapw, cp_failure_level,cp_assertion_failed,routineP,&
-                   "sic and GAPW not yet compatible")
+    IF(dft_control%qs_control%gapw)&
+       CPABORT("sic and GAPW not yet compatible")
 
     ! OK, right now we like two spins to do sic, could be relaxed for AD
     CPASSERT(dft_control%nspins == 2)

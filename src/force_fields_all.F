@@ -1956,12 +1956,11 @@ CONTAINS
 
        only_qm  = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
-       CALL cp_assert(charge==-HUGE(0.0_dp),cp_warning_level,cp_assertion_failed,routineP,&
-            "The charge for atom index ("//cp_to_string(iatom)//") and atom name ("//&
-            TRIM(atmname)//") was already defined. The charge associated to this kind"//&
-            " will be set to an uninitialized value and only the atom specific charge will be used! "//&
-CPSourceFileRef,&
-               only_ionode=.TRUE.)
+       IF(charge/=-HUGE(0.0_dp))&
+          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               "The charge for atom index ("//cp_to_string(iatom)//") and atom name ("//&
+               TRIM(atmname)//") was already defined. The charge associated to this kind"//&
+               " will be set to an uninitialized value and only the atom specific charge will be used! ")
        charge=-HUGE(0.0_dp)
 
        ! Check if the potential really requires the charge definition..
@@ -2095,11 +2094,10 @@ CPSourceFileRef,&
                             inp_info%shell_list(j)%shell%charge_shell
                 charge = 0.0_dp
                 IF (found) THEN
-                   CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                        "CORE-SHELL model defined for KIND ("//TRIM(atmname)//")"//&
-                        " ignoring charge definition! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+                   IF(found)&
+                      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                           "CORE-SHELL model defined for KIND ("//TRIM(atmname)//")"//&
+                           " ignoring charge definition! ")
                 ELSE
                    found = .TRUE.
                 END IF
@@ -2374,13 +2372,11 @@ CPSourceFileRef,&
                  ENDIF
 
               END DO
-              CALL cp_assert(found,cp_warning_level,cp_assertion_failed,&
-                    routineP,&
-                    "Atom "//TRIM(my_atm_name2)//&
-                    " in damping parameters for atom "//TRIM(my_atm_name1)//&
-                    " not found! "//&
-CPSourceFileRef,&
-                   only_ionode=.TRUE.)
+              IF(.NOT.found)&
+                 CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                      "Atom "//TRIM(my_atm_name2)//&
+                      " in damping parameters for atom "//TRIM(my_atm_name1)//&
+                      " not found! ")
            ENDIF
          END DO
 
@@ -2821,20 +2817,18 @@ CPSourceFileRef,&
                      ((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded14%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                              "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" ADDING! ")
                       potparm_nonbond14%pot(i,j)%pot => pot
                       potparm_nonbond14%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple ONFO declarations: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                              "Multiple ONFO declarations: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -2859,20 +2853,18 @@ CPSourceFileRef,&
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                          IF (qmmm_env%multiple_potential) THEN
                             CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                                    "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! ")
                             potparm_nonbond14%pot(i,j)%pot => pot
                             potparm_nonbond14%pot(j,i)%pot => pot
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                                    "Multiple ONFO declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! ")
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
@@ -3087,20 +3079,18 @@ CPSourceFileRef,&
                      ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" ADDING! ")
                       potparm_nonbond%pot(i,j)%pot => pot
                       potparm_nonbond%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -3122,20 +3112,18 @@ CPSourceFileRef,&
                        (name_atm_a==inp_info%nonbonded%pot(k)%pot%at2) ) THEN
                       IF (ff_type%multiple_potential) THEN
                          CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot)
-                         CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                              only_ionode=.TRUE.)
+                         IF(found)&
+                            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" ADDING! ")
                          potparm_nonbond%pot(i,j)%pot => pot
                          potparm_nonbond%pot(j,i)%pot => pot
                       ELSE
                          CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot)
-                         CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                              " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                              only_ionode=.TRUE.)
+                         IF(found)&
+                            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                 " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                       END IF
                       IF(iw>0) WRITE(iw,*) "    FOUND (one WILDCARD)",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                       found = .TRUE.
@@ -3154,20 +3142,18 @@ CPSourceFileRef,&
 
                    IF (ff_type%multiple_potential) THEN
                       CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" ADDING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" ADDING! ")
                       potparm_nonbond%pot(i,j)%pot => pot
                       potparm_nonbond%pot(j,i)%pot => pot
                    ELSE
                       CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,pot)
-                      CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                           " and "//TRIM(name_atm_b)//" OVERWRITING! "//&
-CPSourceFileRef,&
-                           only_ionode=.TRUE.)
+                      IF(found)&
+                         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                              " and "//TRIM(name_atm_b)//" OVERWRITING! ")
                    END IF
                    IF(iw>0) WRITE(iw,*) "    FOUND (both WILDCARDS)",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -3193,20 +3179,18 @@ CPSourceFileRef,&
                            ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                          IF (qmmm_env%multiple_potential) THEN
                             CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                                    "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! ")
                             potparm_nonbond%pot(i,j)%pot => pot
                             potparm_nonbond%pot(j,i)%pot => pot
                          ELSE
                             CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,pot)
-                            CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routineP,&
-                                 "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
-                                 " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! "//&
-CPSourceFileRef,&
-                                 only_ionode=.TRUE.)
+                            IF(found)&
+                               CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                                    "Multiple NONBONDED declaration: "//TRIM(name_atm_a)//&
+                                    " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! ")
                          END IF
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                          found = .TRUE.
@@ -3423,10 +3407,8 @@ CPSourceFileRef,&
        item = TRIM(item)//" , "//TRIM(name_atm_d)
     END IF
     item = TRIM(item)//" )"
-    CALL cp_assert(.NOT.found,cp_warning_level,cp_assertion_failed,routinePext,&
-         "Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting! "//&
-CPSourceFileRef,&
-         only_ionode=.TRUE.)
+    IF(found)&
+       CPWARN("Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting! ")
 
   END SUBROUTINE issue_duplications
 

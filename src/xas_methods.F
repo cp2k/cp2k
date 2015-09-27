@@ -430,8 +430,8 @@ CONTAINS
       CALL get_mo_set(mos(1)%mo_set, nmo=nmo)
        CALL get_xas_env(xas_env, occ_estate=occ_estate,xas_nelectron=xas_nelectron)
        tmp = xas_nelectron + 1.0_dp - occ_estate
-         CALL cp_assert(nmo>=tmp,cp_failure_level,cp_assertion_failed,&
-              routineP,"CLS: the required method needs added_mos to the ground state")
+         IF(nmo<tmp)&
+            CPABORT("CLS: the required method needs added_mos to the ground state")
       ! If the restart file for this atom exists, the mos and the
       ! occupation numbers are overwritten
       ! It is necessary that the restart is for the same xas method

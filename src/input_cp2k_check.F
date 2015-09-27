@@ -920,20 +920,18 @@ CONTAINS
              CALL section_vals_set_subs_vals(input_file,TRIM(path)//"%AD_LANGEVIN%MASS",section)
           END SELECT
        ELSE
-          CALL cp_assert((input_type==restart_type),cp_warning_level,cp_assertion_failed,routineP,&
-                        "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
-                        "specified in the input file and the information present in the restart "//&
-                        "file do not match the same type of thermostat! Restarting is not possible! "//&
-                        "Thermostat will not be restarted! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
-          CALL cp_assert((input_region==restart_region),cp_warning_level,cp_assertion_failed,routineP,&
-                        "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
-                        "specified in the input file and the information present in the restart "//&
-                        "file do not match the same type of REGION! Restarting is not possible! "//&
-                        "Thermostat will not be restarted! "//&
-CPSourceFileRef,&
-                        only_ionode=.TRUE.)
+          IF(input_type/=restart_type)&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
+                  "specified in the input file and the information present in the restart "//&
+                  "file do not match the same type of thermostat! Restarting is not possible! "//&
+                  "Thermostat will not be restarted! ")
+          IF(input_region/=restart_region)&
+             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
+                  "specified in the input file and the information present in the restart "//&
+                  "file do not match the same type of REGION! Restarting is not possible! "//&
+                  "Thermostat will not be restarted! ")
        END IF
     END IF
   END SUBROUTINE restart_thermostat

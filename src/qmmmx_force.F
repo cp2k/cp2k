@@ -86,10 +86,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
 
     IF (PRESENT(require_consistent_energy_force)) THEN
-       CALL cp_assert(.NOT.require_consistent_energy_force,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "qmmmx_energy_and_forces got require_consistent_energy_force but force mixing is active. "//&
-            CPSourceFileRef)
+       IF(require_consistent_energy_force)&
+          CPABORT("qmmmx_energy_and_forces got require_consistent_energy_force but force mixing is active. ")
     ENDIF
 
     ! Possibly translate the system

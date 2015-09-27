@@ -808,12 +808,11 @@ CONTAINS
 
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
-    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "DFT+U energy contibution is negative possibly due "//&
-                   "to unphysical Lowdin charges. Check your input, "//&
-                   "if this warning persists or try a different method!",&
-                   only_ionode=.TRUE.)
+    IF(energy%dft_plus_u < 0.0_dp)&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "DFT+U energy contibution is negative possibly due "//&
+            "to unphysical Lowdin charges. Check your input, "//&
+            "if this warning persists or try a different method!")
 
     ! Release (local) full matrices
 
@@ -1474,12 +1473,11 @@ CONTAINS
 
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
-    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "DFT+U energy contibution is negative possibly due "//&
-                   "to unphysical Mulliken charges. Check your input, "//&
-                   "if this warning persists or try a different method!",&
-                   only_ionode=.TRUE.)
+    IF(energy%dft_plus_u < 0.0_dp)&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "DFT+U energy contibution is negative possibly due "//&
+            "to unphysical Mulliken charges. Check your input, "//&
+            "if this warning persists or try a different method!")
 
     CALL cp_dbcsr_deallocate_matrix(sm_q)
     CALL cp_dbcsr_deallocate_matrix(sm_v)
@@ -2036,12 +2034,11 @@ CONTAINS
 
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
-    CALL cp_assert(energy%dft_plus_u >= 0.0_dp,cp_warning_level,&
-                   cp_assertion_failed,routineP,&
-                   "DFT+U energy contibution is negative possibly due "//&
-                   "to unphysical Mulliken charges. Check your input, "//&
-                   "if this warning persists or try a different method!",&
-                   only_ionode=.TRUE.)
+    IF(energy%dft_plus_u < 0.0_dp)&
+       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            "DFT+U energy contibution is negative possibly due "//&
+            "to unphysical Mulliken charges. Check your input, "//&
+            "if this warning persists or try a different method!")
 
     ! Release local work storage
 

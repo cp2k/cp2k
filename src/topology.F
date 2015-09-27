@@ -483,12 +483,11 @@ CONTAINS
                   "connectivity type.")
           END SELECT
        END DO
-       CALL cp_assert(SIZE(topology%atom_info%id_molname)==topology%natoms,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "Number of atoms in connectivity control is larger than the "//&
-            "number of atoms in coordinate control. check coordinates and "//&
-            "connectivity. "//&
-            CPSourceFileRef)
+       IF(SIZE(topology%atom_info%id_molname)/=topology%natoms)&
+          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               "Number of atoms in connectivity control is larger than the "//&
+               "number of atoms in coordinate control. check coordinates and "//&
+               "connectivity. ")
 
        ! Merge defined structures
        section => section_vals_get_subs_vals(subsys_section,"TOPOLOGY%MOL_SET%MERGE_MOLECULES")
@@ -597,9 +596,8 @@ CONTAINS
                               i_val=topology%natoms)
     CALL timestop(handle2)
     ! Check on atom numbers
-    CALL cp_assert(topology%natoms>0,cp_fatal_level,cp_assertion_failed,routineP,&
-         "No atomic coordinates have been found! "//&
-         CPSourceFileRef)
+    IF(topology%natoms<=0)&
+       CPABORT("No atomic coordinates have been found! ")
     CALL timestop(handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO")

@@ -228,10 +228,8 @@ CONTAINS
 
     ! initialize PEXSI
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
-      CALL cp_assert(dft_control%qs_control%eps_filter_matrix .EQ. 0.0_dp, &
-                     cp_failure_level, cp_assertion_failed, routineP, &
-                     "EPS_FILTER_MATRIX must be set to 0 for PEXSI.", &
-                     only_ionode=.TRUE.)
+      IF(dft_control%qs_control%eps_filter_matrix .NE. 0.0_dp)&
+         CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
        CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins)
     ENDIF
  
@@ -1132,11 +1130,10 @@ CONTAINS
             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
 
             IF (do_transport) THEN
-               CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner), cp_failure_level, cp_assertion_failed,&
-                              routineP, "NOT YET IMPLEMENTED with S preconditioner. ", only_ionode=.TRUE.)
-               CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level,&
-                              cp_assertion_failed, routineP, "NOT YET IMPLEMENTED with molecular clustering. ",& 
-                              only_ionode=.TRUE.)
+               IF(ls_scf_env%has_s_preconditioner)&
+                  CPABORT("NOT YET IMPLEMENTED with S preconditioner. ")
+               IF(ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic)&
+                  CPABORT("NOT YET IMPLEMENTED with molecular clustering. ")
 
                ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
@@ -1161,14 +1158,12 @@ CONTAINS
                                           matrix_ks_deviation=matrix_ks_deviation(ispin), &
                                           eps_lanczos=ls_scf_env%eps_lanczos, max_iter_lanczos=ls_scf_env%max_iter_lanczos)
                CASE(ls_scf_pexsi)
-                 CALL cp_assert(.NOT.(ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed, routineP, &
-                                "S preconditioning not implemented in combination with the PEXSI library. ", &
-                                only_ionode=.TRUE.)
-                 CALL cp_assert(ls_scf_env%ls_mstruct%cluster_type .EQ. ls_cluster_atomic, cp_failure_level, cp_assertion_failed, & 
-                                routineP,"Molecular clustering not implemented in combination with the PEXSI library. ", &
-                                only_ionode=.TRUE.)
-                 CALL cp_assert(.NOT. ls_scf_env%ls_mstruct%single_precision,cp_failure_level,cp_assertion_failed, routineP, &
-                                "PEXSI library requires double precision datatype. ", only_ionode=.TRUE.)
+                 IF(ls_scf_env%has_s_preconditioner)&
+                    CPABORT("S preconditioning not implemented in combination with the PEXSI library. ")
+                 IF(ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic)&
+                    CPABORT("Molecular clustering not implemented in combination with the PEXSI library. ")
+                 IF(ls_scf_env%ls_mstruct%single_precision)&
+                    CPABORT("PEXSI library requires double precision datatype. ")
                  CALL density_matrix_pexsi(ls_scf_env%pexsi, ls_scf_env%matrix_p(ispin), ls_scf_env%pexsi%matrix_w(ispin),&
                                            ls_scf_env%pexsi%kTS(ispin), matrix_mixing_old(ispin), ls_scf_env%matrix_s,& 
                                            nelectron_spin_real,ls_scf_env%mu_spin(ispin),iscf,ispin)

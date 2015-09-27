@@ -204,9 +204,10 @@ CONTAINS
       IF (ASSOCIATED(vxc_tau)) THEN
       ! this case has NOT been tested yet...
 
-        CALL cp_assert(ASSOCIATED(vxc_tau), cp_fatal_level, cp_assertion_failed, routineP, &
-                       " KG is currently not compatible with TPSS, Becke-Roussel, or other"//&
-                       " Meta-GGA functionals.")
+        IF(.NOT.ASSOCIATED(vxc_tau))&
+           CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                " KG is currently not compatible with TPSS, Becke-Roussel, or other"//&
+                " Meta-GGA functionals.")
 
         DO ispin=1,nspins
 
