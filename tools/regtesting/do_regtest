@@ -190,6 +190,12 @@ svndate=${svndat:-"$datum_full"}
 maxtasksdefault=`nproc --all`
 maxtasks=${maxtasks:-${maxtasksdefault}}
 
+if [[ $dir_triplet == *valgrind* ]] ; then
+   valgrindstring="valgrind $VALGRIND_OPTIONS"
+else
+   valgrindstring=""
+fi
+
 if [[ $cp2k_version == p* ]] ; then
     numprocs=${numprocs:-2}
 else
@@ -197,9 +203,9 @@ else
 fi
 
 if [[ $numprocs > 1 ]] ; then
-    cp2k_run_prefix=${cp2k_run_prefix:-"mpiexec -np ${numprocs}"}
+    cp2k_run_prefix=${cp2k_run_prefix:-"mpiexec -np ${numprocs} ${valgrindstring}"}
 else
-    cp2k_run_prefix=${cp2k_run_prefix:-""}
+    cp2k_run_prefix=${cp2k_run_prefix:-"${valgrindstring}"}
 fi
 
 if [[ $cp2k_version == *smp* ]] ; then
