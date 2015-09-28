@@ -94,7 +94,7 @@ CONTAINS
          CPWARN("try to add deleted element cancelation list ")
          WRITE(*,*)"WARNING: try to cancel subtree, element ",elem%sub_tree_nr, elem%nr, ", with status ", elem%stat
       CASE DEFAULT
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "try to add element with unknown status to cancelation list (stat="&
               //cp_to_string(elem%stat))
       END SELECT

@@ -1629,7 +1629,7 @@ CONTAINS
        CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
             "Reached the end of the Trajectory  frames in the TRAJECTORY file. Number of "//&
             "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
     END IF
 
@@ -1642,7 +1642,7 @@ CPSourceFileRef,&
           CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
                "Reached the end of the cell info frames in the CELL file. Number of "//&
                "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
        END IF
     END IF

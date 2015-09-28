@@ -143,7 +143,7 @@ CONTAINS
         END IF
       CASE(status_cancel_nmc, status_cancel_ener)
       CASE DEFAULT
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "unknown sub tree element status "//&
              cp_to_string(st_elem%stat))
       END SELECT
@@ -352,7 +352,7 @@ CONTAINS
          status_canceled_ener)
       ! nothing to do
     CASE DEFAULT
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "unexpected status "//cp_to_string(ptr%stat)//&
            "of global tree elem "//cp_to_string(ptr%nr))
     END SELECT
@@ -453,7 +453,7 @@ CONTAINS
          status_cancel_nmc, status_cancel_ener)
        ! nothing to do
     CASE DEFAULT
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "the global tree element "//cp_to_string(tree_ptr%nr)//&
            " stat "//cp_to_string(tree_ptr%stat)//" is UNknown")
     END SELECT
@@ -561,7 +561,7 @@ CONTAINS
                    elem=pt_elem%conf(pt_elem%mv_conf)%elem, tmc_env=tmc_env)
 
          CASE DEFAULT
-           CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           CALL cp_abort(__LOCATION__,&
                 "unknown status of subtree element"//&
                 cp_to_string(pt_elem%conf(pt_elem%mv_conf)%elem%stat))
          END SELECT
@@ -667,7 +667,7 @@ CONTAINS
          status_canceled_ener)
       !TODO maybe also count caneled confs for debug output
     CASE DEFAULT
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "stat "//cp_to_string(tree_ptr%stat)//&
            "of elem "//cp_to_string(tree_ptr%nr)//&
            "unknown.")

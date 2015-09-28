@@ -383,7 +383,7 @@ CONTAINS
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
          cp_failure_level,cp_assertion_failed,routineP,&
          "wrong argument op"//&
-         CPSourceFileRef)
+         __LOCATION__)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -405,7 +405,7 @@ CONTAINS
          cp_failure_level,cp_assertion_failed,&
          routineP,&
          "not the same precision"//&
-         CPSourceFileRef)
+         __LOCATION__)
 
     ! notice b is the cholesky guy
     a => fm_matrix%local_data

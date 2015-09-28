@@ -481,7 +481,7 @@ CONTAINS
     Lz = z_glbl(gub3) - z_glbl(glb3)
 
     IF( (x_xtnt(1) .LT. x_glbl(glb1)) .OR. (x_xtnt(2) .GT. x_glbl(gub1)+dx) ) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The length of the cylindrical Dirichlet region is larger than the "//&
             "x range of the simulation cell.")
     END IF
@@ -642,7 +642,7 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The given extents for the Dirichlet region are outside the range of "//&
             "the simulation cell.")
     END IF 
@@ -686,7 +686,7 @@ CONTAINS
        CALL cs_rectangle_create(dirichlet_bc%rectangle, A, B, C, D)
        dirichlet_bc%n_tiles = 1
     ELSE 
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "According to the given extents, the Dirichlet region is not axis-aligned or a plane. "//&
             "Try the input section PLANAR or AA_CUBOIDAL instead.")
     END IF
@@ -768,7 +768,7 @@ CONTAINS
     AB = B - A;     AC = C - A;     AD = D - A;     BC = C - B;
     are_orthogonal = ABS( DOT_PRODUCT(AB, BC)/(SQRT(SUM(AB**2)) * SQRT(SUM(BC**2))) ) .LE. small_value
     IF (.NOT. are_orthogonal) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,"The given vertices for defining a "//&
+       CALL cp_abort(__LOCATION__,"The given vertices for defining a "//&
             "planar Dirichlet region do not form orthogonal edges.")
     END IF
 
@@ -785,7 +785,7 @@ CONTAINS
                   ((D(2) .GT. y_glbl(glb2)) .AND. (D(2) .LT. y_glbl(gub2)+dy)) .AND. &
                   ((D(3) .GT. z_glbl(glb3)) .AND. (D(3) .LT. z_glbl(gub3)+dz)) 
     IF (.NOT. (A_is_inside .AND. B_is_inside .AND. C_is_inside .AND. D_is_inside)) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "At least one of the given vertices for defining a planar Dirichlet "//&
             "region is outside the simulation box.")
     END IF
@@ -806,7 +806,7 @@ CONTAINS
                    (ABS(dist1-dist3) .LE. small_value) .AND. &
                    (ABS(dist1-dist4) .LE. small_value)  
     IF (.NOT. is_rectangle) THEN
-        CALL cp_abort(__SHORT_FILE__,__LINE__,"The given vertices for defining "//&
+        CALL cp_abort(__LOCATION__,"The given vertices for defining "//&
              "a planar Dirichlet region do not form a rectangle.")
     END IF
 
@@ -905,7 +905,7 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The given extents for the Dirichlet region are outside the range of "//&
             "the simulation cell.")
     END IF 
@@ -927,7 +927,7 @@ CONTAINS
     IF ((ABS(z_xtnt(1)-z_xtnt(2)) .LE. small_value) .OR. &
         (ABS(y_xtnt(1)-y_xtnt(2)) .LE. small_value) .OR. &
         (ABS(x_xtnt(1)-x_xtnt(2)) .LE. small_value)) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "According to the given extents, the region's geometry is not a cuboid. "//&
             "Try the input section AA_PLANAR instead.")
     END IF

@@ -255,7 +255,7 @@ MODULE mp2
     !IF (calc_forces.AND.nspins/=1) THEN
     !  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
     !                 "No forces/gradients for LSD."//&
-    !                 CPSourceFileRef, only_ionode=.TRUE.)
+    !                 __LOCATION__, only_ionode=.TRUE.)
     !END IF
 
     natom = SIZE(particle_set,1)
@@ -438,7 +438,7 @@ MODULE mp2
        !   IF (nmo.NE.nao) THEN
        !      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
        !          " Direct MP2 needs the full set of virtual MOs, use ADDED_MOS in the input"//&
-       !          CPSourceFileRef,&
+       !          __LOCATION__,&
        !          only_ionode=.TRUE.)
        !   ENDIF
        !ENDDO

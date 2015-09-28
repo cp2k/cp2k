@@ -432,7 +432,7 @@ CONTAINS
           WRITE(message,'(A,I8,A,G12.6,A)') "SPLINE_INFO| Number of points: ",npoints,&
                " obtained accuracy ",diffmax,". MM SPLINE: no convergence on required"//&
                " accuracy (adjust EPS_SPLINE and rerun)"
-          CALL cp_abort(__SHORT_FILE__,__LINE__,TRIM(message))
+          CALL cp_abort(__LOCATION__,TRIM(message))
        END IF
        ! accuracy is poor or we have found no points below max_energy, refine mesh
        IF (diffmax > eps_spline .OR. diffmax < 0.0_dp ) THEN

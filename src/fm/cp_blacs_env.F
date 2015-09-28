@@ -155,7 +155,7 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
 
 #ifdef __parallel
 #ifndef __SCALAPACK
-  CALL cp_abort(__SHORT_FILE__,__LINE__,&
+  CALL cp_abort(__LOCATION__,&
        "to USE the blacs environment "//&
        "you need the blacs/scalapack library : recompile with -D__SCALAPACK (and link scalapack and blacs) ")
 #endif

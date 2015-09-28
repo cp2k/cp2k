@@ -453,7 +453,7 @@ CONTAINS
           CALL cp_assert(my_accept_non_compatible,&
                cp_failure_level, cp_assertion_failed, routineP,&
                "pool cannot reuse pw of another grid "//&
-               CPSourceFileRef)
+               __LOCATION__)
           CALL pw_release(pw)
           failure = .TRUE.
        END IF
@@ -481,7 +481,7 @@ CONTAINS
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                   routineP,"hit max_cache"//&
-                  CPSourceFileRef)
+                  __LOCATION__)
              CALL pw_release(pw)
           END IF
        CASE(REALDATA3D)
@@ -497,7 +497,7 @@ CONTAINS
              ELSE
                 CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                      routineP,"hit max_cache"//&
-                     CPSourceFileRef)
+                     __LOCATION__)
                 CALL pw_release(pw)
              END IF
           ELSE
@@ -522,7 +522,7 @@ CONTAINS
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                   routineP,"hit max_cache"//&
-                  CPSourceFileRef)
+                  __LOCATION__)
              CALL pw_release(pw)
           END IF
        CASE(COMPLEXDATA3D)
@@ -537,7 +537,7 @@ CONTAINS
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                   routineP,"hit max_cache"//&
-                  CPSourceFileRef)
+                  __LOCATION__)
              CALL pw_release(pw)
           END IF
        CASE default
@@ -657,7 +657,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible)
         ELSE
            CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                 routineP,"hit max_cache"//&
-CPSourceFileRef)
+__LOCATION__)
            DEALLOCATE(cr3d)
         END IF
      ELSE

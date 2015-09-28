@@ -207,7 +207,7 @@ CONTAINS
           CALL parser_release(parser)
         END IF
         IF(.NOT.found)&
-           CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           CALL cp_abort(__LOCATION__,&
                 "Failure in assigning KINDS <"//TRIM(iname)//"> and <"//TRIM(jname)//&
                 "> to a DFTB interaction pair!")
       END DO

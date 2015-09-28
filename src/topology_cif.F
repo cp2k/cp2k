@@ -154,7 +154,7 @@ CONTAINS
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_length_a) was not found in CIF file! "//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cif_get_real(parser,cell_lengths(1))
     cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1),"angstrom")
 
@@ -163,7 +163,7 @@ CPSourceFileRef)
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_length_b) was not found in CIF file! "//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cif_get_real(parser,cell_lengths(2))
     cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2),"angstrom")
 
@@ -172,7 +172,7 @@ CPSourceFileRef)
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_length_c) was not found in CIF file! "//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cif_get_real(parser,cell_lengths(3))
     cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3),"angstrom")
 
@@ -181,7 +181,7 @@ CPSourceFileRef)
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_angle_alpha) was not found in CIF file! "//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cif_get_real(parser,cell_angles(1))
     cell_angles(1) = cp_unit_to_cp2k(cell_angles(1),"deg")
 
@@ -190,7 +190,7 @@ CPSourceFileRef)
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_angle_beta) was not found in CIF file! "//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cif_get_real(parser,cell_angles(2))
     cell_angles(2) = cp_unit_to_cp2k(cell_angles(2),"deg")
 
@@ -199,7 +199,7 @@ CPSourceFileRef)
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field (_cell_angle_gamma) was not found in CIF file! "//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cif_get_real(parser,cell_angles(3))
     cell_angles(3) = cp_unit_to_cp2k(cell_angles(3),"deg")
 
@@ -216,7 +216,7 @@ CPSourceFileRef)
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
          "The field _atom_site_label was not found in CIF file! "//&
-CPSourceFileRef)
+__LOCATION__)
     ifield     = 0
     ii         = 1
     ifield(ii) = 0
@@ -314,7 +314,7 @@ CPSourceFileRef)
     END IF
     CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
          "The fields (_symmetry_equiv_pos_as_xyz) or (_space_group_symop_operation_xyz) were not found in CIF file! "//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
     IF (iw>0) WRITE(iw,'(A,I0)')" CIF_INFO| Number of atoms before applying symmetry operations :: ",natom
     IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)

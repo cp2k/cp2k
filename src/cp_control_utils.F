@@ -141,19 +141,19 @@ CONTAINS
        CALL cp_assert(density_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
             "DENSITY_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
             "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        density_cut = MAX(EPSILON(0.0_dp)*100.0_dp,density_cut)
        CALL cp_assert(gradient_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
             "GRADIENT_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
             "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        gradient_cut = MAX(EPSILON(0.0_dp)*100.0_dp,gradient_cut)
        CALL cp_assert(tau_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
             "TAU_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
             "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        tau_cut = MAX(EPSILON(0.0_dp)*100.0_dp,tau_cut)
        CALL section_vals_val_set(xc_section,"density_cutoff", r_val=density_cut)

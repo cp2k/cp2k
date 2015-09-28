@@ -478,13 +478,13 @@ CONTAINS
                 CALL read_topology_conn(topology,loc_conn_type,filename,para_env,subsys_section)
              END DO
           CASE DEFAULT
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "MOL_SET feature implemented only for PSF/UPSF, G87/G96 and AMBER "//&
                   "connectivity type.")
           END SELECT
        END DO
        IF(SIZE(topology%atom_info%id_molname)/=topology%natoms)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Number of atoms in connectivity control is larger than the "//&
                "number of atoms in coordinate control. check coordinates and "//&
                "connectivity. ")

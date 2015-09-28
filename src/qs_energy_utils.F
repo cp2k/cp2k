@@ -699,7 +699,7 @@ CONTAINS
        ! IF (qs_env%energy%mp2.NE.0.0_dp .AND. calc_forces) THEN
        !    CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
        !         " No forces/gradients with MP2.... yet(?!) "//&
-       !          CPSourceFileRef, only_ionode=.TRUE.)
+       !          __LOCATION__, only_ionode=.TRUE.)
        ! ENDIF
     ENDIF
 

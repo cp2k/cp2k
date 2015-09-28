@@ -544,7 +544,7 @@ CONTAINS
     filename=oi_env%fm_env%ref_traj_file_name
     CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
             "The reference trajectory file name is empty"//&
-            CPSourceFileRef,&
+            __LOCATION__,&
             only_ionode=.TRUE.)
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO
@@ -580,7 +580,7 @@ CONTAINS
     filename=oi_env%fm_env%ref_force_file_name
     CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
             "The reference force file name is empty"//&
-            CPSourceFileRef,&
+            __LOCATION__,&
             only_ionode=.TRUE.)
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO iframe=1,n_frames

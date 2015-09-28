@@ -1051,7 +1051,7 @@ CONTAINS
 
     ! Check and set number of added (unoccupied) MOs
     IF(scf_control%added_mos(1) > n_ao - n_mo(1))&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "More added MOs requested than available. "//&
             "The full set of unoccupied MOs will be used.")
     scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao - n_mo(1))
@@ -1068,7 +1068,7 @@ CONTAINS
       scf_control%added_mos(2) = MIN(n_mo_add,n_ao - n_mo(2))
       n_mo(2) = n_mo(2) + scf_control%added_mos(2)
       IF(n_mo(2) > n_mo(1))&
-         CALL cp_warn(__SHORT_FILE__,__LINE__,&
+         CALL cp_warn(__LOCATION__,&
               "More beta than alpha MOs requested. "//&
               "The number of beta MOs will be reduced to the number alpha MOs.")
       n_mo(2) = MIN(n_mo(1),n_mo(2))

@@ -191,7 +191,7 @@ CONTAINS
              parser%icol1 =  0
              parser%icol2 = -1
           ELSE
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "An I/O error occurred (IOSTAT = "//&
                   TRIM(ADJUSTL(cp_to_string(istat)))//")"//&
                   TRIM(parser_location(parser)))
@@ -533,7 +533,7 @@ CONTAINS
              ELSE
                 parser%icol1 = i
                 parser%icol2 = i
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "Found non-blank tokens after the line continuation character '"//&
                      parser%continuation_character//"' "//&
                      TRIM(parser_location(parser)))
@@ -629,7 +629,7 @@ CONTAINS
              ELSE
                 parser%icol1 = i
                 parser%icol2 = i
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "Found non-blank tokens after the line continuation character '"//&
                      parser%continuation_character//"' "//TRIM(parser_location(parser)))
                 EXIT
@@ -646,7 +646,7 @@ CONTAINS
              ELSE
                 parser%icol1 = parser%icol
                 parser%icol2 = parser%icol
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "Unexpected separator token <"//parser%input_line(parser%icol:parser%icol)//&
                      "> found"//TRIM(parser_location(parser)))
                 EXIT
@@ -859,7 +859,7 @@ CONTAINS
           parser%icol = ipattern - 1
           IF (PRESENT(line)) THEN
              IF(LEN(line) < LEN_TRIM(parser%input_line)) THEN
-                CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                CALL cp_warn(__LOCATION__,&
                      "The returned input line has more than "//&
                      TRIM(ADJUSTL(cp_to_string(LEN(line))))//&
                      " characters and is therefore too long to fit in the "//&
@@ -1026,7 +1026,7 @@ CONTAINS
        IF (parser%icol1 > parser%icol2) THEN
           parser%icol1 = parser%icol
           parser%icol2 = parser%icol
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "An integer type object was expected, found end of line"//&
                TRIM(parser_location(parser)))
        END IF
@@ -1047,7 +1047,7 @@ CONTAINS
           END IF
        END IF
     ELSE
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "An integer type object was expected, found <"//&
             parser%input_line(parser%icol1:parser%icol2)//">"//&
             TRIM(parser_location(parser)))
@@ -1114,7 +1114,7 @@ CONTAINS
     IF (input_string_length == 0) THEN
        parser%icol1 = parser%icol
        parser%icol2 = parser%icol
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "A string representing a logical object was expected, found end of line"//&
             TRIM(parser_location(parser)))
     ELSE
@@ -1129,7 +1129,7 @@ CONTAINS
     CASE ("1","T",".T.","TRUE",".TRUE.","Y","YES","ON")
        object = .TRUE.
     CASE DEFAULT
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "A string representing a logical object was expected, found <"//&
             TRIM(input_string)//">"//TRIM(parser_location(parser)))
     END SELECT
@@ -1192,7 +1192,7 @@ CONTAINS
     IF (parser%icol1 > parser%icol2) THEN
        parser%icol1 = parser%icol
        parser%icol2 = parser%icol
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "A floating point type object was expected, found end of the line"//&
             TRIM(parser_location(parser)))
     END IF
@@ -1261,11 +1261,11 @@ CONTAINS
     input_string_length = parser%icol2 - parser%icol1 + 1
 
     IF (input_string_length <= 0) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "A string type object was expected, found end of line"//&
             TRIM(parser_location(parser)))
     ELSE IF (input_string_length > LEN(object)) THEN
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "The input string <"//parser%input_line(parser%icol1:parser%icol2)//&
             "> has more than "//cp_to_string(LEN(object))//&
             " characters and is therefore too long to fit in the "//&

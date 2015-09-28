@@ -713,7 +713,7 @@ CONTAINS
           CALL section_vals_val_get(force_env_sections, "METHOD", i_val=method_name_id, &
                i_rep_section=i_force_eval(1))
           IF(method_name_id/=do_mixed)&
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "In case of multiple force_eval the MAIN force_eval (the first in the list of FORCE_EVAL_ORDER or "//&
                   "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "//&
                   "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. ")
@@ -805,7 +805,7 @@ CONTAINS
           CALL create_force_eval_section(section)
           keyword => section_get_keyword(section,"METHOD")
           CALL keyword_get(keyword,enum=enum)
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Invalid METHOD <"//TRIM(enum_i2c(enum,method_name_id))//&
                "> was specified, ")
           CALL section_release(section)

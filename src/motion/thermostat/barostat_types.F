@@ -123,13 +123,13 @@ CONTAINS
        check = barostat%virial_components == do_clv_xyz .OR. simpar%ensemble == npt_f_ensemble
        CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
           "The screening of the components of the virial is available only with the NPT_F ensemble!"//&
-CPSourceFileRef,&
+__LOCATION__,&
           only_ionode=.TRUE.)
     ELSE
        CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
           "A barostat has been defined with an MD ensemble which does not support barostat! "//&
           "It's definition will be ignored!"//&
-CPSourceFileRef,&
+__LOCATION__,&
           only_ionode=.TRUE.)
     END IF
 

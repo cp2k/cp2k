@@ -649,7 +649,7 @@ CONTAINS
             "PLANE_PLANE_ANGLE Colvar defined using two normal vectors! This is "//&
             "not a COLLECTIVE VARIABLE! One of the two planes must be defined "//&
             "using atomic positions. "//&
-CPSourceFileRef)
+__LOCATION__)
 
        ! Number of real atoms involved in the colvar
        colvar%n_atom_s= 0

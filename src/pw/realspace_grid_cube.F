@@ -68,7 +68,7 @@ CONTAINS
     IF (PRESENT(stride)) THEN
        CALL cp_assert(SIZE(stride)==1.OR.SIZE(stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
             "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        IF (SIZE(stride)==1) THEN
           DO i = 1,3

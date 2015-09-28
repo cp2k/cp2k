@@ -1388,7 +1388,7 @@ CONTAINS
        ps_implicit_env%v_D  = 0.0_dp
 
     CASE DEFAULT
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Please specify the type of boundary conditions using the "//&
             "input file keyword BOUNDARY_CONDITIONS.")
     END SELECT

@@ -65,7 +65,7 @@ CONTAINS
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
          "A value of 0 or negative is meaningless!"//&
-CPSourceFileRef)
+__LOCATION__)
     IF (ANY(multiple_unit_cell/=1)) THEN
        ! Check that the setup between CELL and TOPOLOGY is the same..
        CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
@@ -73,7 +73,7 @@ CPSourceFileRef)
        CALL cp_assert(ALL(iwork==multiple_unit_cell),cp_fatal_level,cp_assertion_failed,routineP,&
          "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "//&
          "setup to two different values!! Correct this error!!"//&
-CPSourceFileRef)
+__LOCATION__)
        cell => topology%cell_muc
        natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 
@@ -86,7 +86,7 @@ CPSourceFileRef)
           CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
                "Number of available entries in VELOCITY section is not compatible with the number "//&
                "of atoms!"//&
-CPSourceFileRef)
+__LOCATION__)
        END IF
 
        CALL reallocate(topology%atom_info%id_molname, 1,    natoms)

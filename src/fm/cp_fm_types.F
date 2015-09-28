@@ -1256,7 +1256,7 @@ CONTAINS
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           CALL scopy(SIZE(source%local_data_sp,1)*SIZE(source%local_data_sp,2),&
                source%local_data_sp(1,1),1,destination%local_data_sp(1,1),1)
        ELSEIF(source%use_sp.AND..NOT.destination%use_sp) THEN
@@ -1266,7 +1266,7 @@ CPSourceFileRef)
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           destination%local_data=REAL(source%local_data_sp,dp)
        ELSEIF(.NOT.source%use_sp.AND.destination%use_sp) THEN
           CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data_sp,1).AND.&
@@ -1275,7 +1275,7 @@ CPSourceFileRef)
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           destination%local_data_sp=REAL(source%local_data,sp)
        ELSE
           CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
@@ -1284,7 +1284,7 @@ CPSourceFileRef)
                "Cannot copy full matrix <"//TRIM(source%name)//&
                "> to full matrix <"//TRIM(destination%name)//&
                ">. The local_data blocks have different sizes."//&
-CPSourceFileRef)
+__LOCATION__)
           CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
                source%local_data(1,1),1,destination%local_data(1,1),1)
        ENDIF
@@ -1431,22 +1431,22 @@ CPSourceFileRef)
     CALL cp_assert(nrow<=na, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of source matrix"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(nrow<=nb, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of target matrix"//&
-CPSourceFileRef)
+__LOCATION__)
     na = msource%matrix_struct%ncol_global
     nb = mtarget%matrix_struct%ncol_global
 !    ncol must be <= na_col and nb_col
     CALL cp_assert(ncol<=na, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of source matrix"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(ncol<=nb, cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy because nrow > number of rows of target matrix"//&
-CPSourceFileRef)
+__LOCATION__)
 
 #if defined(__SCALAPACK)
     desca(:) = msource%matrix_struct%descriptor(:)
@@ -1527,7 +1527,7 @@ CPSourceFileRef)
           CALL cp_assert(.NOT.source%use_sp,&
                cp_failure_level, cp_assertion_failed, routineP, &
                "only DP kind implemnted"//&
-CPSourceFileRef)
+__LOCATION__)
           m = source%matrix_struct%nrow_global
           n = source%matrix_struct%ncol_global
           smat => source%local_data
@@ -1541,7 +1541,7 @@ CPSourceFileRef)
           CALL cp_assert(.NOT.destination%use_sp,&
                cp_failure_level, cp_assertion_failed, routineP, &
                "only DP kind implemnted"//&
-CPSourceFileRef)
+__LOCATION__)
           m = destination%matrix_struct%nrow_global
           n = destination%matrix_struct%ncol_global
           dmat => destination%local_data
@@ -1556,13 +1556,13 @@ CPSourceFileRef)
                cp_failure_level,&
                cp_assertion_failed, routineP, &
                "cannot copy between full matrixes of different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
           CALL cp_assert(source%matrix_struct%ncol_global==&
                destination%matrix_struct%ncol_global,&
                cp_failure_level,&
                cp_assertion_failed, routineP, &
                "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef)
+__LOCATION__)
        END IF
 
        CALL pdgemr2d(m,n,smat,1,1,desca,dmat,1,1,descb,global_context)

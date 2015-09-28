@@ -520,11 +520,11 @@ CONTAINS
     BC_norm = SQRT(SUM(BC**2))
 
     IF ( (AB_norm .LE. small_value) .OR. (AC_norm.LE. small_value) .OR. (BC_norm .LE. small_value) ) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Not enough points to define a cartesian space plane. "//&
             "Please increase the cutoff.")
     ELSE IF ( SUM(ABS(ABxAC)) .LE. small_value ) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Unable to define a cartesian space plane. Reason: A, B, C are collinear. "//&
             "Please increase the cutoff.")
     ELSE

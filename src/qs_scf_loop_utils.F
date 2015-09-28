@@ -156,7 +156,7 @@ CONTAINS
 
     SELECT CASE (scf_env%method)
     CASE DEFAULT
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "unknown scf method: "//&
             cp_to_string(scf_env%method))
 
@@ -282,7 +282,7 @@ CONTAINS
 
     SELECT CASE (scf_env%method)
        CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "KP code: Unknown scf method: "//&
                cp_to_string(scf_env%method))
        CASE(general_diag_method_nr)
@@ -296,14 +296,14 @@ CONTAINS
           ! Diagonlization in orthonormal case
 !         CALL do_special_diag(scf_env,mos,matrix_ks,&
 !                              scf_control,scf_section,diis_step)
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "KP code: Scf method not available: "//&
                cp_to_string(scf_env%method))
        CASE(ot_diag_method_nr,&
             block_krylov_diag_method_nr,&
             block_davidson_diag_method_nr,&
             ot_method_nr)
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "KP code: Scf method not available: "//&
                cp_to_string(scf_env%method))
     END SELECT
@@ -429,7 +429,7 @@ CONTAINS
             delta=scf_env%iter_delta)
     CASE(no_mixing_nr)
     CASE DEFAULT
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "unknown scf mixing method: "//&
             cp_to_string(scf_env%mixing_method))
     END SELECT
@@ -693,7 +693,7 @@ CONTAINS
        CASE(filter_matrix_diag_method_nr)
    !
        CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "unknown scf method method:"//&
                cp_to_string(scf_env%method))
        END SELECT

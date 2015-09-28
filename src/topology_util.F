@@ -1238,7 +1238,7 @@ CONTAINS
          "Element <"//TRIM(element_symbol)//"> provided for KIND <"//TRIM(atom_name_in)//"> "//&
          "which cannot be mapped with any standard element label. Please correct your "//&
          "input file!"//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
 
     ! Last chance.. are these atom_kinds of AMBER or CHARMM or GROMOS FF ?

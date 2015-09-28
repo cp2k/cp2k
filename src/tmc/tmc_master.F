@@ -799,7 +799,7 @@ CONTAINS
           ! skip that task until receipt is received
           ! no status update
         CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "new task of tree element"//&
                cp_to_string(gt_elem_tmp%nr)//&
                "has unknown status"//cp_to_string(stat))

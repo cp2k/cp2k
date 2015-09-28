@@ -1184,7 +1184,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
               !FM in the functionals that I have implemented I use norm_drho
               !FM instead, either do the same or implement it, it shouldn't be
               !FM difficult (I am just lazy ;)
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "unknown functional derivative (LSD): '"//&
                    TRIM(desc)//"'")
            END SELECT
@@ -1199,7 +1199,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
               has_laplace = .TRUE.
               n_deriv = n_deriv + 1
            CASE default
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "unknown functional derivative (LDA): '"//&
                    TRIM(desc)//"'")
            END SELECT
@@ -3049,7 +3049,7 @@ END SUBROUTINE xc_calc_2nd_deriv
                      TRIM(desc)//"'")
              CASE("rhoa","rhob")
              CASE default
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "unhandled derivative: '"//&
                      TRIM(split_desc(idesc))//"' in '"//&
                      TRIM(desc)//"'")

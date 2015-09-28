@@ -296,7 +296,7 @@ CONTAINS
        END SELECT
        ! Check if the parameter is defined
        IF(.NOT.disp%defined)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Dispersion parameters for element ("//TRIM(symbol)//") are not defined! "//&
                "Please provide a valid set of parameters through the input section or "//&
                "through an external file! ")

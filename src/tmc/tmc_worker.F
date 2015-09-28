@@ -295,14 +295,14 @@ CONTAINS
               CASE(TMC_STAT_NMC_REQUEST)
                 work_stat = TMC_STAT_NMC_RESULT
               CASE DEFAULT
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "unknown work status after possible NMC subgroup "//&
                      "cancelation, work_stat="//cp_to_string(work_stat))
               END SELECT
             CASE(TMC_CANCELING_MESSAGE)
               work_stat = TMC_CANCELING_RECEIPT
             CASE DEFAULT
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "unknown calc status before sending NMC result "//&
                    cp_to_string(calc_stat))
             END SELECT
@@ -351,14 +351,14 @@ CONTAINS
                        "force environment.")
                 END IF
               CASE DEFAULT
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "energy worker should handle unknown stat "//&
                      cp_to_string(work_stat))
               END SELECT
             CASE(TMC_CANCELING_MESSAGE)
                work_stat = TMC_CANCELING_RECEIPT
             CASE DEFAULT
-               CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               CALL cp_abort(__LOCATION__,&
                     "worker while energy calc is in unknown state "//&
                     cp_to_string(work_stat))
             END SELECT
@@ -404,7 +404,7 @@ CONTAINS
                 flag = .TRUE.
                 i1 = 0
                 i2 = ana_restart_conf(itmp)
-                CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                CALL cp_warn(__LOCATION__,&
                      "analysis old trajectory up to "//&
                      "elem "//cp_to_string(ana_restart_conf(itmp))//&
                      ". Read trajectory file.")
@@ -413,7 +413,7 @@ CONTAINS
                   flag = .TRUE.
                   i1 = ana_list(itmp)%temp%last_elem%nr
                   i2 = ana_restart_conf(itmp)
-                  CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                  CALL cp_warn(__LOCATION__,&
                        "analysis restart with the incorrect configuration "//&
                        "TMC "//cp_to_string(ana_restart_conf(itmp))//&
                        " ana "//cp_to_string(ana_list(itmp)%temp%last_elem%nr)//&
@@ -439,7 +439,7 @@ CONTAINS
                              para_env=para_env_m_w,&
                              tmc_params=tmc_env%params, elem=conf)
           CASE DEFAULT
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "worker received unknown message task type "//&
                  cp_to_string(work_stat))
           END SELECT
@@ -483,7 +483,7 @@ CONTAINS
                                            tmc_env=tmc_env)
               END IF
             CASE DEFAULT
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "unknown task_type for participants in "//&
                    "START_CONF_RESULT request ")
             END SELECT
@@ -518,7 +518,7 @@ CONTAINS
                                        exact_approx_pot=.TRUE., &
                                        tmc_env=tmc_env)
           CASE DEFAULT
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "group participant got unknown working type "//&
                  cp_to_string(work_stat))
           END SELECT
@@ -662,7 +662,7 @@ CONTAINS
         ! nothing to do, because calculation CANCELING, exit with cancel status
         EXIT NMC_steps
       CASE DEFAULT
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "unknown status "//cp_to_string(calc_status)//&
              "in the NMC routine, expect only caneling status. ")
       END SELECT
@@ -690,7 +690,7 @@ CONTAINS
         !TODO implement the MD part
         !CALL calc_MD_step(...)
         !CALL calc_calc_e_kin(...)
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "Hybrid MC is not implemented yet, "//&
              "(no MD section in TMC yet). ")
       END IF

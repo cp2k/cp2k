@@ -327,7 +327,7 @@ CONTAINS
     CALL cp_rm_iter_level(logger%iter_info,"MD")
 
     IF(.NOT.rtp%converged)&
-       CALL cp_abort(__SHORT_FILE__,__LINE__,"propagation did not converge, "//&
+       CALL cp_abort(__LOCATION__,"propagation did not converge, "//&
             "either increase MAX_ITER or use a smaller TIMESTEP")
 
     CALL timestop(handle)

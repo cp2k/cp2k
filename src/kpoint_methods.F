@@ -208,7 +208,7 @@ CONTAINS
        END DO ikloop
        IF (.NOT.spez .AND. .NOT.(inv .AND. symmo)) THEN
           ! Warning: real wfn might be wrong for this system
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "A calculation using real wavefunctions is requested. "//&
                "We could not determine if the symmetry of the system allows real wavefunctions. ")
 

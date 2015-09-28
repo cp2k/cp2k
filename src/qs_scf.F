@@ -556,7 +556,7 @@ CONTAINS
     SELECT CASE (scf_env%method)
     CASE DEFAULT
 
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "unknown scf method method:"//&
             cp_to_string(scf_env%method))
 
@@ -651,7 +651,7 @@ CONTAINS
                    cp_assertion_failed,routineP,&
                    "Restricted calculation with OT requires orbital rotation. Please "//&
                    "activate the OT%ROTATION keyword! "//&
-CPSourceFileRef)
+__LOCATION__)
           ELSE
               scf_env%qs_ot_env(:)%restricted=.FALSE.
           ENDIF
@@ -805,7 +805,7 @@ CPSourceFileRef)
        CASE(filter_matrix_diag_method_nr)
    !
        CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "unknown scf method method:"//&
                cp_to_string(scf_env%method))
        END SELECT

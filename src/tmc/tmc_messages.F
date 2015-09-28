@@ -376,7 +376,7 @@ CONTAINS
       CASE(TMC_STAT_ANALYSIS_REQUEST)
         CALL read_analysis_request_message(elem, m_send, tmc_params)
       CASE DEFAULT
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "try to receive unknown message type "//cp_to_string(msg_type)//&
              "from source "//cp_to_string(dest))
       END SELECT
@@ -1764,7 +1764,7 @@ CONTAINS
              TMC_STAT_SCF_STEP_ENER_RECEIVE, TMC_STAT_APPROX_ENERGY_RESULT, TMC_STAT_ANALYSIS_RESULT)
           ! nothing to do, canceling message already sent
         CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "master received status "//cp_to_string(stat)//&
                " while stopping workers")
         END SELECT

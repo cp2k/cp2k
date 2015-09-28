@@ -489,7 +489,7 @@ CONTAINS
                "The print_key MD%PRINT%TEMP_KIND has been activated but the "//&
                "calculation of the temperature per kind has not been requested. "//&
                "Please switch on the keyword MD%TEMP_KIND. "//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
        END IF
        !Thermal Region
@@ -561,7 +561,7 @@ CPSourceFileRef,&
                      "The print_key MD%PRINT%TEMP_SHELL_KIND has been activated but the "//&
                      "calculation of the temperature per kind has not been requested. "//&
                      "Please switch on the keyword MD%TEMP_KIND. "//&
-CPSourceFileRef,&
+__LOCATION__,&
                      only_ionode=.TRUE.)
              END IF
           END IF

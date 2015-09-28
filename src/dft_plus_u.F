@@ -809,7 +809,7 @@ CONTAINS
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
     IF(energy%dft_plus_u < 0.0_dp)&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "DFT+U energy contibution is negative possibly due "//&
             "to unphysical Lowdin charges. Check your input, "//&
             "if this warning persists or try a different method!")
@@ -1474,7 +1474,7 @@ CONTAINS
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
     IF(energy%dft_plus_u < 0.0_dp)&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "DFT+U energy contibution is negative possibly due "//&
             "to unphysical Mulliken charges. Check your input, "//&
             "if this warning persists or try a different method!")
@@ -2035,7 +2035,7 @@ CONTAINS
     CALL mp_sum(energy%dft_plus_u, para_env%group)
 
     IF(energy%dft_plus_u < 0.0_dp)&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "DFT+U energy contibution is negative possibly due "//&
             "to unphysical Mulliken charges. Check your input, "//&
             "if this warning persists or try a different method!")

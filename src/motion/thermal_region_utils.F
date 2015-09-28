@@ -97,13 +97,13 @@ CONTAINS
                          (simpar%ensemble == npt_f_ensemble).OR.&
                          (simpar%ensemble == npt_i_ensemble)
        IF (apply_thermostat) THEN
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "With the chosen ensemble the temperature is "//&
                "controlled by thermostats. The definition of different thermal "//&
                "regions might result inconsistent with the presence of thermostats.")
        END IF
        IF (simpar%temp_tol > 0.0_dp) THEN
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "Control of the global temperature by rescaling of the velocity"//&
                "is not consistent with the presence of different thermal regions."//&
                "The temperature of different regions is rescaled separatedly.")

@@ -307,11 +307,11 @@ CONTAINS
           isize=SIZE(i_vals)
           nptot=SUM(i_vals)
           IF(nptot/=nproc)&
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "Number of processors in group distribution does not match number of MPI tasks."//&
                   " Please change input.")
           IF(.NOT.isize.le.ncalc)&
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "Number of Groups larger than number of calculations"//&
                   " Please change input.")
           CPASSERT(nptot==nproc)
@@ -788,7 +788,7 @@ CONTAINS
                   END DO
                ELSE 
                   IF(def_exp(2).LE.flex_basis%subset(iset)%nexp)&
-                     CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                     CALL cp_abort(__LOCATION__,&
                           "Exponent declared in constraint is larger than number of exponents in the set"//&
                           " Please change input.")
                   CALL set_constraint(flex_basis,iset,def_exp(2),const_section,is_bound,is_varlim,irep)
@@ -796,7 +796,7 @@ CONTAINS
             END DO
          ELSE
             IF(.NOT.def_exp(1).le.flex_basis%nsets)&
-               CALL cp_abort(__SHORT_FILE__,__LINE__,&
+               CALL cp_abort(__LOCATION__,&
                     "Set number of constraint is larger than number of sets in the template basis set."//&
                     " Please change input.")
             IF(def_exp(2)==-1)THEN
@@ -805,7 +805,7 @@ CONTAINS
                END DO
             ELSE
                IF(.NOT.def_exp(2).le.flex_basis%subset(def_exp(1))%nexp)&
-                  CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  CALL cp_abort(__LOCATION__,&
                        "Exponent declared in constraint is larger than number of exponents in the set"//&
                        " Please change input.")
                 CALL set_constraint(flex_basis,def_exp(1),def_exp(2),const_section,is_bound,is_varlim,irep)
@@ -842,7 +842,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
 
       IF(flex_basis%subset(iset)%exp_has_const(ipgf))&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "Multiple constraints due to collision in CONSTRAIN_EXPONENTS."//&
               " Please change input.")
       flex_basis%subset(iset)%exp_has_const(ipgf)=.TRUE.
@@ -853,7 +853,7 @@ CONTAINS
          flex_basis%subset(iset)%exp_const(ipgf)%ulim=MAXVAL(r_vals)
          r_val=flex_basis%subset(iset)%exps(ipgf)
          IF(flex_basis%subset(iset)%exps(ipgf).gt.MAXVAL(r_vals).OR.flex_basis%subset(iset)%exps(ipgf).lt.MINVAL(r_vals))&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "Exponent "//cp_to_string(r_val)//&
               " declared in constraint is out of bounds of constraint"//cp_to_string(MINVAL(r_vals))//&
               " to"// cp_to_string(MAXVAL(r_vals))//&

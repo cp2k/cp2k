@@ -163,7 +163,7 @@ CONTAINS
           ALLOCATE(charge(i_tmp))
           CALL read_chrg_section(charge_atm,charge,tmp_section,ntot)
         ELSE 
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "to calculate the classical cell dipole moment "// &
                "the charges has to be specified")
         END IF

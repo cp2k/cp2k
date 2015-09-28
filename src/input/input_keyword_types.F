@@ -293,7 +293,7 @@ CONTAINS
        IF (PRESENT(type_of_var)) THEN
           keyword%type_of_var=type_of_var
        ELSE
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "keyword "//TRIM(keyword%names(1))//&
                " assumed undefined type by default")
        END IF

@@ -569,7 +569,7 @@ CONTAINS
           CALL add_to_references(gt_elem=new_elem)
           reactivation_cc_count = reactivation_cc_count+1
         CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "global tree node creation using existing sub tree element, "//&
                "but is not a canceled one, gt elem "//&
                cp_to_string(new_elem%nr)//" st elem "//&
@@ -597,7 +597,7 @@ CONTAINS
           !  " of existing gt elem ",new_elem%nr,", again calculate NMC steps"
         CASE(mv_type_atom_trans, mv_type_mol_trans, mv_type_mol_rot, &
              mv_type_proton_reorder)
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "reactivated st element has no NMC or MD move type, "//&
                "but seems to be canceled. Move type"//&
                cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%move_type))
@@ -822,7 +822,7 @@ CONTAINS
            CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem,&
                                  tmc_params=tmc_env%params)
       CASE DEFAULT
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "unknown stat "//&
              cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat)//&
              "of subtree element "//&
@@ -981,7 +981,7 @@ CONTAINS
     CASE(mv_type_gausian_adapt)
       ! still could be implemented
     CASE DEFAULT
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "unknown move type ("//cp_to_string(new_elem%move_type)//&
            "), while creating subtree element.")
     END SELECT
@@ -1202,7 +1202,7 @@ CONTAINS
           IF(.NOT.ASSOCIATED(tmp_ptr)) removed = .TRUE.
         CASE(status_accepted_result, status_rejected_result)
         CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "try to dealloc unused tree element with status of begin element"&
                //cp_to_string(begin_ptr%stat))
         END SELECT
@@ -1293,7 +1293,7 @@ CONTAINS
            ! -- delete when calculation is finished or aborted
            ! removed should still be .FALSE.
         CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "unknown status "//cp_to_string(begin_ptr%stat)//&
                "of sub tree element "//&
                cp_to_string(begin_ptr%sub_tree_nr)//" "//&

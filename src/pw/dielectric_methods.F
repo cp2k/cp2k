@@ -145,7 +145,7 @@ CONTAINS
     IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
         ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
          (derivative_method .EQ. derivative_fft_use_deps))) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The specified derivative method is not compatible with the type of "//&
             "the dielectric constant function.")
     END IF
@@ -402,7 +402,7 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The given extents for the dielectric region are outside the range of "//&
             "the simulation cell.")
     END IF
@@ -505,7 +505,7 @@ CONTAINS
     n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                            forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
     IF (n_forb_xtnts .GT. 0) THEN
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The given extents for the dielectric region are outside the range of "//&
             "the simulation cell.")
     END IF

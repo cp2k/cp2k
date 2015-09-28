@@ -36,6 +36,7 @@ MODULE cp_error_handling
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_to_string
+  USE kinds,                           ONLY: default_string_length
   USE message_passing,                 ONLY: mp_abort
   USE timings,                         ONLY: print_stack
 
@@ -51,7 +52,7 @@ MODULE cp_error_handling
 
   !API public routines
   PUBLIC :: cp_assert, cp_unimplemented_error, cp_abort, cp_warn
-  PUBLIC :: cp__a, cp__b, cp__w
+  PUBLIC :: cp__a, cp__b, cp__w, cp__l
 
 #ifdef FD_DEBUG
   !! global variable to turn on/off the debugging, as i am lazy I use the
@@ -197,36 +198,30 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Abort program with error message
-!> \param fromWhere ...
-!> \param lineNr ...
+!> \param location ...
 !> \param message ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp_abort(fromWhere,lineNr,message)
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
-    INTEGER, INTENT(in)                      :: lineNr
-    CHARACTER(len=*), INTENT(in)             :: message
+  SUBROUTINE cp_abort(location, message)
+    CHARACTER(len=*), INTENT(in)             :: location, message
 
     CALL cp_assert(.FALSE.,level=cp_failure_level,&
          error_nr=cp_assertion_failed,&
-         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
+         fromWhere=location,&
          message=message)
   END SUBROUTINE cp_abort
 
 ! *****************************************************************************
 !> \brief Signal a warning
-!> \param fromWhere ...
-!> \param lineNr ...
+!> \param location ...
 !> \param message ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp_warn(fromWhere,lineNr,message)
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
-    INTEGER, INTENT(in)                      :: lineNr
-    CHARACTER(len=*), INTENT(in)             :: message
+  SUBROUTINE cp_warn(location, message)
+    CHARACTER(len=*), INTENT(in)             :: location, message
 
     CALL cp_error_message(level=cp_warning_level,&
-         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
+         fromWhere=location,&
          message=message)
   END SUBROUTINE cp_warn
 
@@ -236,14 +231,11 @@ CONTAINS
 !> \param lineNr ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp__a(fromWhere,lineNr)
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
+  SUBROUTINE cp__a(filename,lineNr)
+    CHARACTER(len=*), INTENT(in)             :: filename
     INTEGER, INTENT(in)                      :: lineNr
 
-    CALL cp_assert(.FALSE.,level=cp_failure_level,&
-         error_nr=cp_assertion_failed,&
-         fromWhere=fromWhere//":"//TRIM(ADJUSTL(cp_to_string(lineNr))),&
-         message="CPASSERT failed")
+    CALL cp_abort(location=cp__l(filename,lineNr), message="CPASSERT failed")
   END SUBROUTINE cp__a
 
 ! *****************************************************************************
@@ -253,12 +245,12 @@ CONTAINS
 !> \param message ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp__b(fromWhere,lineNr,message)
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
+  SUBROUTINE cp__b(filename,lineNr,message)
+    CHARACTER(len=*), INTENT(in)             :: filename
     INTEGER, INTENT(in)                      :: lineNr
     CHARACTER(len=*), INTENT(in)             :: message
 
-    CALL cp_abort(fromWhere,lineNr,message)
+    CALL cp_abort(location=cp__l(filename,lineNr), message=message)
   END SUBROUTINE cp__b
 
 ! *****************************************************************************
@@ -268,12 +260,28 @@ CONTAINS
 !> \param message ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp__w(fromWhere,lineNr,message)
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
+  SUBROUTINE cp__w(filename, lineNr,message)
+    CHARACTER(len=*), INTENT(in)             :: filename
     INTEGER, INTENT(in)                      :: lineNr
     CHARACTER(len=*), INTENT(in)             :: message
 
-    CALL cp_warn(fromWhere,lineNr,message)
+    CALL cp_warn(location=cp__l(filename,lineNr), message=message)
   END SUBROUTINE cp__w
+
+! *****************************************************************************
+!> \brief Helper routine to assemble __LOCATION__
+!> \param filename ...
+!> \param lineNr ...
+!> \retval location ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION cp__l(filename, lineNr) RESULT(location)
+    CHARACTER(len=*), INTENT(in)             :: filename
+    INTEGER, INTENT(in)                      :: lineNr
+    CHARACTER(len=default_string_length)     :: location
+
+    location = filename//':'//TRIM(ADJUSTL(cp_to_string(lineNr)))
+
+  END FUNCTION cp__l
 
 END MODULE cp_error_handling

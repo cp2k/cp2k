@@ -312,7 +312,7 @@ CONTAINS
     i = COUNT((/charge_occup,charge_beta,charge_extended/))
     CALL cp_assert((i <= 1),cp_failure_level,cp_assertion_failed,routineP,&
                    "Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected, "//&
-CPSourceFileRef,&
+__LOCATION__,&
                    only_ionode=.TRUE.)
 
     atom_info => topology%atom_info
@@ -375,7 +375,7 @@ CPSourceFileRef,&
                          (atom_info%atm_charge(i) == -HUGE(0.0_dp))),&
                          cp_failure_level,cp_assertion_failed,routineP,&
                          "No atomic charges found yet (after the topology setup), "//&
-CPSourceFileRef,&
+__LOCATION__,&
                          only_ionode=.TRUE.)
           IF (charge_occup) THEN
              WRITE (UNIT=line(55:60),FMT="(F6.2)") atom_info%atm_charge(i)

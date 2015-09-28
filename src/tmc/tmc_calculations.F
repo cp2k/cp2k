@@ -119,7 +119,7 @@ CONTAINS
     CASE(task_type_ideal_gas)
       e_pot = 0.0_dp
     CASE DEFAULT
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "worker task typ is unknown "//&
            cp_to_string(tmc_env%params%task_type))
     END SELECT

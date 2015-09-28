@@ -823,7 +823,7 @@ CONTAINS
         CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
              cp_failure_level,cp_assertion_failed,&
              "Invalid size of MOTION%PINT%BEADS%COORD "//&
-             CPSourceFileRef,&
+             __LOCATION__,&
              routineP)
         ic=0
         DO idim=1,pint_env%ndim
@@ -944,7 +944,7 @@ CONTAINS
       CALL cp_assert(3*n_rep_val==pint_env%ndim,&
                      cp_failure_level, cp_assertion_failed,&
                      routineP//" from "//&
-                     CPSourceFileRef,&
+                     __LOCATION__,&
                      msg)
       DO ia = 1, pint_env%ndim/3
         CALL section_vals_val_get(input_section, "_DEFAULT_KEYWORD_",&
@@ -957,7 +957,7 @@ CONTAINS
         CALL cp_assert(itmp==3,&
                        cp_failure_level, cp_assertion_failed,&
                        routineP//" from "//&
-                       CPSourceFileRef,&
+                       __LOCATION__,&
                        msg)
         DO ib = 1, pint_env%p
           DO ic = 1, 3
@@ -1079,7 +1079,7 @@ CONTAINS
         CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,&
                        cp_failure_level,cp_assertion_failed,&
                        "Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
-                       CPSourceFileRef,&
+                       __LOCATION__,&
                        routineP)
         itmp=0
         DO idim=1,pint_env%ndim
@@ -1186,7 +1186,7 @@ CONTAINS
           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
                          cp_failure_level,cp_assertion_failed,&
                          "Invalid size of MOTION%PINT%NOSE%COORD "//&
-                         CPSourceFileRef,&
+                         __LOCATION__,&
                          routineP)
           ii=0
           DO idim=1,pint_env%ndim
@@ -1214,7 +1214,7 @@ CONTAINS
           CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
                          cp_failure_level,cp_assertion_failed,&
                          "Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
-                         CPSourceFileRef,&
+                         __LOCATION__,&
                          routineP)
           ii=0
           DO idim=1,pint_env%ndim
@@ -1565,7 +1565,7 @@ CONTAINS
 !     CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter+1,&
 !          cp_failure_level,cp_assertion_failed,routineP,&
 !          "md & force_eval lost sychro "//&
-!          CPSourceFileRef,&
+!          __LOCATION__,&
 !          failure)
 !     CALL f_env_rm_defaults(f_env,new_error,ierr)
 

@@ -1359,7 +1359,7 @@ MODULE hfx_types
       IF( x_data%potential_parameter%potential_type /= do_hfx_potential_truncated .AND. &
           x_data%potential_parameter%potential_type /= do_hfx_potential_short .AND. &
           x_data%potential_parameter%potential_type /= do_hfx_potential_mix_cl_trunc) THEN
-      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+      CALL cp_warn(__LOCATION__,&
            "Periodic Hartree Fock calculation requested without use "//&
            "of a truncated or shortrange potential. This may lead to unphysical total energies. "//&
            "Use a truncated  potential to avoid possible problems.")
@@ -1369,7 +1369,7 @@ MODULE hfx_types
                      plane_distance(0,0,1,cell) )
         l_min = 0.5_dp * l_min
         IF( x_data%potential_parameter%cutoff_radius >= l_min ) THEN
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "Periodic Hartree Fock calculation requested with use "//&
                "of a truncated or shortrange potential. The cutoff radius is larger than half "//&
                "the minimal cell dimension. This may lead to unphysical "//&

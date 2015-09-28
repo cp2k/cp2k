@@ -203,7 +203,7 @@ CONTAINS
        ! stop if there is more than one kinetic energy functional section present
        !CPPostcondition(ke_sections==1,cp_failure_level,routineP,failure)
        IF(ke_sections/=1)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "KG runs require a kinetic energy functional. Exactly one of the following "// &
                "subsections of XC_FUNCTIONAL needs to be present: KE_GGA, TF, TFW, or KE_LIBXC.")
 

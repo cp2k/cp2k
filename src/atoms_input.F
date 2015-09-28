@@ -125,7 +125,7 @@ CONTAINS
     topology%natoms = natom
     IF (my_overwrite) THEN
        CPASSERT(SIZE(atom_info%r,2)==natom)
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "Overwriting coordinates. Active coordinates read from &COORD section."//&
             " Active coordinates READ from &COORD section ")
        CALL section_vals_list_get(coord_section,"_DEFAULT_KEYWORD_",list=list)
@@ -200,7 +200,7 @@ CONTAINS
                 END IF
              END DO
              IF(LEN_TRIM(line_att(start_c:end_c-1)) == 0)&
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "Incorrectly formatted input line for atom "//&
                      TRIM(ADJUSTL(cp_to_string(iatom)))//&
                      " found in COORD section. Input line: <"//&
@@ -212,7 +212,7 @@ CONTAINS
                 CALL read_float_object(line_att(start_c:end_c-1),&
                                        atom_info%r(wrd-1,iatom),error_message)
                 IF(LEN_TRIM(error_message) /= 0)&
-                   CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                   CALL cp_abort(__LOCATION__,&
                         "Incorrectly formatted input line for atom "//&
                         TRIM(ADJUSTL(cp_to_string(iatom)))//&
                         " found in COORD section. "//TRIM(error_message)//&
@@ -331,7 +331,7 @@ CONTAINS
     IF (ASSOCIATED(shell_particle_set)) THEN
       CPASSERT((SIZE(shell_particle_set,1) == nshell))
       ALLOCATE (r(3,nshell),at_name(nshell),at_index(nshell))
-      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+      CALL cp_warn(__LOCATION__,&
            "Overwriting shell coordinates. "//&
            "Active coordinates READ from &SHELL_COORD section. ")
       CALL section_vals_list_get(shell_coord_section,"_DEFAULT_KEYWORD_",list=list)
@@ -382,7 +382,7 @@ CONTAINS
 
           CPASSERT((SIZE(core_particle_set,1) == nshell))
           ALLOCATE (rc(3,nshell),at_name_c(nshell),at_index_c(nshell))
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "Overwriting cores coordinates. "//&
                " Active coordinates READ from &CORE_COORD section. ")
           CALL section_vals_list_get(core_coord_section,"_DEFAULT_KEYWORD_",list=list)

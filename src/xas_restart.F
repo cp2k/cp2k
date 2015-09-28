@@ -183,7 +183,7 @@ CONTAINS
          IF(xas_method_read/=xas_method)&
             CPABORT(" READ XAS RESTART: restart with different XAS method is not possible. ")
          IF(nexc_atoms_read/=nexc_atoms)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  " READ XAS RESTART: restart with different excited atoms "//&
                  " is not possible. Start instead a new XAS run with the new set of atoms. ")
       ENDIF
@@ -214,7 +214,7 @@ CONTAINS
           occupation_numbers(1:nmo) = occ_read(1:nmo)
           IF(nmo_read>nmo) THEN
             IF(occupation_numbers(nmo)>=EPSILON(0.0_dp))&
-               CALL cp_warn(__SHORT_FILE__,__LINE__,&
+               CALL cp_warn(__LOCATION__,&
                     "The number of occupied MOs on the restart unit is larger than "//&
                     "the allocated MOs.")
 

@@ -75,7 +75,7 @@ CONTAINS
        SELECT CASE(iwall_type)
        CASE(do_qmmm_wall_quadratic)
           IF(do_qmmm_force_mixing) THEN
-            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            CALL cp_warn(__LOCATION__,&
                  "Quadratic walls for QM/MM are not implemented (or useful), when "//&
                  "force mixing is active.  Skipping!")
           ELSE
@@ -134,7 +134,7 @@ CONTAINS
 
     IF (force_env%in_use==use_qmmmx) THEN
        IF(iwall_type /= do_qmmm_wall_none)&
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "Reflective walls for QM/MM are not implemented (or useful) when "//&
                "force mixing is active.  Skipping!")
        RETURN
@@ -194,7 +194,7 @@ CONTAINS
              ENDIF
           ELSE
              ! Otherwise print a warning and continue crossing cp2k's finger..
-             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             CALL cp_warn(__LOCATION__,&
                   "One or few QM atoms are within the SKIN of the quantum box. Check your run "//&
                   "and you may possibly consider: the activation of the QMMM WALLS "//&
                   "around the QM box, switching ON the centering of the QM box or increase "//&

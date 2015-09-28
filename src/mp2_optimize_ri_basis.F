@@ -1264,7 +1264,7 @@ MODULE mp2_optimize_ri_basis
     basis_was_assoc=.FALSE.
 
     IF(external_num_of_func.AND.nkind>1) THEN
-      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+      CALL cp_warn(__LOCATION__,&
            "There are more than one kind of atom. The same pattern of functions, "//&
            "as specified by NUM_FUNC, will be used for all kinds.")
     END IF
@@ -1299,7 +1299,7 @@ MODULE mp2_optimize_ri_basis
             RI_nset=RI_nset+1
             RI_num_sgf_per_l(la)=RI_num_sgf_per_l(la)+1
             IF(npgfa(iset)>1) THEN
-              CALL cp_warn(__SHORT_FILE__,__LINE__,&
+              CALL cp_warn(__LOCATION__,&
                    "The RI basis set optimizer can not handle contracted Gaussian. "//&
                    "Calculation continue with only uncontracted functions.")
             END IF

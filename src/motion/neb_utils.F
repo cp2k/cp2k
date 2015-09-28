@@ -228,7 +228,7 @@ CONTAINS
                   "Number of lines in XYZ format not equal to the number of atoms."//&
                   " Error in XYZ format for REPLICA coordinates. Very probably the"//&
                   " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
-CPSourceFileRef,&
+__LOCATION__,&
              only_ionode=.TRUE.)
              READ (parser%input_line,*) dummy_char,r(1:3)
              ic = 3*(iatom - 1)

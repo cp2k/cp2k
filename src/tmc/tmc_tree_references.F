@@ -148,7 +148,7 @@ CONTAINS
     pt_node_ref_loop: DO WHILE(ASSOCIATED(ptr%gt_nodes_references))
       tmp_gt_list_ptr => ptr%gt_nodes_references
       CPASSERT(ASSOCIATED(tmp_gt_list_ptr%gt_elem))
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "found reference of global tree node "//&
            cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&
            ", while removing sub tree node "//&
@@ -166,7 +166,7 @@ CONTAINS
             WRITE(list_of_nr,*)TRIM(ADJUSTL(list_of_nr)), tmp_gt_list_ptr%gt_elem%conf(i)%elem%sub_tree_nr, &
                   tmp_gt_list_ptr%gt_elem%conf(i)%elem%nr, " | "
           END DO
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "for subtree "//&
                cp_to_string(ptr%sub_tree_nr)//&
                "element "//cp_to_string(ptr%nr)//&
@@ -177,7 +177,7 @@ CONTAINS
                TRIM(ADJUSTL(list_of_nr)))
         END IF
       ELSE
-        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+        CALL cp_warn(__LOCATION__,&
              "for subtree "//cp_to_string(ptr%sub_tree_nr)//&
              "element "//cp_to_string(ptr%nr)//&
              " is not related to global tree node "//cp_to_string(tmp_gt_list_ptr%gt_elem%nr)//&

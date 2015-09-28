@@ -138,7 +138,7 @@ CONTAINS
                particles_qm(ip)%r, DOT_PRODUCT(qm_cell%h_inv(j,:),particles_qm(ip)%r)
           ENDIF
           IF(.NOT.check)&
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "QM/MM QM atoms must be fully contained in the same image of the QM box "//&
                   "- No wrapping of coordinates is allowed! ")
        END DO

@@ -359,7 +359,7 @@ CONTAINS
           unit_id(i_unit)=cp_units_none
           kind_id(i_unit)=cp_ukind_force
        CASE("au")
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "au unit without specifing its kind not accepted, use "//&
                "(au_e, au_f, au_t, au_temp, au_l, au_m, au_p, au_pot)")
        CASE default
@@ -678,7 +678,7 @@ CONTAINS
        END SELECT
     CASE(cp_ukind_none)
        IF(basic_unit/=cp_units_none)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "if the kind of the unit is none also unit must be undefined,not:"&
                  //TRIM(cp_to_string(basic_unit)))
     CASE default
@@ -848,7 +848,7 @@ CONTAINS
           CPABORT("unknown force unit:"//TRIM(cp_to_string(basic_unit)))
        END SELECT
     CASE(cp_ukind_none)
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "if the kind of the unit is none also unit must be undefined,not:"&
             //TRIM(cp_to_string(basic_unit)))
     CASE default
@@ -896,7 +896,7 @@ CONTAINS
        CASE(cp_units_none)
           res="internal_cp2k"
        CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "unit not yet fully specified, unit of kind "//&
                TRIM(res))
        END SELECT
@@ -1073,7 +1073,7 @@ CONTAINS
           CPABORT("unknown potential unit:"//TRIM(cp_to_string(basic_unit)))
        END SELECT
     CASE(cp_ukind_none)
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "if the kind of the unit is none also unit must be undefined,not:"&
             //TRIM(cp_to_string(basic_unit)))
     CASE default
@@ -1178,7 +1178,7 @@ CONTAINS
           CPASSERT(ASSOCIATED(defaults))
           CALL cp_assert(ASSOCIATED(defaults%units(unit%kind_id(i_unit))%unit),&
                cp_failure_level,cp_assertion_failed,routineP,&
-               CPSourceFileRef)
+               __LOCATION__)
           my_basic_unit=defaults%units(unit%kind_id(i_unit))%unit%unit_id(1)
        END IF
        res=cp_basic_unit_to_cp2k(value=res,basic_unit=my_basic_unit,&

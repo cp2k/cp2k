@@ -380,7 +380,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
     wf_history%store_wf = .TRUE.
     IF(.NOT.has_unit_metric) wf_history%store_overlap = .TRUE.
   CASE default
-     CALL cp_abort(__SHORT_FILE__,__LINE__,&
+     CALL cp_abort(__LOCATION__,&
           "Unknown interpolation method: "//&
           TRIM(ADJUSTL(cp_to_string(interpolation_method_nr))))
      wf_history%interpolation_method_nr=wfi_use_prev_rho_r_method_nr
@@ -463,7 +463,7 @@ FUNCTION wfi_get_method_label(method_nr) RESULT(res)
   CASE(wfi_aspc_nr)
     res = "ASPC"
   CASE default
-     CALL cp_abort(__SHORT_FILE__,__LINE__,&
+     CALL cp_abort(__LOCATION__,&
           "Unknown interpolation method: "//&
           TRIM(ADJUSTL(cp_to_string(method_nr))))
   END SELECT
@@ -938,7 +938,7 @@ END FUNCTION wfi_get_method_label
        CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
 
     CASE default
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Unknown interpolation method: "//&
             TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr))))
     END SELECT

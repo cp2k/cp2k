@@ -252,11 +252,11 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
   CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "sum of local cols not equal global cols"//&
-CPSourceFileRef)
+__LOCATION__)
   CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
        cp_failure_level,cp_assertion_failed,routineP,&
        "sum of local row not equal global rows"//&
-CPSourceFileRef)
+__LOCATION__)
 #else
   ! block = full matrix
   fmstruct%nrow_block=fmstruct%nrow_global
@@ -273,7 +273,7 @@ CPSourceFileRef)
           routineP,"local_leading_dimension too small ("//&
           cp_to_string(local_leading_dimension)//"<"//&
           cp_to_string(fmstruct%local_leading_dimension)//")"//&
-CPSourceFileRef)
+__LOCATION__)
      fmstruct%local_leading_dimension=local_leading_dimension
   END IF
 

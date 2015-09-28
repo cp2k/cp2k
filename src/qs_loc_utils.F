@@ -1150,11 +1150,11 @@ CONTAINS
            READ (rst_unit) eig_read(1:nmo_read)
          END IF
          IF(nmo_read < nmo)&
-            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            CALL cp_warn(__LOCATION__,&
                  "The number of MOs on the restart unit is smaller than the number of "//&
                  "the allocated MOs. ")
          IF(nmo_read>nmo)&
-            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            CALL cp_warn(__LOCATION__,&
                  "The number of MOs on the restart unit is greater than the number of "//&
                  "the allocated MOs. The read MO set will be truncated!")
 
@@ -1372,7 +1372,7 @@ CONTAINS
                localized_wfn_control%nloc_states(ispin) = iup-ilow +1
                nmoloc(ispin) = localized_wfn_control%nloc_states(ispin)
                IF(occupation(ilow)-occupation(iup) > localized_wfn_control%eps_occ) THEN
-                  CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                  CALL cp_abort(__LOCATION__,&
                        "The selected energy range includes orbitals with different occupation number. "//&
                        " The localization procedure cannot be applied.")
                END IF
@@ -1390,7 +1390,7 @@ CONTAINS
                     iup = localized_wfn_control%loc_states(i,ispin)
                     IF(ABS(occupation(ilow) - occupation(iup))>localized_wfn_control%eps_occ) THEN
                   ! write warning
-                      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                      CALL cp_warn(__LOCATION__,&
                            "User requested the calculation of localized wavefunction from a subset of MOs, "//&
                            "including MOs with different occupations. Check the selected subset, "//&
                            " the electronic density is not invariant with "//&
@@ -1411,7 +1411,7 @@ CONTAINS
       END IF
     ELSE
        ! Let's inform in case the section is not present in the input
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "User requested the calculation of the localized wavefunction but the section "//&
             "LOCALIZE (located in: DFT%LOCALIZE) was not specified. Localization "//&
             "will not be performed!")

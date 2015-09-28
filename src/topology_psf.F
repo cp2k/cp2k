@@ -152,7 +152,7 @@ CONTAINS
     ELSE
        CALL parser_get_object  (parser,natom)
        IF(natom_prev+natom>topology%natoms)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Number of atoms in connectivity control is larger than the "//&
                "number of atoms in coordinate control. check coordinates and "//&
                "connectivity. ")

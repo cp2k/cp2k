@@ -551,7 +551,7 @@ CPASSERT(.FALSE.)
       CASE(status_accepted, status_rejected)
         ptr%stat = stat
       CASE DEFAULT
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "unknown global tree status"//&
              cp_to_string(stat))
       END SELECT
@@ -594,7 +594,7 @@ CPASSERT(.FALSE.)
     CASE(status_calculated, status_accepted_result, status_accepted, status_rejected, status_rejected_result)
        ready = .TRUE.
     CASE DEFAULT
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "status of actual tree node is unknown"&
            //cp_to_string(elem%stat))
     END SELECT
@@ -642,7 +642,7 @@ CPASSERT(.FALSE.)
       ELSE IF(gt_act_elem%stat .EQ. status_rejected) THEN
         result_acc = .FALSE.
       ELSE
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "undefinite status of already checked elements:"&
              //cp_to_string(gt_act_elem%stat))
       END IF
@@ -701,7 +701,7 @@ CPASSERT(.FALSE.)
             gt_act_elem%stat = gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat
         CASE(status_calculated)
         CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "status of actual checked node is unknown"&
                //cp_to_string(gt_act_elem%stat))
         END SELECT

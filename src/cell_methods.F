@@ -129,7 +129,7 @@ CONTAINS
     CALL cp_assert(check,cp_warning_level,cp_assertion_failed,routineP,&
          "Cell Information provided through vectors A, B and C. Not all three "//&
          "vectors were provided! Cell setup may be incomplete!"//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
 
     ! Very last option.. Trying to read cell info from ABC keyword
@@ -139,7 +139,7 @@ CPSourceFileRef,&
        CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
             "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
             " The definition of the ABC keyword will override the one provided by A,B and C."//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        cell%hmat = 0.0_dp
        CALL section_vals_val_get(cell_section,"ABC",r_vals=cell_par)
@@ -247,7 +247,7 @@ CPSourceFileRef,&
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
          "A value of 0 or negative is meaningless!"//&
-CPSourceFileRef)
+__LOCATION__)
 
     ! scale abc accordingly user request
     cell%hmat(:,1) = cell%hmat(:,1)*multiple_unit_cell(1)
@@ -319,7 +319,7 @@ CPSourceFileRef)
          "Cell specification (A,B,C or ABC) provided together with the external "//&
          "cell setup! Ignoring (A,B,C or ABC) and proceeding with info read from the "//&
          "external file! "//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
     ! Copy cell information in the A, B, C fields..(we may need them later on..)
     ALLOCATE(cell_par(3))

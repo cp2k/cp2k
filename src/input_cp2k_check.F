@@ -100,7 +100,7 @@ CONTAINS
 
     IF ((explicit.AND.(nforce_eval==1)).OR.(.NOT.explicit.AND.(nforce_eval>1)))THEN
        IF((explicit_mix.AND.(nforce_eval==1)).OR.(.NOT.explicit_mix.AND.(nforce_eval>1)))THEN
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Error multiple force_env without RESPA or MIXED, or RESPA with one single "//&
                " or MIXED with only two force_env section.")
        END IF
@@ -408,7 +408,7 @@ CONTAINS
                 END IF
              END IF
           ELSE
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "Error while reading the restart file. Two force_eval have incompatible"//&
                   " subsys.One of them has an allocated subsys while the other has not! Check your"//&
                   " input file or whether the restart file is compatible with the input!")
@@ -921,13 +921,13 @@ CONTAINS
           END SELECT
        ELSE
           IF(input_type/=restart_type)&
-             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             CALL cp_warn(__LOCATION__,&
                   "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
                   "specified in the input file and the information present in the restart "//&
                   "file do not match the same type of thermostat! Restarting is not possible! "//&
                   "Thermostat will not be restarted! ")
           IF(input_region/=restart_region)&
-             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             CALL cp_warn(__LOCATION__,&
                   "Requested to restart thermostat: "//TRIM(path)//". The thermostat "//&
                   "specified in the input file and the information present in the restart "//&
                   "file do not match the same type of REGION! Restarting is not possible! "//&

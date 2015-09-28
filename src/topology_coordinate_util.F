@@ -346,7 +346,7 @@ CONTAINS
     CALL cp_assert(my_ignore_outside_box .OR. check,cp_failure_level,cp_assertion_failed,routineP,&
          "A non-periodic calculation has been requested but the system size "//&
          "exceeds the cell size in at least one of the non-periodic directions! "//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
     IF (do_center) THEN
        CALL section_vals_val_get(subsys_section,&

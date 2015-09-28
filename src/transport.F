@@ -267,7 +267,7 @@ CONTAINS
 
     CALL C_F_PROCPOINTER(transport_env%ext_c_method_ptr, c_method)
     IF(.NOT.C_ASSOCIATED(transport_env%ext_c_method_ptr))&
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "MISSING C/C++ ROUTINE: The TRANSPORT section is meant to be used together with an external "//&
             "program, e.g. the quantum transport code OMEN, that provides CP2K with a density matrix.")
 

@@ -123,7 +123,7 @@ CONTAINS
 
     is_large=ABS(MINVAL(all_occ))> smear%eps_fermi_dirac
     IF(is_large)&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "Fermi-Dirac smearing includes the last MO => "//&
             "Add more MOs for proper smearing.")
 
@@ -265,7 +265,7 @@ CONTAINS
     multiplicity_old = mo_set_a%nelectron - mo_set_b%nelectron + 1
 
     IF(mo_set_a%nelectron >= mo_set_a%nmo)&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "All alpha MOs are occupied. Add more alpha MOs to "//&
             "allow for a higher multiplicity")
     CALL cp_assert(((mo_set_b%nelectron < mo_set_b%nmo).OR.&
@@ -292,7 +292,7 @@ CONTAINS
        END IF
        IF (lumo_a > mo_set_a%nmo) THEN
           IF(i /= nelec)&
-             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             CALL cp_warn(__LOCATION__,&
                   "All alpha MOs are occupied. Add more alpha MOs to "//&
                   "allow for a higher multiplicity")
           IF (i < nelec) THEN
@@ -302,7 +302,7 @@ CONTAINS
        END IF
        IF (lumo_b > mo_set_b%nmo) THEN
           IF(lumo_b < lumo_a)&
-             CALL cp_warn(__SHORT_FILE__,__LINE__,&
+             CALL cp_warn(__LOCATION__,&
                   "All beta MOs are occupied. Add more beta MOs to "//&
                   "allow for a lower multiplicity")
           IF (i < nelec) THEN
@@ -316,7 +316,7 @@ CONTAINS
     mo_set_b%homo = lumo_b - 1
 
     IF (mo_set_b%homo > mo_set_a%homo) THEN
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "More beta ("//&
             TRIM(ADJUSTL(cp_to_string(mo_set_b%homo)))//&
             ") than alpha ("//&
@@ -331,7 +331,7 @@ CONTAINS
     multiplicity_new = mo_set_a%nelectron - mo_set_b%nelectron + 1
 
     IF(multiplicity_new /= multiplicity_old)&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "Multiplicity changed from "//&
             TRIM(ADJUSTL(cp_to_string(multiplicity_old)))//" to "//&
             TRIM(ADJUSTL(cp_to_string(multiplicity_new))))
@@ -512,7 +512,7 @@ CONTAINS
         END DO
         is_large=ABS(MINVAL(mo_set%occupation_numbers))> smear%eps_fermi_dirac
         IF(is_large)&
-           CALL cp_warn(__SHORT_FILE__,__LINE__,&
+           CALL cp_warn(__LOCATION__,&
                 "Fermi-Dirac smearing includes the last MO => "//&
                 "Add more MOs for proper smearing.")
 
@@ -532,7 +532,7 @@ CONTAINS
 
         e2 = mo_set%eigenvalues(mo_set%homo) + 0.5_dp*smear%window_size
         IF(e2 >= mo_set%eigenvalues(nmo))&
-           CALL cp_warn(__SHORT_FILE__,__LINE__,&
+           CALL cp_warn(__LOCATION__,&
                 "Energy window for smearing includes the last MO => "//&
                 "Add more MOs for proper smearing.")
 

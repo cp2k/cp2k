@@ -63,7 +63,7 @@ CONTAINS
     ik = section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
 
     IF(ik==-2)&
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "section "//TRIM(section%name)//" does not contain keyword "//&
             "_DEFAULT_KEYWORD_")
 

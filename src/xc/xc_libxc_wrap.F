@@ -665,7 +665,7 @@ CONTAINS
         nbuggy = 0
      CASE default
         nbuggy = 0
-           CALL cp_warn(__SHORT_FILE__,__LINE__,&
+           CALL cp_warn(__LOCATION__,&
                 " This version ("//TRIM(libxc_version)//") of LibXC is new or unknown."//&
                 " ======== Please check the results carefully. ========    "//&
                 " More informations on bugfixes can be found at: "//&

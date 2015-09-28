@@ -218,7 +218,7 @@ CONTAINS
        END IF
        ! Print warning for temp_tol
        IF (simpar%temp_tol > 0.0_dp) THEN
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "A temperature tolerance (TEMP_TOL) is used during the MD. "//&
                "Due to the velocity rescaling algorithm jumps may appear in the conserved quantity. ")
        END IF
@@ -227,7 +227,7 @@ CONTAINS
          IF ( simpar%ensemble == nvt_ensemble .OR. &
               simpar%ensemble == npt_i_ensemble .OR. &
               simpar%ensemble == npt_f_ensemble )  THEN
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "Annealing of the ions has been required "//&
                    "even if the thermostat is active (nvt or npt_i or npt_f) "//&
                    "These two methods to control the temperature act one against the other. ")
@@ -238,7 +238,7 @@ CONTAINS
          IF ( simpar%ensemble == langevin_ensemble .OR. &
               simpar%ensemble == reftraj_ensemble .OR. &
               simpar%do_respa )  THEN
-              CALL cp_warn(__SHORT_FILE__,__LINE__,&
+              CALL cp_warn(__LOCATION__,&
                    "The variable timestep  has been required, however "//&
                    "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "//&
                    "The run will proceed with constant timestep, as read from input. ")
@@ -298,7 +298,7 @@ CONTAINS
        CALL cp_assert(simpar%shake_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
             "Shake tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
             "This may lead to numerical problems. Setting up shake_tol to 1000*EPSILON! "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        simpar%shake_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%shake_tol)
 
@@ -306,7 +306,7 @@ CPSourceFileRef,&
        CALL cp_assert(simpar%roll_tol>EPSILON(0.0_dp)*1000.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
             "Roll tolerance lower than 1000*EPSILON, where EPSILON is the machine precision. "//&
             "This may lead to numerical problems. Setting up roll_tol to 1000*EPSILON! "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        simpar%roll_tol = MAX(EPSILON(0.0_dp)*1000.0_dp,simpar%roll_tol)
     END IF

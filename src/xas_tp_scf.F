@@ -234,7 +234,7 @@ CONTAINS
 
        SELECT CASE (scf_env%method)
        CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "unknown scf method method for core level spectroscopy"//&
                cp_to_string(scf_env%method))
 
@@ -276,7 +276,7 @@ CONTAINS
                 delta= scf_env%iter_delta)
        CASE(no_mixing_nr)
        CASE DEFAULT
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "unknown scf mixing method: "//&
                cp_to_string(scf_env%mixing_method))
        END SELECT

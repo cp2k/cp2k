@@ -185,7 +185,7 @@ CONTAINS
     IF ((my_end).AND.(j/=natom-MOD(natom,2)+1)) THEN
        CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&
             "Error while reading CRD file. Unexpected end of file."//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
     ELSE IF (MOD(natom,2)/=0) THEN
        ! In case let's handle the last atom
@@ -210,7 +210,7 @@ CPSourceFileRef,&
     IF (my_end) THEN
        CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
             "No VELOCITY or BOX information found in CRD file. "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
     ELSE
        ! Velocities
@@ -237,7 +237,7 @@ CPSourceFileRef,&
           CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
                "No VELOCITY information found in CRD file. Ignoring BOX information. "//&
                "Please provide the BOX information directly from the main CP2K input! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
           setup_velocities = .FALSE.
        ELSE IF (MOD(natom,2)/=0) THEN
@@ -262,13 +262,13 @@ CPSourceFileRef,&
     IF (my_end) THEN
        CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
             "BOX information missing in CRD file. "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
     ELSE
        CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
             "BOX information found in CRD file. They will be ignored."//&
             "Please provide the BOX information directly from the main CP2K input!"//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
     END IF
     CALL parser_release(parser)
@@ -1049,7 +1049,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef)
+          __LOCATION__)
   END SUBROUTINE rd_amber_section_i1
 
 ! *****************************************************************************
@@ -1099,7 +1099,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-         CPSourceFileRef)
+         __LOCATION__)
   END SUBROUTINE rd_amber_section_i3
 
 ! *****************************************************************************
@@ -1155,7 +1155,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-         CPSourceFileRef)
+         __LOCATION__)
   END SUBROUTINE rd_amber_section_i4
 
 ! *****************************************************************************
@@ -1219,7 +1219,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-         CPSourceFileRef)
+         __LOCATION__)
   END SUBROUTINE rd_amber_section_i5
 
 ! *****************************************************************************
@@ -1257,7 +1257,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef)
+          __LOCATION__)
   END SUBROUTINE rd_amber_section_c1
 
 ! *****************************************************************************
@@ -1294,7 +1294,7 @@ CPSourceFileRef,&
     ! Trigger end of file aborting
     CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
          "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          CPSourceFileRef)
+          __LOCATION__)
   END SUBROUTINE rd_amber_section_r1
 
 ! *****************************************************************************
@@ -1330,7 +1330,7 @@ CPSourceFileRef,&
        CALL cp_assert((INDEX(parser%input_line,"%FORMAT")/=0).AND.(.NOT.my_end),&
             cp_fatal_level, cp_assertion_failed, routineP,&
             "Expecting %FORMAT. Not found! Abort reading of AMBER topology file! "//&
-            CPSourceFileRef)
+            __LOCATION__)
 
        start_f = INDEX(parser%input_line,"(")
        end_f   = INDEX(parser%input_line,")")
@@ -1360,7 +1360,7 @@ CPSourceFileRef,&
     CALL cp_assert(found_AMBER_V8, cp_failure_level, cp_assertion_failed, routineP,&
             "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
             "AMBER file formats. "//&
-            CPSourceFileRef)
+            __LOCATION__)
     IF (output_unit>0) WRITE(output_unit,'(" AMBER_INFO| ",A)')"Amber PrmTop V.8 or greater.",&
          TRIM(parser%input_line)
 

@@ -132,7 +132,7 @@ CONTAINS
          TRIM(ADJUSTL(cp_to_string(prep)))//") and the number of replicas ("//&
          TRIM(ADJUSTL(cp_to_string(nrep)))//") . ["//&
          TRIM(ADJUSTL(cp_to_string(para_env%num_pe-nrep*prep)))//"] processors will be wasted! "//&
-         CPSourceFileRef, only_ionode=.TRUE.)
+         __LOCATION__, only_ionode=.TRUE.)
     force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL")
     ! Create Replica Environments
     IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"

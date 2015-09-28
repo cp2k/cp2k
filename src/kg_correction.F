@@ -205,7 +205,7 @@ CONTAINS
       ! this case has NOT been tested yet...
 
         IF(.NOT.ASSOCIATED(vxc_tau))&
-           CALL cp_abort(__SHORT_FILE__,__LINE__,&
+           CALL cp_abort(__LOCATION__,&
                 " KG is currently not compatible with TPSS, Becke-Roussel, or other"//&
                 " Meta-GGA functionals.")
 

@@ -431,7 +431,7 @@ CONTAINS
          SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2)*2,&
            source%local_data(1,1),1,destination%local_data(1,1),1)
    ELSE
@@ -440,13 +440,13 @@ CPSourceFileRef)
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef)
+__LOCATION__)
       CALL cp_assert(source%matrix_struct%ncol_global==&
            destination%matrix_struct%ncol_global,&
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
-CPSourceFileRef)
+__LOCATION__)
 #ifdef __SCALAPACK
       CALL pzcopy(source%matrix_struct%nrow_global*&
            source%matrix_struct%ncol_global,&
@@ -542,17 +542,17 @@ CPSourceFileRef)
          mtargetr%matrix_struct),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
          mtargeti%matrix_struct),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
     CALL cp_assert(SIZE(a,1)==SIZE(br,1).AND.SIZE(a,2)==SIZE(br,2)&
          .AND.SIZE(a,1)==SIZE(bi,1).AND.SIZE(a,2)==SIZE(bi,2),cp_failure_level,&
          cp_assertion_failed, routineP, &
          "internal local_data has different sizes"//&
-CPSourceFileRef)
+__LOCATION__)
 
     br = REAL(a)
     bi = AIMAG(a)

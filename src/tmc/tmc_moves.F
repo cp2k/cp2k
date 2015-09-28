@@ -351,7 +351,7 @@ CONTAINS
                          tmc_params=tmc_params)
 
     CASE DEFAULT
-      CALL cp_abort(__SHORT_FILE__,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
            "unknown move type "//&
            cp_to_string(elem%move_type))
     END SELECT
@@ -829,7 +829,7 @@ CONTAINS
              mol=mol_tmp, start_ind=ind_n, end_ind=ind_e)
       ! check if selected molecule is water respectively consists of 3 atoms
       IF(MOD(ind_e-ind_n,3).GT.0) THEN
-        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+        CALL cp_warn(__LOCATION__,&
              "selected a molecule with more than 3 atoms, "//&
              "the proton reordering does not support, skip molecule")
         CYCLE list_distances

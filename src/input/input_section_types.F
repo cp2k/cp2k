@@ -711,7 +711,7 @@ CONTAINS
           DO i=1,section%n_keywords
              DO j=1,SIZE(section%keywords(i)%keyword%names)
                 IF (keyword%names(k)==section%keywords(i)%keyword%names(j)) THEN
-                   CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                   CALL cp_abort(__LOCATION__,&
                         "trying to add a keyword with a name ("//&
                         TRIM(keyword%names(k))//") that was already used in section "&
                         //TRIM(section%name))
@@ -769,7 +769,7 @@ CONTAINS
     END IF
     DO i=1,section%n_subsections
        IF(subsection%name==section%subsections(i)%section%name)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "trying to add a subsection with a name ("//&
                  TRIM(subsection%name)//") that was already used in section "&
                  //TRIM(section%name))
@@ -955,7 +955,7 @@ CONTAINS
     isection=section_get_subsection_index(section_vals%section,subsection_name(1:my_index))
     IF (isection>0) res => section_vals%subs_vals(isection,irep)%section_vals
     IF(.NOT.(ASSOCIATED(res).OR.my_can_return_null))&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "could not find subsection "//TRIM(subsection_name(1:my_index))//" in section "//&
               TRIM(section_vals%section%name)//" at ")
     IF (is_path .AND. ASSOCIATED(res) ) THEN
@@ -1308,12 +1308,12 @@ CONTAINS
          PRESENT(r_vals).OR.PRESENT(c_vals)
     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key))
     IF(ik==-2) &
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "section "//TRIM(section%name)//" does not contain keyword "//&
                TRIM(keyword_name(my_index:len_key)))
     keyword => section%keywords(ik)%keyword
     IF(.NOT.(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2)))&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "section repetition requested ("//cp_to_string(irs)//&
                ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
                //")")
@@ -1340,7 +1340,7 @@ CONTAINS
     IF (PRESENT(val)) val => my_val
     IF (valRequested) THEN
        IF(.NOT.ASSOCIATED(my_val))&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "Value requested, but no value set getting value from "//&
                  "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
                  TRIM(section%name))
@@ -1398,11 +1398,11 @@ CONTAINS
     section => s_vals%section
     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key))
     IF(ik==-2)&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "section "//TRIM(section%name)//" does not contain keyword "//&
               TRIM(keyword_name(my_index:len_key)))
     IF(.NOT.(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2)))&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "section repetition requested ("//cp_to_string(irs)//&
               ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
               //")")
@@ -1484,7 +1484,7 @@ CONTAINS
     section => s_vals%section
     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key))
     IF(ik==-2)&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "section "//TRIM(section%name)//" does not contain keyword "//&
               TRIM(keyword_name(my_index:len_key)))
     ! Add values..
@@ -1493,7 +1493,7 @@ CONTAINS
        CALL section_vals_add_values(s_vals)
     END DO
     IF(.NOT.(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2)))&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "section repetition requested ("//cp_to_string(irs)//&
               ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
               //")")
@@ -1506,14 +1506,14 @@ CONTAINS
     IF (ASSOCIATED(my_val)) THEN
        ! check better?
        IF(valSet)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  " both val and values present, in setting "//&
                  "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
                  TRIM(section%name))
     ELSE
        ! ignore ?
        IF(.NOT.valSet)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  " empty value in setting "//&
                  "keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
                  TRIM(section%name))
@@ -1534,7 +1534,7 @@ CONTAINS
        CALL cp_sll_val_insert_el_at(vals,my_val,index=-1)
     ELSE IF (irk <= cp_sll_val_get_length(vals)) THEN
        IF(irk<=0)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "invalid irk "//TRIM(ADJUSTL(cp_to_string(irk)))//&
                  " in keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
                  TRIM(section%name))
@@ -1543,7 +1543,7 @@ CONTAINS
        CALL cp_sll_val_set_el_at(vals,value=my_val,index=irk)
     ELSE IF (irk>cp_sll_val_get_length(vals)+1) THEN
        ! change?
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "cannot add extra keyword repetitions to keyword"&
             //TRIM(keyword_name(my_index:len_key))//" of section "//&
             TRIM(section%name))
@@ -1607,13 +1607,13 @@ CONTAINS
     section => s_vals%section
     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key))
     IF(ik==-2)&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "section "//TRIM(section%name)//" does not contain keyword "//&
               TRIM(keyword_name(my_index:len_key)))
     ! ignore unset of non set values
     IF (irs<=SIZE(s_vals%values,2)) THEN
        IF(.NOT.(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2)))&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "section repetition requested ("//cp_to_string(irs)//&
                  ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
                  //")")
@@ -1935,7 +1935,7 @@ CONTAINS
 
     isection=section_get_subsection_index(s_vals%section,subsection_name(my_index:LEN_TRIM(subsection_name)))
     IF(isection<=0)&
-         CALL cp_abort(__SHORT_FILE__,__LINE__,&
+         CALL cp_abort(__LOCATION__,&
               "could not find subsection "//subsection_name(my_index:LEN_TRIM(subsection_name))//" in section "//&
               TRIM(section_vals%section%name)//" at ")
     CALL section_vals_retain(new_section_vals)

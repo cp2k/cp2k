@@ -222,11 +222,11 @@ CONTAINS
        IF(ub(2)==pw_grid%bounds(2,2))max_val_up=MAXVAL(ABS(density % cr3d(:,ub(2),:)))
        CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
             "Density hits the lower boundary of the system in XZ-plane"//&
-            CPSourceFileRef,&
+            __LOCATION__,&
             only_ionode=.TRUE.)
        CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
             "Density hits the upper boundary of the system in XZ-plane"//&
-            CPSourceFileRef,&
+            __LOCATION__,&
             only_ionode=.TRUE.)
        IF(wavelet%geocode=='F')THEN
           max_val_low=0._dp
@@ -235,11 +235,11 @@ CONTAINS
           IF(ub(1)==pw_grid%bounds(2,1))max_val_up=MAXVAL(ABS(density % cr3d(ub(1),:,:)))
           CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                "Density hits the lower boundary of the system in YZ-plane"//&
-               CPSourceFileRef,&
+               __LOCATION__,&
                only_ionode=.TRUE.)
           CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                "Density hits the upper boundary of the system in YZ-plane"//&
-               CPSourceFileRef,&
+               __LOCATION__,&
                only_ionode=.TRUE.)
           max_val_low=0._dp
           max_val_up=0._dp
@@ -247,11 +247,11 @@ CONTAINS
           IF(ub(3)==pw_grid%bounds(2,3))max_val_up=MAXVAL(ABS(density % cr3d(:,:,ub(3))))
           CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                "Density hits the lower boundary of the system in XY-plane"//&
-               CPSourceFileRef,&
+               __LOCATION__,&
                only_ionode=.TRUE.)
           CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
                "Density hits the upper boundary of the system in XY-plane"//&
-               CPSourceFileRef,&
+               __LOCATION__,&
                only_ionode=.TRUE.)
        END IF
     END IF

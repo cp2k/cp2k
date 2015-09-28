@@ -65,7 +65,7 @@ CONTAINS
           IF (qm_atom_index(ip) == qm_index) EXIT
        END DO
        IF(ip==SIZE(qm_atom_index)+1)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("//&
                cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. ")
        ip_qm = ip
@@ -73,7 +73,7 @@ CONTAINS
           IF (qm_atom_index(ip) == mm_index) EXIT
        END DO
        IF(ip==SIZE(qm_atom_index)+1)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Error in setting up the MM atom index ("//cp_to_string(mm_index)//&
                ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! ")
        ip_mm = ip
@@ -116,7 +116,7 @@ CONTAINS
           IF (qm_atom_index(ip) == qm_index) EXIT
        END DO
        IF(ip==SIZE(qm_atom_index)+1)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "QM atom index ("//cp_to_string(qm_index)//") specified in the LINK section nr.("//&
                cp_to_string(ilink)//") is not defined as a QM atom! Please inspect your QM_KIND sections. ")
        ip_qm = ip
@@ -124,7 +124,7 @@ CONTAINS
           IF (qm_atom_index(ip) == mm_index) EXIT
        END DO
        IF(ip==SIZE(qm_atom_index)+1)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Error in setting up the MM atom index ("//cp_to_string(mm_index)//&
                ") specified in the LINK section nr.("//cp_to_string(ilink)//"). Please report this bug! ")
        ip_mm = ip

@@ -175,7 +175,7 @@
        CALL cp_assert(virial%pv_availability,cp_failure_level,cp_assertion_failed,routineP,&
             "Cell optimization requested but FORCE_EVAL%STRESS_TENSOR was not defined! "//&
             "Activate the evaluation of the stress tensor for cell optimization! "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
        SELECT CASE (gopt_env%cell_method_id)
        CASE (default_cell_direct_id)
@@ -239,7 +239,7 @@ CPSourceFileRef,&
                 CALL cp_assert(explicit,cp_failure_level,cp_assertion_failed,routineP,&
                      "Cell optimization at 0K was requested. GEO_OPT section MUST be provided in the "//&
                      "input file! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                      only_ionode=.TRUE.)
                 ! Perform a geometry optimization
                 CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env,&
@@ -255,13 +255,13 @@ CPSourceFileRef,&
                 CALL cp_assert(explicit,cp_failure_level,cp_assertion_failed,routineP,&
                      "Cell optimization at finite temperature was requested. MD section MUST be provided in the "//&
                      "input file! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                      only_ionode=.TRUE.)
                 ! Only NVT ensemble is allowed..
                 CALL section_vals_val_get(gopt_env%motion_section,"MD%ENSEMBLE",i_val=ensemble)
                 CALL cp_assert(ensemble==nvt_ensemble,cp_failure_level,cp_assertion_failed,routineP,&
                      "Cell optimization at finite temperature requires the NVT MD ensemble! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                      only_ionode=.TRUE.)
                 ! Perform a molecular dynamics
                 CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env,&

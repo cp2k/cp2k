@@ -558,21 +558,21 @@ CONTAINS
     z2 = sep%sto_exponents(1)
     z3 = sep%sto_exponents(2)
     IF(z1<=0.0_dp)&
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Trying to use s-orbitals, but the STO exponents is set to 0. "//&
             "Please check if your parameterization supports the usage of s orbitals! ")
     amn = 0.0_dp
     nsp = nqs(sep%z)
     IF (sep%natorb>=4) THEN
        IF(z2<=0.0_dp)&
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "Trying to use p-orbitals, but the STO exponents is set to 0. "//&
                "Please check if your parameterization supports the usage of p orbitals! ")
        amn(2) = amn_l_low(z1, z2, nsp, nsp, 1)
        amn(3) = amn_l_low(z2, z2, nsp, nsp, 2)
        IF (sep%dorb) THEN
           IF(z3<=0.0_dp)&
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "Trying to use d-orbitals, but the STO exponents is set to 0. "//&
                   "Please check if your parameterization supports the usage of d orbitals! ")
           nd     = nqd(sep%z)

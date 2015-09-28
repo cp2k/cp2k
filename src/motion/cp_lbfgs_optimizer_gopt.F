@@ -471,7 +471,7 @@ END SUBROUTINE cp_opt_gopt_release
             PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
             cp_warning_level,cp_assertion_failed,&
             routineP, "asked undefined types in "//&
-            CPSourceFileRef)
+            __LOCATION__)
     END IF
 
     !  call timestop(handle)
@@ -684,7 +684,7 @@ END SUBROUTINE cp_opt_gopt_release
           ! deallocated
           CPABORT("step on a deallocated opt structure ")
        CASE default
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "unknown status "//cp_to_string(optimizer%status))
           optimizer%status=5
           EXIT

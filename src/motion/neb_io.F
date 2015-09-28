@@ -116,7 +116,7 @@ CONTAINS
             "A potential energy function based on free energy or minimum energy"//&
             " was requested without enabling the usage of COLVARS. Both methods"//&
             " are based on COLVARS definition."//&
- CPSourceFileRef)
+ __LOCATION__)
        ! Moreover let's check if the proper sections have been defined..
        SELECT CASE(neb_env%pot_type)
        CASE(pot_neb_fe)
@@ -126,7 +126,7 @@ CONTAINS
                cp_failure_level,cp_assertion_failed,routineP,&
                "A free energy BAND (colvars projected) calculation is requested"//&
                " but NONE MD section was defined in the input."//&
- CPSourceFileRef)
+ __LOCATION__)
        CASE(pot_neb_me)
           wrk_section => section_vals_get_subs_vals(neb_env%root_section,"MOTION%GEO_OPT")
           CALL section_vals_get(wrk_section,explicit=explicit)
@@ -134,14 +134,14 @@ CONTAINS
                cp_failure_level,cp_assertion_failed,routineP,&
                "A minimum energy BAND (colvars projected) calculation is requested"//&
                " but NONE GEO_OPT section was defined in the input."//&
-               CPSourceFileRef)
+               __LOCATION__)
        END SELECT
     ELSE
        CALL cp_assert(.NOT.neb_env%use_colvar,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "A band calculation was requested with a full potential energy. USE_COLVAR cannot"//&
             " be set for this kind of calculation!"//&
-            CPSourceFileRef)
+            __LOCATION__)
     END IF
     ! String Method
     CALL section_vals_val_get(neb_section,"STRING_METHOD%SMOOTHING",r_val=neb_env%smoothing)

@@ -114,7 +114,7 @@ CONTAINS
     CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
          "Reached the end of the trajectory file for REFTRAJ. Number of steps skipped "//&
          "equal to the number of steps present in the file. "//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
 
     ! Cell File
@@ -125,7 +125,7 @@ CPSourceFileRef,&
        CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
             "Reached the end of the cell file for REFTRAJ. Number of steps skipped "//&
             "equal to the number of steps present in the file. "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
     END IF
 

@@ -227,7 +227,7 @@ MODULE rpa_ri_gpw
       input_integ_group_size=mp2_env%ri_rpa%rpa_integ_group_size
       do_minimax_quad=mp2_env%ri_rpa%minimax_quad
       IF(do_minimax_quad.AND.num_integ_points>20) THEN
-        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+        CALL cp_warn(__LOCATION__,&
              "The required number of quadrature point exceeds the maximum possible in the "//&
              "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
         num_integ_points=20
@@ -3327,7 +3327,7 @@ MODULE rpa_ri_gpw
         n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
         IF(iiter==max_iter_fit) THEN
           WRITE(MO_number, "(I3)")  n_level_gw_ref
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "The fit for corrected level n ="// MO_number// " did not converge. "//&
                "For levels close to HOMO or LUMO, this is normally no issue. "//&
                "To avoid this warning, you can (1) increase the "//&
@@ -3738,7 +3738,7 @@ MODULE rpa_ri_gpw
       END IF
 
       IF((gw_corr_lev_occ==0 .OR. gw_corr_lev_virt==0) .AND. count_ev_sc_GW>1) THEN
-        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+        CALL cp_warn(__LOCATION__,&
              "Please increase for eigenvalue-self-consistent GW, the number of "//&
              "corrected occupied and/or virtual orbitals above 0.")
       END IF

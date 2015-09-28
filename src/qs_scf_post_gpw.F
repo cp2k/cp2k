@@ -365,7 +365,7 @@ CONTAINS
     END IF
 
     IF(n_rep==0.AND.p_loc_lumo)THEN
-        CALL cp_abort(__SHORT_FILE__,__LINE__,"No LIST_UNOCCUPIED was specified, "//&
+        CALL cp_abort(__LOCATION__,"No LIST_UNOCCUPIED was specified, "//&
              "therefore localization of unoccupied states will be skipped!")
         p_loc_lumo=.FALSE.
     END IF

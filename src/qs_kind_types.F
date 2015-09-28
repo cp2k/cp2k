@@ -1637,13 +1637,13 @@ CONTAINS
 
        check = ((potential_name /= '').OR.explicit_potential)
        IF(check)&
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "Information provided in the input file regarding POTENTIAL for KIND <"//&
                TRIM(qs_kind%name)//"> will be ignored!")
 
        check = ((orb_basis_set_name /= '').OR.explicit_basis)
        IF(check)&
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                "Information provided in the input file regarding BASIS for KIND <"//&
                TRIM(qs_kind%name)//"> will be ignored!")
 

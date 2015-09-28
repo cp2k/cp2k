@@ -667,7 +667,7 @@ CONTAINS
       CALL read_pos_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
                               conf_nr=i_tmp)
       IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
-        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+        CALL cp_warn(__LOCATION__,&
              'end of position file reached at line '//&
              cp_to_string(REAL(tmc_ana%lc_traj,KIND=dp))//", last element "//&
              cp_to_string(tmc_ana%last_elem%nr))
@@ -688,7 +688,7 @@ CONTAINS
         CALL read_dipole_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
                                    conf_nr=i_tmp)
         IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN 
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                'end of dipole file reached at line'//&
                cp_to_string(REAL(tmc_ana%lc_dip,KIND=dp)))
           EXIT search_conf_dip
@@ -718,7 +718,7 @@ CONTAINS
         CALL read_cell_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
                                  conf_nr=i_tmp)
         IF(stat.EQ.TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                'end of cell file reached at line at line'//&
                cp_to_string(REAL(tmc_ana%lc_cell, KIND=dp)))
           EXIT search_conf_cell
@@ -824,7 +824,7 @@ CONTAINS
              c_tmp, elem%pos(i:i+tmc_ana%dim_per_elem-1)
         tmc_ana%lc_traj = tmc_ana%lc_traj +1
         IF(status.NE.0) THEN
-          CALL cp_abort(__SHORT_FILE__,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                "configuration pos read error at line: "//&
                cp_to_string(tmc_ana%lc_traj))
         END IF
@@ -1058,7 +1058,7 @@ CONTAINS
                    tmc_ana%id_dip.GT.0) THEN
       stat = TMC_STATUS_OK
     ELSE
-      CALL cp_warn(__SHORT_FILE__,__LINE__,&
+      CALL cp_warn(__LOCATION__,&
            "There is no file to open for temperature "//cp_to_string(tmc_ana%temperature)//&
            "K in directory "//TRIM(dir_name))
     END IF

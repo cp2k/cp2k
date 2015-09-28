@@ -339,7 +339,7 @@ CONTAINS
             routineP,"Virial evaluation not requested for this run in the input file! "//&
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
             "Be sure the method you are using can compute the virial! "//&
-            CPSourceFileRef)
+            __LOCATION__)
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -353,7 +353,7 @@ CONTAINS
             routineP,"Virial evaluation not requested for all the force_eval sections present in"//&
             " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR "//&
             " in each force_eval section. Be sure the method you are using can compute the virial!"//&
-            CPSourceFileRef)
+            __LOCATION__)
     END IF
 
     ! Computing Forces at zero MD step

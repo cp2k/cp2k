@@ -192,7 +192,7 @@ CONTAINS
 
     CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
          " Trying to access result ("//TRIM(description)//") which was never stored! "//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
 
     DO i=1,nlist
@@ -200,7 +200,7 @@ CPSourceFileRef,&
           CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Attempt to retrieve a RESULT which is not a REAL! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
 
           size_res=SIZE(results%result_value(i)%value%real_type)
@@ -272,7 +272,7 @@ CPSourceFileRef,&
 
     CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
          " Trying to access result ("//TRIM(description)//") which was never stored! "//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
 
     DO i=1,nlist
@@ -280,7 +280,7 @@ CPSourceFileRef,&
           CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Attempt to retrieve a RESULT which is not a REAL! "//&
-CPSourceFileRef,&
+__LOCATION__,&
                only_ionode=.TRUE.)
 
           size_res=SIZE(results%result_value(i)%value%real_type)

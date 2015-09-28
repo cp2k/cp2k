@@ -329,7 +329,7 @@ CONTAINS
 
     ! Check if the element has been defined..
     IF(.NOT.sep%defined)&
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Semiempirical type ("//TRIM(sep%name)//") cannot be defined for "//&
             "the requested parameterization.")
 

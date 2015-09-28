@@ -1376,7 +1376,7 @@ CONTAINS
           IF (const_mol(i)/=0) THEN
              k = const_mol(i)
              IF(k>SIZE(molecule_kind_set))&
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "A constraint has been specified providing the molecule index. But the "//&
                      " molecule index ("//cp_to_string(k)//") is out of range of the possible"//&
                      " molecule kinds ("//cp_to_string(SIZE(molecule_kind_set))//").")
@@ -1420,7 +1420,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF(.NOT.found)&
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             " MOLNAME ("//TRIM(name)//") was defined for constraints, but this molecule name "//&
             "is not defined. Please check carefully your PDB, PSF (has priority over PDB) or "//&
             "input driven CP2K coordinates. In case you may not find the reason for this warning "//&

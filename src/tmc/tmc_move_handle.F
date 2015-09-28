@@ -256,7 +256,7 @@ CONTAINS
           IF(tmc_params%nr_temp.LE.1) THEN
             ! no configurational swapping if only one temperature
             mv_prob = 0.0_dp
-            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            CALL cp_warn(__LOCATION__,&
                  "Configurational swap disabled, because "//&
                  "Parallel Tempering requires more than one temperature.")
            END IF
@@ -268,7 +268,7 @@ CONTAINS
             delta_x = delta_x /au2a
             tmc_params%print_cell = .TRUE. ! print the cell sizes by default
           ELSE
-            CALL cp_warn(__SHORT_FILE__,__LINE__,&
+            CALL cp_warn(__LOCATION__,&
                  "no valid pressure defined, but volume move defined. "//&
                  "Consequently, the volume move is disabled.")
             mv_prob = 0.0_dp
@@ -355,7 +355,7 @@ CONTAINS
       ! if there is no molecule information available, 
       !   molecules moves can not be performed
       IF(mol_array(SIZE(mol_array)).EQ.SIZE(mol_array)) &
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "molecule move: there is no molecule "//&
              "information available. Please specify molecules when "//&
              "using molecule moves.")
@@ -383,7 +383,7 @@ CONTAINS
             ! check if not be swapped with the same atom type
             IF(ANY(move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
                    move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
-              CALL cp_abort(__SHORT_FILE__,__LINE__,&
+              CALL cp_abort(__LOCATION__,&
                    "ATOM_SWAP can not swap two atoms of same kind ("//&
                    TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
                    ")")
@@ -690,7 +690,7 @@ CONTAINS
                        move_types%mv_size(typ,temper)
                    END IF
                 CASE DEFAULT
-                   CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                   CALL cp_warn(__LOCATION__,&
                         "unknown move type "//cp_to_string(typ)//" with weight"//&
                         cp_to_string(move_types%mv_weight(typ)))
                 END SELECT
@@ -767,7 +767,7 @@ CONTAINS
           change_type = -1 
         END IF
       CASE DEFAULT
-        CALL cp_abort(__SHORT_FILE__,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "global elem"//cp_to_string(pt_el%nr)//&
              "has unknown status"//cp_to_string(pt_el%stat))
       END SELECT

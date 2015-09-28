@@ -161,7 +161,7 @@ CONTAINS
 #endif
 
 #if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
-    CALL cp_abort(__SHORT_FILE__,__LINE__,&
+    CALL cp_abort(__LOCATION__,&
          "Requested to use plumed for metadynamics, but cp2k was"//&
          " not compiled with plumed support.")
 #endif
@@ -338,7 +338,7 @@ END SUBROUTINE
 #endif
 
 #if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
-                CALL cp_abort(__SHORT_FILE__,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "Requested to use plumed for metadynamics, but cp2k was"//&
                      " not compiled with plumed support.")
 #endif

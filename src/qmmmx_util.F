@@ -394,14 +394,14 @@ CONTAINS
             ENDIF
          END DO
          IF(old_index <= 0)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "add_new_label found atom with a label "//&
                  "already set, but not in new_indices array")
          new_labels(old_index) = label
     ELSE
          n_new = n_new + 1
          IF(n_new > max_n_qm)&
-            CALL cp_abort(__SHORT_FILE__,__LINE__,&
+            CALL cp_abort(__LOCATION__,&
                  "add_new_label tried to add more atoms "//&
                  "than allowed by &FORCE_MIXING&MAX_N_QM!")
          IF (n_new > SIZE(new_indices)) CALL reallocate(new_indices,1,n_new+9)
@@ -698,7 +698,7 @@ CONTAINS
               ENDIF
           END DO
           IF(.NOT.mapped)&
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "Force-mixing failed to find QM_KIND mapping for atom of type "//&
                   TRIM(particles(cur_indices(ip))%atomic_kind%element_symbol)//&
                   "! ")
@@ -709,7 +709,7 @@ CONTAINS
     qm_kind_section => section_vals_get_subs_vals3(qmmm_section,"QM_KIND")
     CALL section_vals_get(qm_kind_section,n_repetition=i_rep_section_core)
     IF(i_rep_section_core <= 0)&
-       CALL cp_abort(__SHORT_FILE__,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Force-mixing QM didn't find any QM_KIND sections, "//&
             "so no core specified!")
     i_rep_section_extended = i_rep_section_core

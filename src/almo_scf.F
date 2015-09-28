@@ -674,7 +674,7 @@ CONTAINS
     ENDIF
 
     IF (almo_scf_env%quencher_r1_factor.gt.almo_max_cutoff_multiplier) THEN
-       CALL cp_abort(routineP,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
           "XALMO_R_CUTOFF_FACTOR is larger than almo_max_cutoff_multiplier"//&
           "increase the hard-coded almo_max_cutoff_multiplier")
     ENDIF

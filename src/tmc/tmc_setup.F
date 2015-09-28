@@ -685,7 +685,7 @@ CONTAINS
       CASE ("IDEAL_GAS")
         tmc_env%params%task_type = task_type_ideal_gas
       CASE DEFAULT
-        CALL cp_warn(__SHORT_FILE__,__LINE__,&
+        CALL cp_warn(__LOCATION__,&
              'unknown TMC task type "'//TRIM(c_tmp)//'" specified. '//&
              " Set to default.")
         tmc_env%params%task_type = task_type_MC

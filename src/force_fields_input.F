@@ -119,7 +119,7 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name)
        CALL cp_assert(TRIM(ff_type%ff_file_name)/="",cp_failure_level,cp_assertion_failed,routineP,&
             "Force Field Parameter's filename is empty! Please check your input file. "//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
     CASE(do_ff_undef)
        ! Do Nothing
@@ -135,7 +135,7 @@ CPSourceFileRef,&
     ! spline generation
     min_eps_spline_allowed = 20.0_dp*MAX(ff_type%max_energy,10.0_dp)*EPSILON(0.0_dp)
     IF (ff_type%eps_spline < min_eps_spline_allowed) THEN
-       CALL cp_warn(__SHORT_FILE__,__LINE__,&
+       CALL cp_warn(__LOCATION__,&
             "Requested spline accuracy ("//TRIM(cp_to_string(ff_type%eps_spline))//" ) "//&
             "is smaller than the minimum value allowed ("//TRIM(cp_to_string(min_eps_spline_allowed))//&
             " ) with the present machine precision ("//TRIM(cp_to_string(EPSILON(0.0_dp)))//" ). "//&

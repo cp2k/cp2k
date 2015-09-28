@@ -423,7 +423,7 @@ CONTAINS
     CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride)
     CALL cp_assert(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
          "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
-CPSourceFileRef,&
+__LOCATION__,&
          only_ionode=.TRUE.)
     IF (SIZE(my_stride)==1) THEN
        DO i = 1,3

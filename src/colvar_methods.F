@@ -636,7 +636,7 @@ CONTAINS
             "Number of defined COLVAR for COMBINE_COLVAR is different from the "//&
             "number of variables! It is not possible to define COLVARs in a COMBINE_COLVAR "//&
             "and avoid their usage in the combininig function!"//&
-CPSourceFileRef)
+__LOCATION__)
        ! Parameters
        ALLOCATE(colvar%combine_cvs_param%c_parameters(0))
        CALL section_vals_val_get(combine_section,"PARAMETERS",n_rep_val=ncol)
@@ -742,7 +742,7 @@ CPSourceFileRef)
        CALL section_vals_get(plane_sections, n_repetition=n_var)
        CALL cp_assert(n_var==2,cp_fatal_level,cp_assertion_failed,routineP,&
                "PLANE_PLANE_ANGLE Colvar section: Two PLANE sections must be provided!"//&
-CPSourceFileRef)
+__LOCATION__)
        ! Plane 1
        CALL section_vals_val_get(plane_sections,"DEF_TYPE",i_rep_section=1,&
             i_val=colvar%plane_plane_angle_param%plane1%type_of_def)
@@ -874,7 +874,7 @@ CPSourceFileRef)
              END DO
              CALL cp_assert(ndim==colvar%rmsd_param%n_atoms,cp_fatal_level,cp_assertion_failed,routineP,&
                   "CV RMSD: list of atoms and list of weights need to contain same number of entries. "//&
-                  CPSourceFileRef)
+                  __LOCATION__)
              DO i = 1, ndim
                 ii = colvar%rmsd_param%i_rmsd(i)
                 colvar%rmsd_param%weights(ii) = weights(i)
@@ -957,12 +957,12 @@ CPSourceFileRef)
        ndim = colvar%ring_puckering_param%nring
        CALL cp_assert(ndim > 3,cp_fatal_level,cp_assertion_failed,routineP,&
             "CV Ring Puckering: Ring size has to be 4 or larger. "//&
-            CPSourceFileRef)
+            __LOCATION__)
        ii = colvar%ring_puckering_param%iq
        CALL cp_assert( (ABS(ii)/=1 .AND. ii>=-(ndim-1)/2 .AND. ii<=ndim/2) ,&
             cp_fatal_level,cp_assertion_failed,routineP,&
             "CV Ring Puckering: Invalid coordinate number. "//&
-            CPSourceFileRef)
+            __LOCATION__)
     ELSE IF (my_subsection(23)) THEN
        ! Minimum Distance
        wrk_section => mindist_section
@@ -2051,7 +2051,7 @@ CPSourceFileRef)
                 WRITE(def_error,"(A,G12.6,A)")"(",lerr,")"
                 CALL compress(this_error,.TRUE.)
                 CALL compress(def_error,.TRUE.)
-                CALL cp_warn(__SHORT_FILE__,__LINE__,&
+                CALL cp_warn(__LOCATION__,&
                      'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                      ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
                      TRIM(def_error)//' .')
@@ -3614,7 +3614,7 @@ CPSourceFileRef)
           WRITE(def_error,"(A,G12.6,A)")"(",colvar%combine_cvs_param%lerr,")"
           CALL compress(this_error,.TRUE.)
           CALL compress(def_error,.TRUE.)
-          CALL cp_warn(__SHORT_FILE__,__LINE__,&
+          CALL cp_warn(__LOCATION__,&
                'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
                ' Error '//TRIM(this_error)//' in computing numerical derivatives larger then'//&
                TRIM(def_error)//' . ')
@@ -5032,7 +5032,7 @@ CPSourceFileRef)
                  "Number of lines in XYZ format not equal to the number of atoms."//&
                  " Error in XYZ format for COORD_A (CV rmsd). Very probably the"//&
                  " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
-CPSourceFileRef,&
+__LOCATION__,&
             only_ionode=.TRUE.)
             READ(parser%input_line,*) dummy_char,rptr(1:3)
             r_ref((j-1)*3+1,i) = cp_unit_to_cp2k(rptr(1),"angstrom")

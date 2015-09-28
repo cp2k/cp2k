@@ -32,28 +32,14 @@
                                              cp_caller_error,&
                                              cp_wrong_args_error,&
                                              cp_unimplemented_error_nr,&
-                                             cp__a,cp__b,cp__w
+                                             cp__a,cp__b,cp__w,cp__l
 
-! The following macros are here to facilitate the use of error handling
-! proposed in cp_error_handling.
-! they assume at least
-! 'use cp_error_handling, only: cp_assert, cp_a_l, cp_error_type'
-! and 'use cp_log_handling, only: cp_to_string'
-! They ere useful because they give a reference to the file and line
-! number in the error message.
-
-
-! this macro expands to a string that contains the filename.
-! if the path is long the filename could make that some lines of code
-! become too long and overlow (fortran compilers have a maximum line length)
-! in this case substitute __FILE__ with "file" down here.
-! obviously then the error messages will not give the filename.
-! (otherwise make the file reference in the makefile relative vs. absolute)
+! Dangerous: Full path can be arbitrarily long and might overflow Fortran line.
 #if !defined(__SHORT_FILE__)
 #define __SHORT_FILE__ __FILE__
 #endif
-#define CPSourceFileRef __SHORT_FILE__//':'//TRIM(ADJUSTL(cp_to_string(__LINE__)))
 
+#define __LOCATION__ cp__l(__SHORT_FILE__,__LINE__)
 #define CPWARN(msg) CALL cp__w(__SHORT_FILE__,__LINE__,msg)
 #define CPABORT(msg) CALL cp__b(__SHORT_FILE__,__LINE__,msg)
 #define CPASSERT(cond) IF(.NOT.(cond))CALL cp__a(__SHORT_FILE__,__LINE__)

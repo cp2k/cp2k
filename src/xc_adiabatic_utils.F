@@ -135,7 +135,7 @@ CONTAINS
        SELECT CASE(adiabatic_model)
        CASE(do_adiabatic_model_pade)
           IF(n_rep_hf /= 2)&
-             CALL cp_abort(__SHORT_FILE__,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   " For this kind of adiababatic hybrid functional 2 HF sections have to be provided. "//&
                   " Please check your input file.")
           CALL rescale_MCY3_pade(qs_env, hf_energy, energy, adiabatic_lambda, &

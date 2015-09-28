@@ -175,7 +175,7 @@ CONTAINS
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
             message="matrixes must be in the same blacs context"//&
-            CPSourceFileRef)
+            __LOCATION__)
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN
@@ -260,7 +260,7 @@ CONTAINS
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
             message="matrices must be in the same blacs context"//&
-            CPSourceFileRef)
+            __LOCATION__)
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN
