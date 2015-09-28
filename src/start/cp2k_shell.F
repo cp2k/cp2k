@@ -152,7 +152,7 @@ PROGRAM cp2k_shell
   e_fact=1.0_dp
   units='au'
   harsh=.FALSE.
-  failure=.TRUE.
+  failure=.FALSE.
 
   logger => cp_get_default_logger()
   para_env => logger%para_env
