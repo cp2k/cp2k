@@ -743,7 +743,7 @@ NVFLAGS="-arch sm_35 \$(DFLAGS) "
 gen_arch_file() {
  filename=$1
  flags=$2
- TMPL=`cat ../../arch.tmpl`
+ TMPL=`cat ${rootdir}/arch.tmpl`
  eval "printf \"$TMPL\"" | cpp -traditional-cpp -P ${flags} - > $filename
  echo "Wrote install/arch/"$filename
 }
