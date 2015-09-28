@@ -35,7 +35,8 @@ quip_ver=cc83ceea5776c40fcb5ab224a25ab04d62175449
 #binutils_ver=2.24
 binutils_ver=2.25
 #valgrind_ver=3.10.0
-valgrind_ver=3.10.1
+#valgrind_ver=3.10.1
+valgrind_ver=3.11.0
 lcov_ver=1.11
 #gcc_ver=4.9.2
 #gcc_ver=5.1.0
@@ -689,7 +690,7 @@ else
       echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_x86_64_gfortran
       export QUIP_ARCH=linux_x86_64_gfortran
       # hit enter a few times to accept defaults
-      echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+      echo -e "-lreflapack -lrefblas\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
       # make -j does not work :-(
       make >& make.log
       cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
