@@ -1107,6 +1107,8 @@ SUBROUTINE INIT(Nder,iunit,mepos,group)
   IF(ALLOCATED(C0)) DEALLOCATE(C0)
   ! round up to a multiple of 32 to give some generous alignment for each C0
   ALLOCATE(C0(32*((31+(Nder+1)*(degree+1)*(degree+2)/2)/32),patches))
+  ! valgrind workaround
+  C0=HUGE(0.0_dp)
   IF( mepos == 0 ) THEN
     ALLOCATE(chunk((nderiv_max+1)*(degree+1)*(degree+2)/2))
     DO I=1,patches
