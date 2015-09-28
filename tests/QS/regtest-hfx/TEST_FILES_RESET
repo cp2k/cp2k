@@ -400,3 +400,6 @@ H2O-hfx-ls-rtp-bch.inp
 #fix sign in arnoldi
 H2O-hfx-emd.inp 
 H2O-hfx-emd-restart.inp
+#fix bug in copy_into_existing in dbcsr
+H2O-hfx-ls-emd.inp
+H2O-hfx-ls-emd-bch.inp
