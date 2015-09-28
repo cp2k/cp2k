@@ -168,7 +168,6 @@ done
 ###################################################################################
 cp2k_version=${cp2k_version:-sopt}
 dir_triplet=${dir_triplet:-Linux-x86-64-gfortran}
-job_max_time=${job_max_time:-600}
 emptycheck=${emptycheck:-"NO"}
 leakcheck=${leakcheck:-"NO"}
 doretest=${doretest:-"no"}
@@ -192,8 +191,10 @@ maxtasks=${maxtasks:-${maxtasksdefault}}
 
 if [[ $dir_triplet == *valgrind* ]] ; then
    valgrindstring="valgrind $VALGRIND_OPTIONS"
+   job_max_time=${job_max_time:-7200}
 else
    valgrindstring=""
+   job_max_time=${job_max_time:-600}
 fi
 
 if [[ $cp2k_version == p* ]] ; then
