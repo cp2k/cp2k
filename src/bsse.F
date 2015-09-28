@@ -441,17 +441,15 @@ CONTAINS
     IF (explicit) THEN
        DO i=1, nconf
           CALL section_vals_val_get(configurations,"GLB_CONF", i_rep_section=i, i_vals=glb_conf)
-          CALL cp_assert(SIZE(glb_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
-               "GLB_CONF requires a binary description of the configuration. Number of integer "//&
-               "different from the number of fragments defined!"//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(SIZE(glb_conf)/=SIZE(conf))&
+             CALL cp_abort(__LOCATION__,&
+                  "GLB_CONF requires a binary description of the configuration. Number of integer "//&
+                  "different from the number of fragments defined!")
           CALL section_vals_val_get(configurations,"SUB_CONF", i_rep_section=i, i_vals=sub_conf)
-          CALL cp_assert(SIZE(sub_conf)==SIZE(conf),cp_fatal_level,cp_assertion_failed,routineP,&
-               "SUB_CONF requires a binary description of the configuration. Number of integer "//&
-               "different from the number of fragments defined!"//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(SIZE(sub_conf)/=SIZE(conf))&
+             CALL cp_abort(__LOCATION__,&
+                  "SUB_CONF requires a binary description of the configuration. Number of integer "//&
+                  "different from the number of fragments defined!")
           IF (ALL(conf==glb_conf).AND.ALL(conf_loc==sub_conf)) THEN
              CALL section_vals_val_get(configurations,"CHARGE", i_rep_section=i,&
                                        i_val=present_charge)

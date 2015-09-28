@@ -197,14 +197,14 @@ CONTAINS
     CALL heap_new (bin_heap_count, nbins)
     CALL heap_fill (bin_heap_count, &
          (/(bin, bin=1, nbins)/), workload_count , heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error, &
-         routineN, "Error initially filling the heap.")
+    IF(heap_error)&
+       CPABORT("Error initially filling the heap.")
 
     CALL heap_new (bin_heap_fill, nbins)
     CALL heap_fill (bin_heap_fill, &
          (/(bin, bin=1, nbins)/), workload_fill , heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error, &
-         routineN, "Error initially filling the heap.")
+    IF(heap_error)&
+       CPABORT("Error initially filling the heap.")
 
     DO imolecule_kind=1, nmolecule_kind
 
@@ -239,14 +239,14 @@ CONTAINS
             END DO
          ELSE
             CALL heap_get_first (bin_heap_count, bin, bin_price, found, heap_error)
-            CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error, &
-                 routineN, "Error getting topmost heap element.")
-            CALL cp_assert (found, cp_fatal_level, cp_internal_error, &
-                 routineN, "No topmost heap element found.")
+            IF(heap_error)&
+               CPABORT("Error getting topmost heap element.")
+            IF(.NOT.found)&
+               CPABORT("No topmost heap element found.")
 
             ipe = bin
-            CALL cp_assert (bin_price==workload_count(ipe), cp_fatal_level, cp_internal_error, &
-                 routineN, "inconsistent heap")
+            IF(bin_price/=workload_count(ipe))&
+               CPABORT("inconsistent heap")
 
             workload_count(ipe) = workload_count(ipe) + nload
             IF (ipe == mype) THEN
@@ -255,8 +255,8 @@ CONTAINS
 
             bin_price = workload_count(ipe)
             CALL heap_reset_first (bin_heap_count, bin_price, heap_error)
-            CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error, &
-                 routineN, "Error setting price of top heap element.")
+            IF(heap_error)&
+               CPWARN("Error setting price of top heap element.")
          END IF
       END DO
 
@@ -287,14 +287,14 @@ CONTAINS
             END DO
          ELSE
             CALL heap_get_first (bin_heap_fill, bin, bin_price, found, heap_error)
-            CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error, &
-                 routineN, "Error getting topmost heap element.")
-            CALL cp_assert (found, cp_fatal_level, cp_internal_error, &
-                 routineN, "No topmost heap element found.")
+            IF(heap_error)&
+               CPABORT("Error getting topmost heap element.")
+            IF(.NOT.found)&
+               CPABORT("No topmost heap element found.")
 
             ipe = bin
-            CALL cp_assert (bin_price==workload_fill(ipe), cp_fatal_level, cp_internal_error, &
-                 routineN, "inconsistent heap")
+            IF(bin_price/=workload_fill(ipe))&
+               CPABORT("inconsistent heap")
 
             workload_fill(ipe) = workload_fill(ipe) + nload
             is_local = (ipe == mype)
@@ -314,8 +314,8 @@ CONTAINS
          IF (.NOT. has_prev_subsys_info) THEN
             bin_price = workload_fill(ipe)
             CALL heap_reset_first (bin_heap_fill, bin_price, heap_error)
-            CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error, &
-                 routineN, "Error setting price of top heap element.")
+            IF(heap_error)&
+               CPWARN("Error setting price of top heap element.")
          END IF
       END DO
 
@@ -652,8 +652,8 @@ CONTAINS
        CALL section_vals_val_get(distribution_section, "COST_MODEL", i_val=cost_model)
        IF (.NOT.molecular_distribution) THEN
           DO iatom = 1, natom
-             CALL cp_assert (iatom .LE. nclusters, cp_fatal_level, &
-                  cp_internal_error, routineN, "Bounds error")
+             IF(iatom .GT. nclusters)&
+                CPABORT("Bounds error")
              CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
              cluster_list(iatom) = iatom
              SELECT CASE (cost_model)
@@ -708,8 +708,8 @@ CONTAINS
                nprow, cluster_row_distribution(:,1), npcol, cluster_col_distribution(:,1))
        ELSE
           IF(basic_cluster_optimization)THEN
-          CALL cp_assert(.NOT. molecular_distribution,cp_failure_level,cp_assertion_failed,&
-                         routineP,"clustering and molecular blocking NYI")
+          IF(molecular_distribution)&
+             CPABORT("clustering and molecular blocking NYI")
              ALLOCATE(pbc_scaled_coords(3, natom),coords(3, natom))
              DO iatom=1, natom
                 CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
@@ -958,8 +958,8 @@ CONTAINS
     CALL heap_new (bin_heap, nbins)
     CALL heap_fill (bin_heap, &
          (/(bin, bin=0, nbins-1)/), (/(0, bin=1, nbins)/), heap_error)
-    CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error, &
-         routineN, "Error initially filling the heap.")
+    IF(heap_error)&
+       CPABORT("Error initially filling the heap.")
     !
     nclusters = SIZE (cluster_list)
     ! Put the most expensive cluster in the bin with the smallest
@@ -967,25 +967,25 @@ CONTAINS
     DO cluster_index = nclusters, 1, -1
        cluster = cluster_list(cluster_index)
        CALL heap_get_first (bin_heap, bin, bin_price, found, heap_error)
-       CALL cp_assert (.NOT. heap_error, cp_fatal_level, cp_internal_error, &
-            routineN, "Error getting topmost heap element.")
-       CALL cp_assert (found, cp_fatal_level, cp_internal_error, &
-            routineN, "No topmost heap element found.")
+       IF(heap_error)&
+          CPABORT("Error getting topmost heap element.")
+       IF(.NOT.found)&
+          CPABORT("No topmost heap element found.")
        !
        prow = INT (bin*pgrid_gcd / npcols)
-       CALL cp_assert (prow .LT. nprows, cp_fatal_level, cp_internal_error, &
-            routineN, "Invalid process row.")
+       IF(prow .GE. nprows)&
+          CPABORT("Invalid process row.")
        pcol = INT (bin*pgrid_gcd / nprows)
-       CALL cp_assert (pcol .LT. npcols, cp_fatal_level, cp_internal_error, &
-            routineN, "Invalid process column.")
+       IF(pcol .GE. npcols)&
+          CPABORT("Invalid process column.")
        row_distribution (cluster) = prow + 1
        col_distribution (cluster) = pcol + 1
        !
        cluster_price = cluster_prices(cluster_index)
        bin_price = bin_price + cluster_price
        CALL heap_reset_first (bin_heap, bin_price, heap_error)
-       CALL cp_assert (.NOT. heap_error, cp_warning_level, cp_internal_error, &
-            routineN, "Error setting price of top heap element.")
+       IF(heap_error)&
+          CPWARN("Error setting price of top heap element.")
     ENDDO
     CALL heap_release (bin_heap)
     CALL timestop (timing_handle)

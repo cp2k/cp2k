@@ -197,8 +197,8 @@ CONTAINS
                        nshell=nshell,&
                        particles=particles,&
                        virial=virial)
-    CALL cp_assert((nshell == 0),cp_failure_level,cp_assertion_failed,routineP,&
-                   "Langevin dynamics is not yet implemented for core-shell models")
+    IF(nshell /= 0)&
+       CPABORT("Langevin dynamics is not yet implemented for core-shell models")
 
     nparticle_kind = atomic_kinds%n_els
     atomic_kind_set => atomic_kinds%els
@@ -1626,11 +1626,10 @@ CONTAINS
 
     ! Check if we reached the end of the file and provide some info..
     IF (my_end) THEN
-       CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
-            "Reached the end of the Trajectory  frames in the TRAJECTORY file. Number of "//&
-            "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(reftraj_env%isnap/=(simpar%nsteps-1))&
+          CALL cp_abort(__LOCATION__,&
+               "Reached the end of the Trajectory  frames in the TRAJECTORY file. Number of "//&
+               "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//").")
     END IF
 
     IF(reftraj_env%info%variable_volume)THEN
@@ -1639,11 +1638,10 @@ __LOCATION__,&
        CPASSERT(trj_itimes==cell_itimes)
        ! Check if we reached the end of the file and provide some info..
        IF (my_end) THEN
-          CALL cp_assert(reftraj_env%isnap==(simpar%nsteps-1),cp_fatal_level,cp_assertion_failed,routineP,&
-               "Reached the end of the cell info frames in the CELL file. Number of "//&
-               "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//")."//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(reftraj_env%isnap/=(simpar%nsteps-1))&
+             CALL cp_abort(__LOCATION__,&
+                  "Reached the end of the cell info frames in the CELL file. Number of "//&
+                  "missing frames ("//cp_to_string((simpar%nsteps-1)-reftraj_env%isnap)//").")
        END IF
     END IF
 

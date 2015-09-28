@@ -556,9 +556,7 @@ CONTAINS
     SELECT CASE (scf_env%method)
     CASE DEFAULT
 
-       CALL cp_abort(__LOCATION__,&
-            "unknown scf method method:"//&
-            cp_to_string(scf_env%method))
+       CPABORT("unknown scf method method:"//cp_to_string(scf_env%method))
 
     CASE (filter_matrix_diag_method_nr)
 
@@ -647,11 +645,10 @@ CONTAINS
           IF (dft_control%restricted) THEN
               scf_env%qs_ot_env(1)%restricted=.TRUE.
               ! requires rotation
-              CALL cp_assert(scf_env%qs_ot_env(1)%settings%do_rotation,cp_fatal_level,&
-                   cp_assertion_failed,routineP,&
-                   "Restricted calculation with OT requires orbital rotation. Please "//&
-                   "activate the OT%ROTATION keyword! "//&
-__LOCATION__)
+              IF(.NOT.scf_env%qs_ot_env(1)%settings%do_rotation)&
+                 CALL cp_abort(__LOCATION__,&
+                      "Restricted calculation with OT requires orbital rotation. Please "//&
+                      "activate the OT%ROTATION keyword!")
           ELSE
               scf_env%qs_ot_env(:)%restricted=.FALSE.
           ENDIF
@@ -805,9 +802,7 @@ __LOCATION__)
        CASE(filter_matrix_diag_method_nr)
    !
        CASE DEFAULT
-          CALL cp_abort(__LOCATION__,&
-               "unknown scf method method:"//&
-               cp_to_string(scf_env%method))
+          CPABORT("unknown scf method method:"//cp_to_string(scf_env%method))
        END SELECT
 
        IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN

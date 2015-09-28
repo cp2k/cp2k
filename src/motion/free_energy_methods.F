@@ -134,9 +134,10 @@ CONTAINS
        CASE(do_fe_ac)
           CALL initf(2)
           ! Alchemical Changes
-          CALL cp_assert(ASSOCIATED(force_env%mixed_env),cp_fatal_level,-300,routineP,&
-               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
-               ' Free Energy calculations require the definition of a mixed env!')
+          IF(.NOT.ASSOCIATED(force_env%mixed_env))&
+             CALL cp_abort(__LOCATION__,&
+                  'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+                  ' Free Energy calculations require the definition of a mixed env!')
           my_par => force_env%mixed_env%par
           my_val => force_env%mixed_env%val
           dx     =  force_env%mixed_env%dx

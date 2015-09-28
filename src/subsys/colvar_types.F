@@ -645,11 +645,11 @@ CONTAINS
        IF (colvar%plane_plane_angle_param%plane1%type_of_def==plane_def_atoms) np = np +3
        IF (colvar%plane_plane_angle_param%plane2%type_of_def==plane_def_atoms) np = np +3
        ! if np is equal to zero this means that this is not a COLLECTIVE variable..
-       CALL cp_assert(np/=0,cp_fatal_level,cp_assertion_failed,routineP,&
-            "PLANE_PLANE_ANGLE Colvar defined using two normal vectors! This is "//&
-            "not a COLLECTIVE VARIABLE! One of the two planes must be defined "//&
-            "using atomic positions. "//&
-__LOCATION__)
+       IF(np==0)&
+          CALL cp_abort(__LOCATION__,&
+               "PLANE_PLANE_ANGLE Colvar defined using two normal vectors! This is "//&
+               "not a COLLECTIVE VARIABLE! One of the two planes must be defined "//&
+               "using atomic positions.")
 
        ! Number of real atoms involved in the colvar
        colvar%n_atom_s= 0

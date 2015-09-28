@@ -165,10 +165,8 @@ CONTAINS
        END DO
     END IF
     norm = SQRT(SUM(dimer_env%nvec**2))
-    CALL cp_assert(norm>EPSILON(0.0_dp),cp_failure_level,cp_assertion_failed,routineP,&
-         "The norm of the dimer vector is 0! Calculation cannot proceed further. "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(norm<=EPSILON(0.0_dp))&
+       CPABORT("The norm of the dimer vector is 0! Calculation cannot proceed further.")
     dimer_env%nvec = dimer_env%nvec / norm
     dimer_env%rot%rotation_step= do_first_rotation_step
     CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr)

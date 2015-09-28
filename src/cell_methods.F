@@ -126,21 +126,19 @@ CONTAINS
        cell%hmat(:,3) = cell_par(:)
     END IF
     check = ((cell_read_a.EQV.cell_read_b).AND.(cell_read_b.EQV.cell_read_c))
-    CALL cp_assert(check,cp_warning_level,cp_assertion_failed,routineP,&
-         "Cell Information provided through vectors A, B and C. Not all three "//&
-         "vectors were provided! Cell setup may be incomplete!"//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(.NOT.check)&
+       CALL cp_warn(__LOCATION__,&
+            "Cell Information provided through vectors A, B and C. Not all three "//&
+            "vectors were provided! Cell setup may be incomplete!")
 
     ! Very last option.. Trying to read cell info from ABC keyword
     CALL section_vals_val_get(cell_section,"ABC",explicit=cell_read_abc)
     IF (cell_read_abc) THEN
        check = (cell_read_a.OR.cell_read_b.OR.cell_read_c)
-       CALL cp_assert(.NOT.check,cp_warning_level,cp_assertion_failed,routineP,&
-            "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
-            " The definition of the ABC keyword will override the one provided by A,B and C."//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(check)&
+          CALL cp_warn(__LOCATION__,&
+               "Cell Information provided through vectors A, B and C in conjunction with ABC."//&
+               " The definition of the ABC keyword will override the one provided by A,B and C.")
        cell%hmat = 0.0_dp
        CALL section_vals_val_get(cell_section,"ABC",r_vals=cell_par)
        CALL section_vals_val_get(cell_section,"ALPHA_BETA_GAMMA",r_vals=cell_angles)
@@ -246,8 +244,7 @@ __LOCATION__,&
 
     CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
          "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
-         "A value of 0 or negative is meaningless!"//&
-__LOCATION__)
+         "A value of 0 or negative is meaningless!")
 
     ! scale abc accordingly user request
     cell%hmat(:,1) = cell%hmat(:,1)*multiple_unit_cell(1)
@@ -315,12 +312,11 @@ __LOCATION__)
     CALL section_vals_val_get(cell_section,"ABC",n_rep_val=n_rep)
     explicit = explicit .OR. (n_rep==1)
     ! Possibly print a warning
-    CALL cp_assert(.NOT.explicit,cp_warning_level,cp_assertion_failed,routineP,&
-         "Cell specification (A,B,C or ABC) provided together with the external "//&
-         "cell setup! Ignoring (A,B,C or ABC) and proceeding with info read from the "//&
-         "external file! "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(explicit)&
+       CALL cp_warn(__LOCATION__,&
+            "Cell specification (A,B,C or ABC) provided together with the external "//&
+            "cell setup! Ignoring (A,B,C or ABC) and proceeding with info read from the "//&
+            "external file! ")
     ! Copy cell information in the A, B, C fields..(we may need them later on..)
     ALLOCATE(cell_par(3))
     cell_par = hmat(:,1)

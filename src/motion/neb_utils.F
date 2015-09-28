@@ -224,12 +224,11 @@ CONTAINS
           DO iatom=1,natom
              ! Atom coordinates
              CALL parser_get_next_line(parser,1,at_end=my_end)
-             CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "Number of lines in XYZ format not equal to the number of atoms."//&
-                  " Error in XYZ format for REPLICA coordinates. Very probably the"//&
-                  " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
-__LOCATION__,&
-             only_ionode=.TRUE.)
+             IF(my_end)&
+                CALL cp_abort(__LOCATION__,&
+                     "Number of lines in XYZ format not equal to the number of atoms."//&
+                     " Error in XYZ format for REPLICA coordinates. Very probably the"//&
+                     " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
              READ (parser%input_line,*) dummy_char,r(1:3)
              ic = 3*(iatom - 1)
              coords%xyz(ic+1:ic+3,i_rep) = r(1:3)*bohr

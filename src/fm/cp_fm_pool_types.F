@@ -239,10 +239,8 @@ CONTAINS
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
     CPASSERT(ASSOCIATED(element))
-    CALL cp_assert(pool%el_struct%id_nr==element%matrix_struct%id_nr,&
-      cp_failure_level, cp_assertion_failed, routineP,&
-      "pool cannot reuse matrixes with another structure "//&
-      __LOCATION__)
+    IF(pool%el_struct%id_nr/=element%matrix_struct%id_nr)&
+       CPABORT("pool cannot reuse matrixes with another structure")
 
     CPASSERT(element%ref_count==1)
     IF (cp_debug) THEN

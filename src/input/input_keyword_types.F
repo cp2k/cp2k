@@ -298,10 +298,10 @@ CONTAINS
                " assumed undefined type by default")
        END IF
     ELSE IF (PRESENT(type_of_var)) THEN
-       CALL cp_assert(keyword%type_of_var==type_of_var,cp_failure_level,&
-            cp_assertion_failed,routineP, &
-            "keyword "//TRIM(keyword%names(1))//&
-            " has a type different from the type of the default_value")
+       IF(keyword%type_of_var/=type_of_var)&
+          CALL cp_abort(__LOCATION__,&
+               "keyword "//TRIM(keyword%names(1))//&
+               " has a type different from the type of the default_value")
        keyword%type_of_var=type_of_var
     END IF
 
@@ -320,9 +320,8 @@ CONTAINS
        CALL val_retain(lone_keyword_val)
        IF (ASSOCIATED(lone_keyword_val%enum)) THEN
           IF (ASSOCIATED(keyword%enum)) THEN
-             CALL cp_assert(keyword%enum%id_nr==lone_keyword_val%enum%id_nr, &
-                  cp_failure_level,cp_assertion_failed,routineP, &
-                  "keyword%enum%id_nr==lone_keyword_val%enum%id_nr")
+             IF(keyword%enum%id_nr/=lone_keyword_val%enum%id_nr)&
+                CPABORT("keyword%enum%id_nr==lone_keyword_val%enum%id_nr")
           ELSE
              IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
                 CPABORT(".NOT. ASSOCIATED(keyword%lone_keyword_value)")
@@ -344,10 +343,8 @@ CONTAINS
        IF (keyword%lone_keyword_value%type_of_var==no_t) THEN
           CALL val_release(keyword%lone_keyword_value)
        ELSE
-          CALL cp_assert(keyword%lone_keyword_value%type_of_var==keyword%type_of_var,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "lone_keyword_value type incompatible with "//&
-               "keyword type")
+          IF(keyword%lone_keyword_value%type_of_var/=keyword%type_of_var)&
+             CPABORT("lone_keyword_value type incompatible with keyword type")
           ! lc_val cannot have lone_keyword_value!
           IF (keyword%type_of_var==enum_t) THEN
              IF (keyword%enum%strict) THEN
@@ -355,8 +352,8 @@ CONTAINS
                 DO i=1, SIZE(keyword%enum%i_vals)
                    check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
                 END DO
-                CALL cp_assert(check,cp_failure_level,&
-                     cp_assertion_failed,routineP,"default value not in enumeration : "//keyword%names(1))
+                IF(.NOT.check)&
+                   CPABORT("default value not in enumeration : "//keyword%names(1))
              ENDIF
           ENDIF
        END IF
@@ -375,9 +372,8 @@ CONTAINS
              DO i=1, SIZE(keyword%enum%i_vals)
                 check = check .OR. (keyword%default_value%i_val(1)==keyword%enum%i_vals(i))
              END DO
-             CALL cp_assert(check,cp_failure_level,&
-                  cp_assertion_failed,routineP,"default value not in enumeration : "//&
-                  keyword%names(1))
+             IF(.NOT.check)&
+                CPABORT("default value not in enumeration : "//keyword%names(1))
           ENDIF
           keyword%n_var=SIZE(keyword%default_value%i_val)
        CASE(real_t)

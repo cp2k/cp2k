@@ -190,18 +190,14 @@ CONTAINS
        n_rep=nrep
     END IF
 
-    CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
-         " Trying to access result ("//TRIM(description)//") which was never stored! "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(nrep.LE.0)&
+       CALL cp_abort(__LOCATION__,&
+            " Trying to access result ("//TRIM(description)//") which was never stored!")
 
     DO i=1,nlist
        IF(TRIM(results%result_label(i))==TRIM(description))THEN
-          CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "Attempt to retrieve a RESULT which is not a REAL! "//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(results%result_value(i)%value%type_in_use/=result_type_real)&
+             CPABORT("Attempt to retrieve a RESULT which is not a REAL!")
 
           size_res=SIZE(results%result_value(i)%value%real_type)
           EXIT
@@ -270,18 +266,14 @@ __LOCATION__,&
        n_rep=nrep
     END IF
 
-    CALL cp_assert(nrep.GT.0,cp_failure_level,cp_assertion_failed,routineP,&
-         " Trying to access result ("//TRIM(description)//") which was never stored! "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(nrep.LE.0)&
+       CALL cp_abort(__LOCATION__,&
+            " Trying to access result ("//TRIM(description)//") which was never stored!")
 
     DO i=1,nlist
        IF(TRIM(results%result_label(i))==TRIM(description))THEN
-          CALL cp_assert(results%result_value(i)%value%type_in_use==result_type_real,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "Attempt to retrieve a RESULT which is not a REAL! "//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(results%result_value(i)%value%type_in_use/=result_type_real)&
+             CPABORT("Attempt to retrieve a RESULT which is not a REAL!")
 
           size_res=SIZE(results%result_value(i)%value%real_type)
           EXIT

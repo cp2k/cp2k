@@ -1851,10 +1851,8 @@ CONTAINS
        CALL get_molecule_kind_set(molecule_kind_set=molecule_kinds%els,&
                                   nconstraint=nconstraint,&
                                   nconstraint_fixd=nconstraint_fixd)
-       CALL cp_assert((nconstraint - nconstraint_fixd == 0),&
-                      cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Only the fixed atom constraint is implemented for core-shell models",&
-                      only_ionode=.TRUE.)
+       IF(nconstraint - nconstraint_fixd /= 0)&
+          CPABORT("Only the fixed atom constraint is implemented for core-shell models")
 !MK    CPPostcondition(.NOT.simpar%constraint,cp_failure_level,routineP,failure)
        CPASSERT(ASSOCIATED(shell_particles))
        CPASSERT(ASSOCIATED(core_particles))
@@ -1980,9 +1978,8 @@ CONTAINS
     IF (init_cascade) THEN
 
        CALL section_vals_val_get(cascade_section,"ENERGY",r_val=energy)
-       CALL cp_assert((energy >= 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Error occurred reading &CASCADE section: Negative energy found",&
-                      only_ionode=.TRUE.)
+       IF(energy < 0.0_dp)&
+          CPABORT("Error occurred reading &CASCADE section: Negative energy found")
 
        IF (iw > 0) THEN
           ekin = cp_unit_from_cp2k(energy,"keV")
@@ -1996,9 +1993,8 @@ CONTAINS
        atom_list_section => section_vals_get_subs_vals(cascade_section,"ATOM_LIST")
        CALL section_vals_val_get(atom_list_section,"_DEFAULT_KEYWORD_",n_rep_val=natom)
        CALL section_vals_list_get(atom_list_section,"_DEFAULT_KEYWORD_",list=atom_list)
-       CALL cp_assert((natom > 0),cp_fatal_level,cp_assertion_failed,routineP,&
-                      "Error occurred reading &CASCADE section: No atom list found",&
-                      only_ionode=.TRUE.)
+       IF(natom <= 0)&
+          CPABORT("Error occurred reading &CASCADE section: No atom list found")
 
        IF (iw > 0) THEN
           WRITE (UNIT=iw,FMT="(T2,A,T11,A,3(11X,A),9X,A)")&
@@ -2024,9 +2020,8 @@ CONTAINS
                          cp_fatal_level,cp_assertion_failed,routineP,&
                          "Error occurred reading &CASCADE section: Invalid atom index found",&
                          only_ionode=.TRUE.)
-          CALL cp_assert((weight(iatom) >= 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Error occurred reading &CASCADE section: Negative weight found",&
-                         only_ionode=.TRUE.)
+          IF(weight(iatom) < 0.0_dp)&
+             CPABORT("Error occurred reading &CASCADE section: Negative weight found")
           IF (iw > 0) THEN
              WRITE (UNIT=iw,FMT="(T2,A,I10,4(1X,F14.6))")&
               "CASCADE| ",atom_index(iatom),vatom(1:3,iatom),weight(iatom)
@@ -2037,10 +2032,8 @@ CONTAINS
        norm = 0.0_dp
        DO iatom=1,natom
           iparticle = atom_index(iatom)
-          CALL cp_assert((particle_set(iparticle)%shell_index == 0),&
-                         cp_warning_level,cp_assertion_failed,routineP,&
-                         "Warning: The primary knock-on atom is a core-shell atom",&
-                         only_ionode=.TRUE.)
+          IF(particle_set(iparticle)%shell_index /= 0)&
+             CPWARN("Warning: The primary knock-on atom is a core-shell atom")
           atomic_kind => particle_set(iparticle)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=matom(iatom))
           norm = norm + matom(iatom)*weight(iatom)

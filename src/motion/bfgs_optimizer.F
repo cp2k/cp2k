@@ -160,13 +160,13 @@ CONTAINS
 
     ndf   = SIZE(x0)
     nfree = gopt_env%nfree
-    CALL cp_assert((ndf <= 3000),cp_note_level,cp_assertion_failed,routineP,&
-                   "The dimension of the Hessian matrix ("//&
-                   TRIM(ADJUSTL(cp_to_string(ndf)))//") is greater than 3000. "//&
-                   "The diagonalisation of the full Hessian  matrix needed for BFGS "//&
-                   "is computationally expensive. You should consider to use the linear "//&
-                   "scaling variant L-BFGS instead.",&
-                   only_ionode=.TRUE.)
+    IF(ndf > 3000)&
+       CALL cp_warn(__LOCATION__,&
+            "The dimension of the Hessian matrix ("//&
+            TRIM(ADJUSTL(cp_to_string(ndf)))//") is greater than 3000. "//&
+            "The diagonalisation of the full Hessian  matrix needed for BFGS "//&
+            "is computationally expensive. You should consider to use the linear "//&
+            "scaling variant L-BFGS instead.")
 
     ! Initialize hessian (hes = unitary matrix or model hessian )
     CALL cp_blacs_env_create(blacs_env,para_env,globenv%blacs_grid_layout,&
@@ -183,10 +183,10 @@ CONTAINS
     CALL cp_subsys_get(subsys,atomic_kinds=atomic_kinds)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els,shell_present=shell_present)
     IF (shell_present) THEN
-      CALL cp_assert((.NOT.use_mod_hes),cp_warning_level,cp_assertion_failed,routineP,&
-                     "No model Hessian available for core-shell models. "//&
-                     "An unit matrix is used for the initial Hessian.",&
-                      only_ionode=.TRUE.)
+      IF(use_mod_hes)&
+         CALL cp_warn(__LOCATION__,&
+              "No model Hessian available for core-shell models. "//&
+              "An unit matrix is used for the initial Hessian.")
       use_mod_hes = .FALSE.
     END IF
 

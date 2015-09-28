@@ -974,9 +974,8 @@ CONTAINS
 #else
     success = solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group,&
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
-     CALL cp_assert(success,cp_failure_level,cp_assertion_failed,&
-     routineP,"ELPA failed to diagonalize a matrix at "//&
-     __LOCATION__)
+     IF(.NOT.success)&
+        CPABORT("ELPA failed to diagonalize a matrix")
 #endif
 
 #else

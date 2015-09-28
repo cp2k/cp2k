@@ -111,22 +111,20 @@ CONTAINS
     END IF
 
     reftraj%isnap = nskip
-    CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
-         "Reached the end of the trajectory file for REFTRAJ. Number of steps skipped "//&
-         "equal to the number of steps present in the file. "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(my_end)&
+       CALL cp_abort(__LOCATION__,&
+            "Reached the end of the trajectory file for REFTRAJ. Number of steps skipped "//&
+            "equal to the number of steps present in the file.")
 
     ! Cell File
     IF(reftraj%info%variable_volume) THEN
        IF(nskip > 0 ) THEN
           CALL parser_get_next_line(reftraj%info%cell_parser,nskip,at_end=my_end)
        END IF
-       CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
-            "Reached the end of the cell file for REFTRAJ. Number of steps skipped "//&
-            "equal to the number of steps present in the file. "//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(my_end)&
+          CALL cp_abort(__LOCATION__,&
+               "Reached the end of the cell file for REFTRAJ. Number of steps skipped "//&
+               "equal to the number of steps present in the file.")
     END IF
 
 

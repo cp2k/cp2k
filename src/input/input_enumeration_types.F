@@ -188,8 +188,8 @@ FUNCTION enum_i2c(enum,i) RESULT(res)
       ENDDO
        PRINT *, enum%i_vals
      END IF
-     CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
-          routineP,"invalid value for enumeration:"//cp_to_string(i))
+     IF(enum%strict)&
+        CPABORT("invalid value for enumeration:"//cp_to_string(i))
      res=ADJUSTL(cp_to_string(i))
   END IF
 END FUNCTION enum_i2c
@@ -227,11 +227,11 @@ FUNCTION enum_c2i(enum,c) RESULT(res)
   END DO
 
   IF (.NOT.found) THEN
-     CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
-          routineP,"invalid value for enumeration:"//TRIM(c))
+     IF(enum%strict)&
+        CPABORT("invalid value for enumeration:"//TRIM(c))
      READ(c,"(i10)",iostat=iostat) res
-     CALL cp_assert(iostat==0,cp_failure_level,cp_assertion_failed,&
-          routineP,"invalid value for enumeration2:"//TRIM(c))
+     IF(iostat/=0)&
+        CPABORT("invalid value for enumeration2:"//TRIM(c))
   END IF
 END FUNCTION enum_c2i
 

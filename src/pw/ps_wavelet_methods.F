@@ -220,39 +220,27 @@ CONTAINS
        max_val_up=0._dp
        IF(lb(2)==pw_grid%bounds(1,2))max_val_low=MAXVAL(ABS(density % cr3d(:,lb(2),:)))
        IF(ub(2)==pw_grid%bounds(2,2))max_val_up=MAXVAL(ABS(density % cr3d(:,ub(2),:)))
-       CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
-            "Density hits the lower boundary of the system in XZ-plane"//&
-            __LOCATION__,&
-            only_ionode=.TRUE.)
-       CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
-            "Density hits the upper boundary of the system in XZ-plane"//&
-            __LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(max_val_low.GE.0.0001_dp)&
+          CPWARN("Density hits the lower boundary of the system in XZ-plane")
+       IF(max_val_up.GE.0.0001_dp)&
+          CPWARN("Density hits the upper boundary of the system in XZ-plane")
        IF(wavelet%geocode=='F')THEN
           max_val_low=0._dp
           max_val_up=0._dp
           IF(lb(1)==pw_grid%bounds(1,1))max_val_low=MAXVAL(ABS(density % cr3d(lb(1),:,:)))
           IF(ub(1)==pw_grid%bounds(2,1))max_val_up=MAXVAL(ABS(density % cr3d(ub(1),:,:)))
-          CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
-               "Density hits the lower boundary of the system in YZ-plane"//&
-               __LOCATION__,&
-               only_ionode=.TRUE.)
-          CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
-               "Density hits the upper boundary of the system in YZ-plane"//&
-               __LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(max_val_low.GE.0.0001_dp)&
+             CPWARN("Density hits the lower boundary of the system in YZ-plane")
+          IF(max_val_up.GE.0.0001_dp)&
+             CPWARN("Density hits the upper boundary of the system in YZ-plane")
           max_val_low=0._dp
           max_val_up=0._dp
           IF(lb(3)==pw_grid%bounds(1,3))max_val_low=MAXVAL(ABS(density % cr3d(:,:,lb(3))))
           IF(ub(3)==pw_grid%bounds(2,3))max_val_up=MAXVAL(ABS(density % cr3d(:,:,ub(3))))
-          CALL cp_assert((max_val_low.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
-               "Density hits the lower boundary of the system in XY-plane"//&
-               __LOCATION__,&
-               only_ionode=.TRUE.)
-          CALL cp_assert((max_val_up.LT.0.0001_dp),cp_warning_level,cp_assertion_failed,routineP,&
-               "Density hits the upper boundary of the system in XY-plane"//&
-               __LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(max_val_low.GE.0.0001_dp)&
+             CPWARN("Density hits the lower boundary of the system in XY-plane")
+          IF(max_val_up.GE.0.0001_dp)&
+             CPWARN("Density hits the upper boundary of the system in XY-plane")
        END IF
     END IF
 

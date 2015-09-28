@@ -1184,9 +1184,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
               !FM in the functionals that I have implemented I use norm_drho
               !FM instead, either do the same or implement it, it shouldn't be
               !FM difficult (I am just lazy ;)
-              CALL cp_abort(__LOCATION__,&
-                   "unknown functional derivative (LSD): '"//&
-                   TRIM(desc)//"'")
+              CPABORT("unknown functional derivative (LSD): '"//TRIM(desc)//"'")
            END SELECT
         ELSE
            SELECT CASE(desc)
@@ -1199,9 +1197,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
               has_laplace = .TRUE.
               n_deriv = n_deriv + 1
            CASE default
-              CALL cp_abort(__LOCATION__,&
-                   "unknown functional derivative (LDA): '"//&
-                   TRIM(desc)//"'")
+              CPABORT("unknown functional derivative (LDA): '"//TRIM(desc)//"'")
            END SELECT
         END IF
      END IF
@@ -2069,10 +2065,10 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
            END SELECT
         END IF
      END SELECT
-     CALL cp_assert(.NOT.unknown_deriv,cp_failure_level,&
-          cp_assertion_failed,routineP,&
-          "unknown functional derivative (LSD="//TRIM(cp_to_string(lsd))//&
-          "): '"//TRIM(desc)//"'")
+     IF(unknown_deriv)&
+        CALL cp_abort(__LOCATION__,&
+             "unknown functional derivative (LSD="//TRIM(cp_to_string(lsd))//&
+             "): '"//TRIM(desc)//"'")
   END DO
 
   IF (lsd) THEN
@@ -3044,9 +3040,8 @@ END SUBROUTINE xc_calc_2nd_deriv
                    END DO
                 END DO
              CASE("rho")
-                CALL cp_assert(.NOT.lsd,cp_failure_level,cp_assertion_failed,routineP,&
-                     "rho not handled in lsd: '"//&
-                     TRIM(desc)//"'")
+                IF(lsd)&
+                   CPABORT("rho not handled in lsd: '"//TRIM(desc)//"'")
              CASE("rhoa","rhob")
              CASE default
                 CALL cp_abort(__LOCATION__,&

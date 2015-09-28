@@ -427,9 +427,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
            IF (val%type_of_var==lchar_t) THEN
               l_in=default_string_length*(SIZE(val%c_val)-1)+&
                    LEN_TRIM(val%c_val(SIZE(val%c_val)))
-              CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&
-                   routineP,"val_get will truncate value, value beginning with '"//&
-                   TRIM(val%c_val(1))//"' is too long for variable")
+              IF(l_out<l_in)&
+                 CALL cp_warn(__LOCATION__,&
+                      "val_get will truncate value, value beginning with '"//&
+                      TRIM(val%c_val(1))//"' is too long for variable")
               DO i=1,SIZE(val%c_val)
                  c_val((i-1)*default_string_length+1:MIN(l_out,i*default_string_length))=&
                       val%c_val(i)(1:MIN(80,l_out-(i-1)*default_string_length))
@@ -439,9 +440,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
                    c_val(SIZE(val%c_val)*default_string_length+1:l_out)=""
            ELSE
               l_in=LEN_TRIM(val%c_val(1))
-              CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&
-                   routineP,"val_get will truncate value, value '"//&
-                   TRIM(val%c_val(1))//"' is too long for variable")
+              IF(l_out<l_in)&
+                 CALL cp_warn(__LOCATION__,&
+                      "val_get will truncate value, value '"//&
+                      TRIM(val%c_val(1))//"' is too long for variable")
               c_val=val%c_val(1)
            END IF
         ELSE

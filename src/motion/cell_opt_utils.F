@@ -204,10 +204,8 @@ CONTAINS
     pres_ext      = 0.0_dp
     CALL section_vals_val_get(geo_section,"EXTERNAL_PRESSURE", r_vals=pvals)
     check = (SIZE(pvals)==1).OR.(SIZE(pvals)==9)
-    CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
-         "EXTERNAL_PRESSURE can have 1 or 9 components only! "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(.NOT.check)&
+       CPABORT("EXTERNAL_PRESSURE can have 1 or 9 components only!")
 
     IF (SIZE(pvals)==9) THEN
        ind=0

@@ -236,9 +236,8 @@ CONTAINS
           parser%input_unit=unit_nr
           IF (PRESENT(file_name)) parser%input_file_name=file_name
        ELSE
-          CALL cp_assert(PRESENT(file_name),cp_failure_level,cp_assertion_failed,&
-               routineP,"at least one of filename and unit_nr must be present"//&
-               __LOCATION__)
+          IF(.NOT.PRESENT(file_name))&
+             CPABORT("at least one of filename and unit_nr must be present")
           CALL open_file(file_name=TRIM(file_name),&
                unit_number=parser%input_unit)
           parser%input_file_name=file_name
