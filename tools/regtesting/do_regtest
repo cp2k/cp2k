@@ -809,7 +809,7 @@ if [[ ${nobuild} != "nobuild" ]]; then
    ${make} toolversions ${ARCH_SPEC} VERSION=${cp2k_version}
    echo "---------------------------- Modules -------------------------------------"
    if [ "`type -t module`" = 'function' ]; then
-      module list
+      module list 2>&1
    else
       echo "Module system not installed."
    fi
