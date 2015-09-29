@@ -521,7 +521,7 @@ CONTAINS
 
     INTEGER                                  :: ia, iat, iatom, ikind, ir, &
                                                 ispin, mepos, na, natom, nr, &
-                                                ns, nspins, num_pe, orb, stat
+                                                ns, nspins, num_pe, orb
     INTEGER, DIMENSION(2)                    :: bo, homo, ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -622,10 +622,7 @@ CONTAINS
     CALL calculate_rho_atom_coeff(qs_env,psmat)
     CALL prepare_gapw_den(qs_env)
 
-    ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), &
-             mo_eigenvalues(nspins),&
-             stat=stat)
-    CPASSERT(stat==0)
+    ALLOCATE(mo_coeff(nspins), single_mo_coeff(nspins), mo_eigenvalues(nspins))
 
     CALL cp_dbcsr_allocate_matrix_set(orbital_density_matrix,nspins)
 
