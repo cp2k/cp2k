@@ -1446,22 +1446,24 @@ MODULE mp2_cphf
       routineP = moduleN//':'//routineN
 
     INTEGER :: cycle_counter, handle, i_global, iiB, iiter, j_global, jjB, &
-      max_num_iter, ncol_local, nrow_local, transf_type_in, transf_type_out, &
-      virtual_beta
+      max_num_iter, ncol_local, ncol_local_b, nrow_local, nrow_local_b, &
+      transf_type_in, transf_type_out, virtual_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     LOGICAL                                  :: alpha_beta, converged
-    REAL(KIND=dp) :: alpha, beta, conv, eps_conv, factor, norm_b, &
+    REAL(KIND=dp) :: alpha, beta, conv, conv_b, eps_conv, factor, norm_b, &
       norm_b_beta, norms(3), norms_beta(3), out_alpha, rkrk, rkrk_beta, t1, t2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: proj_bi_xj, temp_vals, &
-                                                x_norm, xi_b
+                                                x_norm, x_norm_b, xi_b
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: A_small, b_small, xi_Axi
     TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: Ax, xn
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: Ap, Ap_b, b_i, pk, pk_b, &
-                                                precond, residual, rk, rk_b, &
-                                                xk, xk_b
+      POINTER                                :: Ax, Ax_ab, Ax_ba, Ax_bb, xn, &
+                                                xn_b
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp, fm_struct_tmp_b
+    TYPE(cp_fm_type), POINTER                :: Ap, Ap_b, b_i, b_i_b, pk, &
+                                                pk_b, precond, precond_b, &
+                                                residual, residual_b, rk, &
+                                                rk_b, xk, xk_b
 
     CALL timeset(routineN,handle)
 
@@ -1494,7 +1496,7 @@ MODULE mp2_cphf
     ! set convergece flag
     converged=.FALSE.
 
-    IF((.FALSE.) .OR. (alpha_beta)) THEN
+    IF((.FALSE.)) THEN
       ! CG algorithm
       ! Used for open-shell systems
       ! create some work array
@@ -1714,6 +1716,58 @@ MODULE mp2_cphf
       xi_b=0.0_dp
       xi_Axi=0.0_dp
 
+      ! The same and more for alpha-beta case
+      IF (alpha_beta) THEN
+         L_jb_beta%local_data(:,:)=-L_jb_beta%local_data(:,:)
+ 
+         ! allocate stuff
+         ALLOCATE(xn_b(1:max_num_iter))
+         ALLOCATE(Ax_bb(1:max_num_iter))
+         ALLOCATE(Ax_ab(1:max_num_iter))
+         ALLOCATE(Ax_ba(1:max_num_iter))
+ 
+         ! create fm structure
+         NULLIFY(fm_struct_tmp_b)
+         CALL cp_fm_struct_create(fm_struct_tmp_b,para_env=para_env,context=blacs_env, &
+                                  nrow_global=homo_beta,ncol_global=virtual_beta)
+ 
+ 
+         ! create preconditioner (for now only orbital energy differences)
+         NULLIFY(precond_b)
+         CALL cp_fm_create(precond_b, fm_struct_tmp_b, name="precond_b")
+         CALL cp_fm_set_all(precond_b,1.0_dp)
+         CALL cp_fm_get_info(matrix=precond_b,&
+                             nrow_local=nrow_local_b,&
+                             ncol_local=ncol_local_b,&
+                             row_indices=row_indices,&
+                             col_indices=col_indices)
+         DO jjB=1, ncol_local_b
+           j_global=col_indices(jjB)
+           DO iiB=1, nrow_local_b
+             i_global=row_indices(iiB)
+             precond_b%local_data(iiB,jjB)=precond_b%local_data(iiB,jjB)/&
+                          (Eigenval_beta(j_global+homo_beta)-Eigenval_beta(i_global))
+           END DO
+         END DO
+ 
+         ! x(iiter) vector
+         NULLIFY(b_i_b)
+         CALL cp_fm_create(b_i_b, fm_struct_tmp_b, name="b_i_b")
+         CALL cp_fm_set_all(b_i_b, 0.0_dp)
+         b_i_b%local_data(:,:)=precond_b%local_data(:,:)*L_jb_beta%local_data(:,:)
+ 
+         ! create the residual vector (r), we check convergence on the norm of 
+         ! this vector r=(Ax-b) 
+         NULLIFY(residual_b)
+         CALL cp_fm_create(residual_b, fm_struct_tmp_b, name="residual")
+         CALL cp_fm_set_all(residual_b, 0.0_dp)
+ 
+         ! allocate array containing the various scalar products
+         ALLOCATE(x_norm_b(1:max_num_iter))
+         x_norm_b=0.0_dp
+
+      ENDIF
+
       cycle_counter=0
       DO iiter=1, max_num_iter
         cycle_counter=cycle_counter+1
@@ -1724,25 +1778,58 @@ MODULE mp2_cphf
         NULLIFY(xn(iiter)%matrix)
         CALL cp_fm_create(xn(iiter)%matrix, fm_struct_tmp, name="xi")
         CALL cp_fm_set_all(xn(iiter)%matrix, 0.0_dp)
+      
+        IF (.NOT. alpha_beta) THEN
+           ! first compute the projection of the actual b_i into all previous x_i
+           ! already scaled with the norm of each x_i
+           ALLOCATE(proj_bi_xj(iiter-1))
+           DO iiB=1, iiter-1
+             proj_bi_xj(iiB)=0.0_dp
+             proj_bi_xj(iiB)=accurate_sum(b_i%local_data(1:nrow_local,1:ncol_local)*&
+                                          xn(iiB)%matrix%local_data(1:nrow_local,1:ncol_local))
+             proj_bi_xj(iiB)=proj_bi_xj(iiB)/x_norm(iiB)
+           END DO
+           CALL mp_sum(proj_bi_xj,para_env%group)
+ 
+           ! update actual x_i
+           xn(iiter)%matrix%local_data(:,:)=b_i%local_data(:,:)
+           DO iiB=1, iiter-1
+             xn(iiter)%matrix%local_data(:,:)=xn(iiter)%matrix%local_data(:,:)-&
+                                              xn(iiB)%matrix%local_data(:,:)*proj_bi_xj(iiB)
+           END DO
+           DEALLOCATE(proj_bi_xj)
 
-        ! first compute the projection of the actual b_i into all previous x_i
-        ! already scaled with the norm of each x_i
-        ALLOCATE(proj_bi_xj(iiter-1))
-        DO iiB=1, iiter-1
-          proj_bi_xj(iiB)=0.0_dp
-          proj_bi_xj(iiB)=accurate_sum(b_i%local_data(1:nrow_local,1:ncol_local)*&
-                                       xn(iiB)%matrix%local_data(1:nrow_local,1:ncol_local))
-          proj_bi_xj(iiB)=proj_bi_xj(iiB)/x_norm(iiB)
-        END DO
-        CALL mp_sum(proj_bi_xj,para_env%group)
-
-        ! update actual x_i
-        xn(iiter)%matrix%local_data(:,:)=b_i%local_data(:,:)
-        DO iiB=1, iiter-1
-          xn(iiter)%matrix%local_data(:,:)=xn(iiter)%matrix%local_data(:,:)-&
-                                           xn(iiB)%matrix%local_data(:,:)*proj_bi_xj(iiB)
-        END DO
-        DEALLOCATE(proj_bi_xj)
+        ELSE
+           ! create and update x_i (orthogonalization with previous vectors)
+           NULLIFY(xn_b(iiter)%matrix)
+           CALL cp_fm_create(xn_b(iiter)%matrix, fm_struct_tmp_b, name="xi_b")
+           CALL cp_fm_set_all(xn_b(iiter)%matrix, 0.0_dp)
+ 
+           ! first compute the projection of the actual b_i into all previous x_i
+           ! already scaled with the norm of each x_i
+           ALLOCATE(proj_bi_xj(iiter-1))
+           DO iiB=1, iiter-1
+             proj_bi_xj(iiB)=0.0_dp
+             proj_bi_xj(iiB)= &
+             accurate_sum(b_i%local_data(1:nrow_local,1:ncol_local)*&
+                                      xn(iiB)%matrix%local_data(1:nrow_local,1:ncol_local))+&
+             accurate_sum(b_i_b%local_data(1:nrow_local_b,1:ncol_local_b)*&
+                                      xn_b(iiB)%matrix%local_data(1:nrow_local_b,1:ncol_local_b))
+             proj_bi_xj(iiB)=proj_bi_xj(iiB)/(x_norm(iib)+x_norm_b(iib))
+           END DO
+           CALL mp_sum(proj_bi_xj,para_env%group)
+ 
+           ! update actual x_i
+           xn(iiter)%matrix%local_data(:,:)=b_i%local_data(:,:)
+           xn_b(iiter)%matrix%local_data(:,:)=b_i_b%local_data(:,:)
+           DO iiB=1, iiter-1
+             xn(iiter)%matrix%local_data(:,:)=xn(iiter)%matrix%local_data(:,:)-&
+                                              xn(iiB)%matrix%local_data(:,:)*proj_bi_xj(iiB)
+             xn_b(iiter)%matrix%local_data(:,:)=xn_b(iiter)%matrix%local_data(:,:)-&
+                                              xn_b(iiB)%matrix%local_data(:,:)*proj_bi_xj(iiB)
+           END DO
+           DEALLOCATE(proj_bi_xj)
+        ENDIF
          
         ! create Ax(iiter) that will store the matrix vector product for this cycle
         NULLIFY(Ax(iiter)%matrix)
@@ -1756,18 +1843,70 @@ MODULE mp2_cphf
                               xn(iiter)%matrix,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
                               Ax(iiter)%matrix,transf_type_out,factor=factor)
 
+        IF (alpha_beta) THEN
+           NULLIFY(Ax_ab(iiter)%matrix)
+           CALL cp_fm_create(Ax_ab(iiter)%matrix, fm_struct_tmp, name="Ai_ab")
+           CALL cp_fm_set_all(Ax_ab(iiter)%matrix, 0.0_dp)
+           ! Alpha-beta part of alpha.
+           CALL cphf_like_update(qs_env,para_env,homo,virtual,dimen,&
+                             mo_coeff,mo_coeff_o,mo_coeff_v,Eigenval,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             xn_b(iiter)%matrix,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             Ax_ab(iiter)%matrix,transf_type_out,factor=factor, &
+                             mo_coeff_beta=mo_coeff_beta, &
+                             mo_coeff_o_beta=mo_coeff_o_beta, &
+                             mo_coeff_v_beta=mo_coeff_v_beta, &
+                             homo_beta=homo_beta, virtual_beta=virtual_beta)
+           ! Beta-beta part (Coulomb and XC) of beta.                     
+           NULLIFY(Ax_bb(iiter)%matrix)
+           CALL cp_fm_create(Ax_bb(iiter)%matrix, fm_struct_tmp_b, name="Ai_bb")
+           CALL cp_fm_set_all(Ax_bb(iiter)%matrix, 0.0_dp)
+           CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen, &
+                             mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,hfx_sections,energy,n_rep_hf,&
+                             poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu,&
+                             P_mu_nu,xn_b(iiter)%matrix,fm_G_mu_nu,fm_back,transf_type_in,&
+                             out_alpha,Ax_bb(iiter)%matrix,transf_type_out,factor=factor)
+           ! Beta-alpha part of beta.
+           NULLIFY(Ax_ba(iiter)%matrix)
+           CALL cp_fm_create(Ax_ba(iiter)%matrix, fm_struct_tmp_b, name="Ai_ba")
+           CALL cp_fm_set_all(Ax_ba(iiter)%matrix, 0.0_dp)
+           CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen,&
+                             mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             Eigenval_beta,&
+                             hfx_sections,energy,n_rep_hf,poisson_env,&
+                             rho_work,pot_g,rho_g,rho_r,mat_mu_nu,P_mu_nu,&
+                             xn(iiter)%matrix,fm_G_mu_nu,fm_back,transf_type_in,out_alpha,&
+                             Ax_ba(iiter)%matrix,transf_type_out,factor=factor,&
+                             mo_coeff_beta=mo_coeff, &
+                             mo_coeff_o_beta=mo_coeff_o, &
+                             mo_coeff_v_beta=mo_coeff_v, &
+                             homo_beta=homo, virtual_beta=virtual)
+        ENDIF
+
         ! in order to reduce the number of calls to mp_sum here we
         ! cluster all necessary scalar products into a sigle vector
         ! temp_vals contains:
         ! 1:iiter -> <Ax_i|x_j>
         ! iiter+1 -> <x_i|b>
         ! iiter+2 -> <x_i|x_i>
+
         ALLOCATE(temp_vals(iiter+2))
         temp_vals=0.0_dp
         ! <Ax_i|x_j>
         DO iiB=1, iiter
           temp_vals(iiB)=accurate_sum(Ax(iiter)%matrix%local_data(1:nrow_local,1:ncol_local)*&
                                       xn(iiB)%matrix%local_data(1:nrow_local,1:ncol_local))
+          IF (alpha_beta) THEN
+            temp_vals(iiB)=temp_vals(iib) + &
+             accurate_sum(Ax_ab(iiter)%matrix%local_data(1:nrow_local,1:ncol_local)*&
+                                      xn(iiB)%matrix%local_data(1:nrow_local,1:ncol_local))+&
+             accurate_sum(Ax_bb(iiter)%matrix%local_data(1:nrow_local_b,1:ncol_local_b)*&
+                                      xn_b(iiB)%matrix%local_data(1:nrow_local_b,1:ncol_local_b))+&
+             accurate_sum(Ax_ba(iiter)%matrix%local_data(1:nrow_local_b,1:ncol_local_b)*&
+                                      xn_b(iiB)%matrix%local_data(1:nrow_local_b,1:ncol_local_b))
+          ENDIF
         END DO        
         ! <x_i|b>
         temp_vals(iiter+1)=accurate_sum(xn(iiter)%matrix%local_data(1:nrow_local,1:ncol_local)*&
@@ -1775,15 +1914,24 @@ MODULE mp2_cphf
         ! norm
         temp_vals(iiter+2)=accurate_sum(xn(iiter)%matrix%local_data(1:nrow_local,1:ncol_local)*&
                                         xn(iiter)%matrix%local_data(1:nrow_local,1:ncol_local))
+        IF (alpha_beta) THEN
+        ! <x_i_b|b_b>
+          temp_vals(iiter+1)= temp_vals(iiter+1) + &
+               accurate_sum(xn_b(iiter)%matrix%local_data(1:nrow_local_b,1:ncol_local_b)*&
+                                                    L_jb_beta%local_data(1:nrow_local_b,1:ncol_local_b))
+          ! norm
+          temp_vals(iiter+2)= temp_vals(iiter+2) + &
+                                accurate_sum(xn_b(iiter)%matrix%local_data(1:nrow_local_b,1:ncol_local_b)*&
+                                xn_b(iiter)%matrix%local_data(1:nrow_local_b,1:ncol_local_b))
+        ENDIF
         CALL mp_sum(temp_vals,para_env%group)
         ! update <Ax_i|x_j>,  <x_i|b> and norm <x_i|x_i>
         xi_Axi(iiter,1:iiter)=temp_vals(1:iiter)
         xi_Axi(1:iiter,iiter)=temp_vals(1:iiter) 
         xi_b(iiter)   = temp_vals(iiter+1)
         x_norm(iiter) = temp_vals(iiter+2)
-        ! deallocate temp_vals
         DEALLOCATE(temp_vals)
-
+        
         ! solve reduced system 
         IF(ALLOCATED(A_small)) DEALLOCATE(A_small)
         IF(ALLOCATED(b_small)) DEALLOCATE(b_small)
@@ -1796,17 +1944,46 @@ MODULE mp2_cphf
 
         ! check for convergence
         CALL cp_fm_set_all(residual, 0.0_dp)
-        DO iiB=1, iiter
-          residual%local_data(1:nrow_local,1:ncol_local)=residual%local_data(1:nrow_local,1:ncol_local)+&
-                                    b_small(iiB,1)*Ax(iiB)%matrix%local_data(1:nrow_local,1:ncol_local)
-        END DO
-        residual%local_data(1:nrow_local,1:ncol_local)=residual%local_data(1:nrow_local,1:ncol_local)-&
-                                                           L_jb%local_data(1:nrow_local,1:ncol_local)
-        conv=0.0_dp
-        conv=accurate_sum(residual%local_data(1:nrow_local,1:ncol_local)*&
-                          residual%local_data(1:nrow_local,1:ncol_local))
-        CALL mp_sum(conv,para_env%group)
-        conv=SQRT(conv)
+        IF (.NOT. alpha_beta) THEN
+           DO iiB=1, iiter
+             residual%local_data(1:nrow_local,1:ncol_local)=residual%local_data(1:nrow_local,1:ncol_local)+&
+                                       b_small(iiB,1)*Ax(iiB)%matrix%local_data(1:nrow_local,1:ncol_local)
+           END DO
+           residual%local_data(1:nrow_local,1:ncol_local)=residual%local_data(1:nrow_local,1:ncol_local)-&
+                                                              L_jb%local_data(1:nrow_local,1:ncol_local)
+           conv=0.0_dp
+           conv=accurate_sum(residual%local_data(1:nrow_local,1:ncol_local)*&
+                             residual%local_data(1:nrow_local,1:ncol_local))
+           CALL mp_sum(conv,para_env%group)
+           conv=SQRT(conv)
+        ELSE
+        ! The same for beta
+           CALL cp_fm_set_all(residual_b, 0.0_dp)
+           DO iiB=1, iiter
+             residual%local_data(1:nrow_local,1:ncol_local)=&
+                              residual%local_data(1:nrow_local,1:ncol_local)+&
+                              b_small(iiB,1)*Ax(iiB)%matrix%local_data(1:nrow_local,1:ncol_local)+&
+                              b_small(iiB,1)*Ax_ab(iiB)%matrix%local_data(1:nrow_local,1:ncol_local)
+             residual_b%local_data(1:nrow_local_b,1:ncol_local_b)=&
+                              residual_b%local_data(1:nrow_local_b,1:ncol_local_b)+&
+                              b_small(iiB,1)*Ax_bb(iiB)%matrix%local_data(1:nrow_local_b,1:ncol_local_b)+&
+                              b_small(iiB,1)*Ax_ba(iiB)%matrix%local_data(1:nrow_local_b,1:ncol_local_b)
+           END DO
+           residual%local_data(1:nrow_local,1:ncol_local)=residual%local_data(1:nrow_local,1:ncol_local)-&
+                                                              L_jb%local_data(1:nrow_local,1:ncol_local)
+           conv=0.0_dp
+           conv=accurate_sum(residual%local_data(1:nrow_local,1:ncol_local)*&
+                             residual%local_data(1:nrow_local,1:ncol_local))
+           CALL mp_sum(conv,para_env%group)
+           conv=SQRT(conv)
+           residual_b%local_data(1:nrow_local_b,1:ncol_local_b)=residual_b%local_data(1:nrow_local_b,1:ncol_local_b)-&
+                                                              L_jb_beta%local_data(1:nrow_local_b,1:ncol_local_b)
+           conv_b=0.0_dp
+           conv_b=accurate_sum(residual_b%local_data(1:nrow_local_b,1:ncol_local_b)*&
+                             residual_b%local_data(1:nrow_local_b,1:ncol_local_b))
+           CALL mp_sum(conv_b,para_env%group)
+           conv=conv + SQRT(conv_b) 
+        ENDIF
 
         t2 = m_walltime()
 
@@ -1820,7 +1997,16 @@ MODULE mp2_cphf
         END IF
 
         ! update b_i for the next round
-        b_i%local_data(:,:)=precond%local_data(:,:)*Ax(iiter)%matrix%local_data(:,:)
+        IF (.NOT. alpha_beta) THEN
+           b_i%local_data(:,:) = precond%local_data(:,:)*Ax(iiter)%matrix%local_data(:,:)
+        ELSE
+           b_i%local_data(:,:) = precond%local_data(:,:)*&
+           (Ax(iiter)%matrix%local_data(:,:)&
+           + Ax_ab(iiter)%matrix%local_data(:,:))
+           b_i_b%local_data(:,:) = precond_b%local_data(:,:)*&
+           (Ax_bb(iiter)%matrix%local_data(:,:)+&
+            Ax_ba(iiter)%matrix%local_data(:,:))
+        ENDIF
 
       END DO
  
@@ -1828,6 +2014,11 @@ MODULE mp2_cphf
       DO iiter=1, cycle_counter
         P_ia%local_data(1:nrow_local,1:ncol_local)=P_ia%local_data(1:nrow_local,1:ncol_local)+&
                         b_small(iiter,1)*xn(iiter)%matrix%local_data(1:nrow_local,1:ncol_local)
+        ! The same for beta
+        IF (alpha_beta) THEN
+           P_ia_beta%local_data(1:nrow_local_b,1:ncol_local_b)=P_ia_beta%local_data(1:nrow_local_b,1:ncol_local_b)+&
+                      b_small(iiter,1)*xn_b(iiter)%matrix%local_data(1:nrow_local_b,1:ncol_local_b)
+        ENDIF
       END DO
 
       DEALLOCATE(x_norm)
@@ -1846,6 +2037,29 @@ MODULE mp2_cphf
       END DO
       DEALLOCATE(xn)
       DEALLOCATE(Ax)
+
+      ! The same for beta
+      IF (alpha_beta) THEN
+         DEALLOCATE(x_norm_b)
+ 
+         CALL cp_fm_release(precond_b)
+         CALL cp_fm_release(b_i_b)
+         CALL cp_fm_release(residual_b)
+         CALL cp_fm_struct_release(fm_struct_tmp_b)
+ 
+         ! release Ax, xn and more
+         DO iiter=1, cycle_counter
+           CALL cp_fm_release(Ax_bb(iiter)%matrix)
+           CALL cp_fm_release(Ax_ab(iiter)%matrix)
+           CALL cp_fm_release(Ax_ba(iiter)%matrix)
+           CALL cp_fm_release(xn_b(iiter)%matrix)
+         END DO
+         DEALLOCATE(xn_b)
+         DEALLOCATE(Ax_bb)
+         DEALLOCATE(Ax_ab)
+         DEALLOCATE(Ax_ba)
+      ENDIF
+
 
     END IF
 
