@@ -30,7 +30,7 @@ OH-H2O-bsse.inp                                        5    1.0E-14             
 H2O-langevin-1.inp                                     1    1.0E-14             -17.14549194477159
 H2O-langevin-2.inp                                     1    1.0E-14             -17.14566019283182
 #Ref grid
-H2O-ref-1.inp                                          1    1.0E-14            -17.140234553218249
+H2O-ref-1.inp                     1     2e-14            -17.140234553218249
 H2O-ref-2.inp                                          1      3e-14             -17.14023455852142
 # All-to-all single communication in parallel runs
 H2O-ata.inp                                            1      1e-08             -17.14619639410385
