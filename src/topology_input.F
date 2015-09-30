@@ -591,12 +591,10 @@ SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, label)
     CHARACTER(LEN=default_string_length)     :: nlabel
     INTEGER                                  :: output_unit
     LOGICAL                                  :: explicit
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: restraint_section
 
   is_restraint = .FALSE.
-  logger => cp_get_default_logger()
-  output_unit= cp_logger_get_default_io_unit(logger)
+  output_unit= cp_logger_get_default_io_unit()
   CALL section_vals_get(cons_section,explicit=explicit)
   IF (explicit) THEN
      restraint_section => section_vals_get_subs_vals(cons_section,"RESTRAINT",&

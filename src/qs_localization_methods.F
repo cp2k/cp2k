@@ -1396,7 +1396,6 @@ CONTAINS
                                                 st, t1, t2, theta, tolerance, &
                                                 xlow, xstate, xup, zc, zr
     TYPE(cp_fm_type), POINTER                :: rmat
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(set_c_1d_type), DIMENSION(:), &
       POINTER                                :: zdiag_all, zdiag_me
     TYPE(set_c_2d_type), DIMENSION(:), &
@@ -1404,9 +1403,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     NULLIFY(rmat, cz_ij_loc, zdiag_all, zdiag_me)
     NULLIFY(xyz_mix,xyz_mix_ns)

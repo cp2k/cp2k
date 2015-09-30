@@ -67,10 +67,8 @@ CONTAINS
     INTEGER                                  :: i, indf, indi, istat, &
                                                 output_unit, pos1, pos2, unit
     LOGICAL                                  :: check
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     CPASSERT(ASSOCIATED(inpp))
 

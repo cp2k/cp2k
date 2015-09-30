@@ -139,11 +139,9 @@ CONTAINS
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
                                                 ns, output_unit
     REAL(KIND=dp)                            :: zc
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
     CPASSERT(pw1%ref_count>0)
     CPASSERT(pw2%ref_count>0)
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
@@ -708,11 +706,9 @@ CONTAINS
     INTEGER                                  :: handle, i, j, ng, ng1, ng2, &
                                                 output_unit
     REAL(KIND=dp)                            :: flop, my_alpha
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     CPASSERT(pw1%ref_count>0)
     CPASSERT(pw2%ref_count>0)
@@ -1319,11 +1315,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: n
     LOGICAL                                  :: test, use_pw_cuda
     REAL(KIND=dp)                            :: norm
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle2)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
     CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
          CEILING (pw1%pw_grid%cutoff/10)*10))),handle)
 

@@ -97,13 +97,11 @@ CONTAINS
       POINTER                                :: matrix_hc
     TYPE(cp_dbcsr_type), POINTER :: matrix_buf1_ortho, matrix_buf2_ortho, &
       matrix_c, matrix_orthogonal_space, matrix_os_ortho, matrix_s_ortho
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
     CALL timeset(routineN,handle)
 
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     IF ( PRESENT(silent) ) THEN
       my_silent = silent

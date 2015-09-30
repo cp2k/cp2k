@@ -97,7 +97,6 @@ CONTAINS
                                                 failure, root_sect, &
                                                 skip_description, skip_help, &
                                                 whole_section
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, &
                                                 previous_last, previous_list
     TYPE(keyword_type), POINTER              :: keyword
@@ -114,8 +113,7 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(section_vals))
     CPASSERT(ASSOCIATED(parser))
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     CPASSERT(section_vals%ref_count>0)
     CPASSERT(parser%ref_count>0)

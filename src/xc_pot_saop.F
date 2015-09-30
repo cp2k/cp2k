@@ -131,12 +131,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'add_saop_pot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dft_method_id, homo, i, ispin, j, k, nspins, orb, output_unit, &
-      xc_deriv_method_id, xc_rho_smooth_id
+    INTEGER                                  :: dft_method_id, homo, i, &
+                                                ispin, j, k, nspins, orb, &
+                                                xc_deriv_method_id, &
+                                                xc_rho_smooth_id
     INTEGER, DIMENSION(2)                    :: ncol, nrow
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: compute_virial, gapw, ionode, &
-                                                lsd
+    LOGICAL                                  :: compute_virial, gapw, lsd
     REAL(KIND=dp)                            :: density_cut, efac, &
                                                 gradient_cut, tau_cut, &
                                                 tot_rho_psi, we_GLLB, we_LB, &
@@ -153,7 +154,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -179,11 +179,6 @@ CONTAINS
     NULLIFY(vxc_GLLB, vxc_LB, vxc_tmp, vxc_SAOP, vxc_tau)
     NULLIFY(mo_eigenvalues, deriv_set, deriv, rho_struct_r, rho_struct_ao)
     NULLIFY(orbital_density_matrix, dummy,xc_section_tmp,xc_fun_section_tmp)
-    logger => cp_get_default_logger()
-    ionode = (logger%para_env%mepos==logger%para_env%source)
-    output_unit = cp_logger_get_default_io_unit(logger)
-
-    IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) " in "//routineP
 
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&

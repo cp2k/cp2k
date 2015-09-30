@@ -168,7 +168,6 @@ CONTAINS
                                                 final_energy, initial_energy, &
                                                 last_bias_energy, old_energy
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_p_type), DIMENSION(:), &
       POINTER                                :: oldsys
     TYPE(cp_subsys_type), POINTER            :: biassys
@@ -189,7 +188,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles_bias
     TYPE(section_vals_type), POINTER         :: root_section
 
-    logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
 
     ! nullify some pointers
@@ -271,7 +269,7 @@ CONTAINS
     ALLOCATE (r_old(3,SUM(nunits_tot),1:nboxes))
 
     ! figure out what the default write unit is
-    iw = cp_logger_get_default_io_unit(logger)
+    iw = cp_logger_get_default_io_unit()
 
     IF (iw>0) THEN
        WRITE(iw,*)
@@ -1190,7 +1188,6 @@ CONTAINS
       trial_energy, triangle_value
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass
     TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_p_type), DIMENSION(:), &
       POINTER                                :: subsys
     TYPE(force_env_p_type), DIMENSION(:), &
@@ -1201,10 +1198,9 @@ CONTAINS
     TYPE(particle_list_p_type), &
       DIMENSION(:), POINTER                  :: particles
 
-    logger => cp_get_default_logger()
-    ! these are current magic numbers for how we compute the virial...
-    ! we break it up into three parts to integrate the function so provide
-    ! better statistics
+! these are current magic numbers for how we compute the virial...
+! we break it up into three parts to integrate the function so provide
+! better statistics
 
     nintegral_divisions=3
     ALLOCATE (virial_cutoffs(1:nintegral_divisions))
@@ -1221,7 +1217,7 @@ CONTAINS
          virial_cutoffs(2))/virial_stepsize(3))
 
     ! figure out what the default write unit is
-    iw = cp_logger_get_default_io_unit(logger)
+    iw = cp_logger_get_default_io_unit()
 
     ! allocate a whole bunch of stuff based on how many boxes we have
     ALLOCATE (force_env(1:1))

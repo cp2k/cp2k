@@ -994,12 +994,10 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       io_stat, irep, istat, iunit, iw, line_number, nlines, nmol_types, &
       nstart, row_number, unit
     INTEGER, DIMENSION(:), POINTER           :: nunits
-    TYPE(cp_logger_type), POINTER            :: logger
 
 ! some stuff in case we need to write error messages to the screen
 
-    logger=>cp_get_default_logger()
-    iw = cp_logger_get_default_io_unit(logger)
+    iw = cp_logger_get_default_io_unit()
 
 ! allocate the array we'll need in case we have an empty box
     CALL get_mc_molecule_info(mc_molecule_info,nmol_types=nmol_types,&
@@ -1292,7 +1290,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
                                                 nmol_types, stop_num
     INTEGER, DIMENSION(:), POINTER           :: temp_i_array
     REAL(dp), DIMENSION(:), POINTER          :: temp_r_array
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mc_section
 
 ! begin the timing of the subroutine
@@ -1327,8 +1324,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
          mc_par % iprint = 1
       END SELECT
 
-      logger=>cp_get_default_logger()
-      iw = cp_logger_get_default_io_unit(logger)
+      iw = cp_logger_get_default_io_unit()
       IF(iw>0) WRITE ( iw, * )
 
 !..filenames

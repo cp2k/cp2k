@@ -954,14 +954,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_deriv
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
 
     NULLIFY(mo_coeff_deriv,mo_coeff,mo_eigenvalues)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     DO ispin=1,nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &

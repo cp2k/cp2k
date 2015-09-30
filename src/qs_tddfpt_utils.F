@@ -306,13 +306,11 @@ CONTAINS
       POINTER                                :: matrix_s
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: S_lumos
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type)                :: t_control
 
-    NULLIFY(S_lumos, logger, matrix_s, dft_control)
-    logger    => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    NULLIFY(S_lumos, matrix_s, dft_control)
+    output_unit= cp_logger_get_default_io_unit()
     CALL get_qs_env(qs_env, matrix_s=matrix_s, dft_control=dft_control)
 
     IF (output_unit>0) WRITE (output_unit,*)

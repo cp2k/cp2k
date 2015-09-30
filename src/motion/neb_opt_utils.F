@@ -81,11 +81,8 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: U, VT, wrk, wrk_inv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: awrk, cwrk, ref, step
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
-    iw = cp_logger_get_default_io_unit(logger)
+    iw = cp_logger_get_default_io_unit()
     accepted = .FALSE.
     ! find the index with the minimum element of the set_err array
     nv = MINLOC(set_err,1)

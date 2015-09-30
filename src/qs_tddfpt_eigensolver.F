@@ -82,15 +82,13 @@ CONTAINS
                                                 output_unit, restarts
     LOGICAL                                  :: do_kernel_save
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ievals
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger, dft_control)
+    NULLIFY(dft_control)
 
-    logger    => cp_get_default_logger()
-    output_unit  = cp_logger_get_default_io_unit(logger)
+    output_unit  = cp_logger_get_default_io_unit()
 
     CALL get_qs_env(qs_env, dft_control=dft_control)
     n_ev      = dft_control%tddfpt_control%n_ev
@@ -201,7 +199,6 @@ CONTAINS
     TYPE(cp_fm_struct_p_type), &
       DIMENSION(:), POINTER                  :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER         :: tilde_fm_struct
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
@@ -210,7 +207,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger, &
+    NULLIFY(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, &
             tilde_fm_struct, Atilde%matrix, Us%matrix, matrix_s, dft_control,&
             para_env, blacs_env)
 
@@ -221,8 +218,7 @@ CONTAINS
                     blacs_env=blacs_env)
 
     tddfpt_control => dft_control%tddfpt_control
-    logger    => cp_get_default_logger()
-    output_unit  = cp_logger_get_default_io_unit(logger)
+    output_unit  = cp_logger_get_default_io_unit()
     n_ev      = tddfpt_control%n_ev
     nspins    = dft_control%nspins
 

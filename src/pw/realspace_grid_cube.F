@@ -229,10 +229,8 @@ __LOCATION__,&
                                                 ubounds, ubounds_local
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: buffer
     REAL(kind=dp), DIMENSION(3)              :: dr, rdum
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     CALL timeset(routineN,handle)
 

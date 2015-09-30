@@ -48,10 +48,8 @@ CONTAINS
 
     INTEGER                                  :: output_unit
     LOGICAL                                  :: check
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     ! Orthogonality check for the rotation..
     check = ABS(DOT_PRODUCT(nvec,theta))<MAX(1.0E-9_dp,dimer_thrs)

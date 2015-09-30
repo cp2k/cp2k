@@ -121,7 +121,6 @@ CONTAINS
                                                 lskip_box, lterminate
     REAL(dp)                                 :: rcut
     REAL(dp), DIMENSION(:, :), POINTER       :: empty_coordinates
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env
@@ -143,8 +142,7 @@ CONTAINS
       CALL force_env_retain(force_env_1)
 
       para_env=>force_env_1%para_env
-      logger=>cp_get_default_logger()
-      iw = cp_logger_get_default_io_unit(logger)
+      iw = cp_logger_get_default_io_unit()
       force_env_section => force_env_1%force_env_section
       root_section => force_env_1%root_section
       CALL section_vals_get(force_env_section,n_repetition=isos)

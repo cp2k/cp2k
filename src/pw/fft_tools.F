@@ -380,12 +380,10 @@ CONTAINS
                                                 output_unit, sign, stat
     LOGICAL                                  :: fft_in_place, test
     REAL(KIND=dp)                            :: in_sum, norm, out_sum
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
 
     CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     IF ( PRESENT ( scale ) ) THEN
        norm = scale
@@ -521,13 +519,11 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: p2p
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: norm, sum_data
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
 
     CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     IF ( PRESENT ( debug ) ) THEN
        test = debug
@@ -979,7 +975,6 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: dim, pos
     LOGICAL                                  :: test
     REAL(KIND=dp)                            :: norm, sum_data
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fft_scratch_sizes)                  :: fft_scratch_size
     TYPE(fft_scratch_type), POINTER          :: fft_scratch
 
@@ -1004,8 +999,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     CALL mp_environ ( np, dim, pos, group )
     CALL mp_cart_rank ( group, pos, my_pos )
