@@ -282,8 +282,11 @@ CONTAINS
           dUdX = (dU1 - dU2) / (2.0_dp*eps)
           Gij_num = SUM( block_M * dUdX )
           IF(ABS(Gij_num - block_G(i,j)) > pao%check_gradient_tol) THEN
-             WRITE (*,*) "PAO| Found missmatch of gradients:", iatom, i, j, Gij_num, block_G(i,j)
-             IF(pao%check_gradient_abort) CPABORT("Analyic and numeric gradients differ too much.")
+             IF(pao%check_gradient_abort) THEN
+                CPABORT("Analyic and numeric gradients differ too much.")
+             ELSE
+                CPWARN("PAO| Found missmatch of gradients")
+             ENDIF
           ENDIF
        ENDDO
     ENDDO
@@ -425,11 +428,7 @@ CONTAINS
           tmp2(i,i) = tmp2(i,i) - 1.0_dp
        ENDDO
 
-       IF(MAXVAL(ABS(tmp2)) > 1e-10) THEN
-          WRITE (*,*) "bad unitaryness:", MAXVAL(ABS(tmp2))
-          CPWARN("unitary check failed")
-          !CPABORT("unitary check failed")
-       ENDIF
+       IF(MAXVAL(ABS(tmp2)) > 1e-10) CPWARN("PAO| found bad unitaryness")
 
        DEALLOCATE(tmp1, tmp2)
     END DO
