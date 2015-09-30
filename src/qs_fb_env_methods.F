@@ -727,6 +727,12 @@ CONTAINS
                                       alpha=1.0_dp)
        CALL cp_fm_to_fm(fm_work, mo_coeff, nmo, 1, 1)
     ELSE
+       CALL cp_warn(__LOCATION__,&
+            "Unable to perform Cholesky decomposition on the overlap "//&
+            "matrix. The new filtered basis may not be linearly "//&
+            "independent set. Revert to using inverse square-root "//&
+            "of the overlap. To avoid this warning, you can try"//&
+            "to use a higher filter termperature.")
        ! cholesky decomposition has failed, revert to calculating
        ! ortho as S^-1/2 using diagonalisation of S, and solve
        ! accordingly
