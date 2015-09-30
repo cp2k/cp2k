@@ -772,7 +772,8 @@ CONTAINS
 ! change to the new working directory
 
        CALL m_chdir(TRIM(farming_env%Job(i)%cwd),ierr)
-       CPASSERT(ierr==0)
+       IF (ierr.NE.0) &
+          CPABORT("Failed to change dir to: "//TRIM(farming_env%Job(i)%cwd))
 
        ! generate a fresh call to cp2k_run
        IF (new_rank == 0) THEN
