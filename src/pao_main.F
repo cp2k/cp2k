@@ -148,11 +148,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Signal PAO that a new SCF optimization is about to start
-!> \param qs_env ...
 !> \param ls_scf_env ...
 ! *****************************************************************************
-  SUBROUTINE pao_scf_init(qs_env,ls_scf_env)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE pao_scf_init(ls_scf_env)
     TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_scf_init', &
@@ -299,11 +297,9 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Finalize the PAO environment
-!> \param qs_env ...
 !> \param ls_scf_env ...
 ! *****************************************************************************
-  SUBROUTINE pao_finalize(qs_env,ls_scf_env)
-    TYPE(qs_environment_type), POINTER       :: qs_env
+  SUBROUTINE pao_finalize(ls_scf_env)
     TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_finalize', &
@@ -319,7 +315,7 @@ CONTAINS
     pao => ls_scf_env%pao_env
     ls_mstruct => ls_scf_env%ls_mstruct
 
-    CALL pao_param_finalize(pao, qs_env)
+    CALL pao_param_finalize(pao)
 
     ! We keep pao%matrix_X for next scf-run, e.g. during MD or GEO-OPT
     CALL cp_dbcsr_release(pao%matrix_X_orig)

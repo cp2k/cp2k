@@ -359,7 +359,6 @@ CONTAINS
                         pao_potential_neighbors=pao_pot_neighbors,&
                         pao_potential_beta=pao_pot_beta,&
                         basis_set=basis_set)
-       WRITE (*,*) "kindname:", kindname
        WRITE(unit_nr,"(A,5X,I10,1X,A,1X,I3)") "Kind", ikind, TRIM(kindname), z
        WRITE(unit_nr,"(A,5X,I10,1X,A)") "PrimBasis", ikind, TRIM(basis_set%name)
        WRITE(unit_nr,"(A,5X,I10,1X,I3,1X,I3)",advance='no') "PaoBasis", ikind, pao_basis_size, pao_pot_maxl

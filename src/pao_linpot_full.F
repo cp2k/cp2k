@@ -12,7 +12,6 @@ MODULE pao_linpot_full
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: gto_basis_set_type
   USE kinds,                           ONLY: dp
-  USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -32,13 +31,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize full linpot parametrization
-!> \param pao ...
 !> \param qs_env ...
 !> \param iatom ...
 !> \param nterms ...
 ! *****************************************************************************
-  SUBROUTINE linpot_full_count_terms(pao, qs_env, iatom, nterms)
-    TYPE(pao_env_type), POINTER              :: pao
+  SUBROUTINE linpot_full_count_terms(qs_env, iatom, nterms)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
     INTEGER, INTENT(OUT)                     :: nterms
@@ -69,16 +66,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Count number of linear terms in parametrization
-!> \param pao ...
-!> \param qs_env ...
-!> \param iatom ...
 !> \param kterm ...
 !> \param block_V ...
 ! *****************************************************************************
-  SUBROUTINE linpot_full_calc_term(pao, qs_env, iatom, kterm, block_V)
-    TYPE(pao_env_type), POINTER              :: pao
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iatom, kterm
+  SUBROUTINE linpot_full_calc_term(kterm, block_V)
+    INTEGER, INTENT(IN)                      :: kterm
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: block_V
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_calc_term', &

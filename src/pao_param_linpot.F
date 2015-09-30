@@ -153,18 +153,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalize the linear potential parametrization
 !> \param pao ...
-!> \param qs_env ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_finalize_linpot(pao, qs_env)
+  SUBROUTINE pao_param_finalize_linpot(pao)
     TYPE(pao_env_type), POINTER              :: pao
-    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_linpot', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iterm
 
-    CALL pao_param_finalize_fock(pao, qs_env)
+    CALL pao_param_finalize_fock(pao)
 
     DO iterm=1, SIZE(pao%matrix_V_terms)
        CALL cp_dbcsr_release(pao%matrix_V_terms(iterm))
@@ -423,9 +421,9 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
 
      SELECT CASE(pao%parameterization)
       CASE(pao_param_fock)
-        CALL linpot_full_count_terms(pao, qs_env, iatom, nterms)
+        CALL linpot_full_count_terms(qs_env, iatom, nterms)
       CASE(pao_param_rotinv)
-        CALL linpot_rotinv_count_terms(pao, qs_env, iatom, nterms)
+        CALL linpot_rotinv_count_terms(qs_env, iatom, nterms)
       CASE DEFAULT
         CPABORT("unkown parameterization")
      END SELECT
@@ -452,9 +450,9 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
 
      SELECT CASE(pao%parameterization)
       CASE(pao_param_fock)
-        CALL linpot_full_calc_term(pao, qs_env, iatom, kterm, block_V)
+        CALL linpot_full_calc_term(kterm, block_V)
       CASE(pao_param_rotinv)
-        CALL linpot_rotinv_calc_term(pao, qs_env, iatom, kterm, block_V)
+        CALL linpot_rotinv_calc_term(qs_env, iatom, kterm, block_V)
       CASE DEFAULT
         CPABORT("unkown parameterization")
      END SELECT

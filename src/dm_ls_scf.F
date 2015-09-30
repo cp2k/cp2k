@@ -143,13 +143,13 @@ CONTAINS
     pao_is_done = .FALSE.
     DO WHILE(.NOT. pao_is_done)
         CALL ls_scf_init_scf(qs_env, ls_scf_env)
-        CALL pao_scf_init(qs_env, ls_scf_env)
+        CALL pao_scf_init(ls_scf_env)
         CALL ls_scf_main(qs_env, ls_scf_env)
         CALL pao_update(qs_env, ls_scf_env, pao_is_done)
         CALL ls_scf_post(qs_env, ls_scf_env)
      END DO
 
-    CALL pao_finalize(qs_env, ls_scf_env)
+    CALL pao_finalize(ls_scf_env)
 
     CALL timestop(handle)
 
@@ -951,7 +951,7 @@ CONTAINS
        CASE(ls_cluster_pao)
            WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","PAO"
        CASE DEFAULT
-           STOP
+           CPABORT("Unkown cluster type")
        END SELECT
 
        IF (ls_scf_env%chebyshev%compute_chebyshev) THEN
@@ -1315,7 +1315,7 @@ CONTAINS
 
     IF (ls_scf_env%chebyshev%compute_chebyshev) CALL compute_chebyshev(qs_env,ls_scf_env)
 
-    IF (.TRUE.) CALL post_scf_experiment(ls_scf_env)
+    IF (.TRUE.) CALL post_scf_experiment()
 
     CALL qs_scf_post_moments(qs_env%input, logger, qs_env, unit_nr)
 
@@ -1720,13 +1720,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief a place for quick experiments
-!> \param ls_scf_env ...
 !> \par History
 !>       2010.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE post_scf_experiment(ls_scf_env)
-    TYPE(ls_scf_env_type)                    :: ls_scf_env
+  SUBROUTINE post_scf_experiment()
 
     CHARACTER(len=*), PARAMETER :: routineN = 'post_scf_experiment', &
       routineP = moduleN//':'//routineN

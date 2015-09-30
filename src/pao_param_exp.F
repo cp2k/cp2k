@@ -85,11 +85,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalize exponential parametrization
 !> \param pao ...
-!> \param qs_env ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_finalize_exp(pao, qs_env)
+  SUBROUTINE pao_param_finalize_exp(pao)
     TYPE(pao_env_type), POINTER              :: pao
-    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_exp', &
       routineP = moduleN//':'//routineN

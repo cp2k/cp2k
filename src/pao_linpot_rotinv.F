@@ -19,7 +19,6 @@ MODULE pao_linpot_rotinv
                                              ncoset
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics,&
                                              orbtramat
-  USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -41,13 +40,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Initialize rotinv parametrization
-!> \param pao ...
 !> \param qs_env ...
 !> \param iatom ...
 !> \param nterms ...
 ! *****************************************************************************
-  SUBROUTINE linpot_rotinv_count_terms(pao, qs_env, iatom, nterms)
-    TYPE(pao_env_type), POINTER              :: pao
+  SUBROUTINE linpot_rotinv_count_terms(qs_env, iatom, nterms)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom
     INTEGER, INTENT(OUT)                     :: nterms
@@ -97,14 +94,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Count number of potential terms
-!> \param pao ...
 !> \param qs_env ...
 !> \param iatom ...
 !> \param kterm ...
 !> \param block_V ...
 ! *****************************************************************************
-  SUBROUTINE linpot_rotinv_calc_term(pao, qs_env, iatom, kterm, block_V)
-    TYPE(pao_env_type), POINTER              :: pao
+  SUBROUTINE linpot_rotinv_calc_term(qs_env, iatom, kterm, block_V)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: iatom, kterm
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: block_V

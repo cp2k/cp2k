@@ -448,9 +448,9 @@ CONTAINS
     IF (PRESENT(fmat)) THEN
        ! recover fock matrix in CP2K/GPW order.
        ! Caution: Normalization is not take care of, so it's probably weird.
-       IF(ispin/=1) STOP "calculate_atomic_orbitals: only ispin==1 is implemented"
-       IF(ASSOCIATED(fmat)) STOP "calculate_atomic_orbitals: fmat already associated"
-       IF(.NOT.ASSOCIATED(atom%fmat)) STOP "calculate_atomic_orbitals: atom%fmat not associated"
+       IF(ispin/=1) CPABORT("calculate_atomic_orbitals: only ispin==1 is implemented")
+       IF(ASSOCIATED(fmat)) CPABORT("fmat already associated")
+       IF(.NOT.ASSOCIATED(atom%fmat)) CPABORT("atom%fmat not associated")
        ALLOCATE(fmat(nsgf,nsgf))
        fmat = 0.0_dp
        DO l=0,3

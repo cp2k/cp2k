@@ -74,20 +74,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalize PAO parametrization
 !> \param pao ...
-!> \param qs_env ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_finalize(pao, qs_env)
+  SUBROUTINE pao_param_finalize(pao)
     TYPE(pao_env_type), POINTER              :: pao
-    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize', &
       routineP = moduleN//':'//routineN
 
     SELECT CASE(pao%parameterization)
       CASE(pao_param_exp)
-        CALL pao_param_finalize_exp(pao, qs_env)
+        CALL pao_param_finalize_exp(pao)
       CASE DEFAULT
-        CALL pao_param_finalize_linpot(pao, qs_env)
+        CALL pao_param_finalize_linpot(pao)
     END SELECT
 
   END SUBROUTINE pao_param_finalize
