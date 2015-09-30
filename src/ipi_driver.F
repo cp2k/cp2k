@@ -14,15 +14,16 @@ MODULE ipi_driver
                                              C_DOUBLE,&
                                              C_INT,&
                                              C_LOC,&
+                                             C_NULL_CHAR,&
                                              C_PTR
   USE cell_types,                      ONLY: cell_create,&
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: external_control
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
-  USE f77_interface,                   ONLY: default_para_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
@@ -35,7 +36,6 @@ MODULE ipi_driver
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sync
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -253,7 +253,6 @@ MODULE ipi_driver
 
     CALL readbuffer_csocket(psockfd, c_loc(cstring(1)), plen)
     fstring=""   
-    WRITE(*,*) "READS", plen, cstring
     DO i = 1,plen
        fstring(i:i) = cstring(i)
     ENDDO
@@ -306,13 +305,15 @@ MODULE ipi_driver
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, handle, i_drv_unix, &
                                                 idir, ii, inet, ip, nat, &
-                                                socket
+                                                output_unit, socket
     LOGICAL                                  :: drv_unix, hasdata, ionode, &
                                                 should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), &
                                                 mxmat(9), pot, vir(3,3)
     REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
     TYPE(cell_type), POINTER                 :: cpcell
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: drv_section, motion_section
     TYPE(virial_type), POINTER               :: virial
@@ -324,9 +325,14 @@ MODULE ipi_driver
 ! buffers and temporaries for communication
 ! access cp2k structures
 
+    CPASSERT(ASSOCIATED(force_env))
+    CALL force_env_get(force_env,para_env=para_env)
+
     hasdata = .FALSE.
-    ionode = .FALSE.
-    ionode=(default_para_env%source==default_para_env%mepos)
+    ionode=(para_env%source==para_env%mepos)
+
+    logger => cp_get_default_logger()
+    output_unit= cp_logger_get_default_io_unit(logger)
 
     ! reads driver parameters from input
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION")
@@ -337,7 +343,7 @@ MODULE ipi_driver
     CALL section_vals_val_get(drv_section,"UNIX",l_val=drv_unix)
 
 #ifdef __NO_IPI_DRIVER
-    CALL stop_program(routineN,moduleN,__LINE__,"CP2K was compiled with the __NO_IPI_DRIVER option!")
+    CPABORT("CP2K was compiled with the __NO_IPI_DRIVER option!")
 #else
     
     ! opens the socket
@@ -345,12 +351,13 @@ MODULE ipi_driver
     inet=1
     i_drv_unix = 1   ! a bit convoluted. socket.c uses a different convention...
     IF (drv_unix) i_drv_unix = 0 
-    IF (ionode) THEN
-       WRITE(*,*) "@ i-PI DRIVER BEING LOADED"
-       WRITE(*,*) "@ INPUT DATA: ", TRIM(drv_hostname), drv_port, drv_unix                          
-       c_hostname=TRIM(drv_hostname)//ACHAR(0)
-       CALL open_socket(socket,i_drv_unix, drv_port, c_hostname) 
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*) "@ i-PI DRIVER BEING LOADED"
+       WRITE(output_unit,*) "@ INPUT DATA: ", TRIM(drv_hostname), drv_port, drv_unix                          
     ENDIF    
+
+    c_hostname=TRIM(drv_hostname)//C_NULL_CHAR
+    IF (ionode) CALL open_socket(socket,i_drv_unix, drv_port, c_hostname) 
     
     !now we have a socket, so we can initialize the CP2K environments. 
     NULLIFY(cpcell)
@@ -359,18 +366,18 @@ MODULE ipi_driver
       ! do communication on master node only...
       header = ""
 
-      CALL mp_sync(default_para_env%group)
+      CALL mp_sync(para_env%group)
 
       IF (ionode) CALL readbuffer(socket, header, MSGLEN)
       
-      CALL mp_sync(default_para_env%group)
+      CALL mp_sync(para_env%group)
 
-      CALL mp_bcast(header,default_para_env%source, default_para_env%group)
+      CALL mp_bcast(header,para_env%source, para_env%group)
       
-      IF (ionode) WRITE(*,*) " @ DRIVER MODE: Message from server: ", TRIM(header)
+      IF (output_unit>0) WRITE(output_unit,*) " @ DRIVER MODE: Message from server: ", TRIM(header)
       IF (TRIM(header) == "STATUS") THEN          
 
-         CALL mp_sync(default_para_env%group)
+         CALL mp_sync(para_env%group)
          IF (ionode) THEN  ! does not  need init (well, maybe it should, just to check atom numbers and the like... )
             IF (hasdata) THEN
                CALL writebuffer(socket,"HAVEDATA    ",MSGLEN)
@@ -378,7 +385,7 @@ MODULE ipi_driver
                CALL writebuffer(socket,"READY       ",MSGLEN)
             ENDIF
          ENDIF
-         CALL mp_sync(default_para_env%group)
+         CALL mp_sync(para_env%group)
       ELSE IF (TRIM(header) == "POSDATA") THEN              
          IF (ionode) THEN        
             CALL readbuffer(socket, mxmat, 9)
@@ -389,16 +396,16 @@ MODULE ipi_driver
             cellh=TRANSPOSE(cellh)
             cellih=TRANSPOSE(cellih)
          ENDIF
-         CALL mp_bcast(cellh,default_para_env%source, default_para_env%group)
-         CALL mp_bcast(cellih,default_para_env%source, default_para_env%group)
-         CALL mp_bcast(nat,default_para_env%source, default_para_env%group)
+         CALL mp_bcast(cellh,para_env%source, para_env%group)
+         CALL mp_bcast(cellih,para_env%source, para_env%group)
+         CALL mp_bcast(nat,para_env%source, para_env%group)
          IF (.not.ALLOCATED(combuf)) ALLOCATE(combuf(3*nat))
          IF (ionode) CALL readbuffer(socket, combuf, nat*3)
-         CALL mp_bcast(combuf,default_para_env%source, default_para_env%group)
+         CALL mp_bcast(combuf,para_env%source, para_env%group)
          
          CALL force_env_get(force_env,subsys=subsys)
-         IF (nat/=subsys%particles%n_els) WRITE(*,*) &
-                " @DRIVER MODE: Uh-oh! Particle number mismatch between i-PI and cp2k input!"
+         IF (nat/=subsys%particles%n_els) &
+                CPABORT("@DRIVER MODE: Uh-oh! Particle number mismatch between i-PI and cp2k input!")
          ii=0
          DO ip=1,subsys%particles%n_els
           DO idir=1,3
@@ -411,7 +418,7 @@ MODULE ipi_driver
          
          CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
     
-         IF (ionode) WRITE(*,*) " @ DRIVER MODE: Received positions "
+         IF (output_unit>0) WRITE(output_unit,*) " @ DRIVER MODE: Received positions "
          
          combuf=0
          ii=0
@@ -431,7 +438,7 @@ MODULE ipi_driver
        
          hasdata=.TRUE.
       ELSE IF (TRIM(header)=="GETFORCE") THEN
-         IF (ionode) WRITE(*,*) " @ DRIVER MODE: Returning v,forces,stress "
+         IF (output_unit>0) WRITE(output_unit,*) " @ DRIVER MODE: Returning v,forces,stress "
          IF (ionode) THEN     
             CALL writebuffer(socket,"FORCEREADY  ",MSGLEN)            
             CALL writebuffer(socket,pot)
@@ -448,14 +455,13 @@ MODULE ipi_driver
          ENDIF
          hasdata=.FALSE.
       ELSE 
-         IF (ionode) WRITE(*,*) " @DRIVER MODE:  Socket disconnected, time to exit. "
+         IF (output_unit>0) WRITE(output_unit,*) " @DRIVER MODE:  Socket disconnected, time to exit. "
          EXIT
       ENDIF
     ENDDO driver_loop  
 #endif
 
     CALL timestop(handle)
-
     
   END SUBROUTINE run_driver
 END MODULE ipi_driver
