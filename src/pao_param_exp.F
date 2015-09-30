@@ -14,7 +14,7 @@ MODULE pao_param_exp
        cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
   USE kinds,                           ONLY: dp
-  USE pao_input,                       ONLY: pao_precon_none
+  USE pao_input,                       ONLY: pao_none_precon
   USE pao_types,                       ONLY: pao_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -70,7 +70,7 @@ CONTAINS
     ENDIF
 
     ! build none preconditioner
-    IF(pao%preconditioner /= pao_precon_none) CPABORT("preconditioner not supported")
+    IF(pao%preconditioner /= pao_none_precon) CPABORT("preconditioner not supported")
     CALL cp_dbcsr_init(pao%matrix_precon)
     CALL cp_dbcsr_copy(pao%matrix_precon, pao%matrix_X)
     CALL cp_dbcsr_set(pao%matrix_precon, 0.0_dp)

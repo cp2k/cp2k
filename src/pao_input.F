@@ -33,12 +33,12 @@ MODULE pao_input
 
   PUBLIC :: create_pao_section, parse_pao_section, id2str
 
-  INTEGER, PARAMETER, PUBLIC               :: pao_precon_none=421,&
-                                              pao_precon_sinv=422
+  INTEGER, PARAMETER, PUBLIC               :: pao_none_precon=421,&
+                                              pao_sinv_precon=422
 
-  INTEGER, PARAMETER, PUBLIC               :: pao_param_rotinv=101,&
-                                              pao_param_fock=102,&
-                                              pao_param_exp=103
+  INTEGER, PARAMETER, PUBLIC               :: pao_rotinv_param=101,&
+                                              pao_fock_param=102,&
+                                              pao_exp_param=103
 
 CONTAINS
 
@@ -104,15 +104,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     SELECT CASE(id)
-      CASE(pao_precon_none)
+      CASE(pao_none_precon)
         s = "NONE"
-      CASE(pao_precon_sinv)
+      CASE(pao_sinv_precon)
         s = "SINV"
-      CASE(pao_param_rotinv)
+      CASE(pao_rotinv_param)
         s = "ROTINV"
-      CASE(pao_param_fock)
+      CASE(pao_fock_param)
         s = "FOCK"
-      CASE(pao_param_exp)
+      CASE(pao_exp_param)
         s = "EXP"
       CASE DEFAULT
         CPABORT("PAO: unkown id")
@@ -166,21 +166,21 @@ CONTAINS
     CALL keyword_create(keyword, name="PRECONDITIONER",&
          description="Preconditioner used by the linear potential parametrization.",&
          enum_c_vals=s2a("NONE","SINV"),&
-         enum_i_vals=(/pao_precon_none, pao_precon_sinv/),&
+         enum_i_vals=(/pao_none_precon, pao_sinv_precon/),&
          enum_desc=s2a("No preconditioner",&
                        "Invert overlap matrix between V terms"),&
-         default_i_val=pao_precon_sinv)
+         default_i_val=pao_sinv_precon)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="PARAMETERIZATION",&
          description="Parametrization of the mapping between the primary and the PAO basis.",&
          enum_c_vals=s2a("ROTINV","FOCK","EXP"),&
-         enum_i_vals=(/pao_param_rotinv, pao_param_fock, pao_param_exp/),&
-         enum_desc=s2a("Rotational invariant parametrizatin",&
+         enum_i_vals=(/pao_rotinv_param, pao_fock_param, pao_exp_param/),&
+         enum_desc=s2a("Rotational invariant parametrization",&
                        "Fock matrix parametrization",&
                        "Original matrix exponential parametrization"),&
-         default_i_val=pao_param_rotinv)
+         default_i_val=pao_rotinv_param)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

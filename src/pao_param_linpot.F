@@ -20,10 +20,10 @@ MODULE pao_param_linpot
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_sum
-  USE pao_input,                       ONLY: pao_param_fock,&
-                                             pao_param_rotinv,&
-                                             pao_precon_none,&
-                                             pao_precon_sinv
+  USE pao_input,                       ONLY: pao_fock_param,&
+                                             pao_none_precon,&
+                                             pao_rotinv_param,&
+                                             pao_sinv_precon
   USE pao_linpot_full,                 ONLY: linpot_full_calc_term,&
                                              linpot_full_count_terms
   USE pao_linpot_rotinv,               ONLY: linpot_rotinv_calc_term,&
@@ -137,9 +137,9 @@ CONTAINS
 
     ! build preconditioner
     SELECT CASE(pao%preconditioner)
-      CASE(pao_precon_none)
+      CASE(pao_none_precon)
         CALL build_preconditioner_none(pao, qs_env)
-      CASE(pao_precon_sinv)
+      CASE(pao_sinv_precon)
         CALL build_preconditioner_Sinv(pao, qs_env)
       CASE DEFAULT
         CPABORT("unkown preconditioner")
@@ -420,9 +420,9 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
       routineP = moduleN//':'//routineN
 
      SELECT CASE(pao%parameterization)
-      CASE(pao_param_fock)
+      CASE(pao_fock_param)
         CALL linpot_full_count_terms(qs_env, iatom, nterms)
-      CASE(pao_param_rotinv)
+      CASE(pao_rotinv_param)
         CALL linpot_rotinv_count_terms(qs_env, iatom, nterms)
       CASE DEFAULT
         CPABORT("unkown parameterization")
@@ -449,9 +449,9 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
       routineP = moduleN//':'//routineN
 
      SELECT CASE(pao%parameterization)
-      CASE(pao_param_fock)
+      CASE(pao_fock_param)
         CALL linpot_full_calc_term(kterm, block_V)
-      CASE(pao_param_rotinv)
+      CASE(pao_rotinv_param)
         CALL linpot_rotinv_calc_term(qs_env, iatom, kterm, block_V)
       CASE DEFAULT
         CPABORT("unkown parameterization")

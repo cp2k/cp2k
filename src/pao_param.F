@@ -18,7 +18,7 @@ MODULE pao_param
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                              ls_scf_env_type
   USE kinds,                           ONLY: dp
-  USE pao_input,                       ONLY: pao_param_exp
+  USE pao_input,                       ONLY: pao_exp_param
   USE pao_param_exp,                   ONLY: pao_calc_U_exp,&
                                              pao_param_finalize_exp,&
                                              pao_param_init_exp
@@ -62,7 +62,7 @@ CONTAINS
 !IF(pao%istep>=0) RETURN ! was there a previous pao-run, eg. during MD ?
 
     SELECT CASE(pao%parameterization)
-      CASE(pao_param_exp)
+      CASE(pao_exp_param)
         CALL pao_param_init_exp(pao, qs_env, reuse_matrix_X)
       CASE DEFAULT
         CALL pao_param_init_linpot(pao, qs_env, reuse_matrix_X)
@@ -82,7 +82,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     SELECT CASE(pao%parameterization)
-      CASE(pao_param_exp)
+      CASE(pao_exp_param)
         CALL pao_param_finalize_exp(pao)
       CASE DEFAULT
         CALL pao_param_finalize_linpot(pao)
@@ -152,7 +152,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     SELECT CASE(pao%parameterization)
-      CASE(pao_param_exp)
+      CASE(pao_exp_param)
         CALL pao_calc_U_exp(pao, iatom, block_X, block_U)
       CASE DEFAULT
         CALL pao_calc_U_linpot(pao, iatom, block_X, block_U)
@@ -211,7 +211,7 @@ CONTAINS
        block_pX = MATMUL(block_precon, block_X)
 
        SELECT CASE(pao%parameterization)
-         CASE(pao_param_exp)
+         CASE(pao_exp_param)
            CALL pao_calc_U_exp(pao, iatom, block_pX, block_U, block_M, block_pG)
          CASE DEFAULT
            CALL pao_calc_U_linpot(pao, iatom, block_pX, block_U, block_M, block_pG)
@@ -259,7 +259,7 @@ CONTAINS
     IF(pao%check_gradient_tol<0.0_dp) RETURN ! no checking
 
     SELECT CASE(pao%parameterization)
-      CASE(pao_param_exp)
+      CASE(pao_exp_param)
         symm = -1.0_dp ! anti-symmetric
       CASE DEFAULT
         symm = 0.0_dp  ! no symmetry
