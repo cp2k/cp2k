@@ -743,7 +743,8 @@ MODULE input_constants
                                               ls_s_preconditioner_molecular=17
 
   INTEGER, PARAMETER, PUBLIC               :: ls_cluster_atomic=111, &
-                                              ls_cluster_molecular=112
+                                              ls_cluster_molecular=112,&
+                                              ls_cluster_pao=113
 
   INTEGER, PARAMETER, PUBLIC               :: ls_s_inversion_hotelling=3,&
                                               ls_s_inversion_sign_sqrt=5,&

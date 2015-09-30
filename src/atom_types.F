@@ -241,6 +241,7 @@ MODULE atom_types
     TYPE(atom_energy_type)                        :: energy
     TYPE(atom_optimization_type)                  :: optimization
     TYPE(section_vals_type), POINTER              :: xc_section, zmp_section
+    TYPE(opmat_type), POINTER                     :: fmat
   END TYPE atom_type
 ! *****************************************************************************
   TYPE atom_p_type
@@ -689,10 +690,11 @@ CONTAINS
 
     NULLIFY(atom%zmp_section)
     NULLIFY(atom%xc_section)
-    atom%do_zmp = .FALSE.  
-    atom%doread = .FALSE. 
+    NULLIFY(atom%fmat)
+    atom%do_zmp = .FALSE.
+    atom%doread = .FALSE.
     atom%read_vxc = .FALSE.
-    atom%dm = .FALSE. 
+    atom%dm = .FALSE.
 
   END SUBROUTINE create_atom_type
 
@@ -717,6 +719,8 @@ CONTAINS
       CALL release_atom_orbs(atom%orbitals)
     END IF
 
+    IF(ASSOCIATED(atom%fmat))  CALL release_opmat(atom%fmat)
+
     DEALLOCATE(atom)
 
   END SUBROUTINE release_atom_type
@@ -739,9 +743,10 @@ CONTAINS
 !> \param relativistic ...
 !> \param coulomb_integral_type ...
 !> \param exchange_integral_type ...
+!> \param fmat ...
 ! *****************************************************************************
   SUBROUTINE set_atom(atom,basis,state,integrals,orbitals,potential,zcore,pp_calc,do_zmp,doread,&
-    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type)
+    read_vxc,method_type,relativistic,coulomb_integral_type,exchange_integral_type,fmat)
     TYPE(atom_type), POINTER                 :: atom
     TYPE(atom_basis_type), OPTIONAL, POINTER :: basis
     TYPE(atom_state), OPTIONAL, POINTER      :: state
@@ -755,6 +760,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: method_type, relativistic, &
                                                 coulomb_integral_type, &
                                                 exchange_integral_type
+    TYPE(opmat_type), OPTIONAL, POINTER      :: fmat
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_atom', &
       routineP = moduleN//':'//routineN
@@ -777,6 +783,11 @@ CONTAINS
     IF(PRESENT(relativistic)) atom%relativistic = relativistic
     IF(PRESENT(coulomb_integral_type)) atom%coulomb_integral_type = coulomb_integral_type
     IF(PRESENT(exchange_integral_type)) atom%exchange_integral_type = exchange_integral_type
+
+    IF(PRESENT(fmat)) THEN
+       IF(ASSOCIATED(atom%fmat)) CALL release_opmat(atom%fmat)
+       atom%fmat => fmat
+    ENDIF
 
   END SUBROUTINE set_atom
 

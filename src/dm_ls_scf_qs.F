@@ -15,14 +15,15 @@ MODULE dm_ls_scf_qs
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_complete_redistribute, &
-       cp_dbcsr_copy, cp_dbcsr_copy_into_existing, cp_dbcsr_create, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, &
-       cp_dbcsr_distribution_new, cp_dbcsr_finalize, cp_dbcsr_init, &
-       cp_dbcsr_name, cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_distribution_col_clusters, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_col_clusters, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
+       cp_dbcsr_complete_redistribute, cp_dbcsr_copy, &
+       cp_dbcsr_copy_into_existing, cp_dbcsr_create, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_distribution, cp_dbcsr_distribution_new, cp_dbcsr_finalize, &
+       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_name, &
+       cp_dbcsr_nblkrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_has_col_clusters, &
        dbcsr_distribution_has_row_clusters, dbcsr_distribution_init, &
        dbcsr_distribution_mp, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
@@ -35,7 +36,8 @@ MODULE dm_ls_scf_qs
                                              ls_mstruct_type,&
                                              ls_scf_env_type
   USE input_constants,                 ONLY: ls_cluster_atomic,&
-                                             ls_cluster_molecular
+                                             ls_cluster_molecular,&
+                                             ls_cluster_pao
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
@@ -110,7 +112,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_to_cluster, &
                                                 atom_to_cluster_primus, &
                                                 primus_of_mol
-    INTEGER, DIMENSION(:), POINTER :: blk_dist, blk_sizes, &
+    INTEGER, DIMENSION(:), POINTER :: blk_dist, blk_sizes, blk_sizes_aux, &
       clustered_blk_sizes, clustered_col_clusters, clustered_col_dist, &
       clustered_row_clusters, clustered_row_dist
     TYPE(dbcsr_distribution_obj)             :: block_distribution, &
@@ -210,10 +212,17 @@ CONTAINS
        DEALLOCATE(clustered_blk_sizes)
        CALL dbcsr_distribution_release (clustered_distribution)
        CALL cp_dbcsr_finalize (matrix_ls)
+    CASE(ls_cluster_pao)
+        blk_sizes_aux => cp_dbcsr_col_block_sizes(ls_mstruct%matrix_A)
+        CALL cp_dbcsr_init(matrix_ls)
+        CALL cp_dbcsr_create(matrix_ls,&
+                             template=matrix_qs,&
+                             data_type=data_type,&
+                             row_blk_size=blk_sizes_aux,&
+                             col_blk_size=blk_sizes_aux)
     CASE DEFAULT
        CPABORT(" BUG cluster option")
     END SELECT
-
 
     CALL timestop (handle)
 
@@ -226,19 +235,23 @@ CONTAINS
 !> \param matrix_ls ...
 !> \param matrix_qs ...
 !> \param ls_mstruct ...
+!> \param covariant ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE matrix_qs_to_ls(matrix_ls,matrix_qs,ls_mstruct)
+  SUBROUTINE matrix_qs_to_ls(matrix_ls,matrix_qs,ls_mstruct,covariant)
     TYPE(cp_dbcsr_type)                      :: matrix_ls, matrix_qs
-    TYPE(ls_mstruct_type), INTENT(IN)        :: ls_mstruct
+    TYPE(ls_mstruct_type), INTENT(IN), &
+      TARGET                                 :: ls_mstruct
+    LOGICAL                                  :: covariant
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_qs_to_ls', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     TYPE(cp_dbcsr_type)                      :: matrix_qs_nosym, matrix_tmp
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_trafo
 
     CALL timeset(routineN,handle)
 
@@ -270,13 +283,23 @@ CONTAINS
        ENDIF
        CALL cp_dbcsr_release (matrix_qs_nosym)
 
+    CASE(ls_cluster_pao)
+       matrix_trafo => ls_mstruct%matrix_A                !contra-variant
+       IF(covariant) matrix_trafo => ls_mstruct%matrix_B  !    co-variant
+       CALL cp_dbcsr_init(matrix_tmp)
+       CALL cp_dbcsr_create(matrix_tmp, template=matrix_trafo)
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_qs, matrix_trafo, &
+                              0.0_dp, matrix_tmp)
+       CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_trafo, matrix_tmp, &
+                              0.0_dp, matrix_ls)
+       CALL cp_dbcsr_release(matrix_tmp)
     CASE DEFAULT
        CPABORT("")
     END SELECT
 
     CALL timestop(handle)
 
-  END SUBROUTINE
+  END SUBROUTINE matrix_qs_to_ls
 
 ! *****************************************************************************
 !> \brief second link to QS, copy a LS matrix to QS matrix
@@ -285,19 +308,24 @@ CONTAINS
 !> \param matrix_qs ...
 !> \param matrix_ls ...
 !> \param ls_mstruct ...
+!> \param covariant ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE matrix_ls_to_qs(matrix_qs,matrix_ls,ls_mstruct)
+  SUBROUTINE matrix_ls_to_qs(matrix_qs,matrix_ls,ls_mstruct,covariant)
     TYPE(cp_dbcsr_type)                      :: matrix_qs, matrix_ls
-    TYPE(ls_mstruct_type), INTENT(IN)        :: ls_mstruct
+    TYPE(ls_mstruct_type), INTENT(IN), &
+      TARGET                                 :: ls_mstruct
+    LOGICAL                                  :: covariant
 
     CHARACTER(len=*), PARAMETER :: routineN = 'matrix_ls_to_qs', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    TYPE(cp_dbcsr_type)                      :: matrix_tmp
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp, matrix_tmp1, &
+                                                matrix_tmp2
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_trafo
 
     CALL timeset(routineN,handle)
 
@@ -307,7 +335,6 @@ CONTAINS
             data_type=dbcsr_type_real_8)
        CALL cp_dbcsr_copy (matrix_tmp, matrix_ls)
     ENDIF
-
 
     SELECT CASE(ls_mstruct%cluster_type)
     CASE(ls_cluster_atomic)
@@ -323,6 +350,21 @@ CONTAINS
        ELSE
           CALL cp_dbcsr_complete_redistribute(matrix_ls, matrix_qs, keep_sparsity=.TRUE.)
        ENDIF
+    CASE(ls_cluster_pao)
+       matrix_trafo => ls_mstruct%matrix_B                !contra-variant
+       IF(covariant) matrix_trafo => ls_mstruct%matrix_A  !    co-variant
+       CALL cp_dbcsr_init(matrix_tmp1)
+       CALL cp_dbcsr_create(matrix_tmp1, template=matrix_trafo)
+       CALL cp_dbcsr_init(matrix_tmp2)
+       CALL cp_dbcsr_create(matrix_tmp2, template=matrix_qs)
+       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_trafo, matrix_ls,&
+                              0.0_dp, matrix_tmp1)
+       CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp1, matrix_trafo, &
+                              0.0_dp, matrix_tmp2)
+       !use copy_into_existing to retain sparsity-pattern of S for sure
+       CALL cp_dbcsr_copy_into_existing(matrix_qs, matrix_tmp2)
+       CALL cp_dbcsr_release(matrix_tmp1)
+       CALL cp_dbcsr_release(matrix_tmp2)
     CASE DEFAULT
        CPABORT("BUG")
     END SELECT
@@ -527,7 +569,8 @@ CONTAINS
 
     ! set the new density matrix
     DO ispin=1,nspin
-         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), ls_scf_env%ls_mstruct)
+         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), &
+                              ls_scf_env%ls_mstruct, covariant=.FALSE.)
     END DO
 
     ! compute the corresponding KS matrix and new energy, mix density if requested
@@ -617,7 +660,7 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_p_qs) !initialization
     CALL cp_dbcsr_copy(matrix_p_qs,matrix_ks(1)%matrix)
     CALL cp_dbcsr_set(matrix_p_qs,0.0_dp) !zero matrix creation   
-    CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls,ls_scf_env%ls_mstruct) 
+    CALL matrix_ls_to_qs(matrix_p_qs, matrix_p_ls,ls_scf_env%ls_mstruct, covariant=.FALSE.)
 
     ! Print total electronic density
     CALL pw_env_get(pw_env=pw_env,&

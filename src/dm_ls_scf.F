@@ -48,11 +48,11 @@ MODULE dm_ls_scf
                                              rho_mixing_ls_init
   USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
   USE input_constants,                 ONLY: &
-       ls_cluster_atomic, ls_cluster_molecular, ls_s_inversion_hotelling, &
-       ls_s_inversion_none, ls_s_inversion_sign_sqrt, &
-       ls_s_preconditioner_atomic, ls_s_preconditioner_molecular, &
-       ls_s_preconditioner_none, ls_scf_ns, ls_scf_pexsi, ls_scf_tc2, &
-       ls_scf_trs4
+       ls_cluster_atomic, ls_cluster_molecular, ls_cluster_pao, &
+       ls_s_inversion_hotelling, ls_s_inversion_none, &
+       ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
+       ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
+       ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -76,6 +76,10 @@ MODULE dm_ls_scf
   USE mathlib,                         ONLY: binomial
   USE molecule_types_new,              ONLY: molecule_of_atom,&
                                              molecule_type
+  USE pao_main,                        ONLY: pao_finalize,&
+                                             pao_init,&
+                                             pao_scf_init,&
+                                             pao_update
   USE particle_types,                  ONLY: particle_type
   USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
                                              pexsi_finalize_scf,&
@@ -129,21 +133,23 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    LOGICAL                                  :: pao_is_done
     TYPE(ls_scf_env_type), POINTER           :: ls_scf_env
 
     CALL timeset(routineN,handle)
-
-    ! get scf env
     CALL get_qs_env(qs_env,ls_scf_env=ls_scf_env)
+    CALL pao_init(qs_env, ls_scf_env)
 
-    ! initialize the scf phase
-    CALL ls_scf_init_scf(qs_env,ls_scf_env)
+    pao_is_done = .FALSE.
+    DO WHILE(.NOT. pao_is_done)
+        CALL ls_scf_init_scf(qs_env, ls_scf_env)
+        CALL pao_scf_init(qs_env, ls_scf_env)
+        CALL ls_scf_main(qs_env, ls_scf_env)
+        CALL pao_update(qs_env, ls_scf_env, pao_is_done)
+        CALL ls_scf_post(qs_env, ls_scf_env)
+     END DO
 
-    ! perform the actual scf
-    CALL ls_scf_main(qs_env,ls_scf_env)
-
-    ! do post scf processing
-    CALL ls_scf_post(qs_env,ls_scf_env)
+    CALL pao_finalize(qs_env, ls_scf_env)
 
     CALL timestop(handle)
 
@@ -329,6 +335,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ls_scf_init_scf
+
 
 ! *****************************************************************************
 !> \brief deal with the scf initial guess
@@ -605,7 +612,7 @@ CONTAINS
        CALL cp_dbcsr_set(ls_scf_env%matrix_s,0.0_dp)
        CALL cp_dbcsr_add_on_diag(ls_scf_env%matrix_s,1.0_dp)
     ELSE
-       CALL matrix_qs_to_ls(ls_scf_env%matrix_s,matrix_s,ls_scf_env%ls_mstruct)
+       CALL matrix_qs_to_ls(ls_scf_env%matrix_s,matrix_s,ls_scf_env%ls_mstruct,covariant=.TRUE.)
     ENDIF
 
     CALL cp_dbcsr_filter(ls_scf_env%matrix_s,ls_scf_env%eps_filter)
@@ -725,10 +732,8 @@ CONTAINS
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
-    TYPE(section_vals_type), POINTER         :: chebyshev_section, &
-                                                curvy_section, &
-                                                ls_scf_section, &
-                                                mixing_section, pexsi_section
+    TYPE(section_vals_type), POINTER :: chebyshev_section, curvy_section, &
+      ls_scf_section, mixing_section, pao_section, pexsi_section
 
     CALL timeset(routineN,handle)
     CALL cite_reference(VandeVondele2012)
@@ -866,6 +871,12 @@ CONTAINS
       ls_scf_env%has_s_preconditioner=.FALSE.
     ENDIF
 
+    pao_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PAO")
+    CALL section_vals_get(pao_section,explicit=ls_scf_env%do_pao)
+    IF (ls_scf_env%do_pao) THEN
+      ls_scf_env%ls_mstruct%cluster_type = ls_cluster_pao
+    ENDIF
+
     IF (unit_nr>0) THEN
        WRITE(unit_nr,'()')
        WRITE(unit_nr,'(T2,A,A,A)') REPEAT("-",30)," Linear scaling SCF ",REPEAT("-",29)
@@ -937,6 +948,10 @@ CONTAINS
            WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","ATOMIC"
        CASE(ls_cluster_molecular)
            WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","MOLECULAR"
+       CASE(ls_cluster_pao)
+           WRITE(unit_nr,'(T2,A,T38,A20)') "Cluster type","PAO"
+       CASE DEFAULT
+           STOP
        END SELECT
 
        IF (ls_scf_env%chebyshev%compute_chebyshev) THEN
@@ -946,6 +961,8 @@ CONTAINS
        ELSE
           WRITE(unit_nr,'(T2,A,T38,A20)') "Computing Chebyshev","FALSE"
        ENDIF
+
+       WRITE(unit_nr,'(T2,A,T38,L20)') "Using PAO", ls_scf_env%do_pao
 
        WRITE(unit_nr,'(T2,A)') REPEAT("-",79)
        WRITE(unit_nr,'()')
@@ -1048,7 +1065,8 @@ CONTAINS
       ! first get a copy of the current KS matrix
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
       DO ispin=1,nspin
-         CALL matrix_qs_to_ls(ls_scf_env%matrix_ks(ispin),matrix_ks(ispin)%matrix,ls_scf_env%ls_mstruct)
+         CALL matrix_qs_to_ls(ls_scf_env%matrix_ks(ispin),matrix_ks(ispin)%matrix,&
+                              ls_scf_env%ls_mstruct,covariant=.TRUE.)
          IF (ls_scf_env%has_s_preconditioner) THEN
              CALL apply_matrix_preconditioner(ls_scf_env%matrix_ks(ispin),"forward", &
                             ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv)
@@ -1269,7 +1287,8 @@ CONTAINS
     ENDIF
 
     ! store the matrix for a next scf run
-    CALL ls_scf_store_result(ls_scf_env)
+    IF(.NOT.ls_scf_env%do_pao)&
+      CALL ls_scf_store_result(ls_scf_env)
 
     ! write homo and lumo energy (if not already part of the output)
     IF (ls_scf_env%curvy_steps) THEN
@@ -1688,7 +1707,7 @@ CONTAINS
                               0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_p(ispin),&
                               0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
-      CALL matrix_ls_to_qs(matrix_w(ispin)%matrix, matrix_tmp2, ls_scf_env%ls_mstruct)
+      CALL matrix_ls_to_qs(matrix_w(ispin)%matrix, matrix_tmp2, ls_scf_env%ls_mstruct,covariant=.FALSE.)
     ENDDO
 
     CALL cp_dbcsr_release(matrix_tmp1)

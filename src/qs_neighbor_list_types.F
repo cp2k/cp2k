@@ -1017,7 +1017,7 @@ CONTAINS
          IF (PRESENT(molecular)) molecular = neighbor_list_set%molecular
       ELSE
          CALL stop_program(routineN,moduleN,__LINE__,&
-                        "No neighbor list set is associated")
+                        "No neighbor list set is associated. Did you specify *all* required basis-sets?")
       END IF
 
     ELSE

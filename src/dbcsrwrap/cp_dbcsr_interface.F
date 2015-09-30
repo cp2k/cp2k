@@ -207,6 +207,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: cp_dbcsr_get_stored_coordinates
   PUBLIC :: cp_dbcsr_valid_index
   PUBLIC :: cp_dbcsr_get_data_type
+  PUBLIC :: cp_dbcsr_reserve_diag_blocks
   PUBLIC :: cp_dbcsr_reserve_block2d
   PUBLIC :: cp_dbcsr_reserve_blocks
   PUBLIC :: cp_dbcsr_reserve_all_blocks

@@ -16,7 +16,7 @@ MODULE atom_electronic_structure
                                              atom_print_zmp_iteration
   USE atom_types,                      ONLY: &
        GTH_PSEUDO, NO_PSEUDO, atom_type, create_opgrid, create_opmat, &
-       opgrid_type, opmat_type, release_opgrid, release_opmat
+       opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom
   USE atom_utils,                      ONLY: &
        atom_denmat, atom_density, atom_read_external_density, &
        atom_read_external_vxc, atom_read_zmp_restart, atom_solve, atom_trace, &
@@ -388,7 +388,8 @@ CONTAINS
 
     CALL atom_history_release(history)
 
-    CALL release_opmat(fmat)
+    ! conserve fmat within atom_type
+    CALL set_atom(atom,fmat=fmat)
     CALL release_opmat(jmat)
     CALL release_opmat(kmat)
     CALL release_opmat(xcmat)
@@ -749,7 +750,8 @@ CONTAINS
     CALL release_opgrid(rhob)
     CALL release_opgrid(cpot)
 
-    CALL release_opmat(fmata)
+    ! conserve fmata as fmat within atom_type.
+    CALL set_atom(atom,fmat=fmata)
     CALL release_opmat(fmatb)
     CALL release_opmat(jmat)
     CALL release_opmat(kmata)

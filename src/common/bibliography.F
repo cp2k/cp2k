@@ -72,7 +72,8 @@ MODULE bibliography
        Kantorovich2008a, Wellendorff2012, Niklasson2014, Borstnik2014, &
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
-       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009, Luber2014
+       QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
+       Luber2014, Berghold2011
 
 CONTAINS
 
@@ -3005,6 +3006,29 @@ CONTAINS
           "PM 25194377",&
           "ER"),&
           DOI="10.1063/1.4894425")
+
+     CALL add_reference(key=Berghold2011, ISI_record=s2a(&
+          "PT J",&
+          "AU Berghold, G",&
+          "   Parrinello, M",&
+          "   Hutter, J",&
+          "AF Berghold, Gerd",&
+          "   Parrinello, Michele",&
+          "   Hutter, Juerg",&
+          "TI Polarized atomic orbitals for linear scaling methods",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "RI Hutter, Juerg/E-9244-2011",&
+          "SN 0021-9606",&
+          "PD FEB 1",&
+          "PY 2002",&
+          "VL 116",&
+          "IS 5",&
+          "BP 1800",&
+          "EP 1810",&
+          "DI 10.1063/1.1431270",&
+          "UT WOS:000173418600007",&
+          "ER"),&
+          DOI="10.1063/1.1431270")
 
   END SUBROUTINE add_all_references
 

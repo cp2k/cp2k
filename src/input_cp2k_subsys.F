@@ -1242,6 +1242,31 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="PAO_BASIS_SIZE",&
+            description="The block size used for the polarized atomic orbital basis.",&
+            default_i_val=-1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="PAO_POTENTIAL_MAXL",&
+         description="Maximum angular moment of the potential's zonal harmonic.",&
+         default_i_val=0)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="PAO_POTENTIAL_BETA",&
+         description="Scaling factor of the potential's Gaussian Hull functions. "//&
+         "The exponent is given by pot_exp = 0.5/(R_vdw*pot_beta)**2.",&
+         default_r_val=1.0_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="PAO_POTENTIAL_NEIGHBORS",&
+         description="Number of neigbors used for spanning the potential.",&
+         default_i_val=4)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     NULLIFY(subsection)
     CALL create_basis_section(subsection)
     CALL section_add_subsection(section, subsection)

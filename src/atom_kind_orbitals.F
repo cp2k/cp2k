@@ -69,17 +69,18 @@ CONTAINS
 !> \param qs_kind ...
 !> \param iunit ...
 !> \param pmat ...
+!> \param fmat ...
 !> \param ispin ...
 !> \param confine ...
 !> \param xc_section ...
 ! *****************************************************************************
-  SUBROUTINE calculate_atomic_orbitals (atomic_kind,qs_kind,iunit,pmat,ispin,confine,&
-                                        xc_section)
+  SUBROUTINE calculate_atomic_orbitals (atomic_kind,qs_kind,iunit,pmat,fmat,&
+                                        ispin,confine,xc_section)
     TYPE(atomic_kind_type), INTENT(IN)       :: atomic_kind
     TYPE(qs_kind_type), INTENT(IN)           :: qs_kind
     INTEGER, INTENT(IN), OPTIONAL            :: iunit
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: pmat
+      OPTIONAL, POINTER                      :: pmat, fmat
     INTEGER, INTENT(IN)                      :: ispin
     LOGICAL, INTENT(IN), OPTIONAL            :: confine
     TYPE(section_vals_type), OPTIONAL, &
@@ -442,6 +443,28 @@ CONTAINS
            END DO
          END DO
       ENDDO
+    END IF
+
+    IF (PRESENT(fmat)) THEN
+       ! recover fock matrix in CP2K/GPW order.
+       ! Caution: Normalization is not take care of, so it's probably weird.
+       IF(ispin/=1) STOP "calculate_atomic_orbitals: only ispin==1 is implemented"
+       IF(ASSOCIATED(fmat)) STOP "calculate_atomic_orbitals: fmat already associated"
+       IF(.NOT.ASSOCIATED(atom%fmat)) STOP "calculate_atomic_orbitals: atom%fmat not associated"
+       ALLOCATE(fmat(nsgf,nsgf))
+       fmat = 0.0_dp
+       DO l=0,3
+          ll = 2*l
+          DO k1=1,atom%basis%nbas(l)
+          DO k2=1,atom%basis%nbas(l)
+             i=first_sgf(shell_index(l,k1),set_index(l,k1))
+             j=first_sgf(shell_index(l,k2),set_index(l,k2))
+             DO m=0,ll
+               fmat(i+m,j+m) = atom%fmat%op(k1,k2,l)
+             END DO
+          END DO
+          END DO
+       ENDDO
     END IF
 
     ! clean up

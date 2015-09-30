@@ -156,6 +156,10 @@ MODULE qs_kind_types
      !
      TYPE(qs_atom_dispersion_type), POINTER :: dispersion => Null()
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: reltmat => Null()
+     INTEGER                                :: pao_basis_size = -1
+     INTEGER                                :: pao_potential_maxl = -1
+     REAL(KIND=dp)                          :: pao_potential_beta = 0.0_dp
+     INTEGER                                :: pao_potential_neighbors = -1
   END TYPE qs_kind_type
 
 !> Provides a vector of pointers of type qs_kind_type
@@ -337,6 +341,10 @@ CONTAINS
 !> \param ghost ...
 !> \param name ...
 !> \param element_symbol ...
+!> \param pao_basis_size ...
+!> \param pao_potential_maxl ...
+!> \param pao_potential_beta ...
+!> \param pao_potential_neighbors ...
 ! *****************************************************************************
   SUBROUTINE get_qs_kind(qs_kind, &
        basis_set, basis_type, ncgf, nsgf, &
@@ -351,7 +359,8 @@ CONTAINS
        dft_plus_u_atom, l_of_dft_plus_u, u_minus_j, dispersion, &
        bs_occupation, no_optimize, addel, laddel, naddel, orbitals, &
        max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
-       init_u_ramping_each_scf, reltmat, ghost, name, element_symbol)
+       init_u_ramping_each_scf, reltmat, ghost, name, element_symbol, &
+       pao_basis_size, pao_potential_maxl, pao_potential_beta, pao_potential_neighbors)
 
     TYPE(qs_kind_type)                       :: qs_kind
     TYPE(gto_basis_set_type), OPTIONAL, &
@@ -412,6 +421,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       INTENT(OUT), OPTIONAL                  :: name
     CHARACTER(LEN=2), INTENT(OUT), OPTIONAL  :: element_symbol
+    INTEGER, INTENT(OUT), OPTIONAL           :: pao_basis_size, &
+                                                pao_potential_maxl
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: pao_potential_beta
+    INTEGER, INTENT(OUT), OPTIONAL           :: pao_potential_neighbors
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_kind', &
       routineP = moduleN//':'//routineN
@@ -645,6 +658,10 @@ CONTAINS
 
     IF (PRESENT(mao))  mao  = qs_kind%mao
 
+    IF (PRESENT(pao_basis_size)) pao_basis_size = qs_kind%pao_basis_size
+    IF (PRESENT(pao_potential_maxl)) pao_potential_maxl = qs_kind%pao_potential_maxl
+    IF (PRESENT(pao_potential_neighbors)) pao_potential_neighbors = qs_kind%pao_potential_neighbors
+    IF (PRESENT(pao_potential_beta))  pao_potential_beta = qs_kind%pao_potential_beta
   END SUBROUTINE get_qs_kind
 
 ! *****************************************************************************
@@ -1332,6 +1349,15 @@ CONTAINS
           basis_set_name(nb_rep) = ri_aux_basis_set_name
        END IF
        ! end of deprecated input
+
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="PAO_BASIS_SIZE", i_val=qs_kind%pao_basis_size)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="PAO_POTENTIAL_MAXL", i_val=qs_kind%pao_potential_maxl)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="PAO_POTENTIAL_NEIGHBORS", i_val=qs_kind%pao_potential_neighbors)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="PAO_POTENTIAL_BETA", r_val=qs_kind%pao_potential_beta)
 
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="ELEC_CONF",n_rep_val=i)

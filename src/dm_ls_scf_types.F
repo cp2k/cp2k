@@ -21,6 +21,7 @@ MODULE dm_ls_scf_types
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE pao_types,                       ONLY: pao_env_type
   USE pexsi_types,                     ONLY: lib_pexsi_env,&
                                              lib_pexsi_finalize
   USE qs_density_mixing_types,         ONLY: mixing_storage_release,&
@@ -42,6 +43,8 @@ MODULE dm_ls_scf_types
      INTEGER :: cluster_type
      LOGICAL :: single_precision
      INTEGER, DIMENSION(:), ALLOCATABLE :: atom_to_molecule
+     TYPE(cp_dbcsr_type)                :: matrix_A
+     TYPE(cp_dbcsr_type)                :: matrix_B
   END TYPE
 
   TYPE ls_mat_history_type
@@ -140,6 +143,8 @@ MODULE dm_ls_scf_types
      TYPE(lib_pexsi_env) :: pexsi
 
      TYPE(cp_para_env_type), POINTER :: para_env
+     LOGICAL                 :: do_pao = .FALSE.
+     TYPE(pao_env_type)      :: pao_env
   END TYPE ls_scf_env_type
 
   PUBLIC :: ls_scf_release
@@ -193,6 +198,10 @@ CONTAINS
     IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
        CALL lib_pexsi_finalize(ls_scf_env%pexsi)
     ENDIF
+
+
+    IF(ls_scf_env%do_pao) &
+       CALL cp_dbcsr_release(ls_scf_env%pao_env%matrix_X)
 
     DEALLOCATE(ls_scf_env)
 

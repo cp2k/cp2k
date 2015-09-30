@@ -33,6 +33,7 @@ MODULE input_cp2k_ls
   USE input_val_types,                 ONLY: integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
+  USE pao_input,                       ONLY: create_pao_section
   USE qs_density_mixing_types,         ONLY: create_mixing_section
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
@@ -274,6 +275,9 @@ CONTAINS
     CALL section_add_subsection(section, subsection)
     CALL section_release(subsection)
 
+    CALL create_pao_section(subsection)
+    CALL section_add_subsection(section, subsection)
+    CALL section_release(subsection)
 
   END SUBROUTINE create_ls_scf_section
 
@@ -581,5 +585,6 @@ CONTAINS
      CALL keyword_release(keyword)
 
   END SUBROUTINE create_pexsi_section
+
 
 END MODULE input_cp2k_ls

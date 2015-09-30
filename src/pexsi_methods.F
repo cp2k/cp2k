@@ -630,10 +630,9 @@ CONTAINS
 
     IF (PRESENT(matrix_w)) THEN
       DO ispin=1, ls_scf_env%nspins
-        CALL matrix_ls_to_qs(matrix_w_qs(ispin)%matrix, matrix_w(ispin)%matrix,& 
-                             ls_scf_env%ls_mstruct)
-        IF (ls_scf_env%nspins.EQ.1) CALL cp_dbcsr_scale(matrix_w_qs(ispin)%matrix, &
-                                                        2.0_dp)
+        CALL matrix_ls_to_qs(matrix_w_qs(ispin)%matrix, matrix_w(ispin)%matrix,&
+                             ls_scf_env%ls_mstruct, covariant=.FALSE.)
+        IF (ls_scf_env%nspins.EQ.1) CALL cp_dbcsr_scale(matrix_w_qs(ispin)%matrix, 2.0_dp)
       ENDDO
     ENDIF
 

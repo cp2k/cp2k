@@ -93,6 +93,7 @@ MODULE qs_initial_guess
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_initial_guess'
 
   PUBLIC ::  calculate_first_density_matrix, calculate_atomic_block_dm, calculate_mopac_dm
+  PUBLIC ::  calculate_atomic_fock_matrix
 
   TYPE atom_matrix_type
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: mat
@@ -1053,6 +1054,82 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     CALL timestop(handle)
 
   END SUBROUTINE calculate_atomic_block_dm
+
+! *****************************************************************************
+!> \brief returns a block diagonal fock matrix.
+!> \param matrix_f ...
+!> \param particle_set ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param output_unit ...
+! *****************************************************************************
+  SUBROUTINE calculate_atomic_fock_matrix(matrix_f, particle_set, atomic_kind_set, &
+                                       qs_kind_set, output_unit)
+    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_f
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    INTEGER, INTENT(IN)                      :: output_unit
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_fock_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, icol, ikind, irow
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
+    LOGICAL                                  :: failure
+    REAL(dp), DIMENSION(:, :), POINTER       :: block
+    TYPE(atom_matrix_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: fmat
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(qs_kind_type), POINTER              :: qs_kind
+
+    failure = .FALSE.
+
+    CALL timeset(routineN,handle)
+
+
+    ALLOCATE (kind_of(SIZE(particle_set)))
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,kind_of=kind_of)
+    ALLOCATE (fmat(SIZE(atomic_kind_set)))
+
+    ! precompute the atomic blocks for each atomic-kind
+    DO ikind=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(ikind)
+      qs_kind     => qs_kind_set(ikind)
+      NULLIFY(fmat(ikind)%mat)
+      IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
+        "Calculating atomic Fock matrix for atomic kind: "//TRIM(atomic_kind%name)
+
+      !Currently only ispin=1 is supported
+      CALL calculate_atomic_orbitals(atomic_kind,qs_kind,iunit=output_unit,&
+                                     fmat=fmat(ikind)%mat,ispin=1)
+    END DO
+
+    ! zero result matrix
+    CALL cp_dbcsr_set(matrix_f,0.0_dp)
+
+    ! copy precomputed blocks onto diagonal of result matrix
+    CALL cp_dbcsr_iterator_start(iter, matrix_f)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, irow, icol, block)
+       ikind = kind_of(irow)
+       IF(icol.EQ.irow) block(:,:) = fmat(ikind)%mat(:,:)
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    ! cleanup
+    DO ikind=1,SIZE(atomic_kind_set)
+      DEALLOCATE (fmat(ikind)%mat)
+    END DO
+    DEALLOCATE(fmat, kind_of)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_atomic_fock_matrix
 
 ! *****************************************************************************
 !> \brief returns a block diagonal density matrix. Blocks correspond to the mopac initial guess.
