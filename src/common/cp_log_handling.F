@@ -534,10 +534,18 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
   FUNCTION cp_logger_get_default_io_unit(logger) RESULT(res)
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_logger_type), OPTIONAL, POINTER  :: logger
     INTEGER                                  :: res
 
-    res=cp_logger_get_default_unit_nr(logger,local=.FALSE.,skip_not_ionode=.TRUE.)
+    TYPE(cp_logger_type), POINTER            :: local_logger
+
+    IF (PRESENT(logger)) THEN
+       local_logger => logger
+    ELSE
+       local_logger => cp_get_default_logger()
+    ENDIF
+
+    res=cp_logger_get_default_unit_nr(local_logger,local=.FALSE.,skip_not_ionode=.TRUE.)
   END FUNCTION cp_logger_get_default_io_unit
 
 ! *****************************************************************************

@@ -107,15 +107,13 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_k_k
     TYPE(cp_fm_type), POINTER                :: CTmp, G, Gp1, Gp2, U
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(logger,CTmp,U,G,Gp1,Gp2,context,para_env,fm_struct_k_k)
+    NULLIFY(CTmp,U,G,Gp1,Gp2,context,para_env,fm_struct_k_k)
 
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     CALL cp_fm_struct_get(C%matrix_struct, nrow_global=n, ncol_global=k, &
                           nrow_local = nrow_local, ncol_local = ncol_local, &
@@ -985,15 +983,13 @@ CONTAINS
                                                 matrix_G_old, &
                                                 matrix_G_search, matrix_H, &
                                                 matrix_R, matrix_T
-    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(evals,evals_exp,diag_z,fval,fvald,c_zij)
     NULLIFY(matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old)
     NULLIFY(cmat_A,cmat_U,cmat_R,cmat_t1,cmat_t2,cmat_B,cmat_M)
 
     CALL timeset(routineN,handle)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     n = zij(1,1)%matrix%matrix_struct%nrow_global
     ndim = (SIZE(zij,2))

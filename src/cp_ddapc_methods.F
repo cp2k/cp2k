@@ -848,12 +848,9 @@ CONTAINS
                                                 Rs, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cost, LocP
-    TYPE(cp_logger_type), POINTER            :: logger
 
     fixed_center = .FALSE.
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
     ndim   = SIZE(particle_set) * SIZE(radii)
     ALLOCATE(M(ndim, ndim))
     M      = 0.0_dp

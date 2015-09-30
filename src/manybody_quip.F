@@ -73,7 +73,6 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
     LOGICAL, ALLOCATABLE                     :: use_atom(:)
     REAL(kind=dp)                            :: lattice(3,3), virial(3,3)
     REAL(kind=dp), ALLOCATABLE               :: force(:,:), pos(:,:)
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(quip_data_type), POINTER            :: quip_data
@@ -114,8 +113,7 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
       elem_symbol(iat_use) = particle_set(iat)%atomic_kind%element_symbol
     END DO
     IF (iat_use > 0) CALL cite_reference(QUIP_ref)
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
     lattice = cell%hmat * angstrom
     do_parallel = .FALSE.
     IF (PRESENT(para_env)) THEN

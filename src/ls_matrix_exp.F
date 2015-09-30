@@ -382,12 +382,10 @@ END SUBROUTINE
     LOGICAL                                  :: convergence
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    logger => cp_get_default_logger()
-    unit_nr = cp_logger_get_default_io_unit(logger)
+    unit_nr = cp_logger_get_default_io_unit()
 
     NULLIFY(tmp)
     ALLOCATE(tmp)
@@ -482,12 +480,10 @@ END SUBROUTINE
     LOGICAL                                  :: convergence
     REAL(KIND=dp)                            :: alpha, max_alpha, prefac
     TYPE(cp_dbcsr_type), POINTER             :: comm, comm2, tmp, tmp2
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
 
-    logger => cp_get_default_logger()
-    unit_nr = cp_logger_get_default_io_unit(logger)
+    unit_nr = cp_logger_get_default_io_unit()
 
     NULLIFY(tmp)
     ALLOCATE(tmp)

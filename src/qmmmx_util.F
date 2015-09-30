@@ -137,7 +137,6 @@ CONTAINS
     REAL(dp), ALLOCATABLE                    :: nearest_dist(:)
     REAL(dp), POINTER                        :: r_buf(:), r_core(:), r_qm(:)
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fist_neighbor_type), POINTER        :: nlist
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -151,8 +150,7 @@ CONTAINS
                                                 qm_kind_section, &
                                                 restart_section
 
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     IF (debug_this_module.AND.output_unit>0) WRITE(output_unit,*) "BOB starting update_force_mixing_labels"
     ! get cur indices, labels

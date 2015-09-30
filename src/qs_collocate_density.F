@@ -688,7 +688,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -713,8 +712,6 @@ CONTAINS
     NULLIFY(gridlevel_info, pw_pools, mgrid_gspace, mgrid_rspace)
 
     CALL timeset(routineN,handle)
-
-    logger => cp_get_default_logger()
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                     atomic_kind_set=atomic_kind_set,&
@@ -825,7 +822,7 @@ CONTAINS
 
     total_rho = pw_integrate_function(rho_r(1)%pw,isign=-1)
     tot_rho_r(:) = total_rho
-    unit_nr=cp_logger_get_default_io_unit(logger)
+    unit_nr=cp_logger_get_default_io_unit()
     IF (unit_nr>0) THEN
       WRITE (unit_nr,*) "Total Rho =", total_rho
     END IF
@@ -878,7 +875,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -898,13 +894,11 @@ CONTAINS
 
     NULLIFY(aci, atomic_kind_set, qs_kind_set, atom_list, cell, cube_info,&
             dft_control, first_sgfa, gridlevel_info, la_max, la_min, lri_basis_set,&
-            logger, mgrid_gspace, mgrid_rspace, npgfa, nsgfa, pab, &
+            mgrid_gspace, mgrid_rspace, npgfa, nsgfa, pab, &
             particle_set, pw_env, pw_pools, rs_grid, rs_rho, sphi_a,&
             work, zeta)
 
     CALL timeset(routineN,handle)
-
-    logger => cp_get_default_logger()
 
     CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set,&
                     atomic_kind_set=atomic_kind_set,&

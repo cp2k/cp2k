@@ -63,7 +63,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot, rho1_s_tot
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gapw_control_type), POINTER         :: gapw_control
@@ -92,14 +91,12 @@ CONTAINS
     NULLIFY(rho1_h_tot,rho1_s_tot)
     NULLIFY(rho_atom_set)
     NULLIFY(rho0_atom_set)
-    NULLIFY(logger)
 
 
     my_do_rho0 = .TRUE.
     IF (PRESENT(do_rho0)) my_do_rho0 = do_rho0
 
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
                     para_env=para_env,&

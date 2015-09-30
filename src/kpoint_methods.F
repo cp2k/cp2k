@@ -117,7 +117,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight, zeff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(csym_type), POINTER                 :: crys_sym
 
     CPASSERT(ASSOCIATED(kpoint))
@@ -152,9 +151,7 @@ CONTAINS
              END DO
           END IF
           IF(kpoint%verbose) THEN
-             NULLIFY(logger)
-             logger => cp_get_default_logger()
-             iounit = cp_logger_get_default_io_unit(logger)
+             iounit = cp_logger_get_default_io_unit()
           ELSE
              iounit = -1
           END IF
@@ -235,7 +232,6 @@ CONTAINS
                                                 nkp_loc, npe, unit_nr
     INTEGER, DIMENSION(2)                    :: dims, pos
     LOGICAL, DIMENSION(2)                    :: rdim
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_full, &
                                                 para_env_inter_kp, para_env_kp
@@ -358,8 +354,7 @@ CONTAINS
 
        kpoint%kp_env => kp_env
 
-       logger => cp_get_default_logger()
-       unit_nr=cp_logger_get_default_io_unit(logger)
+       unit_nr=cp_logger_get_default_io_unit()
        IF (unit_nr>0) THEN
           WRITE(unit_nr,*)
           WRITE(unit_nr,FMT="(T2,A,T71,I10)") "KPOINTS| Number of kpoint groups ",nkp_grp

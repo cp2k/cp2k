@@ -407,7 +407,6 @@ CONTAINS
     REAL(DP), POINTER                        :: charges(:)
     REAL(KIND=dp), DIMENSION(3)              :: max_coord, min_coord, transl_v
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys_mm, subsys_qm
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles_mm, particles_qm
@@ -415,7 +414,6 @@ CONTAINS
       POINTER                                :: qs_kind_set
     TYPE(section_vals_type), POINTER         :: subsys_section
 
-    logger => cp_get_default_logger()
     NULLIFY(subsys_mm, subsys_qm, qm_atom_index, particles_mm, particles_qm,&
             subsys_section, qm_cell, mm_cell, qs_kind_set)
 
@@ -514,7 +512,7 @@ CONTAINS
        DO ip=1,subsys_mm%particles%n_els
           particles_mm(ip)%r = particles_mm(ip)%r - transl_v
        END DO
-       unit_nr=cp_logger_get_default_io_unit(logger)
+       unit_nr=cp_logger_get_default_io_unit()
        IF (unit_nr>0) WRITE (unit=unit_nr,fmt='(/1X,A)')&
             " Translating the system in order to center the QM fragment in the QM box."
        IF (.NOT.qmmm_env%qm%center_qm_subsys) qmmm_env%qm%do_translate = .FALSE.

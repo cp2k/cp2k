@@ -50,10 +50,8 @@ SUBROUTINE clebsch_gordon_test ()
     REAL(KIND=dp)                            :: ca, cga(10), cn, rga(10,21), &
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: b1, b2, b3, wa
-    TYPE(cp_logger_type), POINTER            :: logger
 
-    logger=>cp_get_default_logger()
-    iw = cp_logger_get_default_io_unit(logger)
+    iw = cp_logger_get_default_io_unit()
 
     IF ( iw>0 ) THEN
 

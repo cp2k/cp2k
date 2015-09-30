@@ -134,7 +134,6 @@ CONTAINS
                                                 norm_gct, tmp
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type), POINTER             :: C, Gp1, Gp2, GU, U
-    TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
     !
@@ -167,8 +166,7 @@ CONTAINS
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
     CALL mp_sum(f2,dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(C))))
-    logger => cp_get_default_logger()
-    output_unit = cp_logger_get_default_io_unit(logger)
+    output_unit = cp_logger_get_default_io_unit()
     IF(output_unit>0) WRITE(output_unit,*) routineN//' f2 =',f2
     !
     !

@@ -312,7 +312,6 @@ MODULE ipi_driver
                                                 mxmat(9), pot, vir(3,3)
     REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
     TYPE(cell_type), POINTER                 :: cpcell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(section_vals_type), POINTER         :: drv_section, motion_section
@@ -331,8 +330,7 @@ MODULE ipi_driver
     hasdata = .FALSE.
     ionode=(para_env%source==para_env%mepos)
 
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
 
     ! reads driver parameters from input
     motion_section => section_vals_get_subs_vals(force_env%root_section,"MOTION")

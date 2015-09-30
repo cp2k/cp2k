@@ -5193,14 +5193,11 @@ __LOCATION__,&
     INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
     INTEGER                                  :: nwca,nwcd
     REAL(dp)                                 :: rcut
-!     real(dp)                                 :: zero(3)
-    TYPE(cp_logger_type), POINTER            :: logger
 
 
 
-    NULLIFY(particles_i,wc,logger)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    NULLIFY(particles_i,wc)
+    output_unit= cp_logger_get_default_io_unit()
 
     CPASSERT(colvar%type_id==HBP_colvar_id)
     IF (PRESENT(particles)) THEN

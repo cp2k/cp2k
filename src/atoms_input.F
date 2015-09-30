@@ -87,7 +87,6 @@ CONTAINS
     REAL(KIND=dp)                            :: r0(3), unit_conv
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(val_type), POINTER                  :: val
@@ -95,9 +94,7 @@ CONTAINS
     my_overwrite = .FALSE.
     my_save_mem = .FALSE.
     error_message = ""
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    output_unit= cp_logger_get_default_io_unit()
     IF (PRESENT(overwrite)) my_overwrite=overwrite
     IF (PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(coord_section)
@@ -298,7 +295,6 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r, rc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_val_type), POINTER           :: list
     TYPE(section_vals_type), POINTER         :: core_coord_section, &
                                                 shell_coord_section
@@ -306,9 +302,8 @@ CONTAINS
     TYPE(val_type), POINTER                  :: val
 
     my_save_mem = .FALSE.
-    NULLIFY(logger, atomic_kind, list, shell_coord_section, shell, val)
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
+    NULLIFY(atomic_kind, list, shell_coord_section, shell, val)
+    output_unit= cp_logger_get_default_io_unit()
 
     IF(PRESENT(save_mem)) my_save_mem=save_mem
     NULLIFY(shell_coord_section, core_coord_section)
