@@ -34,10 +34,11 @@ MODULE linesearch
 
   PUBLIC :: linesearch_type
 
-  INTEGER, PARAMETER :: linesearch_method_2pnt = 1
-  INTEGER, PARAMETER :: linesearch_method_3pnt = 2
-  INTEGER, PARAMETER :: linesearch_method_gold = 3
-  INTEGER, PARAMETER :: linesearch_method_none = 4
+  INTEGER, PARAMETER :: linesearch_method_adapt = 1
+  INTEGER, PARAMETER :: linesearch_method_2pnt  = 2
+  INTEGER, PARAMETER :: linesearch_method_3pnt  = 3
+  INTEGER, PARAMETER :: linesearch_method_gold  = 4
+  INTEGER, PARAMETER :: linesearch_method_none  = 5
 
   TYPE linesearch_2pnt_type
     REAL(KIND=dp), DIMENSION(2)                    :: energies = 0.0
@@ -51,12 +52,29 @@ MODULE linesearch
     REAL(KIND=dp), DIMENSION(3)                    :: energies = 0.0
     REAL(KIND=dp), DIMENSION(3)                    :: scan_steps = 0.0
     REAL(KIND=dp)                                  :: last_step_size = 0.0
+    REAL(KIND=dp)                                  :: max_step_size = 0.0
+    REAL(KIND=dp)                                  :: tiny_step_size = 0.0
     INTEGER                                        :: count = 1
   END TYPE linesearch_3pnt_type
+
+  TYPE linesearch_adapt_type
+    REAL(KIND=dp)                                  :: last_step_size = 0.0
+    REAL(KIND=dp)                                  :: left_x   = 0.0
+    REAL(KIND=dp)                                  :: middle_x = 0.0
+    REAL(KIND=dp)                                  :: right_x  = 0.0
+    REAL(KIND=dp)                                  :: left_e   = 0.0
+    REAL(KIND=dp)                                  :: middle_e = 0.0
+    REAL(KIND=dp)                                  :: right_e  = 0.0
+    LOGICAL                                        :: have_left   = .FALSE.
+    LOGICAL                                        :: have_middle = .FALSE.
+    LOGICAL                                        :: have_right  = .FALSE.
+    INTEGER                                        :: count = 0
+  END TYPE linesearch_adapt_type
 
   TYPE linesearch_gold_type
     REAL(KIND=dp)                                  :: scan_steps = 0.0
     REAL(KIND=dp)                                  :: last_step_size = 0.0
+    REAL(KIND=dp)                                  :: eps_step_size = 0.0
     REAL(KIND=dp)                                  :: left_x   = 0.0
     REAL(KIND=dp)                                  :: middle_x = 0.0
     REAL(KIND=dp)                                  :: right_x  = 0.0
@@ -71,12 +89,13 @@ MODULE linesearch
 
   TYPE linesearch_type
     PRIVATE
-    TYPE(linesearch_2pnt_type), POINTER            :: state_2pnt => Null()
-    TYPE(linesearch_3pnt_type), POINTER            :: state_3pnt => Null()
-    TYPE(linesearch_gold_type), POINTER            :: state_gold => Null()
+    TYPE(linesearch_adapt_type), POINTER           :: state_adapt => Null()
+    TYPE(linesearch_2pnt_type), POINTER            :: state_2pnt  => Null()
+    TYPE(linesearch_3pnt_type), POINTER            :: state_3pnt  => Null()
+    TYPE(linesearch_gold_type), POINTER            :: state_gold  => Null()
     INTEGER                                        :: iw     = -1
     INTEGER                                        :: method = -1
-    CHARACTER(LEN=10)                              :: label
+    CHARACTER(LEN=10)                              :: label = ""
     REAL(KIND=dp)                                  :: init_step_size = 0.0
   END TYPE linesearch_type
 
@@ -110,13 +129,14 @@ CONTAINS
 
      CALL keyword_create(keyword, name="METHOD",&
           description="Linesearch method.",&
-          default_i_val=linesearch_method_3pnt,&
-          enum_c_vals=s2a("3PNT", "2PNT", "GOLD", "NONE"),&
-          enum_desc=s2a("extrapolate based on 3 points with extra points on demand (fast and robust)",&
+          default_i_val=linesearch_method_adapt,&
+          enum_c_vals=s2a("ADAPT", "3PNT", "2PNT", "GOLD", "NONE"),&
+          enum_desc=s2a("extrapolates usually based on 3 points, uses additional points on demand, very robust.",&
+                        "extrapolate based on 3 points",&
                         "extrapolate based on 2 points and the slope (super fast, but might get stuck at saddle points)",&
                         "perform 1D golden section search of the minimum (very expensive)",&
                         "always take steps of fixed INITIAL_STEP_SIZE"),&
-          enum_i_vals=(/linesearch_method_3pnt, linesearch_method_2pnt,&
+          enum_i_vals=(/linesearch_method_adapt, linesearch_method_3pnt, linesearch_method_2pnt,&
                         linesearch_method_gold, linesearch_method_none/))
      CALL section_add_keyword(section,keyword)
      CALL keyword_release(keyword)
@@ -130,6 +150,18 @@ CONTAINS
      CALL keyword_create(keyword, name="MAX_STEP_SIZE",&
           description="Maximum step length",&
           default_r_val=3.0_dp)
+     CALL section_add_keyword(section,keyword)
+     CALL keyword_release(keyword)
+
+     CALL keyword_create(keyword, name="TINY_STEP_SIZE",&
+          description="Step length taken if negative step is suggested.",&
+          default_r_val=0.002_dp)
+     CALL section_add_keyword(section,keyword)
+     CALL keyword_release(keyword)
+
+     CALL keyword_create(keyword, name="EPS_STEP_SIZE",&
+          description="Convergence criterion of GOLD method.",&
+          default_r_val=0.1_dp)
      CALL section_add_keyword(section,keyword)
      CALL keyword_release(keyword)
 
@@ -164,24 +196,32 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linesearch_init', &
       routineP = moduleN//':'//routineN
 
-    REAL(dp)                                 :: max_step_size
+    REAL(dp)                                 :: max_step_size, tiny_step_size, eps_step_size
     TYPE(cp_logger_type), POINTER            :: logger
 
      CALL section_vals_val_get(section,"METHOD",i_val=this%method)
      CALL section_vals_val_get(section,"INITIAL_STEP_SIZE",r_val=this%init_step_size)
      CALL section_vals_val_get(section,"MAX_STEP_SIZE",r_val=max_step_size)
+     CALL section_vals_val_get(section,"TINY_STEP_SIZE",r_val=tiny_step_size)
+     CALL section_vals_val_get(section,"EPS_STEP_SIZE",r_val=eps_step_size)
 
      SELECT CASE(this%method)
-     CASE(linesearch_method_2pnt)
+        CASE(linesearch_method_adapt)
+           ALLOCATE(this%state_adapt)
+           this%state_adapt%last_step_size = this%init_step_size
+        CASE(linesearch_method_2pnt)
            ALLOCATE(this%state_2pnt)
            this%state_2pnt%max_step_size = max_step_size
            this%state_2pnt%last_step_size = this%init_step_size
         CASE(linesearch_method_3pnt)
            ALLOCATE(this%state_3pnt)
            this%state_3pnt%last_step_size = this%init_step_size
+           this%state_3pnt%max_step_size = max_step_size
+           this%state_3pnt%tiny_step_size = tiny_step_size
         CASE(linesearch_method_gold)
            ALLOCATE(this%state_gold)
            this%state_gold%last_step_size = this%init_step_size
+           this%state_gold%eps_step_size = eps_step_size
         CASE(linesearch_method_none)
            ! nothing todo
         CASE DEFAULT
@@ -209,6 +249,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
      SELECT CASE(this%method)
+        CASE(linesearch_method_adapt)
+           DEALLOCATE(this%state_adapt)
         CASE(linesearch_method_2pnt)
            DEALLOCATE(this%state_2pnt)
         CASE(linesearch_method_3pnt)
@@ -244,6 +286,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     SELECT CASE(this%method)
+        CASE(linesearch_method_adapt)
+           CALL linesearch_adapt(this%state_adapt, energy, step_size, is_done, this%iw, TRIM(this%label))
         CASE(linesearch_method_2pnt)
            CALL linesearch_2pnt(this%state_2pnt, energy, slope, step_size, is_done, this%iw, TRIM(this%label))
         CASE(linesearch_method_3pnt)
@@ -333,6 +377,7 @@ CONTAINS
 
   END SUBROUTINE linesearch_2pnt
 
+
 ! *****************************************************************************
 !> \brief Perform a 3pnt linesearch
 !> \param this ...
@@ -352,8 +397,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: unit_nr
     CHARACTER(len=*), INTENT(IN)             :: label
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'linesearch_3pnt', &
-      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: step_size_max = 5.0_dp, &
+                                                step_size_min = 0.1_dp
 
     REAL(KIND=dp)                            :: a, b, c, denom, pred_energy, &
                                                 x1, x2, x3, y1, y2, y3
@@ -363,12 +408,14 @@ CONTAINS
 
     SELECT CASE(this%count)
       CASE(1)
-         !step_size = 0.66_dp * this%last_step_size
-         step_size = this%last_step_size
+         step_size = (2.0_dp/3.0_dp) * this%last_step_size
+         IF(step_size < step_size_min) THEN
+            IF(unit_nr>0) WRITE (unit_nr,*) "linesearch WARN: initial step size too smale: ",step_size
+            step_size = step_size_min
+         ENDIF
          this%scan_steps(1) = 0.0_dp
          this%scan_steps(2) = step_size
          this%count = 2
-         is_done = .FALSE.
       CASE(2)
          IF(this%energies(1) > this%energies(2)) THEN
              step_size = 2.0_dp*this%scan_steps(2)
@@ -377,57 +424,160 @@ CONTAINS
          END IF
          this%scan_steps(3) = step_size
          this%count = 3
-         is_done = .FALSE.
       CASE(3)
-         IF(MINVAL(this%energies(2:3)) > this%energies(1)) THEN
-            ! we want to see the energy decrease
-            CPWARN(label//"LS| Need extra short step")
-            this%scan_steps(2) = this%scan_steps(3)
-            this%energies(2) = this%energies(3)
-            step_size = 0.5_dp * this%scan_steps(3)
-            this%scan_steps(3) = step_size
-         ELSE
-            ! now step_size>0 is guaranteed
+         ! fitting y = a*x^2 + b*x + c
+         y1 = this%energies(1);   y2 = this%energies(2);   y3 = this%energies(3)
+         x1 = this%scan_steps(1); x2 = this%scan_steps(2); x3 = this%scan_steps(3)
 
-            ! fitting y = a*x^2 + b*x + c
-            y1 = this%energies(1);   y2 = this%energies(2);   y3 = this%energies(3)
-            x1 = this%scan_steps(1); x2 = this%scan_steps(2); x3 = this%scan_steps(3)
+         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt scan_steps: ", this%scan_steps
+         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt energies: ", this%energies
 
-            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt scan_steps: ", this%scan_steps
-            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt energies: ", this%energies
+         ! Cramer's Rule
+         denom = (x1 - x2)*(x1 - x3)*(x2 - x3)
+         a = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom
+         b = (x3**2 * (y1 - y2) + x2**2 * (y3 - y1) + x1**2 * (y2 - y3)) / denom
+         c = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom
 
-            !http://stackoverflow.com/a/717791
-            denom = (x1 - x2)*(x1 - x3)*(x2 - x3)
-            a = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom
-            b = (x3**2 * (y1 - y2) + x2**2 * (y3 - y1) + x1**2 * (y2 - y3)) / denom
-            c = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom
+         step_size = - b/(2.0_dp*a)
+         pred_energy = a*step_size**2 + b*step_size + c
+         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt suggested step_size: ", step_size
+         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt predicted energy", pred_energy
 
-            step_size = - b/(2.0_dp*a)
-            CPASSERT(step_size>0)
+         IF(a < 0) THEN
+            step_size = -2.0_dp * step_size
+            CPWARN(label//"LS| inverting step size")
+         END IF
 
-            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt suggested step_size: ", step_size
-            pred_energy = a*step_size**2 + b*step_size + c
-            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt predicted energy", pred_energy
-
-            IF(step_size > MAXVAL(this%scan_steps)) THEN
-               ! we don't want to into unexplored terrain
-               CPWARN(label//"LS| Need extra long step")
-               this%scan_steps(2) = this%scan_steps(3)
-               this%energies(2) = this%energies(3)
-               step_size = 2.0_dp * MAXVAL(this%scan_steps)
-               this%scan_steps(3) = step_size
-            ELSE
-               this%last_step_size = step_size
-               this%count = 1
-               is_done = .TRUE.
-            ENDIF
+         IF(step_size < 0) THEN
+            step_size = this%tiny_step_size
+            CPWARN(label//"LS| makeing a step of size TINY_STEP_SIZE")
          ENDIF
-    CASE DEFAULT
+
+         IF(step_size > this%max_step_size) THEN
+            step_size = this%max_step_size
+            CPWARN(label//"LS| limiting step_size to MAX_STEP_SIZE")
+         ENDIF
+
+         this%last_step_size = step_size
+         this%count = 1
+         is_done = .TRUE.
+      CASE DEFAULT
          CPABORT("this should not happen")
     END SELECT
 
   END SUBROUTINE linesearch_3pnt
 
+! *****************************************************************************
+!> \brief Perform an adaptive linesearch
+!> \param this ...
+!> \param energy ...
+!> \param step_size ...
+!> \param is_done ...
+!> \param unit_nr ...
+!> \param label ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE linesearch_adapt(this, energy, step_size, is_done, unit_nr, label)
+    TYPE(linesearch_adapt_type), &
+      INTENT(INOUT)                          :: this
+    REAL(KIND=dp), INTENT(IN)                :: energy
+    REAL(KIND=dp), INTENT(OUT)               :: step_size
+    LOGICAL, INTENT(OUT)                     :: is_done
+    INTEGER, INTENT(IN)                      :: unit_nr
+    CHARACTER(len=*), INTENT(IN)             :: label
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'linesearch_adapt', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: grow_factor = 2.0_dp, &
+                                                shrink_factor = 0.5_dp
+
+    REAL(KIND=dp)                            :: a, b, c, denom, pred_energy, &
+                                                x1, x2, x3, y1, y2, y3
+
+    is_done = .FALSE.
+    this%count = this%count + 1
+
+    IF(.NOT. this%have_left) THEN
+         this%left_x = 0.0_dp
+         this%left_e   = energy
+         this%have_left = .TRUE.
+         step_size = this%last_step_size
+
+    ELSE IF(.NOT.(this%have_middle .OR. this%have_right)) THEN
+       IF(energy < this%left_e) THEN
+           this%middle_e = energy
+           this%middle_x = this%last_step_size
+           this%have_middle = .TRUE.
+           step_size = this%middle_x * grow_factor
+       ELSE
+           this%right_e = energy
+           this%right_x = this%last_step_size
+           this%have_right = .TRUE.
+           step_size = this%right_x * shrink_factor
+       ENDIF
+
+    ELSE IF(.NOT. this%have_right) THEN
+       IF(energy < this%middle_e) THEN
+           this%middle_e = energy
+           this%middle_x = this%last_step_size
+           step_size = this%middle_x * grow_factor
+       ELSE
+           this%right_e = energy
+           this%right_x = this%last_step_size
+           this%have_right = .TRUE.
+       ENDIF
+
+    ELSE IF(.NOT. this%have_middle) THEN
+       IF(energy > this%left_e) THEN
+           this%right_e = energy
+           this%right_x = this%last_step_size
+           step_size = this%right_x * shrink_factor
+       ELSE
+           this%middle_e = energy
+           this%middle_x = this%last_step_size
+           this%have_middle = .TRUE.
+       ENDIF
+    ENDIF
+
+    IF(this%count>3) CPWARN(label//"LS| Need extra step")
+    IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: ", this%have_left, this%have_middle,  this%have_right
+    IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: scan_steps: ", this%left_x, this%middle_x, this%right_x
+    IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: energies: ", this%left_e, this%middle_e, this%right_e
+
+    IF(this%have_left .AND. this%have_middle .AND. this%have_right) THEN
+       ! fitting y = a*x^2 + b*x + c
+       y1 = this%left_e; y2 = this%middle_e; y3 = this%right_e
+       x1 = this%left_x; x2 = this%middle_x; x3 = this%right_x
+
+       ! Cramer's rule
+       denom = (x1 - x2)*(x1 - x3)*(x2 - x3)
+       a = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom
+       b = (x3**2 * (y1 - y2) + x2**2 * (y3 - y1) + x1**2 * (y2 - y3)) / denom
+       c = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom
+
+       step_size = - b/(2.0_dp*a)
+       CPASSERT(step_size>=0.0_dp)
+
+       pred_energy = a*step_size**2 + b*step_size + c
+       IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: suggested step_size: ", step_size
+       IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: predicted energy", pred_energy
+
+       ! reset
+       is_done = .TRUE.
+       this%count = 0
+       this%have_left   = .FALSE.
+       this%have_middle = .FALSE.
+       this%have_right  = .FALSE.
+       this%left_e   = 0.0
+       this%middle_e = 0.0
+       this%right_e  = 0.0
+       this%left_x   = 0.0
+       this%middle_x = 0.0
+       this%right_x  = 0.0
+    END IF
+
+    this%last_step_size = step_size
+  END SUBROUTINE linesearch_adapt
 
 ! *****************************************************************************
 !> \brief Perform a gold linesearch
@@ -542,7 +692,7 @@ CONTAINS
 
 
        d = ABS(this%right_x -  this%left_x) / (ABS(this%middle_x) + ABS(step_size))
-       IF(d < 1.0E-1) THEN ! TODO: make inp param
+       IF(d < this%eps_step_size) THEN
           step_size = this%middle_x
           this%last_step_size = step_size
           is_done = .TRUE.

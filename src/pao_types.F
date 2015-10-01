@@ -34,14 +34,14 @@ MODULE pao_types
      TYPE(cp_dbcsr_type)              :: matrix_G_prev
      TYPE(cp_dbcsr_type)              :: matrix_D
      TYPE(cp_dbcsr_type)              :: matrix_H0
-     TYPE(cp_dbcsr_type), DIMENSION(:), POINTER :: matrix_P_guess
-     REAL(KIND=dp)                    :: eps_pao
-     INTEGER                          :: max_pao
-     INTEGER                          :: max_outer_pao
-     LOGICAL                          :: line_search_start
-     REAL(KIND=dp)                    :: line_search_step
-     INTEGER                          :: parameterization
-     INTEGER                          :: cg_init_steps
+     TYPE(cp_dbcsr_type), DIMENSION(:), POINTER :: matrix_P_guess => Null()
+     REAL(KIND=dp)                    :: eps_pao = 0.0_dp
+     INTEGER                          :: max_pao = -1
+     INTEGER                          :: max_outer_pao = -1
+     LOGICAL                          :: line_search_start = .FALSE.
+     REAL(KIND=dp)                    :: line_search_step = 0.0_dp
+     INTEGER                          :: parameterization = -1
+     INTEGER                          :: cg_init_steps = -1
      INTEGER                          :: istep = -1
      INTEGER                          :: iw = -1
      INTEGER                          :: iw_cg = -1

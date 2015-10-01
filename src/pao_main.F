@@ -106,6 +106,7 @@ CONTAINS
     pao%istep = 0 ! reset counters
     pao%last_reset = 0
     pao%line_search_start = .TRUE.
+    pao%line_search_step = 0.0_dp
 
     CALL cp_dbcsr_init(pao%matrix_X_orig)
 
@@ -382,8 +383,9 @@ CONTAINS
                        energy=energy,&
                        dft_control=dft_control)
 
-       !printing the previous step length, which lead to the current energy.
-       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| linesearch: ", pao%line_search_start, pao%line_search_step, energy%total
+       !printing the previous step length (if any), which let to the current energy.
+       IF(pao%line_search_step>0.0_dp .AND. pao%iw>0)&
+          WRITE(pao%iw,*) "PAO| linesearch: ", pao%line_search_start, pao%line_search_step, energy%total
 
        pao_is_done = .FALSE.
        IF(pao%line_search_start) THEN
@@ -404,16 +406,18 @@ CONTAINS
           CALL pao_test_convegence(pao, ls_scf_env, energy%total, pao_is_done)
        ENDIF
 
-       CALL linesearch_step(pao%linesearch,&
-                            energy=energy%total,&
-                            slope=cp_dbcsr_frobenius_norm(pao%matrix_G),&
-                            step_size=pao%line_search_step,&
-                            is_done=pao%line_search_start)
+       IF(.NOT.pao_is_done) THEN
+          CALL linesearch_step(pao%linesearch,&
+                               energy=energy%total,&
+                               slope=cp_dbcsr_frobenius_norm(pao%matrix_G),&
+                               step_size=pao%line_search_step,&
+                               is_done=pao%line_search_start)
 
-       CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
-       CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%line_search_step)
+          CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
+          CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%line_search_step)
 
-       CALL pao_update_AB(pao, ls_mstruct)
+          CALL pao_update_AB(pao, ls_mstruct)
+       ENDIF
     ENDIF
 
     CALL pao_write_restart(pao, qs_env)
@@ -444,21 +448,22 @@ CONTAINS
      pao%energy_prev = new_energy
      norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G) ! calc norm before CG mixing
      IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", new_energy
-     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
      IF(pao%iw>0) WRITE(pao%iw,*) "PAO| gradient norm:", norm_G
-     IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
 
-!     blk_sizes => cp_dbcsr_col_block_sizes(pao%matrix_G)
-!     loop_eps = norm_G/SUM(blk_sizes**2)
+     IF(pao%istep>1) THEN
+        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
+        IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
 
-     loop_eps = ABS(energy_diff) / ls_scf_env%nelectron_total
-     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| loop_eps:", loop_eps
+        !blk_sizes => cp_dbcsr_col_block_sizes(pao%matrix_G)
+        !loop_eps = norm_G/SUM(blk_sizes**2)
+        loop_eps = ABS(energy_diff) / ls_scf_env%nelectron_total
+        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| loop_eps:", loop_eps
 
-     IF(loop_eps < pao%eps_pao) THEN
-       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
-       is_converged = .TRUE.
+        IF(loop_eps < pao%eps_pao) THEN
+          IF(pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
+          is_converged = .TRUE.
+        ENDIF
      ENDIF
-
   END SUBROUTINE pao_test_convegence
 
 ! *****************************************************************************
