@@ -196,7 +196,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linesearch_init', &
       routineP = moduleN//':'//routineN
 
-    REAL(dp)                                 :: max_step_size, tiny_step_size, eps_step_size
+    REAL(dp)                                 :: eps_step_size, max_step_size, &
+                                                tiny_step_size
     TYPE(cp_logger_type), POINTER            :: logger
 
      CALL section_vals_val_get(section,"METHOD",i_val=this%method)
@@ -397,9 +398,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: unit_nr
     CHARACTER(len=*), INTENT(IN)             :: label
 
-    REAL(KIND=dp), PARAMETER                 :: step_size_max = 5.0_dp, &
-                                                step_size_min = 0.1_dp
-
     REAL(KIND=dp)                            :: a, b, c, denom, pred_energy, &
                                                 x1, x2, x3, y1, y2, y3
 
@@ -409,9 +407,9 @@ CONTAINS
     SELECT CASE(this%count)
       CASE(1)
          step_size = (2.0_dp/3.0_dp) * this%last_step_size
-         IF(step_size < step_size_min) THEN
-            IF(unit_nr>0) WRITE (unit_nr,*) "linesearch WARN: initial step size too smale: ",step_size
-            step_size = step_size_min
+         IF(step_size < this%tiny_step_size) THEN
+            CPWARN(label//"LS| initial step size too small, using TINY_STEP_SIZE")
+            step_size = this%tiny_step_size
          ENDIF
          this%scan_steps(1) = 0.0_dp
          this%scan_steps(2) = step_size
