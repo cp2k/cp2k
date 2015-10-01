@@ -876,14 +876,9 @@ MODULE mp2_cphf
     CALL integrate_v_rspace(v_rspace=rho_r,pmat=rho_ao(1),hmat=matrix_ks(1),&
                             qs_env=qs_env,calculate_forces=.TRUE.)
 
-    IF (alpha_beta) THEN ! In alpha_beta case, get the initial densities back
-      CALL cp_dbcsr_add(rho_ao(1)%matrix,rho_ao(2)%matrix,1.0_dp,-1.0_dp)
-      CALL cp_dbcsr_add(matrix_p_mp2(1)%matrix,matrix_p_mp2(2)%matrix,1.0_dp,-1.0_dp)
-      CALL cp_dbcsr_add(matrix_ks(1)%matrix,matrix_ks(2)%matrix,1.0_dp,-1.0_dp)
-    ENDIF
 
     IF(use_virial) THEN
-      ! update virial if necessery with the volume term
+      ! update virial if necessary with the volume term
       ! first create pw auxilliary stuff
       CALL timeset(routineN//"_Virial",handle2)
       NULLIFY(temp_pw_g%pw)
@@ -944,6 +939,12 @@ MODULE mp2_cphf
       END DO
       CALL timestop(handle2)
     END IF
+
+    IF (alpha_beta) THEN ! In alpha_beta case, get the initial densities back
+      CALL cp_dbcsr_add(rho_ao(1)%matrix,rho_ao(2)%matrix,1.0_dp,-1.0_dp)
+      CALL cp_dbcsr_add(matrix_p_mp2(1)%matrix,matrix_p_mp2(2)%matrix,1.0_dp,-1.0_dp)
+      CALL cp_dbcsr_add(matrix_ks(1)%matrix,matrix_ks(2)%matrix,1.0_dp,-1.0_dp)
+    ENDIF
 
     DO ispin=1, dft_control%nspins
       CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)

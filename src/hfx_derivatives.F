@@ -1506,9 +1506,16 @@ MODULE hfx_derivatives
                                            T2, tmp_virial, coord, i)
                       END IF
                       IF( nspins == 2 ) THEN
-                        CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                        IF(with_mp2_density) THEN
+                          CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                              pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
+                                              T2, tmp_virial, coord, i, &
+                                              pbd_buf_mp2_beta, pbc_buf_mp2_beta, pad_buf_mp2_beta, pac_buf_mp2_beta)
+                        ELSE
+                          CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                            pbd_buf_beta, pbc_buf_beta, pad_buf_beta, pac_buf_beta, fac, &
                                            T2, tmp_virial, coord, i)
+                        ENDIF
                       END IF
                     END DO
                   END DO !coord
