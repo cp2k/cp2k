@@ -553,9 +553,13 @@ CONTAINS
        b = (x3**2 * (y1 - y2) + x2**2 * (y3 - y1) + x1**2 * (y2 - y3)) / denom
        c = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom
 
-       step_size = - b/(2.0_dp*a)
-       CPASSERT(step_size>=0.0_dp)
+       IF(ABS(a)/=0.0_dp) THEN
+          step_size = - b/(2.0_dp*a)
+       ELSE
+          step_size = 0.0_dp
+       ENDIF
 
+       CPASSERT(step_size>=0.0_dp)
        pred_energy = a*step_size**2 + b*step_size + c
        IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: suggested step_size: ", step_size
        IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: predicted energy", pred_energy
