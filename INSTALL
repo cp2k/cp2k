@@ -117,13 +117,14 @@ Note that you should **NOT** use libinit-1.1.3.
   * Add -D__HAS_smm_vec to enable the new vectorized interfaces of libsmm.
 
 ==== 2i. CUDA (optional, improved performance on GPU systems) ====
-  * (Experimental): Use the -D__DBCSR_ACC to compile with accelerator support
+  * Use the -D__DBCSR_ACC to compile with accelerator support
     support for matrix multiplication.  For linking add -lcudart and -lrt
     to LIBS.  
   * Use -D__PW_CUDA for CUDA support for PW (gather/scatter/fft)
     calculations.  The Fortran compiler must use an appended
     underscore for linking C subroutines.
   * USE -D__CUDA_PROFILING to turn on Nvidia Tools Extensions.
+  * Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 
 ==== 2j. libxc (optional, wider choice of xc functionals) ====
   * The version 2.1.0 (or later) of libxc needs to be downloaded
@@ -156,7 +157,7 @@ The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI libr
 and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
   * Download PEXSI (www.pexsi.org) and install it and its dependencies by following 
     the instructions in the README.md file distributed with PEXSI.
-  * The version 0.7.3 has been tested with CP2K.
+  * The version 0.8.0 has been tested with CP2K.
   * Building the Fortran interface of PEXSI (provided in the fortran
     subdirectory) is required.
 
@@ -196,12 +197,14 @@ The names of these files match architecture.version (e.g., Linux-x86-64-gfortran
 Alternatively http://dashboard.cp2k.org/ provides sample arch files
 as part of the testing reports (click on the status field, search for 'ARCH-file').
 
-Conventionally, there are four versions:
+Conventionally, there are six versions:
 ^ Acronym ^        Meaning          ^       Recommended for        ^
-| sopt    | serial                  | testing and debugging        |
-| popt    | parallel (only MPI)     | general usage                |
-| ssmp    | parallel (only OpenMP)  | standalone multi cores nodes |
-| psmp    | parallel (MPI + OpenMP) | memory limited calculations  |
+| sdbg    | serial                  | single core testing and debugging        |
+| sopt    | serial                  | general single core usage |
+| ssmp    | parallel (only OpenMP)  | optimized, single node, multi core |
+| pdbg    | parallel (only MPI)     | multinode testing and debugging |
+| popt    | parallel (only MPI)     | general usage, no threads       |
+| psmp    | parallel (MPI + OpenMP) | general usage, threading might improve scalability and memory usage |
 
 You'll need to modify one of these files to match your system's settings.
 You can now build CP2K using these settings (where -j N allows for a
