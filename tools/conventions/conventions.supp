@@ -442,7 +442,6 @@ xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd"
-xc_libxc_wrap.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
 xc_pade.F: Unused dummy argument ‘derivative_set’ at (1) [-Wunused-dummy-argument]
 xml_parser.F: Copyright banner malformed
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_put_element_"

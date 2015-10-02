@@ -11,7 +11,7 @@
 !>        independent routines/functions are just bypassed to higher level
 !>        module file 'xc_libxc'.
 !>        
-!> \note For LibXC versions 2.1.x and above.
+!> \note For LibXC versions 2.2.2 and above.
 !>       Once the LibXC-API is stable, remove all 'xc_libxc_wrap_XXX'
 !>       routines/functions and use 'xc_f90_lib_m' directly in 'xc_libxc'.
 !>       Marques, Oliveira, Burnus, CPC 183, 2272 (2012)).
@@ -27,11 +27,52 @@ MODULE xc_libxc_wrap
 #if defined (__LIBXC)
 #include <xc_version.h>
 ! check for LibXC version
-#if (XC_MAJOR_VERSION < 2) || ((XC_MAJOR_VERSION == 2) && (XC_MINOR_VERSION < 1))
-  This version of CP2K ONLY works with libxc versions 2.1.x and above.
+#if (XC_MAJOR_VERSION < 2) || ((XC_MAJOR_VERSION == 2) && (XC_MINOR_VERSION < 2))
+  This version of CP2K ONLY works with libxc versions 2.2.2 and above.
   Furthermore, -I[LIBXC_DIR]/INCLUDE needs to be added to FCFLAGS.
 #else
-  USE libxc_funcs_m
+
+  USE libxc_funcs_m,                   ONLY: XC_GGA_C_N12,&
+                                             XC_GGA_C_N12_SX,&
+                                             XC_GGA_K_FR_B88,&
+                                             XC_GGA_K_LLP,&
+                                             XC_GGA_K_THAKKAR,&
+                                             XC_GGA_X_B88,&
+                                             XC_GGA_X_HJS_B88,&
+                                             XC_GGA_X_HJS_B88,&
+                                             XC_GGA_X_HJS_B97X,&
+                                             XC_GGA_X_HJS_B97X,&
+                                             XC_GGA_X_HJS_PBE,&
+                                             XC_GGA_X_HJS_PBE,&
+                                             XC_GGA_X_HJS_PBE_SOL,&
+                                             XC_GGA_X_HJS_PBE_SOL,&
+                                             XC_GGA_X_LB,&
+                                             XC_GGA_X_MB88,&
+                                             XC_GGA_X_N12,&
+                                             XC_GGA_X_OPTB88_VDW,&
+                                             XC_GGA_X_WPBEH,&
+                                             XC_HYB_GGA_XC_HJS_B88,&
+                                             XC_HYB_GGA_XC_HJS_B88,&
+                                             XC_HYB_GGA_XC_HJS_B97X,&
+                                             XC_HYB_GGA_XC_HJS_B97X,&
+                                             XC_HYB_GGA_XC_HJS_PBE,&
+                                             XC_HYB_GGA_XC_HJS_PBE,&
+                                             XC_HYB_GGA_XC_HJS_PBE_SOL,&
+                                             XC_HYB_GGA_XC_HJS_PBE_SOL,&
+                                             XC_HYB_GGA_XC_HSE03,&
+                                             XC_HYB_GGA_XC_HSE06,&
+                                             XC_HYB_GGA_XC_O3LYP,&
+                                             XC_HYB_GGA_XC_X3LYP,&
+                                             XC_HYB_GGA_X_N12_SX,&
+                                             XC_HYB_MGGA_X_M11,&
+                                             XC_LDA_C_1D_CSC,&
+                                             XC_LDA_C_2D_PRM,&
+                                             XC_LDA_C_XALPHA,&
+                                             XC_LDA_X,&
+                                             XC_LDA_X_1D,&
+                                             XC_MGGA_X_M11_L,&
+                                             XC_MGGA_X_MS2H,&
+                                             XC_MGGA_X_TB09
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -528,15 +569,6 @@ CONTAINS
 ! http://www.tddft.org/programs/octopus/wiki/index.php/Libxc_changes
 !
 !
-! corrected with: 2.1.1 and 2.2.1
-!    XC_GGA_X_SOGGA11, XC_HYB_GGA_X_SOGGA11_X, XC_HYB_GGA_XC_CAM_B3LYP,
-!    XC_HYB_GGA_XC_TUNED_CAM_B3LYP
-!
-! corrected with: 2.1.2 and 2.2.2
-!    XC_GGA_X_LB, XC_GGA_X_LBM, XC_MGGA_C_REVTPSS, XC_MGGA_C_M08_HX,
-!    XC_MGGA_C_M08_SO, XC_MGGA_C_M11, XC_MGGA_C_M11_L 
-!  + all XC_HYB_GGA and XC_HYB_MGGA_*
-!
 ! corrected with: 2.1.3 and 2.2.3
 !    XC_GGA_X_N12, XC_GGA_C_N12, XC_GGA_C_N12_SX, XC_HYB_GGA_X_N12_SX,
 !    XC_HYB_GGA_XC_O3LYP, XC_HYB_GGA_XC_X3LYP, XC_GGA_X_B88,
@@ -576,66 +608,6 @@ CONTAINS
     IF (PRESENT(grad_deriv)) my_grad_deriv = ABS(grad_deriv)
     SELECT CASE (libxc_version)
 #if ( XC_MAJOR_VERSION == 2)
-     CASE ("2.1.0", "2.2.0")
-        IF (my_grad_deriv == 2) THEN
-           nbuggy = 34; ALLOCATE(buggy(nbuggy))
-           buggy(:) = (/ XC_GGA_X_SOGGA11, XC_HYB_GGA_X_SOGGA11_X, &
-            XC_HYB_GGA_XC_CAM_B3LYP, XC_HYB_GGA_XC_TUNED_CAM_B3LYP, XC_GGA_X_LB, &
-            XC_GGA_X_LBM, XC_MGGA_C_REVTPSS, XC_MGGA_C_M08_HX, XC_MGGA_C_M08_SO, &
-            XC_MGGA_C_M11, XC_MGGA_C_M11_L, XC_GGA_X_N12, XC_GGA_C_N12, &
-            XC_GGA_C_N12_SX,XC_HYB_GGA_X_N12_SX, XC_HYB_GGA_XC_O3LYP, &
-            XC_HYB_GGA_XC_X3LYP, XC_GGA_X_B88, XC_GGA_X_OPTB88_VDW, &
-            XC_GGA_X_MB88, XC_GGA_K_LLP, XC_GGA_K_FR_B88, XC_GGA_K_THAKKAR, &
-            XC_HYB_MGGA_X_M11, XC_MGGA_X_M11_L, XC_MGGA_X_MS2H, &
-            XC_GGA_X_HJS_PBE, XC_GGA_X_HJS_PBE_SOL, &
-            XC_GGA_X_HJS_B88, XC_GGA_X_HJS_B97X, XC_HYB_GGA_XC_HJS_PBE, &
-            XC_HYB_GGA_XC_HJS_PBE_SOL, XC_HYB_GGA_XC_HJS_B88, XC_HYB_GGA_XC_HJS_B97X /)
-        ELSE
-           nbuggy = 28; ALLOCATE(buggy(nbuggy))
-           buggy(:) = (/ XC_GGA_X_SOGGA11, XC_HYB_GGA_X_SOGGA11_X, &
-            XC_HYB_GGA_XC_CAM_B3LYP, XC_HYB_GGA_XC_TUNED_CAM_B3LYP, XC_GGA_X_LB, &
-            XC_GGA_X_LBM, XC_MGGA_C_REVTPSS, XC_MGGA_C_M08_HX, XC_MGGA_C_M08_SO, &
-            XC_MGGA_C_M11, XC_MGGA_C_M11_L, XC_GGA_X_N12, XC_GGA_C_N12, &
-            XC_GGA_C_N12_SX,XC_HYB_GGA_X_N12_SX, XC_HYB_GGA_XC_O3LYP, &
-            XC_HYB_GGA_XC_X3LYP, &
-            XC_HYB_MGGA_X_M11, XC_MGGA_X_M11_L, XC_MGGA_X_MS2H, &
-            XC_GGA_X_HJS_PBE, XC_GGA_X_HJS_PBE_SOL, &
-            XC_GGA_X_HJS_B88, XC_GGA_X_HJS_B97X, XC_HYB_GGA_XC_HJS_PBE, &
-            XC_HYB_GGA_XC_HJS_PBE_SOL, XC_HYB_GGA_XC_HJS_B88, XC_HYB_GGA_XC_HJS_B97X /)
-        END IF
-        IF ((xc_f90_family_from_id(func_id) == XC_FAMILY_HYB_GGA) .OR. &
-            (xc_f90_family_from_id(func_id) == XC_FAMILY_HYB_MGGA)) THEN
-           bug = .TRUE.
-        END IF
-     CASE ("2.1.1", "2.2.1")
-        IF (my_grad_deriv == 2) THEN
-           nbuggy = 30; ALLOCATE(buggy(nbuggy))
-           buggy(:) = (/ XC_GGA_X_LB, &
-            XC_GGA_X_LBM, XC_MGGA_C_REVTPSS, XC_MGGA_C_M08_HX, XC_MGGA_C_M08_SO, &
-            XC_MGGA_C_M11, XC_MGGA_C_M11_L, XC_GGA_X_N12, XC_GGA_C_N12, &
-            XC_GGA_C_N12_SX,XC_HYB_GGA_X_N12_SX, XC_HYB_GGA_XC_O3LYP, &
-            XC_HYB_GGA_XC_X3LYP, XC_GGA_X_B88, XC_GGA_X_OPTB88_VDW, &
-            XC_GGA_X_MB88, XC_GGA_K_LLP, XC_GGA_K_FR_B88, XC_GGA_K_THAKKAR, &
-            XC_HYB_MGGA_X_M11, XC_MGGA_X_M11_L, XC_MGGA_X_MS2H, &
-            XC_GGA_X_HJS_PBE, XC_GGA_X_HJS_PBE_SOL, &
-            XC_GGA_X_HJS_B88, XC_GGA_X_HJS_B97X, XC_HYB_GGA_XC_HJS_PBE, &
-            XC_HYB_GGA_XC_HJS_PBE_SOL, XC_HYB_GGA_XC_HJS_B88, XC_HYB_GGA_XC_HJS_B97X /)
-        ELSE
-           nbuggy = 24; ALLOCATE(buggy(nbuggy))
-           buggy(:) = (/ XC_GGA_X_LB, &
-            XC_GGA_X_LBM, XC_MGGA_C_REVTPSS, XC_MGGA_C_M08_HX, XC_MGGA_C_M08_SO, &
-            XC_MGGA_C_M11, XC_MGGA_C_M11_L, XC_GGA_X_N12, XC_GGA_C_N12, &
-            XC_GGA_C_N12_SX,XC_HYB_GGA_X_N12_SX, XC_HYB_GGA_XC_O3LYP, &
-            XC_HYB_GGA_XC_X3LYP, &
-            XC_HYB_MGGA_X_M11, XC_MGGA_X_M11_L, XC_MGGA_X_MS2H, &
-            XC_GGA_X_HJS_PBE, XC_GGA_X_HJS_PBE_SOL, &
-            XC_GGA_X_HJS_B88, XC_GGA_X_HJS_B97X, XC_HYB_GGA_XC_HJS_PBE, &
-            XC_HYB_GGA_XC_HJS_PBE_SOL, XC_HYB_GGA_XC_HJS_B88, XC_HYB_GGA_XC_HJS_B97X /)
-        END IF
-        IF ((xc_f90_family_from_id(func_id) == XC_FAMILY_HYB_GGA) .OR. &
-            (xc_f90_family_from_id(func_id) == XC_FAMILY_HYB_MGGA)) THEN
-           bug = .TRUE.
-        END IF
      CASE ("2.1.2", "2.2.2")
         IF (my_grad_deriv == 2) THEN
            nbuggy = 23; ALLOCATE(buggy(nbuggy))
