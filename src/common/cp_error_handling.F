@@ -108,7 +108,12 @@ CONTAINS
     LOGICAL, INTENT(inout), OPTIONAL         :: failure
     LOGICAL, INTENT(in), OPTIONAL            :: only_ionode
 
+    INTEGER                                  :: dummy
+
     IF (.NOT. condition) THEN
+       IF (PRESENT(failure)) failure=.TRUE.
+       IF (PRESENT(only_ionode)) dummy = 42 !pretend only_ionode is used.
+
        IF(level > cp_warning_level) THEN
           CALL cp_abort(fromWhere, message)
        ELSE

@@ -1204,14 +1204,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, unit_nr
     LOGICAL :: c_forces, do_rebuild, energy_only, forces_up_to_date, &
       potential_changed, rho_changed, s_mstruct_changed
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ks_env_type), POINTER            :: ks_env
 
-    NULLIFY(logger,ks_env)
-    logger => cp_get_default_logger()
+    NULLIFY(ks_env)
+    unit_nr = cp_logger_get_default_io_unit()
 
     c_forces = .FALSE.
     energy_only = .FALSE.
@@ -1260,11 +1259,11 @@ CONTAINS
        END IF
     END IF
 
-    IF (cp_debug.AND.debug_this_module) THEN
+    IF (cp_debug.AND.debug_this_module.AND.unit_nr>0) THEN
        IF (do_rebuild) THEN
-          CALL cp_log(logger,cp_note_level,routineP,"did update")
+          WRITE(unit_nr,*) "qs_ks_update_qs_env: did update"
        ELSE
-          CALL cp_log(logger,cp_note_level,routineP,"did NOT update")
+          WRITE(unit_nr,*) "qs_ks_update_qs_env: did NOT update"
        END IF
     END IF
 

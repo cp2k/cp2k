@@ -35,7 +35,6 @@ MODULE termination
   INTEGER :: error_unit = default_output_unit
 
   PUBLIC :: print_message,&
-            print_warning,&
             set_error_unit,&
             stop_memory,&
             stop_program,&
@@ -204,49 +203,6 @@ CONTAINS
     END DO
 
   END SUBROUTINE print_message
-
-! *****************************************************************************
-!> \brief Print warning message
-!> \param routineN ...
-!> \param moduleN ...
-!> \param line_number ...
-!> \param warning_message ...
-!> \param para_env ...
-!> \par History
-!>      - Creation (20.11.2013,MK)
-!> \author Matthias Krack (MK)
-!> \note
-!>      routine: Name of the calling routine
-! *****************************************************************************
-  SUBROUTINE print_warning(routineN,moduleN,line_number,warning_message,&
-                           para_env)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
-    INTEGER, INTENT(IN)                      :: line_number
-    CHARACTER(LEN=*), INTENT(IN)             :: warning_message
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-
-    CHARACTER(LEN=3*default_path_length)     :: message
-    LOGICAL                                  :: ionode
-
-    IF (PRESENT(para_env)) THEN
-      ionode = para_env%ionode
-    ELSE
-      ionode = .TRUE.
-    END IF
-
-    ! Print the warning message
-    IF (ionode) THEN
-      message = "WARNING in "//TRIM(routineN)//&
-                " (MODULE "//TRIM(moduleN)//")"
-      CALL print_message(message,error_unit,2,2,0)
-      CALL print_message(warning_message,error_unit,1,1,0)
-      CALL m_flush_internal(default_output_unit)
-      CALL m_flush_internal(error_unit)
-    END IF
-
-  END SUBROUTINE print_warning
 
 ! *****************************************************************************
 !> \brief Initialise the output unit number for error messages.

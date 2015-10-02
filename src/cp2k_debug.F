@@ -47,8 +47,6 @@ MODULE cp2k_debug
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE termination,                     ONLY: print_warning,&
-                                             stop_program
   USE virial_types,                    ONLY: cp_virial,&
                                              virial_create,&
                                              virial_release,&
@@ -136,14 +134,12 @@ CONTAINS
           ! OK
        CASE (do_stress_numerical, do_stress_diagonal_numer)
           ! Nothing to check
-          message = "Numerical stress tensor was requested in the FORCE_EVAL section. "//&
-                    "Nothing to debug!"
-          CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+          CALL cp_warn(__LOCATION__, "Numerical stress tensor was requested in "//&
+                      "the FORCE_EVAL section. Nothing to debug!")
           skip = .TRUE.
        CASE DEFAULT
-          message = "Stress tensor calculation was not enabled in the FORCE_EVAL section. "//&
-                    "Nothing to debug!"
-          CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+          CALL cp_warn(__LOCATION__, "Stress tensor calculation was not enabled in "//&
+                       "the FORCE_EVAL section. Nothing to debug!")
           skip = .TRUE.
        END SELECT
 
@@ -209,9 +205,9 @@ CONTAINS
                        "stress tensor has been detected. Check the implementation "//&
                        "of the stress tensor"
              IF (stop_on_mismatch) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,TRIM(message),para_env)
+                CPABORT(TRIM(message))
              ELSE
-                CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+                CPWARN(TRIM(message))
              END IF
           END IF
        END IF
@@ -297,9 +293,9 @@ CONTAINS
                        "has been detected. Check the implementation of the "//&
                        "analytical force calculation"
              IF (stop_on_mismatch) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,TRIM(message),para_env)
+                CPABORT(message)
              ELSE
-                CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
+                CPWARN(message)
              END IF
           END IF
        END DO Atom

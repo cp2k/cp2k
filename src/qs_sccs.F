@@ -93,8 +93,7 @@ MODULE qs_sccs
   USE rs_methods,                      ONLY: derive_fdm_cd3,&
                                              derive_fdm_cd5,&
                                              derive_fdm_cd7
-  USE termination,                     ONLY: print_warning,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -445,10 +444,10 @@ CONTAINS
 
       IF (sccs_control%gamma_solvent > 0.0_dp) THEN
 
-        CALL print_warning(routineN,moduleN,__LINE__,&
-                           "Experimental feature requested: The contribution from the "//&
-                           "cavitation energy is added as an extra potential term to the "//&
-                           "Kohn-Sham potential",para_env)
+        CALL cp_warn(__LOCATION__,&
+                     "Experimental feature requested: The contribution from the "//&
+                     "cavitation energy is added as an extra potential term to the "//&
+                     "Kohn-Sham potential")
 
         ! Calculate the second derivatives of the electronic density in r-space
         DO di=1,3

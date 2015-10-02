@@ -44,8 +44,7 @@ MODULE kpoint_methods
   USE k290,                            ONLY: csym_type,&
                                              kp_sym_gen,&
                                              release_csym_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE kpoint_types,                    ONLY: get_kpoint_info,&
                                              kpoint_env_create,&
                                              kpoint_env_p_type,&
@@ -74,7 +73,6 @@ MODULE kpoint_methods
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE scf_control_types,               ONLY: smear_type
-  USE termination,                     ONLY: print_warning
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
 
@@ -225,7 +223,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=3*default_string_length)   :: message
     INTEGER                                  :: comm_cart, comm_inter_kp, &
                                                 comm_kp, igr, ik, ikk, ngr, &
                                                 niogrp, nkp, nkp_grp, &
@@ -301,9 +298,7 @@ CONTAINS
        nkp_loc=nkp/nkp_grp
 
        IF ((dims(1)*dims(2)/=npe)) THEN
-          message = "Number of processors is not divisible by the kpoint group size."
-          CALL print_warning(routineN,moduleN,__LINE__,TRIM(message),para_env)
-          CPASSERT(.FALSE.)
+          CPABORT("Number of processors is not divisible by the kpoint group size.")
        END IF
 
        NULLIFY(cart,para_env_full,para_env_kp,para_env_inter_kp)

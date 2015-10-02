@@ -110,7 +110,6 @@ MODULE force_env_methods
   USE qs_force,                        ONLY: qs_calc_energy_force
   USE restraint,                       ONLY: restraint_control
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: print_warning
   USE virial_types,                    ONLY: cp_virial,&
                                              sym_virial,&
                                              virial_create,&
@@ -243,10 +242,8 @@ CONTAINS
              CALL sym_virial(virial)
           ELSE
              IF (calculate_stress_tensor) THEN
-                CALL print_warning(routineN,moduleN,__LINE__,&
-                                   "The calculation of the stress tensor "//&
-                                   "requires the calculation of the forces",&
-                                   force_env%para_env)
+                CALL cp_warn(__LOCATION__,"The calculation of the stress tensor "//&
+                             "requires the calculation of the forces")
              END IF
           END IF
        END IF
@@ -333,8 +330,8 @@ CONTAINS
        output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%STRESS_TENSOR",&
                                           extension=".stress_tensor")
        IF (output_unit > 0) THEN
-          CALL print_warning(routineN,moduleN,__LINE__,"To print the stress tensor switch on the "//&
-                             "virial evaluation with the keyword: STRESS_TENSOR",force_env%para_env)
+          CALL cp_warn(__LOCATION__,"To print the stress tensor switch on the "//&
+                       "virial evaluation with the keyword: STRESS_TENSOR")
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                          "PRINT%STRESS_TENSOR")
