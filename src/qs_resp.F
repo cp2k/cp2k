@@ -196,10 +196,9 @@ CONTAINS
         CALL cite_reference(Golze2015) 
         CALL calc_resp_matrix_periodic(qs_env,resp_env,rep_sys,particles,cell,natom)
        CASE DEFAULT
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="RESP charges only implemented for nonperiodic systems"//&
-             " or XYZ periodicity!", &
-             error_level=cp_failure_level)
+        CALL cp_abort(__LOCATION__,&
+             "RESP charges only implemented for nonperiodic systems"//&
+             " or XYZ periodicity!")
        END SELECT
         
        output_unit=cp_print_key_unit_nr(logger,resp_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -650,10 +649,9 @@ __LOCATION__,&
     delta = 1.0E-13_dp
 
     IF (.NOT.cell%orthorhombic) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Nonperiodic solution for RESP charges only"//&
-            " implemented for orthorhombic cells!", &
-            error_level=cp_failure_level)
+       CALL cp_abort(__LOCATION__,&
+            "Nonperiodic solution for RESP charges only"//&
+            " implemented for orthorhombic cells!")
     END IF
     IF(.NOT.resp_env%molecular_sys) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&

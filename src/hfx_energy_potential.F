@@ -511,7 +511,7 @@ MODULE hfx_energy_potential
     IF(nkimages == 1) THEN
       cell_loop_info%dokp = .FALSE.
     ELSE
-      CALL cp_unimplemented_error(routineP,"HFX with k-points not implemented")
+      CPABORT("HFX with k-points not implemented")
       cell_loop_info%dokp = .TRUE.
       cell_loop_info%cell_to_index => cell_to_index
       ALLOCATE(cell_loop_info%index_to_cell(3,nkimages))

@@ -255,9 +255,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(vels))
     ! MD band for string methods type does not make anywa sense. Stop calculation.
     IF (neb_env%id_type==do_sm) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="MD band optimization and String Method incompatible.", &
-            error_level=cp_warning_level)
+       CPWARN("MD band optimization and String Method incompatible.")
     END IF
     ! Output unit
     iw=cp_print_key_unit_nr(logger,neb_env%neb_section,"REPLICA_INFO",&

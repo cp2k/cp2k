@@ -253,15 +253,13 @@ CONTAINS
                               virial,use_virial,atprop)
       SELECT CASE(ewald_type)
       CASE DEFAULT
-        CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
+        CPABORT("Invalid Ewald type")
       CASE(do_ewald_none)
         CPABORT("Not allowed with DFTB")
       CASE(do_ewald_ewald)
-        CALL cp_unimplemented_error(routineP,&
-             "Standard Ewald not implemented in DFTB")
+        CPABORT("Standard Ewald not implemented in DFTB")
       CASE(do_ewald_pme)
-        CALL cp_unimplemented_error(routineP,&
-             "PME not implemented in DFTB")
+        CPABORT("PME not implemented in DFTB")
       CASE(do_ewald_spme)
         CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,cell,&
           gmcharge,mcharge,calculate_forces,virial,use_virial,atprop)
@@ -582,15 +580,13 @@ CONTAINS
 
     SELECT CASE(ewald_type)
     CASE DEFAULT
-       CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
+       CPABORT("Invalid Ewald type")
     CASE(do_ewald_none)
        CPABORT("Not allowed with DFTB")
     CASE(do_ewald_ewald)
-       CALL cp_unimplemented_error(routineP,&
-            "Standard Ewald not implemented in DFTB")
+       CPABORT("Standard Ewald not implemented in DFTB")
     CASE(do_ewald_pme)
-       CALL cp_unimplemented_error(routineP,&
-            "PME not implemented in DFTB")
+       CPABORT("PME not implemented in DFTB")
     CASE(do_ewald_spme)
        CALL dftb_spme_evaluate (ewald_env,ewald_pw,particle_set,mm_cell,&
             gmcharge,mcharge,calculate_forces,virial,use_virial,atprop)

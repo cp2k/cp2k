@@ -1621,9 +1621,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
      ! ** Add laplace part to vxc_rho
      IF( has_laplace ) THEN
        IF (use_virial) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Stress tensor not available for Laplace functionals.", &
-            error_level=cp_failure_level)
+         CPABORT("Stress tensor not available for Laplace functionals.")
        END IF
        nd_laplace = RESHAPE((/2,0,0,0,2,0,0,0,2/),(/3,3/))
        IF(lsd) THEN
@@ -1756,9 +1754,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
   ! tau part
   IF (has_tau) THEN
      IF (use_virial) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="Stress tensor not available for Meta-functionals.", &
-          error_level=cp_failure_level)
+       CPABORT("Stress tensor not available for Meta-functionals.")
      END IF
      ALLOCATE(vxc_tau(nspins))
      DO ispin=1,nspins
@@ -2698,9 +2694,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
                          pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
                          idir=idir)
                  CASE default
-                    CALL cp_unimplemented_error(fromWhere=routineP, &
-                            message="XC_DERIV method not implemented for GPW-LSD!",&
-                            error_level=cp_failure_level)
+                    CPABORT("XC_DERIV method not implemented for GPW-LSD!")
                  END SELECT
               END DO ! ispin
 
@@ -2882,9 +2876,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
                       pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
                       idir=idir)
               CASE default
-                 CALL cp_unimplemented_error(fromWhere=routineP, &
-                         message="XC_DERIV method not implemented for GPW!",&
-                         error_level=cp_failure_level)
+                 CPABORT("XC_DERIV method not implemented for GPW!")
               END SELECT
 
            END DO

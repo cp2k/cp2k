@@ -151,9 +151,7 @@ CONTAINS
 
     IF(SIZE(matrixkp_s,2) > 1) THEN
 
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="Lowdin population analysis not implemented for k-points.", &
-           error_level=cp_warning_level)
+      CPWARN("Lowdin population analysis not implemented for k-points.")
 
     ELSE
 

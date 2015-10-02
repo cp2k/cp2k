@@ -250,9 +250,7 @@ CONTAINS
       CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives bigger than 1 not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     CALL section_vals_val_get(params,"scale_x",r_val=sx)
@@ -260,9 +258,7 @@ CONTAINS
     CALL section_vals_val_get(params,"GAMMA",r_val=gamma)
 
     IF ( R == 0.0_dp ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Cutoff_Radius 0.0 not implemented", &
-                     error_level=cp_failure_level)
+      CPABORT("Cutoff_Radius 0.0 not implemented")
     END IF
 
     !$omp parallel default(none) &
@@ -563,9 +559,7 @@ CONTAINS
       CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives bigger than 1 not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     CALL section_vals_val_get(params,"scale_x",r_val=sx)
@@ -573,9 +567,7 @@ CONTAINS
     CALL section_vals_val_get(params,"GAMMA",r_val=gamma)
 
     IF ( R == 0.0_dp ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Cutoff_Radius 0.0 not implemented", &
-                     error_level=cp_failure_level)
+      CPABORT("Cutoff_Radius 0.0 not implemented")
     END IF
 
     !$omp parallel default(none) &

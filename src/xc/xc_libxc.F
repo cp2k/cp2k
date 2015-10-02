@@ -509,9 +509,7 @@ CONTAINS
           CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
        CASE(XC_FAMILY_MGGA)
           ! not implemented ...
-          CALL cp_unimplemented_error(fromWhere=routineP,&
-               message="derivatives larger than 1 not implemented or checked",&
-               error_level=cp_failure_level)
+          CPABORT("derivatives larger than 1 not implemented or checked")
 
           !             deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
           !                  allocate_deriv=.TRUE.)
@@ -557,18 +555,14 @@ CONTAINS
                allocate_deriv=.TRUE.)
           CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho)
        CASE(XC_FAMILY_GGA, XC_FAMILY_HYB_GGA, XC_FAMILY_MGGA)
-          CALL cp_unimplemented_error(fromWhere=routineP,&
-               message="derivatives larger than 2 not implemented",&
-               error_level=cp_failure_level)
+          CPABORT("derivatives larger than 2 not implemented")
        CASE default
           CALL stop_program(routineN,moduleN,__LINE__,&
                TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=4.OR.grad_deriv<=-4) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP,&
-            message="derivatives larger than 3 not implemented",&
-            error_level=cp_failure_level)
+       CPABORT("derivatives larger than 3 not implemented")
     END IF
 
 !$omp parallel default(none), &
@@ -906,9 +900,7 @@ CONTAINS
           CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_ndrhob)
        CASE(XC_FAMILY_MGGA)
           ! not implemented ...
-          CALL cp_unimplemented_error(fromWhere=routineP,&
-               message="derivatives larger than 1 not implemented or checked",&
-               error_level=cp_failure_level)
+          CPABORT("derivatives larger than 1 not implemented or checked")
 
           !             deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
           !                  allocate_deriv=.TRUE.)
@@ -1068,18 +1060,14 @@ CONTAINS
                allocate_deriv=.TRUE.)
           CALL xc_derivative_get(deriv,deriv_data=e_rhob_rhob_rhob)
        CASE(XC_FAMILY_GGA, XC_FAMILY_HYB_GGA, XC_FAMILY_MGGA)
-          CALL cp_unimplemented_error(fromWhere=routineP,&
-               message="derivatives larger than 2 not implemented",&
-               error_level=cp_failure_level)
+          CPABORT("derivatives larger than 2 not implemented")
        CASE default
           CALL stop_program(routineN,moduleN,__LINE__,&
                TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=4.OR.grad_deriv<=-4) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP,&
-            message="derivatives larger than 3 not implemented",&
-            error_level=cp_failure_level)
+       CPABORT("derivatives larger than 3 not implemented")
     END IF
 
 !$omp parallel default(none), &

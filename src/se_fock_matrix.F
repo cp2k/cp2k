@@ -138,9 +138,7 @@ CONTAINS
     SELECT CASE (dft_control%qs_control%method_id)
     CASE DEFAULT
        ! Abort if the parameterization is an unknown one..
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Fock Matrix not available for the chosen parameterization! ", &
-            error_level=cp_failure_level)
+       CPABORT("Fock Matrix not available for the chosen parameterization! ")
 
     CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
          do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)

@@ -362,17 +362,11 @@ CONTAINS
     CASE ( do_loc_jacobi )
        CALL jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
     CASE ( do_loc_crazy )
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Crazy and Pipek not implemented.", &
-            error_level=cp_failure_level)
+       CPABORT("Crazy and Pipek not implemented.")
     CASE( do_loc_l1_norm_sd )
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="L1 norm and Pipek not implemented.", &
-            error_level=cp_failure_level)
+       CPABORT("L1 norm and Pipek not implemented.")
     CASE ( do_loc_direct )
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Direct and Pipek not implemented.", &
-            error_level=cp_failure_level)
+       CPABORT("Direct and Pipek not implemented.")
     CASE ( do_loc_none )
        IF (output_unit>0) WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
     CASE DEFAULT
@@ -715,9 +709,7 @@ CONTAINS
           END IF
 
        CASE(op_loc_boys)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Boys localization not implemented", &
-               error_level=cp_failure_level)
+          CPABORT("Boys localization not implemented")
 
        CASE(op_loc_pipek)
           CALL  optimize_loc_pipek(qs_env, loc_method, qs_loc_env, moloc_coeff(ispin)%matrix,&

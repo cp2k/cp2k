@@ -255,10 +255,9 @@ CONTAINS
                                     keyword_name="EIP-Model", &
                                     i_val=eip_env%eip_model)
         CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="EIP models for other elements" //&
-               "than Si isn't implemented yet.", &
-               error_level=cp_failure_level)
+          CALL cp_abort(__LOCATION__,&
+               "EIP models for other elements" //&
+               "than Si isn't implemented yet.")
       END SELECT
     END DO
 

@@ -359,9 +359,7 @@ CONTAINS
           fgcore_coulomb  = 0.0_dp
        END IF
        IF(shell_present.AND.do_multipoles)THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Multipoles and Core-Shell model not implemented.",&
-               error_level=cp_failure_level)
+          CPABORT("Multipoles and Core-Shell model not implemented.")
        END IF
        ! If not multipole: Compute self-interaction and neutralizing background
        ! for multipoles is handled separately..
@@ -379,9 +377,7 @@ CONTAINS
        IF(do_ipol /= do_fist_pol_none)THEN
           ! Check if an array of chagres was provided and in case abort due to lack of implementation
           IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Polarizable force field and array charges not implemented!", &
-                  error_level=cp_fatal_level)
+             CPABORT("Polarizable force field and array charges not implemented!")
           END IF
           ! Converge the dipoles self-consistently
           CALL fist_pol_evaluate(atomic_kind_set, multipoles, ewald_env, &
@@ -396,26 +392,18 @@ CONTAINS
              IF(shell_present)THEN
                 ! Check if an array of chagres was provided and in case abort due to lack of implementation
                 IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Core-Shell and array charges not implemented!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Core-Shell and array charges not implemented!")
                 END IF
                 IF(do_multipoles)THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Multipole Ewald and CORE-SHELL not yet implemented within Ewald sum!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Multipole Ewald and CORE-SHELL not yet implemented within Ewald sum!")
                 ELSE
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Core-Shell model not yet implemented within Ewald sums.", &
-                        error_level=cp_failure_level)
+                   CPABORT("Core-Shell model not yet implemented within Ewald sums.")
                 END IF
              ELSE
                 IF(do_multipoles)THEN
                    ! Check if an array of chagres was provided and in case abort due to lack of implementation
                    IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
-                      CALL cp_unimplemented_error(fromWhere=routineP, &
-                           message="Multipole Ewald and array charges not implemented!", &
-                           error_level=cp_fatal_level)
+                      CPABORT("Multipole Ewald and array charges not implemented!")
                    END IF
                    CALL ewald_multipole_evaluate(ewald_env, ewald_pw, fist_nonbond_env, cell, &
                         particle_set, local_particles, vg_coulomb, pot_nonbond, thermo%e_neut,&
@@ -443,14 +431,10 @@ CONTAINS
              IF(shell_present)THEN
                 ! Check if an array of chagres was provided and in case abort due to lack of implementation
                 IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Core-Shell and array charges not implemented!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Core-Shell and array charges not implemented!")
                 END IF
                 IF(do_multipoles)THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Multipole Ewald and CORE-SHELL not yet implemented within a PME scheme!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Multipole Ewald and CORE-SHELL not yet implemented within a PME scheme!")
                 ELSE
                    CALL pme_evaluate(ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
                         pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
@@ -461,9 +445,7 @@ CONTAINS
                 END IF
              ELSE
                 IF(do_multipoles)THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Multipole Ewald not yet implemented within a PME scheme!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Multipole Ewald not yet implemented within a PME scheme!")
                 ELSE
                    CALL pme_evaluate(ewald_env, ewald_pw, cell, particle_set, vg_coulomb, fg_coulomb,&
                         pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, &
@@ -476,14 +458,10 @@ CONTAINS
              IF(shell_present)THEN
                 ! Check if an array of chagres was provided and in case abort due to lack of implementation
                 IF (ASSOCIATED(fist_nonbond_env%charges)) THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Core-Shell and array charges not implemented!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Core-Shell and array charges not implemented!")
                 END IF
                 IF(do_multipoles)THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Multipole Ewald and CORE-SHELL not yet implemented within a SPME scheme!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Multipole Ewald and CORE-SHELL not yet implemented within a SPME scheme!")
                 ELSE
                    CALL spme_evaluate(ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
                         pv_g,shell_particle_set=shell_particle_set, core_particle_set=core_particle_set,&
@@ -494,9 +472,7 @@ CONTAINS
                 END IF
              ELSE
                 IF(do_multipoles)THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Multipole Ewald not yet implemented within a SPME scheme!", &
-                        error_level=cp_fatal_level)
+                   CPABORT("Multipole Ewald not yet implemented within a SPME scheme!")
                 ELSE
                    CALL spme_evaluate(ewald_env, ewald_pw, cell, particle_set, fg_coulomb, vg_coulomb,&
                         pv_g, use_virial=use_virial, charges=fist_nonbond_env%charges, &
@@ -760,9 +736,7 @@ CONTAINS
           END DO
 
        ELSEIF(shell_present .AND. .NOT. shell_model_ad)THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Non adiabatic shell-model not implemented.",&
-               error_level=cp_failure_level)
+          CPABORT("Non adiabatic shell-model not implemented.")
        ELSE
           DO i = 1, natoms
              particle_set(i)%f(1)= f_total(1, i)+ fg_coulomb(1, i)
@@ -801,9 +775,7 @@ CONTAINS
              core_particle_set(i)%f(3)= fcore_total(3,i)
           END DO
        ELSEIF(shell_present .AND. .NOT. shell_model_ad)THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Non adiabatic shell-model not implemented.",&
-               error_level=cp_failure_level)
+          CPABORT("Non adiabatic shell-model not implemented.")
        ELSE
           DO i = 1, natoms
              particle_set(i)%f(1)= f_total(1, i)

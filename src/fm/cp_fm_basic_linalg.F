@@ -147,8 +147,7 @@ CONTAINS
 
        ELSE
 #ifdef __SCALAPACK
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="to do (pdscal,pdcopy,pdaxpy)")
+          CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
           CPASSERT(.FALSE.)
 #endif

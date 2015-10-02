@@ -221,9 +221,7 @@ MODULE xc_xwpbe
       CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho)
     END IF
     IF (order>2.OR.order<-2) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 2 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 2 not implemented")
     END IF
 
     !$omp parallel default(none) &
@@ -5440,9 +5438,7 @@ MODULE xc_xwpbe
      CALL xc_derivative_get(deriv,deriv_data=e_ndrhob_ndrhob)
    END IF
     IF (order>2.OR.order<-2) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 2 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 2 not implemented")
     END IF
 
     !$omp parallel default(none) &

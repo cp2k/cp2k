@@ -196,17 +196,13 @@ CONTAINS
     ! Lowdin
     print_key => section_vals_get_subs_vals(print_section,"LOWDIN")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Lowdin population analysis not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Lowdin population analysis not implemented for DFTB method.")
     END IF
 
     ! Hirshfeld
     print_key => section_vals_get_subs_vals(print_section,"HIRSHFELD")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Hirshfeld charges not available for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Hirshfeld charges not available for DFTB method.")
     END IF
 
     ! Dipole Moments
@@ -224,105 +220,79 @@ CONTAINS
     ! EPR Hyperfine Coupling
     print_key => section_vals_get_subs_vals(print_section,"HYPERFINE_COUPLING_TENSOR")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Hyperfine Coupling not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Hyperfine Coupling not implemented for DFTB method.")
     END IF
 
     ! EFIELD CUBE FILE 
     print_key => section_vals_get_subs_vals(print_section,"EFIELD_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Efield cube file not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Efield cube file not implemented for DFTB method.")
     END IF
 
     ! DENSITY CUBE FILE 
     print_key => section_vals_get_subs_vals(print_section,"E_DENSITY_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Electronic density cube file not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Electronic density cube file not implemented for DFTB method.")
     END IF
 
     ! TOTAL DENSITY CUBE FILE 
     print_key => section_vals_get_subs_vals(print_section,"TOT_DENSITY_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Total density cube file not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Total density cube file not implemented for DFTB method.")
     END IF
 
     ! V_Hartree CUBE FILE 
     print_key => section_vals_get_subs_vals(print_section,"V_HARTREE_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Hartree potential cube file not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Hartree potential cube file not implemented for DFTB method.")
     END IF
 
     ! V_XC CUBE FILE 
     print_key => section_vals_get_subs_vals(print_section,"V_XC_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="XC potential cube file not available for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("XC potential cube file not available for DFTB method.")
     END IF
 
     ! ELF
     print_key => section_vals_get_subs_vals(print_section,"ELF_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="ELF not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("ELF not implemented for DFTB method.")
     END IF
 
     ! KINETIC ENERGY 
     print_key => section_vals_get_subs_vals(print_section,"KINETIC_ENERGY")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Kinetic energy not available for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Kinetic energy not available for DFTB method.")
     END IF
 
     ! Xray diffraction spectrum
     print_key => section_vals_get_subs_vals(print_section,"XRAY_DIFFRACTION_SPECTRUM")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Xray diffraction spectrum not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Xray diffraction spectrum not implemented for DFTB method.")
     END IF
 
     ! Electric field gradients
     print_key => section_vals_get_subs_vals(print_section,"ELECTRIC_FIELD_GRADIENT")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Electric field gradient not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Electric field gradient not implemented for DFTB method.")
     END IF
 
     ! STM
     print_key => section_vals_get_subs_vals(print_section,"STM")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="STM not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("STM not implemented for DFTB method.")
     END IF
 
     ! MO 
     print_key => section_vals_get_subs_vals(print_section,"MO")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Printing of MO properties not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Printing of MO properties not implemented for DFTB method.")
     END IF
 
     ! MO CUBES
     print_key => section_vals_get_subs_vals(print_section,"MO_CUBES")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Printing of MO cube files not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Printing of MO cube files not implemented for DFTB method.")
     END IF
 
     ! Wavefunction mixing
@@ -333,17 +303,13 @@ CONTAINS
     ! PLUS_U
     print_key => section_vals_get_subs_vals(print_section,"PLUS_U")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="DFT+U method not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("DFT+U method not implemented for DFTB method.")
     END IF
 
     ! PDOS
     print_key => section_vals_get_subs_vals(print_section,"PDOS")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Projected DOS not implemented for DFTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Projected DOS not implemented for DFTB method.")
     END IF
 
     CALL timestop(handle)

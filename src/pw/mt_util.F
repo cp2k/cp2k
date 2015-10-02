@@ -129,7 +129,7 @@ CONTAINS
     CASE(MT1D)
        iz = special_dimension ! iz is the direction with PBC
        CALL mt1din(screen_function)
-       CALL cp_unimplemented_error(routineP, "MT1D unimplemented",cp_failure_level)
+       CPABORT("MT1D unimplemented")
     END SELECT
     CALL pw_pool_release ( pw_pool_aux)
     CALL timestop(handle)

@@ -103,9 +103,9 @@ CONTAINS
     IF( BTEST(cp_print_key_should_output(logger%iter_info,loc_print_key,&
                "MOLECULAR_DIPOLES"),cp_p_file))THEN
        IF (nspins>1) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Molecular Dipoles not implemented for SPIN multiplicity "//&
-               "larger than 1!",error_level=cp_failure_level)
+          CALL cp_abort(__LOCATION__,&
+               "Molecular Dipoles not implemented for SPIN multiplicity "//&
+               "larger than 1!")
        END IF
 
        ! Setup reference point and some warning..

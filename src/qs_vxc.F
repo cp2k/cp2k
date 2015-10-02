@@ -258,9 +258,7 @@ CONTAINS
           END DO
           IF (tau_r_valid) THEN
             ! tau with finer grids is not implemented (at least not correctly), which this asserts
-            CALL cp_unimplemented_error(fromWhere=routineP, &
-                 message="tau with finer grids", &
-                 error_level=cp_failure_level)
+            CPABORT("tau with finer grids")
 !                ALLOCATE(tau(dft_control%nspins),stat=stat)
 !                CPPostcondition(stat==0,cp_failure_level,routineP,failure)
 !                DO ispin=1,dft_control%nspins

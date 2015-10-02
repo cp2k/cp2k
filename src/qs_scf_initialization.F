@@ -790,13 +790,9 @@ CONTAINS
     ELSEIF (dft_control%qs_control%scptb) THEN
        CALL scf_post_calculation_scptb (qs_env)
     ELSEIF (dft_control%qs_control%do_kg) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="No properties from PRINT section available for KG methods", &
-            error_level=cp_warning_level)
+       CPWARN("No properties from PRINT section available for KG methods")
     ELSEIF (dft_control%qs_control%ofgpw) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="No properties from PRINT section available for OFGPW methods", &
-            error_level=cp_warning_level)
+       CPWARN("No properties from PRINT section available for OFGPW methods")
     ELSEIF (dft_control%qs_control%lri_optbas.AND.dft_control%qs_control%gpw) THEN
        CALL optimize_lri_basis(qs_env)
     ELSE

@@ -85,9 +85,7 @@ CONTAINS
                gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
                gopt_param%cg_ls%initial_step, output_unit, globenv)
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Line Search type not yet implemented in CG.", &
-               error_level=cp_failure_level)
+          CPABORT("Line Search type not yet implemented in CG.")
        END SELECT
     CASE(default_ts_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
@@ -99,9 +97,7 @@ CONTAINS
                   output_unit)
           END IF
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Line Search type not yet implemented in CG for TS search.", &
-               error_level=cp_failure_level)
+          CPABORT("Line Search type not yet implemented in CG for TS search.")
        END SELECT
     CASE(default_cell_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
@@ -113,9 +109,7 @@ CONTAINS
                gopt_param%cg_ls%brent_max_iter, gopt_param%cg_ls%brack_limit, &
                gopt_param%cg_ls%initial_step, output_unit, globenv)
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Line Search type not yet implemented in CG for cell optimization.", &
-               error_level=cp_failure_level)
+          CPABORT("Line Search type not yet implemented in CG for cell optimization.")
        END SELECT
     CASE(default_shellcore_method_id)
        SELECT CASE(gopt_param%cg_ls%type_id)
@@ -123,9 +117,7 @@ CONTAINS
           CALL linmin_2pnt(gopt_env, xvec, xi, g, opt_energy, gopt_param, use_only_grad=.TRUE.,&
                output_unit=output_unit)
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Line Search type not yet implemented in CG for shellcore optimization.", &
-               error_level=cp_failure_level)
+          CPABORT("Line Search type not yet implemented in CG for shellcore optimization.")
        END SELECT
 
     END SELECT

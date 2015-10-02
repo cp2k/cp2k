@@ -179,15 +179,11 @@ MODULE xc_xlda_hole_t_c_lr
       CALL xc_derivative_get(deriv,deriv_data=e_rho)
     END IF
     IF (order>1.OR.order<-1) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 1 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     IF ( R == 0.0_dp ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="Cutoff_Radius 0.0 not implemented", &
-            error_level=cp_failure_level)
+      CPABORT("Cutoff_Radius 0.0 not implemented")
     END IF
     CALL xlda_hole_t_c_lr_lda_calc(npoints,order,rho=rho,&
                               e_0=e_0,e_rho=e_rho,&
@@ -397,14 +393,10 @@ MODULE xc_xlda_hole_t_c_lr
       CALL xc_derivative_get(deriv,deriv_data=e_rhob)
     END IF
     IF (order>1.OR.order<-1) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 2 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 2 not implemented")
     END IF
     IF ( R == 0.0_dp ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Cutoff_Radius 0.0 not implemented", &
-                     error_level=cp_failure_level)
+      CPABORT("Cutoff_Radius 0.0 not implemented")
     END IF
 
     !$omp parallel default(none) &

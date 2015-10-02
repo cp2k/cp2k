@@ -349,16 +349,16 @@ CONTAINS
           IF (PRESENT(vhartree)) CALL pw_transfer(vhartree_rs, vhartree)
           IF (PRESENT(dvhartree)) CALL pw_transfer(rhor, rhog)
           IF (PRESENT(h_stress)) THEN
-             CALL cp_unimplemented_error(routineP, &
-                  "No stress tensor is implemented for the implicit Poisson solver.")
+             CPABORT("No stress tensor is implemented for the implicit Poisson solver.")
           END IF
 
           CALL pw_pool_give_back_pw(pw_pool, rhor)
           CALL pw_pool_give_back_pw(pw_pool, vhartree_rs)
 
        CASE DEFAULT
-          CALL cp_unimplemented_error(routineP,"unknown poisson method "//&
-                                      cp_to_string(poisson_env%green_fft%method))
+          CALL cp_abort(__LOCATION__,&
+               "unknown poisson method "//&
+               cp_to_string(poisson_env%green_fft%method))
        END SELECT
 
     CASE (use_rs_grid)
@@ -427,7 +427,7 @@ CONTAINS
                 alpha = poisson_env%green_fft%special_dimension
                 h_stress(:,alpha) = 0.0_dp
                 h_stress(alpha,:) = 0.0_dp
-                CALL cp_unimplemented_error(routineP,"Stress Tensor not tested for 2D systems.")
+                CPABORT("Stress Tensor not tested for 2D systems.")
              CASE(ANALYTIC1D, MT1D)
                 ! Zero the 2 non-periodic components
                 DO alpha = 1, 3
@@ -439,12 +439,13 @@ CONTAINS
                       END IF
                    END DO
                 END DO
-                CALL cp_unimplemented_error(routineP,"Stress Tensor not tested for 1D systems.")
+                CPABORT("Stress Tensor not tested for 1D systems.")
              CASE(ANALYTIC0D, MT0D, MULTIPOLE0D)
                 ! Zero the full stress tensor
                 h_stress = 0.0_dp
              CASE DEFAULT
-                CALL cp_unimplemented_error(routineP,"unknown poisson method"//&
+                CALL cp_abort(__LOCATION__,&
+                     "unknown poisson method"//&
                      cp_to_string(poisson_env%green_fft%method))
              END SELECT
 
@@ -459,10 +460,10 @@ CONTAINS
                 alpha = poisson_env%wavelet%special_dimension
                 h_stress(:,alpha) = 0.0_dp
                 h_stress(alpha,:) = 0.0_dp
-                CALL cp_unimplemented_error(routineP,"Stress Tensor not tested for 2D systems.")
+                CPABORT("Stress Tensor not tested for 2D systems.")
              CASE(WAVELET1D)
                 ! Zero the 2 non-periodic components
-                CALL cp_unimplemented_error(routineP,"WAVELET 1D not implemented!")
+                CPABORT("WAVELET 1D not implemented!")
              CASE(WAVELET0D)
                 ! Zero the full stress tensor
                 h_stress = 0.0_dp

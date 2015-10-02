@@ -1927,9 +1927,7 @@ CONTAINS
 
     ! Not implemented for core-shell
     IF(ASSOCIATED(inp_info%shell_list)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-                 message="Array of charges not implemented for CORE-SHELL model!!",&
-                 error_level=cp_failure_level)
+       CPABORT("Array of charges not implemented for CORE-SHELL model!!")
     END IF
 
     ! Allocate array to particle_set size

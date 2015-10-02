@@ -183,9 +183,7 @@ __LOCATION__,&
     xc_deriv_method_id=section_get_ival(xc_section,"XC_GRID%XC_DERIV")
     dft_control%drho_by_collocation = (needs%norm_drho .AND. (xc_deriv_method_id==xc_deriv_collocate) )
     IF (dft_control%drho_by_collocation) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives by collocation not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives by collocation not implemented")
     END IF
 
     !! check if we do wavefunction fitting
@@ -222,18 +220,15 @@ __LOCATION__,&
       IF( (dft_control%admm_control%method == do_admm_blocking_purify_full .OR. &
            dft_control%admm_control%method == do_admm_blocked_projection) &
            .AND. dft_control%admm_control%scaling_model == do_admm_exch_scaling_merlot ) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: Blocking and Merlot scaling are mutually exclusive.", &
-                                        error_level=cp_failure_level)
+         CPABORT("ADMM: Blocking and Merlot scaling are mutually exclusive.")
       END IF
 
 
       IF( dft_control%admm_control%method == do_admm_charge_constrained_projection .AND. &
          dft_control%admm_control%purification_method /= do_admm_purify_none ) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: In the case of METHOD=CHARGE_CONSTRAINED_PROJECTION, "//&
-                      "ADMM_PURIFICATION_METHOD=NONE has to be set.", &
-                                        error_level=cp_failure_level)
+         CALL cp_abort(__LOCATION__,&
+              "ADMM: In the case of METHOD=CHARGE_CONSTRAINED_PROJECTION, "//&
+              "ADMM_PURIFICATION_METHOD=NONE has to be set.")
       END IF
 
 
@@ -241,13 +236,9 @@ __LOCATION__,&
       IF(dft_control%admm_control%purification_method == do_admm_purify_mo_diag    .OR. &
          dft_control%admm_control%purification_method == do_admm_purify_mo_no_diag) THEN
           IF( dft_control%admm_control%method /= do_admm_basis_projection ) &
-            CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="ADMM: Chosen purification requires BASIS_PROJECTION", &
-                                        error_level=cp_failure_level)
+            CPABORT("ADMM: Chosen purification requires BASIS_PROJECTION")
 
-           IF( .NOT. do_ot) CALL cp_unimplemented_error(fromWhere=routineP, &
-                               message="ADMM: MO-based purification requires OT.", &
-                               error_level=cp_failure_level)
+           IF( .NOT. do_ot) CPABORT("ADMM: MO-based purification requires OT.")
       END IF
 
       IF(dft_control%admm_control%purification_method == do_admm_purify_none_dm .OR. &
@@ -959,9 +950,7 @@ __LOCATION__,&
 
        ! Stop the execution for non-implemented features
        IF (qs_control%se_control%periodic_type==do_se_lr_ewald_r3) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="EWALD_R3 not implemented yet! ", &
-               error_level=cp_fatal_level)
+          CPABORT("EWALD_R3 not implemented yet!")
        END IF
 
        IF(  qs_control %method_id == do_method_mndo .OR. &
@@ -1230,9 +1219,7 @@ __LOCATION__,&
 
        IF (dft_control%do_sccs) THEN
           IF (dft_control%qs_control%gapw) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP,&
-                                         message="SCCS is not yet implemented with GAPW",&
-                                         error_level=cp_failure_level)
+             CPABORT("SCCS is not yet implemented with GAPW")
           END IF
           WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
            "SCCS| Self-consistent continuum solvation model"

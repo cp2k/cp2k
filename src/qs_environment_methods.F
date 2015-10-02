@@ -557,9 +557,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env)
        IF (nlcc) THEN
          ! right now, not working with gapw/gapw_xc, needs implementation in the GAPW XC routines
          IF (dft_control%qs_control%gapw_xc .OR. dft_control%qs_control%gapw) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Non linear core correction for GAPW not implemented",&
-                  error_level=cp_failure_level)
+             CPABORT("Non linear core correction for GAPW not implemented")
          ENDIF
          ! the realspace version
          NULLIFY(rho_nlcc)

@@ -328,9 +328,7 @@ CONTAINS
     SELECT CASE (TRIM(functional))
        CASE DEFAULT
           ! unknown functional
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="No DFT-D2 s6 value available for this functional:"//TRIM(functional), &
-               error_level=cp_failure_level)
+          CPABORT("No DFT-D2 s6 value available for this functional:"//TRIM(functional))
        CASE ("BLYP")
           scaling = 1.20_dp
        CASE ("B3LYP")
@@ -376,9 +374,7 @@ CONTAINS
     SELECT CASE (TRIM(functional))
     CASE DEFAULT
        ! unknown functional
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="No DFT-D3 values available for this functional:"//TRIM(functional), &
-            error_level=cp_failure_level)
+       CPABORT("No DFT-D3 values available for this functional:"//TRIM(functional))
     CASE ("B1B95")
        s6  = 1.000_dp
        sr6 = 1.613_dp
@@ -613,9 +609,7 @@ CONTAINS
     SELECT CASE (TRIM(functional))
     CASE DEFAULT
        ! unknown functional
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="No DFT-D3(BJ) values available for this functional:"//TRIM(functional), &
-            error_level=cp_failure_level)
+       CPABORT("No DFT-D3(BJ) values available for this functional:"//TRIM(functional))
     CASE ("B1B95")
        s6  = 1.0000_dp
        a1  = 0.2092_dp
@@ -1222,9 +1216,7 @@ CONTAINS
                    e6 = s6*fac*c6*fdab6
                    e8 = s8*fac*c8*fdab8
                 ELSE
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Unknown DFT-D3 damping function:", &
-                        error_level=cp_failure_level)
+                   CPABORT("Unknown DFT-D3 damping function:")
                 END IF
                 evdw = evdw - e6 - e8
                 e6tot = e6tot - e6
@@ -1244,9 +1236,7 @@ CONTAINS
                       de6 = s6*c6*fdab6*fdab6*6.0_dp*dr**5
                       de8 = s8*c8*fdab8*fdab8*8.0_dp*dr**7
                    ELSE
-                      CALL cp_unimplemented_error(fromWhere=routineP, &
-                           message="Unknown DFT-D3 damping function:", &
-                           error_level=cp_failure_level)
+                      CPABORT("Unknown DFT-D3 damping function:")
                    END IF
                    fdij(:) = (de6+de8) * rij(:)/dr * fac
                    atom_a = atom_of_kind(iatom)
@@ -1274,9 +1264,7 @@ CONTAINS
                       dc8a = -s8*fac*dc8a*fdab8
                       dc8b = -s8*fac*dc8b*fdab8
                    ELSE
-                      CALL cp_unimplemented_error(fromWhere=routineP, &
-                           message="Unknown DFT-D3 damping function:", &
-                           error_level=cp_failure_level)
+                      CPABORT("Unknown DFT-D3 damping function:")
                    END IF
                    DO i=1,dcnum(iatom)%neighbors
                      katom=dcnum(iatom)%nlist(i)

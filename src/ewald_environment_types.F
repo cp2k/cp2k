@@ -382,9 +382,7 @@ CONTAINS
           CALL section_vals_val_get(multipole_section,"MAX_MULTIPOLE_EXPANSION",i_val=ewald_env%max_multipole)
           CALL section_vals_val_get(multipole_section,"MAX_IPOL_ITER",i_val=ewald_env%max_ipol_iter)
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Multipole code works at the moment only with standard EWALD sums.", &
-               error_level=cp_failure_level)
+          CPABORT("Multipole code works at the moment only with standard EWALD sums.")
        END SELECT
     END IF
 

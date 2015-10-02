@@ -1007,9 +1007,7 @@ CONTAINS
              distances(i-1) = SQRT(xtmp)
           END DO
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="String Method: Spline order greater than 1 not implemented.", &
-               error_level=cp_warning_level)
+          CPWARN("String Method: Spline order greater than 1 not implemented.")
        END SELECT
        sline = coords - tmp_coords + sline
        DEALLOCATE(tmp_coords)

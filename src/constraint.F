@@ -431,9 +431,7 @@ CONTAINS
              CALL shake_int_info(log_unit,i,ishake_int,max_sigma)
              ! Virtual Site
              IF ( nvsitecon /= 0 ) THEN
-                CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!", &
-                     error_level=cp_failure_level)
+                CPABORT("Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!")
              END IF
           END DO
        END DO MOL
@@ -454,9 +452,7 @@ CONTAINS
                v_shake, dt, ishake_ext, cell, imass, max_sigma)
           ! Virtual Site
           IF ( gci%nvsite /= 0 ) &
-               CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!", &
-               error_level=cp_failure_level)
+               CPABORT("Virtual Site Constraint/Restraint not implemented for SHAKE_ROLL!")
           CALL restore_temporary_set ( particle_set, local_particles, pos = pos, vel = vel )
        END IF
        CALL shake_ext_info(log_unit,ishake_ext,max_sigma)

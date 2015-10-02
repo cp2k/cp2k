@@ -27,11 +27,9 @@
                                              cp_assertion_failed,&
                                              cp_internal_error,&
                                              cp_assert,&
-                                             cp_unimplemented_error,&
                                              cp_precondition_failed,&
                                              cp_caller_error,&
                                              cp_wrong_args_error,&
-                                             cp_unimplemented_error_nr,&
                                              cp__a,cp__b,cp__w,cp__l
 
 ! Dangerous: Full path can be arbitrarily long and might overflow Fortran line.

@@ -135,7 +135,8 @@ CONTAINS
           CALL pw_copy(mgrid_rspace(1)%pw,rho%pw)
           CALL pw_transfer(rho%pw,rho_gspace%pw)
        CASE default
-          CALL cp_unimplemented_error(routineN,"interpolator "//&
+          CALL cp_abort(__LOCATION__,&
+               "interpolator "//&
                cp_to_string(interp_kind))
        END SELECT
     END IF
@@ -225,7 +226,8 @@ CONTAINS
           CALL pw_copy(mgrid_rspace(1)%pw,rho%pw)
           CALL pw_transfer(rho%pw,rho_gspace%pw)
        CASE default
-          CALL cp_unimplemented_error(routineN,"interpolator "//&
+          CALL cp_abort(__LOCATION__,&
+               "interpolator "//&
                cp_to_string(interp_kind))
        END SELECT
     END IF
@@ -319,7 +321,8 @@ CONTAINS
                  mgrid_rspace(igrid_level+1) % pw % cr3d * 8._dp
        END DO
     CASE default
-       CALL cp_unimplemented_error(routineN,"interpolation not supported "//&
+       CALL cp_abort(__LOCATION__,&
+            "interpolation not supported "//&
             cp_to_string(interp_kind))
     END SELECT
 

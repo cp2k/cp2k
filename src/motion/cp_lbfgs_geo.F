@@ -99,9 +99,7 @@ CONTAINS
 
     ! Stop if not implemented
     IF(gopt_env%type_id == default_ts_method_id) &
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="BFGS method not yet working with DIMER", &
-            error_level=cp_failure_level)
+       CPABORT("BFGS method not yet working with DIMER")
 
     CALL section_vals_val_get(geo_section,"LBFGS%TRUST_RADIUS",r_val=trust_radius)
     CALL cp_opt_gopt_create(optimizer, para_env=para_env, obj_funct=gopt_env,&

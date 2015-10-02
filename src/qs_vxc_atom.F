@@ -545,9 +545,7 @@ CONTAINS
     gradient_functional = needs%drho .OR. needs%drho_spin
     tau_f = (needs%tau.OR.needs%tau_spin)
     IF ( tau_f ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="Tau functionals not implemented for GAPW 2nd derivatives", &
-              error_level=cp_failure_level)
+      CPABORT("Tau functionals not implemented for GAPW 2nd derivatives")
     END IF
 
     IF(my_do_tddft) THEN

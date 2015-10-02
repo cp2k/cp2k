@@ -350,10 +350,9 @@ CONTAINS
                                                    + shg_fac(il-1) * swork(ipgfa,jpgfb,kpgfa,il-4,ids)/(a**4)& 
                                                    + shg_fac(il) * swork(ipgfa,jpgfb,kpgfa,il-5,ids)/(a**5))
                                      ELSE 
-                                      CALL cp_unimplemented_error(fromWhere=routineP, &
-                                           message="SHG integrals not implemented when l quantum number"//&
-                                           " of orbital and ri basis larger than 11", &
-                                           error_level=cp_failure_level)
+                                      CALL cp_abort(__LOCATION__,&
+                                           "SHG integrals not implemented when l quantum number"//&
+                                           " of orbital and ri basis larger than 11")
                                      ENDIF
                                   ENDDO
                                ENDDO
@@ -592,10 +591,9 @@ CONTAINS
                                                    + shg_fac(il-1) * swork(ipgfa,jpgfb,kpgfb,il-4,ids)/(b**4)& 
                                                    + shg_fac(il) * swork(ipgfa,jpgfb,kpgfb,il-5,ids)/(b**5))
                                      ELSE 
-                                      CALL cp_unimplemented_error(fromWhere=routineP, &
-                                           message="SHG integrals not implemented when l quantum number"//&
-                                           " of orbital and ri basis larger than 11", &
-                                           error_level=cp_failure_level)
+                                      CALL cp_abort(__LOCATION__,&
+                                           "SHG integrals not implemented when l quantum number"//&
+                                           " of orbital and ri basis larger than 11")
                                      ENDIF
                                   ENDDO
                                ENDDO

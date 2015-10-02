@@ -714,9 +714,8 @@ CONTAINS
 
     my_beta=0._dp
     IF (PRESENT(beta)) THEN
-       CALL cp_assert (beta .EQ. my_beta, cp_fatal_level,&
-            cp_unimplemented_error_nr, routineN,&
-            "beta not supported, use matrix addition instead")
+       IF(beta .NE. my_beta)&
+          CPABORT("beta not supported, use matrix addition instead")
        my_beta=beta
     ENDIF
     group = fm%matrix_struct%para_env%group
@@ -895,9 +894,8 @@ CONTAINS
 
     my_beta=0._dp
     IF (PRESENT(beta)) THEN
-       CALL cp_assert (beta .EQ. my_beta, cp_fatal_level,&
-            cp_unimplemented_error_nr, routineN,&
-            "beta not supported, use matrix addition instead")
+       IF(beta.NE.my_beta)&
+          CPABORT("beta not supported, use matrix addition instead")
        my_beta=beta
     ENDIF
     group = fm%matrix_struct%para_env%group

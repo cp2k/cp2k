@@ -729,13 +729,9 @@ CONTAINS
             pv_glob=pv_glob, iw=iw2, do_debug=do_debug, atomic_kind_set=atomic_kind_set,&
             mm_section=mm_section, efield0=efield0, efield1=efield1, efield2=efield2)
     CASE(do_ewald_pme)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Multipole Ewald not yet implemented within a PME scheme!", &
-            error_level=cp_fatal_level)
+       CPABORT("Multipole Ewald not yet implemented within a PME scheme!")
     CASE(do_ewald_spme)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Multipole Ewald not yet implemented within a SPME scheme!", &
-            error_level=cp_fatal_level)
+       CPABORT("Multipole Ewald not yet implemented within a SPME scheme!")
     END SELECT
     CALL timestop(handle)
   END SUBROUTINE eval_pol_ewald

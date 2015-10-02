@@ -551,8 +551,7 @@ END SUBROUTINE p_env_did_change
                   ncol=p_env%n_mo(spin))
              CALL cp_dbcsr_scale(rho_ao(spin)%matrix,alpha_scalar=maxocc)
           ELSE
-             CALL cp_unimplemented_error(fromWhere=routineP,&
-                  message="symmetrized onesided smearing to do")
+             CPABORT("symmetrized onesided smearing to do")
           END IF
        END DO
 

@@ -48,10 +48,10 @@ MODULE cp_error_handling
 
   !API parameters var
   PUBLIC :: cp_debug, cp_assertion_failed, cp_internal_error, cp_wrong_args_error,&
-            cp_precondition_failed, cp_unimplemented_error_nr, cp_caller_error
+            cp_precondition_failed, cp_caller_error
 
   !API public routines
-  PUBLIC :: cp_assert, cp_unimplemented_error, cp_abort, cp_warn
+  PUBLIC :: cp_assert, cp_abort, cp_warn
   PUBLIC :: cp__a, cp__b, cp__w, cp__l
 
 #ifdef FD_DEBUG
@@ -79,9 +79,6 @@ MODULE cp_error_handling
   INTEGER, PARAMETER :: cp_invariant_failed = -100
   !! error number: assertion failure
   INTEGER, PARAMETER :: cp_assertion_failed = -300
-  !! error number: not implemented
-  INTEGER, PARAMETER :: cp_unimplemented_error_nr = -1000
-
 
 CONTAINS
 
@@ -163,38 +160,6 @@ CONTAINS
        ENDIF
     END IF
   END SUBROUTINE cp_assert
-
-! *****************************************************************************
-!> \brief comodity call to signat that something is not implemented
-!> \param fromWhere routine where the error happened
-!> \param message the message to write out (UNIMPLEMENTED is added to it)
-!> \param error_level the error level of this error, defaults to
-!>        cp_failure_level
-!> \par History
-!>      05.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_unimplemented_error(fromWhere, message,error_level)
-    CHARACTER(len=*), INTENT(in)             :: fromWhere
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: message
-    INTEGER, INTENT(in), OPTIONAL            :: error_level
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_unimplemented_error', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: err_l
-
-    err_l=cp_failure_level
-
-    IF(PRESENT(error_level)) err_l=error_level
-    IF (PRESENT(message)) THEN
-       CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
-            fromWhere, "UNIMPLEMENTED, "//message)
-    ELSE
-       CALL cp_assert(.FALSE.,err_l,cp_unimplemented_error_nr,&
-            fromWhere, "UNIMPLEMENTED")
-    END IF
-  END SUBROUTINE cp_unimplemented_error
 
 ! *****************************************************************************
 !> \brief Abort program with error message

@@ -775,9 +775,7 @@ CONTAINS
                    CALL pw_derive ( tmp_g, nd(:,idir))
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
                 END DO
-               CALL cp_unimplemented_error(fromWhere=routineP, &
-                    message="Drho collocation not implemented", &
-                    error_level=cp_failure_level)
+               CPABORT("Drho collocation not implemented")
              CASE default
                 CPASSERT(.FALSE.)
              END SELECT
@@ -822,9 +820,7 @@ CONTAINS
                    CALL pw_derive ( tmp_g, nd(:,idir))
                    CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw)
                 END DO
-               CALL cp_unimplemented_error(fromWhere=routineP, &
-                    message="Drho collocation not implemented", &
-                    error_level=cp_failure_level)
+               CPABORT("Drho collocation not implemented")
              CASE default
                 CPASSERT(.FALSE.)
              END SELECT

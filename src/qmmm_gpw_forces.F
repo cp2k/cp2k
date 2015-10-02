@@ -170,13 +170,9 @@ CONTAINS
           CALL deriv_se_qmmm_matrix(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges)
        CASE(do_qmmm_pcharge)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Point Charge QM/MM electrostatic coupling not yet implemented for SE.", &
-               error_level=cp_failure_level)
+          CPABORT("Point Charge QM/MM electrostatic coupling not yet implemented for SE.")
        CASE(do_qmmm_gauss,do_qmmm_swave)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.", &
-               error_level=cp_failure_level)
+          CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for SE.")
        CASE(do_qmmm_none)
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -197,9 +193,7 @@ CONTAINS
           CALL deriv_dftb_qmmm_matrix_pc(qs_env,qmmm_env,mm_particles,mm_cell,para_env,&
                need_f,Forces,Forces_added_charges)
        CASE(do_qmmm_gauss,do_qmmm_swave)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.", &
-               error_level=cp_failure_level)
+          CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.")
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
           CPASSERT(.FALSE.)
@@ -250,13 +244,9 @@ CONTAINS
           ! Electrostatic Interaction type...
           SELECT CASE(qmmm_env%qmmm_coupl_type)
           CASE(do_qmmm_coulomb)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-                  error_level=cp_failure_level)
+             CPABORT("Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.")
           CASE(do_qmmm_pcharge)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Point Charge QM/MM electrostatic coupling not yet implemented for GPW/GAPW.", &
-                  error_level=cp_failure_level)
+             CPABORT("Point Charge QM/MM electrostatic coupling not yet implemented for GPW/GAPW.")
           CASE(do_qmmm_gauss,do_qmmm_swave)
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')&
                   "- QM/MM Coupling computed collocating the Gaussian Potential Functions."
@@ -1413,13 +1403,9 @@ CONTAINS
              CALL pw_zero(v_qmmm_rspace%pw)
              SELECT CASE(qmmm_env%qmmm_coupl_type)
              CASE(do_qmmm_coulomb)
-                CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-                     error_level=cp_failure_level)
+                CPABORT("Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.")
              CASE(do_qmmm_pcharge)
-                CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Point Charge  QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-                     error_level=cp_failure_level)
+                CPABORT("Point Charge  QM/MM electrostatic coupling not implemented for GPW/GAPW.")
              CASE(do_qmmm_gauss,do_qmmm_swave)
                 CALL    qmmm_elec_with_gaussian(qmmm_env=qmmm_env,&
                                                 v_qmmm=v_qmmm_rspace,&
@@ -1452,13 +1438,9 @@ CONTAINS
 
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE(do_qmmm_coulomb)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-            error_level=cp_failure_level)
+       CPABORT("Coulomb QM/MM electrostatic coupling not implemented for GPW/GAPW.")
     CASE(do_qmmm_pcharge)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Point Charge QM/MM electrostatic coupling not implemented for GPW/GAPW.", &
-            error_level=cp_failure_level)
+       CPABORT("Point Charge QM/MM electrostatic coupling not implemented for GPW/GAPW.")
     CASE(do_qmmm_gauss,do_qmmm_swave)
        IF (iw>0) WRITE(iw,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
        DO I =  1, num_mm_atoms

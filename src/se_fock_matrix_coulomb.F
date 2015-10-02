@@ -562,9 +562,7 @@ CONTAINS
     CASE (do_ewald_ewald)
        forces_g_size= nlocal_particles
     CASE DEFAULT
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Periodic SE implemented only for standard EWALD sums.", &
-            error_level=cp_failure_level)
+       CPABORT("Periodic SE implemented only for standard EWALD sums.")
     END SELECT
 
     ! Parameters
@@ -1321,9 +1319,7 @@ CONTAINS
     CASE (do_ewald_ewald)
        ! Do Nothing
     CASE DEFAULT
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Periodic SE implemented only for standard EWALD sums.", &
-            error_level=cp_failure_level)
+       CPABORT("Periodic SE implemented only for standard EWALD sums.")
     END SELECT
 
     ! Parameters

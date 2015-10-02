@@ -270,9 +270,7 @@ MODULE qs_efield_berry
     use_virial = use_virial .AND. calculate_forces
     ! disable stress calculation
     IF (use_virial) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Stress tensor for periodic E-field not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("Stress tensor for periodic E-field not implemented")
     END IF
 
     fieldpol=dft_control%period_efield%polarisation
@@ -322,9 +320,7 @@ MODULE qs_efield_berry
     DO ispin = 1,dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
        IF (.NOT.uniform) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
-               error_level=cp_failure_level)
+          CPABORT("Berry phase moments for non uniform MOs' occupation numbers not implemented")
        END IF
     END DO
 
@@ -777,9 +773,7 @@ MODULE qs_efield_berry
     use_virial = use_virial .AND. calculate_forces
     ! disable stress calculation
     IF (use_virial) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Stress tensor for periodic D-field not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("Stress tensor for periodic D-field not implemented")
     END IF
 
     fieldpol=dft_control%period_efield%polarisation
@@ -826,9 +820,7 @@ MODULE qs_efield_berry
     DO ispin = 1,dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
        IF (.NOT.uniform) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
-               error_level=cp_failure_level)
+          CPABORT("Berry phase moments for non uniform MOs' occupation numbers not implemented")
        END IF
     END DO
 

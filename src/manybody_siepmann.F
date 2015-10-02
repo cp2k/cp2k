@@ -318,10 +318,9 @@ CONTAINS
        f_nonbond(3,kparticle) = f_nonbond(3,kparticle) + prefactor*drk(3)
 
        IF (use_virial) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="using virial with Siepmann-Sprik"//&
-             " not implemented", &
-             error_level=cp_failure_level)
+        CALL cp_abort(__LOCATION__,&
+             "using virial with Siepmann-Sprik"//&
+             " not implemented")
        END IF
      END DO
   END SUBROUTINE siep_a_ij_d
@@ -559,10 +558,9 @@ CONTAINS
      f_nonbond(3,index_h2) = f_nonbond(3,index_h2) + prefactor*drh(3)
 
      IF (use_virial) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="using virial with Siepmann-Sprik"//&
-           " not implemented", &
-           error_level=cp_failure_level)
+      CALL cp_abort(__LOCATION__,&
+           "using virial with Siepmann-Sprik"//&
+           " not implemented")
      END IF
 
     ENDIF
@@ -641,9 +639,9 @@ CONTAINS
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A1*rji(3)
  
     IF (use_virial) THEN
-     CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="using virial with Siepmann-Sprik"//&
-          " not implemented",error_level=cp_failure_level)
+     CALL cp_abort(__LOCATION__,&
+          "using virial with Siepmann-Sprik"//&
+          " not implemented")
     END IF
 
     ! Lets do the f_A2 piece derivative of rji**(-beta)
@@ -656,9 +654,9 @@ CONTAINS
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A2*rji(3)
  
     IF (use_virial) THEN
-     CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="using virial with Siepmann-Sprik"//&
-          " not implemented",error_level=cp_failure_level)
+     CALL cp_abort(__LOCATION__,&
+          "using virial with Siepmann-Sprik"//&
+          " not implemented")
     END IF
 
     ! Lets do the f_A3 piece derivative: of a_ij
@@ -740,9 +738,9 @@ CONTAINS
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A1*rji(3)
  
     IF (use_virial) THEN
-     CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="using virial with Siepmann-Sprik"//&
-          " not implemented",error_level=cp_failure_level)
+     CALL cp_abort(__LOCATION__,&
+          "using virial with Siepmann-Sprik"//&
+          " not implemented")
     END IF
 
 !   ! Lets do the f_A2 piece derivative of rji**(-3)
@@ -755,9 +753,9 @@ CONTAINS
     f_nonbond(3,jparticle) = f_nonbond(3,jparticle) - f_A2*rji(3)
  
     IF (use_virial) THEN
-     CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="using virial with Siepmann-Sprik"//&
-          " not implemented",error_level=cp_failure_level)
+     CALL cp_abort(__LOCATION__,&
+          "using virial with Siepmann-Sprik"//&
+          " not implemented")
     END IF
 
     ! Lets do the f_A3 piece derivative: of Phi_ij

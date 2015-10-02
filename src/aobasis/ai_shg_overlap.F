@@ -321,10 +321,9 @@ CONTAINS
                                                  + dtemp(4) + dtemp(5) + dtemp(6)
                  ENDDO
                CASE DEFAULT
-                 CALL cp_unimplemented_error(fromWhere=routineP, &
-                      message="SHG integrals not implemented when sum of l quantum"//& 
-                      " number of orbital and ri basis larger than 11", &
-                      error_level=cp_failure_level)
+                 CALL cp_abort(__LOCATION__,&
+                      "SHG integrals not implemented when sum of l quantum"//&
+                      " number of orbital and ri basis larger than 11")
                END SELECT
                
                 

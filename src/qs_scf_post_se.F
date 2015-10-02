@@ -136,63 +136,49 @@ CONTAINS
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%MO_CUBES")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Printing of MO cube files not implemented for Semi-Empirical method.", &
-         error_level=cp_warning_level)
+      CPWARN("Printing of MO cube files not implemented for Semi-Empirical method.")
     END IF
 
     ! STM
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%STM")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="STM not implemented for Semi-Empirical method.", &
-         error_level=cp_warning_level)
+      CPWARN("STM not implemented for Semi-Empirical method.")
     END IF
 
     ! DFT+U
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%PLUS_U")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="DFT+U not available for Semi-Empirical method.", &
-         error_level=cp_warning_level)
+      CPWARN("DFT+U not available for Semi-Empirical method.")
     END IF
 
     ! Kinetic Energy
     print_key => section_vals_get_subs_vals(section_vals=input,&
                    subsection_name="DFT%PRINT%KINETIC_ENERGY")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Kinetic energy not available for Semi-Empirical method.", &
-         error_level=cp_warning_level)
+      CPWARN("Kinetic energy not available for Semi-Empirical method.")
     END IF
 
     ! Wavefunction mixing
     wfn_mix_section => section_vals_get_subs_vals(input,"DFT%PRINT%WFN_MIX")
     CALL section_vals_get(wfn_mix_section,explicit=explicit)
     IF(explicit.AND..NOT.qs_env%run_rtp) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Wavefunction mixing not implemented for Semi-Empirical  method.", &
-         error_level=cp_warning_level)
+      CPWARN("Wavefunction mixing not implemented for Semi-Empirical  method.")
     END IF
 
     ! Print coherent X-ray diffraction spectrum
     print_key => section_vals_get_subs_vals(section_vals=input,&
                  subsection_name="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="XRAY_DIFFRACTION_SPECTRUM  not implemented for Semi-Empirical calculations!!", &
-         error_level=cp_warning_level)
+       CPWARN("XRAY_DIFFRACTION_SPECTRUM  not implemented for Semi-Empirical calculations!!")
     END IF
 
     ! Calculation of Electric Field Gradients
     print_key => section_vals_get_subs_vals(section_vals=input,&
                  subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="ELECTRIC_FIELD_GRADIENT not implemented for Semi-Empirical calculations!!", &
-         error_level=cp_warning_level)
+      CPWARN("ELECTRIC_FIELD_GRADIENT not implemented for Semi-Empirical calculations!!")
     END IF
 
     ! Calculation of EPR Hyperfine Coupling Tensors
@@ -200,9 +186,7 @@ CONTAINS
                  subsection_name="DFT%PRINT%HYPERFINE_COUPLING_TENSOR")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),&
            cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="HYPERFINE_COUPLING_TENSOR  not implemented for Semi-Empirical calculations!!", &
-         error_level=cp_warning_level)
+       CPWARN("HYPERFINE_COUPLING_TENSOR  not implemented for Semi-Empirical calculations!!")
     END IF
 
 
@@ -602,17 +586,13 @@ CONTAINS
     ! Compute the Lowdin charges
     print_key => section_vals_get_subs_vals(input,"DFT%PRINT%LOWDIN")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP,&
-            message="Lowdin charges not available for semi-empirical calculations!", &
-            error_level=cp_warning_level)
+       CPWARN("Lowdin charges not available for semi-empirical calculations!")
     END IF
 
     ! Hirshfeld charges
     print_key => section_vals_get_subs_vals(input,"DFT%PRINT%HIRSHFELD")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Hirshfeld charges not available for semi-empirical calculations!", &
-            error_level=cp_warning_level)
+       CPWARN("Hirshfeld charges not available for semi-empirical calculations!")
     END IF
 
   END SUBROUTINE qs_scf_post_charges
@@ -687,57 +667,43 @@ CONTAINS
     ! *** at the end of scf print out the projected dos per kind
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS")&
         ,cp_p_file) ) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="PDOS not implemented for Semi-Empirical calculations!!", &
-            error_level=cp_warning_level)
+       CPWARN("PDOS not implemented for Semi-Empirical calculations!!")
     ENDIF
 
     ! Print the total density (electronic + core charge)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
          "DFT%PRINT%TOT_DENSITY_CUBE"),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="TOT_DENSITY_CUBE  not implemented for Semi-Empirical calculations!!", &
-            error_level=cp_warning_level)
+       CPWARN("TOT_DENSITY_CUBE  not implemented for Semi-Empirical calculations!!")
     END IF
 
     ! Write cube file with electron density
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
               "DFT%PRINT%E_DENSITY_CUBE"),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="E_DENSITY_CUBE not implemented for Semi-Empirical calculations!!", &
-            error_level=cp_warning_level)
+       CPWARN("E_DENSITY_CUBE not implemented for Semi-Empirical calculations!!")
     END IF ! print key
 
     ! Write cube file with EFIELD 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
               "DFT%PRINT%EFIELD_CUBE"),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="EFIELD_CUBE not implemented for Semi-Empirical calculations!!", &
-            error_level=cp_warning_level)
+       CPWARN("EFIELD_CUBE not implemented for Semi-Empirical calculations!!")
     END IF ! print key
 
     ! Write cube file with ELF
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
               "DFT%PRINT%ELF_CUBE"),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="ELF function not implemented for Semi-Empirical calculations!!", &
-            error_level=cp_warning_level)
+       CPWARN("ELF function not implemented for Semi-Empirical calculations!!")
     END IF ! print key
 
     ! Print the hartree potential
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
          "DFT%PRINT%V_HARTREE_CUBE"),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!", &
-            error_level=cp_warning_level)
+       CPWARN("V_HARTREE_CUBE not implemented for Semi-Empirical calculations!!")
     ENDIF
 
     ! Print the XC potential
     IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
          "DFT%PRINT%V_XC_CUBE"),cp_p_file)) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="V_XC_CUBE not available for Semi-Empirical calculations!!", &
-            error_level=cp_warning_level)
+       CPWARN("V_XC_CUBE not available for Semi-Empirical calculations!!")
     ENDIF
 
     ! Write the density matrix

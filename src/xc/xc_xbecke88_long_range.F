@@ -213,9 +213,7 @@ CONTAINS
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho)
     END IF
     IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
 
     !$omp parallel default(none) &
@@ -993,9 +991,7 @@ CONTAINS
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho(2)%array)
     END IF
     IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
 
     DO ispin=1,2

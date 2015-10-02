@@ -390,13 +390,13 @@ CONTAINS
                                   virial,use_virial,atprop)
           SELECT CASE(ewald_type)
           CASE DEFAULT
-            CALL cp_unimplemented_error(routineP,"Invalid Ewald type")
+            CPABORT("Invalid Ewald type")
           CASE(do_ewald_none)
             CPABORT("Not allowed with SCPTB")
           CASE(do_ewald_ewald)
-            CALL cp_unimplemented_error(routineP,"Standard Ewald not implemented in SCPTB")
+            CPABORT("Standard Ewald not implemented in SCPTB")
           CASE(do_ewald_pme)
-            CALL cp_unimplemented_error(routineP,"PME not implemented in SCPTB")
+            CPABORT("PME not implemented in SCPTB")
           CASE(do_ewald_spme)
             CALL dftb_spme_evaluate(ewald_env,ewald_pw,particle_set,cell,&
               gmcharge,mcharge,calculate_forces,virial,use_virial,atprop)
@@ -660,9 +660,7 @@ CONTAINS
        ELSE
          ! direct sum
          IF (nimg > 1) THEN
-            CALL cp_unimplemented_error(fromWhere=routineP, &
-                 message="SCPTB direct sum electrostatic cannot be used with k-points.", &
-                 error_level=cp_failure_level)
+            CPABORT("SCPTB direct sum electrostatic cannot be used with k-points.")
          END IF
          IF(.NOT.just_energy .OR. calculate_forces) THEN
             ALLOCATE(qcharge(natom))
@@ -856,9 +854,7 @@ CONTAINS
          energy=energy,force=force,para_env=para_env)
 
     IF(do_kpoints) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="SCPTB not implemented with k-points.", &
-            error_level=cp_failure_level)
+       CPABORT("SCPTB not implemented with k-points.")
     END IF
 
     NULLIFY(ks_matrix,matrix_s)

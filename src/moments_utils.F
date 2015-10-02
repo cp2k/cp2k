@@ -101,9 +101,7 @@ CONTAINS
     IF (PRESENT(drpoint)) drpoint = 0.0_dp
     SELECT CASE (reference)
     CASE DEFAULT
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Type of reference point not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("Type of reference point not implemented")
     CASE (use_mom_ref_com)
        rpoint = 0._dp
        mtot = 0._dp

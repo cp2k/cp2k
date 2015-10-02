@@ -410,9 +410,7 @@ CONTAINS
     ! Makes the MOs eigenstates, computes eigenvalues, write cubes
     IF (do_kpoints) THEN
        IF (do_mo_cubes) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="Print MO Cubes not implemented for k-point calculations!!", &
-             error_level=cp_warning_level)
+          CPWARN("Print MO Cubes not implemented for k-point calculations!!")
        END IF
     ELSE
        CALL get_qs_env(qs_env,&
@@ -454,9 +452,7 @@ CONTAINS
     !  - Possibly gets molecular states
     IF (p_loc_homo) THEN
        IF (do_kpoints) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="Localization not implemented for k-point calculations!!", &
-             error_level=cp_warning_level)
+          CPWARN("Localization not implemented for k-point calculations!!")
        ELSEIF (dft_control%restricted) THEN
           IF (output_unit>0) WRITE(output_unit,*) &
                " Unclear how we define MOs / localization in the restricted case ... skipping"
@@ -505,9 +501,7 @@ CONTAINS
     ! Gets the lumos, and eigenvalues for the lumos, and localize them if requested
     IF (do_kpoints) THEN
        ! nothing at the moment, not implemented
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Localization and MO related output not implemented for k-point calculations!", &
-            error_level=cp_warning_level)
+       CPWARN("Localization and MO related output not implemented for k-point calculations!")
     ELSE
        IF(nlumo .GT. -1) THEN
          nlumo = MAX(nlumo, nlumo_tddft) 
@@ -657,9 +651,7 @@ CONTAINS
     !stm images
     IF(do_stm)THEN
       IF(do_kpoints) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="STM not implemented for k-point calculations!", &
-              error_level=cp_warning_level)
+         CPWARN("STM not implemented for k-point calculations!")
       ELSE
          ALLOCATE(unoccupied_orbs_stm(dft_control%nspins))
          ALLOCATE(unoccupied_evals_stm(dft_control%nspins))
@@ -986,9 +978,7 @@ CONTAINS
        CALL section_vals_val_get(print_key,"PRINT_ALL",l_val=print_it)
        IF (print_it) print_level = 3
        IF(do_kpoints) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Lowdin charges not implemented for k-point calculations!", &
-               error_level=cp_warning_level)
+          CPWARN("Lowdin charges not implemented for k-point calculations!")
        ELSE
           CALL lowdin_population_analysis(qs_env,unit_nr,print_level)
        END IF
@@ -1389,9 +1379,7 @@ CONTAINS
        CALL get_qs_env(qs_env,do_kpoints=do_kpoints)
 
        IF (do_kpoints) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Moments not implemented for k-point calculations!", &
-               error_level=cp_warning_level)
+          CPWARN("Moments not implemented for k-point calculations!")
        ELSE
           IF (periodic) THEN
              CALL qs_moment_berry_phase(qs_env,magnetic,maxmom,reference,ref_point,unit_nr)
@@ -1639,9 +1627,7 @@ CONTAINS
 
       ELSE
          ! not implemented
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="ELF not implemented for GAPW calculations!!", &
-            error_level=cp_warning_level)
+         CPWARN("ELF not implemented for GAPW calculations!!")
 
       END IF
 
@@ -2063,9 +2049,7 @@ CONTAINS
        IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%PDOS")&
             ,cp_p_file) ) THEN
           IF(do_kpoints) THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Projected density of states not implemented for k-points.", &
-                error_level=cp_warning_level)
+             CPWARN("Projected density of states not implemented for k-points.")
           ELSE
              CALL get_qs_env(qs_env,&
                              mos=mos,&
@@ -2132,9 +2116,7 @@ CONTAINS
        ! should be extended to the k-point case
        !
        IF(do_kpoints) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Spin contamination estimate not implemented for k-points.", &
-               error_level=cp_warning_level)
+          CPWARN("Spin contamination estimate not implemented for k-points.")
        ELSE
           all_equal = .TRUE.
           DO ispin=1,dft_control%nspins
@@ -3039,9 +3021,7 @@ CONTAINS
              hirshfeld_env%charges(iat) = SUM(charges(iat,:))
           END DO
        CASE DEFAULT
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Unknown type of reference charge for Hirshfeld partitioning.", &
-            error_level=cp_failure_level)
+         CPABORT("Unknown type of reference charge for Hirshfeld partitioning.")
     END SELECT
     !
     charges = 0.0_dp

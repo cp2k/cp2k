@@ -428,9 +428,7 @@ MODULE mp2
     t1=m_walltime()
     SELECT CASE(mp2_env%method)
      CASE(mp2_method_laplace)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="laplace not implemented",&
-              error_level=cp_failure_level)
+       CPABORT("laplace not implemented")
      CASE (mp2_method_direct)
        !DO i=1,SIZE(mos)
        !   CALL get_mo_set( mo_set=mos(i)%mo_set,&

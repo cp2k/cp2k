@@ -1201,21 +1201,13 @@ __LOCATION__)
           WRITE ( iw, '( A,T71,G10.5)' ) ' COLVARS| DX',&
                colvar%combine_cvs_param%dx
        CASE(reaction_path_colvar_id)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Description header for REACTION_PATH COLVAR missing!!", &
-               error_level=cp_warning_level)
+          CPWARN("Description header for REACTION_PATH COLVAR missing!!")
        CASE(distance_from_path_colvar_id)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Description header for REACTION_PATH COLVAR missing!!", &
-               error_level=cp_warning_level)
+          CPWARN("Description header for REACTION_PATH COLVAR missing!!")
        CASE(hydronium_colvar_id)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Description header for HYDRONIUM COLVAR missing!!", &
-               error_level=cp_warning_level)
+          CPWARN("Description header for HYDRONIUM COLVAR missing!!")
        CASE(rmsd_colvar_id)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Description header for RMSD COLVAR missing!!", &
-               error_level=cp_warning_level)
+          CPWARN("Description header for RMSD COLVAR missing!!")
        CASE(xyz_diag_colvar_id)
           NULLIFY(section, keyword, enum)
           CALL create_colvar_xyz_d_section(section)
@@ -1483,8 +1475,7 @@ __LOCATION__)
     CASE (mindist_colvar_id)
        CALL mindist_colvar(colvar,cell,particles=particles)
     CASE (u_colvar_id)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="need force_env!",error_level=cp_failure_level)
+       CPABORT("need force_env!")
     CASE (Wc_colvar_id)
        !!! FIXME this is rubbish at the moment as we have no force to be computed on this
        CALL Wc_colvar(colvar, cell, particles=particles)
@@ -1641,8 +1632,7 @@ __LOCATION__)
     CASE (mindist_colvar_id)
        CALL mindist_colvar(colvar,cell,particles=particles)
     CASE (u_colvar_id)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="need force_env!",error_level=cp_failure_level)
+       CPABORT("need force_env!")
     CASE (Wc_colvar_id)
        CALL Wc_colvar(colvar, cell, particles=particles)
     CASE (HBP_colvar_id)
@@ -2084,8 +2074,7 @@ __LOCATION__)
           DEALLOCATE(particles)
        END IF
     ELSE
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="need force_env!",error_level=cp_failure_level)
+        CPABORT("need force_env!")
     ENDIF
   END SUBROUTINE u_colvar
 
@@ -4689,8 +4678,7 @@ __LOCATION__)
          END IF
        END DO
     ELSE
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="RMSD implemented only for 1 and 2 reference frames!",error_level=cp_failure_level)
+        CPABORT("RMSD implemented only for 1 and 2 reference frames!")
     END IF
     colvar%ss=cv_val
 

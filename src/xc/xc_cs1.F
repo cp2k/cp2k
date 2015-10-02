@@ -233,9 +233,7 @@ CONTAINS
             e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho, npoints)
     END IF
     IF ( order>3.OR.order<-3) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
 
     CALL timestop(handle)
@@ -306,9 +304,7 @@ CONTAINS
             npoints)
     END IF
     IF ( order>1 .OR. order<1 ) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
     CALL timestop(handle)
   END SUBROUTINE cs1_lsd_eval

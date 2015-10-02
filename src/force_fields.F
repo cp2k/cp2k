@@ -244,9 +244,7 @@ CONTAINS
        END IF
        SELECT CASE(ff_type%ff_type)
        CASE (do_ff_charmm)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Dumping FF parameter file for CHARMM FF  not implemented!", &
-               error_level=cp_warning_level)
+          CPWARN("Dumping FF parameter file for CHARMM FF  not implemented!")
        CASE (do_ff_amber)
           IF (iw>0) THEN
              ! Bonds
@@ -290,13 +288,9 @@ CONTAINS
              END DO
           END IF
        CASE (do_ff_g87,do_ff_g96)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Dumping FF parameter file for GROMOS FF not implemented!", &
-               error_level=cp_warning_level)
+          CPWARN("Dumping FF parameter file for GROMOS FF not implemented!")
        CASE (do_ff_undef)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Dumping FF parameter file for INPUT FF  not implemented!", &
-               error_level=cp_warning_level)
+          CPWARN("Dumping FF parameter file for INPUT FF  not implemented!")
        END SELECT
        IF (iw>0) THEN
           WRITE(iw,'(/,A)')"END"

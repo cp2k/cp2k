@@ -118,9 +118,7 @@ CONTAINS
     unimplemented =      dft_control%qs_control%semi_empirical.OR.&
                          dft_control%qs_control%dftb
     IF (allocate_ddapc_env.AND.unimplemented) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="DDAP charges work only with GPW/GAPW code.", &
-            error_level=cp_failure_level)
+       CPABORT("DDAP charges work only with GPW/GAPW code.")
     END IF
     allocate_ddapc_env = allocate_ddapc_env .OR.&
                          qs_env%cp_ddapc_ewald%do_property

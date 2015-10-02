@@ -265,9 +265,7 @@ CONTAINS
        !-----------------------------------------------------------------------
 
        IF (dkh_order.ge.4) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="DKH order greater than 3 not yet available", &
-               error_level=cp_failure_level)
+          CPABORT("DKH order greater than 3 not yet available")
           !          CALL even4a(n,matrix_ev4%local_data,matrix_ev2%local_data,matrix_pe1p%local_data,matrix_v%local_data,&
           !                      matrix_pvp%local_data,aa,rr,tt,e)
 

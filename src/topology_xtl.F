@@ -132,9 +132,7 @@ CONTAINS
        IF (iw>0) WRITE(iw,'(A)')" XTL_INFO| DIMENSION :: "//TRIM(parser%input_line(parser%icol:))
        CALL parser_get_object(parser,dimensions)
        IF (dimensions/=3) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="XTL file with working DIMENSION different from 3 cannot be parsed! ", &
-               error_level=cp_fatal_level)
+          CPABORT("XTL file with working DIMENSION different from 3 cannot be parsed!")
        END IF
     ELSE
        ! Assuming by default we work in 3D-periodic systems

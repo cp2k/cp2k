@@ -516,9 +516,7 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
    
     IF (use_virial) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Virial not implemented for image charge method", &
-            error_level=cp_failure_level)
+       CPABORT("Virial not implemented for image charge method")
     END IF
    
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace

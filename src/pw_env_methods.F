@@ -959,8 +959,7 @@ END SUBROUTINE compute_max_radius
        CALL pw_grid_create(mt_super_ref_pw_grid,para_env%group)
 
        IF (ASSOCIATED(xc_super_ref_pw_grid)) THEN
-          CALL cp_unimplemented_error(routineP,&
-               "special grid for mt and fine xc grid not compatible")
+          CPABORT("special grid for mt and fine xc grid not compatible")
        ELSE
           my_cutilev=cutilev*mt_rel_cutoff
 

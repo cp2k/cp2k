@@ -323,9 +323,7 @@ CONTAINS
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho_ndrho)
     END IF
     IF (grad_deriv>3.OR.grad_deriv<-3) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
 
     CALL section_vals_val_get(b97_params,"parametrization",i_val=param)

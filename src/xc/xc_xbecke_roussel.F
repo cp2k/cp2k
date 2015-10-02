@@ -234,9 +234,7 @@ CONTAINS
       CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives bigger than 1 not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     CALL section_vals_val_get(br_params,"scale_x",r_val=sx)
@@ -479,9 +477,7 @@ CONTAINS
       CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives bigger than 1 not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     CALL section_vals_val_get(br_params,"scale_x",r_val=sx)

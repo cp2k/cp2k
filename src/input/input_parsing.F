@@ -612,17 +612,14 @@ CONTAINS
           END IF
        END IF
     CASE default
-       CALL cp_unimplemented_error(routineP, "type "//cp_to_string(type_of_var)//&
-            "unknown to the parser"//&
-__LOCATION__,&
-            cp_failure_level)
+       CALL cp_abort(__LOCATION__,&
+            "type "//cp_to_string(type_of_var)//"unknown to the parser")
     END SELECT
     IF (parser_test_next_token(parser).NE."EOL") THEN
        location=TRIM(parser_location(parser))
        CALL parser_get_object(parser,info)
        CALL cp_abort(__LOCATION__,&
-            "found unexpected extra argument "//TRIM(info)//" at "//&
-            location)
+            "found unexpected extra argument "//TRIM(info)//" at "//location)
     ENDIF
 
     CALL timestop(handle)

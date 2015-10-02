@@ -1229,15 +1229,12 @@ CONTAINS
     CALL ewald_pw_create(ewald_pw,ewald_env,mm_cell,mm_cell,print_section=print_section)
 
     CALL ewald_env_get(ewald_env,ewald_type=ewald_type,do_multipoles=do_multipoles,do_ipol=do_ipol)
-    IF(do_multipoles) CALL cp_unimplemented_error(fromWhere=routineP, &
-       message="No multipole force fields allowed in DFTB QM/MM",error_level=cp_fatal_level)
-    IF(do_ipol /= do_fist_pol_none) CALL cp_unimplemented_error(fromWhere=routineP, &
-       message="No polarizable force fields allowed in DFTB QM/MM",error_level=cp_fatal_level)
+    IF(do_multipoles) CPABORT("No multipole force fields allowed in DFTB QM/MM")
+    IF(do_ipol /= do_fist_pol_none) CPABORT("No polarizable force fields allowed in DFTB QM/MM")
 
     SELECT CASE(ewald_type)
        CASE(do_ewald_pme)
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="PME Ewald type not implemented for DFTB/QMMM",error_level=cp_fatal_level)
+          CPABORT("PME Ewald type not implemented for DFTB/QMMM")
        CASE(do_ewald_ewald,do_ewald_spme)
           DO ipot = 1,SIZE(qmmm_env%Potentials)
              Pot => qmmm_env%Potentials(ipot)%Pot
@@ -1254,8 +1251,7 @@ CONTAINS
                 charges_mm(Imp) = qmmm_env%mm_atom_chrg(Imm)
              END DO
              IF(ewald_type == do_ewald_ewald) THEN
-                CALL cp_unimplemented_error(fromWhere=routineP, &
-                     message="Ewald not implemented for DFTB/QMMM",error_level=cp_fatal_level)
+                CPABORT("Ewald not implemented for DFTB/QMMM")
              ELSE IF(ewald_type == do_ewald_spme) THEN
                 ! spme electrostatic potential
                 CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm,particles_qm,qpot)
@@ -1279,8 +1275,7 @@ CONTAINS
                    charges_mm(Imp) = qmmm_env%added_charges%mm_atom_chrg(Imm)
                 END DO
                 IF(ewald_type == do_ewald_ewald) THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Ewald not implemented for DFTB/QMMM",error_level=cp_fatal_level)
+                   CPABORT("Ewald not implemented for DFTB/QMMM")
                 ELSE IF(ewald_type == do_ewald_spme) THEN
                    ! spme electrostatic potential
                    CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm,particles_qm,qpot)
@@ -1354,8 +1349,7 @@ CONTAINS
              END DO
           END DO
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Unknown Ewald type!",error_level=cp_fatal_level)
+          CPABORT("Unknown Ewald type!")
     END SELECT
 
     ! Allocate the core Hamiltonian matrix
@@ -1706,15 +1700,12 @@ CONTAINS
        CALL ewald_pw_create(ewald_pw,ewald_env,mm_cell,mm_cell,print_section=print_section)
 
        CALL ewald_env_get(ewald_env,ewald_type=ewald_type,do_multipoles=do_multipoles,do_ipol=do_ipol)
-       IF(do_multipoles) CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="No multipole force fields allowed in DFTB QM/MM",error_level=cp_fatal_level)
-       IF(do_ipol /= do_fist_pol_none) CALL cp_unimplemented_error(fromWhere=routineP, &
-          message="No polarizable force fields allowed in DFTB QM/MM",error_level=cp_fatal_level)
+       IF(do_multipoles) CPABORT("No multipole force fields allowed in DFTB QM/MM")
+       IF(do_ipol /= do_fist_pol_none) CPABORT("No polarizable force fields allowed in DFTB QM/MM")
 
        SELECT CASE(ewald_type)
           CASE(do_ewald_pme)
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="PME Ewald type not implemented for DFTB/QMMM",error_level=cp_fatal_level)
+             CPABORT("PME Ewald type not implemented for DFTB/QMMM")
           CASE(do_ewald_ewald,do_ewald_spme)
              DO ipot = 1,SIZE(qmmm_env%Potentials)
                 Pot => qmmm_env%Potentials(ipot)%Pot
@@ -1734,8 +1725,7 @@ CONTAINS
                 ALLOCATE(Forces_MM(3,nmm))
                 Forces_MM= 0.0_dp
                 IF(ewald_type == do_ewald_ewald) THEN
-                   CALL cp_unimplemented_error(fromWhere=routineP, &
-                        message="Ewald not implemented for DFTB/QMMM",error_level=cp_fatal_level)
+                   CPABORT("Ewald not implemented for DFTB/QMMM")
                 ELSE IF(ewald_type == do_ewald_spme) THEN
                    ! spme electrostatic potential
                    CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,charges_mm, &
@@ -1777,8 +1767,7 @@ CONTAINS
                    ALLOCATE(Forces_MM(3,nmm))
                    Forces_MM= 0.0_dp
                    IF(ewald_type == do_ewald_ewald) THEN
-                      CALL cp_unimplemented_error(fromWhere=routineP, &
-                           message="Ewald not implemented for DFTB/QMMM",error_level=cp_fatal_level)
+                      CPABORT("Ewald not implemented for DFTB/QMMM")
                    ELSE IF(ewald_type == do_ewald_spme) THEN
                       ! spme electrostatic potential
                       CALL spme_potential(ewald_env,ewald_pw,mm_cell,atoms_mm,&
@@ -1888,8 +1877,7 @@ CONTAINS
                 END DO
              END DO
           CASE DEFAULT
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="Unknown Ewald type!",error_level=cp_fatal_level)
+             CPABORT("Unknown Ewald type!")
        END SELECT
 
        ! Transfer QM gradients to the QM particles..

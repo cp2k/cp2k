@@ -461,9 +461,7 @@ CONTAINS
 
     IF(qs_env%rel_control%rel_method /= rel_none)THEN
        IF(qs_env%rel_control%rel_transformation /= rel_trans_atom)THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Relativistic corrections of this type are currently not implemented", &
-               error_level=cp_failure_level)
+          CPABORT("Relativistic corrections of this type are currently not implemented")
        END IF
     END IF
 
@@ -628,9 +626,7 @@ CONTAINS
                   para_env,output_unit=iw,omit_headers=omit_headers)
              CALL cp_dbcsr_deallocate_matrix_set(matrix_v)
           ELSE
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Printing of potential energy matrix not implemented for k-points", &
-               error_level=cp_warning_level)
+             CPWARN("Printing of potential energy matrix not implemented for k-points")
           END IF
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&

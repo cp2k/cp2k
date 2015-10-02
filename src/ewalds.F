@@ -345,9 +345,7 @@ CONTAINS
           atomic_kind => atomic_kind_set(iparticle_kind)
           CALL get_atomic_kind(atomic_kind=atomic_kind, mm_radius=mm_radius)
           IF(mm_radius>0.0_dp)THEN
-             CALL cp_unimplemented_error(fromWhere=routineP, &
-                       message="Array of charges not implemented for mm_radius>0.0 !!",&
-                       error_level=cp_failure_level)
+             CPABORT("Array of charges not implemented for mm_radius>0.0 !!")
           END IF
        END DO
     ELSE
@@ -430,9 +428,7 @@ CONTAINS
     IF (ewald_type /= do_ewald_none) THEN
        nparticle_kind = SIZE(atomic_kind_set)
        IF (ASSOCIATED(charges)) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Atomic energy not implemented for charges",&
-               error_level=cp_failure_level)
+          CPABORT("Atomic energy not implemented for charges")
        ELSE
           DO iparticle_kind=1,nparticle_kind
              atomic_kind => atomic_kind_set(iparticle_kind)

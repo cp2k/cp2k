@@ -146,9 +146,7 @@ CONTAINS
          allocate_deriv=.TRUE.)
     CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 1 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     CALL optx_lda_calc(rho=rho, norm_drho=norm_drho,&
@@ -225,9 +223,7 @@ CONTAINS
     CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array)
 
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 1 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 1 not implemented")
     END IF
     DO ispin=1,2
        CALL optx_lsd_calc(rho=rho(ispin)%array, norm_drho=ndrho(ispin)%array,&

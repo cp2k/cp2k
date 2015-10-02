@@ -900,9 +900,7 @@ CONTAINS
      DO ispin = 1, dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set,maxocc=occ,uniform_occupation=uniform)
        IF (.NOT.uniform) THEN
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Berry phase moments for non uniform MOs' occupation numbers not implemented", &
-               error_level=cp_failure_level)
+          CPABORT("Berry phase moments for non uniform MOs' occupation numbers not implemented")
        END IF
      END DO
 
@@ -961,9 +959,7 @@ CONTAINS
            rmom(2:4,2) = MATMUL ( cell%hmat, ci )
          CASE (2)
            ! Quadrupole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 1 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 1 not implemented")
            zij(:,:) = CMPLX ( 1._dp, 0._dp, dp )
            DO ia = 1,SIZE(particle_set)
              atomic_kind => particle_set(ia)%atomic_kind
@@ -1004,18 +1000,12 @@ CONTAINS
            END DO
          CASE (3)
            ! Octapole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 2 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 2 not implemented")
          CASE (4)
            ! Hexadecapole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 3 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 3 not implemented")
          CASE DEFAULT
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 4 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 4 not implemented")
        END SELECT
      END DO
 
@@ -1069,9 +1059,7 @@ CONTAINS
            zi = zi * xphase
          CASE (2)
            ! Quadrupole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="Berry phase moments bigger than 1 not implemented", &
-              error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 1 not implemented")
            DO i = 1, 3
              DO j = i, 3
                 kvec(:) = twopi*(cell%h_inv(i,:)+cell%h_inv(j,:))
@@ -1103,18 +1091,12 @@ CONTAINS
            END DO
          CASE (3)
            ! Octapole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 2 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 2 not implemented")
          CASE (4)
            ! Hexadecapole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 3 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 3 not implemented")
          CASE DEFAULT
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 4 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 4 not implemented")
        END SELECT
      END DO
      DO l = 1, nmom
@@ -1129,9 +1111,7 @@ CONTAINS
            rmom(2:4,1) = MATMUL ( cell%hmat, ci ) / twopi
          CASE (2)
            ! Quadrupole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-              message="Berry phase moments bigger than 1 not implemented", &
-              error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 1 not implemented")
            DO i=1,3
              DO j=1,3
                zz = zij(i,j)/zi(i)/zi(j)
@@ -1154,18 +1134,12 @@ CONTAINS
            END DO
          CASE (3)
            ! Octapole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 2 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 2 not implemented")
          CASE (4)
            ! Hexadecapole
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 3 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 3 not implemented")
          CASE DEFAULT
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="Berry phase moments bigger than 4 not implemented", &
-                error_level=cp_failure_level)
+           CPABORT("Berry phase moments bigger than 4 not implemented")
        END SELECT
      END DO
 

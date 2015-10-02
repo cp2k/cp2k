@@ -347,9 +347,7 @@ END SUBROUTINE
         ELSE
             IF(force_env%meta_env%langevin) THEN
               IF (.NOT.PRESENT(rand)) THEN
-                 CALL cp_unimplemented_error(fromWhere=routineP, &
-                      message="Langevin on COLVAR not implemented for this MD ensemble!", &
-                      error_level=cp_fatal_level)
+                 CPABORT("Langevin on COLVAR not implemented for this MD ensemble!")
               END IF
               !    *** Velocity Verlet for Langevin S(t)->S(t+1)
               CALL metadyn_position_colvar(force_env)

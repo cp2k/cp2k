@@ -442,17 +442,13 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
       IF(dft_control%qs_control%semi_empirical) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="QM/MM periodic calculations not implemented for semi empirical methods", &
-            error_level=cp_fatal_level)
+         CPABORT("QM/MM periodic calculations not implemented for semi empirical methods")
       ELSE IF(dft_control%qs_control%dftb) THEN
          CALL qmmm_ewald_potential_init(qmmm_env_qm%ewald_env, qmmm_env_qm%ewald_pw,&
               qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, mm_cell=mm_cell,&
               para_env=para_env, qmmm_periodic=qmmm_periodic, print_section=print_section)
       ELSE IF(dft_control%qs_control%scptb) THEN
-         CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="QM/MM periodic calculations not implemented for SCPTB method", &
-            error_level=cp_fatal_level)
+         CPABORT("QM/MM periodic calculations not implemented for SCPTB method")
       ELSE
  
          ! setup for GPW/GPAW

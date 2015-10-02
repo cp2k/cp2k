@@ -193,9 +193,7 @@ CONTAINS
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives greater than 1 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives greater than 1 not implemented")
     END IF
 
     !$omp parallel default(none) &
@@ -406,9 +404,7 @@ SUBROUTINE xbeef_lda_calc(rho, rho_1_3, norm_drho,&
        CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives greater than 1 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives greater than 1 not implemented")
     END IF
 
     DO ispin=1,2

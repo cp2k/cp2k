@@ -190,9 +190,7 @@ CONTAINS
           END DO
 
        CASE DEFAULT
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-               message="Unknown shape function", &
-               error_level=cp_failure_level)
+          CPABORT("Unknown shape function")
     END SELECT
 
   END SUBROUTINE create_shape_function
@@ -240,8 +238,7 @@ CONTAINS
         CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
                         hirshfeld_env%fnorm%pw%cr3d)
       ELSE
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="We need rho in real space",error_level=cp_failure_level)
+        CPABORT("We need rho in real space")
       END IF
       CALL hirshfeld_integration(qs_env,hirshfeld_env,rhonorm,charges(:,is))
       charges(:,is) = charges(:,is)*hirshfeld_env%charges(:)
@@ -348,8 +345,7 @@ CONTAINS
            CALL hfun_scale(rhonorm%pw%cr3d,rho_r(is)%pw%cr3d,&
                            hirshfeld_env%fnorm%pw%cr3d)
          ELSE
-           CALL cp_unimplemented_error(fromWhere=routineP, &
-                message="We need rho in real space",error_level=cp_failure_level)
+           CPABORT("We need rho in real space")
          END IF
          CALL hirshfeld_integration(qs_env,hirshfeld_env,rhonorm,charges(:,is))
          charges(:,is) = charges(:,is)*hirshfeld_env%charges(:)

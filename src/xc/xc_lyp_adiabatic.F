@@ -183,9 +183,7 @@ CONTAINS
       CALL xc_derivative_get(deriv,deriv_data=e_ndrho)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives bigger than 1 not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     !$omp parallel default(none) &
@@ -434,9 +432,7 @@ CONTAINS
       CALL xc_derivative_get(deriv,deriv_data=e_ndrb)
     END IF
     IF (grad_deriv>1.OR.grad_deriv<-1) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives bigger than 1 not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives bigger than 1 not implemented")
     END IF
 
     !$omp parallel default(none) &

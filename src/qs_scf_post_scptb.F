@@ -126,27 +126,27 @@ CONTAINS
     ! Dipole Moments
     print_key => section_vals_get_subs_vals(print_section,"MOMENTS")
     IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file))THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Multipole moments from SCPTB calculation currently " //&
-            "not supported",error_level=cp_warning_level)
+       CALL cp_warn(__LOCATION__,&
+            "Multipole moments from SCPTB calculation currently " //&
+            "not supported")
     END IF
 
     ! Print the total density (electronic + core charge)
     ! Not implemented so far.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
          "TOT_DENSITY_CUBE"),cp_p_file)) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="Printing of cube files from SCPTB calculation currently " //&
-             "not supported",error_level=cp_warning_level)
+        CALL cp_warn(__LOCATION__,&
+             "Printing of cube files from SCPTB calculation currently " //&
+             "not supported")
     END IF
 
     ! Write cube file with electron density
     ! Not implemented so far.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
               "E_DENSITY_CUBE"),cp_p_file)) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="Printing of cube files from SCPTB calculation currently " //&
-             "not supported",error_level=cp_warning_level)
+        CALL cp_warn(__LOCATION__,&
+             "Printing of cube files from SCPTB calculation currently " //&
+             "not supported")
     END IF ! print key
 
 
@@ -154,9 +154,9 @@ CONTAINS
     ! Not implemented so far.
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
          "V_HARTREE_CUBE"),cp_p_file)) THEN
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="Printing of cube files from SCPTB calculation currently " //&
-             "not supported",error_level=cp_warning_level)
+        CALL cp_warn(__LOCATION__,&
+             "Printing of cube files from SCPTB calculation currently " //&
+             "not supported")
     ENDIF
 
     ! Print the Electrical Field Components
@@ -164,9 +164,9 @@ CONTAINS
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_section,&
          "EFIELD_CUBE"),cp_p_file)) THEN
 
-        CALL cp_unimplemented_error(fromWhere=routineP, &
-             message="Printing of cube files from SCPTB calculation currently " //&
-             "not supported",error_level=cp_warning_level)
+        CALL cp_warn(__LOCATION__,&
+             "Printing of cube files from SCPTB calculation currently " //&
+             "not supported")
     END IF
 
     ! Write the density matrices
@@ -202,114 +202,86 @@ CONTAINS
     ! Hirshfeld charges
     print_key => section_vals_get_subs_vals(print_section,"HIRSHFELD")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Hirshfeld charges not available for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Hirshfeld charges not available for SCPTB method.")
     END IF
 
     ! KINETIC ENERGY 
     print_key => section_vals_get_subs_vals(print_section,"KINETIC_ENERGY")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Kinetic energy not available for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Kinetic energy not available for SCPTB method.")
     END IF
 
     ! Xray diffraction spectrum
     print_key => section_vals_get_subs_vals(print_section,"XRAY_DIFFRACTION_SPECTRUM")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Xray diffraction spectrum not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Xray diffraction spectrum not implemented for SCPTB method.")
     END IF
 
     ! Electric field gradients
     print_key => section_vals_get_subs_vals(print_section,"ELECTRIC_FIELD_GRADIENT")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Electric field gradient not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Electric field gradient not implemented for SCPTB method.")
     END IF
 
     ! STM
     print_key => section_vals_get_subs_vals(print_section,"STM")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="STM not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("STM not implemented for SCPTB method.")
     END IF
 
     ! MO 
     print_key => section_vals_get_subs_vals(print_section,"MO")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Printing of MO properties not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Printing of MO properties not implemented for SCPTB method.")
     END IF
 
     ! MO CUBES
     print_key => section_vals_get_subs_vals(print_section,"MO_CUBES")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Printing of MO cube files not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Printing of MO cube files not implemented for SCPTB method.")
     END IF
 
     ! Wavefunction mixing
     wfn_mix_section => section_vals_get_subs_vals(dft_section,"PRINT%WFN_MIX")
     CALL section_vals_get(wfn_mix_section,explicit=explicit)
     IF(explicit.AND..NOT.qs_env%run_rtp) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Wavefunction mixing not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Wavefunction mixing not implemented for SCPTB method.")
     END IF
 
     ! PLUS_U
     print_key => section_vals_get_subs_vals(print_section,"PLUS_U")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="DFT+U method not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("DFT+U method not implemented for SCPTB method.")
     END IF
 
     ! PDOS
     print_key => section_vals_get_subs_vals(print_section,"PDOS")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Projected DOS not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Projected DOS not implemented for SCPTB method.")
     END IF
 
     ! V_XC CUBE FILE 
     print_key => section_vals_get_subs_vals(print_section,"V_XC_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="XC potential cube file not available for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("XC potential cube file not available for SCPTB method.")
     END IF
 
     ! ELF
     print_key => section_vals_get_subs_vals(print_section,"ELF_CUBE")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="ELF not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("ELF not implemented for SCPTB method.")
     END IF
 
     ! EPR Hyperfine Coupling
     print_key => section_vals_get_subs_vals(print_section,"HYPERFINE_COUPLING_TENSOR")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Hyperfine Coupling not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Hyperfine Coupling not implemented for SCPTB method.")
     END IF
 
     ! Lowdin
     print_key => section_vals_get_subs_vals(print_section,"LOWDIN")
     IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file)) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-         message="Lowdin population analysis not implemented for SCPTB method.", &
-         error_level=cp_warning_level)
+      CPWARN("Lowdin population analysis not implemented for SCPTB method.")
     END IF
 
     CALL timestop(handle)

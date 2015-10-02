@@ -209,9 +209,7 @@ CONTAINS
             npoints)
     END IF
     IF ( order>3.OR.order<-3) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
     DEALLOCATE ( rs)
     CALL timestop(handle)

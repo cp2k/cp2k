@@ -155,9 +155,7 @@ CONTAINS
 
     ! ** Method only implemented for GPW
     IF( dft_control%qs_control%gapw ) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-                               message="ADMM only implemented for GPW", &
-                               error_level=cp_failure_level)
+      CPABORT("ADMM only implemented for GPW")
     END IF
 
 
@@ -302,9 +300,7 @@ CONTAINS
     DO irep = 1,n_rep_hf
 
        IF( do_adiabatic_rescaling .AND. hfx_treat_lsd_in_core)&
-          CALL cp_unimplemented_error(fromWhere=routineP, &
-                  message="HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids",&
-                  error_level=cp_failure_level)
+          CPABORT("HFX_TREAT_LSD_IN_CORE not implemented for adiabatically rescaled hybrids")
        ! everything is calulated with adiabatic rescaling but the potential is not added in a first step
        distribute_fock_matrix=.NOT.do_adiabatic_rescaling
 

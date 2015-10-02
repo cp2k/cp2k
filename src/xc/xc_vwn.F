@@ -210,9 +210,7 @@ CONTAINS
        CALL vwn_lda_3 ( rho, x, e_rho_rho_rho, npoints, sc)
     END IF
     IF ( order>3.OR.order<-3) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="derivatives bigger than 3 not implemented", &
-            error_level=cp_failure_level)
+       CPABORT("derivatives bigger than 3 not implemented")
     END IF
 
     DEALLOCATE(x)
@@ -607,9 +605,7 @@ CONTAINS
 
     END IF
     IF ( order>3.OR.order<-3) THEN
-      CALL cp_unimplemented_error(fromWhere=routineP, &
-           message="derivatives bigger than 3 not implemented", &
-           error_level=cp_failure_level)
+      CPABORT("derivatives bigger than 3 not implemented")
     END IF
 
     CALL section_vals_val_get(vwn_params,"functional_type",i_val=TYPE)

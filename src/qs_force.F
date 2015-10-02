@@ -333,8 +333,7 @@ CONTAINS
 
     ! Add forces resulting from wavefunction fitting
     IF (dft_control%do_admm_dm) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="Forces with ADMM DM methods not implemented")
+       CPABORT("Forces with ADMM DM methods not implemented")
     END IF
     IF (dft_control%do_admm_mo.AND..NOT.qs_env%run_rtp ) THEN
        NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,matrix_ks_aux_fit,&

@@ -147,9 +147,7 @@ CONTAINS
     ! Stop if not yet implemented
     SELECT CASE (gopt_env%type_id)
     CASE (default_ts_method_id)
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="BFGS method not yet working with DIMER", &
-            error_level=cp_failure_level)
+       CPABORT("BFGS method not yet working with DIMER")
     END SELECT
 
     CALL section_vals_val_get(geo_section,"BFGS%USE_RAT_FUN_OPT",l_val=use_rfo)

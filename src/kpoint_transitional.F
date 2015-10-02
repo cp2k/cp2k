@@ -47,7 +47,7 @@ CONTAINS
 
      IF(ASSOCIATED(this%ptr_1d)) THEN
         IF(SIZE(this%ptr_2d, 2) /= 1) &
-           CALL cp_unimplemented_error("kpoint_transitional","Method not implemented for k-points")
+           CPABORT("Method not implemented for k-points")
      ENDIF
 
      res => this%ptr_1d
