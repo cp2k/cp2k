@@ -5,17 +5,10 @@ A nicely rendered version of it can be found at http://cp2k.org/howto:compile .
 
 =====  1. Acquire the code: =====
 
-see  http://www.cp2k.org/
-The preferred method is to download it from the SVN
+see  http://www.cp2k.org/download
 
-For the trunk (development) version:
-  svn checkout svn://svn.code.sf.net/p/cp2k/code/trunk cp2k
-
-For released branch versions:
-  svn checkout svn://svn.code.sf.net/p/cp2k/code/branches/cp2k-2_5-branch cp2k
-
-If SVN is not installed on your system get it at
-  http://subversion.apache.org/
+For users, the preferred method is to download a release.
+For developers, the preferred method is to download it from the SVN.
 
 ===== 2. Install Prerequisites =====
 Sub-points here discuss prerequisites needed to build CP2K.
@@ -23,37 +16,40 @@ Some of these can be conveniently installed by a script see: cp2k/tools/toolchai
 Copies of the recommended versions of 3rd party software can be
 downloaded from http://www.cp2k.org/static/downloads/ .
 
-==== 2a. GNU make ====
+==== 2a. GNU make (required, build system) ====
 GNU make should be on your system (gmake or make on linux) and used for
 the build, go to http://www.gnu.org/software/make/make.html
 download from http://ftp.gnu.org/pub/gnu/make/
 also python (2.X) is required for building.
 
-==== 2b. Fortran and C Compiler ====
+==== 2b. Python (required, build system) ====
+python 2.x is needed to run the dependency generator.
+On most system python is already installed.
+For more information visit: http://www.python.org/
+
+
+==== 2c. Fortran and C Compiler (required, build system) ====
 A Fortran 2003 compiler and matching C compiler should be installed on your system.
-We have good experience with gcc/gfortran 4.9.2, but gcc >=4.6 works.  Be aware that some
-compilers have bugs that might cause them to fail (internal compiler errors,
+We have good experience with gcc/gfortran (gcc >=4.6 works, later version recommended).
+Be aware that some compilers have bugs that might cause them to fail (internal compiler errors,
 segfaults) or, worse, yield a mis-compiled CP2K. Report bugs to compiler
 vendors; they (and we) have an interest in fixing them.
+Always run a 'make -j check' (See point 6.) after compilation to identifiy these problems.
 
-==== 2c. BLAS and LAPACK ====
+==== 2d. BLAS and LAPACK (required, base functionality) ====
 BLAS and LAPACK should be installed.  Using vendor-provided libraries
 can make a very significant difference (up to 100%, e.g., ACML, MKL,
-ESSL).
-
-Note that the BLAS/LAPACK libraries must match the Fortran
-compiler used. Use the latest versions available and download all patches!
+ESSL), not all optimized libraries are bug free. Use the latest versions available,
+use the interfaces matching your compiler, and download all patches!
 
   * The canonical BLAS and LAPACK can be obtained from the Netlib repository.
     http://www.netlib.org/blas/
     http://www.netlib.org/lapack/ and see also
     http://www.netlib.org/lapack-dev/
-  * A faster alternative is to use the ATLAS project. It provides BLAS and
-    enough of LAPACK to run CP2K, both optimized for the local machine upon
-    installation.
+  * Open fast alternatives, include:
+    http://www.openblas.net/
     http://math-atlas.sourceforge.net/
-  * GotoBLAS is yet a faster BLAS alternative:
-    http://www.tacc.utexas.edu/resources/software/ (GotoBLAS)
+    https://www.tacc.utexas.edu/research-development/tacc-software/gotoblas2
 
 If compiling with OpenMP support then it is recommended to use a
 non-threaded version of BLAS. In particular if compiling with MKL
@@ -62,9 +58,10 @@ MKL with multiple OpenMP threads in CP2K requires that CP2K was compiled
 with the Intel compiler (and -D__INTEL_COMPILER is defined if explicit
 pre-processing is performed using cpp instead of the compiler).
 
-==== 2d. MPI and SCALAPACK ====
+==== 2e. MPI and SCALAPACK (optional, required for MPI parallel builds) ====
 MPI (version 2) and SCALAPACK are needed for parallel code.
-(Use the latest versions available and download all patches!)
+(Use the latest versions available and download all patches!).
+Note that your MPI installation must match the used Fortran compiler.
 If your computing platform does not provide MPI, there are several freely
 available alternatives:
 
@@ -80,7 +77,7 @@ available alternatives:
 For some experimental features MPI version 3 is required.
 To enable these you have to compile with -D__MPI_VERSION=3 .
 
-==== 2e. FFTW ====
+==== 2f. FFTW (optional, improved performance of FFTs) ====
 FFTW can be used to improve FFT speed on a wide range of architectures.
 It is strongly recommended to install and use FFTW3. The current version
 of CP2K works with FFTW 3.X (use -D__FFTW3).
@@ -96,7 +93,7 @@ or otherwise set the define -D__FFTW3_UNALIGNED in the arch file.
 When building an OpenMP parallel version of CP2K (ssmp or psmp), the
 FFTW3 threading library libfftw3_threads (or libfftw3_omp) is required.
 
-==== 2f. LIBINT ====
+==== 2g. LIBINT (optional, enables methods including HF exchange)  ====
 Hartree-Fock exchange (optional, use -D__LIBINT) requires the libint
 package to be installed.
 Additional information can be found in
@@ -107,7 +104,7 @@ angular momentum LIBINT_MAX_AM 5
 http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download
 Note that you should **NOT** use libinit-1.1.3.
 
-==== 2g. libsmm (optional) ====
+==== 2h. libsmm (optional, improved performance for matrix multiplication) ====
   * A library for small matrix multiplies can be built from the included
     source (see tools/build_libsmm/README).  Usually only the double
     precision real and perhaps complex is needed.  Link to the generated
@@ -119,7 +116,7 @@ Note that you should **NOT** use libinit-1.1.3.
     double / single precision complex.
   * Add -D__HAS_smm_vec to enable the new vectorized interfaces of libsmm.
 
-==== 2h. CUDA (optional) ====
+==== 2i. CUDA (optional, improved performance on GPU systems) ====
   * (Experimental): Use the -D__DBCSR_ACC to compile with accelerator support
     support for matrix multiplication.  For linking add -lcudart and -lrt
     to LIBS.  
@@ -128,7 +125,7 @@ Note that you should **NOT** use libinit-1.1.3.
     underscore for linking C subroutines.
   * USE -D__CUDA_PROFILING to turn on Nvidia Tools Extensions.
 
-==== 2k. libxc (optional) ====
+==== 2j. libxc (optional, wider choice of xc functionals) ====
   * The version 2.1.0 (or later) of libxc needs to be downloaded
     (http://www.tddft.org/programs/octopus/wiki/index.php/Libxc) and installed.
     During the installation, the directory $(LIBXC_DIR)/lib and
@@ -141,7 +138,7 @@ Note that you should **NOT** use libinit-1.1.3.
   * 3.*.*: Add -D__LIBXC to DFLAGS, -I$(LIBXC_DIR)/include to FCFLAGS and
            -L$(LIBXC_DIR)/lib -lxcf90 -lxc to LIBS.
 
-==== 2l. ELPA ====
+==== 2k. ELPA (optional, improved performance for diagonalization) ====
 Library ELPA for the solution of the eigenvalue problem
   * One version of ELPA need to be downloaded (http://elpa.rzg.mpg.de/software or directly
     http://elpa.rzg.mpg.de/elpa-tar-archive ) and installed.
@@ -154,12 +151,7 @@ Library ELPA for the solution of the eigenvalue problem
   * For specific architectures it can be better to install specifically
     optimized kernels (see BG) and/or employ a higher optimization level to compile it.
 
-==== 2m. Python ====
-python 2.x is needed to run the dependency generator.
-On most system python is already installed.
-For more information visit: http://www.python.org/
-
-==== 2n. PEXSI (optional) ====
+==== 2l. PEXSI (optional, enables low scaling SCF methods) ====
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library
 and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
   * Download PEXSI (www.pexsi.org) and install it and its dependencies by following 
@@ -184,10 +176,16 @@ Below are some additional hints that may help in the compilation process:
       METISLIB = -lscotchmetis -lscotch -lscotcherr
       PARMETISLIB = -lptscotchparmetis -lptscotch -lptscotcherr
 
-==== 2o. QUIP (optional) ====
+==== 2n. QUIP (optional, wider range of interaction potentials) ====
 QUIP - QUantum mechanics and Interatomic Potentials
 Support for QUIP can be enabled via the flag -D__QUIP .
 For more information see http://www.libatoms.org/ .
+
+==== 2m. PLUMED (optional, enables various enhanced sampling methods) ====
+CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMED 2.x (-D__PLUMED2). 
+Note that the code can only be built for one of these libraries at a time.
+
+See http://cp2k.org/howto:install_with_plumed for full instructions.
 
 ===== 3. Compile =====
 
@@ -195,6 +193,8 @@ For more information see http://www.libatoms.org/ .
 The location of compiler and libraries needs to be specified. Examples
 for a number of common architectures examples can be found in cp2k/arch/*.*
 The names of these files match architecture.version (e.g., Linux-x86-64-gfortran.sopt).
+Alternatively http://dashboard.cp2k.org/ provides sample arch files
+as part of the testing reports (click on the status field, search for 'ARCH-file').
 
 Conventionally, there are four versions:
 ^ Acronym ^        Meaning          ^       Recommended for        ^
@@ -224,8 +224,8 @@ to remove everything for a given ARCH/VERSION use, e.g.,
   > make ARCH=Linux-x86-64-gfortran VERSION=sopt realclean
 
 ==== 3b. Compilation Flags ====
-The following flags should be present (or not) in the arch file
-(see also 3c, next)
+
+The following flags should be present (or not) in the arch file, partially depending on installed libraries (see 2.)
   * -D__parallel -D__SCALAPACK parallel runs
   * -D__LIBINT use libint (needed for HF exchange)
   * -D__LIBXC use libxc
@@ -245,7 +245,7 @@ The following flags should be present (or not) in the arch file
     This can lead to much improved PDGEMM performance.
     The optimal value depends on hardware (GPU?) and precise problem.
 
-Some options controlling MPI behavior and capabilities:
+Features useful to deal with legacy systems
   * -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
     not declare they are thread safe (funneled) but you want to
     use them with OpenMP code anyways.
@@ -261,59 +261,18 @@ Some options controlling MPI behavior and capabilities:
   * The Makefile automatically compiles in the path to the data directory via
     the flag -D__DATA_DIR. If you want to compile in a different path,
     set the variable DATA_DIR in your arch-file.
-
-==== 3c. Compiler tweaks ====
-CP2K currently assumes Fortran2003 compliance, even though few features are used.
-Explicitly required, are full ISO_C_BINDING support, rank remapping, procedure pointers.
-For OpenMP, version 3.1 is assumed.
-
-If you you get compilation errors about unsupported language
-features, then some flags may be used to reduce the language
-features required.
-
-In addition, some flags are used to declare compiler support for
-additional language features that the compiler supports.
-
-Other language capabilities and support:
   * -D__HAS_NO_OMP_3 CP2K assumes that compilers support OpenMP 3.0.
     If this is not the case specify this flag to compile.
     Runtime performance will be poorer on low numbers of processors
   * -D__HAS_NO_CUDA_STREAM_PRIORITIES - Needed for CUDA sdk version < 5.5
-
-==== 3d. Experimental & Debugging Options ====
-Additional esoteric, development, and debugging options.  This
-section can be safely skipped over.  Listed here just for
-completeness besides the flags described in this document.
   * -D__NO_STATM_ACCESS    - Do not try to read from /proc/self/statm to
     get memory usage information. This is otherwise attempted on several
     Linux-based architectures or using with the NAG, gfortran, compilers.
 
-  * -D__mp_timeset__ Timing of MPI routines.
-
-==== 3e. Automatic architecture discovery ====
-The `I'm feeling lucky' version of building will try to guess what architecture
-you're on. Just type
-  > make
-and the script cp2k/tools/build_utils/get_arch_code will try to guess your
-architecture.  You can set the ''$FORT_C_NAME'' to indicate the compiler
-part of the architecture string.
-  > export FORT_C_NAME=gfortran
-
-==== 3f. PLUMED support ====
-CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMED 2.x (-D__PLUMED2). 
-Note that the code can only be built for one of these libraries at a time.
-
-See http://cp2k.org/howto:install_with_plumed for full instructions.
-
 ===== 4. If it doesn't work? =====
-If things fail, take a break... have a look at section 3c and go back
-to 3a (or skip to step 7).
+If things fail, take a break... have ago back to 2a (or skip to step 6).
 
-===== 5. Adding a new architecture =====
-If your compiler/machine is really special, it shouldn't be too difficult
-to support it. Only cp2k/src/machine/ should be affected.
-
-===== 6. Regtesting =====
+===== 5. Regtesting =====
 
 If compilation works fine, it is recommended to test the generated binary,
 to exclude errors in libraries, or miscompilations, etc. 
@@ -326,17 +285,16 @@ In the other case, you might need to configure the underlying testing script as 
 
 http://cp2k.org/dev:regtesting
 
-===== 7. Talk to us ====
+===== 6. Talk to us ====
 In any case please tell us your comments, praise, criticism, thanks, ...
-you can send email to the people in the team:
-http://sourceforge.net/project/memberlist.php?group_id=614853
+see http://www.cp2k.org/
 
-===== 8. Manual =====
+===== 7. Manual =====
 A reference manual of CP2K can be found on the web: http://manual.cp2k.org/
 or can be generated using the cp2k executable, see
 http://manual.cp2k.org/trunk/generate_manual_howto.html
 
-===== 9. Happy computing! =====
+===== 8. Happy computing! =====
 
  The CP2K team.
 
