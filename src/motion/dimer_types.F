@@ -105,16 +105,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dimer_env_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isize, j, k, n_rep_val
+    INTEGER                                  :: i, isize, j, k, n_rep_val, &
+                                                unit_nr
     LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: norm, xval(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: nvec_section
 
+    unit_nr = cp_logger_get_default_io_unit()
     CPASSERT(.NOT.ASSOCIATED(dimer_env))
     ALLOCATE(dimer_env)
-    logger => cp_get_default_logger()
     dimer_env%ref_count=1
     last_dimer_id=last_dimer_id+1
     dimer_env%id_nr=last_dimer_id
@@ -130,8 +130,7 @@ CONTAINS
     nvec_section => section_vals_get_subs_vals(dimer_section,"DIMER_VECTOR")
     CALL section_vals_get(nvec_section, explicit=explicit)
     IF (explicit) THEN
-       CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
-            message="Reading Dimer Vector from file!",local=.FALSE.)
+       IF(unit_nr>0) WRITE(unit_nr,*) "Reading Dimer Vector from file!"
        NULLIFY(array)
        CALL section_vals_val_get(nvec_section,"_DEFAULT_KEYWORD_",n_rep_val=n_rep_val)
        isize = 0

@@ -506,11 +506,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ib, idim
+    INTEGER                                  :: i, ib, idim, unit_nr
     REAL(kind=dp)                            :: c, e_h, err
     REAL(kind=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: x1
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pint_env_type), POINTER             :: pint_env
 
   CPASSERT(ASSOCIATED(para_env))
@@ -518,8 +517,8 @@ CONTAINS
   CPASSERT(para_env%ref_count>0)
   CPASSERT(input%ref_count>0)
   NULLIFY(pint_env)
-  logger => cp_get_default_logger()
-   CALL pint_create(pint_env,input,input_declaration,para_env)
+  unit_nr = cp_logger_get_default_io_unit()
+  CALL pint_create(pint_env,input,input_declaration,para_env)
   IF (ASSOCIATED(pint_env)) THEN
      ALLOCATE(x1(pint_env%ndim,pint_env%p))
      x1(:,:)=pint_env%x
@@ -530,8 +529,7 @@ CONTAINS
      DO i=1,pint_env%ndim
         err=MAX(err,ABS(x1(1,i)-pint_env%x(1,i)))
      END DO
-     CALL cp_log(logger,cp_note_level+1,routineP,"diff_r1="//cp_to_string(err),&
-          local=.FALSE.)
+     IF(unit_nr>0) WRITE(unit_nr,*) "diff_r1="//cp_to_string(err)
 
      CALL pint_calc_uf_h(pint_env,e_h=e_h)
      c=-pint_env%staging_env%w_p**2
@@ -551,8 +549,7 @@ CONTAINS
            err=MAX(err,ABS(pint_env%uf(ib,idim)-pint_env%uf_h(ib,idim)))
         END DO
      END DO
-     CALL cp_log(logger,cp_note_level+1,routineP,"diff_f_h="//cp_to_string(err),&
-          local=.FALSE.)
+     IF(unit_nr>0) WRITE(unit_nr,*) "diff_f_h="//cp_to_string(err)
   END IF
     RETURN
   END SUBROUTINE pint_test

@@ -88,8 +88,8 @@ MODULE cp_dbcsr_interface
        dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
        dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_work_create, &
-       deallocate_arnoldi_data, get_selected_ritz_val, &
+       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
+       dbcsr_work_create, deallocate_arnoldi_data, get_selected_ritz_val, &
        get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, &
        heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
@@ -2779,7 +2779,8 @@ CONTAINS
     ENDIF
 !$  IF(SIZE (matrix%matrix%m%wms) .LT. omp_get_num_threads())&
 !$       CPABORT("Too few threads.")
-    CPWARN("Data loss due to no conversion of appendable to mutable data")
+    IF(.NOT.dbcsr_wm_use_mutable(matrix%matrix%m%wms(ithread+1)))&
+       CPWARN("Data loss due to no conversion of appendable to mutable data")
     is_there = ASSOCIATED(block)
     !r = row ; c = col ; tr = .FALSE.
     !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)

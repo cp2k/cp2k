@@ -834,7 +834,7 @@ CONTAINS
                                                 my_file_status, outPath
     INTEGER                                  :: c_i_level, f_backup_level, i, &
                                                 my_backup_level, my_nbak, &
-                                                nbak, s_backup_level
+                                                nbak, s_backup_level, unit_nr
     LOGICAL                                  :: do_log, found, my_do_backup, &
                                                 my_local, my_on_file, &
                                                 my_should_output
@@ -920,15 +920,17 @@ CONTAINS
                       filename_bak_1=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i))
                       filename_bak_2=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(i-1))
                       IF (do_log) THEN
-                         CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
-                              message="Moving file "//TRIM(filename_bak_2)//" into file "//&
-                              TRIM(filename_bak_1)//".",local=my_local)
+                         unit_nr = cp_logger_get_unit_nr(logger,local=my_local)
+                         IF(unit_nr>0)&
+                            WRITE(unit_nr,*) "Moving file "//TRIM(filename_bak_2)//&
+                                             " into file "//TRIM(filename_bak_1)//"."
                       END IF
                       INQUIRE(FILE=filename_bak_2,EXIST=found)
                       IF (.NOT.found) THEN
                          IF (do_log) THEN
-                            CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
-                                 message="File "//TRIM(filename_bak_2)//" not existing..",local=my_local)
+                            unit_nr = cp_logger_get_unit_nr(logger,local=my_local)
+                            IF(unit_nr>0)&
+                              WRITE(unit_nr,*) "File "//TRIM(filename_bak_2)//" not existing.."
                          END IF
                       ELSE
                          CALL m_mov(TRIM(filename_bak_2), TRIM(filename_bak_1))
@@ -937,9 +939,9 @@ CONTAINS
                    ! The last backup is always the one with index 1
                    filename_bak=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1))
                    IF (do_log) THEN
-                      CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
-                           message="Moving file "//TRIM(filename)//" into file "//&
-                           TRIM(filename_bak)//".",local=my_local)
+                      unit_nr = cp_logger_get_unit_nr(logger,local=my_local)
+                      IF(unit_nr>0)&
+                         WRITE(unit_nr,*) "Moving file "//TRIM(filename)//" into file "//TRIM(filename_bak)//"."
                    END IF
                    CALL m_mov(TRIM(filename), TRIM(filename_bak))
                 ELSE
@@ -952,10 +954,11 @@ CONTAINS
                file_form=my_file_form,file_action=my_file_action,&
                file_position=my_file_position,unit_number=res)
           IF (do_log) THEN
-             CALL cp_log(logger=logger, level=cp_note_level, fromWhere=routineP,&
-                  message="Writing "//TRIM(print_key%section%name)//" "//&
-                  TRIM(cp_iter_string(logger%iter_info))//" to "//&
-                  TRIM(filename),local=my_local)
+             unit_nr = cp_logger_get_unit_nr(logger,local=my_local)
+             IF(unit_nr>0)&
+               WRITE(unit_nr,*) "Writing "//TRIM(print_key%section%name)//" "//&
+                                TRIM(cp_iter_string(logger%iter_info))//" to "//&
+                                TRIM(filename)
           END IF
        END IF
     ELSE

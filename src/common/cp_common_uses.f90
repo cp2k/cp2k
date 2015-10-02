@@ -6,7 +6,6 @@
                                              cp_logger_create,&
                                              cp_logger_release,&
                                              cp_logger_set,&
-                                             cp_log,&
                                              cp_warning_level,&
                                              cp_failure_level,&
                                              cp_fatal_level,&

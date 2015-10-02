@@ -48,14 +48,11 @@ MODULE cp_log_handling
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: default_output_unit,&
-                                             m_datum,&
-                                             m_flush,&
                                              m_getpid,&
                                              m_hostnm
   USE message_passing,                 ONLY: mp_abort,&
                                              mp_comm_free
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: print_message
   USE timings,                         ONLY: print_stack
 
   IMPLICIT NONE
@@ -73,7 +70,7 @@ MODULE cp_log_handling
             cp_logger_would_log, cp_logger_set, cp_logger_get_default_unit_nr,&
             cp_logger_get_default_io_unit, cp_logger_get_unit_nr, &
             cp_logger_set_log_level, cp_logger_generate_filename, &
-            cp_to_string, cp_log
+            cp_to_string
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
@@ -90,10 +87,6 @@ MODULE cp_log_handling
   !! a generic function to trasform different types to strings
   INTERFACE cp_to_string
      MODULE PROCEDURE cp_int_to_string, cp_real_dp_to_string, cp_logical_to_string
-  END INTERFACE
-
-  INTERFACE cp_log
-     MODULE PROCEDURE cp_logger_log
   END INTERFACE
 
 ! *****************************************************************************
@@ -548,70 +541,6 @@ CONTAINS
     res=cp_logger_get_default_unit_nr(local_logger,local=.FALSE.,skip_not_ionode=.TRUE.)
   END FUNCTION cp_logger_get_default_io_unit
 
-! *****************************************************************************
-!> \brief Logs in a standard format
-!> \param logger is a type that describes where the logging must go.
-!> \param level describes the of the message: cp_fatal_level(3),
-!>     cp_failure_level(2), cp_warning_level(1), cp_note_level(0).
-!> \param fromWhere is a string of the form module:function or file:lineNr
-!>     that says where the error happend
-!> \param message is the message to print
-!> \param local if true this goes to the local logger, otherwise (the default)
-!>     it goes to the global logger (and only the master process writes it)
-!> \par History
-!>      4.2002 revised [fawzi]
-!> \author Fawzi Mohamed
-!> \note
-!>      In multithreaded situations it should be modified to print also
-!>      the thread (and maybe the processor), and proper locking should be
-!>      performed.
-!>      At the moment it just goes to the default unit of the logger
-! *****************************************************************************
-  SUBROUTINE cp_logger_log(logger, level, fromWhere , message, local)
-    TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER, INTENT(in)                      :: level
-    CHARACTER(len=*), INTENT(in)             :: fromWhere, message
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_log', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(7)                             :: label
-    CHARACTER(LEN=26)                        :: datx
-    INTEGER                                  :: unitNr
-    LOGICAL                                  :: loc
-    TYPE(cp_logger_type), POINTER            :: lggr
-
-    lggr => logger
-    IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL mp_abort(routineP//&
-         " logger%ref_count<1")
-
-    loc=.TRUE.
-    IF (PRESENT(local)) loc=local
-    IF (cp_logger_would_log(lggr,level)) THEN
-       SELECT CASE (level)
-       CASE (cp_fatal_level)
-          label = 'ERRORL3'
-       CASE (cp_failure_level)
-          label = 'ERRORL2'
-       CASE (cp_warning_level)
-          label = 'WARNING'
-       CASE (cp_note_level)
-          label = 'NOTE'
-       CASE default
-          label = 'L'//ADJUSTL(cp_int_to_string(level))
-       END SELECT
-       IF (loc .OR. lggr%para_env%mepos==lggr%para_env%source) THEN
-          unitNr = cp_logger_get_unit_nr(lggr,local=loc)
-          CALL m_datum(datx)
-          CALL print_message(datx(12:19)//' '//TRIM(ADJUSTL(label))//' in '//&
-                             fromWhere//' :: '//TRIM(ADJUSTL(message)),&
-                             unitNr,level,1,1)
-          CALL m_flush(unitNr)
-       END IF
-    END IF
-  END SUBROUTINE cp_logger_log
 
 ! *************************** cp_logger_type settings ***************************
 
