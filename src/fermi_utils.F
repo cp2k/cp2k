@@ -170,7 +170,6 @@ CONTAINS
          END DO
       END DO
    ELSE
-      beta = HUGE(1.0_dp)
       DO ik=1,nkp
          DO is=1,nmo
             IF (e(is,ik) <= mu) THEN
@@ -303,29 +302,36 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'Fermikp', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: epsocc = 1.0e-12_dp
 
     INTEGER                                  :: iter
-    REAL(KIND=dp)                            :: mu_max, mu_min, mu_now, &
+    REAL(KIND=dp)                            :: de, mu_max, mu_min, mu_now, &
                                                 N_max, N_min, N_now
 
 ! bisection search to find mu for a given nel
 
-    mu_min=MINVAL(e) - 0.5_dp
-    mu_max=MAXVAL(e) + 0.5_dp
+    de = t*LOG((1.0_dp-epsocc)/epsocc)
+    de = MAX(de,0.5_dp)
+    mu_min=MINVAL(e) - de
+    mu_max=MAXVAL(e) + de
     iter=0
     DO WHILE( mu_max-mu_min > EPSILON(mu)*MAX(1.0_dp,ABS(mu_max),ABS(mu_min)) )
-       iter=iter+1
        mu_now = (mu_max+mu_min)/2.0_dp
        CALL Fermi2(f,N_now,kTS,e,mu_now,wk,T,maxocc)
        iter = iter + 1
-       IF (N_now<=nel) THEN
+       IF (ABS(N_now-nel) < nel*epsocc) THEN
+          mu_min = mu_now
+          N_min  = N_now
+          mu_max = mu_now
+          N_max  = N_now
+       ELSEIF (N_now<=nel) THEN
           mu_min = mu_now
           N_min  = N_now
        ELSE
           mu_max = mu_now
           N_max  = N_now
        ENDIF
-       IF (iter>200) EXIT
+       IF (iter>400) EXIT
     ENDDO
 
     mu=(mu_max+mu_min)/2.0_dp
