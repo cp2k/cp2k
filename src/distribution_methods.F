@@ -708,8 +708,8 @@ CONTAINS
                nprow, cluster_row_distribution(:,1), npcol, cluster_col_distribution(:,1))
        ELSE
           IF(basic_cluster_optimization)THEN
-          IF(molecular_distribution)&
-             CPABORT("clustering and molecular blocking NYI")
+             IF(molecular_distribution)&
+               CPABORT("clustering and molecular blocking NYI")
              ALLOCATE(pbc_scaled_coords(3, natom),coords(3, natom))
              DO iatom=1, natom
                 CALL real_to_scaled(pbc_scaled_coords(:, iatom), pbc(particle_set(iatom)%r(:), cell), cell)
@@ -1135,11 +1135,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icluster, level, &
-                                                natom, ncluster
+                                                natom, ncluster, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_to_cluster, cluster_cost, &
-      cluster_to_col, cluster_to_row, piv_cost, proc_cost, sorted_cost
+      cluster_count, cluster_to_col, cluster_to_row, piv_cost, proc_cost, &
+      sorted_cost
+    REAL(KIND=dp)                            :: fold(3)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: cluster_center, cluster_high, &
+                                                cluster_low
 
     CALL timeset (routineN, handle)
+
+    output_unit=cp_logger_get_default_io_unit()
+
     natom=SIZE(costs)
     ncluster=cp_distribution_get_num_images(SUM(costs),natom,nprows,npcols)
     ALLOCATE(atom_to_cluster(natom))
@@ -1169,6 +1177,38 @@ CONTAINS
        col_distribution(i,1)=cluster_to_col(atom_to_cluster(i))
        col_distribution(i,2)=atom_to_cluster(i)
     END DO
+
+    ! generate some statistics on clusters
+    ALLOCATE(cluster_center(3,ncluster))
+    ALLOCATE(cluster_low(3,ncluster))
+    ALLOCATE(cluster_high(3,ncluster))
+    ALLOCATE(cluster_count(ncluster))
+    cluster_count=0
+    DO i=1,natom
+       cluster_count(atom_to_cluster(i))=cluster_count(atom_to_cluster(i))+1
+       cluster_center(:,atom_to_cluster(i))=coords(:,i)
+    ENDDO
+    cluster_low=HUGE(0.0_dp)
+    cluster_high=-HUGE(0.0_dp)
+    DO i=1,natom
+       fold=pbc(coords(:,i)-cluster_center(:,atom_to_cluster(i)), cell)+cluster_center(:,atom_to_cluster(i))
+       cluster_low(:,atom_to_cluster(i))=MIN(cluster_low(:,atom_to_cluster(i)),fold(:))
+       cluster_high(:,atom_to_cluster(i))=MAX(cluster_high(:,atom_to_cluster(i)),fold(:))
+    ENDDO
+    IF (output_unit>0) THEN
+       WRITE(output_unit,*) 
+       WRITE(output_unit,'(T2,A)') "Cluster distribution information"
+       WRITE(output_unit,'(T2,A,T48,I8)') "Number of atoms",natom
+       WRITE(output_unit,'(T2,A,T48,I8)') "Number of clusters",ncluster
+       WRITE(output_unit,'(T2,A,T48,I8)') "Largest cluster in atoms",MAXVAL(cluster_count)
+       WRITE(output_unit,'(T2,A,T48,I8)') "Smallest cluster in atoms",MINVAL(cluster_count)
+       WRITE(output_unit,'(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster x=", &
+                   MAXVAL(cluster_high(1,:)-cluster_low(1,:)),MAXLOC(cluster_high(1,:)-cluster_low(1,:))
+       WRITE(output_unit,'(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster y=", &
+                   MAXVAL(cluster_high(2,:)-cluster_low(2,:)),MAXLOC(cluster_high(2,:)-cluster_low(2,:))
+       WRITE(output_unit,'(T2,A,T48,F8.3,I8)') "Largest cartesian extend [a.u.]/cluster z=", &
+                   MAXVAL(cluster_high(3,:)-cluster_low(3,:)),MAXLOC(cluster_high(3,:)-cluster_low(3,:))
+    ENDIF
 
     DEALLOCATE(atom_to_cluster,cluster_cost,cluster_to_row,cluster_to_col,sorted_cost,piv_cost,proc_cost)
     CALL timestop(handle)
