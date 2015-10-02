@@ -10,7 +10,7 @@ wat_mode_sel_range.inp                                18      7e-08
 ethene-vib-mode-sel-int.inp                           21    1.0E-14                       0.005710
 # new mode_selective tests for several restart types
 N3dye_geoopt.inp                                       7    1.0E-14                   0.5616272352
-N3dye_vib_bfgs.inp                                    18      8e-04             1503.8296069999999
+N3dye_vib_bfgs.inp                                    18      1e-03             1503.8296069999999
 N3dye_vib_bfgs2.inp                                   18      2e-08             1721.1518249999999
 N3dye_vib_inv_atoms.inp                               18    1.0E-14                    1434.154489
 N3dye_vib_restart_vec3.inp                            18    1.0E-14                    1720.504985
@@ -20,8 +20,8 @@ N3dye_vib_restart_vec4.inp                            18    1.0E-14             
 #new linear scaling/fastest/more robust topology generator
 JAC_gen.inp                                            2    1.0E-14            -125.33168188099999
 arginine.inp                                           2      4e-11                  0.10945072437
-arginine0.inp                     2     3e-11             0.115267385339E+00
-arginine_crossC.inp               2     3e-11             0.115267385339E+00
+arginine0.inp                                          2      3e-11             0.115267385339E+00
+arginine_crossC.inp                                    2      3e-11             0.115267385339E+00
 #new reordering algorithm
 water_reord.inp                                        2    1.0E-14             0.183700943310E-02
 phenobenz.inp                                          2      1e-10            0.21873884825500001
@@ -43,3 +43,4 @@ I3.inp                                                 2    1.0E-14             
 #TIP4P
 water_tip4p.inp                                        2    1.0E-14            -0.111390529409E-01
 #EOF
+Fist/regtest-5/N3dye_vib_bfgs.inp
