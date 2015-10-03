@@ -224,8 +224,7 @@ CONTAINS
     IF (PRESENT(h_stress)) THEN
       calculate_stress_tensor = .TRUE.
       h_stress(:,:) = 0.0_dp
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "No stress tensor is implemented for SCCS models yet",para_env)
+      CPABORT("No stress tensor is implemented for SCCS models yet")
     ELSE
        calculate_stress_tensor = .FALSE.
     END IF
@@ -321,9 +320,7 @@ CONTAINS
       CALL fattebert_gygi(rho_elec,eps_elec,deps_elec,eps0,sccs_control%beta,&
                           sccs_control%rho_zero)
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid method specified for SCCS model",&
-                        para_env)
+      CPABORT("Invalid method specified for SCCS model")
     END SELECT
 
     ! Optional output of the dielectric function in cube file format
@@ -435,9 +432,7 @@ CONTAINS
                                     sccs_control%beta,sccs_control%rho_zero,&
                                     sccs_control%delta_rho)
       CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Invalid method specified for SCCS model",&
-                          para_env)
+        CPABORT("Invalid method specified for SCCS model")
       END SELECT
       cavity_surface = accurate_sum(theta%cr3d)*dvol
       CALL mp_sum(cavity_surface,para_env%group)
@@ -1043,9 +1038,7 @@ CONTAINS
         CALL pw_transfer(work_g1d(2)%pw,df(i)%pw)
       END DO
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid derivative method for SCCS specified",&
-                        para_env)
+      CPABORT("Invalid derivative method for SCCS specified")
     END SELECT
 
     ! Perform method specific cleanup

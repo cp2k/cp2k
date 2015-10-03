@@ -30,7 +30,6 @@ MODULE topology_util
   USE string_table,                    ONLY: id2str,&
                                              str2id
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -1086,7 +1085,7 @@ CONTAINS
           ! 1. Check each molecule have the same number of atoms
           !-----------------------------------------------------------------------------
           IF (counter /= loc_counter) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "different number of atoms for same molecule kind"//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
                   " molecule number= "//cp_to_string(mol_num)//&
@@ -1109,7 +1108,7 @@ CONTAINS
           !-----------------------------------------------------------------------------
           IF( atom_info%id_atmname(iatom) /= &
               atom_info%id_atmname(first+loc_counter-1) ) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "different atom name for same molecule kind"//&
                   " atom number    = "//cp_to_string(iatom)//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
@@ -1122,7 +1121,7 @@ CONTAINS
           ! 3. Check that each molecule have the same bond sequences
           !-----------------------------------------------------------------------------
           IF (SIZE(atom_bond_list(iatom)%array1)/=SIZE(atom_bond_list(first+loc_counter-1)%array1)) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
+             CALL cp_abort(__LOCATION__,&
                   "different number of bonds for same molecule kind"//&
                   " molecule type  = "//cp_to_string(mol_typ)//&
                   " molecule number= "//cp_to_string(mol_num)//&
@@ -1135,7 +1134,7 @@ CONTAINS
           DO k = 1,SIZE(atom_bond_list(iatom)%array1)
              IF (ALL(atom_bond_list(first+loc_counter-1)%array1-first/=&
                      atom_bond_list(iatom)%array1(k)-first_loc)) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "different sequence of bonds for same molecule kind"//&
                      " molecule type  = "//cp_to_string(mol_typ)//&
                      " molecule number= "//cp_to_string(mol_num)//&
@@ -1293,7 +1292,7 @@ __LOCATION__,&
 
     ! If no element is found the job stops here.
     IF (.NOT.found) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             " Unknown element for KIND <"//TRIM(atom_name_in)//">."//&
             " This problem can be fixed specifying properly elements in PDB"//&
             " or specifying a KIND section or getting in touch with one of "//&

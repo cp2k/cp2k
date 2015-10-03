@@ -11,7 +11,6 @@ MODULE xc_derivatives
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_b97,                          ONLY: b97_lda_eval,&
@@ -252,8 +251,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CALL ke_gga_info(i_param,lsd,reference,shortform,needs,max_deriv)
   CASE("P86C")
      IF(lsd) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "BP functional not implemented with LSD")
+       CPABORT("BP functional not implemented with LSD")
      END IF
      CALL p86_lda_info(reference,shortform,needs,max_deriv)
   CASE("PW92")

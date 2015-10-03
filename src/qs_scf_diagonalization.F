@@ -109,7 +109,6 @@ MODULE qs_scf_diagonalization
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                              subspace_env_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -1147,8 +1146,7 @@ END SUBROUTINE diag_subspace_allocate
       ELSE IF (scf_control%roks_scheme == high_spin_roks) THEN
         CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter)
       ELSE
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Unknown ROKS scheme requested")
+        CPABORT("Unknown ROKS scheme requested")
       END IF
 
       ! Back-transform the restricted open Kohn-Sham matrix from MO basis

@@ -20,8 +20,7 @@ MODULE memory_utilities
                                              int_8,&
                                              int_8_size,&
                                              int_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -552,8 +551,7 @@ CONTAINS
     ELSE IF (PRESENT(p_long))  THEN
        CALL reallocate_ls1(p_long,lb_new,ub_new)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "At least one of the two optional arguments is required")
+       CPABORT("At least one of the two optional arguments is required")
     END IF
 
   END SUBROUTINE reallocate_s1

@@ -124,8 +124,7 @@ __LOCATION__,&
     CASE(do_ff_undef)
        ! Do Nothing
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Force field type not implemented",para_env)
+       CPABORT("Force field type not implemented")
     END SELECT
     ! Numerical Accuracy:
     ! the factors here should depend on the energy and on the shape of each potential mapped
@@ -528,8 +527,7 @@ __LOCATION__,&
        ft%c = cp_unit_to_cp2k(72.50_dp,"eV*angstrom^6")
        ft%d = cp_unit_to_cp2k(145.427_dp,"eV*angstrom^8")
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "BMHFT only for NaCl")
+       CPABORT("BMHFT only for NaCl")
     ENDIF
 
   END SUBROUTINE set_BMHFT_ff
@@ -543,8 +541,7 @@ __LOCATION__,&
     CHARACTER(len=*), PARAMETER :: routineN = 'set_BMHFTD_ff', &
       routineP = moduleN//':'//routineN
 
-    CALL stop_program(routineN,moduleN,__LINE__,&
-                      "No default parameters present for BMHFTD")
+    CPABORT("No default parameters present for BMHFTD")
 
   END SUBROUTINE set_BMHFTD_ff
 
@@ -1544,16 +1541,16 @@ __LOCATION__,&
        shell_list(start+i_rep)%shell%massfrac = mfrac
        CALL section_vals_val_get(section,"K2_SPRING",i_rep_section=i_rep,r_val=k)
        IF (k < 0.0_dp) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An invalid value was specified for the force constant k2 of the core-shell "//&
-                            "spring potential",para_env)
+          CALL cp_abort(__LOCATION__,&
+               "An invalid value was specified for the force constant k2 of the core-shell "//&
+               "spring potential")
        END IF
        shell_list(start+i_rep)%shell%k2_spring = k
        CALL section_vals_val_get(section,"K4_SPRING",i_rep_section=i_rep,r_val=k)
        IF (k < 0.0_dp) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "An invalid value was specified for the force constant k4 of the core-shell "//&
-                            "spring potential",para_env)
+          CALL cp_abort(__LOCATION__,&
+               "An invalid value was specified for the force constant k4 of the core-shell "//&
+               "spring potential")
        END IF
        shell_list(start+i_rep)%shell%k4_spring = k
        CALL section_vals_val_get(section,"MAX_DISTANCE",i_rep_section=i_rep,r_val=maxdist)

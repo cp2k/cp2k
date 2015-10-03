@@ -172,8 +172,7 @@ CONTAINS
     CASE (XC_EXCHANGE_CORRELATION); WRITE(s2,'(a)') "exchange-correlation"
     CASE (XC_KINETIC);              WRITE(s2,'(a)') "kinetic"
     CASE default
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name(ifunc_name))//": this XC_KIND is currently not supported.")
+       CPABORT(TRIM(func_name(ifunc_name))//": this XC_KIND is currently not supported.")
     END SELECT
     IF ( PRESENT ( shortform ) ) THEN
        shortform = TRIM(s1)//' ('//TRIM(s2)//')'
@@ -194,8 +193,7 @@ CONTAINS
           needs%tau = .TRUE.
           needs%laplace_rho = xc_libxc_wrap_needs_laplace(func_id)
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-             TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (PRESENT(max_deriv)) THEN
@@ -207,15 +205,13 @@ CONTAINS
        CASE (XC_FAMILY_MGGA)
           max_deriv = 1
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-             TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
 
     CALL xc_f90_func_end(xc_func)
 #else
-    CALL stop_program(routineN,moduleN,__LINE__,&
-       "In order to use libxc you need to download and install it")
+    CPABORT("In order to use libxc you need to download and install it")
 #endif
 
   END SUBROUTINE libxc_lda_info
@@ -277,8 +273,7 @@ CONTAINS
     CASE (XC_EXCHANGE_CORRELATION); WRITE(s2,'(a)') "exchange-correlation"
     CASE (XC_KINETIC);              WRITE(s2,'(a)') "kinetic"
     CASE default
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name(ifunc_name))//": this XC_KIND is currently not supported.")
+       CPABORT(TRIM(func_name(ifunc_name))//": this XC_KIND is currently not supported.")
     END SELECT
     IF ( PRESENT ( shortform ) ) THEN
        shortform = TRIM(s1)//' ('//TRIM(s2)//')'
@@ -301,8 +296,7 @@ CONTAINS
           needs%tau_spin = .TRUE.
           needs%laplace_rho_spin = xc_libxc_wrap_needs_laplace(func_id)
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-             TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (PRESENT(max_deriv)) THEN
@@ -314,15 +308,13 @@ CONTAINS
        CASE (XC_FAMILY_MGGA)
           max_deriv = 1
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-             TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
 
     CALL xc_f90_func_end(xc_func)
 #else
-    CALL stop_program(routineN,moduleN,__LINE__,&
-       "In order to use libxc you need to download and install it")
+    CPABORT("In order to use libxc you need to download and install it")
 #endif
 
   END SUBROUTINE libxc_lsd_info
@@ -341,8 +333,7 @@ CONTAINS
 #if defined (__LIBXC)
     CALL xc_libxc_wrap_version(version)
 #else
-    CALL stop_program(routineN,moduleN,__LINE__,&
-       "In order to use libxc you need to download and install it")
+    CPABORT("In order to use libxc you need to download and install it")
 #endif
 
   END SUBROUTINE libxc_version_info
@@ -487,8 +478,7 @@ CONTAINS
              CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho)
           END IF
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
@@ -544,8 +534,7 @@ CONTAINS
           !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rho_tau)
           !             END IF
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
@@ -557,8 +546,7 @@ CONTAINS
        CASE(XC_FAMILY_GGA, XC_FAMILY_HYB_GGA, XC_FAMILY_MGGA)
           CPABORT("derivatives larger than 2 not implemented")
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=4.OR.grad_deriv<=-4) THEN
@@ -600,8 +588,7 @@ CONTAINS
 
     CALL timestop(handle)
 #else
-    CALL stop_program(routineN,moduleN,__LINE__,&
-       "In order to use libxc you need to download and install it")
+    CPABORT("In order to use libxc you need to download and install it")
 #endif
   END SUBROUTINE libxc_lda_eval
 
@@ -836,8 +823,7 @@ CONTAINS
              CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob)
           END IF
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
@@ -1040,8 +1026,7 @@ CONTAINS
           !                CALL xc_derivative_get(deriv,deriv_data=e_laplace_rhob_tau_b)
           !             END IF
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=3.OR.grad_deriv==-3) THEN
@@ -1062,8 +1047,7 @@ CONTAINS
        CASE(XC_FAMILY_GGA, XC_FAMILY_HYB_GGA, XC_FAMILY_MGGA)
           CPABORT("derivatives larger than 2 not implemented")
        CASE default
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
+          CPABORT(TRIM(func_name(ifunc_name))//": this XC_FAMILY is currently not supported.")
        END SELECT
     END IF
     IF (grad_deriv>=4.OR.grad_deriv<=-4) THEN
@@ -1153,8 +1137,7 @@ CONTAINS
 
     CALL timestop(handle)
 #else
-    CALL stop_program(routineN,moduleN,__LINE__,&
-       "In order to use libxc you need to download and install it")
+    CPABORT("In order to use libxc you need to download and install it")
 #endif
   END SUBROUTINE libxc_lsd_eval
 
@@ -1506,14 +1489,12 @@ CONTAINS
           !$end do
        END IF
     CASE default
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name)//": this XC_FAMILY is currently not supported.")
+       CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
     END SELECT
 
     CALL xc_f90_func_end(xc_func)
 #else
-    CALL stop_program(routineN,moduleN,__LINE__,&
-       "In order to use libxc you need to download and install it")
+    CPABORT("In order to use libxc you need to download and install it")
 #endif
 
   END SUBROUTINE libxc_lda_calc
@@ -2338,14 +2319,12 @@ CONTAINS
           !$end do
        END IF
     CASE default
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name)//": this XC_FAMILY is currently not supported.")
+       CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
     END SELECT
 
     CALL xc_f90_func_end(xc_func)
 #else
-    CALL stop_program(routineN,moduleN,__LINE__,&
-       "In order to use libxc you need to download and install it")
+    CPABORT("In order to use libxc you need to download and install it")
 #endif
 
   END SUBROUTINE libxc_lsd_calc

@@ -50,8 +50,7 @@ MODULE mc_control
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../../common/cp_common_uses.f90"
@@ -244,8 +243,7 @@ CONTAINS
           WRITE(iw,*) 'Input file temperature =',mc_temp
           WRITE(iw,*) 'Restart file temperature =',temperature
        ENDIF
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "Temperature difference between restart and input")
+       CPABORT("Temperature difference between restart and input")
     ENDIF
     IF(nunits_tot .NE. mc_nunits_tot) THEN
        IF(ionode) THEN
@@ -263,8 +261,7 @@ CONTAINS
           WRITE(iw,*) 'Input file ensemble =',mc_ensemble
           WRITE(iw,*) 'Restart file ensemble =',ensemble
        ENDIF
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "Ensembles different between restart and input")
+       CPABORT("Ensembles different between restart and input")
     ENDIF
 
     ! get the cell length and coordinates

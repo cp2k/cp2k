@@ -34,7 +34,6 @@ MODULE manybody_siepmann
                                              siepmann_pot_type,&
                                              siepmann_type
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -394,14 +393,12 @@ CONTAINS
        ELSEIF(count_h==2) THEN
         index_h2=iatom
        ELSE
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "Error in Siepmann-Sprik part: too many H atoms")
+        CPABORT("Error in Siepmann-Sprik part: too many H atoms")
        ENDIF 
     ENDDO
 
     IF (count_h==0) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "No H atoms for O found")
+        CPABORT("No H atoms for O found")
     ELSEIF (count_h==1) THEN
         IF(siepmann%allow_oh_formation) THEN
            IF(PRESENT(nr_oh)) THEN
@@ -409,8 +406,7 @@ CONTAINS
            ENDIF
            siep_Phi_ij = 0.0_dp
         ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Only one H atom of O atom found")
+          CPABORT("Only one H atom of O atom found")
         ENDIF
     ENDIF
  
@@ -506,17 +502,14 @@ CONTAINS
        ELSEIF(count_h==2) THEN
         index_h2=iatom
        ELSE
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "Error in Siepmann-Sprik part: too many H atoms")
+        CPABORT("Error in Siepmann-Sprik part: too many H atoms")
        ENDIF 
     ENDDO
 
     IF (count_h==0) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "No H atoms for O found")
+        CPABORT("No H atoms for O found")
     ELSEIF (count_h==1.AND..NOT.siepmann%allow_oh_formation) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "Only one H atom of O atom found")
+        CPABORT("Only one H atom of O atom found")
     ENDIF 
 
     IF(count_h==2) THEN

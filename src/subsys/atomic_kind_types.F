@@ -30,7 +30,6 @@ MODULE atomic_kind_types
   USE shell_potential_types,           ONLY: shell_kind_type,&
                                              shell_release,&
                                              shell_retain
-  USE termination,                     ONLY: stop_program
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -111,7 +110,7 @@ CONTAINS
        END DO
        DEALLOCATE (atomic_kind_set)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The pointer atomic_kind_set is not associated and "//&
             "cannot be deallocated")
     END IF
@@ -321,8 +320,7 @@ CONTAINS
           END IF
        END DO
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer atomic_kind_set is not associated")
+       CPABORT("The pointer atomic_kind_set is not associated")
     END IF
 
   END SUBROUTINE get_atomic_kind_set
@@ -380,8 +378,7 @@ CONTAINS
              atomic_kind%atom_list(:) = atom_list(:)
              atomic_kind%natom = n
           ELSE
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "An invalid atom_list was supplied")
+             CPABORT("An invalid atom_list was supplied")
           END IF
        END IF
        IF (PRESENT(fist_potential)) atomic_kind%fist_potential => fist_potential
@@ -394,8 +391,7 @@ CONTAINS
        IF (PRESENT(damping)) atomic_kind%damping => damping
 
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer atomic_kind is not associated")
+       CPABORT("The pointer atomic_kind is not associated")
     END IF
 
 

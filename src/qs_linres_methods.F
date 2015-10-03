@@ -532,8 +532,7 @@ CONTAINS
              CALL apply_op(qs_env,p_env,psi0_order,p,Ap,chc,buf)
              CALL postortho(Ap,mo_coeff_array,Sc,buf)
              CALL cp_fm_trace(Ap(ispin)%matrix,p(ispin)%matrix,tr_pAp(ispin))
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "tr(Ap_j*p_j) < 0")
+             CPABORT("tr(Ap_j*p_j) < 0")
           END IF
           !
           ! alpha = tr(r_j*z_j) / tr(Ap_j*p_j)

@@ -80,7 +80,6 @@ MODULE qs_resp
   USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -374,12 +373,10 @@ CONTAINS
       CALL section_vals_val_get(slab_section,"SURF_DIRECTION",&
                                 i_rep_section=i, i_val=rep_sys(i)%p_resp%my_fit)
       IF(ANY(rep_sys(i)%p_resp%range_surf<0.0_dp)) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "Numbers in RANGE in SLAB_SAMPLING cannot be negative.")
+        CPABORT("Numbers in RANGE in SLAB_SAMPLING cannot be negative.")
       ENDIF
       IF(rep_sys(i)%p_resp%length<=EPSILON(0.0_dp)) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-             "Parameter LENGTH in SLAB_SAMPLING has to be larger than zero.")
+        CPABORT("Parameter LENGTH in SLAB_SAMPLING has to be larger than zero.")
       ENDIF
       !list of atoms specifing the surface
       CALL build_atom_list(slab_section,subsys,rep_sys(i)%p_resp%atom_surf_list,rep=i)
@@ -592,8 +589,7 @@ __LOCATION__,&
       atom_a=atom_list(i)
       atom_b=atom_list(j)
       IF(atom_a==atom_b) &
-      CALL stop_program(routineN,moduleN,__LINE__,&
-           "There are atoms doubled in atom list for RESP.")
+      CPABORT("There are atoms doubled in atom list for RESP.")
      ENDDO
     ENDDO
 
@@ -654,7 +650,7 @@ __LOCATION__,&
             " implemented for orthorhombic cells!")
     END IF
     IF(.NOT.resp_env%molecular_sys) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "Nonperiodic solution for RESP charges (i.e. nonperiodic"//&
              " Poisson solver) can only be used with section SPHERE_SAMPLING")
     ENDIF
@@ -809,7 +805,7 @@ __LOCATION__,&
     NULLIFY(pw_env, para_env,auxbas_pw_pool,poisson_env)
 
     IF(.NOT.ALL(cell%perd/=0)) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "Periodic solution for RESP (with periodic Poisson solver)"//&
              " can only be obtained with a cell that has XYZ periodicity")
     ENDIF

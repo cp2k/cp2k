@@ -24,8 +24,7 @@ MODULE ao_util
                                              nso,&
                                              nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -186,20 +185,17 @@ CONTAINS
     ! Load and check parameter values
 
     IF (l < 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The angular momentum quantum number is negative")
+       CPABORT("The angular momentum quantum number is negative")
     END IF
 
     IF (alpha == 0.0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The Gaussian function exponent is zero")
+       CPABORT("The Gaussian function exponent is zero")
     ELSE
        a = ABS(alpha)
     END IF
 
     IF (threshold == 0.0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The requested threshold is zero")
+       CPABORT("The requested threshold is zero")
     ELSE
        t = ABS(threshold)
     END IF
@@ -230,8 +226,7 @@ CONTAINS
     DO
        iter=iter+1
        IF (iter.gt.maxiter) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Maximum number of iterations exceeded")
+          CPABORT("Maximum number of iterations exceeded")
        END IF
        g = d*rhigh**l*EXP(-a*rhigh**2)
        IF (g < t) EXIT
@@ -253,8 +248,7 @@ CONTAINS
           RETURN
        ENDIF
     ENDDO
-    CALL stop_program(routineN,moduleN,__LINE__,&
-                      "Maximum number of iterations exceeded")
+    CPABORT("Maximum number of iterations exceeded")
 
   END FUNCTION exp_radius
 
@@ -806,8 +800,7 @@ CONTAINS
     REAL(dp) :: mat_aux(ncoset(lmax1),nsoset(lmax2),n)
 
     IF (lmax1>3.or.lmax2>3) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "l>3 not implemented")
+       CPABORT("l>3 not implemented")
     END IF
     DO idx_l2=1,nsoset(lmax2)
 
@@ -990,8 +983,7 @@ CONTAINS
     REAL(dp) :: mat_aux(nsoset(lmax1),ncoset(lmax2),n)
 
     IF ((lmax1 > 3).OR.(lmax2 > 3)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "l > 3 not implemented")
+       CPABORT("l > 3 not implemented")
     END IF
 
     DO idx_l2=1,ncoset(lmax2)

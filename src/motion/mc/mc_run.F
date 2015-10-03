@@ -71,8 +71,7 @@ MODULE mc_run
                                              delete_rng_stream,&
                                              rng_stream_type
   USE physcon,                         ONLY: angstrom
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "../../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -271,8 +270,7 @@ CONTAINS
       DO ibox=1,nboxes
          IF(nunits_tot(ibox) == 0) THEN
             IF(lskip_box) THEN
-               CALL stop_program(routineN,moduleN,__LINE__,&
-                                 'More than one box has no atoms in it!')
+               CPABORT('More than one box has no atoms in it!')
             END IF
             box_number=ibox
             lskip_box=.TRUE.
@@ -295,8 +293,7 @@ CONTAINS
          IF(iw>0) WRITE (iw,'( A,T73,F8.4 )') &
             ' MC| Interaction cutoff [angstroms]',rcut*angstrom
          IF(lterminate) THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              'Cutoff larger than twice the boxlength')
+            CPABORT('Cutoff larger than twice the boxlength')
          ENDIF
       ENDIF
 

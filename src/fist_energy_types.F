@@ -13,8 +13,7 @@ MODULE fist_energy_types
   
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -80,9 +79,9 @@ CONTAINS
     IF (ASSOCIATED(fist_energy)) THEN
       DEALLOCATE (fist_energy)
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The fist_energy pointer is not associated "//&
-                        "and cannot be deallocated.")
+      CALL cp_abort(__LOCATION__,&
+           "The fist_energy pointer is not associated "//&
+           "and cannot be deallocated.")
     END IF
 
   END SUBROUTINE deallocate_fist_energy
@@ -111,9 +110,9 @@ CONTAINS
       fist_energy%kin_shell = 0.0_dp
       fist_energy%harm_shell = 0.0_dp
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The fist_energy pointer is not associated "//&
-                        "and cannot be initialised.")
+      CALL cp_abort(__LOCATION__,&
+           "The fist_energy pointer is not associated "//&
+           "and cannot be initialised.")
     END IF
 
   END SUBROUTINE init_fist_energy

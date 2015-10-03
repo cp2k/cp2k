@@ -51,7 +51,6 @@ MODULE reftraj_util
   USE reftraj_types,                   ONLY: reftraj_msd_type,&
                                              reftraj_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE util,                            ONLY: get_limit
 #include "../common/cp_common_uses.f90"
 
@@ -306,11 +305,9 @@ CONTAINS
 
     RETURN
 998 CONTINUE ! end of file
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "End of reference positions file reached")
+    CPABORT("End of reference positions file reached")
 999 CONTINUE ! error
-    CALL stop_program(routineN,moduleN,__LINE__,&
-         "Error reading reference positions file")
+    CPABORT("Error reading reference positions file")
 
   END SUBROUTINE initialize_msd_reftraj
 

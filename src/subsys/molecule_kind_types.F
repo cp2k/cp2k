@@ -38,7 +38,6 @@ MODULE molecule_kind_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -493,8 +492,7 @@ CONTAINS
 
       DEALLOCATE (molecule_kind_set)
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-           "The pointer molecule_kind_set is not associated and cannot be deallocated")
+      CPABORT("The pointer molecule_kind_set is not associated and cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_molecule_kind_set
@@ -707,8 +705,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer molecule_kind is not associated")
+      CPABORT("The pointer molecule_kind is not associated")
 
     END IF
 
@@ -802,8 +799,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer molecule_kind_set is not associated")
+      CPABORT("The pointer molecule_kind_set is not associated")
 
     END IF
 
@@ -994,8 +990,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer molecule_kind is not associated")
+      CPABORT("The pointer molecule_kind is not associated")
 
     END IF
 

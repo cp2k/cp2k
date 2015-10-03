@@ -170,8 +170,7 @@ SUBROUTINE cp2k_sgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
   CALL lapack_sgesvd( jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
         uvec, ldu, vtvec, ldvt, work, lwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,&
-                       "Error in singular value decomposition.")
+     CPABORT("Error in singular value decomposition.")
   END IF
 
 END SUBROUTINE cp2k_sgesvd
@@ -208,8 +207,7 @@ SUBROUTINE cp2k_cgesvd ( matrix, svalues, mrow, ncol, uvec, vtvec )
   CALL lapack_cgesvd( jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
         uvec, ldu, vtvec, ldvt, work, lwork, rwork, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,&
-                       "Error in singular value decomposition.")
+     CPABORT("Error in singular value decomposition.")
   END IF
 
 END SUBROUTINE cp2k_cgesvd

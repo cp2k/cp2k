@@ -231,8 +231,7 @@ CONTAINS
             eps_localization=eps_localization, iterations=sweeps)
     CASE( do_loc_l1_norm_sd )
        IF(.NOT. cell%orthorhombic ) THEN
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                             "Non-orthorhombic cell with the selected method NYI")
+           CPABORT("Non-orthorhombic cell with the selected method NYI")
        ELSE
        CALL approx_l1_norm_sd(vectors,max_iter,eps_localization,converged,sweeps)
        ! here we need to set zij for the computation of the centers and spreads

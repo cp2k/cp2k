@@ -423,8 +423,7 @@ CONTAINS
        IF (PRESENT(ppddg)) ppddg = sep%pre
        IF (PRESENT(dpddg)) dpddg = sep%d
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer sep is not associated")
+       CPABORT("The pointer sep is not associated")
     END IF
 
   END SUBROUTINE get_se_param
@@ -526,8 +525,7 @@ CONTAINS
        IF (PRESENT(ppddg)) sep%pre = ppddg
        IF (PRESENT(dpddg)) sep%d = dpddg
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer sep is not associated")
+       CPABORT("The pointer sep is not associated")
     END IF
 
   END SUBROUTINE set_se_param

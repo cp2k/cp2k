@@ -21,7 +21,6 @@ MODULE mulliken
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -122,8 +121,7 @@ CONTAINS
                   row=iblock_row,col=iblock_col,BLOCK=ks_block,found=found)
 
              IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "Unexpected s / ks structure",para_env)
+                CPABORT("Unexpected s / ks structure")
              END IF
                 mult = 0.5_dp * charges_deriv(iblock_row,ispin) + &
                        0.5_dp * charges_deriv(iblock_col,ispin)

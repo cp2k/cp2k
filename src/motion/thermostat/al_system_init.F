@@ -21,7 +21,6 @@ MODULE al_system_init
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
 #include "../../common/cp_common_uses.f90"
 
@@ -128,7 +127,7 @@ CONTAINS
                   i_rep_val=my_index,r_val=al%nvt(i)%chi)
           END DO
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                'Number pf restartable stream not equal to the number of'//&
                ' total thermostats!')
        END IF
@@ -151,7 +150,7 @@ CONTAINS
                   i_rep_val=my_index,r_val=al%nvt(i)%mass)
           END DO
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                'Number pf restartable stream not equal to the number of'//&
                ' total thermostats!')
        END IF

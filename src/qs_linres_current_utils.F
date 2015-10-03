@@ -829,8 +829,7 @@ CONTAINS
     !
     ! for the moment selected states doesnt work with the preconditioner FULL_ALL
     IF(linres_control%preconditioner_type.EQ.ot_precond_full_all.AND.current_env%do_selected_states) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                           "Selected states doesnt work with the preconditioner FULL_ALL")
+         CPABORT("Selected states doesnt work with the preconditioner FULL_ALL")
     !
     !
     NULLIFY(current_env%selected_states_on_atom_list)
@@ -1032,8 +1031,7 @@ CONTAINS
           !
           DEALLOCATE(buff,rbuff)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Unknown orbital center, try again...")
+          CPABORT("Unknown orbital center, try again...")
        END SELECT
     ENDDO
     !

@@ -365,9 +365,9 @@ CONTAINS
 
     cell_deth = ABS(det_3x3(cell_hmat))
     IF (cell_deth < 1.0E-10_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "An invalid set of cell vectors was specified. "//&
-                         "The determinant det(h) is too small")
+       CALL cp_abort(__LOCATION__,&
+            "An invalid set of cell vectors was specified. "//&
+            "The determinant det(h) is too small")
     END IF
     cell_h_inv = inv_3x3(cell_hmat)
 
@@ -441,8 +441,7 @@ CONTAINS
        CALL set_pw_grid_info ( pw_grid, npts=n, cutoff=cutoff, &
             spherical=my_spherical)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "BOUNDS, NPTS or CUTOFF have to be specified")
+       CPABORT("BOUNDS, NPTS or CUTOFF have to be specified")
     END IF
 
     CALL pw_grid_setup_internal (cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local=bounds_local, &
@@ -1456,8 +1455,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
        n_upperlimit = bounds ( 2, 3 )
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "No type set for the grid")
+       CPABORT("No type set for the grid")
     END IF
 
     ! finds valid g-points within grid
@@ -1470,8 +1468,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
        nlim = get_limit ( n, pw_grid % para % group_size, pw_grid % para % my_pos )
        nlim = nlim + bounds ( 1, 3 ) - 1
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "para % mode not specified")
+       CPABORT("para % mode not specified")
     END IF
 
     yz_mask = 0
@@ -1543,8 +1540,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     ELSE IF ( pw_grid % grid_span == FULLSPACE ) THEN
        n_upperlimit = bounds ( 2, 3 )
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "No type set for the grid")
+       CPABORT("No type set for the grid")
     END IF
 
     ! finds valid g-points within grid
@@ -1897,8 +1893,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
        IF ( pw_grid % spherical ) THEN
           IF ( .NOT. ALL ( pw_grid % g_hat ( 1:3, 1:ngr ) &
                == ref_grid % g_hat ( 1:3, 1:ngr ) ) ) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "G space sorting not compatible")
+             CPABORT("G space sorting not compatible")
           END IF
        ELSE
           ALLOCATE ( pw_grid%gidx(1:ngr))
@@ -1926,8 +1921,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
                 END DO
                 IF ( .NOT. g_found ) THEN
                    WRITE(*,"(A,I10,F20.10)") "G-vector", ig, pw_grid % gsq(ig)
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "G vector not found")
+                   CPABORT("G vector not found")
                 END IF
                 ip = ih - 1
                 DO ih = ip + 1, SIZE ( ref_grid % gsq  )
@@ -2204,9 +2198,9 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
 
     cell_deth = ABS(det_3x3(cell_hmat))
     IF (cell_deth < 1.0E-10_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "An invalid set of cell vectors was specified. "//&
-                         "The determinant det(h) is too small")
+       CALL cp_abort(__LOCATION__,&
+            "An invalid set of cell vectors was specified. "//&
+            "The determinant det(h) is too small")
     END IF
     cell_h_inv = inv_3x3(cell_hmat)
 

@@ -44,7 +44,6 @@ MODULE preconditioner
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -134,8 +133,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        CASE(ot_precond_full_kinetic,ot_precond_full_single_inverse)
           !supported
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "This precond with mixed precision is not supported yet")
+          CPABORT("This precond with mixed precision is not supported yet")
        END SELECT
     ENDIF
 
@@ -164,8 +162,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        ! these should be happy without an estimate for the homo energy
        ! preconditioning can  not depend on an absolute eigenvalue, only on eigenvalue differences
     CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The preconditioner is unknown ...")
+          CPABORT("The preconditioner is unknown ...")
     END SELECT
 
     energy_homo=0.0_dp
@@ -189,8 +186,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        IF (k>0) energy_homo=eigenvalues_ot(k)
     ELSE
        IF (needs_homo) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Not yet implemented")
+          CPABORT("Not yet implemented")
        ENDIF
     ENDIF
 

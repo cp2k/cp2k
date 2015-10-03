@@ -1333,12 +1333,10 @@ CONTAINS
 ! add to one box, subtract from the other
       IF(old_cell_length(1,1)*old_cell_length(2,1)*&
          old_cell_length(3,1)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-         'GE_volume moves are trying to make box 1 smaller than 3')
+         CPABORT('GE_volume moves are trying to make box 1 smaller than 3')
       IF(old_cell_length(1,2)*old_cell_length(2,2)*&
          old_cell_length(3,2)+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-         'GE_volume moves are trying to make box 2 smaller than 3')
+         CPABORT('GE_volume moves are trying to make box 2 smaller than 3')
 
       DO iside=1,3
          new_cell_length(iside,1)=(old_cell_length(1,1)**3+&

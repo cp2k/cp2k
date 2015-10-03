@@ -69,7 +69,6 @@ MODULE qs_integrate_potential_product
   USE task_list_methods,               ONLY: int2pair,&
                                              rs_distribute_matrix
   USE task_list_types,                 ONLY: task_list_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -563,8 +562,7 @@ CONTAINS
           IF (debug_this_module) THEN
 !$omp critical (block_touched_critical)
             IF ((block_touched(brow,bcol).NE.ithread) .AND. (block_touched(brow,bcol).NE. -1) ) THEN
-              CALL stop_program(routineN,moduleN,__LINE__,&
-                                "Block has been modified by another thread")
+              CPABORT("Block has been modified by another thread")
             END IF
             block_touched(brow,bcol) = ithread
 !$omp end critical (block_touched_critical)

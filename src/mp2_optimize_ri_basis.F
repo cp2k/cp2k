@@ -48,7 +48,6 @@ MODULE mp2_optimize_ri_basis
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -297,8 +296,7 @@ MODULE mp2_optimize_ri_basis
 
     ! check if the max angular momentum exceed the libint one
     IF(max_l_am>build_eri_size) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The angular momentum needed exceeds the value assumed when configuring libint.")
+      CPABORT("The angular momentum needed exceeds the value assumed when configuring libint.")
     END IF
 
     ! Allocate stuff

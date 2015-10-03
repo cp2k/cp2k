@@ -53,8 +53,7 @@ MODULE mc_types
                                              joule
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../../common/cp_common_uses.f90"
@@ -1054,7 +1053,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             'Could not find &END after &GLOBAL (make sure & is in the same column) and last line is blank')
     ENDIF
 
@@ -1068,7 +1067,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name,mc_input_file%motion_row_start
        END IF
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             'Could not find &END after &MOTION (make sure & is in the same column) and last line is blank')
     ENDIF
 
@@ -1083,7 +1082,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             'Could not find &END after &COORD (make sure & is the first in the same column after &COORD)')
     ENDIF
 
@@ -1096,7 +1095,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             'Could not find RUN_TYPE in the input file (should be in the &GLOBAL section).')
     ENDIF
 
@@ -1123,7 +1122,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
           WRITE(iw,*)
           WRITE(iw,*) 'File name ',input_file_name
        END IF
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             'Could not find &CELL section in the input file.  Or could not find the ABC line after it.')
     ENDIF
 
@@ -1150,7 +1149,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
              WRITE(iw,*) 'Number of molecule types ',nmol_types
              WRITE(iw,*) '&MOLECULE sections found ',irep
           END IF
-          CALL stop_program(routineN,moduleN,__LINE__,&
+          CALL cp_abort(__LOCATION__,&
                'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
        ENDIF
     ENDIF
@@ -1167,8 +1166,7 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
     CASE("QS","QUICKSTEP")
        mc_input_file%in_use=use_qs_force
     CASE default
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'Cannot determine the type of force_env we are using (check METHOD)')
+       CPABORT('Cannot determine the type of force_env we are using (check METHOD)')
     END SELECT
 
   END SUBROUTINE mc_input_file_create
@@ -1396,8 +1394,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_i_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'AVBMC_ATOM must have as many values as there are molecule types.')
+            CPABORT('AVBMC_ATOM must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_i_array)
@@ -1443,8 +1440,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"AVBMC%AVBMC_RMIN",r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'AVBMC_RMIN must have as many values as there are molecule types.')
+            CPABORT('AVBMC_RMIN must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1453,8 +1449,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"AVBMC%AVBMC_RMAX",r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'AVBMC_RMAXL must have as many values as there are molecule types.')
+            CPABORT('AVBMC_RMAXL must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1463,8 +1458,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"AVBMC%PBIAS",r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'PBIAS must have as many values as there are molecule types.')
+            CPABORT('PBIAS must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1474,8 +1468,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'PMAVBMC_MOL must have as many values as there are molecule types.')
+            CPABORT('PMAVBMC_MOL must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1484,8 +1477,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CALL section_vals_val_get(mc_section,"ETA",r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'ETA must have as many values as there are molecule types.')
+            CPABORT('ETA must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1495,8 +1487,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'RMBOND must have as many values as there are molecule types.')
+            CPABORT('RMBOND must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1506,8 +1497,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'RMANGLE must have as many values as there are molecule types.')
+            CPABORT('RMANGLE must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1517,8 +1507,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'RMDIHEDRAL must have as many values as there are molecule types.')
+            CPABORT('RMDIHEDRAL must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1528,8 +1517,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'RMROT must have as many values as there are molecule types.')
+            CPABORT('RMROT must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1539,8 +1527,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'RMTRANS must have as many values as there are molecule types.')
+            CPABORT('RMTRANS must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1551,8 +1538,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'PMTRAION_MOL must have as many values as there are molecule types.')
+            CPABORT('PMTRAION_MOL must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1563,8 +1549,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'PMTRANS_MOL must have as many values as there are molecule types.')
+            CPABORT('PMTRANS_MOL must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1575,8 +1560,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'PMROT_MOL must have as many values as there are molecule types.')
+            CPABORT('PMROT_MOL must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -1587,8 +1571,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
            r_vals=temp_r_array)
       IF( .NOT. mc_par%lhmc)THEN
          IF(SIZE(temp_r_array) .NE. nmol_types)THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                 'PMSWAP_MOL must have as many values as there are molecule types.')
+            CPABORT('PMSWAP_MOL must have as many values as there are molecule types.')
          ENDIF
       ENDIF
       DO imol=1,SIZE(temp_r_array)
@@ -2155,24 +2138,19 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 ! the final value of these arrays needs to be 1.0, otherwise there is
 ! a chance we won't select a molecule type for a move
     IF(mc_par%pmavbmc_mol(nmol_types) .LT. 0.9999E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMAVBMC_MOL needs to be 1.0')
+       CPABORT('The last value of PMAVBMC_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmswap_mol(nmol_types) .LT. 0.9999E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMSWAP_MOL needs to be 1.0')
+       CPABORT('The last value of PMSWAP_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmtraion_mol(nmol_types) .LT. 0.9999E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMTRAION_MOL needs to be 1.0')
+       CPABORT('The last value of PMTRAION_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmtrans_mol(nmol_types) .LT. 0.9999E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMTRANS_MOL needs to be 1.0')
+       CPABORT('The last value of PMTRANS_MOL needs to be 1.0')
     ENDIF
     IF(mc_par%pmrot_mol(nmol_types) .LT. 0.9999E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMROT_MOL needs to be 1.0')
+       CPABORT('The last value of PMROT_MOL needs to be 1.0')
     ENDIF
 
 ! check to make sure we have all the desired values for various
@@ -2181,31 +2159,25 @@ SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
     SELECT CASE(mc_par%ensemble)
     CASE("GEMC_NPT")
        IF(nmol_types .LE. 1) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-            'Cannot have GEMC-NPT simulation with only one molecule type')
+            CPABORT('Cannot have GEMC-NPT simulation with only one molecule type')
        IF(nboxes .LE. 1) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-            'Cannot have GEMC-NPT simulation with only one box')
+            CPABORT('Cannot have GEMC-NPT simulation with only one box')
     CASE("GEMC_NVT")
        IF(nboxes .LE. 1) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-            'Cannot have GEMC-NVT simulation with only one box')
+            CPABORT('Cannot have GEMC-NVT simulation with only one box')
     CASE("TRADITIONAL")
        IF(mc_par%pmswap .GT. 0.0E0_dp)&
-            CALL stop_program(routineN,moduleN,__LINE__,&
-            'You cannot do swap moves in a system with only one box')
+            CPABORT('You cannot do swap moves in a system with only one box')
     CASE("VIRIAL")
        IF(nchain_total .NE. 2)&
-            CALL stop_program(routineN,moduleN,__LINE__,&
-            'You need exactly two molecules in the box to compute the second virial.')
+            CPABORT('You need exactly two molecules in the box to compute the second virial.')
     END SELECT
 
 ! can't choose an AVBMC target atom number higher than the number
 ! of units in that molecule
     DO imol_type=1,nmol_types
        IF(mc_par%avbmc_atom(imol_type) .GT. nunits(imol_type)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               'Cannot have avbmc_atom higher than the number of atoms for that molecule type!')
+          CPABORT('Cannot have avbmc_atom higher than the number of atoms for that molecule type!')
        ENDIF
     ENDDO
 

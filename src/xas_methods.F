@@ -103,7 +103,6 @@ MODULE xas_methods
                                              scf_c_read_parameters,&
                                              scf_c_release,&
                                              scf_control_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: read_xas_control,&
@@ -291,8 +290,7 @@ CONTAINS
    !                         (xas_control%xas_method==xas_tp_xfh).OR.&
     !                        (xas_control%xas_method==xas_dscf)
     IF(nspins==1 .AND. transition_potential) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "XAS with TP method requires LSD calculations")
+       CPABORT("XAS with TP method requires LSD calculations")
     END IF
 
 !   Set of states among which there is the state to be excited
@@ -938,8 +936,7 @@ CONTAINS
       nq(1) = 2
       lq(1) = 1
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "XAS type of state not implemented")
+      CPABORT("XAS type of state not implemented")
     END IF
 
 
@@ -1702,8 +1699,7 @@ CONTAINS
          "MO index", state_of_atom(iat)
       END IF
       IF(state_of_atom(iat)==0 .OR. state_of_atom(iat) .GT. homo) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-        "A wrong state has been selected for excitation, check the Wannier centers")
+        CPABORT("A wrong state has been selected for excitation, check the Wannier centers")
       END IF
     END DO
 

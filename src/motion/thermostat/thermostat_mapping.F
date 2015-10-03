@@ -309,8 +309,7 @@ CONTAINS
           CPASSERT(.FALSE.)
        END IF
        IF (nglob_cns/=0) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Molecular thermostats with global constraints are impossible!")
+          CPABORT("Molecular thermostats with global constraints are impossible!")
        END IF
     ELSE IF ( region==do_region_massive) THEN
        ! Massive Region
@@ -329,8 +328,7 @@ CONTAINS
                 last_atom  = last_shell
              ELSE
                 IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "Massive thermostats with constraints are impossible!")
+                   CPABORT("Massive thermostats with constraints are impossible!")
                 END IF
              END IF
              k = 0
@@ -367,8 +365,7 @@ CONTAINS
                END DO
              END IF
              IF ( first_atom + k -1 /= last_atom ) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "Inconsistent mapping of particles")
+                CPABORT("Inconsistent mapping of particles")
              END IF
           END DO
        END DO
@@ -721,8 +718,8 @@ CONTAINS
           END DO
        END DO
        IF (nglob_cns/=0) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "User Defined thermostats with global constraints not implemented!")
+          CALL cp_abort(__LOCATION__,&
+               "User Defined thermostats with global constraints not implemented!")
        END IF
     ELSE IF ( region==do_region_molecule) THEN
        ! Molecular Region
@@ -762,8 +759,7 @@ CONTAINS
           CPASSERT(.FALSE.)
        END IF
        IF (nglob_cns/=0) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Molecular thermostats with global constraints are impossible!")
+          CPABORT("Molecular thermostats with global constraints are impossible!")
        END IF
     ELSE IF ( region==do_region_massive) THEN
        ! Massive Region
@@ -782,8 +778,7 @@ CONTAINS
                 last_atom  = last_shell
              ELSE
                 IF ((tot_const(icount)>0).OR.(nglob_cns/=0)) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "Massive thermostats with constraints are impossible!")
+                   CPABORT("Massive thermostats with constraints are impossible!")
                 END IF
              END IF
              k = 0
@@ -800,8 +795,7 @@ CONTAINS
                 END DO
              END DO
              IF ( first_atom + k -1 /= last_atom ) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "Inconsistent mapping of particles")
+                CPABORT("Inconsistent mapping of particles")
              END IF
           END DO
        END DO
@@ -978,7 +972,7 @@ CONTAINS
                                DO j = 2, SIZE(colv_list(i)%i_atoms)
                                   jatm = atm_offset + colv_list(i)%i_atoms(j)
                                   IF (map_loc_thermo_gen(iatm)/=map_loc_thermo_gen(jatm)) THEN
-                                     CALL stop_program(routineN,moduleN,__LINE__,&
+                                     CALL cp_abort(__LOCATION__,&
                                           "User Defined Region: "//&
                                           "A constraint (COLV) was defined between two thermostatting regions! "//&
                                           "This is not allowed!")
@@ -995,14 +989,14 @@ CONTAINS
                                iatm = atm_offset + g3x3_list(i)%a
                                jatm = atm_offset + g3x3_list(i)%b
                                IF (map_loc_thermo_gen(iatm)/=map_loc_thermo_gen(jatm)) THEN
-                                  CALL stop_program(routineN,moduleN,__LINE__,&
+                                  CALL cp_abort(__LOCATION__,&
                                        "User Defined Region: "//&
                                        "A constraint (G3X3) was defined between two thermostatting regions! "//&
                                        "This is not allowed!")
                                END IF
                                jatm = atm_offset + g3x3_list(i)%c
                                IF (map_loc_thermo_gen(iatm)/=map_loc_thermo_gen(jatm)) THEN
-                                  CALL stop_program(routineN,moduleN,__LINE__,&
+                                  CALL cp_abort(__LOCATION__,&
                                        "User Defined Region: "//&
                                        "A constraint (G3X3) was defined between two thermostatting regions! "//&
                                        "This is not allowed!")
@@ -1018,21 +1012,21 @@ CONTAINS
                                iatm = atm_offset + g4x6_list(i)%a
                                jatm = atm_offset + g4x6_list(i)%b
                                IF (map_loc_thermo_gen(iatm)/=map_loc_thermo_gen(jatm)) THEN
-                                  CALL stop_program(routineN,moduleN,__LINE__,&
+                                  CALL cp_abort(__LOCATION__,&
                                        " User Defined Region: "//&
                                        "A constraint (G4X6) was defined between two thermostatting regions! "//&
                                        "This is not allowed!")
                                END IF
                                jatm = atm_offset + g4x6_list(i)%c
                                IF (map_loc_thermo_gen(iatm)/=map_loc_thermo_gen(jatm)) THEN
-                                  CALL stop_program(routineN,moduleN,__LINE__,&
+                                  CALL cp_abort(__LOCATION__,&
                                        " User Defined Region: "//&
                                        "A constraint (G4X6) was defined between two thermostatting regions! "//&
                                        "This is not allowed!")
                                END IF
                                jatm = atm_offset + g4x6_list(i)%d
                                IF (map_loc_thermo_gen(iatm)/=map_loc_thermo_gen(jatm)) THEN
-                                  CALL stop_program(routineN,moduleN,__LINE__,&
+                                  CALL cp_abort(__LOCATION__,&
                                        " User Defined Region: "//&
                                        "A constraint (G4X6) was defined between two thermostatting regions! "//&
                                        "This is not allowed!")

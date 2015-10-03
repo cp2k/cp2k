@@ -35,7 +35,6 @@ MODULE semi_empirical_utils
                                              rm1_default_parameter
   USE semi_empirical_types,            ONLY: se_taper_type,&
                                              semi_empirical_type
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -274,8 +273,7 @@ CONTAINS
        DEALLOCATE (zet)
        DEALLOCATE (symbol)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer sep is not associated")
+       CPABORT("The pointer sep is not associated")
     END IF
 
   END SUBROUTINE init_se_param
@@ -296,8 +294,7 @@ CONTAINS
 
     IF (ASSOCIATED(sep)) THEN
        IF (z<0) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Atomic number < 0")
+          CPABORT("Atomic number < 0")
        END IF
        SELECT CASE (method)
        CASE (do_method_am1)
@@ -319,12 +316,10 @@ CONTAINS
        CASE (do_method_pchg)
           CALL pcharge_default_parameter(sep,z)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Semiempirical method unknown")
+          CPABORT("Semiempirical method unknown")
        END SELECT
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer sep is not associated")
+       CPABORT("The pointer sep is not associated")
     END IF
 
     ! Check if the element has been defined..

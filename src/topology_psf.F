@@ -132,12 +132,10 @@ CONTAINS
             psf_format = '(I10,T12,A7,T21,I8,T30,A7,T39,A6,T47,A6,T53,F10.6,T69,F8.3,T88,I1)'
             c_int      = 'I10'
           ELSE
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "PSF_INFO| "//field(1:3)//" :: not available for UPSF format!")
+            CPABORT("PSF_INFO| "//field(1:3)//" :: not available for UPSF format!")
           ENDIF
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "PSF_INFO| "//field(1:3)//" :: Unimplemented keyword in CP2K PSF/UPSF format!")
+          CPABORT("PSF_INFO| "//field(1:3)//" :: Unimplemented keyword in CP2K PSF/UPSF format!")
        END SELECT
     END DO
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NATOM section'

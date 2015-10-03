@@ -51,7 +51,6 @@ MODULE qs_rho_methods
                                              qs_rho_set,&
                                              qs_rho_type
   USE task_list_types,                 ONLY: task_list_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -446,8 +445,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, local_rho_set, task_list_extern
     ! if needed compute also the kinetic energy density
     IF (dft_control%use_kinetic_energy_density) THEN
        IF(dft_control%qs_control%lrigpw) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-           "LRIGPW not implemented for meta-GGAs")
+          CPABORT("LRIGPW not implemented for meta-GGAs")
        ENDIF
        CALL qs_rho_get(rho_struct, rho_ao_kp=rho_ao_kp)
        DO ispin=1,nspins

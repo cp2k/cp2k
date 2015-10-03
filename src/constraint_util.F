@@ -31,8 +31,7 @@ MODULE constraint_util
                                              local_g4x6_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 
@@ -603,8 +602,7 @@ CONTAINS
              v_shake ( i, i ) = vector_v ( i )
           END DO
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Not sufficient parameters")
+          CPABORT("Not sufficient parameters")
        END IF
     CASE ( 'RATTLE' )
        IF ( PRESENT ( u ) .AND. PRESENT ( vector_v ) ) THEN
@@ -617,8 +615,7 @@ CONTAINS
              v_shake ( i, i ) = vector_v ( i )
           END DO
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Not sufficient parameters")
+          CPABORT("Not sufficient parameters")
        END IF
     END SELECT
 

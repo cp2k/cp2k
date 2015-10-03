@@ -18,7 +18,6 @@ MODULE periodic_table
 
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -100,8 +99,7 @@ CONTAINS
       found = (ielem_found > 0)
     ELSE
       IF (ielem_found < 0) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Unknown element symbol <"//TRIM(symbol)//"> found.")
+        CPABORT("Unknown element symbol <"//TRIM(symbol)//"> found.")
       END IF
     END IF
 

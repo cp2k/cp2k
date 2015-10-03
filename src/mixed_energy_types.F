@@ -11,7 +11,6 @@ MODULE mixed_energy_types
 
   
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -89,9 +88,9 @@ CONTAINS
     IF (ASSOCIATED(mixed_energy)) THEN
       mixed_energy%pot = 0.0_dp
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The mixed_energy pointer is not associated "//&
-                        "and cannot be initialised")
+      CALL cp_abort(__LOCATION__,&
+           "The mixed_energy pointer is not associated "//&
+           "and cannot be initialised")
     END IF
   END SUBROUTINE init_mixed_energy
 

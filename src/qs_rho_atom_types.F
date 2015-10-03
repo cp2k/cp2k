@@ -8,8 +8,7 @@ MODULE qs_rho_atom_types
   
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -235,9 +234,9 @@ MODULE qs_rho_atom_types
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer rho_atom_set is not associated and "//&
-                        "cannot be deallocated")
+      CALL cp_abort(__LOCATION__,&
+           "The pointer rho_atom_set is not associated and "//&
+           "cannot be deallocated")
 
     END IF
 
@@ -297,8 +296,7 @@ MODULE qs_rho_atom_types
       IF (PRESENT(ga_Vlocal_gb_h)) ga_Vlocal_gb_h => rho_atom%ga_Vlocal_gb_h
       IF (PRESENT(ga_Vlocal_gb_s)) ga_Vlocal_gb_s => rho_atom%ga_Vlocal_gb_s
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer rho_atom is not associated")
+      CPABORT("The pointer rho_atom is not associated")
     END IF
 
   END SUBROUTINE  get_rho_atom

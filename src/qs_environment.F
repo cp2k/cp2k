@@ -176,7 +176,6 @@ MODULE qs_environment
   USE semi_empirical_types,            ONLY: se_taper_create,&
                                              se_taper_type
   USE semi_empirical_utils,            ONLY: se_cutoff_compatible
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE transport,                       ONLY: transport_env_create
@@ -617,9 +616,7 @@ CONTAINS
          (dft_control%qs_control%method == "GAPW_XC") .OR. &
          (dft_control%qs_control%method == "OFGPW") ) THEN
        IF( all_potential_present ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "all-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ",&
-               para_env)
+          CPABORT("all-el calculations with GPW, GAPW_XC, and OFGPW are not implemented ")
        END IF
     END IF
 
@@ -956,14 +953,12 @@ CONTAINS
     multiplicity = dft_control%multiplicity
 
     IF ((dft_control%nspins < 1).OR.(dft_control%nspins > 2)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "nspins should be 1 or 2 for the time being ...",para_env)
+       CPABORT("nspins should be 1 or 2 for the time being ...")
     END IF
 
     IF ((MODULO(nelectron,2) /= 0).AND.(dft_control%nspins == 1)) THEN
        IF ( .NOT. dft_control%qs_control%ofgpw .AND.  .NOT. dft_control%smear) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Use the LSD option for an odd number of electrons",para_env)
+          CPABORT("Use the LSD option for an odd number of electrons")
        END IF
     END IF
 
@@ -971,8 +966,7 @@ CONTAINS
     ! The transition potential method to calculate XAS needs LSD
     IF (dft_control%do_xas_calculation) THEN
        IF (dft_control%nspins == 1) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-               "Use the LSD option for XAS with transition potential",para_env)
+          CPABORT("Use the LSD option for XAS with transition potential")
        END IF
     END IF
 
@@ -993,14 +987,12 @@ CONTAINS
           n_mo(2) = 0
        ELSE
           IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: try to use a different multiplicity",para_env)
+             CPABORT("LSD: try to use a different multiplicity")
           END IF
           nelectron_spin(1) = (nelectron + multiplicity - 1)/2
           nelectron_spin(2) = (nelectron - multiplicity + 1)/2
           IF (nelectron_spin(1) < 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: too few electrons for this multiplicity",para_env)
+             CPABORT("LSD: too few electrons for this multiplicity")
           END IF
           maxocc=MAXVAL(nelectron_spin)
           n_mo(1) = MIN(nelectron_spin(1),1)
@@ -1025,16 +1017,14 @@ CONTAINS
           ! The simplist spin distribution is written here. Special cases will
           ! need additional user input
           IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: try to use a different multiplicity",para_env)
+             CPABORT("LSD: try to use a different multiplicity")
           END IF
 
           nelectron_spin(1) = (nelectron + multiplicity - 1)/2
           nelectron_spin(2) = (nelectron - multiplicity + 1)/2
 
           IF (nelectron_spin(2) < 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "LSD: too few electrons for this multiplicity",para_env)
+             CPABORT("LSD: too few electrons for this multiplicity")
           END IF
 
           n_mo(1) = nelectron_spin(1)
@@ -1078,8 +1068,7 @@ CONTAINS
 
     IF (scf_control%smear%do_smear) THEN
       IF (scf_control%added_mos(1) == 0) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Extra MOs (ADDED_MOS) are required for smearing",para_env)
+        CPABORT("Extra MOs (ADDED_MOS) are required for smearing")
       END IF
     END IF
 
@@ -1099,9 +1088,9 @@ CONTAINS
           CPWARN("General ROKS scheme is not yet tested!")
 
        IF (scf_control%smear%do_smear) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                           "The options ROKS and SMEAR are not compatible. "//&
-                           "Try UKS instead of ROKS",para_env)
+         CALL cp_abort(__LOCATION__,&
+              "The options ROKS and SMEAR are not compatible. "//&
+              "Try UKS instead of ROKS")
        END IF
     END IF
 

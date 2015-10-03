@@ -89,8 +89,7 @@ MODULE environment
                                              integer_to_string,&
                                              string_to_ascii
   USE termination,                     ONLY: set_error_unit,&
-                                             stop_memory,&
-                                             stop_program
+                                             stop_memory
   USE timings,                         ONLY: add_timer_env,&
                                              rm_timer_env,&
                                              timeset,&
@@ -579,8 +578,7 @@ CONTAINS
     CASE(do_diag_elpa)
        globenv%diag_library="ELPA" 
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Unknown DIAG type",para_env)
+       CPABORT("Unknown DIAG type")
     END SELECT
 
     SELECT CASE(i_fft)
@@ -590,8 +588,7 @@ CONTAINS
        globenv%default_fft_library="FFTW3"
        CALL cite_reference(Frigo2005)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Unknown FFT type",para_env)
+       CPABORT("Unknown FFT type")
     END SELECT
 
     IF (globenv%run_type_id == 0) THEN
@@ -618,13 +615,11 @@ CONTAINS
     END IF
 
     IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "FARMING program supports only NONE as run type",para_env)
+       CPABORT("FARMING program supports only NONE as run type")
     ENDIF
 
     IF (globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "TEST program supports only NONE as run type",para_env)
+       CPABORT("TEST program supports only NONE as run type")
 
     CALL m_memory_details(MemTotal,MemFree,Buffers,Cached,Slab,SReclaimable,MemLikelyFree)
     MemTotal_avr=MemTotal
@@ -772,8 +767,7 @@ CONTAINS
        CASE(debug_print_level)
          print_level_string=" DEBUG"
        CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                           "Unknown print_level",para_env)
+         CPABORT("Unknown print_level")
        END SELECT
 
        WRITE (UNIT=output_unit,FMT="(T2,A,T75,A6)")&
@@ -932,8 +926,7 @@ CONTAINS
 
           CALL fft3d(1,n,zz,status=stat)
           IF (stat /= 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "FFTSG not functional....",para_env)
+             CPABORT("FFTSG not functional....")
           ENDIF
 
        ENDIF

@@ -412,27 +412,23 @@ __LOCATION__,&
              CALL section_vals_val_get(tmp_section,"RHO_MIN",&
                                        r_val=dft_control%sccs_control%rho_min)
              IF (dft_control%sccs_control%rho_max < dft_control%sccs_control%rho_min) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "//&
-                                  "Please, check your input!",&
-                                  logger%para_env)
+                CALL cp_abort(__LOCATION__,&
+                     "The SCCS parameter RHO_MAX is smaller than RHO_MIN. "//&
+                     "Please, check your input!")
              END IF
           CASE (sccs_fattebert_gygi)
              tmp_section => section_vals_get_subs_vals(sccs_section,"FATTEBERT-GYGI")
              CALL section_vals_val_get(tmp_section,"BETA",&
                                        r_val=dft_control%sccs_control%beta)
              IF (dft_control%sccs_control%beta < 0.5_dp) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "A value smaller than 0.5 for the SCCS parameter beta "//&
-                                  "causes numerical problems. Please, check your input!",&
-                                  logger%para_env)
+                CALL cp_abort(__LOCATION__,&
+                     "A value smaller than 0.5 for the SCCS parameter beta "//&
+                     "causes numerical problems. Please, check your input!")
              END IF
              CALL section_vals_val_get(tmp_section,"RHO_ZERO",&
                                        r_val=dft_control%sccs_control%rho_zero)
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Invalid SCCS model specified. Please, check your input!",&
-                               logger%para_env)
+             CPABORT("Invalid SCCS model specified. Please, check your input!")
           END SELECT
           CALL cite_reference(Fattebert2002)
           CALL cite_reference(Andreussi2012)
@@ -515,8 +511,7 @@ __LOCATION__,&
     IF (multigrid_set) THEN
       ! Read the values from input
       IF (qs_control%commensurate_mgrids) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                           "Do not specify cutoffs for the commensurate grids (NYI)")
+         CPABORT("Do not specify cutoffs for the commensurate grids (NYI)")
       END IF
 
       CALL section_vals_val_get(mgrid_section,"MULTIGRID_CUTOFF",r_vals=cutofflist)
@@ -799,8 +794,7 @@ __LOCATION__,&
        END DO
        qs_control%mulliken_restraint_control%natoms = jj
        IF (qs_control%mulliken_restraint_control%natoms<1) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Need at least 1 atom to use mulliken contraints")
+            CPABORT("Need at least 1 atom to use mulliken contraints")
        ALLOCATE (qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
        jj = 0
        DO k = 1,n_rep
@@ -1235,9 +1229,7 @@ __LOCATION__,&
               "SCCS|  beta",dft_control%sccs_control%beta,&
               "SCCS|  rho_zero",dft_control%sccs_control%rho_zero
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Invalid SCCS model specified. Please, check your input!",&
-                               logger%para_env)
+             CPABORT("Invalid SCCS model specified. Please, check your input!")
           END SELECT
           SELECT CASE (dft_control%sccs_control%derivative_method)
           CASE (sccs_derivative_fft)
@@ -1253,10 +1245,9 @@ __LOCATION__,&
              WRITE (UNIT=output_unit,FMT="(T2,A,T46,A35)") "SCCS| Numerical derivative calculation",&
               ADJUSTR("7-point stencil central differences")
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Invalid derivative method specified for SCCS model. "//&
-                               "Please, check your input!",&
-                               logger%para_env)
+             CALL cp_abort(__LOCATION__,&
+                  "Invalid derivative method specified for SCCS model. "//&
+                  "Please, check your input!")
           END SELECT
           WRITE (UNIT=output_unit,FMT="(T2,A,T69,F12.3)")&
            "SCCS| Repulsion parameter alpha [mN/m] = [dyn/cm]",&
@@ -1682,14 +1673,12 @@ __LOCATION__,&
           DO  j = 1,SIZE(rtmplist)
              jj = jj+1
              IF (jj>ddapc_restraint_control%natoms) &
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "Need the same number of coeff as there are atoms ")
+                CPABORT("Need the same number of coeff as there are atoms ")
              ddapc_restraint_control%coeff (jj) = rtmplist(j)
           END DO
        END DO
        IF (jj<ddapc_restraint_control%natoms .AND. jj.NE.0) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Need no or the same number of coeff as there are atoms.")
+            CPABORT("Need no or the same number of coeff as there are atoms.")
     END DO
     k=0
     DO i=1,SIZE(qs_control%ddapc_restraint_control)
@@ -1761,14 +1750,12 @@ __LOCATION__,&
        DO  j = 1,SIZE(rtmplist)
           jj = jj+1
           IF (jj>qs_control%becke_control%natoms) &
-               CALL stop_program(routineN,moduleN,__LINE__,&
-                                 "Need the same number of coeff as there are atoms.")
+               CPABORT("Need the same number of coeff as there are atoms.")
           qs_control%becke_control%coeff (jj) = rtmplist(j)
        END DO
     END DO
     IF (jj < qs_control%becke_control%natoms .AND. jj.NE.0) &
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Need no or the same number of coeff as there are atoms.")
+       CPABORT("Need no or the same number of coeff as there are atoms.")
   END SUBROUTINE read_becke_section
 
 ! *****************************************************************************

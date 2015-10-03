@@ -403,8 +403,7 @@ CONTAINS
        IF ( (sum_of_thermostats == 1).AND.(map_info%dis_type /= do_thermo_no_communication)) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
           IF ( fac == 0.0_dp ) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Zero degrees of freedom. Nothing to thermalize!",para_env)
+             CPABORT("Zero degrees of freedom. Nothing to thermalize!")
           END IF
           gle%nvt(1)%nkt = simpar%temp_ext*fac
           gle%nvt(1)%degrees_of_freedom = FLOOR(fac)
@@ -491,9 +490,9 @@ CONTAINS
                     i_rep_val=ind,r_val=gle%nvt(i)%thermostat_energy)
             END DO
          ELSE
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Number of thermostat energies not equal to the number of "//&
-                              "total thermostats!")
+            CALL cp_abort(__LOCATION__,&
+                 "Number of thermostat energies not equal to the number of "//&
+                 "total thermostats!")
          END IF
        END IF
 
@@ -517,9 +516,9 @@ CONTAINS
                     rng_record=rng_record)
            END DO
          ELSE
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                             "Number pf restartable stream not equal to the number of "//&
-                             "total thermostats!")
+           CALL cp_abort(__LOCATION__,&
+                "Number pf restartable stream not equal to the number of "//&
+                "total thermostats!")
          END IF
        END IF
     END IF

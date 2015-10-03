@@ -51,7 +51,6 @@ MODULE fist_neighbor_lists
                                              give_ijk_subcell,&
                                              reorder_atoms_subcell,&
                                              subcell_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -623,8 +622,7 @@ CONTAINS
                               "; increase EMAX_SPLINE."
                          IF (rab2 < rab2_min/(1.06_dp)**2) THEN
                             IF (geo_check) THEN
-                               CALL stop_program(routineN,moduleN,__LINE__,&
-                                                 "GEOMETRY wrong or EMAX_SPLINE too small!")
+                               CPABORT("GEOMETRY wrong or EMAX_SPLINE too small!")
                             END IF
                          END IF
                       END IF

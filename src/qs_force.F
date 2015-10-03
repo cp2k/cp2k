@@ -73,8 +73,7 @@ MODULE qs_force
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -514,9 +513,9 @@ CONTAINS
     IF (output_unit>0) THEN
 
        IF (.NOT.ASSOCIATED(qs_force)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The qs_force pointer is not associated "//&
-                            "and cannot be printed")
+          CALL cp_abort(__LOCATION__,&
+               "The qs_force pointer is not associated "//&
+               "and cannot be printed")
        END IF
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&

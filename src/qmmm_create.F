@@ -68,7 +68,6 @@ MODULE qmmm_create
                                              qs_env_create,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -291,8 +290,7 @@ CONTAINS
 
     IF (qmmm_env_qm%image_charge) THEN
        IF(ANY(ABS(abc_mm-abc_qm) > 1.0E-12))&
-        CALL stop_program(routineN,moduleN,__LINE__,&
-        "QM and MM box need to have the same size when using image charges")
+        CPABORT("QM and MM box need to have the same size when using image charges")
     ENDIF
 
     ! Assign charges and mm_el_pot_radius from fist_topology

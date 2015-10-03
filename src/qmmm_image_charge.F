@@ -64,7 +64,6 @@ MODULE  qmmm_image_charge
                                              rs_grid_release,&
                                              rs_grid_retain,&
                                              rs_pw_transfer
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -1008,8 +1007,7 @@ CONTAINS
       IF (output_unit>0)  WRITE (UNIT=output_unit,FMT="(T3,A)")&
                              "Restarted image matrix"
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-           "Restart file for image matrix not found")
+      CPABORT("Restart file for image matrix not found")
     ENDIF
 
     qmmm_env%image_charge_pot%image_restart=.FALSE.

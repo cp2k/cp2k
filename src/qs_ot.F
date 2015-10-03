@@ -450,10 +450,10 @@ CONTAINS
        !
        ! blows up
        IF (norm > 1.0E10_dp) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Refinement blows up! "//&
-                            "We need you to improve the code, please post your input on "//&
-                            "the forum http://www.cp2k.org/")
+          CALL cp_abort(__LOCATION__,&
+               "Refinement blows up! "//&
+               "We need you to improve the code, please post your input on "//&
+               "the forum http://www.cp2k.org/")
        END IF
        !
        ! can we do a quick exit next step?

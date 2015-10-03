@@ -19,7 +19,6 @@ MODULE cell_types
   USE mathlib,                         ONLY: angle,&
                                              det_3x3,&
                                              inv_3x3
-  USE termination,                     ONLY: stop_program
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -366,9 +365,9 @@ CONTAINS
     cell%deth = ABS(det_3x3(cell%hmat))
 
     IF (cell%deth < 1.0E-10_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "An invalid set of cell vectors was specified. "//&
-                         "The determinant det(h) is too small")
+       CALL cp_abort(__LOCATION__,&
+            "An invalid set of cell vectors was specified. "//&
+            "The determinant det(h) is too small")
     END IF
     cell%h_inv = inv_3x3(cell%hmat)
 
@@ -460,8 +459,7 @@ CONTAINS
 
     dim = COUNT(cell%perd == 1)
     IF ((dim == 1).AND.(.NOT.cell%orthorhombic)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Non-orthorhombic and not periodic")
+       CPABORT("Non-orthorhombic and not periodic")
     END IF
 
   END SUBROUTINE init_cell

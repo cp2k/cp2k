@@ -58,7 +58,6 @@ MODULE pme
   USE structure_factors,               ONLY: structure_factor_allocate,&
                                              structure_factor_deallocate,&
                                              structure_factor_init
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -555,8 +554,7 @@ CONTAINS
     IF(PRESENT(is1_shell)) my_is1_shell = is1_shell
     IF(PRESENT(is2_shell)) my_is2_shell = is2_shell
     IF(my_is1_core .AND. my_is1_shell) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Shell-model: cannot be core and shell simultaneously")
+       CPABORT("Shell-model: cannot be core and shell simultaneously")
     END IF
 
     CALL dg_get ( dg, dg_rho0 = dg_rho0 )

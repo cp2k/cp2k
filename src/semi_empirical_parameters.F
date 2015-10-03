@@ -55,7 +55,6 @@ MODULE semi_empirical_parameters
                                              convert_param_to_cp2k,&
                                              valence_electrons
   USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -120,8 +119,7 @@ CONTAINS
 
     SELECT CASE (z)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "invalid atomic number")
+       CPABORT("invalid atomic number")
     CASE (0)
        sep%defined          = .TRUE.
     CASE (1)
@@ -719,8 +717,7 @@ CONTAINS
 
     SELECT CASE (z)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "invalid atomic number")
+       CPABORT("invalid atomic number")
     CASE (0)
        sep%defined          = .TRUE.
     CASE (1)
@@ -1045,8 +1042,7 @@ CONTAINS
 
     SELECT CASE (z)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "invalid atomic number")
+       CPABORT("invalid atomic number")
     CASE (0)
        sep%defined = .TRUE.
     CASE (1)
@@ -1528,8 +1524,7 @@ CONTAINS
 
     SELECT CASE (z)
       CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "invalid atomic number")
+        CPABORT("invalid atomic number")
       CASE (0)
         sep%defined = .TRUE.
       CASE (1)
@@ -1740,8 +1735,7 @@ CONTAINS
 
     SELECT CASE (z)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "invalid atomic number")
+       CPABORT("invalid atomic number")
     CASE (0)
        sep%defined = .TRUE.
     CASE (1)
@@ -2535,8 +2529,7 @@ CONTAINS
 
     SELECT CASE (z)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "invalid atomic number")
+       CPABORT("invalid atomic number")
     CASE (0)
        sep%defined = .TRUE.
     CASE(1)
@@ -3893,8 +3886,7 @@ CONTAINS
 
     SELECT CASE (z)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "invalid atomic number")
+       CPABORT("invalid atomic number")
     CASE (0)
        sep%defined = .TRUE.
     CASE (1)

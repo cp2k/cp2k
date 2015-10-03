@@ -27,8 +27,7 @@ MODULE orbital_pointers
 
   
   USE kinds,                           ONLY: int_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -84,15 +83,15 @@ CONTAINS
     INTEGER                                  :: iso, istat, l, lx, ly, lz, m
 
     IF (current_maxl > -1) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Orbital pointers are already allocated. "//&
-                        "Use the init routine for an update")
+      CALL cp_abort(__LOCATION__,&
+           "Orbital pointers are already allocated. "//&
+           "Use the init routine for an update")
     END IF
 
     IF (maxl < 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "A negative maximum angular momentum quantum "//&
-                        "number is invalid")
+      CALL cp_abort(__LOCATION__,&
+           "A negative maximum angular momentum quantum "//&
+           "number is invalid")
     END IF
 
 !   *** Number of Cartesian orbitals for each l ***
@@ -309,9 +308,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (maxl < 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "A negative maximum angular momentum quantum "//&
-                        "number is invalid")
+      CALL cp_abort(__LOCATION__,&
+           "A negative maximum angular momentum quantum "//&
+           "number is invalid")
     END IF
 
 !   *** Check, if the current initialization is sufficient ***

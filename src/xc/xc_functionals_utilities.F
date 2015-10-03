@@ -76,8 +76,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF ( ABS(order) > 3 ) &
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Order of derivative too high")
+       CPABORT("Order of derivative too high")
 
     SELECT CASE (tag)
     CASE ( 100 )          ! LDA
@@ -187,8 +186,7 @@ CONTAINS
     INTEGER                                  :: k
 
     IF (SIZE(rs) < SIZE(rho)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Size of array rs too small.")
+       CPABORT("Size of array rs too small.")
     END IF
 
 !$omp parallel do private(k) default(none) shared(rs,eps_rho,rho)

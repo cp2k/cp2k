@@ -72,7 +72,6 @@ MODULE force_fields_util
   USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE string_utilities,                ONLY: compress
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -398,8 +397,7 @@ CONTAINS
                " All missing parameters will not contribute to the potential energy!"
         END IF
       ELSE
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Missing critical ForceField parameters!")
+        CPABORT("Missing critical ForceField parameters!")
       END IF
     END IF
   END SUBROUTINE release_FF_missing_par

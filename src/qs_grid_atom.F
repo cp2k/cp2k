@@ -13,7 +13,6 @@ MODULE qs_grid_atom
   USE lebedev,                         ONLY: lebedev_grid
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -158,7 +157,7 @@ CONTAINS
 
        DEALLOCATE (grid_atom)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The pointer grid_atom is not associated and "//&
             "cannot be deallocated")
     END IF
@@ -263,8 +262,7 @@ CONTAINS
        END IF
 
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer grid_atom is not associated")
+       CPABORT("The pointer grid_atom is not associated")
     END IF
 
     CALL timestop(handle)
@@ -356,8 +354,7 @@ CONTAINS
 
     CASE DEFAULT
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Invalid radial quadrature type specified")
+       CPABORT("Invalid radial quadrature type specified")
 
     END SELECT
 

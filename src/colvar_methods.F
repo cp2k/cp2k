@@ -92,7 +92,6 @@ MODULE colvar_methods
                                              legendre
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
@@ -2980,13 +2979,11 @@ __LOCATION__)
              plm = legendre (costheta, l, m)
              dplm = dlegendre (costheta, l, m)
              IF ((l+m) > maxfac) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "(l-m) > maxfac")
+                CPABORT("(l-m) > maxfac")
              END IF
              bond  = 1.0_dp/(1.0_dp + EXP(alpha*(r_tmp - rcut)))
              IF (bond > 1.0_dp) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "bond > 1.0_dp")
+                CPABORT("bond > 1.0_dp")
              END IF
              pre_fac = bond*SQRT(((2*l+1)*fac(l-m))/(4*pi*fac(l+m)))
              IF (plm < 0.0_dp) THEN
@@ -3013,8 +3010,7 @@ __LOCATION__)
              fact = 1.0_dp
           ENDIF
           IF (nbond < 0.0001_dp) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "NBOND = 0.0")
+             CPABORT("NBOND = 0.0")
           END IF
           ylm = ylm/nbond
           grad(:) = grad(:)/nbond

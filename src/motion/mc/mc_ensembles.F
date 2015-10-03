@@ -257,12 +257,10 @@ CONTAINS
 
     ! this is a check we can't do in the input checking
     IF(pmvol_box(nboxes) .LT. 1.0E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMVOL_BOX needs to be 1.0')
+       CPABORT('The last value of PMVOL_BOX needs to be 1.0')
     ENDIF
     IF(pmhmc_box(nboxes) .LT. 1.0E0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The last value of PMHMC_BOX needs to be 1.0')
+       CPABORT('The last value of PMHMC_BOX needs to be 1.0')
     ENDIF
 
     ! allocate the particle positions array for broadcasting
@@ -436,8 +434,7 @@ CONTAINS
     ! that keeps track of which direction we can move in
     IF(ldiscrete) THEN
        IF(nboxes .NE. 1) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-            'ldiscrete=.true. ONLY for systems with 1 box')
+            CPABORT('ldiscrete=.true. ONLY for systems with 1 box')
        CALL create_discrete_array(abc(:,1),discrete_array(:,:),&
             discrete_step)
     ENDIF
@@ -977,8 +974,7 @@ CONTAINS
                      mol_type(start_mol:end_mol))
                 IF(loverlap) THEN
                    IF(iw>0) WRITE(iw,*) nnstep
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                        'coordinate overlap at the end of the above step')
+                   CPABORT('coordinate overlap at the end of the above step')
                 ! now fold the coordinates...don't do this anywhere but here, because
                 ! we can get screwed up with the mc_molecule_info stuff (like in swap move)...
                 ! this is kind of ugly, with allocated and deallocating every time
@@ -1267,15 +1263,13 @@ CONTAINS
 
     ! check and make sure the box is big enough
     IF(abc(1) .NE. abc(2) .OR. abc(2) .NE. abc(3)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'The box needs to be cubic for a virial calculation (it is easiest).')
+       CPABORT('The box needs to be cubic for a virial calculation (it is easiest).')
     END IF
     IF(virial_cutoffs(nintegral_divisions) .GT. abc(1)/2.0E0_dp) THEN
        IF (iw>0) &
             WRITE(iw,*) "Box length ",abc(1)*angstrom," virial cutoff ",&
             virial_cutoffs(nintegral_divisions)*angstrom
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            'You need a bigger box to deal with this virial cutoff (see above).')
+       CPABORT('You need a bigger box to deal with this virial cutoff (see above).')
     END IF
 
     ! store the coordinates of the molecules in an array so we can work with it

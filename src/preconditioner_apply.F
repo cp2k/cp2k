@@ -175,8 +175,7 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
     CALL timeset(routineN,handle)
 
     IF (.NOT.ASSOCIATED(preconditioner_env%dbcsr_matrix)) &
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
+       CPABORT("NOT ASSOCIATED preconditioner_env%dbcsr_matrix")
     CALL cp_dbcsr_multiply('N','N',1.0_dp,preconditioner_env%dbcsr_matrix,matrix_in,&
          0.0_dp,matrix_out)
 

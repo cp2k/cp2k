@@ -56,7 +56,6 @@ MODULE lebedev
 
   
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.f90"
@@ -176,13 +175,11 @@ CONTAINS
 !   *** Check argument values ***
 
     IF ((lgnum < 1).OR.(lgnum > nlg)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Argument value #2 (lgnum) is out of range")
+      CPABORT("Argument value #2 (lgnum) is out of range")
     END IF
 
     IF ((np < 0).OR.(np > max_np)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Argument value #3 (np) is out of range")
+      CPABORT("Argument value #3 (np) is out of range")
     END IF
 
     SELECT CASE (subsystem)
@@ -311,14 +308,13 @@ CONTAINS
                        z,-y,-x,-z, y,-x,-z,-y, x,-z,-y,-x/),(/3,nd/))
         END DO
       ELSE
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Subsytem D: np is not modulo 3 (check argument #3)")
+        CPABORT("Subsytem D: np is not modulo 3 (check argument #3)")
       END IF
       nlgp = nlgp + nd*np/3
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The invalid subsystem <"//TRIM(subsystem)//"> was "//&
-                        "specified (check argument #1)")
+      CALL cp_abort(__LOCATION__,&
+           "The invalid subsystem <"//TRIM(subsystem)//"> was "//&
+           "specified (check argument #1)")
     END SELECT
 
 !   *** Reinitialize working storage ***

@@ -63,7 +63,6 @@ MODULE qs_linres_atom_current
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
                                              alist_type,&
                                              get_alist
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -697,8 +696,7 @@ CONTAINS
           gauge_h(1:nr) = HUGE(0e0_dp)!0e0_dp
           gauge_s(1:nr) = HUGE(0e0_dp)!0e0_dp
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Unknown gauge, try again...")
+          CPABORT("Unknown gauge, try again...")
        END SELECT
        !
        !

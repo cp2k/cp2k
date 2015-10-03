@@ -40,7 +40,6 @@ MODULE qs_interactions
                                              get_qs_kind_set,&
                                              qs_kind_type
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -615,8 +614,7 @@ CONTAINS
     ELSE IF ( bas(1:3) == "LRI" ) THEN
       bas="LOCAL RI"
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Undefined basis set type")
+      CPABORT("Undefined basis set type")
     END IF
 
     nkind = SIZE(qs_kind_set)
@@ -652,8 +650,7 @@ CONTAINS
                                    kind_radius=kind_radius)
           END IF
         ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Undefined basis set type")
+          CPABORT("Undefined basis set type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T57,F12.6,T69,F12.6)")&
@@ -698,8 +695,7 @@ CONTAINS
                                    set_radius=set_radius)
           END IF
         ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Undefined basis set type")
+          CPABORT("Undefined basis set type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,(T63,I5,T69,F12.6))")&
@@ -746,8 +742,7 @@ CONTAINS
                                    pgf_radius=pgf_radius)
           END IF
         ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Undefined basis type")
+          CPABORT("Undefined basis type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set).OR. &
            ASSOCIATED(lri_basis_set)) THEN

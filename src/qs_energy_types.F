@@ -15,8 +15,7 @@ MODULE qs_energy_types
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -131,9 +130,9 @@ CONTAINS
       END IF
       DEALLOCATE (qs_energy)
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The qs_energy pointer is not associated "//&
-                        "and cannot be deallocated")
+      CALL cp_abort(__LOCATION__,&
+           "The qs_energy pointer is not associated "//&
+           "and cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_qs_energy
@@ -201,9 +200,9 @@ CONTAINS
       END IF
       qs_energy%ddapc_restraint(:) = 0.0_dp
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The qs_energy pointer is not associated "//&
-                        "and cannot be initialised")
+      CALL cp_abort(__LOCATION__,&
+           "The qs_energy pointer is not associated "//&
+           "and cannot be initialised")
     END IF
 
   END SUBROUTINE init_qs_energy

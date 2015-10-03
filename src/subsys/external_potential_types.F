@@ -380,8 +380,7 @@ CONTAINS
        DEALLOCATE (potential%elec_conf)
        DEALLOCATE (potential)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
     END IF
 
   END SUBROUTINE deallocate_all_potential
@@ -402,8 +401,7 @@ CONTAINS
        ! Nothing exciting here yet.
        DEALLOCATE (potential)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
     END IF
 
   END SUBROUTINE deallocate_fist_potential
@@ -434,8 +432,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
 
     END IF
 
@@ -494,8 +491,7 @@ CONTAINS
        DEALLOCATE (potential)
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
     END IF
 
   END SUBROUTINE deallocate_gth_potential
@@ -546,8 +542,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
 
     END IF
 
@@ -590,8 +585,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
 
     END IF
 
@@ -635,8 +629,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
 
     END IF
 
@@ -795,8 +788,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated.")
+       CPABORT("The pointer potential is not associated.")
 
     END IF
 
@@ -1193,13 +1185,13 @@ CONTAINS
           END IF
        ELSE
           ! Stop program, if the end of file is reached
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The requested atomic potential <"//&
-                            TRIM(potential_name)//&
-                            "> for element <"//&
-                            TRIM(symbol)//&
-                            "> was not found in the potential file <"//&
-                            TRIM(potential_file_name)//">")
+          CALL cp_abort(__LOCATION__,&
+               "The requested atomic potential <"//&
+               TRIM(potential_name)//&
+               "> for element <"//&
+               TRIM(symbol)//&
+               "> was not found in the potential file <"//&
+               TRIM(potential_file_name)//">")
        END IF
     END DO search_loop
 
@@ -1367,13 +1359,13 @@ CONTAINS
           END IF
        ELSE
           ! Stop program, if the end of file is reached
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The requested local atomic potential <"//&
-                            TRIM(potential_name)//&
-                            "> for element <"//&
-                            TRIM(symbol)//&
-                            "> was not found in the potential file <"//&
-                            TRIM(potential_file_name)//">")
+          CALL cp_abort(__LOCATION__,&
+               "The requested local atomic potential <"//&
+               TRIM(potential_name)//&
+               "> for element <"//&
+               TRIM(symbol)//&
+               "> was not found in the potential file <"//&
+               TRIM(potential_file_name)//">")
        END IF
     END DO search_loop
 
@@ -1598,8 +1590,7 @@ CONTAINS
                 line_att = ""
              ELSE
                 IF (LEN_TRIM(line_att)/= 0) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "Error reading the Potential from input file!!")
+                   CPABORT("Error reading the Potential from input file!!")
                 END IF
              END IF
              maxlppl = 2*(n - 1)
@@ -1856,11 +1847,11 @@ CONTAINS
                       WRITE(line_att(istr:),'(E24.16,1X,I0)')r, nprj_ppnl
                    END IF
                    IF (r==0.0_dp.AND.nprj_ppnl/=0) THEN
-                      CALL stop_program(routineN,moduleN,__LINE__,&
+                      CALL cp_abort(__LOCATION__,&
                            "An error was detected in the atomic potential <"//&
                            TRIM(potential_name)//&
                            "> potential file <"//&
-                           TRIM(potential_file_name)//">",para_env)
+                           TRIM(potential_file_name)//">")
                    END IF
                    potential%alpha_ppnl(l) = 0.0_dp
                    IF (r/=0.0_dp.AND.n/=0)  potential%alpha_ppnl(l) = 1.0_dp/(2.0_dp*r**2)
@@ -1920,8 +1911,7 @@ CONTAINS
                       line_att =""
                    ELSE
                       IF (LEN_TRIM(line_att) /= 0) THEN
-                         CALL stop_program(routineN,moduleN,__LINE__,&
-                                           "Error reading the Potential from input file!!")
+                         CPABORT("Error reading the Potential from input file!!")
                       END IF
                    END IF
                    IF (nprj_ppnl > 1) THEN
@@ -1950,13 +1940,13 @@ CONTAINS
           END IF
        ELSE
           ! Stop program, if the end of file is reached
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The requested atomic potential <"//&
-                            TRIM(potential_name)//&
-                            "> for element <"//&
-                            TRIM(symbol)//&
-                            "> was not found in the potential file <"//&
-                            TRIM(potential_file_name)//">",para_env)
+          CALL cp_abort(__LOCATION__,&
+               "The requested atomic potential <"//&
+               TRIM(potential_name)//&
+               "> for element <"//&
+               TRIM(symbol)//&
+               "> was not found in the potential file <"//&
+               TRIM(potential_file_name)//">")
        END IF
     END DO search_loop
 
@@ -2080,8 +2070,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated")
+       CPABORT("The pointer potential is not associated")
 
     END IF
 
@@ -2121,8 +2110,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated")
+       CPABORT("The pointer potential is not associated")
 
     END IF
 
@@ -2161,8 +2149,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated")
+       CPABORT("The pointer potential is not associated")
 
     END IF
 
@@ -2256,8 +2243,7 @@ CONTAINS
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "The pointer potential is not associated")
+       CPABORT("The pointer potential is not associated")
 
     END IF
 

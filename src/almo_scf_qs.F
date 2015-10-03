@@ -75,7 +75,6 @@ MODULE almo_scf_qs
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -1136,16 +1135,13 @@ CONTAINS
                       overlap=-LOG10(overlap)
                    ENDIF
                    IF ( s0.lt.0.0_dp ) THEN
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                              "S0 is less than zero")
+                      CPABORT("S0 is less than zero")
                    ENDIF
                    IF ( s1.le.0.0_dp ) THEN
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                              "S1 is less than or equal to zero")
+                      CPABORT("S1 is less than or equal to zero")
                    ENDIF
                    IF ( s0.ge.s1 ) THEN
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                              "S0 is greater than or equal to S1")
+                      CPABORT("S0 is greater than or equal to S1")
                    ENDIF
 
                    ! Fill in non-zero blocks if AOs are close to the electron center
@@ -1253,8 +1249,7 @@ CONTAINS
                       CALL get_atomic_kind(atomic_kind=particle_set(contact_atom_2)%atomic_kind,&
                               rvdw=contact2_radius)
                    ELSE
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                                        "Illegal quencher_radius_type")
+                      CPABORT("Illegal quencher_radius_type")
                    END IF
                    contact1_radius = cp_unit_to_cp2k(contact1_radius,"angstrom")
                    contact2_radius = cp_unit_to_cp2k(contact2_radius,"angstrom")
@@ -1269,16 +1264,13 @@ CONTAINS
                       !+almo_scf_env%quencher_r1_shift
                    
                    IF ( r0.lt.0.0_dp ) THEN
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                              "R0 is less than zero")
+                      CPABORT("R0 is less than zero")
                    ENDIF
                    IF ( r1.le.0.0_dp ) THEN
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                              "R1 is less than or equal to zero")
+                      CPABORT("R1 is less than or equal to zero")
                    ENDIF
                    IF ( r0.gt.r1 ) THEN
-                      CALL stop_program(routineN,moduleN,__LINE__,&
-                              "R0 is greater than or equal to R1")
+                      CPABORT("R0 is greater than or equal to R1")
                    ENDIF
                    
                    ! Fill in non-zero blocks if AOs are close to the electron center
@@ -1313,8 +1305,7 @@ CONTAINS
                    ENDIF
 
                 CASE DEFAULT
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Illegal constraint type")
+                   CPABORT("Illegal constraint type")
                 END SELECT
 
              ENDIF ! mynode

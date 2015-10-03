@@ -18,7 +18,6 @@ MODULE particle_types
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -108,9 +107,9 @@ CONTAINS
     IF (ASSOCIATED(particle_set)) THEN
       DEALLOCATE (particle_set)
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer particle_set is not associated and "//&
-                        "cannot be deallocated")
+      CALL cp_abort(__LOCATION__,&
+           "The pointer particle_set is not associated and "//&
+           "cannot be deallocated")
     END IF
 
   END SUBROUTINE deallocate_particle_set

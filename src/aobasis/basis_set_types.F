@@ -611,8 +611,7 @@ CONTAINS
        IF (PRESENT(npgf_sum)) npgf_sum = SUM(gto_basis_set%npgf)
        IF (PRESENT(nshell_sum)) nshell_sum = SUM(gto_basis_set%nshell)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer gto_basis_set is not associated")
+       CPABORT("The pointer gto_basis_set is not associated")
     END IF
 
   END SUBROUTINE get_gto_basis_set
@@ -649,8 +648,7 @@ CONTAINS
        ! WARNING this was never tested
        CALL init_norm_cgf_aux(gto_basis_set)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "Normalization method not specified")
+       CPABORT("Normalization method not specified")
     END SELECT
 
     ! Initialise the transformation matrices "pgf" -> "cgf"
@@ -984,8 +982,7 @@ CONTAINS
        ! functions
        CALL init_norm_cgf_orb(gto_basis_set)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "Normalization method not specified")
+       CPABORT("Normalization method not specified")
     END SELECT
 
     ! Initialise the transformation matrices "pgf" -> "cgf"
@@ -1349,11 +1346,11 @@ CONTAINS
         DO ibasis = 1,nbasis
           basis_set_file_name = TRIM(basis_set_file_name)//"<"//TRIM(cbasis(ibasis))//"> "
         END DO
-        CALL stop_program(routineN,moduleN,__LINE__,&
+        CALL cp_abort(__LOCATION__,&
              "The requested basis set <"//TRIM(bsname)//&
              "> for element <"//TRIM(symbol)//"> was not "//&
              "found in the basis set files "//&
-             TRIM(basis_set_file_name),para_env)
+             TRIM(basis_set_file_name))
       END IF
     END IF
     DEALLOCATE(cbasis)
@@ -1753,8 +1750,7 @@ CONTAINS
        IF (PRESENT(n)) gto_basis_set%n(:,:) = n(:,:)
        IF (PRESENT(gcc)) gto_basis_set%gcc(:,:,:) = gcc(:,:,:)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer gto_basis_set is not associated")
+       CPABORT("The pointer gto_basis_set is not associated")
     END IF
 
   END SUBROUTINE set_gto_basis_set
@@ -1994,8 +1990,7 @@ CONTAINS
           END DO
        END IF
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer sto_basis_set is not associated")
+       CPABORT("The pointer sto_basis_set is not associated")
     END IF
 
   END SUBROUTINE get_sto_basis_set
@@ -2054,8 +2049,7 @@ CONTAINS
           sto_basis_set%zet = zet(:)
        END IF
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "The pointer sto_basis_set is not associated")
+       CPABORT("The pointer sto_basis_set is not associated")
     END IF
 
   END SUBROUTINE set_sto_basis_set

@@ -90,7 +90,6 @@ MODULE integrator
   USE rt_propagation_types,            ONLY: rt_prop_type
   USE shell_opt,                       ONLY: optimize_shell_core
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE thermal_region_types,            ONLY: thermal_region_type,&
                                              thermal_regions_type
   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
@@ -651,8 +650,7 @@ CONTAINS
     CALL apply_qmmm_walls_reflective(force_env)
 
     IF (simpar%constraint) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Constraints not yet implemented",para_env)
+       CPABORT("Constraints not yet implemented")
     END IF
 
     CALL cp_subsys_get(subsys=subsys,atomic_kinds=atomic_kinds,&

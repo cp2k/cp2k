@@ -97,8 +97,7 @@ CONTAINS
     SELECT CASE (precon_type)
     CASE (ot_precond_full_single)
        IF(my_solver_type.NE.ot_precond_solver_default) &
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Only PRECOND_SOLVER DEFAULT for the moment")
+          CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
        IF ( PRESENT(matrix_s) ) THEN
           CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
                                 matrix_h, matrix_s, energy_homo, energy_gap)
@@ -124,8 +123,7 @@ CONTAINS
                            matrix_s=matrix_s)
     CASE (ot_precond_full_all)
        IF(my_solver_type.NE.ot_precond_solver_default) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Only PRECOND_SOLVER DEFAULT for the moment")
+          CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
        ENDIF
        IF ( PRESENT(matrix_s) ) THEN
           CALL make_full_all(preconditioner_env,mo_coeff,matrix_h, matrix_s, &

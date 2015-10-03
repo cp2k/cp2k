@@ -140,8 +140,7 @@ CONTAINS
     ! Check that one of the diagonalization type is set
     IF(diag_type<1) THEN
       ! something wrong
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Unknown DIAG type")
+      CPABORT("Unknown DIAG type")
     END IF
 
   END SUBROUTINE diag_init
@@ -346,8 +345,7 @@ CONTAINS
     CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,myinfo)
 
     IF (myinfo /= 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "ERROR in DSYEVD: Could not retrieve work array sizes")
+       CPABORT("ERROR in DSYEVD: Could not retrieve work array sizes")
     END IF
 
     ! Reallocate work arrays and perform diagonalisation
@@ -363,8 +361,7 @@ CONTAINS
     CALL dsyevd('V','U',n,m(1,1),n,eig(1),work(1),lwork,iwork(1),liwork,myinfo)
 
     IF (myinfo /= 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Matrix diagonalization failed")
+      CPABORT("Matrix diagonalization failed")
     END IF
 
     CALL cp_fm_to_fm(matrix,eigenvectors)
@@ -581,8 +578,7 @@ CONTAINS
 #if defined(__SCALAPACK)
 
     IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid blocksize (no square blocks)")
+      CPABORT("Invalid blocksize (no square blocks)")
     END IF
 
     a => matrix%local_data
@@ -655,8 +651,7 @@ CONTAINS
             "gap     = ",gap
         END IF
       END IF
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Error in pdsyevx (ScaLAPACK)")
+      CPABORT("Error in pdsyevx (ScaLAPACK)")
     END IF
 
     ! Release work storage
@@ -704,8 +699,7 @@ CONTAINS
         WRITE (unit=output_unit,FMT="(/,T3,A,(T12,6(1X,I10)))")&
           "ifail   = ",ifail
       END IF
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Error in dsyevx")
+      CPABORT("Error in dsyevx")
     END IF
 
     ! Release work storage

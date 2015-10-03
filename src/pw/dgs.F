@@ -35,8 +35,7 @@ MODULE dgs
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type
   USE structure_factors,               ONLY: structure_factor_evaluate
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -183,9 +182,9 @@ SUBROUTINE dg_find_cutoff (b_cell_hmat, npts_s, cutoff_radius, grid_s,  &
 
     b_cell_deth = ABS(det_3x3(b_cell_hmat))
     IF (b_cell_deth < 1.0E-10_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "An invalid set of cell vectors was specified. "//&
-                         "The determinant det(h) is too small")
+       CALL cp_abort(__LOCATION__,&
+            "An invalid set of cell vectors was specified. "//&
+            "The determinant det(h) is too small")
     END IF
     b_cell_h_inv = inv_3x3(b_cell_hmat)
 
@@ -394,9 +393,9 @@ SUBROUTINE dg_get_delta (cell_hmat, r, npts_s, npts_b, centre, delta )
 
   cell_deth = ABS(det_3x3(cell_hmat))
   IF (cell_deth < 1.0E-10_dp) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,&
-                       "An invalid set of cell vectors was specified. "//&
-                       "The determinant det(h) is too small")
+     CALL cp_abort(__LOCATION__,&
+          "An invalid set of cell vectors was specified. "//&
+          "The determinant det(h) is too small")
   END IF
 
   cell_h_inv = inv_3x3(cell_hmat)

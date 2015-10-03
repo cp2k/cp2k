@@ -16,8 +16,7 @@ MODULE qs_neighbor_list_types
 
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: locate,&
                                              sort
 #include "./common/cp_common_uses.f90"
@@ -643,8 +642,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list set is not associated")
+      CPABORT("The requested neighbor list set is not associated")
 
     END IF
 
@@ -755,8 +753,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list is not associated")
+      CPABORT("The requested neighbor list is not associated")
 
     END IF
 
@@ -929,8 +926,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list is not associated")
+      CPABORT("The requested neighbor list is not associated")
 
     END IF
 
@@ -968,8 +964,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list set is not associated")
+      CPABORT("The requested neighbor list set is not associated")
 
     END IF
 
@@ -1016,14 +1011,13 @@ CONTAINS
          IF (PRESENT(mic)) mic = neighbor_list_set%mic
          IF (PRESENT(molecular)) molecular = neighbor_list_set%molecular
       ELSE
-         CALL stop_program(routineN,moduleN,__LINE__,&
-                        "No neighbor list set is associated. Did you specify *all* required basis-sets?")
+         CALL cp_abort(__LOCATION__,"No neighbor list set is associated. "//&
+              "Did you specify *all* required basis-sets, eg. for ADMM?")
       END IF
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list sets are not associated")
+      CPABORT("The requested neighbor list sets are not associated")
 
     END IF
 
@@ -1059,8 +1053,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor node is not associated")
+      CPABORT("The requested neighbor node is not associated")
 
     END IF
 
@@ -1106,8 +1099,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list set is not associated")
+      CPABORT("The requested neighbor list set is not associated")
 
     END IF
 

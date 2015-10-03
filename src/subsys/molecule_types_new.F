@@ -25,8 +25,7 @@ MODULE molecule_types_new
                                              get_molecule_kind,&
                                              molecule_kind_type,&
                                              vsite_constraint_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -272,9 +271,9 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer molecule_set is not associated and "//&
-                        "cannot be deallocated")
+      CALL cp_abort(__LOCATION__,&
+           "The pointer molecule_set is not associated and "//&
+           "cannot be deallocated")
 
     END IF
 
@@ -332,31 +331,27 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lcolv => molecule%lci%lcolv
          ELSE
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                           "The pointer lci is not associated")
+           CPABORT("The pointer lci is not associated")
          ENDIF
       ENDIF
       IF ( PRESENT ( lg3x3 ) ) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lg3x3 => molecule%lci%lg3x3
          ELSE
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                           "The pointer lci is not associated")
+           CPABORT("The pointer lci is not associated")
          ENDIF
       ENDIF
       IF ( PRESENT ( lg4x6 ) ) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            lg4x6 => molecule%lci%lg4x6
          ELSE
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                           "The pointer lci is not associated")
+           CPABORT("The pointer lci is not associated")
          ENDIF
       ENDIF
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer lci is not associated")
+      CPABORT("The pointer lci is not associated")
 
     END IF
 
@@ -402,30 +397,26 @@ CONTAINS
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lcolv => lcolv
          ELSE
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                           "The pointer lci is not associated")
+           CPABORT("The pointer lci is not associated")
          ENDIF
       ENDIF
       IF (PRESENT(lg3x3)) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lg3x3 => lg3x3
          ELSE
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                           "The pointer lci is not associated")
+           CPABORT("The pointer lci is not associated")
          ENDIF
       ENDIF
       IF (PRESENT(lg4x6)) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
            molecule%lci%lg4x6 => lg4x6
          ELSE
-           CALL stop_program(routineN,moduleN,__LINE__,&
-                           "The pointer lci is not associated")
+           CPABORT("The pointer lci is not associated")
          ENDIF
       ENDIF
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer molecule is not associated")
+      CPABORT("The pointer molecule is not associated")
 
     END IF
 
@@ -456,9 +447,9 @@ CONTAINS
       IF (PRESENT(first_atom)) THEN
 
         IF (SIZE(first_atom) /= SIZE(molecule_set)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The sizes of first_atom and molecule_set "//&
-                            "are different")
+          CALL cp_abort(__LOCATION__,&
+               "The sizes of first_atom and molecule_set "//&
+               "are different")
         END IF
 
         DO imolecule=1,SIZE(molecule_set)
@@ -470,9 +461,9 @@ CONTAINS
       IF (PRESENT(last_atom)) THEN
 
         IF (SIZE(last_atom) /= SIZE(molecule_set)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "The sizes of last_atom and molecule_set "//&
-                            "are different")
+          CALL cp_abort(__LOCATION__,&
+               "The sizes of last_atom and molecule_set "//&
+               "are different")
         END IF
 
         DO imolecule=1,SIZE(molecule_set)
@@ -483,8 +474,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer molecule_set is not associated")
+      CPABORT("The pointer molecule_set is not associated")
 
     END IF
 

@@ -1241,8 +1241,7 @@ END SUBROUTINE mc_conformation_change
       ENDIF
       CALL mp_bcast(ltoo_small,source,group)
       IF(ltoo_small) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-              "Attempted a volume move where box size got too small.")
+         CPABORT("Attempted a volume move where box size got too small.")
 
 ! now compute the energy
       CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.)

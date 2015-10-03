@@ -76,7 +76,6 @@ MODULE input_cp2k_restarts
                                              thermostat_nose
   USE string_utilities,                ONLY: string_to_ascii
   USE termination,                     ONLY: stop_memory,&
-                                             stop_program,&
                                              stop_write
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: communication_thermo_low2,&
@@ -2305,11 +2304,10 @@ CONTAINS
        IF (print_info) THEN
           INQUIRE (UNIT=output_unit,NAME=binary_restart_file_name,IOSTAT=istat)
           IF (istat /= 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "An error occurred inquiring logical unit <"//&
-                               TRIM(ADJUSTL(cp_to_string(output_unit)))//&
-                               "> which should be linked to the binary restart file",&
-                               para_env)
+             CALL cp_abort(__LOCATION__,&
+                  "An error occurred inquiring logical unit <"//&
+                  TRIM(ADJUSTL(cp_to_string(output_unit)))//&
+                  "> which should be linked to the binary restart file")
           END IF
           IF (log_unit > 0) THEN
              WRITE (UNIT=log_unit,FMT="(T2,A,/,/,(T3,A,T71,I10))")&

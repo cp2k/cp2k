@@ -14,9 +14,7 @@ MODULE orbital_symbols
 ! Index:
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
-  USE termination,                     ONLY: stop_program
 #include "../common/cp_common_uses.f90"
-
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_symbols'
   PRIVATE
@@ -57,8 +55,7 @@ CONTAINS
     IF ((n > 0).AND.(n < 100)) THEN
       WRITE (symbol(1:2),"(I2)") n
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid principal quantum number specified")
+      CPABORT("Invalid principal quantum number specified")
     END IF
 
     l = SUM(lxyz(1:3))
@@ -66,8 +63,7 @@ CONTAINS
     IF ((l >= 0).AND.(l <= 11)) THEN
       symbol(3:3) = l_sym(l)
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid angular momentum quantum number specified")
+      CPABORT("Invalid angular momentum quantum number specified")
     END IF
 
     ipos = 4
@@ -84,8 +80,7 @@ CONTAINS
             WRITE (symbol(ipos:ipos+1),"(I2)") lxyz(i)
             ipos = ipos + 2
           ELSE
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Invalid magnetic quantum number specified")
+            CPABORT("Invalid magnetic quantum number specified")
           END IF
         END IF
       END IF
@@ -128,16 +123,14 @@ CONTAINS
       WRITE (symbol(1:2),"(I2)") n
       i = 3
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid principal quantum number specified")
+      CPABORT("Invalid principal quantum number specified")
     END IF
 
     IF ((l >= 0).AND.(l <= 11)) THEN
       symbol(i:i) = l_sym(l)
       i = i + 1
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid angular momentum quantum number specified")
+      CPABORT("Invalid angular momentum quantum number specified")
     END IF
 
     IF (ABS(m) <= l) THEN
@@ -153,8 +146,7 @@ CONTAINS
         END IF
       END IF
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid magnetic quantum number specified")
+      CPABORT("Invalid magnetic quantum number specified")
     END IF
 
   END FUNCTION sgf_symbol

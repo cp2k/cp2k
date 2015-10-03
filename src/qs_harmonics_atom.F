@@ -19,7 +19,6 @@ MODULE qs_harmonics_atom
                                              soset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE spherical_harmonics,             ONLY: y_lm
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -150,7 +149,7 @@ CONTAINS
 
        DEALLOCATE (harmonics)
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "The pointer harmonics is not associated and "//&
             "cannot be deallocated")
     END IF

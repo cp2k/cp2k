@@ -888,8 +888,7 @@ CONTAINS
                 lwork,iwork(1),info)
 
     IF (info /= 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "ERROR in DGESDD: Could not retrieve work array sizes")
+      CPABORT("ERROR in DGESDD: Could not retrieve work array sizes")
     END IF
     lwork = INT(work(1))
     DEALLOCATE(work)
@@ -900,8 +899,7 @@ CONTAINS
                 lwork,iwork(1),info)
 
     IF (info /= 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "SVD failed")
+      CPABORT("SVD failed")
     END IF
 
     ! set singular values that are too small to zero
@@ -957,8 +955,7 @@ CONTAINS
     lwork = -1
     CALL dsyev('V','U',n,a(1,1),n,eig(1),work(1),lwork,info)
     IF (info /= 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "ERROR in DSYEV: Could not retrieve work array sizes")
+       CPABORT("ERROR in DSYEV: Could not retrieve work array sizes")
     END IF
     lwork = INT(work(1))
     DEALLOCATE(work)
@@ -968,8 +965,7 @@ CONTAINS
     CALL dsyev('V','U',n,a(1,1),n,eig(1),work(1),lwork,info)
 
     IF (info /= 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Matrix diagonalization failed")
+       CPABORT("Matrix diagonalization failed")
     END IF
 
     ! set eigenvalues that are too small to zero

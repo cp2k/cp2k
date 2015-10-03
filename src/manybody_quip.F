@@ -80,8 +80,7 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
 
 #endif
 #ifndef __QUIP
-    CALL stop_program(routineN,moduleN,__LINE__,&
-        "In order to use QUIP you need to download and install the libAtoms/QUIP library (check CP2K manual for details)")
+    CPABORT("In order to use QUIP you need to download and install the libAtoms/QUIP library (check CP2K manual for details)")
 #else
     n_atoms = SIZE(particle_set)
     ALLOCATE(use_atom(n_atoms))

@@ -21,7 +21,6 @@ MODULE pair_potential_util
        pair_potential_single_type, wl_type
   USE physcon,                         ONLY: bohr,&
                                              evolt
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -147,8 +146,7 @@ CONTAINS
           pot%set(j)%gp%values(1)=r
           lvalue = evalf(pot%set(j)%gp%myid,pot%set(j)%gp%values)
           IF (EvalErrType > 0) &
-               CALL stop_program(routineN,moduleN,__LINE__,&
-                                 "Error evaluating generic potential energy function")
+               CPABORT("Error evaluating generic potential energy function")
        ELSE
           lvalue = 0.0_dp
        END IF

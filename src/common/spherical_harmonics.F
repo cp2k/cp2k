@@ -454,8 +454,7 @@ CONTAINS
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "l = 1 and m value out of bounds")
+      CPABORT("l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
       y ( : ) = pf * r ( 1, : )
@@ -469,8 +468,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "l = 2 and m value out of bounds")
+      CPABORT("l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
       y ( : ) = pf * ( r ( 1, : ) * r ( 1, : ) - r ( 2, : ) * r ( 2, : ) )
@@ -490,8 +488,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "l = 3 and m value out of bounds")
+      CPABORT("l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 32.0_dp * pi ) )
       y ( : ) = pf * r ( 1, : ) * ( r ( 1, : )**2 - 3.0_dp * r ( 2, : )**2 )
@@ -593,8 +590,7 @@ CONTAINS
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "l = 1 and m value out of bounds")
+      CPABORT("l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
       y = pf * r ( 1 )
@@ -608,8 +604,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "l = 2 and m value out of bounds")
+      CPABORT("l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
       y = pf * ( r ( 1 ) * r ( 1 ) - r ( 2 ) * r ( 2 ) )

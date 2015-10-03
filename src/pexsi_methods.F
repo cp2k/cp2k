@@ -48,7 +48,6 @@ MODULE pexsi_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -481,8 +480,7 @@ CONTAINS
     ENDIF
 
     IF (.NOT. pexsi_convergence) &
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "PEXSI did not converge. Consider logPEXSI0 for more information.")
+       CPABORT("PEXSI did not converge. Consider logPEXSI0 for more information.")
 
     ! Retrieve results from PEXSI
     IF (mynode < pexsi_env%mp_dims(1)*pexsi_env%mp_dims(2)) THEN

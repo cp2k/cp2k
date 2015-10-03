@@ -421,15 +421,14 @@ CONTAINS
     CALL cite_reference(Weber2009)
 
     IF(.NOT.linres_control%localized_psi0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Are you sure that you want to calculate the chemical "//&
             "shift without localized psi0?")
        CALL linres_localize(qs_env, linres_control,&
             dft_control%nspins,centers_only=.TRUE.)
     ENDIF
     IF(dft_control%nspins/=2.AND.epr_present) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "LSD is needed to perform a g tensor calculation!")
+       CPABORT("LSD is needed to perform a g tensor calculation!")
     ENDIF
     !
     !Initialize the current environment
@@ -529,7 +528,7 @@ CONTAINS
 
     linres_control%property = lr_current
     IF(.NOT.linres_control%localized_psi0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
+       CALL cp_abort(__LOCATION__,&
             "Are you sure that you want to calculate the chemical "//&
             "shift without localized psi0?")
        CALL linres_localize(qs_env,linres_control,&

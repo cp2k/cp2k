@@ -20,7 +20,6 @@ MODULE topology_xyz
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -97,8 +96,7 @@ CONTAINS
           CALL reallocate(atom_info%beta,1,natom)
           CALL reallocate(atom_info%id_element,1,natom)
        ELSE IF (natom > SIZE(atom_info%id_atmname)) THEN
-          CALL stop_program (routineN,moduleN,__LINE__,&
-                             "Atom number differs in different frames!")
+          CPABORT("Atom number differs in different frames!")
        END IF
        ! Dummy line
        CALL parser_get_next_line(parser,2)

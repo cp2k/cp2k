@@ -33,7 +33,6 @@ MODULE input_cp2k_binary_restarts
                                              str2id
   USE termination,                     ONLY: print_message,&
                                              stop_memory,&
-                                             stop_program,&
                                              stop_read
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -455,11 +454,11 @@ CONTAINS
              IF (nparticle == 0) exit_routine = .TRUE.
           END IF
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Section label <"//TRIM(section_label)//"> read from the "//&
-                            "binary restart file <"//TRIM(binary_restart_file_name)//&
-                            "> does not match the requested section name <"//&
-                            TRIM(section_name)//">.")
+          CALL cp_abort(__LOCATION__,&
+               "Section label <"//TRIM(section_label)//"> read from the "//&
+               "binary restart file <"//TRIM(binary_restart_file_name)//&
+               "> does not match the requested section name <"//&
+               TRIM(section_name)//">.")
        END IF
     END IF
 
@@ -658,11 +657,11 @@ CONTAINS
              END IF
              CYCLE
           ELSE IF (INDEX(section_label,"VELOCIT") == 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Section label <"//TRIM(section_label)//"> read from the "//&
-                               "binary restart file <"//TRIM(binary_restart_file_name)//&
-                               "> does not match the requested section name <"//&
-                               TRIM(section_name)//">.")
+             CALL cp_abort(__LOCATION__,&
+                  "Section label <"//TRIM(section_label)//"> read from the "//&
+                  "binary restart file <"//TRIM(binary_restart_file_name)//&
+                  "> does not match the requested section name <"//&
+                  TRIM(section_name)//">.")
           ELSE
              IF (nbuf > 0) have_velocities = .TRUE.
              EXIT
@@ -807,11 +806,11 @@ CONTAINS
                                       TRIM(ADJUSTL(cp_to_string(istat)))//")",&
                                       input_unit,para_env)
        IF (INDEX(section_label,"THERMOSTAT") == 0) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Section label <"//TRIM(section_label)//"> read from the "//&
-                            "binary restart file <"//TRIM(binary_restart_file_name)//&
-                            "> does not match the requested section name <"//&
-                            TRIM(section_name)//">.")
+          CALL cp_abort(__LOCATION__,&
+               "Section label <"//TRIM(section_label)//"> read from the "//&
+               "binary restart file <"//TRIM(binary_restart_file_name)//&
+               "> does not match the requested section name <"//&
+               TRIM(section_name)//">.")
        END IF
        IF (debug .AND. output_unit > 0) THEN
           WRITE (UNIT=output_unit,FMT="(T2,A,/,T2,A,I0)")&

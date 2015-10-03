@@ -29,8 +29,7 @@ MODULE orbital_transformation_matrices
                                              nsoset
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -86,15 +85,15 @@ CONTAINS
     REAL(KIND=dp)                            :: s, s1, s2
 
     IF (current_maxl > -1) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Spherical harmonics are already allocated. "//&
-                        "Use the init routine for an update")
+      CALL cp_abort(__LOCATION__,&
+           "Spherical harmonics are already allocated. "//&
+           "Use the init routine for an update")
     END IF
 
     IF (maxl < 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "A negative maximum angular momentum quantum "//&
-                        "number is invalid")
+      CALL cp_abort(__LOCATION__,&
+           "A negative maximum angular momentum quantum "//&
+           "number is invalid")
     END IF
 
     ALLOCATE (orbtramat(0:maxl),STAT=istat)
@@ -332,9 +331,9 @@ CONTAINS
     INTEGER                                  :: l, nc, ns
 
     IF (maxl < 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "A negative maximum angular momentum quantum "//&
-                        "number is invalid")
+      CALL cp_abort(__LOCATION__,&
+           "A negative maximum angular momentum quantum "//&
+           "number is invalid")
     END IF
 
     IF (maxl > current_maxl) THEN

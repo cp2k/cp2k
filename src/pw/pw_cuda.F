@@ -36,8 +36,7 @@ MODULE pw_cuda
   USE pw_types,                        ONLY: REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -431,14 +430,12 @@ END SUBROUTINE pw_cuda_finalize
        CALL mp_environ(numtask_g, g_pos, gs_group)
        CALL mp_environ(numtask_r, r_dim, r_pos, rs_group)
        IF ( numtask_g /= numtask_r ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Real space and G space groups are different.")
+          CPABORT("Real space and G space groups are different.")
        END IF
        numtask = numtask_r
        CALL mp_comm_compare(rs_group, gs_group, iout)
        IF ( iout >3 ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Real space and G space groups are different.")
+          CPABORT("Real space and G space groups are different.")
        END IF
 
        lg   = SIZE(grays, 1)
@@ -492,8 +489,7 @@ END SUBROUTINE pw_cuda_finalize
           ! we have two stages of communication
           !
           IF (r_dim(1) == 1) &
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "This processor distribution is not supported.")
+             CPABORT("This processor distribution is not supported.")
 
           CALL get_fft_scratch(fft_scratch, tf_type = 300, n = n, fft_sizes = fft_scratch_size)
 
@@ -555,8 +551,7 @@ END SUBROUTINE pw_cuda_finalize
 
 !--------------------------------------------------------------------------
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          "Not implemented (no ray_distr.) in: pw_cuda_r3dc1d_3d_ps.")
+       CPABORT("Not implemented (no ray_distr.) in: pw_cuda_r3dc1d_3d_ps.")
        !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
        !     pw1%pw_grid%para%bo, scale = scale, debug=test )
     END IF
@@ -623,14 +618,12 @@ END SUBROUTINE pw_cuda_finalize
        CALL mp_environ(numtask_g, g_pos, gs_group)
        CALL mp_environ(numtask_r, r_dim, r_pos, rs_group)
        IF ( numtask_g /= numtask_r ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Real space and G space groups are different.")
+          CPABORT("Real space and G space groups are different.")
        END IF
        numtask = numtask_r
        CALL mp_comm_compare(rs_group, gs_group, iout)
        IF ( iout >3 ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Real space and G space groups are different.")
+          CPABORT("Real space and G space groups are different.")
        END IF
 
        lg   = SIZE(grays, 1)
@@ -684,8 +677,7 @@ END SUBROUTINE pw_cuda_finalize
           ! we have two stages of communication
           !
           IF (r_dim(1) == 1) &
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                  "This processor distribution is not supported.")
+             CPABORT("This processor distribution is not supported.")
 
           CALL get_fft_scratch(fft_scratch, tf_type = 300, n = n, fft_sizes = fft_scratch_size)
 
@@ -751,8 +743,7 @@ END SUBROUTINE pw_cuda_finalize
 
 !--------------------------------------------------------------------------
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          "Not implemented (no ray_distr.) in: pw_cuda_c1dr3d_3d_ps.")
+       CPABORT("Not implemented (no ray_distr.) in: pw_cuda_c1dr3d_3d_ps.")
        !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%rs_group, &
        !     pw1%pw_grid%para%bo, scale = scale, debug=test )
     END IF

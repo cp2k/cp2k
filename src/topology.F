@@ -555,9 +555,9 @@ CONTAINS
           CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
        END IF
        IF (.NOT.found) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Coordinate file <"//TRIM(topology%coord_file_name)//&
-                            "> not found.",para_env)
+          CALL cp_abort(__LOCATION__,&
+               "Coordinate file <"//TRIM(topology%coord_file_name)//&
+               "> not found.")
        END IF
     END IF
     !-----------------------------------------------------------------------------

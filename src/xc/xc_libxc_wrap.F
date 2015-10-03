@@ -256,8 +256,7 @@ CONTAINS
      CASE (XC_POLARIZED)
         WRITE(tmp_string, "('{scale=',f5.3,', spin-polarized}')") sc
      CASE default
-        CALL stop_program(routineN,moduleN,__LINE__,&
-           "Unsupported value for variable 'polarized'.")
+        CPABORT("Unsupported value for variable 'polarized'.")
     END SELECT
     last = first + LEN_TRIM(tmp_string) - 1
     reference(first:last) = TRIM(tmp_string)
@@ -333,8 +332,7 @@ CONTAINS
       func_id = xc_f90_functional_get_number(func_string(1:LEN_TRIM(func_string)))
     END IF
     IF (func_id == -1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_string)//": wrong functional name")
+       CPABORT(TRIM(func_string)//": wrong functional name")
     END IF
 
     CALL timestop(handle)
@@ -653,8 +651,8 @@ CONTAINS
 
     IF (bug) THEN
        CALL xc_f90_functional_get_name(func_id, func_name)
-       CALL stop_program(routineN,moduleN,__LINE__,&
-          TRIM(func_name)//": deactivated since buggy in version "//TRIM(libxc_version)//" of LibXC.")
+       CALL cp_abort(__LOCATION__,TRIM(func_name)//": deactivated since buggy in version "//&
+            TRIM(libxc_version)//" of LibXC.")
     END IF
 
     IF (ALLOCATED(buggy)) DEALLOCATE(buggy)

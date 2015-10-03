@@ -301,8 +301,7 @@ CONTAINS
        END DO
     CASE (dump_dcd,dump_dcd_aligned_cell)
        IF (.NOT.(PRESENT(cell))) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Cell is not present! Report this bug!")
+          CPABORT("Cell is not present! Report this bug!")
        END IF
        CALL get_cell(cell,alpha=angle_alpha,beta=angle_beta,gamma=angle_gamma,&
                      abc=abc)
@@ -342,8 +341,7 @@ CONTAINS
                 arr(1:3,iatom) = particle_set(iatom)%f(1:3)
              END DO
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "Illegal DCD dump type")
+             CPABORT("Illegal DCD dump type")
           END SELECT
        END IF
        ALLOCATE (x4(natom),STAT=stat)
@@ -446,8 +444,7 @@ CONTAINS
              END IF
              WRITE (UNIT=line(31:54),FMT="(3F8.3)") r(1:3)*factor
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "PDB dump only for trajectory available")
+             CPABORT("PDB dump only for trajectory available")
           END SELECT
           IF (my_charge_occup) THEN
              WRITE (UNIT=line(55:60),FMT="(F6.2)") qeff

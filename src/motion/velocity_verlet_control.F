@@ -24,7 +24,6 @@ MODULE velocity_verlet_control
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -64,15 +63,13 @@ CONTAINS
 
     ! RESPA implemented only for NVE
     IF(simpar%do_respa .AND. nve_ensemble.NE.simpar % ensemble) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "RESPA integrator not implemented for this ensemble")
+       CPABORT("RESPA integrator not implemented for this ensemble")
     END IF
 
     ! Choice of the ensemble
     SELECT CASE (simpar%ensemble)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Integrator not implemented")
+       CPABORT("Integrator not implemented")
     CASE (nve_ensemble)
        IF(simpar%do_respa)THEN
           CALL nve_respa(md_env)

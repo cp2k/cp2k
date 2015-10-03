@@ -328,8 +328,7 @@ CONTAINS
           info%ub_cube(:,i)=1-info%lb_cube(:,i)
         ENDDO
         IF (check_1.NE.check_2) THEN
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Irreproducible fp math caused memory corruption")
+            CPABORT("Irreproducible fp math caused memory corruption")
         END IF
 
     END IF

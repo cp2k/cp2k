@@ -803,8 +803,7 @@ CONTAINS
     use_charge_array=PRESENT(charges)
     IF (use_charge_array) use_charge_array=ASSOCIATED(charges)
     IF(is_core .AND. is_shell) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Shell-model: cannot be core and shell simultaneously")
+       CPABORT("Shell-model: cannot be core and shell simultaneously")
     END IF
 
     nbox = SIZE ( rhos, 1 )

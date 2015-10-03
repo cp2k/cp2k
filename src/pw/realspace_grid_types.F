@@ -290,10 +290,10 @@ CONTAINS
 
           n_slices = 1
           IF (border_size > 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               "An explicit border size > 0 is not yet working for "//&
-                               "replicated realspace grids. Request DISTRIBUTION_TYPE "//&
-                               "distributed for RS_GRID explicitly.")
+             CALL cp_abort(__LOCATION__,&
+                  "An explicit border size > 0 is not yet working for "//&
+                  "replicated realspace grids. Request DISTRIBUTION_TYPE "//&
+                  "distributed for RS_GRID explicitly.")
           END IF
 
        ELSE
@@ -1504,9 +1504,9 @@ CONTAINS
           IF (ABS(pw_sum-rs_sum)/MAX(1.0_dp,ABS(pw_sum),ABS(rs_sum))>EPSILON(rs_sum)*1000) THEN
              WRITE(error_string,'(A,6(1X,I4.4),3F25.16)') "rs_pw_transfer_distributed", &
                   rs % desc %  npts, rs % desc % group_dim, pw_sum,rs_sum,ABS(pw_sum-rs_sum)
-             CALL stop_program(routineN,moduleN,__LINE__,&
-                               error_string//" Please report this bug ... quick workaround: use "//&
-                               "DISTRIBUTION_TYPE REPLICATED")
+             CALL cp_abort(__LOCATION__,&
+                  error_string//" Please report this bug ... quick workaround: use "//&
+                  "DISTRIBUTION_TYPE REPLICATED")
           ENDIF
        ENDIF
 

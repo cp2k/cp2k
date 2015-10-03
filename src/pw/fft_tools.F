@@ -297,8 +297,7 @@ CONTAINS
     END DO
 
     IF ( iloc == 0 ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Index to radix array not found.")
+       CPABORT("Index to radix array not found.")
     END IF
 
     IF ( OPERATION == FFT_RADIX_ALLOWED ) THEN
@@ -331,13 +330,11 @@ CONTAINS
           END IF
        END DO
        IF ( MOD ( radix_out, 2 ) == 0 ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "No odd radix found.")
+          CPABORT("No odd radix found.")
        END IF
 
     ELSE
-       CALL stop_program (routineN,moduleN,__LINE__,&
-                         "Disallowed radix operation.")
+       CPABORT("Disallowed radix operation.")
     END IF
 
     DEALLOCATE(DATA)
@@ -412,8 +409,7 @@ CONTAINS
     ld ( 3 ) = SIZE ( zin ,3 )
 
     IF ( n(1) /= ld(1) .OR. n(2) /= ld(2) .OR. n(3) /= ld(3) ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Size and dimension (zin) have to be the same.")
+       CPABORT("Size and dimension (zin) have to be the same.")
     END IF
 
     sign = fsign
@@ -441,8 +437,7 @@ CONTAINS
        lo ( 2 ) = SIZE ( zout ,2 )
        lo ( 3 ) = SIZE ( zout ,3 )
        IF ( n(1) /= lo(1) .OR. n(2) /= lo(2) .OR. n(3) /= lo(3) ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Size and dimension (zout) have to be the same.")
+          CPABORT("Size and dimension (zout) have to be the same.")
        END IF
     END IF
 
@@ -534,14 +529,12 @@ CONTAINS
     CALL mp_environ ( numtask_g, g_pos, gs_group )
     CALL mp_environ ( numtask_r, r_dim, r_pos, rs_group )
     IF ( numtask_g /= numtask_r ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Real space and G space groups are different.")
+       CPABORT("Real space and G space groups are different.")
     END IF
     numtask = numtask_r
     CALL mp_comm_compare ( rs_group, gs_group, iout )
     IF ( iout >3 ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "Real space and G space groups are different.")
+       CPABORT("Real space and G space groups are different.")
     END IF
 
     IF ( PRESENT ( scale ) ) THEN
@@ -631,8 +624,7 @@ CONTAINS
        !
 
        IF ( r_dim ( 1 ) == 1 ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "This processor distribution is not supported.")
+          CPABORT("This processor distribution is not supported.")
        END IF
        CALL get_fft_scratch(fft_scratch,tf_type=300,n=n,fft_sizes=fft_scratch_size)
 
@@ -799,8 +791,7 @@ CONTAINS
 
        ELSE
 
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Illegal fsign parameter.")
+          CPABORT("Illegal fsign parameter.")
 
        ENDIF
 
@@ -920,8 +911,7 @@ CONTAINS
              END IF
           END IF
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Illegal fsign parameter.")
+          CPABORT("Illegal fsign parameter.")
        ENDIF
 
        CALL release_fft_scratch(fft_scratch)
@@ -1225,8 +1215,7 @@ CONTAINS
           END IF
 
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Illegal fsign parameter.")
+          CPABORT("Illegal fsign parameter.")
        END IF
 
        CALL release_fft_scratch(fft_scratch)
@@ -1348,16 +1337,14 @@ CONTAINS
           END IF
 
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Illegal fsign parameter.")
+          CPABORT("Illegal fsign parameter.")
        ENDIF
 
        CALL release_fft_scratch(fft_scratch)
 
     ELSE
 
-       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "This partition not implemented.")
+       CPABORT("This partition not implemented.")
 
     END IF
 

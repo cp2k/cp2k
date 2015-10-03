@@ -60,7 +60,6 @@ MODULE qmmm_init
                                              qmmm_links_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1410,14 +1409,12 @@ CONTAINS
    DO i=1,num_image_mm_atom
       atom_a=qmmm_env%image_charge_pot%image_mm_list(i)
       IF(ANY(qm_atom_index==atom_a)) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,&
-             "Image atom list must only contain MM atoms")
+         CPABORT("Image atom list must only contain MM atoms")
       ENDIF
       DO j=i+1,num_image_mm_atom
          atom_b=qmmm_env%image_charge_pot%image_mm_list(j)
          IF(atom_a==atom_b) &
-         CALL stop_program(routineN,moduleN,__LINE__,&
-             "There are atoms doubled in image list.")
+         CPABORT("There are atoms doubled in image list.")
       ENDDO
    ENDDO
 

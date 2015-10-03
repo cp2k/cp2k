@@ -251,8 +251,7 @@ CONTAINS
                (((density_guess == restart_guess).OR.&
                 (density_guess == history_guess)).AND.&
                 (scf_control%level_shift == 0.0_dp))))) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-            "OT needs GUESS ATOMIC / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
+       CPABORT("OT needs GUESS ATOMIC / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
     END IF
 
     ! if a restart was requested, check that the file exists,
@@ -773,8 +772,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              !
              ! multiply times PS
              IF (has_unit_metric) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,&
-                                  "has_unit_metric will be removed soon")
+                CPABORT("has_unit_metric will be removed soon")
              END IF
              !
              ! S*C
@@ -937,8 +935,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
     END IF
 
     IF (.NOT. did_guess) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,&
-             "An invalid keyword for the initial density guess was specified")
+       CPABORT("An invalid keyword for the initial density guess was specified")
     END IF
 
     CALL timestop(handle)

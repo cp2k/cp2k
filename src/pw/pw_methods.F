@@ -1335,12 +1335,10 @@ CONTAINS
     !..check if grids are compatible
     IF ( pw1%pw_grid %id_nr /= pw2%pw_grid %id_nr ) THEN
        IF ( pw1%pw_grid%dvol /= pw2%pw_grid%dvol ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "PW grids not compatible")
+          CPABORT("PW grids not compatible")
        END IF
        IF ( pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "PW grids have not compatible MPI groups")
+          CPABORT("PW grids have not compatible MPI groups")
        END IF
     END IF
 
@@ -1384,8 +1382,7 @@ CONTAINS
 
        SELECT CASE ( mode )
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Illegal combination of in_use and in_space")
+          CPABORT("Illegal combination of in_use and in_space")
        CASE ( "FW_C3DC3D" )
           c_in => pw1%cc3d
           c_out => pw2%cc3d
@@ -1485,9 +1482,9 @@ CONTAINS
 
        SELECT CASE ( mode )
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Illegal combination of in_use and in_space "//&
-                            "in parallel 3d FFT")
+          CALL cp_abort(__LOCATION__,&
+               "Illegal combination of in_use and in_space "//&
+               "in parallel 3d FFT")
        CASE ( "FW_C3DC1D" )
           !..prepare input
           c_in => pw1%cc3d
@@ -1964,18 +1961,15 @@ CONTAINS
              total_fun = fun%pw_grid%dvol*accurate_sum(fun%cr3d)
           END IF
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "In_space/in_use combination not implemented")
+          CPABORT("In_space/in_use combination not implemented")
        END IF
     ELSEIF (fun%in_space == RECIPROCALSPACE) THEN
        IF (iop==1) &
-            CALL stop_program(routineN,moduleN,__LINE__,&
-                              "Operator ABS not implemented")
+            CPABORT("Operator ABS not implemented")
        IF (fun%in_use == COMPLEXDATA1D) THEN
           IF ( fun%pw_grid%have_g0 ) total_fun = REAL(fun%pw_grid%vol*fun%cc(1),KIND=dp)
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "In_space/in_use combination not implemented")
+          CPABORT("In_space/in_use combination not implemented")
        END IF
     ELSE
        CALL stop_program(routineN,moduleN,__LINE__,"No space defined")

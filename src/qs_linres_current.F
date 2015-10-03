@@ -1091,8 +1091,7 @@ CONTAINS
                block=jp_block_d,found=den_found)
 
           IF (.NOT.ASSOCIATED(jp_block_a)) &
-               CALL stop_program(routineN,moduleN,__LINE__,&
-                                 "p_block not associated in deltap")
+               CPABORT("p_block not associated in deltap")
 
           iatom_old = iatom
           jatom_old = jatom

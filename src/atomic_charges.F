@@ -15,7 +15,6 @@ MODULE atomic_charges
   USE particle_types,                  ONLY: particle_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -88,8 +87,7 @@ CONTAINS
        END SELECT
        total_charge = 0.0_dp
        IF (SIZE(particle_set) /= natom) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,&
-                            "Unexpected number of atoms/charges")
+          CPABORT("Unexpected number of atoms/charges")
        END IF
        WRITE(scr,'(A)') ""
        DO iatom=1,natom

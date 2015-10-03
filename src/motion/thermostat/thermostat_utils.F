@@ -907,7 +907,7 @@ CONTAINS
                 IF (thermolist(ipart)==HUGE(0)) THEN
                    thermolist(ipart) = ig
                 ELSE
-                   CALL stop_program(routineN,moduleN,__LINE__,&
+                   CALL cp_abort(__LOCATION__,&
                         'One atom ('//cp_to_string(ipart)//') of the '//&
                         TRIM(label1)//' was already assigned to'//&
                         ' the thermostatting region Nr.'//cp_to_string(thermolist(ipart))//&
@@ -923,7 +923,7 @@ CONTAINS
                       IF (thermolist(ipart)==HUGE(0)) THEN
                          thermolist(ipart) = ig
                       ELSE
-                         CALL stop_program(routineN,moduleN,__LINE__,&
+                         CALL cp_abort(__LOCATION__,&
                               'One atom ('//cp_to_string(ipart)//') of the '//&
                               TRIM(label1)//' was already assigned to'//&
                               ' the thermostatting region Nr.'//cp_to_string(thermolist(ipart))//&
