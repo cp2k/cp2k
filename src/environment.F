@@ -828,7 +828,7 @@ CONTAINS
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
          extension=".log")
 
-    CALL fft_setup_library(globenv, para_env, global_section, output_unit)
+    CALL fft_setup_library(globenv, global_section, output_unit)
     CALL diag_setup_library(globenv, output_unit)
 
     CALL cp_print_key_finished_output(output_unit,logger,global_section,&
@@ -839,7 +839,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief check FFT preferred library availability, if not switch
 !> \param globenv ...
-!> \param para_env ...
 !> \param global_section ...
 !> \param output_unit ...
 !> \par History
@@ -847,12 +846,9 @@ CONTAINS
 !>      Nov-2013 (MI) refactoring
 !> \author JGH,MK
 ! *****************************************************************************
-
-
-  SUBROUTINE fft_setup_library(globenv, para_env,global_section, output_unit)
+  SUBROUTINE fft_setup_library(globenv, global_section, output_unit)
 
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: global_section
     INTEGER, INTENT(IN)                      :: output_unit
 

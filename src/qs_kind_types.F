@@ -1920,15 +1920,13 @@ CONTAINS
 !> \brief ...
 !> \param qs_kind_set ...
 !> \param dft_control ...
-!> \param para_env ...
 !> \param subsys_section ...
 ! *****************************************************************************
-  SUBROUTINE check_qs_kind_set(qs_kind_set,dft_control,para_env,subsys_section)
+  SUBROUTINE check_qs_kind_set(qs_kind_set,dft_control,subsys_section)
 
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'check_qs_kind_set', &

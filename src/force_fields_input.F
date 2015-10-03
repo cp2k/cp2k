@@ -317,7 +317,7 @@ __LOCATION__,&
     IF (explicit) THEN
        ntot=0
        CALL shell_p_create(inp_info%shell_list,nshell)
-       CALL read_shell_section(inp_info%shell_list,tmp_section,ntot,para_env)
+       CALL read_shell_section(inp_info%shell_list,tmp_section,ntot)
     END IF
 
     tmp_section => section_vals_get_subs_vals(ff_section,"BOND")
@@ -1506,16 +1506,14 @@ __LOCATION__,&
 !> \param shell_list ...
 !> \param section ...
 !> \param start ...
-!> \param para_env ...
 !> \author Marcella Iannuzzi
 ! *****************************************************************************
-  SUBROUTINE read_shell_section(shell_list,section,start,para_env)
+  SUBROUTINE read_shell_section(shell_list,section,start)
 
     TYPE(shell_p_type), DIMENSION(:), &
       POINTER                                :: shell_list
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_shell_section', &
       routineP = moduleN//':'//routineN

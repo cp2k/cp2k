@@ -607,8 +607,7 @@ CONTAINS
     CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
 
     !   *** Check basis and fill in missing parts ***
-    CALL check_qs_kind_set(qs_kind_set,dft_control,para_env,&
-         subsys_section=subsys_section)
+    CALL check_qs_kind_set(qs_kind_set,dft_control,subsys_section=subsys_section)
 
     !   *** Check that no all-electron potential is present if GPW or GAPW_XC
     CALL get_qs_kind_set(qs_kind_set, all_potential_present=all_potential_present)
