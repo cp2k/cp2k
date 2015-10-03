@@ -44,8 +44,7 @@ MODULE fft_tools
        mp_alltoall, mp_cart_coords, mp_cart_rank, mp_cart_sub, &
        mp_comm_compare, mp_comm_free, mp_comm_null, mp_environ, mp_irecv, &
        mp_isend, mp_rank_compare, mp_sum, mp_sync, mp_waitall
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -213,8 +212,7 @@ CONTAINS
     fft_type = fft_library ( fftlib )
     fft_plan_style = plan_style
 
-    IF ( fft_type <= 0 ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                           "Unknown FFT library: "//TRIM(fftlib))
+    IF ( fft_type <= 0 ) CPABORT("Unknown FFT library: "//TRIM(fftlib))
 
     CALL fft_do_init(fft_type,wisdom_file)
 

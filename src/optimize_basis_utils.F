@@ -30,7 +30,6 @@ MODULE optimize_basis_utils
                                              subset_type
   USE powell,                          ONLY: opt_state_type
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -1118,10 +1117,10 @@ CONTAINS
       END DO search_loop
       CALL parser_release(parser)
 
-      IF( .NOT. basis_found ) CALL stop_program(routineN,moduleN,__LINE__,&
+      IF( .NOT. basis_found ) CALL cp_abort(__LOCATION__,&
                               "The requested basis set <"//TRIM(basis_name)//&
                               "> for element <"//TRIM(element)//"> was not "//&
-                              "found in the template basis set file ",para_env)
+                              "found in the template basis set file ")
 
    END SUBROUTINE parse_basis
 

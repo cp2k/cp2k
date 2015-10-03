@@ -131,7 +131,6 @@ MODULE qs_scf
        special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -475,7 +474,7 @@ CONTAINS
     DO ispin=1,SIZE(mos)!fm -> dbcsr
        IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr
           IF (.NOT.ASSOCIATED(mos(ispin)%mo_set%mo_coeff_b)) &!fm->dbcsr
-             CALL stop_program(routineN,moduleN,__LINE__,"mo_coeff_b is not allocated")!fm->dbcsr
+             CPABORT("mo_coeff_b is not allocated")!fm->dbcsr
           CALL copy_dbcsr_to_fm(mos(ispin)%mo_set%mo_coeff_b, &!fm->dbcsr
                mos(ispin)%mo_set%mo_coeff)!fm -> dbcsr
        ENDIF!fm->dbcsr

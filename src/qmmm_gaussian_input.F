@@ -110,7 +110,6 @@ MODULE qmmm_gaussian_input
        s9_b7, s9_b8, s9_b9, s9_rc
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -233,7 +232,7 @@ CONTAINS
        ELSE
 !       *** Stop program, if the end of file is reached ***
           IF (output_unit>0) WRITE(output_unit,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition."
-          CALL stop_program(routineN,moduleN,__LINE__,"Radius Value not found in MM_POTENTIAL file",para_env)
+          CPABORT("Radius Value not found in MM_POTENTIAL file")
        END IF
 
     END DO search_loop

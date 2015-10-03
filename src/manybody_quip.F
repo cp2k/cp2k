@@ -22,7 +22,6 @@ MODULE manybody_quip
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom,&
                                              evolt
-  USE termination,                     ONLY: stop_program
 #ifdef __QUIP
   USE quip_unified_wrapper_module,    ONLY : quip_unified_wrapper
 #endif
@@ -80,7 +79,8 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
 
 #endif
 #ifndef __QUIP
-    CPABORT("In order to use QUIP you need to download and install the libAtoms/QUIP library (check CP2K manual for details)")
+    CALL cp_abort(__LOCATION__,"In order to use QUIP you need to download "//&
+         "and install the libAtoms/QUIP library (check CP2K manual for details)")
 #else
     n_atoms = SIZE(particle_set)
     ALLOCATE(use_atom(n_atoms))

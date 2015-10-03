@@ -44,7 +44,6 @@ MODULE md_conserved_quantities
   USE qmmmx_types,                     ONLY: qmmmx_env_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: get_thermostat_energies
 #include "../common/cp_common_uses.f90"
@@ -143,7 +142,7 @@ CONTAINS
 
     SELECT CASE ( simpar%ensemble  )
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble')
+       CPABORT('Unknown ensemble')
     CASE ( isokin_ensemble )
        md_ener%constant = md_ener%ekin
     CASE ( reftraj_ensemble ) ! no constant of motion available

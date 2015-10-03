@@ -27,8 +27,7 @@ MODULE mc_coordinates
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../../common/cp_common_uses.f90"
@@ -453,7 +452,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
          ENDIF
          atom_number=atom_number+nunits(mol_type(imolecule))
       ENDDO
-      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
+      IF(molecule_number == 0) CALL cp_abort(__LOCATION__,&
                'CBMC swap move cannot find which molecule number it needs')
 
       IF(lremove) THEN
@@ -616,8 +615,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, max_val, min_val, exp_max
       ENDIF
 
 ! make sure a configuration was choosen
-      IF(choosen == 0) CALL stop_program(routineN,moduleN,&
-         __LINE__,'CBMC swap move failed to select config')
+      IF(choosen == 0)&
+         CPABORT('CBMC swap move failed to select config')
 
 ! if this is an old configuration, we always choose the first one
       IF(lremove) choosen=1

@@ -41,7 +41,6 @@ MODULE qs_ot_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -350,10 +349,9 @@ CONTAINS
        qs_ot_env%use_gx_old=.TRUE.
        qs_ot_env%use_dx    =.TRUE.
     CASE ("DIIS","BROY")
-       IF (m_diis.lt.1) CALL stop_program(routineN,moduleN,__LINE__,&
-                                          "m_diis less than one")
+       IF (m_diis.lt.1) CPABORT("m_diis less than one")
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown option")
+       CPABORT("Unknown option")
     END SELECT
 
     IF (qs_ot_env%settings%ot_method.eq."DIIS" .OR. &
@@ -767,36 +765,36 @@ CONTAINS
        CALL cite_reference(Weber2008)
        settings%ot_algorithm="REF"
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Value unknown")
+       CPABORT("Value unknown")
     END SELECT
 
     ! irac input
     CALL section_vals_val_get(ot_section,"IRAC_DEGREE",i_val=settings%irac_degree)
     IF ( settings%irac_degree < 2 .OR. settings%irac_degree > 4 ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OT IRAC_DEGREE: Value unknown")
+       CPABORT("READ OT IRAC_DEGREE: Value unknown")
     ENDIF
     CALL section_vals_val_get(ot_section,"MAX_IRAC",i_val=settings%max_irac)
     IF(settings%max_irac < 1) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OT MAX_IRAC: VALUE MUST BE GREATER THAN ZERO")
+       CPABORT("READ OT MAX_IRAC: VALUE MUST BE GREATER THAN ZERO")
     ENDIF
     CALL section_vals_val_get(ot_section,"EPS_IRAC_FILTER_MATRIX",r_val=settings%eps_irac_filter_matrix)
     CALL section_vals_val_get(ot_section,"EPS_IRAC",r_val=settings%eps_irac)
     IF(settings%eps_irac < 0.0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OT EPS_IRAC: VALUE MUST BE GREATER THAN ZERO")
+       CPABORT("READ OT EPS_IRAC: VALUE MUST BE GREATER THAN ZERO")
     ENDIF
     CALL section_vals_val_get(ot_section,"EPS_IRAC_QUICK_EXIT",r_val=settings%eps_irac_quick_exit)
     IF(settings%eps_irac_quick_exit < 0.0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OT EPS_IRAC_QUICK_EXIT: VALUE MUST BE GREATER THAN ZERO")
+       CPABORT("READ OT EPS_IRAC_QUICK_EXIT: VALUE MUST BE GREATER THAN ZERO")
     ENDIF
 
     CALL section_vals_val_get(ot_section,"EPS_IRAC_SWITCH",r_val=settings%eps_irac_switch)
     IF(settings%eps_irac_switch < 0.0_dp) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OT EPS_IRAC_SWITCH: VALUE MUST BE GREATER THAN ZERO")
+       CPABORT("READ OT EPS_IRAC_SWITCH: VALUE MUST BE GREATER THAN ZERO")
     ENDIF
 
     CALL section_vals_val_get(ot_section,"MIXED_PRECISION",l_val=settings%mixed_precision)
     IF(settings%mixed_precision.AND.ot_algorithm.NE.ot_algo_irac) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"MIXED_PRECISION implemented only for IRAC so far")
+       CPABORT("MIXED_PRECISION implemented only for IRAC so far")
     ENDIF
 
     CALL section_vals_val_get(ot_section,"ORTHO_IRAC",i_val=ot_ortho_irac)
@@ -808,7 +806,7 @@ CONTAINS
     CASE(ot_lwdn_irac)
        settings%ortho_irac="LWDN"
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OT ORTHO_IRAC: Value unknown")
+       CPABORT("READ OT ORTHO_IRAC: Value unknown")
     END SELECT
 
     CALL section_vals_val_get(ot_section,"ON_THE_FLY_LOC",l_val=settings%on_the_fly_loc)
@@ -837,7 +835,7 @@ CONTAINS
        CALL section_vals_val_get(ot_section,"BROYDEN_ENABLE_FLIP", l_val=settings%broyden_enable_flip)
        settings%ot_method="BROY"
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OTSCF MINIMIZER: Value unknown")
+       CPABORT("READ OTSCF MINIMIZER: Value unknown")
     END SELECT
     CALL section_vals_val_get(ot_section,"SAFER_DIIS",l_val=settings%safer_diis)
     CALL section_vals_val_get(ot_section,"LINESEARCH",i_val=ls_method)
@@ -852,7 +850,7 @@ CONTAINS
        settings%line_search_method="GOLD"
        CALL section_vals_val_get(ot_section,"GOLD_TARGET",r_val=settings%gold_target)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OTSCF LS: Value unknown")
+       CPABORT("READ OTSCF LS: Value unknown")
     END SELECT
 
     CALL section_vals_val_get(ot_section,"PRECOND_SOLVER",i_val=settings%precond_solver_type)
@@ -866,7 +864,7 @@ CONTAINS
     CASE(ot_precond_solver_update)
        settings%precond_solver_name="INVERSE_UPDATE"
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OTSCF SOLVER: Value unknown")
+       CPABORT("READ OTSCF SOLVER: Value unknown")
     END SELECT
 
     !If these values are negative we will set them "optimal" for a given precondtioner below
@@ -900,7 +898,7 @@ CONTAINS
        IF(settings%ds_min<0.0_dp) settings%ds_min=0.15_dp
        IF(settings%energy_gap<0.0_dp) settings%energy_gap=0.2_dp
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"READ OTSCF PRECONDITIONER: Value unknown")
+       CPABORT("READ OTSCF PRECONDITIONER: Value unknown")
     END SELECT
     CALL section_vals_val_get(ot_section,"EPS_TAYLOR",r_val=settings%eps_taylor)
     CALL section_vals_val_get(ot_section,"MAX_TAYLOR",i_val=settings%max_taylor)

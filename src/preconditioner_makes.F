@@ -48,7 +48,6 @@ MODULE preconditioner_makes
                                              ot_precond_solver_inv_chol
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -109,13 +108,13 @@ CONTAINS
     CASE (ot_precond_s_inverse)
        IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
        IF (.NOT. PRESENT(matrix_s) ) &
-          CALL stop_program(routineN,moduleN,__LINE__, "Type for S=1 not implemented")
+          CPABORT("Type for S=1 not implemented")
        CALL make_full_s_inverse(preconditioner_env,matrix_s)
   
     CASE (ot_precond_full_kinetic)
        IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
        IF (.NOT.( PRESENT(matrix_s) .AND. PRESENT(matrix_t) )) &
-          CALL stop_program(routineN,moduleN,__LINE__,"Type for S=1 not implemented")
+          CPABORT("Type for S=1 not implemented")
        CALL make_full_kinetic(preconditioner_env, matrix_t, matrix_s, energy_gap)
     CASE (ot_precond_full_single_inverse)
        IF(my_solver_type.EQ.ot_precond_solver_default) my_solver_type=ot_precond_solver_inv_chol
@@ -134,7 +133,7 @@ CONTAINS
        END IF
   
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Type not implemented")
+       CPABORT("Type not implemented")
     END SELECT
 
   END SUBROUTINE make_preconditioner_matrix

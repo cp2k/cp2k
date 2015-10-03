@@ -65,7 +65,6 @@ MODULE mp2_ri_libint
                                              qs_kind_type
   USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -207,7 +206,7 @@ MODULE mp2_ri_libint
       CALL get_qs_kind(qs_kind=atom_kind,&
                        basis_set=orb_basis_a,basis_type="RI_AUX")
       IF(.NOT.(ASSOCIATED(orb_basis_a))) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,"Initial RI auxiliary basis not specified.")
+        CPABORT("Initial RI auxiliary basis not specified.")
       END IF
       orb_basis_a%gcc=1.0_dp
       orb_basis_a%norm_type = 1

@@ -22,7 +22,6 @@ MODULE qs_ot_minimizer
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                              qs_ot_get_derivative_ref
   USE qs_ot_types,                     ONLY: qs_ot_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -91,7 +90,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit)
                       qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx, &
                       qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin),output_unit)
            CASE DEFAULT
-              CALL stop_program(routineN,moduleN,__LINE__,"ALGORITHM NYI")
+              CPABORT("ALGORITHM NYI")
            END SELECT
         END IF
         ! and also the gradient along the direction
@@ -151,7 +150,7 @@ SUBROUTINE ot_mini(qs_ot_env,matrix_hc,output_unit)
            qs_ot_env(1)%OT_METHOD_FULL="OT BROY"
            CALL ot_broyden_step(qs_ot_env)
    CASE DEFAULT
-           CALL stop_program(routineN,moduleN,__LINE__,"OT_METHOD NYI")
+           CPABORT("OT_METHOD NYI")
    END SELECT
 
    CALL timestop(handle)
@@ -215,7 +214,7 @@ SUBROUTINE do_line_search(qs_ot_env)
    CASE("NONE")
        CALL do_line_search_none(qs_ot_env)
    CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"NYI")
+       CPABORT("NYI")
    END SELECT
 END SUBROUTINE do_line_search
 
@@ -307,7 +306,7 @@ SUBROUTINE do_line_search_gold(qs_ot_env)
    IF (count+1 .GT. SIZE(qs_ot_env(1)%OT_pos)) THEN
       ! should not happen, we pass with a warning first
       ! you can increase the size of OT_pos and the like in qs_ot_env
-      CALL stop_program(routineN,moduleN,__LINE__,"MAX ITER EXCEEDED : FATAL")
+      CPABORT("MAX ITER EXCEEDED : FATAL")
    ENDIF
 
    IF (qs_ot_env(1)%line_search_count .EQ. 1) THEN
@@ -447,7 +446,7 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env)
          qs_ot_env(1)%energy_only=.FALSE.
          qs_ot_env(1)%line_search_might_be_done=.TRUE.
    CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,"NYI")
+         CPABORT("NYI")
    END SELECT
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
    qs_ot_env(1)%ds_min=qs_ot_env(1)%OT_pos(count+1)
@@ -506,7 +505,7 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env)
              qs_ot_env(1)%OT_pos(count+1)=MAXVAL(qs_ot_env(1)%OT_pos(1:2))*2.0_dp
          ENDIF
    CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"NYI")
+      CPABORT("NYI")
    END SELECT
    ds=qs_ot_env(1)%OT_pos(count+1)-qs_ot_env(1)%OT_pos(count)
    qs_ot_env(1)%ds_min=qs_ot_env(1)%OT_pos(count+1)
@@ -559,7 +558,7 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env)
    do_ener = qs_ot_env ( 1 ) % settings % do_ener
 
    IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
-       IF (.NOT. qs_ot_env(1)%use_dx) CALL stop_program(routineN,moduleN,__LINE__,"use dx")
+       IF (.NOT. qs_ot_env(1)%use_dx) CPABORT("use dx")
        qs_ot_env(1)%gnorm=0.0_dp
        IF ( do_ks ) THEN
          DO ispin=1,nspin
@@ -1212,7 +1211,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env)
 
     ! simplify our life....
     IF (do_ener .OR. .NOT. do_ks .OR. qs_ot_env(1)%settings%do_rotation) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,"Not yet implemented")
+        CPABORT("Not yet implemented")
     ENDIF
     !
     nspin=SIZE(qs_ot_env)

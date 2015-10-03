@@ -32,7 +32,6 @@ MODULE topology_connectivity_util
                                              set_molecule,&
                                              set_molecule_set
   USE string_table,                    ONLY: id2str
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -169,7 +168,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_2",handle2)
     IF(topology%nmol_type <= 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"No molecule kind defined")
+       CPABORT("No molecule kind defined")
     ELSE
        NULLIFY(molecule_kind_set)
        i = topology%nmol_type
@@ -184,7 +183,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_3",handle2)
     IF(topology%nmol <= 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"No molecule defined")
+       CPABORT("No molecule defined")
     ELSE
        NULLIFY(molecule_set)
        i = topology%nmol

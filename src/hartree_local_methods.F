@@ -45,7 +45,6 @@ MODULE  hartree_local_methods
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -371,8 +370,7 @@ CONTAINS
 
          nchan_0 = nsoset(lmax0)
 
-         IF(nchan_0 > max_iso_not0) CALL stop_program(routineN,moduleN,__LINE__,&
-            "channels for rho0 > # max of spherical harmonics",para_env)
+         IF(nchan_0 > max_iso_not0) CPABORT("channels for rho0 > # max of spherical harmonics")
 
          NULLIFY(rrad_z,my_CG)
          my_CG  => harmonics%my_CG

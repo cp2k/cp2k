@@ -87,7 +87,6 @@ MODULE qs_linres_module
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -131,7 +130,7 @@ CONTAINS
     CASE(use_qmmm)
        qs_env => force_env%qmmm_env%qs_env
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Doesnt recognize this force_env.")
+       CPABORT("Doesnt recognize this force_env.")
     END SELECT
 
     qs_env%linres_run = .TRUE.
@@ -363,7 +362,7 @@ CONTAINS
          WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
               "LINRES| Preconditioner","            FULL_ALL"
       CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,"Preconditioner NYI")
+         CPABORT("Preconditioner NYI")
       END SELECT
 
       WRITE (UNIT=output_unit,FMT="(T2,A,T72,ES8.1)")&

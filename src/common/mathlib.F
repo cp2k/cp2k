@@ -17,7 +17,6 @@ MODULE mathlib
                                              dp
   USE mathconstants,                   ONLY: euler,&
                                              fac
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.f90"
@@ -261,14 +260,12 @@ CONTAINS
 
     ! Check the size of matrix a
     IF (SIZE(a,2) /= n) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "Check the size of matrix a (parameter #1)")
+       CPABORT("Check the size of matrix a (parameter #1)")
     END IF
 
     ! Check the size of vector eigval
     IF (SIZE(eigval) /= n) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,&
-            "The dimension of vector eigval is too small")
+       CPABORT("The dimension of vector eigval is too small")
     END IF
 
     ! Check, if the divide-and-conquer algorithm is requested
@@ -306,11 +303,9 @@ CONTAINS
 
     IF (info /= 0) THEN
        IF (divide_and_conquer) THEN
-          CALL stop_program(moduleN,routineN,__LINE__,&
-               "The matrix diagonalization with dsyevd failed")
+          CPABORT("The matrix diagonalization with dsyevd failed")
        ELSE
-          CALL stop_program(moduleN,routineN,__LINE__,&
-               "The matrix diagonalization with dsyev failed")
+          CPABORT("The matrix diagonalization with dsyev failed")
        END IF
     END IF
 
@@ -475,14 +470,14 @@ CONTAINS
     IF(.NOT.PRESENT(cholesky_triangle)) THEN
       CALL dpotrf(my_triangle,n,a,n,info)
       IF (info /= 0) THEN
-         CALL stop_program(routineN,moduleN,__LINE__,"DPOTRF failed")
+         CPABORT("DPOTRF failed")
       END IF
     ENDIF
 
     ! do inversion using the cholesky decomposition
     CALL dpotri(my_triangle,n,a,n,info)
     IF (info /= 0) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,"Matrix inversion failed")
+      CPABORT("Matrix inversion failed")
     END IF
     
     IF(my_triangle == "U") THEN
@@ -565,19 +560,16 @@ CONTAINS
 
     ! Check array dimensions
     IF (n == 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Matrix to be inverted of zero size")
+      CPABORT("Matrix to be inverted of zero size")
     END IF
 
     IF (n /= SIZE(a,2)) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Check the array bounds of parameter #1")
+      CPABORT("Check the array bounds of parameter #1")
     END IF
 
     IF ((n /= SIZE(a_inverse,1)).OR.&
         (n /= SIZE(a_inverse,2))) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Check the array bounds of parameter #2")
+      CPABORT("Check the array bounds of parameter #2")
     END IF
 
     ! Allocate work storage
@@ -601,8 +593,7 @@ CONTAINS
     CALL dgetrf(n,n,a_lu,n,ipiv,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "The LU factorization in dgetrf failed")
+      CPABORT("The LU factorization in dgetrf failed")
     END IF
 
     ! Compute the norm of the matrix a
@@ -620,14 +611,12 @@ CONTAINS
     CALL dgecon(norm,n,a_lu,n,a_norm,r_cond,work,iwork,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "The computation of the condition number in "//&
-                        "dgecon failed")
+      CPABORT("The computation of the condition number in dgecon failed")
     END IF
 
     IF (r_cond < EPSILON(0.0_dp)) THEN
       WRITE (message,"(A,ES10.3)") "R_COND =",r_cond
-      CALL stop_program(moduleN,routineN,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
                         "Bad condition number "//TRIM(message)//" (smaller than the machine "//&
                         "working precision)")
     END IF
@@ -639,9 +628,7 @@ CONTAINS
     CALL dgetrs(trans,n,n,a_lu,n,ipiv,a_inverse,n,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Solving the system of linear equations in dgetrs "//&
-                        "failed")
+      CPABORT("Solving the system of linear equations in dgetrs failed")
     END IF
 
     ! Improve the computed solution iteratively
@@ -656,8 +643,7 @@ CONTAINS
                     work,iwork,info)
 
         IF (info /= 0) THEN
-          CALL stop_program(moduleN,routineN,__LINE__,&
-                            "Improving the computed solution in dgerfs failed")
+          CPABORT("Improving the computed solution in dgerfs failed")
         END IF
 
         old_eval_error = eval_error
@@ -737,19 +723,16 @@ CONTAINS
 
     ! Check array dimensions
     IF (n == 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Matrix to be inverted of zero size")
+      CPABORT("Matrix to be inverted of zero size")
     END IF
 
     IF (n /= SIZE(a,2)) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Check the array bounds of parameter #1")
+      CPABORT("Check the array bounds of parameter #1")
     END IF
 
     IF ((n /= SIZE(a_inverse,1)).OR.&
         (n /= SIZE(a_inverse,2))) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Check the array bounds of parameter #2")
+      CPABORT("Check the array bounds of parameter #2")
     END IF
 
     ! Allocate work storage
@@ -773,8 +756,7 @@ CONTAINS
     CALL zgetrf(n,n,a_lu,n,ipiv,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "The LU factorization in dgetrf failed")
+      CPABORT("The LU factorization in dgetrf failed")
     END IF
 
     ! Compute the norm of the matrix a
@@ -792,14 +774,12 @@ CONTAINS
     CALL zgecon(norm,n,a_lu,n,a_norm,r_cond,work,rwork,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "The computation of the condition number in "//&
-                        "dgecon failed")
+      CPABORT("The computation of the condition number in dgecon failed")
     END IF
 
     IF (r_cond < EPSILON(0.0_dp)) THEN
       WRITE (message,"(A,ES10.3)") "R_COND =",r_cond
-      CALL stop_program(moduleN,routineN,__LINE__,&
+      CALL cp_abort(__LOCATION__,&
                         "Bad condition number "//TRIM(message)//" (smaller than the machine "//&
                         "working precision)")
     END IF
@@ -811,9 +791,7 @@ CONTAINS
     CALL zgetrs(trans,n,n,a_lu,n,ipiv,a_inverse,n,info)
 
     IF (info /= 0) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Solving the system of linear equations in dgetrs "//&
-                        "failed")
+      CPABORT("Solving the system of linear equations in dgetrs failed")
     END IF
 
     ! Improve the computed solution iteratively
@@ -827,8 +805,7 @@ CONTAINS
                   work,rwork,info)
 
       IF (info /= 0) THEN
-        CALL stop_program(moduleN,routineN,__LINE__,&
-                          "Improving the computed solution in dgerfs failed")
+        CPABORT("Improving the computed solution in dgerfs failed")
       END IF
 
       old_eval_error = eval_error
@@ -1119,7 +1096,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'symmetrize_matrix', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: i, n
 
     n = MIN(SIZE(a,1),SIZE(a,2))
@@ -1141,9 +1117,7 @@ CONTAINS
           a(i+1:n,i) = -a(i,i+1:n)
        END DO
     ELSE
-       WRITE (message,"(A)")&
-            "Invalid option <"//TRIM(option)//"> was specified for parameter #2"
-       CALL stop_program(moduleN,routineN,__LINE__,message)
+       CPABORT("Invalid option <"//TRIM(option)//"> was specified for parameter #2")
     END IF
 
   END SUBROUTINE symmetrize_matrix
@@ -1273,7 +1247,7 @@ CONTAINS
     REAL(dp)                                 :: fact, prev, sum1, term
 
     IF(x <= 0._dp) THEN
-       CALL stop_program(moduleN,routineN,__LINE__,"Invalid argument")
+       CPABORT("Invalid argument")
     END IF
 
     IF (x < fpmin) THEN
@@ -1408,7 +1382,7 @@ CONTAINS
     nm1=n-1
 
     IF(n.lt.0.OR.x.lt.0.0_dp.OR.(x.eq.0.0_dp.AND.(n.EQ.0.or.n.EQ.1))) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,"Invalid argument")
+      CPABORT("Invalid argument")
     ELSE IF(n.EQ.0) THEN       !Special case.
       expint=EXP(-x)/x
     ELSE IF(x.EQ.0.0_dp) THEN  !Another special case.
@@ -1430,7 +1404,7 @@ CONTAINS
           RETURN
         END IF
       END DO
-      CALL stop_program(moduleN,routineN,__LINE__,"continued fraction failed in expint")
+      CPABORT("continued fraction failed in expint")
     ELSE !Evaluate series.
       IF(nm1.NE.0)THEN  !Set first term.
         expint=1.0_dp/nm1
@@ -1452,7 +1426,7 @@ CONTAINS
         expint=expint+del
         IF(ABS(del).LT.ABS(expint)*EPS) RETURN
       END DO
-       CALL stop_program(moduleN,routineN,__LINE__,"series failed in expint")
+       CPABORT("series failed in expint")
     END IF
     RETURN
   END FUNCTION expint
@@ -1659,8 +1633,7 @@ CONTAINS
     n = SIZE(a)
 
     IF (n /= SIZE(b)) THEN
-      CALL stop_program(moduleN,routineN,__LINE__,&
-                        "Check the array bounds of the parameters")
+      CPABORT("Check the array bounds of the parameters")
     END IF
 
     DO i=1,n

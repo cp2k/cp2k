@@ -44,7 +44,6 @@ MODULE extended_system_init
                                              molecule_type
   USE parallel_rng_types,              ONLY: next_random_number
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type
   USE thermostat_utils,                ONLY: get_nhc_energies
   USE timings,                         ONLY: timeset,&
@@ -514,7 +513,7 @@ CONTAINS
 
     SELECT CASE (nhc % nyosh)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,'Value not available.')
+       CPABORT('Value not available.')
     CASE (1)
        yosh_wt(1) = 1.0_dp
     CASE (3)

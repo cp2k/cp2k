@@ -18,7 +18,6 @@ MODULE linear_systems
   
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv
-  USE termination,                     ONLY: stop_program
 #include "cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -56,7 +55,7 @@ SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
   CALL lapack_sgesv ( mysize, nrhs, matrix, lda, ipiv, &
                       eigenvectors, ldb, info )
   IF ( info /= 0 ) THEN
-     CALL stop_program(routineN,moduleN,__LINE__,"Error in inversion")
+     CPABORT("Error in inversion")
   END IF
 
 END SUBROUTINE solve_system

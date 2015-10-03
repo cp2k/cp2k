@@ -35,7 +35,6 @@ MODULE qs_fb_atomic_matrix_methods
   USE qs_fb_matrix_data_types,         ONLY: fb_matrix_data_get,&
                                              fb_matrix_data_has_data,&
                                              fb_matrix_data_obj
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -256,7 +255,7 @@ CONTAINS
                                     row=iatom, col=jatom, block=mat_block, &
                                     found=found)
           IF (.NOT. found) THEN
-             CALL stop_program(routineN, moduleN, __LINE__, "Matrix block not found")
+             CPABORT("Matrix block not found")
           ELSE
              ! we have found the matrix block
              DO jj = 1, ncols_blk

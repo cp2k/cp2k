@@ -20,8 +20,7 @@ MODULE mc_move_control
                                              mc_simpar_type,&
                                              set_mc_par
   USE physcon,                         ONLY: angstrom
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../../common/cp_common_uses.f90"
@@ -481,7 +480,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
       SELECT CASE (flag)
       CASE DEFAULT
          WRITE(*,*) 'flag =',flag
-         CALL stop_program(routineN,moduleN,__LINE__,"Wrong option passed")
+         CPABORT("Wrong option passed")
       CASE ("trans")
 
 ! we need to update all the displacements for every molecule type

@@ -66,7 +66,6 @@ MODULE lri_environment_methods
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -940,7 +939,7 @@ CONTAINS
            ! condition number
            CALL dpocon('U',n,sinv,n,anorm,rcond,work,iwork,info)
            IF (info /= 0) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,"DPOCON failed")
+             CPABORT("DPOCON failed")
            ENDIF
            IF(LOG(1._dp/rcond) > lri_env%cond_max) THEN
              CALL get_pseudo_inverse_svd(s,sinv,rskip)

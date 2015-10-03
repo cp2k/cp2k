@@ -37,7 +37,6 @@ MODULE semi_empirical_types
   USE taper_types,                     ONLY: taper_create,&
                                              taper_release,&
                                              taper_type
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -732,7 +731,7 @@ CONTAINS
 
           SELECT CASE (typ)
           CASE DEFAULT
-             CALL stop_program(routineN,moduleN,__LINE__,"Semiempirical method unknown")
+             CPABORT("Semiempirical method unknown")
           CASE(do_method_am1)
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)

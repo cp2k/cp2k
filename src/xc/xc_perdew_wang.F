@@ -15,7 +15,6 @@
 MODULE xc_perdew_wang
   
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -157,7 +156,7 @@ CONTAINS
     SELECT CASE (method)
 
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown method")
+       CPABORT("Unknown method")
 
     CASE (pw_orig)
        A(0)  = 0.031091_dp ; A(1)  = 0.015545_dp

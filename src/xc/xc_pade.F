@@ -18,7 +18,6 @@ MODULE xc_pade
   USE bibliography,                    ONLY: Goedecker1996,&
                                              cite_reference
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
@@ -123,7 +122,7 @@ CONTAINS
 
     IF (PRESENT(needs)) THEN
        IF (.NOT. PRESENT(lsd)) &
-            CALL stop_program(routineN,moduleN,__LINE__,"Arguments mismatch.")
+            CPABORT("Arguments mismatch.")
        IF (lsd) THEN
           needs%rho_spin = .TRUE.
        ELSE
@@ -162,8 +161,7 @@ CONTAINS
     mp = SIZE ( pot, 2 )
     m = ABS(order)
     mt = mx(m,2)
-    IF ( mt > mp ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "Size of POT array too small.")
+    IF ( mt > mp ) CPABORT("Size of POT array too small.")
 
     n = SIZE ( rho )
     ALLOCATE ( rs(n))
@@ -290,10 +288,8 @@ CONTAINS
     m  = ABS(order)
     mt = mx(m,2)
 
-    IF ( mt > mp ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "Size of POT array too small.")
-    IF ( n > SIZE(pot,1) ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                             "Size of POT array too small.")
+    IF ( mt > mp ) CPABORT("Size of POT array too small.")
+    IF ( n > SIZE(pot,1) ) CPABORT("Size of POT array too small.")
 
 !$omp parallel do private(i,fx,rs,m1,m2) default(none)&
 !$omp shared(rhoa,rhob,m,pot,n,calc,mx)
@@ -884,8 +880,7 @@ CONTAINS
       dx, dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
       fb3, fb4, or, p, q, rhoab, xp, xq, xt, yt
 
-    IF ( .NOT. debug_flag ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                              "Routine not tested")
+    IF ( .NOT. debug_flag ) CPABORT("Routine not tested")
 
       rhoab = rhoa + rhob
 

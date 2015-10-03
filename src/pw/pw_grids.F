@@ -56,7 +56,6 @@ MODULE pw_grids
                                              PW_MODE_LOCAL,&
                                              map_pn,&
                                              pw_grid_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit,&
@@ -1943,7 +1942,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
                       WRITE ( *, "(A,I10,3I6,F20.10)" ) &
                            " G-vector", ih, ref_grid % g_hat(1:3,ih),ref_grid % gsq(ih)
                    END DO
-                   CALL stop_program(routineN,moduleN,__LINE__,"G vector not found")
+                   CPABORT("G vector not found")
                 END IF
                 is = ip
              END DO
@@ -1961,7 +1960,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
                 END DO
                 IF ( .NOT. g_found ) THEN
                    WRITE(*,"(A,I10,F20.10)") "G-vector", ig, ref_grid % gsq(ig)
-                   CALL stop_program(routineN,moduleN,__LINE__,"G vector not found")
+                   CPABORT("G vector not found")
                 END IF
                 ip = ih - 1
                 DO ih = ip + 1, ng
@@ -1983,14 +1982,14 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
                       WRITE ( *, "(A,I10,3I6,F20.10)" ) &
                            " G-vector", ih, pw_grid % g_hat(1:3,ih),pw_grid % gsq(ih)
                    END DO
-                   CALL stop_program(routineN,moduleN,__LINE__,"G vector not found")
+                   CPABORT("G vector not found")
                 END IF
                 is = ip
              END DO
           END IF
           ! test if all g-vectors are associated
           IF ( ANY ( pw_grid%gidx == 0 ) ) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,"G space sorting not compatible")
+             CPABORT("G space sorting not compatible")
           END IF
        END IF
     END IF
@@ -1998,7 +1997,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
     !check if G=0 is at first position
     IF ( pw_grid % have_g0 ) THEN
        IF ( pw_grid % gsq ( 1 ) /= 0.0_dp ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"G = 0 not in first position")
+          CPABORT("G = 0 not in first position")
        END IF
     END IF
 

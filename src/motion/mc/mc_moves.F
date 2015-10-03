@@ -52,8 +52,7 @@ MODULE mc_moves
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../../common/cp_common_uses.f90"
@@ -213,8 +212,7 @@ CONTAINS
          ENDIF
          atom_number=atom_number+nunits(mol_type(imolecule+start_mol-1))
       ENDDO
-      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
-           'Cannot find the molecule number')
+      IF(molecule_number == 0) CPABORT('Cannot find the molecule number')
 
 ! are we biasing this move?
       IF(lbias) THEN
@@ -247,9 +245,7 @@ CONTAINS
          r_old(1:3,ipart-start_atom+1)=particles%els(ipart)%r(1:3)
       ENDDO
 
-      IF(.NOT. ASSOCIATED(molecule_kind)) CALL &
-           stop_program(routineN,moduleN,__LINE__,&
-           'Cannot find the molecule type')
+      IF(.NOT. ASSOCIATED(molecule_kind)) CPABORT('Cannot find the molecule type')
 ! do the move
       IF (move_type == 'bond') THEN
 
@@ -513,8 +509,7 @@ END SUBROUTINE mc_conformation_change
          ENDIF
          atom_number=atom_number+nunits(mol_type(imolecule+start_mol-1))
       ENDDO
-      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
-           'Cannot find the molecule number')
+      IF(molecule_number == 0) CPABORT('Cannot find the molecule number')
 
 ! are we biasing this move?
       IF(lbias) THEN
@@ -752,8 +747,7 @@ END SUBROUTINE mc_conformation_change
          ENDIF
          atom_number=atom_number+nunits(mol_type(imolecule+start_mol-1))
       ENDDO
-      IF(molecule_number == 0) CALL stop_program(routineN,moduleN,__LINE__,&
-               'Cannot find the molecule number')
+      IF(molecule_number == 0) CPABORT('Cannot find the molecule number')
 
 ! are we biasing this move?
       IF(lbias) THEN

@@ -33,7 +33,6 @@ MODULE qs_ot
   USE preconditioner,                  ONLY: apply_preconditioner
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_ot_types,                     ONLY: qs_ot_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -309,7 +308,7 @@ CONTAINS
     ! compute the P^(-1/2)
     DO i = 1,k
        IF(eig(i).LE.0.0_dp) &
-              CALL stop_program(routineN,moduleN,__LINE__,"P not positive definite")
+              CPABORT("P not positive definite")
        IF(eig(i).LT.1.0E-8_dp) THEN
           fun(i)=0.0_dp
        ELSE
@@ -510,12 +509,12 @@ CONTAINS
        CASE("2PNT")
           IF(qs_ot_env1%line_search_count.EQ.2) update = .TRUE.
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,"NYI")
+          CPABORT("NYI")
        END SELECT
     CASE("DIIS")
        update = .TRUE.
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"NYI")
+       CPABORT("NYI")
     END SELECT
   END FUNCTION qs_ot_ref_update
 
@@ -639,7 +638,7 @@ CONTAINS
     CASE("POLY")
        CALL qs_ot_ref_poly(qs_ot_env,C_OLD,C_TMP,C_NEW,P,SC,norm,update,output_unit)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Wrong argument")
+       CPABORT("Wrong argument")
     END SELECT
     !
     ! We update the C_i+1 and localization
@@ -755,7 +754,7 @@ CONTAINS
        r =  315.0_dp/128.0_dp
        CALL cp_dbcsr_add_on_diag(FY, alpha_scalar=r)                ! Y=Y+315/128*I
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"This irac_order NYI")
+       CPABORT("This irac_order NYI")
     END SELECT
     CALL timestop(handle)
   END SUBROUTINE qs_ot_refine
@@ -1643,8 +1642,8 @@ CONTAINS
 
 ! this is currently a limit of the routine, could be removed rather easily
 
-    IF (xa.lt.0) CALL stop_program(routineN,moduleN,__LINE__,"x is negative")
-    IF (ya.lt.0) CALL stop_program(routineN,moduleN,__LINE__,"y is negative")
+    IF (xa.lt.0) CPABORT("x is negative")
+    IF (ya.lt.0) CPABORT("y is negative")
 
     IF (xa.lt.ya) THEN
        x=ya

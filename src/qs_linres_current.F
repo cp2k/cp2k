@@ -123,7 +123,6 @@ MODULE qs_linres_current
                                              int2pair,&
                                              rs_distribute_matrix,&
                                              task_list_inner_loop
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -503,7 +502,7 @@ CONTAINS
              ! Add the local hard and soft contributions
              ! This can be done atom by atom by a spline extrapolation of the  values
              ! on the spherical grid to the grid points.
-             CALL stop_program(routineN,moduleN,__LINE__,"GAPW needs to be finalized")
+             CPABORT("GAPW needs to be finalized")
           ENDIF
           filename="jresp"
           WRITE(ext,'(a2,I1,a2,I1,a5)')  "iB",iB,"_d",idir,".cube"
@@ -980,7 +979,7 @@ CONTAINS
              WRITE(*,*) 'UBOUND(my_rho,3),UBOUND(my_current,3)',UBOUND(my_rho,3),UBOUND(my_current,3)
              WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_current,2)',UBOUND(my_rho,2),UBOUND(my_current,2)
              WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_current,1)',UBOUND(my_rho,1),UBOUND(my_current,1)
-             CALL stop_program(routineN,moduleN,__LINE__,"Bug")
+             CPABORT("Bug")
           ENDIF
 
           my_gauge=>rs_gauge(1)%rs(igrid_level)%rs_grid%r
@@ -996,7 +995,7 @@ CONTAINS
              WRITE(*,*) 'UBOUND(my_rho,3),UbOUND(my_gauge,3)',UBOUND(my_rho,3),UBOUND(my_gauge,3)
              WRITE(*,*) 'UBOUND(my_rho,2),UBOUND(my_gauge,2)',UBOUND(my_rho,2),UBOUND(my_gauge,2)
              WRITE(*,*) 'UBOUND(my_rho,1),UBOUND(my_gauge,1)',UBOUND(my_rho,1),UBOUND(my_gauge,1)
-             CALL stop_program(routineN,moduleN,__LINE__,"Bug")
+             CPABORT("Bug")
           ENDIF
        ENDDO
     ENDIF

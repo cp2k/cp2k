@@ -17,8 +17,7 @@ MODULE gamma
                                              dp_size
   USE mathconstants,                   ONLY: ifac,&
                                              pi
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -93,7 +92,7 @@ CONTAINS
         (tmin < 0.0_dp).OR.&
         (tdelta <= 0.0_dp).OR.&
         (tmin > tmax)) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,"Invalid arguments")
+      CPABORT("Invalid arguments")
     END IF
 
     n = nmax + 6

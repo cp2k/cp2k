@@ -22,7 +22,6 @@ MODULE cp_fm_basic_linalg
   USE machine,                         ONLY: m_memory
   USE mathlib,                         ONLY: invert_matrix
   USE message_passing,                 ONLY: mp_sum
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -344,7 +343,7 @@ CONTAINS
                    descb,beta,c(1,1),i_c,j_c,descc)
 
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,"Mixed precision gemm NYI")
+       CPABORT("Mixed precision gemm NYI")
     ENDIF
 #else
 
@@ -366,7 +365,7 @@ CONTAINS
        CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
 
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,"Mixed precision gemm NYI")
+       CPABORT("Mixed precision gemm NYI")
     ENDIF
 
 #endif

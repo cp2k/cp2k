@@ -48,7 +48,6 @@ MODULE topology
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_amber,                  ONLY: read_connectivity_amber,&
@@ -552,7 +551,7 @@ CONTAINS
           WRITE (UNIT=message,FMT="(A,I0,A)")&
             "An error occurred inquiring the file <"//&
             TRIM(topology%coord_file_name)//"> (IOSTAT = ",istat,")"
-          CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
+          CPABORT(TRIM(message))
        END IF
        IF (.NOT.found) THEN
           CALL cp_abort(__LOCATION__,&

@@ -40,7 +40,6 @@ MODULE qs_ot_scf
                                              qs_ot_settings_init,&
                                              qs_ot_type
   USE scf_control_types,               ONLY: smear_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -312,7 +311,7 @@ CONTAINS
                            qs_ot_env(ispin)%matrix_dx,qs_ot_env(ispin),qs_ot_env(1),&
                            output_unit)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,"Algorithm not yet implemented")
+          CPABORT("Algorithm not yet implemented")
        END SELECT
     ENDDO
 
@@ -387,7 +386,7 @@ CONTAINS
 
     DO ispin=1,SIZE(mo_array)
        IF(.NOT.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"Shouldn't get there")
+          CPABORT("Shouldn't get there")
           ! we do ot then copy fm to dbcsr
           ! allocate that somewhere else ! fm -> dbcsr
           CALL cp_dbcsr_init_p(mo_array(ispin)%mo_set%mo_coeff_b)
@@ -451,7 +450,7 @@ CONTAINS
           CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_c0)
           CALL cp_dbcsr_copy(qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin)%matrix_sc0)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,"Algorithm not yet implemented")
+          CPABORT("Algorithm not yet implemented")
        END SELECT
 
     END DO

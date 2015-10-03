@@ -40,8 +40,7 @@ MODULE thermostat_mapping
                                              global_constraint_type,&
                                              molecule_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: locate,&
@@ -370,7 +369,7 @@ CONTAINS
           END DO
        END DO
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,"Invalid region!")
+       CPABORT("Invalid region!")
     END IF
 
     CALL timestop(handle)
@@ -800,7 +799,7 @@ CONTAINS
           END DO
        END DO
     ELSE
-       CALL stop_program(routineN,moduleN,__LINE__,"Invalid region!")
+       CPABORT("Invalid region!")
     END IF
 
     CALL timestop(handle)

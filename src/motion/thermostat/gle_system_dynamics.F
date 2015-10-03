@@ -35,7 +35,6 @@ MODULE gle_system_dynamics
                                              rng_stream_type
   USE particle_types,                  ONLY: particle_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE thermostat_mapping,              ONLY: thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
   USE thermostat_utils,                ONLY: ke_region_particles,&
@@ -360,10 +359,10 @@ CONTAINS
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown ensemble!",para_env)
+       CPABORT("Unknown ensemble!")
     CASE ( nve_ensemble, isokin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
-       CALL stop_program(routineN,moduleN,__LINE__,"Never reach this point!",para_env)
+       CPABORT("Never reach this point!")
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
 
       map_info => gle%map_info

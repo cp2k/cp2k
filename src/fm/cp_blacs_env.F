@@ -23,7 +23,6 @@ MODULE cp_blacs_env
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: gcd
   USE message_passing,                 ONLY: mp_sum
-  USE termination,                     ONLY: stop_program
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -105,7 +104,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (.NOT.ASSOCIATED(blacs_env)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"No BLACS environment")
+       CPABORT("No BLACS environment")
     END IF
 
     IF (PRESENT(my_process_row)) my_process_row = blacs_env%mepos(1)

@@ -14,7 +14,6 @@ MODULE xc_cs1
 
   
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -636,7 +635,7 @@ CONTAINS
                                                 oca, ocb, oda, odb, r3a, r3b, &
                                                 ra, rb, xa, xb
 
-!FM IF ( .NOT. debug_flag ) CALL stop_program(routineN,moduleN,__LINE__,"Routine not tested")
+!FM IF ( .NOT. debug_flag ) CPABORT("Routine not tested")
 
     CPWARN("not tested!")
 

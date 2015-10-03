@@ -52,8 +52,7 @@ MODULE particle_methods
   USE shell_potential_types,           ONLY: get_shell,&
                                              shell_kind_type
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort,&
@@ -211,7 +210,7 @@ CONTAINS
     IF (PRESENT(array)) THEN
        SELECT CASE(TRIM(content))
        CASE ("POS_VEL","POS_VEL_FORCE")
-          CALL stop_program(routineN,moduleN,__LINE__,"Illegal usage")
+          CPABORT("Illegal usage")
        END SELECT
     END IF
     factor = 1.0_dp
@@ -465,7 +464,7 @@ CONTAINS
        END DO
        WRITE (UNIT=iunit,FMT="(A)") "END"
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Illegal dump type")
+       CPABORT("Illegal dump type")
     END SELECT
 
     CALL timestop(handle)

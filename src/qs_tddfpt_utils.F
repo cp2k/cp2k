@@ -38,7 +38,6 @@ MODULE qs_tddfpt_utils
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
                                              tddfpt_env_deallocate,&
                                              tddfpt_env_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -188,7 +187,7 @@ CONTAINS
     energies = 0.0_dp
 
     IF (.NOT.ASSOCIATED(tddfpt_control%lumos)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"LUMOS missing")
+       CPABORT("LUMOS missing")
     END IF
 
     DO spin=1, n_spins

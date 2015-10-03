@@ -23,7 +23,6 @@ MODULE semi_empirical_par_utils
                                              int_onec2el
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -261,7 +260,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF ( sep%z < 0 .OR. sep%z > nelem ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"Invalid atomic number !")
+       CPABORT("Invalid atomic number !")
     ELSE
        IF     ( l==0 ) THEN
           n = nqs(sep%z)
@@ -277,10 +276,10 @@ CONTAINS
        ELSEIF ( l==3 ) THEN
           n = nqf(sep%z)
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,"Invalid l quantum number !")
+          CPABORT("Invalid l quantum number !")
        END IF
        IF ( n < 0 ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"Invalid n quantum number !")
+          CPABORT("Invalid n quantum number !")
        END IF
     END IF
   END FUNCTION get_se_basis

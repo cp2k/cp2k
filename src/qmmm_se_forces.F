@@ -48,7 +48,6 @@ MODULE qmmm_se_forces
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: get_se_type,&
                                              se_param_set_default
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -133,7 +132,7 @@ CONTAINS
           ! Go on with the calculation..
        CASE DEFAULT
           ! Otherwise stop..
-          CALL stop_program(routineN,moduleN,__LINE__,"Method not available",para_env)
+          CPABORT("Method not available")
        END SELECT
        anag = dft_control%qs_control%se_control%analytical_gradients
        delta= dft_control%qs_control%se_control%delta

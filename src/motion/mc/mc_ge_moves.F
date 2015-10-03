@@ -52,8 +52,7 @@ MODULE mc_ge_moves
                                              particle_list_type
   USE particle_methods,                ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../../common/cp_common_uses.f90"
@@ -259,9 +258,8 @@ CONTAINS
                   end_mol=start_mol+SUM(nchains(:,ibox))-1
                   CALL check_for_overlap(bias_env(ibox)%force_env,&
                      nchains(:,ibox),nunits(:),loverlap,mol_type(start_mol:end_mol))
-                  IF(loverlap) CALL stop_program(routineN,&
-                     moduleN,__LINE__,&
-                     'Quickstep move found an overlap in the old config')
+                  IF(loverlap)&
+                     CPABORT('Quickstep move found an overlap in the old config')
                ENDIF
                bias_energy_old(ibox)=last_bias_energy(ibox)
             ENDDO
@@ -615,7 +613,7 @@ CONTAINS
          end_mol=start_mol+SUM(nchains(:,remove_box))-1
          CALL check_for_overlap(force_env(remove_box)%force_env,&
             nchains(:,remove_box),nunits,loverlap,mol_type(start_mol:end_mol))
-         IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
+         IF(loverlap) CALL cp_abort(__LOCATION__,&
             'CBMC swap move found an overlap in the old remove config')
          start_mol=1
          DO jbox=1,insert_box-1
@@ -624,7 +622,7 @@ CONTAINS
          end_mol=start_mol+SUM(nchains(:,insert_box))-1
          CALL check_for_overlap(force_env(insert_box)%force_env,&
             nchains(:,insert_box),nunits,loverlap,mol_type(start_mol:end_mol))
-         IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
+         IF(loverlap) CALL cp_abort(__LOCATION__,&
             'CBMC swap move found an overlap in the old insert config')
       ENDIF
 

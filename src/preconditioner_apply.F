@@ -32,7 +32,6 @@ MODULE preconditioner_apply
                                              ot_precond_solver_update
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -66,7 +65,7 @@ CONTAINS
   
     SELECT CASE (preconditioner_env%in_use)
     CASE (0)
-       CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
+       CPABORT("No preconditioner in use")
     CASE (ot_precond_full_single)
        CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
     CASE (ot_precond_full_all)
@@ -78,10 +77,10 @@ CONTAINS
        CASE(ot_precond_solver_direct)
           CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,"Solver not implemented")
+          CPABORT("Solver not implemented")
        END SELECT
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown preconditioner")
+       CPABORT("Unknown preconditioner")
     END SELECT
   
     CALL timestop(handle)
@@ -108,7 +107,7 @@ CONTAINS
   
     SELECT CASE (preconditioner_env%in_use)
     CASE (0)
-       CALL stop_program(routineN,moduleN,__LINE__,"No preconditioner in use")
+       CPABORT("No preconditioner in use")
     CASE (ot_precond_full_single)
        CALL apply_single(preconditioner_env, matrix_in, matrix_out)
     CASE (ot_precond_full_all)
@@ -118,13 +117,13 @@ CONTAINS
        CASE(ot_precond_solver_inv_chol,ot_precond_solver_update)
           CALL apply_single(preconditioner_env, matrix_in, matrix_out)
        CASE(ot_precond_solver_direct)
-          CALL stop_program(routineN,moduleN,__LINE__,"Apply_full_direct not supported with ot")
+          CPABORT("Apply_full_direct not supported with ot")
           !CALL apply_full_direct(preconditioner_env, matrix_in, matrix_out)
        CASE DEFAULT
-          CALL stop_program(routineN,moduleN,__LINE__,"Wrong solver")
+          CPABORT("Wrong solver")
        END SELECT
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Wrong preconditioner")
+       CPABORT("Wrong preconditioner")
     END SELECT
   
     CALL timestop(handle)

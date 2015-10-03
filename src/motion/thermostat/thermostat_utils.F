@@ -52,7 +52,6 @@ MODULE thermostat_utils
   USE qmmm_types,                      ONLY: qmmm_env_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE thermostat_types,                ONLY: thermostat_info_type,&
                                              thermostat_type,&
                                              thermostats_type
@@ -284,7 +283,7 @@ CONTAINS
     molecule_set => molecules%els
     SELECT CASE(ensemble)
     CASE DEFAULT
-        CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble')
+        CPABORT('Unknown ensemble')
     CASE(nvt_adiabatic_ensemble)
         SELECT CASE(region)
         CASE(do_region_global)
@@ -394,7 +393,7 @@ CONTAINS
               ELSE IF (region==do_region_massive) THEN
                  number = number + 3*nmol_local*natom
               ELSE
-                 CALL stop_program(routineN,moduleN,__LINE__,'Invalid region setup')
+                 CPABORT('Invalid region setup')
               END IF
            END DO
         ELSE
@@ -599,7 +598,7 @@ CONTAINS
 
     SELECT CASE(ensemble)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble')
+       CPABORT('Unknown ensemble')
     CASE(isokin_ensemble, nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble,&
          reftraj_ensemble, langevin_ensemble)
        ! Do Nothing
@@ -665,7 +664,7 @@ CONTAINS
                 ELSE IF (region==do_region_massive) THEN
                    number = number + 3*nmol_local*natom
                 ELSE
-                   CALL stop_program(routineN,moduleN,__LINE__,'Invalid region setup')
+                   CPABORT('Invalid region setup')
                 END IF
              END DO
           ELSE

@@ -52,7 +52,6 @@ MODULE xc_libxc
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE termination,                     ONLY: stop_program
 #if defined (__LIBXC)
   USE xc_libxc_wrap,                   ONLY: xc_f90_pointer_t,&
                                              xc_f90_func_init,&

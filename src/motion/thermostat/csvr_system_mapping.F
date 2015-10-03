@@ -26,7 +26,6 @@ MODULE csvr_system_mapping
   USE molecule_types_new,              ONLY: global_constraint_type,&
                                              molecule_type
   USE simpar_types,                    ONLY: simpar_type
-  USE termination,                     ONLY: stop_program
   USE thermostat_mapping,              ONLY: init_baro_map_info,&
                                              thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
@@ -63,7 +62,7 @@ CONTAINS
 
     SELECT CASE (simpar%ensemble)
     CASE  DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
+       CPABORT('Never reach this point!')
     CASE ( npt_i_ensemble, npt_f_ensemble )
        map_info => csvr%map_info
        map_info%dis_type = do_thermo_only_master
@@ -131,10 +130,10 @@ CONTAINS
     NULLIFY (massive_atom_list, deg_of_freedom)
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble!')
+       CPABORT('Unknown ensemble!')
     CASE ( nve_ensemble, isokin_ensemble, npe_f_ensemble, npe_i_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
-       CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
+       CPABORT('Never reach this point!')
     CASE ( nvt_ensemble, npt_i_ensemble, npt_f_ensemble)
 
        CALL setup_csvr_thermostat(csvr, thermostat_info, deg_of_freedom,&
@@ -159,7 +158,7 @@ CONTAINS
        IF ( (sum_of_thermostats == 1).AND.(map_info%dis_type /= do_thermo_no_communication)) THEN
           fac = map_info%s_kin(1)-deg_of_freedom(1)-simpar%nfree_rot_transl
           IF ( fac == 0.0_dp ) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,'Zero degrees of freedom. Nothing to thermalize!')
+             CPABORT('Zero degrees of freedom. Nothing to thermalize!')
           END IF
           csvr%nvt(1)%nkt = simpar%temp_ext*fac
           csvr%nvt(1)%degrees_of_freedom = FLOOR(fac)
@@ -279,10 +278,10 @@ CONTAINS
 
     SELECT CASE ( simpar % ensemble )
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,'Unknown ensemble!')
+       CPABORT('Unknown ensemble!')
     CASE ( isokin_ensemble, nph_uniaxial_ensemble,&
            nph_uniaxial_damped_ensemble, reftraj_ensemble, langevin_ensemble )
-       CALL stop_program(routineN,moduleN,__LINE__,'Never reach this point!')
+       CPABORT('Never reach this point!')
     CASE ( nve_ensemble, npe_f_ensemble, npe_i_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble )
 
        CALL setup_csvr_thermostat(csvr, thermostat_info, deg_of_freedom, massive_shell_list,&

@@ -48,7 +48,6 @@ MODULE qs_linres_nmr_utils
                                              nmr_env_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE scf_control_types,               ONLY: scf_control_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -169,7 +168,7 @@ CONTAINS
     !
     ! Check if restat also psi0 should be restarted
     !IF(nmr_env%restart_nmr .AND. scf_control%density_guess/=restart_guess)THEN
-    !   CALL stop_program(routineN,moduleN,__LINE__,"restart_nmr requires density_guess=restart")
+    !   CPABORT("restart_nmr requires density_guess=restart")
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers
@@ -261,12 +260,12 @@ CONTAINS
        CPASSERT(ASSOCIATED(nmr_env%cs_atom_list))
        DO ir = 1,SIZE(nmr_env%cs_atom_list,1)
           IF(nmr_env%cs_atom_list(ir).LT.1.OR.nmr_env%cs_atom_list(ir).GT.natom) THEN
-             CALL stop_program(routineN,moduleN,__LINE__,"Unknown atom(s)")
+             CPABORT("Unknown atom(s)")
           ENDIF
           DO j = 1,SIZE(nmr_env%cs_atom_list,1)
              IF(j.EQ.ir) CYCLE
              IF(nmr_env%cs_atom_list(ir).EQ.nmr_env%cs_atom_list(j)) THEN
-                CALL stop_program(routineN,moduleN,__LINE__,"Duplicate atoms")
+                CPABORT("Duplicate atoms")
              ENDIF
            ENDDO
         ENDDO

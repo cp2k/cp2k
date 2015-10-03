@@ -57,7 +57,6 @@ MODULE force_fields_input
   USE shell_potential_types,           ONLY: shell_p_create,&
                                              shell_p_type
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -494,7 +493,7 @@ __LOCATION__,&
        ipbv% a ( 14 ) = 88766181532.94E0_dp
        ipbv% a ( 15 ) = -79705131323.98_dp
     ELSE
-       CALL stop_program (routineN,moduleN,__LINE__,"IPBV only for WATER")
+       CPABORT("IPBV only for WATER")
     ENDIF
   END SUBROUTINE set_IPBV_ff
 

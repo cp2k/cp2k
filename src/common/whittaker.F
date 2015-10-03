@@ -14,7 +14,6 @@
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              rootpi
-  USE termination,                     ONLY: stop_program
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -62,11 +61,10 @@ CONTAINS
     l = l1 + l2
 
     IF ( MOD(l,2) /= 0 ) THEN
-        CALL stop_program(moduleN,routineN,__LINE__,&
-             "Total angular momentum has to be even")
+        CPABORT("Total angular momentum has to be even")
     END IF
     IF ( l1 < l2 ) THEN
-        CALL stop_program(moduleN,routineN,__LINE__,"l1 >= l2")
+        CPABORT("l1 >= l2")
     END IF
 
     t1 = SQRT(alpha)
@@ -124,8 +122,7 @@ CONTAINS
       t46, t5, t50, t51, t52, t56, t6, t61, t7, t8, t9, x
 
     IF ( MOD(l,2) /= 0 ) THEN
-        CALL stop_program(moduleN,routineN,__LINE__,&
-             "Angular momentum has to be even")
+        CPABORT("Angular momentum has to be even")
     END IF
 
     SELECT CASE (l)
@@ -353,8 +350,7 @@ CONTAINS
                                                 t33, t4, t5, t6, t7, t8, t9, x
 
     IF ( MOD(l,2) /= 0 ) THEN
-        CALL stop_program(moduleN,routineN,__LINE__,&
-             "Angular momentum has to be even")
+        CPABORT("Angular momentum has to be even")
     END IF
 
     SELECT CASE (l)

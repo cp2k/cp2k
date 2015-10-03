@@ -36,7 +36,6 @@ MODULE topology_psf
                                              s2s,&
                                              str2id
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
@@ -404,7 +403,7 @@ CONTAINS
             "PSF_INFO| Try using PSF instead of UPSF."
     END IF
 
-    CALL stop_program(routineN,moduleN,__LINE__,"Error while reading PSF data!")
+    CPABORT("Error while reading PSF data!")
 
   END SUBROUTINE read_topology_psf
 

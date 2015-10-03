@@ -20,7 +20,6 @@ MODULE qs_fb_com_tasks_types
                                              fb_matrix_data_get,&
                                              fb_matrix_data_has_data,&
                                              fb_matrix_data_obj
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -1237,7 +1236,7 @@ CONTAINS
                                     row=iatom, col=jatom, block=mat_block, &
                                     found=found)
           IF (.NOT. found) THEN
-             CALL stop_program(routineN, moduleN, __LINE__, "Matrix block not found")
+             CPABORT("Matrix block not found")
           ELSE
              ! we have found the matrix block
              DO jj = 1, ncols_blk
@@ -1431,7 +1430,7 @@ CONTAINS
                                   iatom, jatom, &
                                   mat_block, found)
           IF (.NOT. found) THEN
-             CALL stop_program(routineN, moduleN, __LINE__, "Matrix block not found")
+             CPABORT("Matrix block not found")
           ELSE
              nrows_blk = row_block_size_data(iatom)
              ncols_blk = col_block_size_data(jatom)

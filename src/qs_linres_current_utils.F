@@ -106,7 +106,6 @@ MODULE qs_linres_current_utils
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              rs_grid_release
   USE scf_control_types,               ONLY: scf_control_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -681,16 +680,16 @@ CONTAINS
                        uniform_occupation=uniform_occupation)
        !
        ! check that homo=nmo
-       IF (nmo.NE.homo) CALL stop_program(routineN,moduleN,__LINE__,"nmo != homo")
+       IF (nmo.NE.homo) CPABORT("nmo != homo")
        !
        ! check that the nbr of localized states is equal to the nbr of states
 !       nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
-!       IF (nmoloc.NE.nmo) CALL stop_program(routineN,moduleN,__LINE__,&
+!       IF (nmoloc.NE.nmo) CALL cp_abort(__LOCATION__,&
 !                                            "The nbr of localized functions "//&
 !            &                               "is not equal to the nbr of states.")
        !
        ! check that the occupation is uniform
-       IF (.NOT.uniform_occupation) CALL stop_program(routineN,moduleN,__LINE__,"nmo != homo")
+       IF (.NOT.uniform_occupation) CPABORT("nmo != homo")
     ENDDO
     !
     !
@@ -728,7 +727,7 @@ CONTAINS
     CASE(current_gauge_atom)
        current_env%gauge_name="ATOM"
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown gauge, try again...")
+       CPABORT("Unknown gauge, try again...")
     END SELECT
     !
     ! maximal radius to build the atom gauge
@@ -770,12 +769,12 @@ CONTAINS
        ! Is there a user specified nbox?
        CALL section_vals_val_get(current_section,"NBOX",i_vals=nbox)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown orbital center, try again...")
+       CPABORT("Unknown orbital center, try again...")
     END SELECT
     !
     ! Check if restat also psi0 should be restarted
     !IF(current_env%restart_current .AND. scf_control%density_guess/=restart_guess)THEN
-    !   CALL stop_program(routineN,moduleN,__LINE__,"restart_nmr requires density_guess=restart")
+    !   CPABORT("restart_nmr requires density_guess=restart")
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers

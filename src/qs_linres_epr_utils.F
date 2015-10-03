@@ -157,7 +157,7 @@ CONTAINS
     !
     ! Check if restat also psi0 should be restarted
     !IF(epr_env%restart_epr .AND. scf_control%density_guess/=restart_guess)THEN
-    !   CALL stop_program(routineN,moduleN,__LINE__,"restart_epr requires density_guess=restart")
+    !   CPABORT("restart_epr requires density_guess=restart")
     !ENDIF
     !
     ! check that the psi0 are localized and you have all the centers

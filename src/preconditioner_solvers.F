@@ -40,7 +40,6 @@ MODULE preconditioner_solvers
   USE iterate_matrix,                  ONLY: invert_Hotelling
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -113,7 +112,7 @@ CONTAINS
        preconditioner_env%solver=ot_precond_solver_default
     CASE DEFAULT
        !
-       CALL stop_program(routineN, moduleN, __LINE__, "Doesn't know this type of solver")
+       CPABORT("Doesn't know this type of solver")
     END SELECT
 
   END SUBROUTINE solve_preconditioner

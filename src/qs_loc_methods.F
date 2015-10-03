@@ -97,7 +97,6 @@ MODULE qs_loc_methods
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
   USE string_utilities,                ONLY: xstring
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -249,7 +248,7 @@ CONTAINS
           WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
        ENDIF
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown localization method")
+       CPABORT("Unknown localization method")
     END SELECT
     IF (output_unit>0) THEN
        IF(sweeps<=max_iter) WRITE(output_unit,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
@@ -369,7 +368,7 @@ CONTAINS
     CASE ( do_loc_none )
        IF (output_unit>0) WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unknown localization method")
+       CPABORT("Unknown localization method")
     END SELECT
 
     IF (output_unit>0) WRITE(output_unit,'(A,I3,A,I6,A)') " Localization  for spin ",ispin ,&

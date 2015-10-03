@@ -34,7 +34,6 @@ MODULE realspace_grid_types
   USE pw_types,                        ONLY: COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              pw_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -713,11 +712,11 @@ CONTAINS
               cp_to_string(CEILING(pw%pw_grid%cutoff/10)*10))),handle)
 
     IF ( rs % desc % grid_id /= pw % pw_grid % id_nr ) &
-       CALL stop_program(routineN,moduleN,__LINE__,"Different rs and pw indentitfiers")
+       CPABORT("Different rs and pw indentitfiers")
     IF ( (pw%in_use .NE. REALDATA3D) .AND. (pw%in_use .NE. COMPLEXDATA3D)) &
-       CALL stop_program(routineN,moduleN,__LINE__,"Need REALDATA3D or COMPLEXDATA3D")
+       CPABORT("Need REALDATA3D or COMPLEXDATA3D")
     IF ( (dir.NE.rs2pw) .AND. (dir.NE.pw2rs) ) &
-       CALL stop_program(routineN,moduleN,__LINE__,"Direction must be rs2pw or pw2rs")
+       CPABORT("Direction must be rs2pw or pw2rs")
 
     IF (rs%desc%distributed) THEN
        CALL rs_pw_transfer_distributed(rs,pw,dir)
@@ -751,7 +750,7 @@ CONTAINS
                 !$omp end parallel do
              END IF
           ELSE
-             CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
+             CPABORT("PW type not compatible")
           END IF
        ELSE
           IF (pw%in_use == REALDATA3D) THEN
@@ -829,7 +828,7 @@ CONTAINS
                 !$omp end parallel do
              END IF
           ELSE
-             CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
+             CPABORT("PW type not compatible")
           END IF
        END IF
     END IF
@@ -923,7 +922,7 @@ CONTAINS
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
           CALL copy_rc (RESHAPE(sendbuf, SHAPE(pw % cc3d)), pw % cc3d )
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
+          CPABORT("PW type not compatible")
        END IF
     ELSE
        nn = rcount ( mepos )
@@ -932,7 +931,7 @@ CONTAINS
        ELSEIF ( pw % in_use == COMPLEXDATA3D ) THEN
           CALL dcopy ( nn, pw % cc3d, 2, sendbuf, 1 )
        ELSE
-          CALL stop_program(routineN,moduleN,__LINE__,"PW type not compatible")
+          CPABORT("PW type not compatible")
        END IF
 
        dest  =MODULO(mepos+1,np)

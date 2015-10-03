@@ -32,7 +32,6 @@ MODULE paw_proj_set_types
                                              nso,&
                                              nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -395,7 +394,7 @@ CONTAINS
           ! Check for equal exponents
           DO ipp =1,ip-1
              IF(zet(ip)==zet(ipp)) THEN
-                CALL stop_program(routineP,moduleN,__LINE__,&
+                CALL cp_abort(__LOCATION__,&
                      "Linear dependency in the construction of the GAPW projectors:"//&
                      " different sets of the BASIS SET contain identical exponents")
              END IF
@@ -854,8 +853,7 @@ CONTAINS
        IF (PRESENT(n2oindex)) n2oindex => paw_proj_set%n2oindex
 
     ELSE
-       CALL stop_program(routineP,moduleN,__LINE__,&
-            "The pointer  paw_proj_set is not associated")
+       CPABORT("The pointer  paw_proj_set is not associated")
     ENDIF
 
   END SUBROUTINE get_paw_proj_set
@@ -881,8 +879,7 @@ CONTAINS
        IF (PRESENT(rzetprj)) paw_proj_set%rzetprj(:,0:) = rzetprj(:,0:)
        IF (PRESENT(rcprj))  paw_proj_set%rcprj = rcprj
     ELSE
-       CALL stop_program(routineP,moduleN,__LINE__,&
-            "The pointer paw_proj_set is not associated")
+       CPABORT("The pointer paw_proj_set is not associated")
     END IF
 
   END SUBROUTINE set_paw_proj_set

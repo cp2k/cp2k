@@ -16,7 +16,6 @@ MODULE xc_exchange_gga
   USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -653,7 +652,7 @@ CONTAINS
          fs(ip,4) = f0*f0*f0*fs(ip,4)
 
       CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
+         CPABORT("Illegal order")
       END SELECT
     END DO
 
@@ -729,7 +728,7 @@ CONTAINS
                     75.0_dp/t14/p0*p1*(2*t1+12*t2*s2+30*t3*s4)+&
                     1/t14*(24*t2*s(ip)+120*t3*t19)*f15
       CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
+         CPABORT("Illegal order")
       END SELECT
     END DO
 
@@ -819,7 +818,7 @@ CONTAINS
          fs(ip,3) = f2 * scale_s * scale_s
          fs(ip,4) = (n3-f0*d3-3._dp*f2*d1-3._dp*f1*d2)/d0 * scale_s * scale_s * scale_s
       CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
+         CPABORT("Illegal order")
       END SELECT
     END DO
 
@@ -875,7 +874,7 @@ CONTAINS
          fs(ip,4) = 24.0_dp*b*f0*f0*f0* gamma_bo*gamma_bo*x * &
                     (1.0_dp-5.0_dp*a+2.0_dp*a*a) * y*y*y*y*y
       CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
+         CPABORT("Illegal order")
       END SELECT
     END DO
 
@@ -1125,7 +1124,7 @@ CONTAINS
          fs(ip,3) = -2.0_dp*mu*(3.0_dp*mk*x2-1.0_dp)*y*y*y*f0*f0
          fs(ip,4) = 24.0_dp*mu*mk*x*(mk*x2-1.0_dp)*y*y*y*y*f0*f0*f0
       CASE DEFAULT
-         CALL stop_program(routineN,moduleN,__LINE__,"Illegal order")
+         CPABORT("Illegal order")
       END SELECT
     END DO
 

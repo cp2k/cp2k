@@ -15,7 +15,6 @@ MODULE xc_functionals_utilities
   
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE termination,                     ONLY: stop_program
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -134,7 +133,7 @@ CONTAINS
           m(3,1) = 22
           m(3,2) = 57
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Invalid tag")
+       CPABORT("Invalid tag")
     END SELECT
 
     calc = .FALSE.
@@ -283,9 +282,9 @@ CONTAINS
 
     n = SIZE ( s ) !FM it was size(rho)
     !FM IF ( n > SIZE(s) ) &
-    !FM   CALL stop_program(routineN,moduleN,__LINE__,"Incompatible array sizes.")
+    !FM   CPABORT("Incompatible array sizes.")
     !FM IF ( n > SIZE(grho) ) &
-    !FM   CALL stop_program(routineN,moduleN,__LINE__,"Incompatible array sizes.")
+    !FM   CPABORT("Incompatible array sizes.")
 
 !$omp parallel do private(ip) default(none) shared(rho,eps_rho,s,fac,grho,n)
     DO ip = 1, n
@@ -332,15 +331,13 @@ CONTAINS
 ! order of derivatives
 !   *** Parameters ***
 
-    IF ( m > 3 ) CALL stop_program(routineN,moduleN,__LINE__,"Order too high.")
+    IF ( m > 3 ) CPABORT("Order too high.")
 !!    IF (.NOT.ASSOCIATED(fx)) THEN
 !!       ALLOCATE(fx(n,m+1), STAT=ierr)
 !!       IF (ierr /= 0) CALL stop_memory(routineP, "fx", n*m)
 !!    ELSE
-       IF (SIZE(fx,1)<n) CALL stop_program(routineN,moduleN,__LINE__,&
-                                           "SIZE(fx,1) too small")
-       IF (SIZE(fx,2)<m) CALL stop_program(routineN,moduleN,__LINE__,&
-                                           "SIZE(fx,2) too small")
+       IF (SIZE(fx,1)<n) CPABORT("SIZE(fx,1) too small")
+       IF (SIZE(fx,2)<m) CPABORT("SIZE(fx,2) too small")
 !!    END IF
 
 !$omp parallel do private(ip,x,rhoab) default(none) shared(fx,m,eps_rho,n)

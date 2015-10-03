@@ -81,7 +81,6 @@ MODULE mc_ensembles
                                              boltzmann,&
                                              joule,&
                                              n_avogadro
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../../common/cp_common_uses.f90"
@@ -313,8 +312,7 @@ CONTAINS
           end_mol=start_mol+SUM(nchains(:,ibox))-1
           CALL check_for_overlap(force_env(ibox)%force_env,nchains(:,ibox),&
                nunits,loverlap,mol_type(start_mol:end_mol))
-          IF(loverlap) CALL stop_program(routineN,moduleN,__LINE__,&
-               "overlap in an initial configuration")
+          IF(loverlap) CPABORT("overlap in an initial configuration")
        ENDIF
 
        ! get the subsystems and the cell information
@@ -633,9 +631,8 @@ CONTAINS
                 EXIT
              ENDIF
           ENDDO
-          IF(molecule_type_swap == 0) CALL &
-               stop_program(routineN,moduleN,__LINE__,&
-               'Did not choose a molecule type to swap...check AVBMC input')
+          IF(molecule_type_swap == 0)&
+             CPABORT('Did not choose a molecule type to swap...check AVBMC input')
 
           ! now pick a molecule, automatically rejecting the move if the
           ! box is empty or only has one molecule
@@ -728,8 +725,7 @@ CONTAINS
                       EXIT
                    ENDIF
                 ENDDO
-                IF(molecule_type == 0) CALL &
-                     stop_program(routineN,moduleN,__LINE__,&
+                IF(molecule_type == 0) CALL cp_abort(__LOCATION__,&
                      'Did not choose a molecule type to conf change...PMTRAION_MOL should not be all 0.0')
 
                 ! now pick a molecule, automatically rejecting the move if the
@@ -786,8 +782,7 @@ CONTAINS
                       EXIT
                    ENDIF
                 ENDDO
-                IF(molecule_type == 0) CALL &
-                     stop_program(routineN,moduleN,__LINE__,&
+                IF(molecule_type == 0) CALL cp_abort(__LOCATION__,&
                      'Did not choose a molecule type to translate...PMTRANS_MOL should not be all 0.0')
 
                 ! now pick a molecule of that type
@@ -818,8 +813,7 @@ CONTAINS
                       EXIT
                    ENDIF
                 ENDDO
-                IF(molecule_type == 0) CALL &
-                     stop_program(routineN,moduleN,__LINE__,&
+                IF(molecule_type == 0) CALL cp_abort(__LOCATION__,&
                      'Did not choose a molecule type to rotate...PMROT_MOL should not be all 0.0')
 
                 IF(ionode) &

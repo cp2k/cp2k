@@ -52,7 +52,6 @@ MODULE external_potential_types
   USE periodic_table,                  ONLY: ptable
   USE string_utilities,                ONLY: remove_word,&
                                              uppercase
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -1128,8 +1127,8 @@ CONTAINS
              CALL reallocate(elec_conf,0,l)
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN, __LINE__,&
-                                                  "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok)&
+                   CPABORT("Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att)
                 READ(line_att,*)elec_conf(l)
                 CALL remove_word(line_att)
@@ -1165,8 +1164,7 @@ CONTAINS
 
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                  "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CPABORT("Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att)
                 READ(line_att,*)r
              ELSE
@@ -1304,8 +1302,7 @@ CONTAINS
              ! Read ngau and npol
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                  "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CPABORT("Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att)
                 READ(line_att,*) ngau, npol
                 CALL remove_word(line_att)
@@ -1323,8 +1320,8 @@ CONTAINS
              DO igau=1,ngau
                 IF (read_from_input) THEN
                    is_ok=cp_sll_val_next(list,val)
-                   IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                     "Error reading the Potential from input file!!")
+                   IF (.NOT.is_ok)&
+                      CPABORT("Error reading the Potential from input file!!")
                    CALL val_get(val,c_val=line_att)
                    READ(line_att,*) alpha(igau),(cval(igau,ipol),ipol=1,npol)
                 ELSE
@@ -1500,8 +1497,7 @@ CONTAINS
              CALL reallocate(elec_conf,0,l)
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                  "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CPABORT("Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att)
                 READ(line_att,*)elec_conf(l)
                 CALL remove_word(line_att)
@@ -1537,8 +1533,7 @@ CONTAINS
 
              IF (read_from_input) THEN
                 is_ok=cp_sll_val_next(list,val)
-                IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                  "Error reading the Potential from input file!!")
+                IF (.NOT.is_ok) CPABORT("Error reading the Potential from input file!!")
                 CALL val_get(val,c_val=line_att)
                 READ(line_att,*)r
                 CALL remove_word(line_att)
@@ -1832,8 +1827,8 @@ CONTAINS
                 DO l=0,lppnl
                    IF (read_from_input) THEN
                       is_ok=cp_sll_val_next(list,val)
-                      IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                        "Error reading the Potential from input file!!")
+                      IF (.NOT.is_ok)&
+                         CPABORT("Error reading the Potential from input file!!")
                       CALL val_get(val,c_val=line_att)
                       READ(line_att,*)r
                       CALL remove_word(line_att)
@@ -1875,11 +1870,11 @@ CONTAINS
                          END IF
                       ELSE
                          IF (read_from_input) THEN
-                            IF (LEN_TRIM(line_att)/=0) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                            "Error reading the Potential from input file!!")
+                            IF (LEN_TRIM(line_att)/=0)&
+                               CPABORT("Error reading the Potential from input file!!")
                             is_ok=cp_sll_val_next(list,val)
-                            IF (.NOT.is_ok) CALL stop_program(routineN,moduleN,__LINE__,&
-                                                              "Error reading the Potential from input file!!")
+                            IF (.NOT.is_ok)&
+                               CPABORT("Error reading the Potential from input file!!")
                             CALL val_get(val,c_val=line_att)
                             READ(line_att,*)hprj_ppnl(i,i,l)
                             CALL remove_word(line_att)

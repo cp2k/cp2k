@@ -47,7 +47,6 @@ MODULE ewald_pw_types
        realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, &
        rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
        rs_grid_retain_descriptor
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -223,7 +222,7 @@ CONTAINS
        CALL pw_grid_create( pw_big_grid, MPI_COMM_SELF)
 
        IF ( ANY(gmax == 2 * ( gmax / 2 )) ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"gmax has to be odd.")
+          CPABORT("gmax has to be odd.")
        END IF
        bo ( 1, : ) = -gmax / 2
        bo ( 2, : ) = +gmax / 2
@@ -247,7 +246,7 @@ CONTAINS
        CALL pw_grid_create( pw_small_grid, MPI_COMM_SELF)
        CALL pw_grid_create( pw_big_grid, para_env%group)
        IF ( ns_max == 2 * ( ns_max / 2 ) ) THEN
-          CALL stop_program(routineN,moduleN,__LINE__,"ns_max has to be odd.")
+          CPABORT("ns_max has to be odd.")
        END IF
        npts_s ( : ) = ns_max
        ! compute cut-off radius

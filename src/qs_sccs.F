@@ -93,7 +93,6 @@ MODULE qs_sccs
   USE rs_methods,                      ONLY: derive_fdm_cd3,&
                                              derive_fdm_cd5,&
                                              derive_fdm_cd7
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -515,7 +514,7 @@ CONTAINS
             WRITE (UNIT=message,FMT="(A,ES12.3,A,3(I0,A))")&
              "SCCS| Invalid dielectric function value ",eps_elec%cr3d(i,j,k),&
              " encountered at grid point (",i,",",j,",",k,")"
-            CALL stop_program(routineN,moduleN,__LINE__,message,para_env)
+            CPABORT(message)
           END IF
           rho_tot_zero%cr3d(i,j,k) = rho_solute%cr3d(i,j,k)/eps_elec%cr3d(i,j,k)
           eps_elec%cr3d(i,j,k) = LOG(eps_elec%cr3d(i,j,k))

@@ -53,7 +53,6 @@ MODULE spme
        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
        rs_grid_set_box, rs_grid_zero, rs_pw_transfer
   USE shell_potential_types,           ONLY: shell_kind_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -899,7 +898,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 1:nmax)      :: f_assign
 
     IF ( n > nmax ) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"nmax value too small")
+       CPABORT("nmax value too small")
     END IF
     ! calculate the assignment function values and
     ! the charges on the grid (small box)

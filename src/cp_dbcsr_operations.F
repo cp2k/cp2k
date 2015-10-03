@@ -57,7 +57,6 @@ MODULE cp_dbcsr_operations
   USE kinds,                           ONLY: dp,&
                                              real_4,&
                                              sp
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -837,7 +836,7 @@ CONTAINS
 
     ! Now convert to the desired matrix distribution
     IF (PRESENT (alpha)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,'no more alpha... clean me')
+       CPABORT('no more alpha... clean me')
     ELSE
        CALL cp_dbcsr_complete_redistribute (bc_mat, matrix,&
             keep_sparsity=keep_sparsity)

@@ -44,7 +44,6 @@ MODULE cp_dbcsr_output
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -212,7 +211,7 @@ CONTAINS
     CASE(dbcsr_type_no_symmetry)
        print_sym = .FALSE.
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"WRONG")
+       CPABORT("WRONG")
     END SELECT
 
     ! *** Get the matrix dimension and check the optional arguments ***

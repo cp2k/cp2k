@@ -29,8 +29,7 @@ MODULE spherical_harmonics
                                              fac,&
                                              maxfac,&
                                              pi
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.f90"
@@ -86,8 +85,7 @@ CONTAINS
      l = l1 + l2
      IF (l > lmax) CALL clebsch_gordon_init ( l )
      n = l/2 + 1
-     IF (n > SIZE(clm)) CALL stop_program(routineN,moduleN,__LINE__,&
-                                          "Array too small")
+     IF (n > SIZE(clm)) CPABORT("Array too small")
 
      IF ( (m1 >= 0 .AND. m2 >= 0) .OR. (m1 < 0 .AND. m2 < 0) ) THEN
        icase = 1
@@ -126,8 +124,7 @@ CONTAINS
      l = l1 + l2
      IF (l > lmax) CALL clebsch_gordon_init ( l )
      n = l/2 + 1
-     IF (n > SIZE(rlm,1)) CALL stop_program(routineN,moduleN,__LINE__,&
-                                            "Array too small")
+     IF (n > SIZE(rlm,1)) CPABORT("Array too small")
 
      ind = order(l1,m1,l2,m2)
      mm = getm(m1,m2)
@@ -259,7 +256,7 @@ CONTAINS
      sq2 = SQRT(2.0_dp)
      osq2 = 1.0_dp/sq2
 
-     IF ( l < 0 ) CALL stop_program(routineN,moduleN,__LINE__,"l < 0")
+     IF ( l < 0 ) CPABORT("l < 0")
      IF ( ALLOCATED ( cg_table ) ) THEN
         DEALLOCATE ( cg_table)
      END IF
@@ -326,7 +323,7 @@ CONTAINS
     IF ( m1<0 .OR. m2<0 .OR. mp<0 ) THEN
        WRITE(*,*) l1,l2,lp
        WRITE(*,*) m1,m2,mp
-       CALL stop_program(routineN,moduleN,__LINE__,"Illegal input values")
+       CPABORT("Illegal input values")
     END IF
     IF ( l2 < l1 ) THEN
       la = l2
@@ -445,11 +442,10 @@ CONTAINS
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+    CPABORT("Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CPABORT("l = 0 and m value out of bounds")
     y(:) = pf
   CASE ( 1 )
     SELECT CASE ( m )
@@ -512,8 +508,7 @@ CONTAINS
       y ( : ) = pf * r ( 2, : ) * ( 3.0_dp * r ( 1, : )**2 - r ( 2, : )**2 )
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                               "m value out of bounds")
+    IF ( m < -l .OR. m > l ) CPABORT("m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN
@@ -581,11 +576,10 @@ CONTAINS
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+    CPABORT("Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CPABORT("l = 0 and m value out of bounds")
     y = pf
   CASE ( 1 )
     SELECT CASE ( m )
@@ -624,7 +618,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 3 and m value out of bounds")
+      CPABORT("l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 32.0_dp * pi ) )
       y = pf * r ( 1 ) * ( r ( 1 )**2 - 3.0_dp * r ( 2 )**2 )
@@ -648,8 +642,7 @@ CONTAINS
       y = pf * r ( 2 ) * ( 3.0_dp * r ( 1 )**2 - r ( 2 )**2 )
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                               "m value out of bounds")
+    IF ( m < -l .OR. m > l ) CPABORT("m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN
@@ -718,16 +711,15 @@ CONTAINS
   n = SIZE ( r ,2 )
   SELECT CASE ( l )
   CASE ( : -1 )
-    CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+    CPABORT("Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CPABORT("l = 0 and m value out of bounds")
     y(:) = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 1 and m value out of bounds")
+      CPABORT("l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 8.0_dp * pi ) )
       DO i = 1, n
@@ -749,7 +741,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 2 and m value out of bounds")
+      CPABORT("l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 32.0_dp * pi ) )
       DO i = 1, n
@@ -785,7 +777,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 3 and m value out of bounds")
+      CPABORT("l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 64.0_dp * pi ) )
       DO i = 1, n
@@ -833,8 +825,7 @@ CONTAINS
       END DO
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                               "m value out of bounds")
+    IF ( m < -l .OR. m > l ) CPABORT("m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     t = 4.0_dp * pi
@@ -901,16 +892,15 @@ CONTAINS
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+    CPABORT("Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CPABORT("l = 0 and m value out of bounds")
     y = pf
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 1 and m value out of bounds")
+      CPABORT("l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 8.0_dp * pi ) )
       yp = r ( 1 )
@@ -928,7 +918,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 2 and m value out of bounds")
+      CPABORT("l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 32.0_dp * pi ) )
       yp = ( r ( 1 ) * r ( 1 ) - r ( 2 ) * r ( 2 ) )
@@ -956,7 +946,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 3 and m value out of bounds")
+      CPABORT("l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 64.0_dp * pi ) )
       yp = r ( 1 ) * ( r ( 1 )**2 - 3.0_dp * r ( 2 )**2 )
@@ -992,8 +982,7 @@ CONTAINS
       y = pf * CMPLX ( yp, -ym,KIND=dp)
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                               "m value out of bounds")
+    IF ( m < -l .OR. m > l ) CPABORT("m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     t = 4.0_dp * pi
@@ -1048,16 +1037,16 @@ CONTAINS
     INTEGER                                  :: il, im, mm
     REAL(KIND=dp)                            :: fact, pll, pmm, pmmp1, somx2
 
-  IF ( ABS ( x ) > 1.0_dp ) CALL stop_program(routineN,moduleN,__LINE__,"x value > 1")
+  IF ( ABS ( x ) > 1.0_dp ) CPABORT("x value > 1")
   SELECT CASE ( l )
   CASE ( : -1 )
-    CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+    CPABORT("Negative l value")
   CASE ( 0 )
     plm = 1.0_dp
   CASE ( 1 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 1 and m value out of bounds")
+      CPABORT("l = 1 and m value out of bounds")
     CASE ( 1 )
       plm = SQRT ( 1.0_dp - x * x )
     CASE ( 0 )
@@ -1066,7 +1055,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 2 and m value out of bounds")
+      CPABORT("l = 2 and m value out of bounds")
     CASE ( 2 )
       plm = 3.0_dp * ( 1.0_dp - x * x )
     CASE ( 1 )
@@ -1077,7 +1066,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 3 and m value out of bounds")
+      CPABORT("l = 3 and m value out of bounds")
     CASE ( 3 )
       plm = 15.0_dp * ( 1.0_dp - x * x ) ** 1.5_dp
     CASE ( 2 )
@@ -1090,7 +1079,7 @@ CONTAINS
   CASE ( 4 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 4 and m value out of bounds")
+      CPABORT("l = 4 and m value out of bounds")
     CASE ( 4 )
       plm = 105.0_dp * ( 1.0_dp - x * x ) ** 2
     CASE ( 3 )
@@ -1105,7 +1094,7 @@ CONTAINS
   CASE ( 5 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 5 and m value out of bounds")
+      CPABORT("l = 5 and m value out of bounds")
     CASE ( 5 )
       plm = 945.0_dp * ( 1.0_dp - x * x ) ** 2.5_dp
     CASE ( 4 )
@@ -1123,7 +1112,7 @@ CONTAINS
   CASE ( 6 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 6 and m value out of bounds")
+      CPABORT("l = 6 and m value out of bounds")
     CASE ( 6 )
       plm = 10395.0_dp * ( 1.0_dp - x * x ) ** 3
     CASE ( 5 )
@@ -1145,7 +1134,7 @@ CONTAINS
     END SELECT
   CASE DEFAULT
     mm = ABS ( m )
-    IF ( mm > l ) CALL stop_program(routineN,moduleN,__LINE__,"m out of bounds")
+    IF ( mm > l ) CPABORT("m out of bounds")
 ! use recurence from numerical recipies
     pmm = 1.0_dp
     IF ( mm > 0 ) THEN
@@ -1196,14 +1185,14 @@ CONTAINS
                                                 fact, pll, plm, pmm, pmmp1, &
                                                 somx2
 
-  IF ( ABS ( x ) > 1.0_dp ) CALL stop_program(routineN,moduleN,__LINE__,"x value > 1")
+  IF ( ABS ( x ) > 1.0_dp ) CPABORT("x value > 1")
   SELECT CASE ( l )
   CASE ( 0 )
     dplm = 0.0_dp
   CASE ( 1 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 1 and m value out of bounds")
+      CPABORT("l = 1 and m value out of bounds")
     CASE ( 1 )
       dplm = -x / SQRT ( 1.0_dp - x * x )
     CASE ( 0 )
@@ -1212,7 +1201,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 2 and m value out of bounds")
+      CPABORT("l = 2 and m value out of bounds")
     CASE ( 2 )
       dplm = -6.0_dp * x
     CASE ( 1 )
@@ -1223,7 +1212,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 3 and m value out of bounds")
+      CPABORT("l = 3 and m value out of bounds")
     CASE ( 3 )
       dplm = -45.0_dp * SQRT( 1.0_dp - x * x ) * x
     CASE ( 2 )
@@ -1236,7 +1225,7 @@ CONTAINS
   CASE ( 4 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 4 and m value out of bounds")
+      CPABORT("l = 4 and m value out of bounds")
     CASE ( 4 )
       dplm = - 420 * x * (1 - x*x)
     CASE ( 3 )
@@ -1256,7 +1245,7 @@ CONTAINS
   CASE ( 5 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 5 and m value out of bounds")
+      CPABORT("l = 5 and m value out of bounds")
     CASE ( 5 )
       dplm = -945.0_dp * 5.0_dp * x * ( 1.0_dp - x * x ) ** 1.5_dp
     CASE ( 4 )
@@ -1280,7 +1269,7 @@ CONTAINS
   CASE ( 6 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 6 and m value out of bounds")
+      CPABORT("l = 6 and m value out of bounds")
     CASE ( 6 )
       dplm = -10395.0_dp * 6.0_dp * x * ( 1.0_dp - x * x ) ** 2
     CASE ( 5 )
@@ -1306,9 +1295,9 @@ CONTAINS
             6.5625_dp * 2.0_dp * x
     END SELECT
   CASE DEFAULT
-!    CALL stop_program(routineN,moduleN,__LINE__,"l > 6 dplm not implemented")
+!    CPABORT("l > 6 dplm not implemented")
     mm = ABS ( m )
-    IF ( mm > l ) CALL stop_program(routineN,moduleN,__LINE__,"m out of bounds")
+    IF ( mm > l ) CPABORT("m out of bounds")
 ! use recurence from numerical recipies
     pmm = 1.0_dp
     dpmm = 0.0_dp
@@ -1367,12 +1356,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF ( ABS ( x ) -1.0_dp > EPSILON(1.0_dp)) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"|x| is not 1")
+       CPABORT("|x| is not 1")
     END IF
     IF (x > 0.0_dp) THEN
       SELECT CASE ( l )
       CASE ( : -1 )
-        CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+        CPABORT("Negative l value")
       CASE ( 0 )
         dPof1 = 0.0_dp
       CASE ( 1 )
@@ -1388,12 +1377,12 @@ CONTAINS
       CASE ( 6 )
         dPof1 = 21.0_dp
       CASE ( 7 :  )
-        CALL stop_program(routineN,moduleN,__LINE__,"Not implemented")
+        CPABORT("Not implemented")
       END SELECT
     ELSE
       SELECT CASE ( l )
       CASE ( : -1 )
-        CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+        CPABORT("Negative l value")
       CASE ( 0 )
         dPof1 = 0.0_dp
       CASE ( 1 )
@@ -1409,7 +1398,7 @@ CONTAINS
       CASE ( 6 )
         dPof1 = -21.0_dp
       CASE ( 7 :  )
-        CALL stop_program(routineN,moduleN,__LINE__,"Not implemented")
+        CPABORT("Not implemented")
       END SELECT
     END IF
 
@@ -1705,16 +1694,15 @@ CONTAINS
 
   SELECT CASE ( l )
   CASE ( : -1 )
-    CALL stop_program(routineN,moduleN,__LINE__,"Negative l value")
+    CPABORT("Negative l value")
   CASE ( 0 )
     pf = SQRT ( 1.0_dp / ( 4.0_dp * pi ) )
-    IF ( m /= 0 )  CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "l = 0 and m value out of bounds")
+    IF ( m /= 0 )  CPABORT("l = 0 and m value out of bounds")
     dy(1:3,:) = 0.0_dp
   CASE ( 1 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 1 and m value out of bounds")
+      CPABORT("l = 1 and m value out of bounds")
     CASE ( 1 )
       pf = SQRT ( 3.0_dp / ( 4.0_dp * pi ) )
       dy (1, : ) = pf
@@ -1734,7 +1722,7 @@ CONTAINS
   CASE ( 2 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 2 and m value out of bounds")
+      CPABORT("l = 2 and m value out of bounds")
     CASE ( 2 )
       pf = SQRT ( 15.0_dp / ( 16.0_dp * pi ) )
       dy (1, : ) =  pf * 2.0_dp * r ( 1, : )
@@ -1764,7 +1752,7 @@ CONTAINS
   CASE ( 3 )
     SELECT CASE ( m )
     CASE DEFAULT
-      CALL stop_program(routineN,moduleN,__LINE__,"l = 3 and m value out of bounds")
+      CPABORT("l = 3 and m value out of bounds")
     CASE ( 3 )
       pf = SQRT ( 35.0_dp / ( 32.0_dp * pi ) )
       dy (1, : ) =  pf * 3.0_dp * ( r ( 1, : )*r ( 1, : ) - r ( 2, : )* r ( 2, : ))
@@ -1802,8 +1790,7 @@ CONTAINS
       dy (3, : ) =  0.0_dp
     END SELECT
   CASE DEFAULT
-    IF ( m < -l .OR. m > l ) CALL stop_program(routineN,moduleN,__LINE__,&
-                                               "m value out of bounds")
+    IF ( m < -l .OR. m > l ) CPABORT("m value out of bounds")
     lpm = fac ( l + ABS ( m ) )
     lmm = fac ( l - ABS ( m ) )
     IF ( m == 0 ) THEN

@@ -45,7 +45,6 @@ MODULE cp_fm_diag
                                              mp_comm_split,&
                                              mp_comm_split_direct,&
                                              mp_sync
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -464,8 +463,7 @@ CONTAINS
     CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
 
-    IF(info /= 0) CALL stop_program &
-       (routineN,moduleN,__LINE__, "Matrix diagonalization failed")
+    IF(info /= 0) CPABORT("Matrix diagonalization failed")
 
     DEALLOCATE (work)
 

@@ -15,7 +15,6 @@ MODULE mol_force
        do_ff_g96, do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm2, &
        do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_program
 #include "./common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -102,7 +101,7 @@ CONTAINS
        energy  = f12*k(1)*r0*r0*(1.0_dp+disp*(disp-2.0_dp))
        fscalar = k(1)*r0*disp*disp*(1.0_dp-disp) / dij
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched bond kind")
+       CPABORT("Unmatched bond kind")
     END SELECT
 
   END SUBROUTINE force_bonds
@@ -254,7 +253,7 @@ CONTAINS
        fscalar=1.0_dp
 
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched bend kind")
+       CPABORT("Unmatched bend kind")
     END SELECT
 
   END SUBROUTINE force_bends
@@ -314,7 +313,7 @@ CONTAINS
        ! compute fscalar
        fscalar = k * m * SIN(m*phi-phi0)
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched torsion kind")
+       CPABORT("Unmatched torsion kind")
     END SELECT
 
     ! compute the gradients
@@ -388,7 +387,7 @@ CONTAINS
        fscalar = - k * ( phi - phi0 )
 
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched improper kind")
+       CPABORT("Unmatched improper kind")
     END SELECT
 
     ! compute the gradients
@@ -479,7 +478,7 @@ CONTAINS
        fscalar = k * ( phi - phi0 ) * is41
 
     CASE DEFAULT
-       CALL stop_program(routineN,moduleN,__LINE__,"Unmatched opbend kind")
+       CPABORT("Unmatched opbend kind")
     END SELECT
 
 

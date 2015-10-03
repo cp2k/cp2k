@@ -21,7 +21,6 @@ MODULE dg_rho0_types
                                              pw_create,&
                                              pw_p_type,&
                                              pw_release
-  USE termination,                     ONLY: stop_program
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -219,7 +218,7 @@ CONTAINS
        CALL pw_create ( dg_rho0 % density % pw, pw_grid, REALDATA3D)
        CALL dg_rho0_pme_gauss ( dg_rho0 % density, dg_rho0 % zet ( 1 ))
     CASE ( do_ewald_spme )
-       CALL stop_program(routineN,moduleN,__LINE__,'SPME type not implemented')
+       CPABORT('SPME type not implemented')
     END SELECT
 
   END SUBROUTINE dg_rho0_init

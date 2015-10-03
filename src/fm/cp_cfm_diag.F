@@ -20,8 +20,7 @@ MODULE cp_cfm_diag
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #if defined (__HAS_IEEE_EXCEPTIONS)
@@ -142,7 +141,7 @@ CONTAINS
 #endif
 
     IF (info /= 0) THEN
-       CALL stop_program(routineN,moduleN,__LINE__,"Diagonalisation complex matrix failed")
+       CPABORT("Diagonalisation complex matrix failed")
     END IF
     DEALLOCATE (iwork)
     DEALLOCATE (rwork)

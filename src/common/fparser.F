@@ -20,8 +20,7 @@ MODULE fparser
   
   USE kinds,                           ONLY: default_string_length,&
                                              rn => dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.f90"                                             
 
   IMPLICIT NONE
@@ -412,7 +411,7 @@ CONTAINS
     ELSE
        WRITE (*,'(A)') REPEAT(" ",SIZE(ipos)+1)//"?"
     END IF
-    CALL stop_program(routineN,moduleN,__LINE__,TRIM(message))
+    CPABORT(TRIM(message))
 
   END SUBROUTINE ParseErrMsg
   !
