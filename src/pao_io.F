@@ -15,7 +15,8 @@ MODULE pao_io
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_col_block_sizes,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_row_block_sizes
-  USE cp_files,                        ONLY: open_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -96,7 +97,7 @@ CONTAINS
     ! TODO: this is a serial algorithm
     DO i=1, natoms
        IF(unit_nr>0) THEN
-          READ(unit_nr,fmt='(A,I10)') label, iatom
+          READ(unit_nr,fmt=*) label, iatom
           CPASSERT(TRIM(label)=="Xblock")
        ENDIF
        CALL mp_bcast(iatom, para_env%source, para_env%group)
@@ -118,6 +119,7 @@ CONTAINS
        DEALLOCATE(buffer)
     ENDDO
 
+    IF(unit_nr>0) CALL close_file(unit_number=unit_nr)
   END SUBROUTINE pao_read_restart
 
 

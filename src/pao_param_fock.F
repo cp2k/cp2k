@@ -158,7 +158,7 @@ CONTAINS
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=Y, found=found)
     CPASSERT(ASSOCIATED(Y))
 
-    IF(ANY(X - TRANSPOSE(X) /= 0.0_dp)) CPABORT("Expect symmetric matrix")
+    IF(MAXVAL(ABS(X-TRANSPOSE(X)))>1e-14_dp) CPABORT("Expect symmetric matrix")
     n = SIZE(X, 1)
     m = SIZE(Y, 2)
     IF(SIZE(Y, 1) /= n) CPABORT("strange size of block Y")
@@ -178,7 +178,7 @@ CONTAINS
        ENDDO
     ENDDO
 
-    IF(ANY(P - TRANSPOSE(P) /= 0.0_dp)) CPABORT("block P not symmetric")
+    IF(MAXVAL(ABS(P-TRANSPOSE(P)))>1e-14_dp) CPABORT("block P not symmetric")
 
     ! Apply projector P onto random matrix U0
     ALLOCATE(C(n,m))

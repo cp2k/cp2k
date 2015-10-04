@@ -233,7 +233,7 @@ CONTAINS
     INTEGER                                  :: N
     REAL(dp), DIMENSION(:), POINTER          :: evals_r
 
-    IF(ANY(matrix /= -TRANSPOSE(matrix))) CPABORT("Expected anti-symmetric matrix")
+    IF(MAXVAL(ABS(matrix+TRANSPOSE(matrix)))>1e-14_dp) CPABORT("Expected anti-symmetric matrix")
     N = SIZE(matrix, 1)
     ALLOCATE(matrix_c(N,N), evals_r(N))
 
@@ -269,7 +269,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF(SIZE(matrix, 1) /= SIZE(matrix, 2)) CPABORT("expected square matrix")
-    IF(ANY(matrix /= CONJG(TRANSPOSE(matrix)))) CPABORT("Expect hermitian matrix")
+    IF(MAXVAL(ABS(matrix-CONJG(TRANSPOSE(matrix))))>1e-14_dp) CPABORT("Expect hermitian matrix")
 
     n = SIZE(matrix, 1)
     ALLOCATE(iwork(1), rwork(1), work(1), A(n,n))
