@@ -847,7 +847,7 @@ CONTAINS
 
       DO ispin=1,nspin
         DO ibuffer=1,nbuffer
-          ALLOCATE (diis_buffer%error(ibuffer,ispin)%matrix,STAT=istat)
+          ALLOCATE (diis_buffer%error(ibuffer,ispin)%matrix)
           CALL cp_dbcsr_init(diis_buffer%error(ibuffer,ispin)%matrix)
 
           CALL cp_dbcsr_create(diis_buffer%error(ibuffer,ispin)%matrix, &
@@ -864,7 +864,7 @@ CONTAINS
 
       DO ispin=1,nspin
         DO ibuffer=1,nbuffer
-          ALLOCATE (diis_buffer%parameter(ibuffer,ispin)%matrix,STAT=istat)
+          ALLOCATE (diis_buffer%parameter(ibuffer,ispin)%matrix)
           CALL cp_dbcsr_init(diis_buffer%parameter(ibuffer,ispin)%matrix)
           CALL cp_dbcsr_create(diis_buffer%parameter(ibuffer,ispin)%matrix, &
                                template=ls_scf_env%matrix_ks(1),&

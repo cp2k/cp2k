@@ -168,7 +168,7 @@ MODULE hfx_energy_potential
       nseta, nsetb, nsgf_max, nspins, pa, sgfb, shm_task_counter, &
       shm_total_bins, sphi_a_u1, sphi_a_u2, sphi_a_u3, sphi_b_u1, sphi_b_u2, &
       sphi_b_u3, sphi_c_u1, sphi_c_u2, sphi_c_u3, sphi_d_u1, sphi_d_u2, &
-      sphi_d_u3, stat, swap_id, tmp_i4, unit_id
+      sphi_d_u3, swap_id, tmp_i4, unit_id
     INTEGER(int_8) :: atom_block, counter, estimate_to_store_int, &
       max_val_memory, mb_size_buffers, mb_size_f, mb_size_p, &
       mem_compression_counter, mem_compression_counter_disk, mem_eris, &
@@ -415,7 +415,7 @@ MODULE hfx_energy_potential
 !$OMP         basis_parameter,basis_info,treat_lsd_in_core,ncpu,n_processes,neris_total,neris_incore,&
 !$OMP         neris_disk,neris_onthefly,mem_eris,mem_eris_disk,mem_max_val,compression_factor,&
 !$OMP         compression_factor_disk,nprim_ints,neris_tmp,max_val_memory,max_am,do_p_screening,&
-!$OMP         max_set,particle_set,atomic_kind_set,natom,kind_of,stat,ncos_max,nsgf_max,ikind,&
+!$OMP         max_set,particle_set,atomic_kind_set,natom,kind_of,ncos_max,nsgf_max,ikind,&
 !$OMP         nseta,npgfa,la_max,nsgfa,primitive_integrals,pbd_buf,pbc_buf,pad_buf,pac_buf,kbd_buf,kbc_buf,&
 !$OMP         kad_buf,kac_buf,ee_work,ee_work2,ee_buffer1,ee_buffer2,ee_primitives_tmp,nspins,max_contraction,&
 !$OMP         max_pgf,jkind,lb_max,nsetb,npgfb,first_sgfb,sphi_b,nsgfb,ncob,sgfb,nneighbors,pgf_list_ij,pgf_list_kl,&
@@ -761,7 +761,7 @@ MODULE hfx_energy_potential
       END DO
 
       IF(nspins == 2) THEN
-        ALLOCATE(full_density_beta(shm_block_offset(ncpu+1),nkimages),STAT=stat)
+        ALLOCATE(full_density_beta(shm_block_offset(ncpu+1),nkimages))
         DO img=1,nkimages
            CALL get_full_density(para_env, full_density_beta(:,img), rho_ao(2,img)%matrix, shm_number_of_p_entries,&
                                  shm_master_x_data%block_offset, &

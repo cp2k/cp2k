@@ -136,7 +136,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: c_kinds, my_par
     INTEGER :: handle, i, iatm, icomponent, iend, ifunc, ii, isize, istart, &
-      iw, iw1, j, k, kk, n_var, n_var_k, ncol, ndim, nr_frame, stat, v_count
+      iw, iw1, j, k, kk, n_var, n_var_k, ncol, ndim, nr_frame, v_count
     INTEGER, DIMENSION(:), POINTER           :: iatms
     INTEGER, DIMENSION(:, :), POINTER        :: p_bounds
     LOGICAL                                  :: check, use_mixed_energy
@@ -972,7 +972,7 @@ __LOCATION__)
                colvar%mindist_param%k_coord_to)
        CALL section_vals_val_get(mindist_section,"ATOMS_DISTANCE",i_vals=iatms)
        colvar%mindist_param%n_dist_from = SIZE(iatms)
-       ALLOCATE(colvar%mindist_param%i_dist_from(SIZE(iatms)),stat=stat)
+       ALLOCATE(colvar%mindist_param%i_dist_from(SIZE(iatms)))
        colvar%mindist_param%i_dist_from = iatms
        CALL section_vals_val_get(mindist_section,"ATOMS_FROM",n_rep_val=n_var)
        ndim = 0 

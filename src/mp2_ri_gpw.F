@@ -5009,7 +5009,7 @@ MODULE mp2_ri_gpw
       proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, &
       rec_L_size, send_B_size, send_B_virtual_end, send_B_virtual_start, &
       send_i, send_ijk_index, send_j, send_k, size_B_i, size_B_j, size_B_k, &
-      start_point, stat
+      start_point
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: num_ijk, num_ijk_beta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ijk_map, ijk_map_beta
     REAL(KIND=dp)                            :: amp_fac, null_mat_rec(2,2,2), &
@@ -5171,8 +5171,7 @@ MODULE mp2_ri_gpw
                               para_env_exchange%group)
             ELSE ! For beta_beta density, the size is different now
                !DEALLOCATE(BI_C_rec)
-               !ALLOCATE(BI_C_rec(rec_L_size,size_B_j,1),STAT=stat) 
-               !CPPostcondition(stat==0,cp_failure_level,routineP,failure)
+               !ALLOCATE(BI_C_rec(rec_L_size,size_B_j,1)) 
                !BI_C_rec=0.0_dp
                CALL  mp_sendrecv(BIb_C_beta(1:my_group_L_size,1:size_B_j,send_j),proc_send,&
                               BI_C_rec(1:rec_L_size,1:size_B_j,1),proc_receive,&
@@ -5196,7 +5195,7 @@ MODULE mp2_ri_gpw
           ! occupied k
           BI_C_rec=0.0_dp
           DEALLOCATE(BI_C_rec)
-          ALLOCATE(BI_C_rec(rec_L_size,size_B_k,1),STAT=stat) 
+          ALLOCATE(BI_C_rec(rec_L_size,size_B_k,1)) 
           BI_C_rec=0.0_dp
           IF(ijk_index<=send_ijk_index) THEN
             IF (iloops .EQ. 1) THEN

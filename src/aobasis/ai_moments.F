@@ -1414,8 +1414,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: mab_ext
 
-    INTEGER                                  :: imom, istat, lda, lda_min, &
-                                                ldb, ldb_min, lmax
+    INTEGER                                  :: imom, lda, lda_min, ldb, &
+                                                ldb_min, lmax
     REAL(KIND=dp)                            :: dab, rab(3), rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: difmab_tmp
@@ -1437,7 +1437,7 @@ CONTAINS
       mab => mab_ext
     ELSE
       ALLOCATE(mab(npgfa*ncoset(la_max+1), npgfb*ncoset(lb_max+1),&
-             ncoset(order)-1),STAT =istat)
+             ncoset(order)-1))
       mab = 0.0_dp
 !     *** Calculate the primitive overlap integrals ***
       CALL moment(la_max+1,npgfa,zeta,rpgfa,lda_min,&

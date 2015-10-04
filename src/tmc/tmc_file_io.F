@@ -792,8 +792,8 @@ CONTAINS
 
     search_next_conf:DO
       c_tmp(:) = " "
-      READ(tmc_ana%id_traj,'(A)',IOSTAT=status) c_tmp(:)
       tmc_ana%lc_traj = tmc_ana%lc_traj +1
+      READ(tmc_ana%id_traj,'(A)',IOSTAT=status) c_tmp(:)
       CALL cp_assert(status.LE.0,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "configuration header read error at line: "//&
@@ -820,9 +820,9 @@ CONTAINS
 
     IF(stat.EQ. TMC_STATUS_OK) THEN
       pos_loop:DO i=1, SIZE(elem%pos), tmc_ana%dim_per_elem
+        tmc_ana%lc_traj = tmc_ana%lc_traj +1
         READ(tmc_ana%id_traj,FMT="(A4,1X,1000F20.10)", IOSTAT=status) &
              c_tmp, elem%pos(i:i+tmc_ana%dim_per_elem-1)
-        tmc_ana%lc_traj = tmc_ana%lc_traj +1
         IF(status.NE.0) THEN
           CALL cp_abort(__LOCATION__,&
                "configuration pos read error at line: "//&
@@ -865,13 +865,13 @@ CONTAINS
 
     ! start the timing
     CALL timeset(routineN,handle)
-    READ(tmc_ana%id_dip,FMT="(A)", IOSTAT=status) c_tmp
     tmc_ana%lc_dip = tmc_ana%lc_dip +1
+    READ(tmc_ana%id_dip,FMT="(A)", IOSTAT=status) c_tmp
     IF(status.EQ.0) THEN
       ! skip the initial line (header)
       IF(INDEX(c_tmp,"#").GT.0) THEN
-        READ(tmc_ana%id_dip,FMT="(A)", IOSTAT=status) c_tmp
         tmc_ana%lc_dip = tmc_ana%lc_dip +1
+        READ(tmc_ana%id_dip,FMT="(A)", IOSTAT=status) c_tmp
       END IF
     END IF
     IF(status.EQ.0) THEN
@@ -925,14 +925,13 @@ CONTAINS
     ! start the timing
     CALL timeset(routineN,handle)
 
-    READ(tmc_ana%id_cell,FMT="(A)", IOSTAT=status) c_tmp
     tmc_ana%lc_cell = tmc_ana%lc_cell +1
-    
+    READ(tmc_ana%id_cell,FMT="(A)", IOSTAT=status) c_tmp
     IF(status.EQ.0) THEN
       ! skip the initial line (header)
       IF(INDEX(c_tmp,"#").GT.0) THEN
-        READ(tmc_ana%id_cell,FMT="(A)", IOSTAT=status) c_tmp
         tmc_ana%lc_cell = tmc_ana%lc_cell +1
+        READ(tmc_ana%id_cell,FMT="(A)", IOSTAT=status) c_tmp
       END IF
     END IF
     IF(status.EQ.0) THEN

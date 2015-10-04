@@ -1749,11 +1749,13 @@ CONTAINS
 
           IF(PRESENT(ind)) THEN
             IF(rst_unit>0) READ(rst_unit,IOSTAT=iostat) ind, ivec_tmp,nspins_tmp,nao_tmp
+            CALL mp_bcast(iostat,source,group)
             CALL mp_bcast(ind,source,group)
           ELSE
             IF(rst_unit>0) READ(rst_unit,IOSTAT=iostat) ivec_tmp,nspins_tmp,nao_tmp
+            CALL mp_bcast(iostat,source,group)
           END IF
-          CALL mp_bcast(iostat,source,group)
+          
           IF(iostat.NE.0) EXIT
           CALL mp_bcast(ivec_tmp,source,group)
           CALL mp_bcast(nspins_tmp,source,group)

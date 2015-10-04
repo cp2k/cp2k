@@ -3063,7 +3063,7 @@ CONTAINS
              np = fft_sizes%numtask
              ALLOCATE ( fft_scratch_new%fft_scratch%scount(0:np-1), fft_scratch_new%fft_scratch%rcount(0:np-1),&
                   fft_scratch_new%fft_scratch%sdispl(0:np-1), fft_scratch_new%fft_scratch%rdispl(0:np-1),&
-                  fft_scratch_new%fft_scratch%pgcube(0:np-1, 2),STAT=ierr)
+                  fft_scratch_new%fft_scratch%pgcube(0:np-1, 2))
           END IF
 
           SELECT CASE (tf_type)

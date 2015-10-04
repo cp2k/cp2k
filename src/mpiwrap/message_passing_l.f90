@@ -2535,21 +2535,16 @@
     t_start = m_walltime()
     NULLIFY(DATA)
     CALL mp_alloc_mem(DATA, len, stat=ierr)
-    IF (PRESENT (stat)) THEN
-       stat = ierr
-    ELSE
-       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_alloc_mem @ "//routineN)
-    ENDIF
+    IF (ierr/=0 .AND. .NOT. PRESENT(stat)) &
+       CALL mp_stop(ierr, "mpi_alloc_mem @ "//routineN)
     t_end = m_walltime()
     CALL add_perf(perf_id=15, count=1, time=t_end-t_start)
 #else
     ALLOCATE(DATA(len), stat=ierr)
-    IF (PRESENT (stat)) THEN
-       stat = ierr
-    ELSE
-       IF (ierr /= 0) CALL mp_stop(ierr, "ALLOCATE @ "//routineN)
-    ENDIF
+    IF (ierr/=0 .AND. .NOT. PRESENT(stat)) &
+       CALL mp_stop(ierr, "ALLOCATE @ "//routineN)
 #endif
+   IF(PRESENT(stat)) stat = ierr
     CALL mp_timestop(handle)
   END SUBROUTINE mp_allocate_l
 
@@ -2925,10 +2920,11 @@
      CALL C_F_POINTER(mp_baseptr, DATA, (/length/))
      IF (PRESENT (stat)) stat = mp_res
 #else
-     INTEGER                                 :: length
+     INTEGER                                 :: length, mystat
      length = MAX(len,1)
      IF (PRESENT (stat)) THEN
-        ALLOCATE(DATA(length), stat=stat)
+        ALLOCATE(DATA(length), stat=mystat)
+        stat = mystat ! show to convention checker that stat is used
      ELSE
         ALLOCATE(DATA(length))
      ENDIF

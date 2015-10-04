@@ -218,7 +218,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, ispin, istat, min_lumos, n_rep, nhomo, nlumo, &
+    INTEGER :: handle, homo, ispin, min_lumos, n_rep, nhomo, nlumo, &
       nlumo_stm, nlumo_tddft, nlumos, nmo, output_unit, unit_nr
     INTEGER, DIMENSION(:, :, :), POINTER     :: marked_states
     LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mo_cubes, &
@@ -569,7 +569,7 @@ CONTAINS
 
           ! Save the info for tddfpt calculation
           IF (dft_control%do_tddfpt_calculation) THEN
-             ALLOCATE(dft_control%tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins),stat=istat)
+             ALLOCATE(dft_control%tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins))
              DO ispin=1, dft_control%nspins
                 dft_control%tddfpt_control%lumos_eigenvalues(1:nlumos,ispin) = &
                      unoccupied_evals(ispin)%array(1:nlumos)

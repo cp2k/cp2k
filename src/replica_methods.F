@@ -103,7 +103,7 @@ MODULE replica_methods
     CHARACTER(len=default_path_length)       :: input_file_path, &
                                                 output_file_path
     INTEGER :: comm_cart, comm_f, comm_inter_rep, forcedim, i, i0, ierr, ip, &
-      ir, irep, lp, my_prep, new_env_id, nparticle, nrep_local, stat, unit_nr
+      ir, irep, lp, my_prep, new_env_id, nparticle, nrep_local, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: gridinfo
     INTEGER, DIMENSION(2)                    :: dims, pos
     LOGICAL, DIMENSION(2)                    :: rdim
@@ -178,7 +178,7 @@ MODULE replica_methods
        rep_env%force_dim = forcedim
        rep_env%my_rep_group = cart%mepos(3-forcedim)
        ALLOCATE(rep_env%inter_rep_rank(0:para_env_inter_rep%num_pe-1),&
-                rep_env%force_rank(0:para_env_f%num_pe-1),stat=stat)
+                rep_env%force_rank(0:para_env_f%num_pe-1))
        rep_env%inter_rep_rank=0
        rep_env%inter_rep_rank(rep_env%my_rep_group)=para_env_inter_rep%mepos
        CALL mp_sum(rep_env%inter_rep_rank,para_env_inter_rep%group)

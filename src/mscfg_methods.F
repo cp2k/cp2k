@@ -147,8 +147,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER :: first_atom, force_method, global_charge, global_multpl, &
-      handle, i, ifrag, imo, isize, j, k, last_atom, my_targ, &
-      nmosets_of_frag, stat
+      handle, i, ifrag, imo, isize, j, k, last_atom, my_targ, nmosets_of_frag
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list
     LOGICAL                                  :: global_almo_scf_keyword
     TYPE(cell_type), POINTER                 :: cell
@@ -236,7 +235,7 @@ CONTAINS
        first_atom=first_atom_of_frag(ifrag)
        last_atom=last_atom_of_frag(ifrag)
        isize=last_atom-first_atom+1
-       ALLOCATE(atom_index(isize),stat=stat)
+       ALLOCATE(atom_index(isize))
        atom_index(1:isize)=(/(i, i=first_atom,last_atom)/)
        !
        ! Get atom type names

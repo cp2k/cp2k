@@ -67,7 +67,7 @@ CONTAINS
 
     INTEGER                                  :: all_nmo, handle, homo_a, &
                                                 homo_b, i, lfomo_a, lfomo_b, &
-                                                nmo_a, nmo_b, stat, xas_estate
+                                                nmo_a, nmo_b, xas_estate
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_index
     LOGICAL                                  :: is_large
     REAL(KIND=dp)                            :: all_nelec, kTS, mu, nelec_a, &
@@ -88,7 +88,7 @@ CONTAINS
     all_nmo = nmo_a+nmo_b
     ALLOCATE(all_eigval(all_nmo))
     ALLOCATE(all_occ(all_nmo))
-    ALLOCATE(all_index(all_nmo), STAT=stat)
+    ALLOCATE(all_index(all_nmo))
 
     all_eigval(1:nmo_a) = eigval_a(1:nmo_a)
     all_eigval(nmo_a+1:all_nmo) = eigval_b(1:nmo_b)

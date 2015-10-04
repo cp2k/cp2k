@@ -410,9 +410,8 @@ SUBROUTINE xml_get( info, tag, endtag, attribs, no_attribs, &
    kspace        = INDEX( info%line, ' ' )
    kend          = INDEX( info%line, '>' )
    DO WHILE ( kend .LE. 0 )
-      READ( info%lun, '(a)', iostat = ierr ) nextline
       info%lineno = info%lineno + 1
-
+      READ( info%lun, '(a)', iostat = ierr ) nextline
       IF ( ierr .EQ. 0 ) THEN
          info%line = TRIM(info%line) // ' ' // ADJUSTL(nextline)
       ELSE
@@ -565,9 +564,8 @@ SUBROUTINE xml_get( info, tag, endtag, attribs, no_attribs, &
       IF ( kend .GE. 1 ) THEN
          EXIT
       ELSE
-         READ( info%lun, '(a)', iostat = ierr ) info%line
          info%lineno = info%lineno + 1
-
+         READ( info%lun, '(a)', iostat = ierr ) info%line
          IF ( ierr .LT. 0 ) THEN
             CALL xml_report_details( 'XML_GET - end of file found - LU-number: ', &
                     info%lun )

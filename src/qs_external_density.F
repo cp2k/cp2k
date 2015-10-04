@@ -66,7 +66,7 @@ CONTAINS
     INTEGER                                  :: extunit, gid, handle, i, &
                                                 igrid_level, ip, j, k, &
                                                 master, my_rank, nat, ndum, &
-                                                num_pe, stat, tag
+                                                num_pe, tag
     INTEGER, DIMENSION(3)                    :: lbounds, lbounds_local, &
                                                 npoints, npoints_local, &
                                                 ubounds, ubounds_local
@@ -106,7 +106,7 @@ CONTAINS
 
       CALL pw_env_get(pw_env, rs_descs=rs_descs)
 
-      ALLOCATE (rs_rho_ext(gridlevel_info%ngrid_levels),STAT=stat)
+      ALLOCATE (rs_rho_ext(gridlevel_info%ngrid_levels))
 
       DO igrid_level=1,gridlevel_info%ngrid_levels
         CALL rs_grid_create(rs_rho_ext(igrid_level)%rs_grid,&

@@ -177,9 +177,9 @@ CONTAINS
       routineN = 'cp2k_distribution_to_z_slices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dest, handle, i, ierr, ii, &
-                                                iproc, j, k, l, local_z_dim, &
-                                                loz, m, m2, md2, nproc
+    INTEGER                                  :: dest, handle, i, ii, iproc, &
+                                                j, k, l, local_z_dim, loz, m, &
+                                                m2, md2, nproc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, tmp
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
@@ -199,7 +199,7 @@ CONTAINS
     ub(:)=pw_grid % bounds_local ( 2, : )
     local_z_dim=MAX((md2/nproc),1)
 
-    ALLOCATE(sbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
+    ALLOCATE(sbuf(PRODUCT(pw_grid % npts_local)))
     ALLOCATE(rbuf(PRODUCT(wavelet%PS_grid)/nproc))
     ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
 
@@ -342,9 +342,9 @@ CONTAINS
       routineN = 'z_slices_to_cp2k_distribution', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dest, i, ierr, ii, iproc, j, &
-                                                k, l, local_z_dim, loz, m, &
-                                                m2, md2, nproc
+    INTEGER                                  :: dest, i, ii, iproc, j, k, l, &
+                                                local_z_dim, loz, m, m2, md2, &
+                                                nproc
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, tmp
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy, min_x, &
@@ -364,7 +364,7 @@ CONTAINS
 
     local_z_dim=MAX((md2/nproc),1)
 
-    ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)),stat=ierr)
+    ALLOCATE(rbuf(PRODUCT(pw_grid % npts_local)))
     ALLOCATE(sbuf(PRODUCT(wavelet%PS_grid)/nproc))
     ALLOCATE(scount(nproc),sdispl(nproc),rcount(nproc),rdispl(nproc),tmp(nproc))
     scount=0

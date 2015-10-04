@@ -119,7 +119,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
     CHARACTER(len=*), PARAMETER :: routineN = 'distribution_2d_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i
 
    CPASSERT(ASSOCIATED(blacs_env))
    CPASSERT(.NOT.ASSOCIATED(distribution_2d))
@@ -168,14 +168,11 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       CPASSERT(PRESENT(n_local_rows))
       ALLOCATE(distribution_2d%local_rows(SIZE(n_local_rows)))
       DO i=1,SIZE(distribution_2d%local_rows)
-         ALLOCATE(distribution_2d%local_rows(i)%array(n_local_rows(i)),&
-              stat=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(distribution_2d%local_rows(i)%array(n_local_rows(i)))
          distribution_2d%local_rows(i)%array=-HUGE(0)
       END DO
    END IF
-   ALLOCATE(distribution_2d%n_local_rows(SIZE(distribution_2d%local_rows)),&
-        stat=stat)
+   ALLOCATE(distribution_2d%n_local_rows(SIZE(distribution_2d%local_rows)))
    IF (PRESENT(n_local_rows)) THEN
       IF(SIZE(distribution_2d%n_local_rows)/=SIZE(n_local_rows))&
          CPABORT("SIZE(distribution_2d%n_local_rows)==SIZE(n_local_rows)")
@@ -197,14 +194,11 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
       CPASSERT(PRESENT(n_local_cols))
       ALLOCATE(distribution_2d%local_cols(SIZE(n_local_cols)))
       DO i=1,SIZE(distribution_2d%local_cols)
-         ALLOCATE(distribution_2d%local_cols(i)%array(n_local_cols(i)),&
-              stat=stat)
-         CPASSERT(stat==0)
+         ALLOCATE(distribution_2d%local_cols(i)%array(n_local_cols(i)))
          distribution_2d%local_cols(i)%array=-HUGE(0)
       END DO
    END IF
-   ALLOCATE(distribution_2d%n_local_cols(SIZE(distribution_2d%local_cols)),&
-        stat=stat)
+   ALLOCATE(distribution_2d%n_local_cols(SIZE(distribution_2d%local_cols)))
    IF (PRESENT(n_local_cols)) THEN
       IF(SIZE(distribution_2d%n_local_cols)/=SIZE(n_local_cols))&
          CPABORT("SIZE(distribution_2d%n_local_cols)==SIZE(n_local_cols)")
@@ -525,7 +519,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iblock_atomic, iblock_min, &
-                                                ikind, ikind_min, stat
+                                                ikind, ikind_min
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: multiindex
 
   CPASSERT(ASSOCIATED(distribution_2d))
@@ -541,9 +535,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
   IF (PRESENT(flat_local_rows)) THEN
      IF (.NOT.ASSOCIATED(distribution_2d%flat_local_rows)) THEN
         ALLOCATE(multiindex(SIZE(distribution_2d%local_rows)),&
-             distribution_2d%flat_local_rows(SUM(distribution_2d%n_local_rows)),&
-             stat=stat)
-        CPASSERT(stat==0)
+             distribution_2d%flat_local_rows(SUM(distribution_2d%n_local_rows)))
         multiindex=1
         DO iblock_atomic=1,SIZE(distribution_2d%flat_local_rows)
            iblock_min=HUGE(0)
@@ -569,9 +561,7 @@ SUBROUTINE distribution_2d_get(distribution_2d, row_distribution, &
   IF (PRESENT(flat_local_cols)) THEN
      IF (.NOT.ASSOCIATED(distribution_2d%flat_local_cols)) THEN
         ALLOCATE(multiindex(SIZE(distribution_2d%local_cols)),&
-             distribution_2d%flat_local_cols(SUM(distribution_2d%n_local_cols)),&
-             stat=stat)
-        CPASSERT(stat==0)
+             distribution_2d%flat_local_cols(SUM(distribution_2d%n_local_cols)))
         multiindex=1
         DO iblock_atomic=1,SIZE(distribution_2d%flat_local_cols)
            iblock_min=HUGE(0)

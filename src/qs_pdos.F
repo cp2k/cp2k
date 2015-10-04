@@ -164,7 +164,7 @@ CONTAINS
       in_z, ir, irow, iset, isgf, ishell, iso, iterstep, iw, j, jx, jy, jz, &
       k, lcomponent, lshell, maxl, maxlgto, my_spin, n_dependent, n_r_ldos, &
       n_rep, nao, natom, ncol_global, nkind, nldos, nlumo, nmo, np_tot, &
-      npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit, stat
+      npoints, nrow_global, nset, nsgf, nvirt, out_each, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: firstrow
     INTEGER, DIMENSION(:), POINTER           :: list, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: bo, l
@@ -359,7 +359,7 @@ CONTAINS
       CALL pw_pool_create_pw(auxbas_pw_pool,wf_g%pw,&
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE)
-      ALLOCATE(read_r(4,n_r_ldos),STAT=stat)
+      ALLOCATE(read_r(4,n_r_ldos))
       DO ildos=1,n_r_ldos
         WRITE(r_ldos_index(ildos),'(I0)') ildos
         ALLOCATE(r_ldos_p(ildos)%ldos)

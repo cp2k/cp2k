@@ -1183,8 +1183,7 @@ CONTAINS
       DIMENSION(maxbas)                      :: basis_set_name, basis_set_type
     INTEGER                                  :: handle, i, i_rep, ipos, j, &
                                                 k_rep, l, m, n_rep, nb_rep, &
-                                                nexp, ngauss, norbitals, &
-                                                stat, z
+                                                nexp, ngauss, norbitals, z
     INTEGER, DIMENSION(:), POINTER           :: add_el, elec_conf, orbitals
     LOGICAL :: check, explicit, explicit_basis, explicit_kgpot, &
       explicit_potential, nobasis, section_enabled, subsection_enabled
@@ -1438,7 +1437,7 @@ CONTAINS
               CALL section_vals_val_get(spin_section,&
                    keyword_name="NEL",i_vals=add_el)
               CPASSERT(ASSOCIATED(add_el))
-              ALLOCATE(qs_kind%addel(SIZE(add_el),2),STAT=stat)
+              ALLOCATE(qs_kind%addel(SIZE(add_el),2))
               qs_kind%addel =0
               qs_kind%addel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
               NULLIFY(add_el)
@@ -1446,10 +1445,10 @@ CONTAINS
                    keyword_name="L",i_vals=add_el)
               CPASSERT(ASSOCIATED(add_el))
               CPASSERT(SIZE(add_el)==SIZE( qs_kind%addel,1))
-              ALLOCATE(qs_kind%laddel(SIZE(add_el),2),STAT=stat)
+              ALLOCATE(qs_kind%laddel(SIZE(add_el),2))
               qs_kind%laddel =0
               qs_kind%laddel(1:SIZE(add_el),1) = add_el(1:SIZE(add_el))
-              ALLOCATE(qs_kind%naddel(SIZE(add_el),2),STAT=stat)
+              ALLOCATE(qs_kind%naddel(SIZE(add_el),2))
               qs_kind%naddel =0
               NULLIFY(add_el)
               CALL section_vals_val_get(spin_section,&
