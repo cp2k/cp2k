@@ -173,19 +173,13 @@ MODULE xc_libxc_wrap
   PUBLIC :: xc_f90_mgga, xc_f90_mgga_exc, xc_f90_mgga_exc_vxc, xc_f90_mgga_fxc,&
             xc_f90_mgga_vxc, xc_f90_mgga_x_tb09_set_par
 
-  PUBLIC :: XC_FAMILY_UNKNOWN, XC_FAMILY_NONE,&
-            XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA, XC_FAMILY_LCA,&
-            XC_FAMILY_OEP, XC_FAMILY_HYB_GGA, XC_FAMILY_HYB_MGGA
+  PUBLIC :: XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_MGGA,&
+            XC_FAMILY_HYB_GGA
 
-  PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED, XC_NON_RELATIVISTIC, XC_RELATIVISTIC
+  PUBLIC :: XC_UNPOLARIZED, XC_POLARIZED
 
   PUBLIC :: XC_EXCHANGE, XC_CORRELATION, XC_EXCHANGE_CORRELATION, XC_KINETIC
 
-  PUBLIC :: XC_FLAGS_HAVE_EXC, XC_FLAGS_HAVE_VXC, XC_FLAGS_HAVE_FXC,&
-            XC_FLAGS_HAVE_KXC, XC_FLAGS_HAVE_LXC,&
-            XC_FLAGS_1D, XC_FLAGS_2D, XC_FLAGS_3D,&
-            XC_FLAGS_STABLE, XC_FLAGS_DEVELOPMENT,&
-            XC_GGA_XC_LB, XC_GGA_K_ABSR1
 
 ! wrappers for routines where interface has changed between versions
   PUBLIC :: xc_libxc_wrap_info_refs,&

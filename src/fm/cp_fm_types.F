@@ -11,24 +11,19 @@
 !> \author Matthias Krack (22.05.2001)
 ! *****************************************************************************
 MODULE cp_fm_types
-  USE cp_array_utils_r,                ONLY: cp_2d_r_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
                                              cp_blacs_dgebs2d,&
                                              cp_blacs_gridexit,&
                                              cp_blacs_gridinfo,&
                                              cp_blacs_gridinit
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type,&
-                                             cp_fm_struct_write
+                                             cp_fm_struct_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp,&
+  USE kinds,                           ONLY: dp,&
                                              sp
   USE message_passing,                 ONLY: cp2k_is_parallel,&
                                              mp_bcast,&
@@ -43,7 +38,6 @@ MODULE cp_fm_types
                                              random_numbers,&
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
-  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -75,7 +69,6 @@ MODULE cp_fm_types
             cp_fm_init_random,&
             cp_fm_maxabsval,&  ! find the maximum absolute value
             cp_fm_maxabsrownorm,&  ! find the maximum of the sum of the abs of the elements of a row
-            cp_fm_write,&  ! writes lots of information and data (might need further development)
             cp_fm_to_fm,&  ! copy (parts of) a fm to a fm
             cp_fm_vectorsnorm,&  ! compute the norm of the column-vectors
             cp_fm_to_fm_submat,&  ! copy (parts of) a fm to a fm
@@ -1103,126 +1096,6 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE
-
-! *****************************************************************************
-!> \brief writes out the matrix (if long description, might need some refactoring
-!> \param matrix the matrix to output
-!> \param unit_nr the unit where to output
-!> \param long_description if a long description should be written (is
-!>        needed to see the content of the matrix)
-!>        (defaults to false)
-!> \param local if the unit is a local unit or a global unit
-!>        (defaults to false, i.e. global)
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-!> \note
-!>      uniquing_nr should be smartened: don't add if no file exist, else
-!>      increase nr until no file exists
-!>      routine to help debugging
-! *****************************************************************************
-   SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local)
-    TYPE(cp_fm_type), POINTER                :: matrix
-    INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=default_path_length)       :: filename
-    INTEGER                                  :: data_unit, desc_unit, iostat
-    LOGICAL                                  :: exists, loc, &
-                                                my_long_description
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-     loc=.FALSE.; my_long_description=.FALSE.
-     filename=' '
-
-     IF (PRESENT(local)) loc=local
-     IF (PRESENT(long_description)) my_long_description=long_description
-     logger=>cp_get_default_logger()
-     para_env=>logger%para_env
-     IF (ASSOCIATED(matrix)) THEN
-        data_unit=unit_nr
-        desc_unit=unit_nr
-        IF (.not.loc.and.my_long_description) THEN
-           matrix%print_count=matrix%print_count+1
-           IF (para_env%mepos==para_env%source) THEN
-              filename=TRIM(matrix%name)//'-'//&
-                   ADJUSTL(cp_to_string(matrix%print_count))
-              CALL compress(filename,full=.TRUE.)
-              WRITE (unit=desc_unit,&
-                   fmt="(' <cp_fm_types>:{ id_nr=',i10,' written to files ',a,'*')",&
-                   iostat=iostat) matrix%id_nr, TRIM(filename)
-           END IF
-           CALL cp_logger_generate_filename(logger=logger,res=filename,&
-                root=TRIM(matrix%name)//"-"//&
-                TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
-                postfix=".desc",local=.TRUE.)
-           INQUIRE (FILE=TRIM(filename),EXIST=exists)
-           CALL cp_assert(.NOT.exists,cp_warning_level,cp_assertion_failed,&
-                routineP,"file "//TRIM(filename)//" exists, overwriting")
-           CALL open_file(TRIM(filename),file_status="unknown",&
-                file_action="WRITE",&
-                unit_number=desc_unit)
-
-           CALL cp_logger_generate_filename(logger=logger,res=filename,&
-             root=TRIM(matrix%name)//"-"//&
-             TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
-             postfix=".dat",local=.TRUE.)
-           INQUIRE (FILE=TRIM(filename),EXIST=exists)
-           CALL cp_assert(.NOT.exists,cp_warning_level,cp_assertion_failed,&
-                routineP,"file "//TRIM(filename)//" exists, overwriting")
-           CALL open_file(TRIM(filename),file_status="unknown",&
-                file_action="WRITE",&
-                unit_number=data_unit)
-        END IF
-
-        IF (loc .OR. para_env%mepos==para_env%source.or.my_long_description) THEN
-           WRITE (unit=desc_unit,&
-                fmt="(' <cp_fm_types>:{ id_nr=',i10,' ref_count=',i10,',')",&
-                iostat=iostat) matrix%id_nr, matrix%ref_count
-           WRITE (unit=desc_unit,&
-                fmt="(' name=',a,',')",&
-                iostat=iostat) matrix%name
-           WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " matrix_structure="
-           CALL cp_fm_struct_write(matrix%matrix_struct,unit_nr=desc_unit,&
-                long_description=my_long_description)
-           WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " ,"
-           IF (my_long_description) THEN
-              WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " local_data=("
-!BEG:ORIG:LT:2015/02/03
-              ! CALL cp_2d_r_write(matrix%local_data,unit_nr=data_unit)
-!END:ORIG:LT:2015/02/03
-!BEG:DEBUG:LT:2015/02/03
-              CALL cp_2d_r_write(matrix%local_data, unit_nr=data_unit, &
-                                 el_format="f9.4")
-!END:DEBUG:LT:2015/02/03
-              IF (desc_unit/=data_unit) THEN
-                 WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) &
-                      "  written to file "//TRIM(filename)
-              END IF
-           ELSE IF (loc) THEN
-              IF (ASSOCIATED(matrix%local_data)) THEN
-                 WRITE (unit=desc_unit,&
-                      fmt="(' local_data=(REAL(wp, DIMENSION(',i8,', ',i8,'))')",&
-                      iostat=iostat) SIZE(matrix%local_data,1), SIZE(matrix%local_data,2)
-              END IF
-           END IF
-           WRITE (unit=desc_unit,fmt="(a)",iostat=iostat) " }"
-        END IF
-
-        IF (.not.loc.and.my_long_description) THEN
-           CALL close_file(desc_unit)
-           CALL close_file(data_unit)
-        END IF
-     ELSE
-        IF (loc .OR. para_env%mepos==para_env%source) THEN
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <cp_fm_types>:*null*"
-        END IF
-     END IF
-   END SUBROUTINE cp_fm_write
 
 ! *****************************************************************************
 !> \brief copy one identically sized matrix in the other

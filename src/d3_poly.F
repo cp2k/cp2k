@@ -30,13 +30,13 @@ MODULE d3_poly
 
     PRIVATE
 
-    PUBLIC :: poly_size1,poly_size2,poly_size3,&
-        grad_size1,grad_size2,grad_size3,poly_mult1,poly_mult2,poly_mult3,&
-        poly_write1,poly_write2,poly_write3,poly_random,poly_affine_t3,&
-        poly_p_eval3,poly_p_eval2,poly_eval1,poly_eval2,poly_p_eval2b,&
-        poly_eval3,poly_derive3,poly_p_eval3b,poly_cp2k2d3,&
-        poly_padd_uneval3,poly_padd_uneval3b,poly_padd_uneval2,poly_padd_uneval2b,&
-        poly_affine_t3t,poly_d32cp2k, init_d3_poly_module
+  PUBLIC :: poly_size1, poly_size2, poly_size3,&
+            grad_size3,&
+            poly_affine_t3,&
+            poly_p_eval2b,&
+            poly_p_eval3b, poly_cp2k2d3,&
+            poly_padd_uneval3b, poly_padd_uneval2b,&
+            poly_affine_t3t, poly_d32cp2k, init_d3_poly_module
 
 #ifdef FD_DEBUG
 #define IF_CHECK(x,y) x

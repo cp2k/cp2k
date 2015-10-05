@@ -12,14 +12,11 @@
 MODULE cp_fm_struct
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
-                                             cp_blacs_env_type,&
-                                             cp_blacs_env_write
+                                             cp_blacs_env_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain,&
-                                             cp_para_env_write
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
 #include "../common/cp_common_uses.f90"
@@ -41,7 +38,7 @@ MODULE cp_fm_struct
 
   PUBLIC :: cp_fm_struct_type, cp_fm_struct_p_type
   PUBLIC :: cp_fm_struct_create, cp_fm_struct_retain, cp_fm_struct_release,&
-            cp_fm_struct_equivalent, cp_fm_struct_write,&
+            cp_fm_struct_equivalent,&
             cp_fm_struct_get, cp_fm_struct_double, cp_fm_struct_config,&
             cp_fm_struct_get_nrow_block, cp_fm_struct_get_ncol_block
 !***
@@ -389,116 +386,6 @@ FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2) RESULT(res)
      END DO
   END IF
 END FUNCTION cp_fm_struct_equivalent
-
-! *****************************************************************************
-!> \brief writes a description of the matrix structure to the given unit
-!> \param fmstruct the structure to print
-!> \param unit_nr the number of the unit where to write the description
-!> \param long_description ...
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description)
-    TYPE(cp_fm_struct_type), POINTER         :: fmstruct
-    INTEGER, INTENT(in)                      :: unit_nr
-    LOGICAL, INTENT(in), OPTIONAL            :: long_description
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_struct_write', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length)     :: fmtstring
-    INTEGER                                  :: iostat
-    LOGICAL                                  :: l_desc
-
-  l_desc=.FALSE.
-
-  IF (PRESENT(long_description)) l_desc=long_description
-  IF (ASSOCIATED(fmstruct)) THEN
-     WRITE (unit=unit_nr,&
-          fmt="('<cp_fm_struct>:{ id_nr=',i10,', ref_count=',i10,',')",&
-          iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
-          iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
-     WRITE (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
-          iostat=iostat) fmstruct%nrow_block, fmstruct%ncol_block
-     WRITE (unit=unit_nr,fmt="(' local_leading_dimension=',i8,',')",&
-          iostat=iostat) fmstruct%local_leading_dimension
-     IF (ASSOCIATED(fmstruct%nrow_locals)) THEN
-        WRITE (fmtstring,'(A,i6,A)') "(' nrow_locals=(',",&
-             SIZE(fmstruct%nrow_locals),"(i8),'),')"
-        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%nrow_locals
-     ELSE
-        WRITE (unit=unit_nr,fmt="(a)") " nrow_locals=*null*,"
-     END IF
-     IF (ASSOCIATED(fmstruct%ncol_locals)) THEN
-        WRITE (fmtstring,'(A,i6,A)') "(' ncol_locals=(',",SIZE(fmstruct%ncol_locals),&
-             "(i8),'),')"
-        WRITE (unit=unit_nr,fmt=fmtstring,iostat=iostat) fmstruct%ncol_locals
-     ELSE
-        WRITE (unit=unit_nr,fmt="(a)") " ncol_locals=*null*,"
-     END IF
-     WRITE (unit=unit_nr,fmt="(' first_p_pos=(',i8,', ',i8,'),')",&
-          iostat=iostat) fmstruct%first_p_pos(1), fmstruct%first_p_pos(2)
-     IF (ASSOCIATED(fmstruct%row_indices)) THEN
-        IF (l_desc) THEN
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat,advance='no')&
-                " row_indices=(,"
-           WRITE (unit=unit_nr,fmt="(i8)",iostat=iostat, advance='no')&
-                fmstruct%row_indices
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
-        ELSE
-           WRITE (unit=unit_nr,&
-                fmt="(' row_indices=<INTEGER,DIMENSION(',i8,'),')",&
-                iostat=iostat) SIZE(fmstruct%row_indices)
-        END IF
-     ELSE
-        WRITE (unit=unit_nr,fmt="(a)") " row_indices=*null*,"
-     END IF
-     IF (ASSOCIATED(fmstruct%col_indices)) THEN
-        IF (l_desc) THEN
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')&
-                " col_indices=("
-           WRITE (unit=unit_nr,fmt="(i8)",iostat=iostat, advance='no')&
-                fmstruct%col_indices
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) "),"
-        ELSE
-           WRITE (unit=unit_nr,&
-                fmt="(' col_indices=<INTEGER,DIMENSION(',i8,'),')",&
-                iostat=iostat) SIZE(fmstruct%col_indices)
-        END IF
-     ELSE
-        WRITE (unit=unit_nr,fmt="(a)") " col_indices=*null*,"
-     END IF
-     IF (ASSOCIATED(fmstruct%context)) THEN
-        IF (l_desc) THEN
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " context="
-           CALL cp_blacs_env_write(fmstruct%context,unit_nr)
-        ELSE
-           WRITE (unit=unit_nr,fmt="(a,i10)",iostat=iostat) " context%group=",&
-                fmstruct%context%group
-        END IF
-     ELSE
-        WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " context=*null*"
-     END IF
-     IF (ASSOCIATED(fmstruct%para_env)) THEN
-        IF (l_desc) THEN
-           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env="
-           CALL cp_para_env_write(fmstruct%para_env,unit_nr)
-        ELSE
-           WRITE (unit=unit_nr,fmt="(a,i10)",iostat=iostat) &
-                " para_env%group=",fmstruct%para_env%group
-        END IF
-     ELSE
-        WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " para_env=*null*"
-     END IF
-     WRITE (unit=unit_nr, fmt="(' descriptor=(',9i8,') }')",iostat=iostat)&
-          fmstruct%descriptor
-  ELSE
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_fm_struct>:*null*"
-  END IF
-END SUBROUTINE cp_fm_struct_write
 
 ! *****************************************************************************
 !> \brief returns the values of various attributes of the matrix structure

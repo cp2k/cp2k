@@ -48,7 +48,7 @@ MODULE qmmm_types_low
                                 force_mixing_label_termination      = 4
 
   PUBLIC :: qmmm_env_qm_type, qmmm_pot_type, qmmm_pot_p_type
-  PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
+  PUBLIC :: qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
   PUBLIC :: qmmm_imomm_link_type, qmmm_links_type
   PUBLIC :: add_set_type, add_set_release, create_add_set_type
@@ -360,22 +360,6 @@ CONTAINS
     CALL create_add_set_type(qmmm_env%added_charges, ndim=0)
     CALL create_image_charge_type(qmmm_env%image_charge_pot)
   END SUBROUTINE qmmm_env_qm_create
-
-! *****************************************************************************
-!> \brief retains the qmmm_env
-!> \param qmmm_env the qmmm_env to retain
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE qmmm_env_qm_retain(qmmm_env)
-    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_env_qm_retain', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(ASSOCIATED(qmmm_env))
-    CPASSERT(qmmm_env%ref_count>0)
-    qmmm_env%ref_count=qmmm_env%ref_count+1
-  END SUBROUTINE qmmm_env_qm_retain
 
 ! *****************************************************************************
 !> \brief releases the given qmmm_env (see doc/ReferenceCounting.html)

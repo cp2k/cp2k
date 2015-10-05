@@ -22,8 +22,8 @@ MODULE message_passing
   USE ISO_C_BINDING,                   ONLY: C_F_POINTER,&
                                              C_PTR
   USE kinds,                           ONLY: &
-       default_string_length, dp, int_4, int_4_size, int_8, int_8_size, &
-       real_4, real_4_size, real_8, real_8_size
+       dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
+       real_8_size
   USE machine,                         ONLY: default_output_unit,&
                                              m_abort,&
                                              m_flush,&
@@ -128,7 +128,6 @@ MODULE message_passing
   PUBLIC :: mp_cart_create, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free
   PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
   PUBLIC :: cp2k_is_parallel
-  PUBLIC :: mp_proc_name
   PUBLIC :: mp_probe
 
   ! message passing
@@ -1946,31 +1945,6 @@ CONTAINS
     CALL mp_timestop(handle)
 
   END SUBROUTINE mp_comm_split
-
-! *****************************************************************************
-!> \brief Extract the processor name of a MPI process
-!> \param host_name The MPI process host name
-!> \author Christiane Ribeiro Pousa
-!> \note
-!> - 2011-11-23 [UB] Copied from old ma_message_passing and correctly set 
-!>                   string length.
-! *****************************************************************************
-  SUBROUTINE mp_proc_name(host_name)
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_proc_name', &
-         routineP = moduleN//':'//routineN
-    CHARACTER(LEN=default_string_length)     :: host_name
-
-#if defined(__parallel)
-    INTEGER                                  :: ierr, len_name
-    CHARACTER(LEN=MPI_MAX_PROCESSOR_NAME)    :: hname
-    CALL mpi_get_processor_name(hname,len_name,ierr)
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_get_processor_name @ "//routineN )
-    len_name = MIN (default_string_length, MPI_MAX_PROCESSOR_NAME)
-    host_name(1:len_name) = hname(1:len_name)
-#else
-    host_name = "localhost"
-#endif
-  END SUBROUTINE mp_proc_name
 
 ! *****************************************************************************
 !> \brief probes for an incomming message with any tag

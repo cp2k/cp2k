@@ -50,6 +50,7 @@ MODULE cp_error_handling
 
   !API public routines
   PUBLIC :: cp_assert, cp_abort, cp_warn
+  !API public routines used via macros
   PUBLIC :: cp__a, cp__b, cp__w, cp__l
 
 #ifdef FD_DEBUG

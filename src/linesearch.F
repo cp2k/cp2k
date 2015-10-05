@@ -100,7 +100,6 @@ MODULE linesearch
   END TYPE linesearch_type
 
 
-  PUBLIC :: linesearch_method_3pnt, linesearch_method_gold, linesearch_method_none
   PUBLIC :: linesearch_create_section, linesearch_init, linesearch_finalize
   PUBLIC :: linesearch_step
 

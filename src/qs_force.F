@@ -89,7 +89,7 @@ MODULE qs_force
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_forces, qs_calc_energy_force
+  PUBLIC :: qs_calc_energy_force
 
 CONTAINS
 
