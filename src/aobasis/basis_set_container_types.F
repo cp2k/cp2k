@@ -76,21 +76,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param basis ...
-! *****************************************************************************
-  SUBROUTINE init_basis_set_container(basis)
-    TYPE(basis_set_container_type), &
-      DIMENSION(:), INTENT(inout)            :: basis
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_basis_set_container', &
-      routineP = moduleN//':'//routineN
-
-    CALL remove_basis_set_container(basis) 
-
-  END SUBROUTINE init_basis_set_container
-
-! *****************************************************************************
-!> \brief ...
 !> \param basis_set_type ...
 !> \retval basis_type_nr ...
 ! *****************************************************************************

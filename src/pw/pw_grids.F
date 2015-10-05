@@ -454,6 +454,7 @@ CONTAINS
 
   END SUBROUTINE pw_grid_setup
 
+#if defined ( __PW_CUDA )
 ! *****************************************************************************
 !> \brief sets up a combined index for CUDA gather and scatter
 !> \param pw_grid ...
@@ -541,6 +542,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE pw_grid_create_ghatmap
+#endif
 
 ! *****************************************************************************
 !> \brief sets up a pw_grid, needs valid bounds as input, it is up to you to
