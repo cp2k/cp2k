@@ -1600,44 +1600,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param linres_section ...
-! *****************************************************************************
-  SUBROUTINE linres_init_write_restart(linres_section)
-    TYPE(section_vals_type), POINTER         :: linres_section
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_init_write_restart', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, output_unit, rst_unit
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,handle)
-
-    logger => cp_get_default_logger()
-
-    IF(BTEST(cp_print_key_should_output(logger%iter_info,linres_section,"PRINT%RESTART"),&
-         cp_p_file)) THEN
-
-       output_unit = cp_print_key_unit_nr(logger,linres_section,&
-            "PRINT%PROGRAM_RUN_INFO",extension=".Log")
-
-       rst_unit = cp_print_key_unit_nr(logger,linres_section,"PRINT%RESTART",&
-            extension=".lr",middle_name="RESTART",file_status="REPLACE",&
-            file_action="WRITE",file_position="APPEND",file_form="UNFORMATTED")
-
-       ! may write some infos here about the response...
-
-       CALL cp_print_key_finished_output(rst_unit,logger,linres_section,&
-            "PRINT%RESTART")
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE linres_init_write_restart
-
-
-! *****************************************************************************
-!> \brief ...
 !> \param qs_env ...
 !> \param linres_section ...
 !> \param vec ...

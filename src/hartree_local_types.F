@@ -111,28 +111,6 @@ MODULE hartree_local_types
 
 ! *****************************************************************************
 !> \brief ...
-!> \param ecoul_1c ...
-!> \param iatom ...
-!> \param Vh1_h ...
-!> \param Vh1_s ...
-! *****************************************************************************
-  SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s)
-
-    TYPE(ecoul_1center_type), DIMENSION(:), &
-      POINTER                                :: ecoul_1c
-    INTEGER, INTENT(IN), OPTIONAL            :: iatom
-    REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: Vh1_h, Vh1_s
-
-    IF(PRESENT(iatom)) THEN
-      IF(PRESENT(Vh1_h)) Vh1_h => ecoul_1c(iatom)%Vh1_h%r_coef
-      IF(PRESENT(Vh1_s)) Vh1_s => ecoul_1c(iatom)%Vh1_s%r_coef
-    END IF
-
-  END SUBROUTINE get_ecoul_1c
-
-! *****************************************************************************
-!> \brief ...
 !> \param hartree_local ...
 !> \param ecoul_1c ...
 ! *****************************************************************************

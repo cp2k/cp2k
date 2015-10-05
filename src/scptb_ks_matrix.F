@@ -1103,33 +1103,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param vec ...
-!> \param message ...
-! *****************************************************************************
-  SUBROUTINE scp_print(vec,message)
-    TYPE(scp_vector_type)                    :: vec
-    CHARACTER(LEN=*), INTENT(IN)             :: message
-
-    INTEGER                                  :: iat, iba, ikind, natom, nbas, &
-                                                nkind
-
-    WRITE(*,*) message
-    nkind = SIZE(vec%vector)
-    DO ikind=1,nkind
-       nbas = SIZE(vec%vector(ikind)%vmat,1)
-       natom = SIZE(vec%vector(ikind)%vmat,2)
-       DO iat=1,natom
-          DO iba=1,nbas
-             WRITE(*,*) "Kind=",ikind,"  Atom=",iat," Pol=",vec%vector(ikind)%vmat(iba,iat) 
-          END DO
-       END DO
-    END DO
-
-  END SUBROUTINE scp_print
-! *****************************************************************************
-
-! *****************************************************************************
-!> \brief ...
 !> \param cin ...
 !> \param cout ...
 !> \param cself ...

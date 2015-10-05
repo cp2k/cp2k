@@ -56,13 +56,7 @@ MODULE cp_control_utils
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
-  USE xc_input_constants,              ONLY: &
-       xc_debug_new_routine, xc_deriv_collocate, xc_deriv_nn10_smooth, &
-       xc_deriv_nn50_smooth, xc_deriv_pw, xc_deriv_spline2, &
-       xc_deriv_spline2_smooth, xc_deriv_spline3, xc_deriv_spline3_smooth, &
-       xc_new_f_routine, xc_old_f_routine, xc_rho_nn10, xc_rho_nn50, &
-       xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
-       xc_test_lsd_f_routine
+  USE xc_input_constants,              ONLY: xc_deriv_collocate
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_write_output,                 ONLY: xc_write
 #include "./common/cp_common_uses.f90"
@@ -1478,101 +1472,6 @@ __LOCATION__,&
     CALL timestop(handle)
 
   END SUBROUTINE write_qs_control
-
-! *****************************************************************************
-!> \brief returns a string that describes the smoothing of rho
-!> \param xc_rho_smooth_id the id that represent the smoothing
-!> \retval res ...
-!> \par History
-!>      05.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id) RESULT(res)
-    INTEGER, INTENT(in)                      :: xc_rho_smooth_id
-    CHARACTER(len=10)                        :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_rho_smooth_label', &
-      routineP = moduleN//':'//routineN
-
-    SELECT CASE(xc_rho_smooth_id)
-    CASE (xc_rho_no_smooth)
-       res="NONE"
-    CASE (xc_rho_spline2_smooth)
-       res="SPLINE2"
-    CASE (xc_rho_spline3_smooth)
-       res="SPLINE3"
-    CASE (xc_rho_nn10)
-       res="NN10"
-    CASE (xc_rho_nn50)
-       res="NN50"
-    CASE default
-       WRITE (res,"('UKN',i6)") xc_rho_smooth_id
-    END SELECT
-  END FUNCTION xc_get_rho_smooth_label
-
-! *****************************************************************************
-!> \brief returns a string that describes the derivative used in the xc
-!>      calculation
-!> \param xc_deriv_method_id the id that represent the derivative method
-!> \retval res ...
-!> \par History
-!>      06.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION xc_get_deriv_method_label(xc_deriv_method_id) RESULT(res)
-    INTEGER, INTENT(in)                      :: xc_deriv_method_id
-    CHARACTER(len=20)                        :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_deriv_method_label', &
-      routineP = moduleN//':'//routineN
-
-    SELECT CASE(xc_deriv_method_id)
-    CASE (xc_deriv_pw)
-       res="PW"
-    CASE (xc_deriv_spline2)
-       res="SPLINE2"
-    CASE (xc_deriv_spline3)
-       res="SPLINE3"
-    CASE (xc_deriv_spline2_smooth)
-       res="SPLINE2_SMOOTH"
-    CASE (xc_deriv_spline3_smooth)
-       res="SPLINE3_SMOOTH"
-    CASE (xc_deriv_nn10_smooth)
-       res="NN10_SMOOTH"
-    CASE (xc_deriv_nn50_smooth)
-       res="NN50_SMOOTH"
-    CASE default
-       WRITE (res,"('UKN',i6)") xc_deriv_method_id
-    END SELECT
-  END FUNCTION xc_get_deriv_method_label
-
-! *****************************************************************************
-!> \brief returns a string that describes the functional routine used in the xc
-!>      calculation
-!> \param xc_func_id ...
-!> \retval res ...
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION xc_get_routine_label(xc_func_id) RESULT(res)
-    INTEGER, INTENT(in)                      :: xc_func_id
-    CHARACTER(len=20)                        :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_routine_label', &
-      routineP = moduleN//':'//routineN
-
-    SELECT CASE(xc_func_id)
-    CASE(xc_old_f_routine)
-       res="OLD"
-    CASE(xc_new_f_routine)
-       res="NEW"
-    CASE(xc_test_lsd_f_routine)
-       res="TEST_LSD"
-    CASE(xc_debug_new_routine)
-       res="DEBUG_NEW"
-    CASE default
-       WRITE (res,"('UKN',i6)") xc_func_id
-    END SELECT
-  END FUNCTION xc_get_routine_label
 
 ! *****************************************************************************
 !> \brief reads the input parameters needed for ddapc.

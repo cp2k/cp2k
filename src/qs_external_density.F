@@ -11,7 +11,6 @@ MODULE qs_external_density
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_files,                        ONLY: close_file,&
-                                             get_unit_number,&
                                              open_file
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -216,86 +215,6 @@ CONTAINS
     CALL timestop(handle)
     
   END SUBROUTINE external_read_density
-
-! *****************************************************************************
-!> \brief  Read external vxc potential
-!> \param qs_env ...
-!> \date   03.2011
-!> \author DV 
-! *****************************************************************************
-  SUBROUTINE external_read_vxc(qs_env)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'external_read_vxc', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(LEN=default_string_length)     :: filename
-    INTEGER                                  :: extunit, handle, i, j, k, &
-                                                nat, ndum
-    INTEGER, DIMENSION(2, 3)                 :: bo_global, bo_local
-    INTEGER, DIMENSION(3)                    :: lbounds, npoints, ubounds
-    REAL(kind=dp)                            :: dvol
-    REAL(kind=dp), DIMENSION(3)              :: dr, rdum
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_p_type), POINTER                 :: vxc_ext
-    TYPE(section_vals_type), POINTER         :: ext_vxc_section, input
-
-    NULLIFY(cell, vxc_ext, input, ext_vxc_section, dft_control)
-    CALL timeset(routineN,handle)
-    CALL get_qs_env(qs_env,&
-                    cell=cell,&
-                    external_vxc=vxc_ext,&
-                    input=input,&
-                    dft_control=dft_control)
-    IF (dft_control%apply_external_vxc) THEN
-      ext_vxc_section => section_vals_get_subs_vals(input,"DFT%EXTERNAL_VXC")
-      IF (dft_control%read_external_vxc) THEN
-        dr=vxc_ext%pw%pw_grid%dr
-        dvol=vxc_ext%pw%pw_grid%dvol
-        vxc_ext%pw%cr3d=0.0_dp
-
-        bo_local=vxc_ext%pw%pw_grid%bounds_local
-        bo_global=vxc_ext%pw%pw_grid%bounds
-        DO i=1,3
-          npoints(i) = bo_local(2,i)-bo_local(1,i)+1
-          lbounds(i) = bo_local(1,i)
-          ubounds(i) = bo_local(2,i)
-        ENDDO
-        CALL section_vals_val_get(ext_vxc_section,"FILE_VXC",c_val=filename)
-        WRITE(*,*) "NOW READING VXC FILE:   ", filename
-        extunit=get_unit_number()
-        CALL open_file(file_name=filename,file_status="OLD",&
-               file_form="FORMATTED", file_action="READ", unit_number=extunit)
-        DO i =1,2
-          READ(extunit,*)
-        ENDDO
-        READ(extunit,*) nat,rdum
-        DO i=1,3
-           READ(extunit,*) ndum,rdum
-           IF (ndum/=npoints(i).OR.(ABS(rdum(i)-dr(i)) > 1e-4 )) THEN
-!Here valid only for cubic cells
-             WRITE(*,*) "check dimensions ", i
-             WRITE(*,*) ndum,"differs from", npoints(i)
-             WRITE(*,*) rdum(i),"differs from", dr(i)
-             CPABORT("")
-           ENDIF
-        ENDDO
-        DO i =1,nat
-          READ(extunit,*)
-        ENDDO 
-        DO i=lbounds(1),ubounds(1)
-          DO j=lbounds(2),ubounds(2)
-            READ(extunit,'(6E13.5)') (vxc_ext%pw%cr3d(i,j,k),k=lbounds(3),ubounds(3))
-          ENDDO
-        ENDDO
-        CALL close_file(unit_number=extunit)
-        dft_control%read_external_vxc = .FALSE.
-      END IF
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE external_read_vxc
 
 END MODULE qs_external_density
 

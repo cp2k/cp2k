@@ -568,31 +568,6 @@ CONTAINS
   END SUBROUTINE cp_logger_set_log_level
 
 ! *****************************************************************************
-!> \brief returns the logging level of the given logger.
-!> \param logger the logger you want info from
-!> \retval res ...
-!> \par History
-!>      4.2002 revised [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION cp_logger_get_log_level(logger) RESULT(res)
-    TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER                                  :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_logger_get_log_level', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(cp_logger_type), POINTER            :: lggr
-
-    lggr => logger
-    IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
-    IF (lggr%ref_count<1) CALL mp_abort(routineP//&
-         " logger%ref_count<1")
-
-    res=lggr%print_level
-  END FUNCTION cp_logger_get_log_level
-
-! *****************************************************************************
 !> \brief asks the default unit number of the given logger.
 !>      try to use cp_logger_get_unit_nr
 !> \param logger the logger you want info from

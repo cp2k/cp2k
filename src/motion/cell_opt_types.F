@@ -118,24 +118,6 @@ CONTAINS
 !>      none
 !> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
 ! *****************************************************************************
-  SUBROUTINE cell_opt_env_retain(cell_env)
-    TYPE(cell_opt_env_type), POINTER         :: cell_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cell_opt_env_retain', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(ASSOCIATED(cell_env))
-    CPASSERT(cell_env%ref_count>0)
-    cell_env%ref_count=cell_env%ref_count+1
-  END SUBROUTINE cell_opt_env_retain
-
-! *****************************************************************************
-!> \brief ...
-!> \param cell_env ...
-!> \par History
-!>      none
-!> \author Teodoro Laino - created [tlaino] - 03.2008 - Zurich University
-! *****************************************************************************
   SUBROUTINE cell_opt_env_release(cell_env)
     TYPE(cell_opt_env_type), POINTER         :: cell_env
 

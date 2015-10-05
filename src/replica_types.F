@@ -19,9 +19,7 @@
 MODULE replica_types
   USE cp_output_handling,              ONLY: cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_cart_release,&
-                                             cp_cart_write,&
-                                             cp_para_env_release,&
-                                             cp_para_env_write
+                                             cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_mp_bcast
@@ -224,84 +222,6 @@ CONTAINS
   END SUBROUTINE rep_env_destroy_low
 
 ! *****************************************************************************
-!> \brief retains the given replica environment
-!> \param rep_env the replica environment to retain
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE rep_env_retain(rep_env)
-    TYPE(replica_env_type), POINTER          :: rep_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_retain', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-
-    CALL timeset(routineN,handle)
-    CPASSERT(ASSOCIATED(rep_env))
-    CPASSERT(rep_env%ref_count>0)
-    rep_env%ref_count=rep_env%ref_count+1
-    CALL timestop(handle)
-  END SUBROUTINE rep_env_retain
-
-! *****************************************************************************
-!> \brief writes out information about the rep_env
-!> \param rep_env the replica env to describe
-!> \param unit_nr the unit to write to
-!> \author fawzi
-! *****************************************************************************
-  SUBROUTINE rep_env_write(rep_env, unit_nr)
-    TYPE(replica_env_type), POINTER          :: rep_env
-    INTEGER, INTENT(in)                      :: unit_nr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_write', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-
-    CALL timeset(routineN,handle)
-    IF (ASSOCIATED(rep_env)) THEN
-       WRITE(unit_nr,"('<replica_env, id_nr=',i6,' ref_count=',i6,'> sync_v=',l1,',')")&
-            rep_env%id_nr,rep_env%ref_count, rep_env%sync_v
-       WRITE (unit_nr,"(' f_env_id=',i6,', nrep=',i6,', nparticle=',i8,', ndim=',i8,',')")&
-            rep_env%f_env_id, rep_env%nrep,rep_env%nparticle, rep_env%ndim
-       WRITE (unit_nr,"(' replica_owner=')", advance="no")
-       WRITE (unit_nr,"(10i6)") rep_env%replica_owner
-       WRITE (unit_nr,"(' cart=')", advance="no")
-       CALL cp_cart_write(rep_env%cart,unit_nr)
-       WRITE (unit_nr,"(' para_env=')", advance="no")
-       CALL cp_para_env_write(rep_env%para_env,unit_nr)
-       WRITE (unit_nr,"(' para_env_f=')", advance="no")
-       CALL cp_para_env_write(rep_env%para_env_f,unit_nr)
-       WRITE (unit_nr,"(' para_env_inter_rep=')", advance="no")
-       CALL cp_para_env_write(rep_env%para_env_inter_rep,unit_nr)
-       WRITE (unit_nr,"(' force_rank=(')", advance="no")
-       WRITE (unit_nr,"(10i6)") rep_env%force_rank
-       WRITE (unit_nr,"(')')")
-       WRITE (unit_nr,"(' inter_rep_rank=(')", advance="no")
-       WRITE (unit_nr,"(10i6)") rep_env%inter_rep_rank
-       WRITE (unit_nr,"(')')")
-       WRITE (unit_nr,"(' force_dim=(')", advance="no")
-       WRITE (unit_nr,"(10i6)") rep_env%force_dim
-       WRITE (unit_nr,"(')')")
-       WRITE (unit_nr,"(' r=(')", advance="no")
-       WRITE (unit_nr,"(3es12.5)") rep_env%r
-       WRITE (unit_nr,"(')')")
-       WRITE (unit_nr,"(' v=(')", advance="no")
-       WRITE (unit_nr,"(3es12.5)") rep_env%v
-       WRITE (unit_nr,"(')')")
-       WRITE (unit_nr,"(' v=(')", advance="no")
-       WRITE (unit_nr,"(3es12.5)") rep_env%f
-       WRITE (unit_nr,"(')')")
-       WRITE (unit_nr,"(' keep_wf_history=',l1,', associated(wf_history)=',l1,',')")&
-            rep_env%keep_wf_history,ASSOCIATED(rep_env%wf_history)
-       WRITE (unit_nr,"('</replica_env>')")
-    ELSE
-       WRITE(unit_nr,"('<replica_env=*null*/>')")
-    END IF
-    CALL timestop(handle)
-  END SUBROUTINE rep_env_write
-
-! *****************************************************************************
 !> \brief sends the data from each replica to all the other
 !>      on replica j/=i data from replica i overwrites val(:,i)
 !> \param rep_env replica environment
@@ -471,38 +391,5 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE rep_envs_rm_rep_env
-
-! *****************************************************************************
-!> \brief returns the local index of the replica (-1 if it is not a local replica)
-!> \param rep_env the replica env
-!> \param global_index the global replica index
-!> \retval res ...
-!> \author fawzi
-! *****************************************************************************
-  FUNCTION rep_env_local_index(rep_env,global_index) RESULT(res)
-    TYPE(replica_env_type), POINTER          :: rep_env
-    INTEGER, INTENT(in)                      :: global_index
-    INTEGER                                  :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_local_index', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i
-
-    CALL timeset(routineN,handle)
-    CPASSERT(ASSOCIATED(rep_env))
-    CPASSERT(rep_env%ref_count>0)
-    res=-1
-    DO i=1,SIZE(rep_env%local_rep_indices)
-       IF (rep_env%local_rep_indices(i)==global_index) THEN
-          res=i
-          EXIT
-       END IF
-    END DO
-    IF (res==-1) THEN
-       PRINT *,routineP," ",global_index," not in ",rep_env%local_rep_indices
-    END IF
-    CALL timestop(handle)
-  END FUNCTION rep_env_local_index
 
 END MODULE replica_types

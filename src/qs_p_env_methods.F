@@ -16,7 +16,6 @@ MODULE qs_p_env_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
                                              cp_dbcsr_copy,&
-                                             cp_dbcsr_deallocate_matrix_set,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_scale,&
@@ -83,7 +82,6 @@ MODULE qs_p_env_methods
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_create,&
                                              qs_rho_get,&
-                                             qs_rho_release,&
                                              qs_rho_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
@@ -359,47 +357,6 @@ CONTAINS
     END IF
     CALL timestop(handle)
   END SUBROUTINE p_env_check_i_alloc
-
-! *****************************************************************************
-!> \brief function to advise of changes either in the grids or in the the
-!>      matrix structure (to update p_env's internal cache)
-!> \param p_env the p_env to inform of the changes
-!> \param s_struct_changed true if the structure of the s matrix has changed
-!> \param grid_changed true if the grids have changed and have to be rebuilt
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE p_env_did_change(p_env, s_struct_changed, grid_changed)
-    TYPE(qs_p_env_type), POINTER             :: p_env
-    LOGICAL, INTENT(in), OPTIONAL            :: s_struct_changed, grid_changed
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_did_change', &
-      routineP = moduleN//':'//routineN
-
-  CPASSERT(ASSOCIATED(p_env))
-  CPASSERT(p_env%ref_count>0)
-  IF (PRESENT(s_struct_changed)) THEN
-     IF (s_struct_changed) THEN
-        IF (ASSOCIATED(p_env%kpp1)) THEN
-           CALL cp_dbcsr_deallocate_matrix_set(p_env%kpp1)
-        END IF
-     END IF
-  END IF
-
-  IF (PRESENT(grid_changed)) THEN
-     IF (grid_changed) THEN
-        IF(ASSOCIATED(p_env%rho1_xc)) THEN
-          CALL qs_rho_release(p_env%rho1_xc)
-        END IF
-        CALL qs_rho_release(p_env%rho1)
-     END IF
-  END IF
-
-  CPASSERT(ASSOCIATED(p_env%kpp1_env))
-  CALL kpp1_did_change(p_env%kpp1_env,s_struct_changed=s_struct_changed,&
-       grid_changed=grid_changed)
-END SUBROUTINE p_env_did_change
 
 ! *****************************************************************************
 !> \brief To be called after the value of psi0 has changed.

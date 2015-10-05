@@ -206,59 +206,6 @@ SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
 END SUBROUTINE restraint_functional
 
 ! *****************************************************************************
-!> \brief checks numerically the analytic derivative in restraint_functional
-!> \param mulliken_restraint_control ...
-!> \param charges (nblock,nspin)
-!> \par History
-!>      06.2004 created [Joost VandeVondele]
-!> \note
-!>       for testing only, uncomment the call in mulliken restraint
-! *****************************************************************************
-SUBROUTINE rf_deriv_check(mulliken_restraint_control,charges)
-    TYPE(mulliken_restraint_type), &
-      INTENT(IN)                             :: mulliken_restraint_control
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
-
-    REAL(KIND=dp), PARAMETER                 :: stepsize = 0.00001_dp
-
-    INTEGER                                  :: I, J
-    REAL(KIND=dp)                            :: dum, energy1, energy2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges_deriv, charges_local, &
-                                                deriv_num
-
-    ALLOCATE(charges_local(1:SIZE(charges,1),1:SIZE(charges,2)))
-    ALLOCATE(charges_deriv(1:SIZE(charges,1),1:SIZE(charges,2)))
-    ALLOCATE(deriv_num(1:SIZE(charges,1),1:SIZE(charges,2)))
-
-    ! finite difference check
-    charges_local=charges
-    do_i: DO I=1,SIZE(charges,1)
-      do_j: DO J=1,SIZE(charges,2)
-         ! x+dx
-         charges_local(I,J)=charges_local(I,J)+stepsize
-         CALL restraint_functional(mulliken_restraint_control,charges_local, &
-                                   charges_deriv,energy1,dum)
-         charges_local(I,J)=charges_local(I,J)-stepsize ! back to orig
-         ! x-dx
-         charges_local(I,J)=charges_local(I,J)-stepsize
-         CALL restraint_functional(mulliken_restraint_control,charges_local, &
-                                   charges_deriv,energy2,dum)
-         charges_local(I,J)=charges_local(I,J)+stepsize ! back to orig
-         ! num deriv
-         deriv_num(I,J)=(energy1-energy2)/(2*stepsize)
-      ENDDO do_j
-    ENDDO do_i
-    ! analytic results vs deriv_num
-    CALL restraint_functional(mulliken_restraint_control,charges, &
-                                   charges_deriv,energy2,dum)
-    WRITE(*,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
-                                                      MAXVAL(ABS(charges_deriv))
-
-    DEALLOCATE(charges_local,charges_deriv,deriv_num)
-
-END SUBROUTINE rf_deriv_check
-
-! *****************************************************************************
 !> \brief compute the mulliken charges
 !> \param p_matrix , s_matrix, para_env
 !> \param s_matrix ...

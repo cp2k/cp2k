@@ -183,47 +183,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param virial ...
-!> \param pv_total ...
-!> \param pv_virial ...
-!> \param pv_xc ...
-!> \param pv_fock_4c ...
-!> \param pv_constraint ...
-!> \param pv_kinetic ...
-!> \param pv_availability ...
-!> \param pv_calculate ...
-!> \param pv_numer ...
-!> \param pv_diagonal ...
-! *****************************************************************************
-  SUBROUTINE virial_get ( virial, pv_total, pv_virial, pv_xc, pv_fock_4c, pv_constraint, &
-       pv_kinetic, pv_availability, pv_calculate, pv_numer, pv_diagonal )
-
-    TYPE(virial_type), POINTER               :: virial
-    REAL(KIND=dp), DIMENSION(3, 3), OPTIONAL :: pv_total, pv_virial, pv_xc, &
-                                                pv_fock_4c, pv_constraint, &
-                                                pv_kinetic
-    LOGICAL, OPTIONAL                        :: pv_availability, &
-                                                pv_calculate, pv_numer, &
-                                                pv_diagonal
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_get', &
-      routineP = moduleN//':'//routineN
-
-    IF ( PRESENT ( pv_total ) ) pv_total = virial % pv_total
-    IF ( PRESENT ( pv_virial ) ) pv_virial = virial % pv_virial
-    IF ( PRESENT ( pv_xc ) ) pv_xc = virial % pv_xc
-    IF ( PRESENT ( pv_fock_4c ) ) pv_fock_4c = virial % pv_fock_4c
-    IF ( PRESENT ( pv_constraint ) ) pv_constraint = virial % pv_constraint
-    IF ( PRESENT ( pv_kinetic ) ) pv_kinetic = virial % pv_kinetic
-    IF ( PRESENT ( pv_availability ) ) pv_availability = virial % pv_availability
-    IF ( PRESENT ( pv_calculate ) ) pv_calculate = virial % pv_calculate
-    IF ( PRESENT ( pv_numer ) ) pv_numer = virial % pv_numer
-    IF ( PRESENT ( pv_diagonal ) ) pv_diagonal = virial % pv_diagonal
-
-  END SUBROUTINE virial_get
-
-! *****************************************************************************
-!> \brief ...
-!> \param virial ...
 ! *****************************************************************************
   SUBROUTINE virial_create ( virial)
 
@@ -239,26 +198,6 @@ CONTAINS
     virial%id_nr=last_virial_id_nr
     virial%ref_count=1
   END SUBROUTINE virial_create
-
-! *****************************************************************************
-!> \brief retains the given virial_type
-!> \param virial the virial_type to retain
-!> \par History
-!>      04.2003 created [fawzi]
-!> \author fawzi
-!> \note
-!>      see doc/ReferenceCounting.html
-! *****************************************************************************
-  SUBROUTINE virial_retain ( virial)
-    TYPE(virial_type), POINTER               :: virial
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'virial_retain', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(ASSOCIATED(virial))
-    CPASSERT(virial%ref_count>0)
-    virial%ref_count=virial%ref_count+1
-  END SUBROUTINE virial_retain
 
 ! *****************************************************************************
 !> \brief releases the given virial_type

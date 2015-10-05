@@ -40,10 +40,14 @@ MODULE qs_scf_block_davidson
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: &
-       cp_fm_create, cp_fm_get_diag, cp_fm_get_info, cp_fm_release, &
-       cp_fm_set_all, cp_fm_to_fm, cp_fm_to_fm_submat, cp_fm_type, &
-       cp_fm_vectorsnorm
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_diag,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_to_fm_submat,&
+                                             cp_fm_type,&
+                                             cp_fm_vectorsnorm
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
@@ -64,73 +68,6 @@ MODULE qs_scf_block_davidson
   PUBLIC :: generate_extended_space, generate_extended_space_sparse
 
 CONTAINS
-
-! *****************************************************************************
-
-! *****************************************************************************
-!> \brief ...
-!> \param bdav_env ...
-!> \param mo_coeff ...
-!> \param matrix_hc ...
-!> \param ritz_coeff ...
-! *****************************************************************************
-  SUBROUTINE ritz_coefficients(bdav_env,mo_coeff,matrix_hc,ritz_coeff)
-
-    TYPE(davidson_type)                      :: bdav_env
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, matrix_hc
-    REAL(dp), DIMENSION(:)                   :: ritz_coeff
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ritz_coefficients', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, nao, nmo
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: chc_diag, csc_diag
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: block_mat, matrix_tmp
-
-    CALL timeset(routineN,handle)
-
-    NULLIFY(block_mat,fm_struct_tmp,matrix_tmp)
-    CALL cp_fm_get_info(mo_coeff,nrow_global=nao,ncol_global=nmo)
-
-    ALLOCATE(csc_diag(nmo))
-
-    ALLOCATE(chc_diag(nmo))
-
-    ! storage matrix of size mos x mos, only the diagonal elements are used
-    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=nmo,ncol_global=nmo, &
-                             context=mo_coeff%matrix_struct%context, &
-                             para_env=mo_coeff%matrix_struct%para_env)
-    CALL cp_fm_create(matrix_tmp,fm_struct_tmp,name="matrix_tmp")
-    CALL cp_fm_struct_release(fm_struct_tmp)
-
-    ! since we only use diagonal elements this is a bit of a waste
-    ! compute CSC
-!   CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,matrix_sc,0.0_dp,matrix_tmp)
-!    CALL cp_fm_get_diag(matrix_tmp,csc_diag)
-    ! set the top left part of S[C,Z] block matrix  CSC
-    block_mat => bdav_env%S_block_mat
-    CALL cp_fm_set_all(block_mat,0.0_dp, 1.0_dp)
-!    CALL cp_fm_to_fm_submat(matrix_tmp,block_mat,nmo,nmo,1,1,1,1)
-
-    ! compute CHC
-    CALL cp_gemm('T','N',nmo,nmo,nao,1.0_dp,mo_coeff,matrix_hc,0.0_dp,matrix_tmp)
-    CALL cp_fm_get_diag(matrix_tmp,chc_diag)
-    ! set the top left part of H[C,Z] block matrix CHC
-    block_mat => bdav_env%H_block_mat
-    CALL cp_fm_to_fm_submat(matrix_tmp,block_mat,nmo,nmo,1,1,1,1)
-
-    DO i=1,nmo
-!      IF(ABS(csc_diag(i))>EPSILON(0.0_dp)) THEN
-        ritz_coeff(i) = chc_diag(i)!/csc_diag(i)
-!      END IF
-    END DO
-    CALL cp_fm_release(matrix_tmp)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE ritz_coefficients
-! +++++++++++++++++++++++++++++
 
 ! *****************************************************************************
 !> \brief ...

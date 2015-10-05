@@ -146,26 +146,6 @@ CONTAINS
   END SUBROUTINE md_env_create
 
 ! *****************************************************************************
-!> \brief retains the given md env
-!> \param md_env the force environment to retain
-!> \par History
-!>      04.2003 created [fawzi]
-!> \author fawzi
-!> \note
-!>      see doc/ReferenceCounting.html
-! *****************************************************************************
-  SUBROUTINE md_env_retain(md_env)
-    TYPE(md_environment_type), POINTER       :: md_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'md_env_retain', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(ASSOCIATED(md_env))
-    CPASSERT(md_env%ref_count>0)
-    md_env%ref_count=md_env%ref_count+1
-  END SUBROUTINE md_env_retain
-
-! *****************************************************************************
 !> \brief releases the given md env
 !> \param md_env the md environment to release
 !> \par History

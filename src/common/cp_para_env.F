@@ -258,22 +258,6 @@ SUBROUTINE cp_cart_release(cart)
 END SUBROUTINE cp_cart_release
 
 ! *****************************************************************************
-!> \brief retains the given cart
-!> \param cart the cart to retain
-!> \author fawzi
-! *****************************************************************************
-SUBROUTINE cp_cart_retain(cart)
-    TYPE(cp_para_cart_type), POINTER         :: cart
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_retain', &
-      routineP = moduleN//':'//routineN
-
-  CPASSERT(ASSOCIATED(cart))
-  CPASSERT(cart%ref_count>0)
-  cart%ref_count=cart%ref_count+1
-END SUBROUTINE cp_cart_retain
-
-! *****************************************************************************
 !> \brief writes out the informations about the cart
 !> \param cart the parallel environment to output
 !> \param unit_nr the unit where to output

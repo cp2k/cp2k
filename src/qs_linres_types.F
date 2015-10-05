@@ -706,45 +706,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE set_current_env
-! *****************************************************************************
-!> \brief ...
-!> \param nmr_env ...
-!> \param shift_factor ...
-!> \param chi_factor ...
-!> \param chi_SI2shiftppm ...
-!> \param chi_SI2ppmcgs ...
-! *****************************************************************************
-  SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,chi_SI2shiftppm,chi_SI2ppmcgs)
-
-    TYPE(nmr_env_type)                       :: nmr_env
-    REAL(dp), INTENT(IN), OPTIONAL           :: shift_factor, chi_factor, &
-                                                chi_SI2shiftppm, chi_SI2ppmcgs
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_nmr_env', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(nmr_env%ref_count>0)
-
-    IF(PRESENT(shift_factor   )) nmr_env%chi_factor      = chi_factor
-    IF(PRESENT(shift_factor   )) nmr_env%chi_factor      = chi_factor
-    IF(PRESENT(chi_SI2shiftppm)) nmr_env%chi_SI2shiftppm = chi_SI2shiftppm
-    IF(PRESENT(chi_SI2ppmcgs  )) nmr_env%chi_SI2ppmcgs   = chi_SI2ppmcgs
-
-  END SUBROUTINE set_nmr_env
-! *****************************************************************************
-!> \brief ...
-!> \param issc_env ...
-! *****************************************************************************
-  SUBROUTINE set_issc_env(issc_env)
-
-    TYPE(issc_env_type)                      :: issc_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_issc_env', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(issc_env%ref_count>0)
-
-  END SUBROUTINE set_issc_env
 
 ! *****************************************************************************
 !> \brief ...

@@ -61,7 +61,6 @@ MODULE xas_methods
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset
   USE particle_methods,                ONLY: get_particle_set
@@ -1269,107 +1268,6 @@ CONTAINS
     DEALLOCATE(centers)
 
   END SUBROUTINE xas_print_cubes
-
-! *****************************************************************************
-!> \brief Calculation of the spectrum when the dipole approximation
-!>      in the length form is used. The position operator is calculated
-!>      by the berry phase approach
-!> \param fm_set components of the position operator in a full matrix form
-!>                already multiplied by the coefficiets
-!>                only the terms <C_i Op C_f> are calculated where
-!>                C_i are the coefficients of the excited state
-!> \param op_sm components of the position operator for the dipole
-!>               in a sparse matrix form (cos and sin)
-!>               calculated for the basis functions
-!> \param mos wavefunctions coefficients
-!> \param excvec coefficients of the excited orbital
-!> \param all_vectors ...
-!> \param all_evals ...
-!> \param fm_work work space
-!> \param cell parameters for the simulation cell
-!> \param sp_em ...
-!> \param sp_ab ...
-!> \param estate index of the excited state
-!> \param nstate ...
-!> \par History
-!>      06.2005 created [MI]
-!> \author MI
-! *****************************************************************************
-  SUBROUTINE spectrum_dip_len(fm_set,op_sm,mos,excvec,&
-             all_vectors,all_evals,fm_work,cell, sp_em, sp_ab,estate, nstate)
-
-    TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: fm_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_sm
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
-    REAL(dp), DIMENSION(:), POINTER          :: all_evals
-    TYPE(cp_fm_type), POINTER                :: fm_work
-    TYPE(cell_type), POINTER                 :: cell
-    REAL(dp), DIMENSION(:, :), POINTER       :: sp_em, sp_ab
-    INTEGER, INTENT(IN)                      :: estate, nstate
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_len', &
-      routineP = moduleN//':'//routineN
-
-    COMPLEX(KIND=dp)                         :: z
-    INTEGER                                  :: homo, i, i_abs, istate, j, &
-                                                lfomo, nao, nmo
-    REAL(dp)                                 :: ene_f, ene_i, imagpart, &
-                                                ra(3), realpart
-    REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
-                                                occupation_numbers
-
-    CPASSERT(ASSOCIATED(fm_set))
-    CPASSERT(ASSOCIATED(mos))
-
-    NULLIFY(eigenvalues, occupation_numbers)
-    CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation_numbers,&
-         nao=nao, nmo=nmo, homo =homo, lfomo=lfomo)
-    DO i=1,SIZE(fm_set,2)
-      DO j = 1,SIZE(fm_set,1)
-         CPASSERT(ASSOCIATED(fm_set(j,i)%matrix))
-         CALL cp_fm_set_all(fm_set(j,i)%matrix, 0.0_dp)
-         CALL cp_fm_set_all(fm_work, 0.0_dp)
-         CALL cp_dbcsr_sm_fm_multiply(op_sm(j,i)%matrix,all_vectors,fm_work,ncol=nstate)
-         CALL cp_gemm("T","N",1,nstate,nao,1.0_dp,excvec,&
-                fm_work,0.0_dp, fm_set(j,i)%matrix,b_first_col=1)
-      END DO
-    END DO
-
-    sp_em = 0.0_dp
-    sp_ab = 0.0_dp
-    ene_i = eigenvalues(estate)
-    DO istate = 1,nstate
-       ene_f = all_evals(istate)
-       DO i = 1,3
-         CALL cp_fm_get_element(fm_set(1,i)%matrix,1,istate,realpart)
-         CALL cp_fm_get_element(fm_set(2,i)%matrix,1,istate,imagpart)
-         z = CMPLX(realpart,imagpart,dp)
-         ra(i) = ( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( z ) )
-       END DO
-       IF(istate<=homo) THEN
-         sp_em(1,istate) = ene_f - ene_i
-         sp_em(2,istate) = ra(1)*ra(1)
-         sp_em(3,istate) = ra(2)*ra(2)
-         sp_em(4,istate) = ra(3)*ra(3)
-         sp_em(5,istate) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
-         sp_em(6,istate) = occupation_numbers(istate)
-       END IF
-       IF(istate>=lfomo ) THEN
-         i_abs = istate - lfomo  + 1
-         sp_ab(1,i_abs) = ene_f - ene_i
-         sp_ab(2,i_abs) = ra(1)*ra(1)
-         sp_ab(3,i_abs) = ra(2)*ra(2)
-         sp_ab(4,i_abs) = ra(3)*ra(3)
-         sp_ab(5,i_abs) = ra(1)*ra(1)+ra(2)*ra(2)+ra(3)*ra(3)
-         IF(istate<=nmo) sp_ab(6,i_abs) = occupation_numbers(istate)
-       END IF
-    END DO
-
-  END SUBROUTINE spectrum_dip_len
 
 ! *****************************************************************************
 !> \brief Calculation of the spectrum when the dipole approximation

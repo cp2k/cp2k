@@ -17,7 +17,6 @@ MODULE qs_matrix_pools
                                              fm_pool_get_el_struct,&
                                              fm_pool_release,&
                                              fm_pool_retain,&
-                                             fm_pools_copy,&
                                              fm_pools_dealloc
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
@@ -127,73 +126,6 @@ SUBROUTINE mpools_release(mpools)
   END IF
   NULLIFY(mpools)
 END SUBROUTINE mpools_release
-
-! *****************************************************************************
-!> \brief sets various attributes of the mpools
-!> \param mpools ...
-!> \param ao_mo_fm_pools ...
-!> \param ao_ao_fm_pools ...
-!> \param mo_mo_fm_pools ...
-!> \param ao_mosub_fm_pools ...
-!> \param mosub_mosub_fm_pools ...
-!> \par History
-!>      04.2003 created [fawzi]
-!> \author fawzi
-! *****************************************************************************
-SUBROUTINE mpools_set(mpools,ao_mo_fm_pools,ao_ao_fm_pools,&
-     mo_mo_fm_pools,ao_mosub_fm_pools,mosub_mosub_fm_pools)
-    TYPE(qs_matrix_pools_type), POINTER      :: mpools
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
-      ao_mo_fm_pools, ao_ao_fm_pools, mo_mo_fm_pools, ao_mosub_fm_pools, &
-      mosub_mosub_fm_pools
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mpools_set', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
-      POINTER                                :: new_fm_pools
-
-  NULLIFY(new_fm_pools )
-
-  CPASSERT(ASSOCIATED(mpools))
-  CPASSERT(mpools%ref_count>0)
-  IF (PRESENT(ao_mo_fm_pools)) THEN
-    IF (ASSOCIATED(ao_mo_fm_pools)) THEN
-      CALL fm_pools_copy(ao_mo_fm_pools,new_fm_pools)
-    END IF
-    CALL fm_pools_dealloc(mpools%ao_mo_fm_pools)
-    mpools%ao_mo_fm_pools => new_fm_pools
-  END IF
-  IF (PRESENT(ao_ao_fm_pools)) THEN
-    IF (ASSOCIATED(ao_ao_fm_pools)) THEN
-      CALL fm_pools_copy(ao_ao_fm_pools,new_fm_pools)
-    END IF
-    CALL fm_pools_dealloc(mpools%ao_ao_fm_pools)
-    mpools%ao_ao_fm_pools => new_fm_pools
-  END IF
-  IF (PRESENT(mo_mo_fm_pools)) THEN
-    IF (ASSOCIATED(mo_mo_fm_pools)) THEN
-      CALL fm_pools_copy(mo_mo_fm_pools,new_fm_pools)
-    END IF
-    CALL fm_pools_dealloc(mpools%mo_mo_fm_pools)
-    mpools%mo_mo_fm_pools => new_fm_pools
-  END IF
-  IF (PRESENT(ao_mosub_fm_pools)) THEN
-    IF (ASSOCIATED(ao_mosub_fm_pools)) THEN
-      CALL fm_pools_copy(ao_mosub_fm_pools,new_fm_pools)
-    END IF
-    CALL fm_pools_dealloc(mpools%ao_mosub_fm_pools)
-    mpools%ao_mosub_fm_pools => new_fm_pools
-  END IF
-  IF (PRESENT(mosub_mosub_fm_pools)) THEN
-    IF (ASSOCIATED(mosub_mosub_fm_pools)) THEN
-      CALL fm_pools_copy(mosub_mosub_fm_pools,new_fm_pools)
-    END IF
-    CALL fm_pools_dealloc(mpools%mosub_mosub_fm_pools)
-    mpools%mosub_mosub_fm_pools => new_fm_pools
-  END IF
-
-END SUBROUTINE mpools_set
 
 ! *****************************************************************************
 !> \brief returns various attributes of the mpools (notably the pools

@@ -115,24 +115,6 @@ CONTAINS
   END SUBROUTINE get_mc_env
 
 ! *****************************************************************************
-!> \brief retains the given mc env
-!> \param mc_env the force environment to retain
-!> \author MJM
-!> \note
-!>      see doc/ReferenceCounting.html
-! *****************************************************************************
-SUBROUTINE mc_env_retain(mc_env)
-    TYPE(mc_environment_type), POINTER       :: mc_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'mc_env_retain', &
-      routineP = moduleN//':'//routineN
-
-  CPASSERT(ASSOCIATED(mc_env))
-  CPASSERT(mc_env%ref_count>0)
-  mc_env%ref_count=mc_env%ref_count+1
-END SUBROUTINE mc_env_retain
-
-! *****************************************************************************
 !> \brief releases the given mc env
 !> \param mc_env the mc environment to release
 !> \author MJM
