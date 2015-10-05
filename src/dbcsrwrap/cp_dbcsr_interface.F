@@ -2780,7 +2780,7 @@ CONTAINS
 !$  IF(SIZE (matrix%matrix%m%wms) .LT. omp_get_num_threads())&
 !$       CPABORT("Too few threads.")
     IF(.NOT.dbcsr_wm_use_mutable(matrix%matrix%m%wms(ithread+1)))&
-       CPWARN("Data loss due to no conversion of appendable to mutable data")
+       CPABORT("Data loss due to no conversion of appendable to mutable data")
     is_there = ASSOCIATED(block)
     !r = row ; c = col ; tr = .FALSE.
     !CALL dbcsr_get_stored_coordinates (matrix, r, c, tr)
