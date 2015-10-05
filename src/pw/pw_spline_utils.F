@@ -1418,7 +1418,7 @@ END SUBROUTINE pw_nn_compose_r
     CALL mp_comm_compare(coarse_coeffs_pw%pw_grid%para%group,&
          fine_values_pw%pw_grid%para%group,ii)
     IF (ii>1) THEN
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     my_coarse_bo=coarse_coeffs_pw%pw_grid%bounds_local
     coarse_gbo=coarse_coeffs_pw%pw_grid%bounds
@@ -1759,7 +1759,7 @@ END SUBROUTINE pw_nn_compose_r
                    CASE(-3)
                       wk=w_border1(3)
                    CASE default
-                      CPASSERT(.FALSE.)
+                      CPABORT("")
                       CYCLE
                    END SELECT
                 ELSE
@@ -1771,7 +1771,7 @@ END SUBROUTINE pw_nn_compose_r
                    CASE(-1)
                       wk=w_border1(1)
                    CASE default
-                      CPASSERT(.FALSE.)
+                      CPABORT("")
                       CYCLE
                    END SELECT
                 END IF
@@ -2290,7 +2290,7 @@ END SUBROUTINE pw_nn_compose_r
                 CASE(-3)
                    wk=w_border1(3)
                 CASE default
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                    CYCLE
                 END SELECT
              ELSE
@@ -2302,7 +2302,7 @@ END SUBROUTINE pw_nn_compose_r
                 CASE(-1)
                    wk=w_border1(1)
                 CASE default
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                    CYCLE
                 END SELECT
              END IF
@@ -2332,7 +2332,7 @@ END SUBROUTINE pw_nn_compose_r
                       CASE(-3)
                          wj=w_border1(3)*wk
                       CASE default
-                         CPASSERT(.FALSE.)
+                         CPABORT("")
                          CYCLE
                       END SELECT
                    ELSE
@@ -2344,7 +2344,7 @@ END SUBROUTINE pw_nn_compose_r
                       CASE(3)
                          wj=w_border1(3)*wk
                       CASE default
-                         CPASSERT(.FALSE.)
+                         CPABORT("")
                          CYCLE
                       END SELECT
                    END IF
@@ -2987,7 +2987,7 @@ END SUBROUTINE pw_nn_compose_r
        preconditioner%normalize=.FALSE.
        do_3d_coeff=.TRUE.
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     IF (do_3d_coeff) THEN
        s=1._dp
@@ -3099,7 +3099,7 @@ END SUBROUTINE pw_nn_compose_r
                transpose=preconditioner%transpose)
        END IF
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
   END SUBROUTINE pw_spline_do_precond
 

@@ -199,7 +199,7 @@ CONTAINS
                 ! Do nothing..
              CASE DEFAULT
                 ! Never reach this point
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              ! Special case for EAM
              SELECT CASE(pot%type(k))
@@ -636,7 +636,7 @@ CONTAINS
        CASE (nn_type)
           nvar = nvar
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        ! Setup a table of the indexes..
        ALLOCATE(my_index(ndim))
@@ -746,7 +746,7 @@ CONTAINS
                    CASE (nn_type)
                       ! no checks
                    CASE DEFAULT
-                      CPASSERT(.FALSE.)
+                      CPABORT("")
                    END SELECT
                    IF (ANY(potential_single_allocation==pot_target)) THEN
                       pot_par(nk,:) = REAL(pot_target, KIND=dp)

@@ -276,7 +276,7 @@ __LOCATION__)
              CALL cif_get_real(parser,atom_info%r(3,natom))
           CASE DEFAULT
              ! Never reach this point..
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
           ii = ii + 1
        END DO

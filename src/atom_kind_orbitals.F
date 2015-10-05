@@ -956,11 +956,11 @@ CONTAINS
        ! set the method flag
        SELECT CASE (rel_control%rel_method)
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           CASE (rel_dkh)
              SELECT CASE (rel_control%rel_DKH_order)
                 CASE DEFAULT
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                 CASE (0)
                    relativistic = do_dkh0_atom
                 CASE (1)
@@ -977,9 +977,9 @@ CONTAINS
           CASE (rel_zora)
              SELECT CASE (rel_control%rel_zora_type)
                 CASE DEFAULT
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                 CASE (rel_zora_full)
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                 CASE (rel_zora_mp)
                    relativistic = do_zoramp_atom
                 CASE (rel_sczora_mp)
@@ -1195,7 +1195,7 @@ CONTAINS
                 j=first_sgf(shell_index(l,k2),set_index(l,k2))
                 SELECT CASE (atom%relativistic)
                    CASE DEFAULT
-                      CPASSERT(.FALSE.)
+                      CPABORT("")
                    CASE (do_zoramp_atom,do_sczoramp_atom)
                       DO m=0,ll
                          rtmat(i+m,j+m) = integrals%tzora(k1,k2,l)

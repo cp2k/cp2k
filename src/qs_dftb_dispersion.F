@@ -89,7 +89,7 @@ CONTAINS
              CALL calculate_dispersion_pairpot(qs_env,dispersion_env,&
                   energy%dispersion,calculate_forces)
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
        END SELECT
     END IF
 

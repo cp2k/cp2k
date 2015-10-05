@@ -910,7 +910,7 @@ CONTAINS
              WRITE(output_unit,'(A,I6,A)')"Atom number :: ",i," is out of the solvation sphere"
              WRITE(output_unit,'(2(A,F12.6))')"Distance from the center::",r1," Radius of the sphere::",rs
           END IF
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
        LocP(:,i) = 0.0_dp
        IF (r1/=0.0_dp) THEN

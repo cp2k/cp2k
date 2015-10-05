@@ -1289,7 +1289,7 @@ __LOCATION__)
                source%local_data(1,1),1,destination%local_data(1,1),1)
        ENDIF
     ELSE
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END IF
 
     CALL timestop(handle)
@@ -1568,7 +1568,7 @@ __LOCATION__)
        CALL pdgemr2d(m,n,smat,1,1,desca,dmat,1,1,descb,global_context)
 
 #else
-       CPASSERT(.FALSE.)
+       CPABORT("")
 #endif
     END IF
 

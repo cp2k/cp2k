@@ -967,7 +967,7 @@ CPASSERT(pw_grid%ngpts<HUGE(pw_grid%ngpts_local))
             blocking=.TRUE.
          ENDIF
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
 
        !..create group for real space distribution

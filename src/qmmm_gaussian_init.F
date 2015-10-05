@@ -138,7 +138,7 @@ CONTAINS
           DEALLOCATE(radius)
           DEALLOCATE(c_radius)
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
        !
        ALLOCATE(qmmm_gaussian_fns(Ndim-1))

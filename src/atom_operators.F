@@ -136,7 +136,7 @@ CONTAINS
 
       SELECT CASE (basis%basis_type)
         CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
         CASE (GTO_BASIS)
           DO l=0,3
             n = integrals%n(l)
@@ -268,7 +268,7 @@ CONTAINS
           CPASSERT(.NOT.integrals%eri_coulomb)
           CPASSERT(.NOT.integrals%eri_exchange)
         CASE (NUM_BASIS)
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
 
       ! setup transformation matrix to get an orthogonal basis, remove linear dependencies
@@ -351,7 +351,7 @@ CONTAINS
 
       SELECT CASE (basis%basis_type)
         CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
         CASE (GTO_BASIS)
 
           SELECT CASE (potential%ppot_type)
@@ -409,7 +409,7 @@ CONTAINS
                 DEALLOCATE (omat,spmat)
               END DO
             CASE DEFAULT
-              CPASSERT(.FALSE.)
+              CPABORT("")
           END SELECT
 
         CASE (CGTO_BASIS)
@@ -482,7 +482,7 @@ CONTAINS
                 END IF
               END DO
             CASE DEFAULT
-              CPASSERT(.FALSE.)
+              CPABORT("")
           END SELECT
 
         CASE (STO_BASIS)
@@ -565,11 +565,11 @@ CONTAINS
               DEALLOCATE (cpot)
 
             CASE DEFAULT
-              CPASSERT(.FALSE.)
+              CPABORT("")
           END SELECT
 
         CASE (NUM_BASIS)
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
 
     END IF
@@ -611,7 +611,7 @@ CONTAINS
 
     SELECT CASE (reltyp)
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE (do_nonrel_atom,do_zoramp_atom,do_sczoramp_atom)
         dkhorder = -1
       CASE (do_dkh0_atom)
@@ -630,7 +630,7 @@ CONTAINS
 
     SELECT CASE (reltyp)
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE (do_nonrel_atom)
         ! nothing to do
         NULLIFY (integrals%tzora,integrals%hdkh)
@@ -733,7 +733,7 @@ CONTAINS
 
           SELECT CASE (basis%basis_type)
             CASE DEFAULT
-              CPASSERT(.FALSE.)
+              CPABORT("")
             CASE (GTO_BASIS, CGTO_BASIS)
 
               DO l=0,3
@@ -753,9 +753,9 @@ CONTAINS
               END DO
 
             CASE (STO_BASIS)
-              CPASSERT(.FALSE.)
+              CPABORT("")
             CASE (NUM_BASIS)
-              CPASSERT(.FALSE.)
+              CPABORT("")
           END SELECT
 
           CALL dkh_integrals(integrals,basis,dkhorder,sp,tp,vp,pvp)
@@ -806,7 +806,7 @@ CONTAINS
         CALL dkh_atom_transformation(sp(1:m,1:m,l),vp(1:m,1:m,l),tp(1:m,1:m,l),pvp(1:m,1:m,l),m,order)
         SELECT CASE (basis%basis_type)
           CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("")
           CASE (GTO_BASIS)
             CPASSERT(n==m)
             integrals%hdkh(1:n,1:n,l) = tp(1:n,1:n,l) + vp(1:n,1:n,l)
@@ -814,9 +814,9 @@ CONTAINS
             CALL contract2(integrals%hdkh(1:n,1:n,l),tp(1:m,1:m,l),basis%cm(1:m,1:n,l))
             CALL contract2add(integrals%hdkh(1:n,1:n,l),vp(1:m,1:m,l),basis%cm(1:m,1:n,l))
           CASE (STO_BASIS)
-            CPASSERT(.FALSE.)
+            CPABORT("")
           CASE (NUM_BASIS)
-            CPASSERT(.FALSE.)
+            CPABORT("")
         END SELECT
       ELSE
         integrals%hdkh(1:n,1:n,l) = 0._dp

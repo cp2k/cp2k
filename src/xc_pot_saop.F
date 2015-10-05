@@ -1020,7 +1020,7 @@ CONTAINS
           CASE (oe_saop)
              CALL gaVxcgb_noGC(vxc_SAOP_h,vxc_SAOP_s,qs_kind_set(ikind),rho_atom,nspins)
           CASE default
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
 
        END DO

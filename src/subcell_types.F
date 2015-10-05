@@ -143,7 +143,7 @@ CONTAINS
 
        DEALLOCATE (subcell)
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
 
   END SUBROUTINE deallocate_subcell

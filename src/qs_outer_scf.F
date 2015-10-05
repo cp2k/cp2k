@@ -141,7 +141,7 @@ CONTAINS
        scf_env%outer_scf%gradient(:,ihistory) =becke_control%becke_order_p- &
             becke_control%target
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     CALL timestop(handle)
@@ -263,7 +263,7 @@ CONTAINS
           DEALLOCATE(b,ev)
        ENDIF
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     EXIT
     ENDDO
@@ -318,7 +318,7 @@ CONTAINS
        becke_control=>dft_control%qs_control%becke_control
        becke_control%strength=scf_env%outer_scf%variables(1,ihistory+1)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     CALL timestop(handle)
@@ -386,7 +386,7 @@ CONTAINS
        outer_scf_history(1,ivec)= &
             dft_control%qs_control%becke_control%strength
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     CALL set_qs_env(qs_env,outer_scf_ihistory=outer_scf_ihistory)
 
@@ -412,7 +412,7 @@ CONTAINS
     CASE (outer_scf_becke_constraint)
        dft_control%qs_control%becke_control%strength=extrapolation(1)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     DEALLOCATE(extrapolation)

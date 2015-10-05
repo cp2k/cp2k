@@ -101,7 +101,7 @@ CONTAINS
     CASE(do_multipole_quadrupole)
        multipoles%task(1:3) = .TRUE.
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     nparticles = SIZE(particle_set)
     IF (multipoles%task(1)) THEN

@@ -382,7 +382,7 @@ CONTAINS
               basis%dbf(:,i,l)*basis%dbf(:,j,l) + &
               REAL(l*(l+1),dp)*basis%bf(:,i,l)*basis%bf(:,j,l)/rr(:))
           ELSE
-            CPASSERT(.FALSE.)
+            CPABORT("")
           END IF
         END DO
       END DO
@@ -717,7 +717,7 @@ CONTAINS
               corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i)/a
             END IF
           ELSE
-            CPASSERT(.FALSE.)
+            CPABORT("")
           END IF
         END DO
       END DO
@@ -1079,7 +1079,7 @@ CONTAINS
       IF ( MAXVAL(ABS(pmat(:,:,l))) < 1.e-14_dp ) CYCLE
       SELECT CASE ( basis%basis_type )
         CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
         CASE ( GTO_BASIS )
           DO i = 1, basis%nbas(l)
             DO j = i, basis%nbas(l)
@@ -1097,7 +1097,7 @@ CONTAINS
               expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
               SELECT CASE (l)
                 CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CPABORT("")
                 CASE (0)
                   cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                 CASE (1)
@@ -1132,7 +1132,7 @@ CONTAINS
               expa(:)= EXP(-z(:)**2)*ff/(a+b)**(l+1)
               SELECT CASE (l)
                 CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CPABORT("")
                 CASE (0)
                   cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                 CASE (1)
@@ -1384,7 +1384,7 @@ CONTAINS
 
     SELECT CASE ( basis%basis_type )
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE ( GTO_BASIS )
         DO i = 1, basis%nbas(la)
           DO j = 1, basis%nbas(lb)
@@ -1400,7 +1400,7 @@ CONTAINS
             expa(:)= EXP(-z(:)**2)/(sab**(ll+2))/(2._dp**((ll+nu)/2+2))
             SELECT CASE (ll)
               CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
               CASE (0)
                 CPASSERT(nu==0)
               CASE (1)
@@ -1409,7 +1409,7 @@ CONTAINS
               CASE (2)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-2._dp*expa(:)
                   CASE (2)
@@ -1418,7 +1418,7 @@ CONTAINS
               CASE (3)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (1)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(12._dp*z(:)+30._dp/z(:))
                   CASE (3)
@@ -1427,7 +1427,7 @@ CONTAINS
               CASE (4)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(4._dp*z(:)**2+14._dp)
                   CASE (2)
@@ -1438,7 +1438,7 @@ CONTAINS
               CASE (5)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (1)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
                   CASE (3)
@@ -1450,7 +1450,7 @@ CONTAINS
               CASE (6)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (0)
                     cpot(:,i,j) = cpot(:,i,j)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
                   CASE (2)
@@ -1479,7 +1479,7 @@ CONTAINS
             expa(:)= EXP(-z(:)**2)/sab**(ll+2)/2._dp**((ll+nu)/2+2)
             SELECT CASE (ll)
               CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
               CASE (0)
                 CPASSERT(nu==0)
               CASE (1)
@@ -1488,7 +1488,7 @@ CONTAINS
               CASE (2)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (0)
                     erfa(:) = erfa(:)-2._dp*expa(:)
                   CASE (2)
@@ -1497,7 +1497,7 @@ CONTAINS
               CASE (3)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (1)
                     erfa(:) = erfa(:)-expa(:)*(12._dp*z(:)+30._dp/z(:))
                   CASE (3)
@@ -1506,7 +1506,7 @@ CONTAINS
               CASE (4)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (0)
                     erfa(:) = erfa(:)-expa(:)*(4._dp*z(:)**2+14._dp)
                   CASE (2)
@@ -1517,7 +1517,7 @@ CONTAINS
               CASE (5)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (1)
                     erfa(:) = erfa(:)-expa(:)*(24._dp*z(:)**3+108._dp*z(:)+210._dp/z(:))
                   CASE (3)
@@ -1529,7 +1529,7 @@ CONTAINS
               CASE (6)
                 SELECT CASE (nu)
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                   CASE (0)
                     erfa(:) = erfa(:)-expa(:)*(8._dp*z(:)**4+44._dp*z(:)**2+114._dp)
                   CASE (2)
@@ -1631,7 +1631,7 @@ CONTAINS
           END DO
         END DO
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
   END SUBROUTINE numpot_matrix

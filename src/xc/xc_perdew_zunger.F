@@ -78,7 +78,7 @@ CONTAINS
 
     SELECT CASE (method)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     CASE (pz_orig)
        p_string='ORIG'
     CASE (pz_dmc)

@@ -1597,7 +1597,7 @@ MODULE helium_methods
         CASE DEFAULT
           WRITE(*,*) "Atomic mass number'", mnum, &
             "' not supported by the HELIUM code."
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
       helium%solute_element(i) = my_element_symbol
       ! check if this element symbol is already present in element
@@ -1639,7 +1639,7 @@ MODULE helium_methods
       CASE DEFAULT
         WRITE(*,*) "Atom type '", helium%solute_element(i), &
           "' not supported by the HELIUM code."
-        CPASSERT(.FALSE.)
+        CPABORT("")
       END SELECT
     END DO
 
@@ -1686,7 +1686,7 @@ MODULE helium_methods
     CALL get_cell(my_cell, orthorhombic=my_orthorhombic)
     IF (.NOT. my_orthorhombic) THEN
       PRINT *, "Helium solvent not implemented for non-orthorhombic cells."
-      CPASSERT(.FALSE.)
+      CPABORT("")
     ELSE
       helium%solute_cell => my_cell
     END IF

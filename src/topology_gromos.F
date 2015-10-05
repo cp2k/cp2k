@@ -600,7 +600,7 @@ CONTAINS
           END IF
        ELSE
           IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
        END IF
     END DO

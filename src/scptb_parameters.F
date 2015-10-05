@@ -54,7 +54,7 @@ CONTAINS
     param%parameterization = "UZH.00.00"
     SELECT CASE (TRIM(param%key))
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     CASE ("XX")
        param%defined          = .TRUE.
     CASE ("H")

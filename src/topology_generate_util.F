@@ -162,7 +162,7 @@ CONTAINS
           WRITE(*,*)"Atom (",i,") has already a molecular name assigned ! ("//TRIM(id2str(id_molname(i)))//")."
           WRITE(*,*)"New molecular name would be: ("//TRIM(molname)//")."
           WRITE(*,*)"Detecting something wrong in the molecular setup!"
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END IF
     id_molname(i) = str2id(molname)
@@ -683,7 +683,7 @@ CONTAINS
                " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
                " Present BONDLENGTH_MAX (",r_max(1,1)," )"
        END IF
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     DO i=1,natom
        particle_set(i)%atomic_kind => atomic_kind_set(1)
@@ -873,7 +873,7 @@ CONTAINS
                   " Present THRESHOLD (",my_maxrad*bondparm_factor," ). "//&
                   " Present BONDLENGTH_MAX (",r_max(1,1)," )"
           END IF
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END DO
     IF (connectivity_ok.AND.(output_unit>0)) THEN
@@ -1140,7 +1140,7 @@ CONTAINS
           Ilist4 = Iarray4(1:nvar)
        CASE DEFAULT
           ! Should never reach this point
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        CALL list_canonical_order(Ilist1, Ilist2, Ilist3, Ilist4, nsize, is_impr)
        !
@@ -1244,7 +1244,7 @@ CONTAINS
           DEALLOCATE(Ilist4)
        CASE DEFAULT
           ! Should never reach this point
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     END IF
   END SUBROUTINE connectivity_external_control
@@ -1741,12 +1741,12 @@ CONTAINS
                 Oarray4(nvar) = Ilist(4)
              CASE DEFAULT
                 !should never reach this point
- CPASSERT(.FALSE.)
+ CPABORT("")
              END SELECT
              Ilist(it_levl) = -1
           ELSE
              !should never reach this point
- CPASSERT(.FALSE.)
+ CPABORT("")
           END IF
        END DO
     END IF

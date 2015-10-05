@@ -337,7 +337,7 @@ CONTAINS
        energy = qs_energy%total
        CALL qs_env_release(qs_env)
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     DEALLOCATE(atom_index)
     DEALLOCATE(atom_type)

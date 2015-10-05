@@ -614,7 +614,7 @@ MODULE mp2
                           mos_mp2,para_env,unit_nr,calc_forces,calc_ex,do_ri_sos_laplace_mp2=.TRUE.)
 
      CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
    END SELECT
    t2=m_walltime()
    IF (unit_nr>0) WRITE(unit_nr,*)

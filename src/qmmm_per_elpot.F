@@ -133,7 +133,7 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
-          CPASSERT(.FALSE.)
+          CPABORT("")
        CASE(do_qmmm_gauss,do_qmmm_swave)
           ALLOCATE(Lg(Ndim))
           ALLOCATE(gx(Ndim))
@@ -149,7 +149,7 @@ CONTAINS
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_coulomb,do_qmmm_pcharge)
           ! Not yet implemented for this case
-          CPASSERT(.FALSE.)
+          CPABORT("")
        CASE(do_qmmm_gauss,do_qmmm_swave)
           pgf => pgfs(K)%pgf
           idim = 0
@@ -203,7 +203,7 @@ CONTAINS
              box (2) = (qm_cell_small%hmat(2,2) - mm_cell%hmat(2,2))/2.0_dp
              box (3) = (qm_cell_small%hmat(3,3) - mm_cell%hmat(3,3))/2.0_dp
              IF (ANY(box > 0.0_dp)) THEN
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
              n_rep_real(1) = CEILING(( box(1) + mymaxradius ) / mm_cell%hmat(1,1))
              n_rep_real(2) = CEILING(( box(2) + mymaxradius ) / mm_cell%hmat(2,2))
@@ -382,7 +382,7 @@ CONTAINS
           CPABORT("QM-QM long range correction not possible with GAUSS/SWAVE coupling")
        CASE DEFAULT
           ! We should never get to this point
-          CPASSERT(.FALSE.)
+          CPABORT("")
     END SELECT
 
     iw=cp_print_key_unit_nr(logger,print_section,"PERIODIC_INFO",extension=".log")

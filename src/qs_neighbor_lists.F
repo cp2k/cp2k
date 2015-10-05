@@ -1010,7 +1010,7 @@ CONTAINS
         CASE ("PP")
            otype = 4 ! simple atomic pair potential list
         CASE default
-           CPASSERT(.FALSE.)
+           CPABORT("")
       END SELECT
     ELSE
       ! default is a simple AB neighbor list
@@ -1086,7 +1086,7 @@ CONTAINS
           nlistb(ikind) = SIZE(atom(ikind)%list)
           listb(ikind)%list => index_list
         CASE default
-           CPASSERT(.FALSE.)
+           CPABORT("")
       END SELECT
     END DO
 
@@ -1308,7 +1308,7 @@ CONTAINS
            DEALLOCATE(lista(ikind)%list)
          END DO
       CASE default
-         CPASSERT(.FALSE.)
+         CPABORT("")
     END SELECT
     DEALLOCATE (kind_a,pres_a,pres_b,lista,listb,nlista,nlistb)
     DEALLOCATE (index_list)

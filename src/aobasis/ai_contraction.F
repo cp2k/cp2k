@@ -466,7 +466,7 @@ CONTAINS
           sab(1:na,1:nb) = sab(1:na,1:nb) + qab(ia:ja,ib:jb)
        END IF
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
 
   END SUBROUTINE block_add_ab

@@ -1782,10 +1782,10 @@ CONTAINS
                                                  c_val=TRIM(line_att))
                      END DO
                    ELSE
-                     CPASSERT(.FALSE.)
+                     CPABORT("")
                    END IF
                  ELSE
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                  END IF
                END DO
              END IF

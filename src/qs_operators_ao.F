@@ -1435,7 +1435,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(op_der))
     !IF(.NOT.op_sm_der(1,1)%matrix%symmetry=="none") THEN
     IF(.NOT.cp_dbcsr_get_matrix_type(op_der(1,1)%matrix).EQ.dbcsr_type_no_symmetry) THEN
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
 
     NULLIFY (qs_kind, qs_kind_set)

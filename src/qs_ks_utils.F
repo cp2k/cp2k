@@ -537,7 +537,7 @@ CONTAINS
       ENDDO
 
     CASE DEFAULT
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END SELECT
 
     ! data needed for each of the orbs

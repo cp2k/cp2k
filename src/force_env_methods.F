@@ -228,7 +228,7 @@ CONTAINS
        CASE ( use_mixed_force )
           CALL mixed_energy_forces(force_env,calculate_forces)
        CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     END IF
     ! In case it is requested, we evaluate the stress tensor numerically
@@ -1023,7 +1023,7 @@ CONTAINS
        force_env%mixed_env%coupling_function = TRIM(coupling_function)
        CALL finalizef()
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     !Simply deallocate and loose the pointer references..
     DO iforce_eval = 1, nforce_eval

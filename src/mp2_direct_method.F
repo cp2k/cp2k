@@ -1075,7 +1075,7 @@ MODULE mp2_direct_method
 
                     END IF
                   CASE DEFAULT
-                    CPASSERT(.FALSE.)
+                    CPABORT("")
                 END SELECT
 
               END DO
@@ -1104,7 +1104,7 @@ MODULE mp2_direct_method
                     BIb_RS_mat_rec_big(1:dimen,Rsize_rec+1:Rsize_rec+Ssize_rec,1:elements_ij_proc)
 
                 CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CPABORT("")
               END SELECT
             END IF
 
@@ -1440,7 +1440,7 @@ MODULE mp2_direct_method
 
              END IF
            CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
          END SELECT
 
       END DO ! loop over the ij of the processor
@@ -1613,7 +1613,7 @@ MODULE mp2_direct_method
           BIb_RS_mat_rec(1:dimen,Rsize_rec+1:Rsize_rec+Ssize_rec,1:elements_ij_proc)
 
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       END SELECT
 
       IF(proc_send/=para_env%mepos) THEN

@@ -758,7 +758,7 @@ CONTAINS
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                mo_coeff_b=mo_coeff, occupation_numbers=occupation_numbers )
           IF(.NOT.mo_array(ispin)%mo_set%use_mo_coeff_b) THEN
-             CPASSERT(.FALSE.)
+             CPABORT("")
           ENDIF
           CALL cp_dbcsr_multiply('n','n',1.0_dp,ks_matrix(ispin,1)%matrix,mo_coeff,&
                0.0_dp,mo_derivs(ispin)%matrix)

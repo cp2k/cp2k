@@ -274,7 +274,7 @@ CONTAINS
              WRITE(*,*)"Two molecules have been defined as identical molecules but atoms mismatch charges!!"
           END IF
        END DO
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     CALL timestop(handle2)
 
@@ -811,7 +811,7 @@ __LOCATION__,&
           CALL reallocate(ex_bond_list_w(j)%array1,1,l)
        END DO
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
   END SUBROUTINE setup_exclusion_list

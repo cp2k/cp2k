@@ -540,7 +540,7 @@ CONTAINS
                 kpoint%wkp(i) = reallist(4)
              END DO
           CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("")
        END SELECT
 
        CALL section_vals_val_get(kpoint_section,"SYMMETRY",l_val=kpoint%symmetry)
@@ -556,7 +556,7 @@ CONTAINS
           CASE (use_complex_wfn)
              kpoint%use_real_wfn = .FALSE.
           CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("")
        END SELECT
 
     ELSE
@@ -609,7 +609,7 @@ CONTAINS
           CASE ("GENERAL")
              WRITE (punit,'(A,T71,A10)') ' BRILLOUIN| K-point scheme ','   General'
           CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("")
        END SELECT
        IF(kpoint%kp_scheme /= "NONE") THEN
           IF (kpoint%symmetry) THEN

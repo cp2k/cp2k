@@ -766,7 +766,7 @@ CONTAINS
                          fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)
                       ELSE
                          ! Should never reach this point
-                         CPASSERT(.FALSE.)
+                         CPABORT("")
                       END IF
                       IF (fixd_list(kk)%restraint%active) THEN
                          nfixd_restraint = nfixd_restraint+ 1
@@ -1193,7 +1193,7 @@ CONTAINS
                "This could be very probable due to a wrong connectivity, or an error",&
                " in the constraint specification in the input file.",&
                " Please check it carefully!"
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END DO
   END SUBROUTINE setup_lcolv
@@ -1247,7 +1247,7 @@ CONTAINS
                "This could be very probable due to a wrong connectivity, or an error",&
                " in the constraint specification in the input file.",&
                " Please check it carefully!"
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END DO
 
@@ -1313,7 +1313,7 @@ CONTAINS
                "This could be very probable due to a wrong connectivity, or an error",&
                " in the constraint specification in the input file.",&
                " Please check it carefully!"
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END DO
 

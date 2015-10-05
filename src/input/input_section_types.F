@@ -1995,7 +1995,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(section_vals_in))
     CPASSERT(ASSOCIATED(section_vals_out))
     !  IF(section_vals_in%section%id_nr/=section_vals_out%section%id_nr)&
-    !     CPASSERT(.FALSE.)
+    !     CPABORT("")
 
     istart = 1
     iend   = SIZE(section_vals_in%values,2)

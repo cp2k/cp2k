@@ -607,7 +607,7 @@ CONTAINS
             ' constant vector shift (MacDonald) of this mesh:', wvk0
           IF (ABS(istriz)/=1) THEN
              WRITE (iout,'(" invalid switch for symmetrization",I10)') istriz
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
           WRITE (iout,'(" symmetrization switch: ",I3)',ADVANCE="NO") istriz
           IF (istriz==1) THEN
@@ -634,7 +634,7 @@ CONTAINS
              WRITE (iout,*) ' K290| Number of rotations for crystal lattice', &
                   nc
              WRITE (iout,*) ' K290| No duplication found'
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
           nc = nc0
           DO i = 1, nc0
@@ -1442,7 +1442,7 @@ CONTAINS
     IF (ihg<6) THEN
        IF (nc==0) THEN
           WRITE (*,'(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nc
-          CPASSERT(.FALSE.)
+          CPABORT("")
           !       Triclinic system
        ELSE IF (nc==1) THEN
           !         IB=1
@@ -1580,7 +1580,7 @@ CONTAINS
     ELSE IF (ihg>=6) THEN
        IF (nc==0) THEN
           WRITE (*,'(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nc
-          CPASSERT(.FALSE.)
+          CPABORT("")
           !       Triclinic system
        ELSE IF (nc==1) THEN
           !         IB=1
@@ -2571,19 +2571,19 @@ CONTAINS
     WRITE (*,'(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') ' THE VECTOR     ', &
          wva, ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
          ' BY ROTATION NO. ', ibrav(iop), ' IS OUTSIDE THE 1BZ'
-    CPASSERT(.FALSE.)
+    CPABORT("")
     !------------------------------------------------------------------------------!
 470 CONTINUE
     WRITE (*,'(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
     WRITE (*,*) 'MESH SIZE EXCEEDS NKPOINT=', nkpoint
-    CPASSERT(.FALSE.)
+    CPABORT("")
     !------------------------------------------------------------------------------!
 490 CONTINUE
     WRITE (*,'(A,/)') ' SUBROUTINE SPPT2 *** FATAL ERROR ***'
     WRITE (*,'(A,3F10.4,/,A,3F10.4,A,/,A,I3,A)') ' THE VECTOR     ', &
          wva, ' GENERATED FROM ', wvk, ' IN THE BASIC MESH', &
          ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
-    CPASSERT(.FALSE.)
+    CPABORT("")
   END SUBROUTINE sppt2
 ! *****************************************************************************
 !> \brief ...
@@ -2667,7 +2667,7 @@ CONTAINS
        WRITE (*,'(2A,/,A)') &
             ' SUBROUTINE MESH *** FATAL ERROR *** LINKED LIST', &
             ' TOO LONG ***', ' CHOOSE A BETTER HASH-FUNCTION'
-       CPASSERT(.FALSE.)
+       CPABORT("")
        !       WVK was not found
 130    CONTINUE
        IF (iplace==-1) THEN
@@ -2681,7 +2681,7 @@ CONTAINS
              WRITE (*,'(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
              WRITE (*,'(A,I10,A,/,A,3F10.5)') ' ISTORE=', istore, &
                   ' EXCEEDS DIMENSIONS', ' WVK = ', wvk
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
           list(istore) = nil
           DO i = 1, 3
@@ -2798,7 +2798,7 @@ CONTAINS
        RETURN
     END DO
     !     List too long
-    CPASSERT(.FALSE.)
+    CPABORT("")
   END SUBROUTINE remove
 
 ! *****************************************************************************
@@ -2861,7 +2861,7 @@ CONTAINS
 
     END DO
     !     List too long
-    CPASSERT(.FALSE.)
+    CPABORT("")
   END SUBROUTINE garbag
 
 ! *****************************************************************************
@@ -2941,7 +2941,7 @@ CONTAINS
     !     Fatal error
     WRITE (*,'(A,/,A,3F10.4,A)') ' SUBROUTINE BZRDUC *** FATAL ERROR ***', &
          ' WAVEVECTOR ', wvk, ' COULD NOT BE REDUCED TO THE 1BZ'
-    CPASSERT(.FALSE.)
+    CPABORT("")
 
   END SUBROUTINE bzrduc
 ! *****************************************************************************
@@ -3084,7 +3084,7 @@ CONTAINS
                    WRITE (iout,'(A)') ' SUBROUTINE BZDEFI *** FATAL ERROR ***'
                    WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
                 END IF
-                CPASSERT(.FALSE.)
+                CPABORT("")
                 RETURN
              ENDIF
              DO i = 1, 3

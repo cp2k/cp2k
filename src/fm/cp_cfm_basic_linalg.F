@@ -201,7 +201,7 @@ CONTAINS
 #ifdef __SCALAPACK
           CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
-          CPASSERT(.FALSE.)
+          CPABORT("")
 #endif
        END IF
     END IF
@@ -285,7 +285,7 @@ CONTAINS
 #ifdef __SCALAPACK
           CPABORT("to do (pdscal,pdcopy,pdaxpy)")
 #else
-          CPASSERT(.FALSE.)
+          CPABORT("")
 #endif
        END IF
     END IF

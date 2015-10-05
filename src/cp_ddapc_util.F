@@ -756,7 +756,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
              IF (v0.GT.0.1_dp) THEN
                 WRITE(*,'(A,2I5,2F15.9)')"ERROR IN DERIVATIVE OF B VECTOR, IPARTICLE, ICOORD:",iparticle,i,&
                      dbv(kk,i),ddbv(kk)
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
           END IF
        END DO
@@ -840,7 +840,7 @@ SUBROUTINE restraint_functional_potential(v_hartree_gspace,&
                 IF (v0.GT.0.1_dp) THEN
                    WRITE(*,'(A,4I5,2F15.9)')"ERROR IN DERIVATIVE OF A MATRIX, IPARTICLE, ICOORD:",iparticle,i,kk,ll,&
                         dAm(kk,ll,i),ddAm(kk,ll)
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                 END IF
              END IF
           END DO

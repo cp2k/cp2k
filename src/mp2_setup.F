@@ -191,7 +191,7 @@ CONTAINS
        CASE(mp2_ri_optimize_basis)
          WRITE(unit_nr,'(T2,A)') "MP2| Optimize RI auxiliary basis"
        CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CPABORT("")
        END SELECT
        WRITE(unit_nr,'(T2,A)') ""
     ENDIF

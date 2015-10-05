@@ -680,7 +680,7 @@ CONTAINS
              CASE (outer_scf_becke_constraint)
                 WRITE (output_unit,'(T25,A)') "Becke weight population constraint enforced"
              CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              WRITE (output_unit,'(T25,A,T72,ES9.2)') "eps_scf",scf_control%outer_scf%eps_scf
              WRITE (output_unit,'(T25,A,T72,I9)') "max_scf",scf_control%outer_scf%max_scf
@@ -697,7 +697,7 @@ CONTAINS
                 WRITE (output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &
                      scf_control%outer_scf%diis_buffer_length
              CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              WRITE (output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
           ELSE

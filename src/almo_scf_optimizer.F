@@ -1117,7 +1117,7 @@ CONTAINS
                            filter_eps=almo_scf_env%eps_filter)
                 ELSE IF (my_special_case.eq.xalmo_case_block_diag) THEN
                    ! cannot use projector with block-daigonal ALMOs
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                 ELSE
                    ! no special case
                    CALL apply_domain_operators(&
@@ -1380,7 +1380,7 @@ CONTAINS
                               filter_eps=almo_scf_env%eps_filter)
                    ELSE IF (my_special_case.eq.xalmo_case_block_diag) THEN
                       ! should not be here - cannot project the zero-order space from itself
-                      CPASSERT(.FALSE.)
+                      CPABORT("")
                    ELSE
                       ! no special case: normal xALMOs
                       CALL apply_domain_operators(&
@@ -3357,7 +3357,7 @@ CONTAINS
                                      ABS(gfun0),&
                                      " is smaller than the threshold",num_threshold
                                ENDIF
-                               CPASSERT(.FALSE.)
+                               CPABORT("")
                             ENDIF
                             IF (ABS(gfun0).lt.num_threshold) THEN
                                IF (unit_nr>0) THEN
@@ -3365,7 +3365,7 @@ CONTAINS
                                      ABS(gfun0),&
                                      " is smaller than the threshold",num_threshold
                                ENDIF
-                               CPASSERT(.FALSE.)
+                               CPABORT("")
                             ENDIF
                             
                             use_quadratic_approximation=.TRUE.

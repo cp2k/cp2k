@@ -77,7 +77,7 @@ CONTAINS
 
     SELECT CASE (method)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     CASE (pw_orig)
        p_string='PWO'
     CASE (pw_dmc)

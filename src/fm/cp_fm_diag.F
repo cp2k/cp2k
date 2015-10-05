@@ -805,7 +805,7 @@ CONTAINS
 #if defined(__SCALAPACK)
 
     IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END IF
 
     a => matrix%local_data
@@ -971,7 +971,7 @@ CONTAINS
 #endif
 
 #else
-    CPASSERT(.FALSE.)
+    CPABORT("")
 #endif
     eigenvalues(1:neig) = eval(1:neig)
 

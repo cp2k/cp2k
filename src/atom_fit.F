@@ -188,7 +188,7 @@ CONTAINS
 
     SELECT CASE (basis%basis_type)
        CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CPABORT("")
        CASE (GTO_BASIS)
          IF ( basis%geometrical ) THEN
            ostate%nvar = 2
@@ -293,7 +293,7 @@ CONTAINS
       IF ( ostate%state == 2 ) THEN
          SELECT CASE (basis%basis_type)
             CASE DEFAULT
-              CPASSERT(.FALSE.)
+              CPABORT("")
             CASE (GTO_BASIS)
               IF ( basis%geometrical ) THEN
                 basis%am = 0._dp
@@ -378,7 +378,7 @@ CONTAINS
        ! x->basis
        SELECT CASE (basis%basis_type)
           CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("")
           CASE (GTO_BASIS)
             IF ( basis%geometrical ) THEN
               basis%am = 0._dp

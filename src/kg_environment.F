@@ -216,7 +216,7 @@ CONTAINS
     ELSEIF(kg_env%tnadd_method == kg_tnadd_atomic) THEN
        NULLIFY(kg_env%xc_section_kg)
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
 
     CALL timestop(handle)

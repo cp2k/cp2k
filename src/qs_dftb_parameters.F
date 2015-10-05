@@ -684,7 +684,7 @@ CONTAINS
     RETURN
 
 1   CONTINUE
-    CPASSERT(.FALSE.)
+    CPABORT("")
 
   END SUBROUTINE qs_dftb_param_init
 

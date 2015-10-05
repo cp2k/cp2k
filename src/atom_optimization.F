@@ -207,7 +207,7 @@ CONTAINS
     ELSEIF ( history%hlen == 1 ) THEN
       fmat = history%hmat(nnow)%fmat
     ELSE
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END IF
 
   END SUBROUTINE atom_opt

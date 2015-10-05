@@ -705,7 +705,7 @@ CONTAINS
           CALL section_vals_val_set(xc_fun_section,"XWPBE%SCALE_X0",&
                                     r_val=-hfx_fraction)
         CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
 
       !** Now modify the functionals for the primary basis

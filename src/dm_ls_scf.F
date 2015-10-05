@@ -838,7 +838,7 @@ CONTAINS
         ls_scf_env%needs_s_inv=.FALSE.
         ls_scf_env%use_s_sqrt=.FALSE.
     CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
     SELECT CASE(ls_scf_env%s_preconditioner_type)
@@ -940,7 +940,7 @@ CONTAINS
            CALL cite_reference(Lin2013)
            WRITE(unit_nr,'(T2,A,T38,A20)') "Purification method","PEXSI"
        CASE DEFAULT
-           CPASSERT(.FALSE.)
+           CPABORT("")
        END SELECT
 
        SELECT CASE(ls_scf_env%ls_mstruct%cluster_type)

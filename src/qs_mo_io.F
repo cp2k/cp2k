@@ -150,7 +150,7 @@ CONTAINS
           ! we copy it to the fm for anycase
           DO ispin=1,SIZE(mo_array)
              IF(.not.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
-                CPASSERT(.FALSE.)
+                CPABORT("")
              ENDIF
              CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_set%mo_coeff_b,&
                   mo_array(ispin)%mo_set%mo_coeff)!fm->dbcsr
@@ -831,7 +831,7 @@ CONTAINS
           END DO
        ELSE IF(is_source) THEN
           !  not yet implemented
-          CPASSERT(.FALSE.)
+          CPABORT("")
        ELSE IF(kpoints%iogrp) THEN
           IF(.NOT.moalloc) THEN
              NULLIFY(mop)
@@ -841,7 +841,7 @@ CONTAINS
              moalloc = .TRUE.
           END IF
           !  not yet implemented
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END DO
 

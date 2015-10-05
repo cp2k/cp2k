@@ -350,7 +350,7 @@ CONTAINS
     CALL section_vals_val_get(basis_section,"EPS_EIGENVALUE",r_val=basis%eps_eig)
     SELECT CASE (basistype)
       CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CPABORT("")
       CASE (gaussian)
          basis%basis_type = GTO_BASIS
          NULLIFY(num_gto)
@@ -545,7 +545,7 @@ CONTAINS
          NULLIFY(num_slater)
          CALL section_vals_val_get(basis_section,"NUM_SLATER",i_vals=num_slater)
          IF ( num_slater(1) < 1 ) THEN
-           CPASSERT(.FALSE.)
+           CPABORT("")
          ELSE
            basis%nbas = 0
            DO i=1,SIZE(num_slater)
@@ -635,7 +635,7 @@ CONTAINS
          END DO
       CASE (numerical)
          basis%basis_type = NUM_BASIS
-         CPASSERT(.FALSE.)
+         CPABORT("")
     END SELECT
 
   END SUBROUTINE init_atom_basis
@@ -1015,7 +1015,7 @@ CONTAINS
 
     SELECT CASE (zval)
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE (1)   ! this is from the general geometrical basis and extended
         cval = 2.0_dp
         aval = 0.016_dp
@@ -1905,7 +1905,7 @@ CONTAINS
           END IF
         ELSE
           ! Stop program, if the end of file is reached
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
 
       END DO search_loop
@@ -2029,7 +2029,7 @@ CONTAINS
         CASE (no_pseudo)
           ! do nothing
         CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
     ELSE
       potential%ppot_type = no_pseudo
@@ -2340,10 +2340,10 @@ CONTAINS
                      END DO
                    END DO
                  ELSE
-                   CPASSERT(.FALSE.)
+                   CPABORT("")
                  END IF
                ELSE
-                 CPASSERT(.FALSE.)
+                 CPABORT("")
                END IF
              END DO
              ! Read the parameters for the non-local part of the GTH pseudopotential (ppnl)
@@ -2370,7 +2370,7 @@ CONTAINS
           END IF
         ELSE
           ! Stop program, if the end of file is reached
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
 
       END DO search_loop

@@ -715,7 +715,7 @@ CONTAINS
             row=irow,col=icol,BLOCK=sblock,found=found)
        IF(ASSOCIATED(cblock).AND..NOT.ASSOCIATED(sblock).OR.&
           .NOT.ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN
-          CPASSERT(.FALSE.)
+          CPABORT("")
        ENDIF
 
        IF(ASSOCIATED(cblock).AND.ASSOCIATED(sblock)) THEN

@@ -255,7 +255,7 @@ CONTAINS
           CALL efactor_ev93 ( s, fs, m )
           IF (lsd) tact = 1.0_dp
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
 
        IF ( order>=0 ) THEN

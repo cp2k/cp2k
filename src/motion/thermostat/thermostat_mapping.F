@@ -305,7 +305,7 @@ CONTAINS
                END DO
           END DO
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
        IF (nglob_cns/=0) THEN
           CPABORT("Molecular thermostats with global constraints are impossible!")
@@ -755,7 +755,7 @@ CONTAINS
              END DO
           END DO
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
        IF (nglob_cns/=0) THEN
           CPABORT("Molecular thermostats with global constraints are impossible!")

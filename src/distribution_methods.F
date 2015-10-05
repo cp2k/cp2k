@@ -780,7 +780,7 @@ CONTAINS
 
     ELSE
        ! expects nothing else
-       CPASSERT(.FALSE.)
+       CPABORT("")
     ENDIF
 
 

@@ -204,7 +204,7 @@ CONTAINS
           my_start_time=globenv%cp2k_start_time
        ELSE
           ! If none of the two arguments is present abort.. This routine should always check about time.
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
 
        IF ( (.NOT.should_stop).AND.(my_target_time > 0.0_dp)) THEN

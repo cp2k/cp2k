@@ -3541,7 +3541,7 @@ CONTAINS
       ((atm1==my_atm2).AND.(atm2==my_atm1))) found = .TRUE.
           CASE DEFAULT
              ! Should never reach this point
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
           IF (found) EXIT
        END DO

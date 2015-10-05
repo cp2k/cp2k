@@ -267,7 +267,7 @@
                 CALL cp_virial(averages%virial, virial_avg)
                 CALL release_averages(averages)
              CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              CALL cp_rm_default_logger()
              CALL gopt_new_logger_release(new_logger, gopt_env%force_env%root_section, para_env, project_name,&
@@ -298,7 +298,7 @@
           END IF
           CALL virial_release(virial_avg)
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     CASE (default_shellcore_method_id)
        idg = 0
@@ -337,7 +337,7 @@
          END IF
        END IF
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     CALL timestop(handle)

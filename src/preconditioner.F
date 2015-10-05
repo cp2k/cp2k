@@ -258,7 +258,7 @@ SUBROUTINE make_preconditioner(preconditioner_env, precon_type, solver_type, mat
        CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse,ot_precond_full_single_inverse) ! these are 'independent'
          ! do nothing
        CASE DEFAULT
-           CPASSERT(.FALSE.)
+           CPABORT("")
        END SELECT
     END IF
 

@@ -212,7 +212,7 @@ CONTAINS
           END IF
        END DO
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     !
     IF(ibas /= 0) THEN
@@ -268,7 +268,7 @@ CONTAINS
           END IF
        END DO
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
 
   END SUBROUTINE get_basis_from_container

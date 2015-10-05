@@ -1107,7 +1107,7 @@ CONTAINS
       ! check if real top to bottom or bottom to top deallocation (no middle element deallocation)
       IF(ASSOCIATED(ptr%parent).AND.&
          (ASSOCIATED(ptr%acc).OR.ASSOCIATED(ptr%nacc)))THEN
-        CPASSERT(.FALSE.)
+        CPABORT("")
       END IF
  
       IF(ready) THEN 
@@ -1413,7 +1413,7 @@ CONTAINS
     IF(.NOT.ASSOCIATED(actual_ptr, end_of_clean_tree)) THEN
       ! in trajectory just one direction should exist
       IF(ASSOCIATED(actual_ptr%acc).AND.ASSOCIATED(actual_ptr%nacc)) THEN
-      CPASSERT(.FALSE.)
+      CPABORT("")
       END IF
       ! the parent should be deleted already, but global tree is allocated to the second last accepted, &
       !   hence there could be still a reference to an element...

@@ -160,7 +160,7 @@ CONTAINS
         CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
         use_cell_mapping = (SIZE(cell_to_index) > 1)
      ELSE
-        CPASSERT(.FALSE.)
+        CPABORT("")
      END IF
 
      NULLIFY (atomic_kind_set, qs_kind_set, p_block,dft_control)

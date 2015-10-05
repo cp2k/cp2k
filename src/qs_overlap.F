@@ -187,7 +187,7 @@ CONTAINS
         CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
         use_cell_mapping = (SIZE(cell_to_index) > 1)
      ELSE
-        CPASSERT(.FALSE.)
+        CPABORT("")
      END IF
 
      NULLIFY (atomic_kind_set)
@@ -379,7 +379,7 @@ CONTAINS
                        lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
                        rab,sab=oint(:,:,1),dab=oint(:,:,2:4),ddab=oint(:,:,5:10))
                CASE DEFAULT
-                  CPASSERT(.FALSE.)
+                  CPABORT("")
             END SELECT
             IF (do_forces .AND. ASSOCIATED(p_block) .AND. ((iatom/=jatom) .OR. use_virial)) THEN
                ! Decontract P matrix block

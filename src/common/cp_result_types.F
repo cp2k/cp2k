@@ -245,7 +245,7 @@ CONTAINS
        ALLOCATE(value%logical_type(size_value))
     CASE DEFAULT
        ! Type not implemented in cp_result_type
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_init
@@ -286,7 +286,7 @@ CONTAINS
           CPASSERT(.NOT.ASSOCIATED(value%real_type))
        CASE DEFAULT
           ! Type not implemented in cp_result_type
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        DEALLOCATE(value)
     END IF
@@ -360,7 +360,7 @@ CONTAINS
        value_out%logical_type = value_in%logical_type
     CASE DEFAULT
        ! Type not implemented in cp_result_type
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     CALL timestop(handle)
   END SUBROUTINE cp_result_value_copy

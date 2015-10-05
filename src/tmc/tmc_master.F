@@ -486,7 +486,7 @@ CONTAINS
         ! -- START_CONF_RESULT ---------------
         CASE(TMC_STAT_START_CONF_RESULT)
            ! start configuration should already be handeled
-           CPASSERT(.FALSE.)
+           CPABORT("")
         ! -- ENERGY RESULT -----------------
         CASE(TMC_STAT_APPROX_ENERGY_RESULT)
           nr_of_job(3) = nr_of_job(3) +1

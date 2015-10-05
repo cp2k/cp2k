@@ -450,7 +450,7 @@ CONTAINS
        CALL cp_dbcsr_release (matrix_qs_nosym)
 
     CASE DEFAULT 
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
     CALL timestop(handle)
@@ -500,7 +500,7 @@ CONTAINS
           CALL cp_dbcsr_complete_redistribute(matrix_almo, matrix_qs, keep_sparsity=.TRUE.) 
 !       ENDIF
     CASE DEFAULT 
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
 !    IF (ls_mstruct%single_precision) THEN
@@ -1286,7 +1286,7 @@ CONTAINS
                          !   contact2_radius, r0, r1, distance, p_new_block(1,1)
                       ELSE
                          ! remove the intermediate values from the quencher temporarily
-                         CPASSERT(.FALSE.)
+                         CPABORT("")
                          p_new_block(:,:) = 1.0_dp/(1.0_dp+EXP((r1-r0)/(r0-distance)+(r1-r0)/(r1-distance)))
                          !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTER-BLOCKS: ",&
                          !   iblock_col, iblock_row, contact1_radius,&

@@ -468,7 +468,7 @@ CONTAINS
     CASE(no_colvar_id)
        ! Do nothing
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
   END SUBROUTINE colvar_create
@@ -1158,7 +1158,7 @@ CONTAINS
     CASE(no_colvar_id)
        ! Do nothing
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     DEALLOCATE(colvar)
 

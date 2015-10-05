@@ -172,7 +172,7 @@ CONTAINS
                      " no LINK section was provided in the Input file!",&
                      " This very probably can be identified as an error in the specified QM",&
                      " indexes or in a missing LINK section. Check your structure!"
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
           END IF
           qm_molecule_index(qm_mol_num) = imolecule

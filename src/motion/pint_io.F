@@ -186,7 +186,7 @@ MODULE pint_io
           form="FORMATTED"
           ext=".xyz"
         CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
 
       NULLIFY(f_env,cell,subsys)
@@ -344,7 +344,7 @@ MODULE pint_io
           form="FORMATTED"
           ext=".xyz"
         CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END SELECT
 
       NULLIFY(f_env,cell,subsys)

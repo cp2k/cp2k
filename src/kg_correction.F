@@ -87,7 +87,7 @@ CONTAINS
        CALL kg_ekin_atomic(qs_env, ks_matrix, ekin_mol)
 
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
 
   END SUBROUTINE kg_ekin_subset

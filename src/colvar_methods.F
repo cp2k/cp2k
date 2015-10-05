@@ -1482,7 +1482,7 @@ __LOCATION__)
        !!! FIXME this is rubbish at the moment as we have no force to be computed on this
        CALL HBP_colvar(colvar, cell, particles=particles)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     ! Check for fixed atom constraints
     IF (PRESENT(fixd_list)) CALL check_fixed_atom_cns_colv(fixd_list, colvar)
@@ -1567,7 +1567,7 @@ __LOCATION__)
     CASE (mindist_colvar_id)
        CALL mindist_colvar(colvar,cell,subsys=subsys)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     ! Check for fixed atom constraints
     CALL check_fixed_atom_cns_colv(subsys%gci%fixd_list,colvar)
@@ -1637,7 +1637,7 @@ __LOCATION__)
     CASE (HBP_colvar_id)
        CALL HBP_colvar(colvar, cell, particles=particles)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
   END SUBROUTINE colvar_recursive_eval
 
@@ -1807,7 +1807,7 @@ __LOCATION__)
           xi(3)=1.0_dp
        CASE DEFAULT
           !Not implemented for anything which is not a single component.
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        fi(:)= xi
     ENDIF

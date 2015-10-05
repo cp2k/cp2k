@@ -161,7 +161,7 @@ CONTAINS
        CASE(pw_poisson_wavelet)
           rebuild=(poisson_env%parameters%wavelet_scf_type/=wavelet%itype_scf).OR.rebuild
        CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     END IF
     IF (rebuild) THEN
@@ -219,7 +219,7 @@ CONTAINS
                    poisson_env%green_fft, poisson_env%implicit_env)
         CASE (pw_poisson_none)
         CASE default
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END SELECT
        poisson_env%rebuild=.FALSE.
     END IF

@@ -410,7 +410,7 @@ CONTAINS
                 force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        ELSE
           IF ( se_int_control%do_ewald_gks ) THEN
@@ -598,7 +598,7 @@ CONTAINS
          do_method_rm1, do_method_mndod, do_method_pnnl)
        itype    = get_se_type(dft_control%qs_control%method_id)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     ! Zero arrays and possibly build neighbor lists
@@ -618,7 +618,7 @@ CONTAINS
     CASE(do_multipole_quadrupole)
        task    = .TRUE.
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     ! Build-up neighbor lists for real-space part of Ewald multipoles
@@ -1182,7 +1182,7 @@ CONTAINS
                 force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        END IF
     END DO
@@ -1535,7 +1535,7 @@ CONTAINS
                 force(jkind)%rho_elec(3,atom_b) = force(jkind)%rho_elec(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        END IF
     END DO

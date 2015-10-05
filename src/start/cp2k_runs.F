@@ -292,7 +292,7 @@ CONTAINS
     CASE (do_tree_mc_ana)
        CALL do_analyze_files(input_declaration, root_section, para_env)
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     CALL section_vals_release(input_file)
 
@@ -326,7 +326,7 @@ CONTAINS
        CASE(energy_force_run)
           CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.)
        CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        CALL cp_rm_iter_level(sublogger%iter_info,level_name="JUST_ENERGY",n_rlevel_att=iter_level)
     CASE (mol_dyn_run)
@@ -377,7 +377,7 @@ CONTAINS
     CASE (do_band)
        CALL neb(root_section,input_declaration,para_env,globenv)
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     !sample peak memory
@@ -536,7 +536,7 @@ CONTAINS
                    n_subgroups=farming_env%ngroup_wish,&
                    group_partition=farming_env%group_partition)
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("must set either group_size_wish or ngroup_wish")
         ENDIF
         CALL mp_environ(new_size,new_rank,new_group)
     ENDIF

@@ -1644,7 +1644,7 @@ CONTAINS
     ! make sure that S, sigma and sigma_inv are present for non-orthogonal orbitals
     IF (.NOT.orthog_orbs) THEN
        IF ((.NOT.PRESENT(s)).OR.(.NOT.PRESENT(sigma)).OR.(.NOT.PRESENT(sigma_inv))) THEN
-          CPASSERT(.FALSE.)
+          CPABORT("")
        ENDIF
     ENDIF
 

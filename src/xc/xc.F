@@ -427,10 +427,10 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
                 NULLIFY(deriv3,pot2,pot3)
              END IF
           ELSE
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
        CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        CALL xc_derivative_get(deriv2,&
             deriv_data=pot2)
@@ -466,7 +466,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        CASE(1)
           filename="e_"//TRIM(split_desc(1))//"-2.bindata"
        CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        OPEN (unit=120,file=TRIM(filename),status="unknown",&
             access='sequential',&
@@ -621,7 +621,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
         CASE(1)
            filename="e_"//TRIM(split_desc(1))//".bindata"
         CASE default
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END SELECT
         OPEN (unit=120,file=TRIM(filename),status="unknown",&
              access='sequential',&
@@ -693,7 +693,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
                           CASE(1)
                              filename=" e_"//TRIM(split_desc(1))
                           CASE default
-                             CPASSERT(.FALSE.)
+                             CPABORT("")
                           END SELECT
                           WRITE (unit=cp_logger_get_default_unit_nr(logger),&
                                fmt="(a,'=',e11.4)",advance="no") &
@@ -762,7 +762,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
                           CASE(1)
                              filename=" e_"//TRIM(split_desc(1))
                           CASE default
-                             CPASSERT(.FALSE.)
+                             CPABORT("")
                           END SELECT
                           WRITE (unit=cp_logger_get_default_unit_nr(logger),&
                                fmt="(a,'=',e11.4)",advance="no") &
@@ -1567,7 +1567,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
                  CALL pw_spline3_interpolate_values_g(tmp_g)
                  CALL pw_spline3_deriv_g ( tmp_g, idir=idir)
               CASE default
-                 CPASSERT(.FALSE.)
+                 CPABORT("")
               END SELECT
 
               IF (zero_result .AND. idir==1) THEN
@@ -1608,7 +1608,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
                       pw_out=tmp_r,coeffs=nn50_deriv_coeffs,&
                       idir=idir)
               CASE default
-                 CPASSERT(.FALSE.)
+                 CPABORT("")
               END SELECT
               IF (dealloc_pw_to_deriv) THEN
                  CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv(idir)%pw)
@@ -1663,7 +1663,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
            CASE (xc_deriv_pw)
              CALL pw_derive ( tmp_g, nd_laplace(:,idir))
            CASE default
-             CPASSERT(.FALSE.)
+             CPABORT("")
          END SELECT
          ! Add this to the potential
          CALL pw_pool_create_pw(pw_pool, tmp_r,&
@@ -1710,7 +1710,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
            CALL pw_nn_smear_r(pw_in=vxc_rho(ispin)%pw,pw_out=tmp_r,&
                 coeffs=nn50_coeffs)
         CASE default
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END SELECT
         deriv_data => vxc_rho(ispin)%pw%cr3d
         vxc_rho(ispin)%pw%cr3d => tmp_r%cr3d

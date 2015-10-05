@@ -359,7 +359,7 @@ CONTAINS
        pw => try_pop(pool%complex3d_pw)
     CASE default
 ! unknown use_data
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     IF (.NOT.ASSOCIATED(pw)) THEN
@@ -536,7 +536,7 @@ CONTAINS
           END IF
        CASE default
           ! unknown in_use
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        IF (ASSOCIATED(pw)) pw%ref_count=0
        !FM so that if someone tries to use a pw that is in the pool

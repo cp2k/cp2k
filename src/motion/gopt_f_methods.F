@@ -141,10 +141,10 @@ CONTAINS
            END DO
          END DO
       CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CPABORT("")
       END SELECT
     CASE DEFAULT
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END SELECT
 
   END SUBROUTINE gopt_f_create_x0

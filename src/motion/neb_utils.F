@@ -561,7 +561,7 @@ CONTAINS
        ! Write he gradients in the colvar coordinates into the replica_env array
        ! and copy back also the metric tensor..
        ! work in progress..
-       CPASSERT(.FALSE.)
+       CPABORT("")
        rep_env%f(:,j+1) = 0.0_dp
        Mmatrix          = 0.0_dp
     ELSE

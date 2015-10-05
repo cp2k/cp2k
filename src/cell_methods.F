@@ -168,7 +168,7 @@ CONTAINS
     CASE(use_perd_none)
        cell%perd = (/0,0,0/)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     ! Load requested cell symmetry

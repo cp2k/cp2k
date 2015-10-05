@@ -202,9 +202,9 @@ CONTAINS
        energy= s2_restraint_control%strength*(s_square-s2_restraint_control%target)
        s2_restraint_control%s2_order_p=s_square
     CASE(do_s2_restraint) ! not yet implemented
-       CPASSERT(.FALSE.)
+       CPABORT("")
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     CALL timestop(handle)

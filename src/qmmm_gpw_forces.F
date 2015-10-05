@@ -178,7 +178,7 @@ CONTAINS
                "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     ELSEIF (dft_control%qs_control%dftb) THEN
        ! DFTB
@@ -196,7 +196,7 @@ CONTAINS
           CPABORT("GAUSS or SWAVE QM/MM electrostatic coupling not yet implemented for DFTB.")
        CASE DEFAULT
           IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"Unknown Coupling..."
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        IF (need_f) THEN
           Forces(:,:) = Forces(:,:) / REAL(para_env%num_pe,KIND=dp)
@@ -270,7 +270,7 @@ CONTAINS
                   "- No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
           CASE DEFAULT
              IF (iw>0) WRITE(iw,'(T2,"QMMM|",1X,A)')"- Unknown Coupling..."
- CPASSERT(.FALSE.)
+ CPABORT("")
           END SELECT
        END IF
     END IF
@@ -512,7 +512,7 @@ CONTAINS
                               param_section=interp_section)
        END DO
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     CALL qmmm_force_with_gaussian_low(grids, mm_particles,&
@@ -1423,7 +1423,7 @@ CONTAINS
                 CYCLE Diff
              CASE DEFAULT
                 IF (iw>0) WRITE(iw,'(T3,A)')"Unknown Coupling..."
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              energy(K) =  pw_integral_ab ( rho, v_qmmm_rspace%pw)
           END DO Diff
@@ -1463,7 +1463,7 @@ CONTAINS
        IF (iw>0) WRITE(iw,'(T3,A)')"No QM/MM Derivatives to debug. Just Mechanical Coupling!"
     CASE DEFAULT
        IF (iw>0) WRITE(iw,'(T3,A)')"Unknown Coupling..."
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
 

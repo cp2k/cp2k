@@ -72,7 +72,7 @@ CONTAINS
       CASE (atom_pseudo_run)
         CALL atom_pseudo_opt(atom_section)
       CASE default
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
     iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%PROGRAM_BANNER",extension=".log")
@@ -108,7 +108,7 @@ CONTAINS
     END DO
     IF (ie /= z) THEN
       IF ( ie /= 1 .AND. z /= 1 ) THEN
-        CPASSERT(.FALSE.)
+        CPABORT("")
       END IF
     END IF
 

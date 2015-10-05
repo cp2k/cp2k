@@ -431,7 +431,7 @@ CONTAINS
                n = coset(2,2,2)
                pab(n,1) = 6._dp*cval_nlcc(4,iexp_nlcc)/alpha**6
              CASE DEFAULT
-               CPASSERT(.FALSE.)
+               CPABORT("")
            END SELECT
          END DO
          IF (dft_control%nspins==2) pab=pab*0.5_dp
@@ -607,7 +607,7 @@ CONTAINS
             n = coset(2,2,2)
             pab(n,1) = 6._dp*cexp_ppl(4)
           CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("")
         END SELECT
       END DO
 
@@ -3195,7 +3195,7 @@ CONTAINS
         o1_local=o1
         o2_local=o2
     CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
     ng(:) = rsgrid%desc%npts(:)
@@ -3399,7 +3399,7 @@ CONTAINS
         offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
         ! check for out of bounds
         IF (ub_cube(i)+offset>UBOUND(grid,i).OR.lb_cube(i)+offset<LBOUND(grid,i)) THEN
-           CPASSERT(.FALSE.)
+           CPABORT("")
         ENDIF
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset

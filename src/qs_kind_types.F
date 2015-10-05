@@ -1301,7 +1301,7 @@ CONTAINS
              basis_set_type(i) = tmpstringlist(1)
              basis_set_name(i) = tmpstringlist(2)
           ELSE
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
        END DO
 
@@ -1654,7 +1654,7 @@ CONTAINS
           ! Do nothing at this stage.. The initialization of the parameters will be done
           ! later
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
 
        check = ((potential_name /= '').OR.explicit_potential)
@@ -2138,7 +2138,7 @@ CONTAINS
              END IF
           END IF
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
 
     END IF
@@ -2180,7 +2180,7 @@ CONTAINS
              CALL write_qs_kind(qs_kind,ikind,output_unit)
           END DO
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END IF
 
@@ -2262,7 +2262,7 @@ CONTAINS
 
           END DO
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END IF
 

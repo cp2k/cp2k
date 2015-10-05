@@ -107,7 +107,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     IF(tmc_params%task_type.EQ.task_type_gaussian_adaptation) THEN
-CPASSERT(.FALSE.)
+CPABORT("")
 !TODO       CALL acc_check_gauss_adapt(f=tree_element%potential, ct=tree_element%ekin_before_md, acc=accept)
 !DO NOT DO       RETURN
     END IF

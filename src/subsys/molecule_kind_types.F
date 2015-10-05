@@ -298,7 +298,7 @@ CONTAINS
           CASE(combine_colvar_id)
              ncolv%ncombinecvs = ncolv%ncombinecvs + 1
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        END DO
     END IF
@@ -1070,7 +1070,7 @@ CONTAINS
         END IF
 
       ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
       END IF
 
     END IF
@@ -1151,7 +1151,7 @@ CONTAINS
              "Total Number of opbends:    ",nopbend
         END IF
       ELSE
-         CPASSERT(.FALSE.)
+         CPABORT("")
       END IF
 
     END IF

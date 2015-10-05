@@ -115,7 +115,7 @@ CONTAINS
        IF (output_unit>0) THEN
           WRITE(output_unit,'(A)')"ERROR| Missing PSF specification line"
        END IF
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     DO WHILE (parser_test_next_token(parser)/="EOL")
        CALL parser_get_object  (parser,field)
@@ -462,7 +462,7 @@ CONTAINS
           END IF
        ELSE
           IF(atom_info%id_molname(iatom)/=atom_info%id_molname(jatom)) THEN
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
        END IF
     END DO

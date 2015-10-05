@@ -327,7 +327,7 @@ CONTAINS
        id_dcd = "FML "
        id_wpc = "FORCE_MIXING_LABELS"
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     charge_occup = .FALSE.
@@ -418,7 +418,7 @@ CONTAINS
               "Step ",it,", E = ",etot
           END IF
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
        IF (TRIM(my_pk_name) == "FORCE_MIXING_LABELS") THEN
           ALLOCATE (fml_array(3*SIZE(particle_set)))

@@ -1262,7 +1262,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                       pdiag(isgfa+14) = econf(3)/7._dp
                       pdiag(isgfa+15) = econf(3)/7._dp
                    CASE DEFAULT
-                      CPASSERT(.FALSE.)
+                      CPABORT("")
                    END SELECT
                 END DO
              END DO
@@ -1319,7 +1319,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                    END IF
                 END IF
               CASE DEFAULT
-                CPASSERT(.FALSE.)
+                CPABORT("")
               END SELECT
             END DO
           ELSE

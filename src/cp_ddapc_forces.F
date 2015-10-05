@@ -388,7 +388,7 @@ CONTAINS
       ENDDO
 
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
   END SUBROUTINE evaluate_restraint_functional

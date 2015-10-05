@@ -349,7 +349,7 @@ CONTAINS
                 n_entries = n_entries + SIZE(results%result_value(i)%value%logical_type)
              CASE DEFAULT
                 ! Type not implemented in cp_result_type
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              EXIT
           END IF
@@ -501,7 +501,7 @@ CONTAINS
           CALL mp_bcast(results%result_value(i)%value%logical_type, source, para_env%group)
        CASE DEFAULT
           ! Type not implemented in cp_result_type
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     END DO
     DEALLOCATE(type_in_use)

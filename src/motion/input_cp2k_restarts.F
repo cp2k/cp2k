@@ -561,7 +561,7 @@ CONTAINS
        ELSEIF (PRESENT(helium_env)) THEN
           para_env => helium_env%logger%para_env
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END IF
 

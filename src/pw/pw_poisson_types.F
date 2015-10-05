@@ -275,7 +275,7 @@ CONTAINS
        CASE (3)
           green%method = PERIODIC3D
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     CASE (pw_poisson_mt)
        green%MT_rel_cutoff = poisson_params%mt_rel_cutoff
@@ -301,7 +301,7 @@ CONTAINS
        CASE (3)
           CPABORT("Illegal combination of periodicity and Poisson solver (MT)")
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     CASE (pw_poisson_implicit)
        green%method = PS_IMPLICIT
@@ -347,7 +347,7 @@ CONTAINS
        END SELECT
 
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     ! initialize influence function
@@ -442,7 +442,7 @@ CONTAINS
        END IF
 
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
   END SUBROUTINE pw_green_create

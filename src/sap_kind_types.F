@@ -127,7 +127,7 @@ CONTAINS
     ELSE IF (i==0) THEN
       NULLIFY(alist)
     ELSE
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END IF
 
   END SUBROUTINE get_alist

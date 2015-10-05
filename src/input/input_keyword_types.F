@@ -385,7 +385,7 @@ CONTAINS
        CASE(no_t)
           keyword%n_var=0
        CASE default
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
     END IF
     IF (PRESENT(n_var)) keyword%n_var=n_var
@@ -573,7 +573,7 @@ CONTAINS
              CASE (no_t)
                 WRITE(unit_nr,"('  Non-standard type.')")
              CASE default
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
           END IF
           IF (keyword%type_of_var==enum_t) THEN
@@ -701,7 +701,7 @@ CONTAINS
     CASE (no_t)
        WRITE(unit_nr,'(a)',ADVANCE="NO") 'expects a non-standard input type'
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
     IF (keyword%repeats) THEN
        WRITE(unit_nr,"(', and may repeat')",ADVANCE="NO")
@@ -881,7 +881,7 @@ CONTAINS
        WRITE (UNIT=unit_number,FMT="(A)")&
             REPEAT(" ",l1)//"<DATA_TYPE kind=""non-standard type"">"
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     short_string = ""

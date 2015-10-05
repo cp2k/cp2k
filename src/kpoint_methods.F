@@ -175,7 +175,7 @@ CONTAINS
        CASE ("GENERAL")
           ! do nothing
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
     END SELECT
 
     ! check for consistency of options
@@ -288,7 +288,7 @@ CONTAINS
        ELSE IF(kpoint%parallel_group_size > 0) THEN
           ngr = MIN(kpoint%parallel_group_size,npe)
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
        nkp_grp = npe/ngr
        ! processor dimensions
@@ -741,13 +741,13 @@ CONTAINS
     CALL get_kpoint_info(kpoint,wkp=wkp)
     IF(smear%do_smear) THEN
        ! finite electronic temperature
-       CPASSERT(.FALSE.)
+       CPABORT("")
     ELSE
        ! fixed occupations (2/1)
        IF(nspin==1) THEN
           CALL Fermikp(wocc(:,:,1),mu,kTS,weig(:,:,1),nel,wkp,0.0_dp,2.0_dp)
        ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     END IF
     DO ikpgr = 1,kplocal

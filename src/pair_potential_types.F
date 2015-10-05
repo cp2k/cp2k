@@ -800,17 +800,17 @@ CONTAINS
        loc_ub = ndim
        ALLOCATE ( potparm%pot( loc_lb : loc_ub ))
        IF (PRESENT(lb).OR.PRESENT(ub)) THEN
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     ELSE IF (PRESENT(lb).AND.PRESENT(ub)) THEN
        loc_lb = lb
        loc_ub = ub
        ALLOCATE ( potparm%pot( loc_lb : loc_ub ))
        IF (PRESENT(ndim)) THEN
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END IF
     ELSE
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     DO i = loc_lb, loc_ub
        NULLIFY ( potparm%pot(i)%pot)

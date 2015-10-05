@@ -475,7 +475,7 @@ CONTAINS
                 itherm = itherm + 1
                 thermolist(ipart) = itherm
              ELSE
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
           END DO
        END DO
@@ -494,7 +494,7 @@ CONTAINS
                             itherm = itherm + 1
                             thermolist(ipart) = itherm
                          ELSE
-                            CPASSERT(.FALSE.)
+                            CPABORT("")
                          END IF
                       END DO
                    END DO
@@ -755,7 +755,7 @@ CONTAINS
              IF (thermolist(ipart)==HUGE(0)) THEN
                 thermolist(ipart) = ig
              ELSE
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
           END DO
        END DO
@@ -773,7 +773,7 @@ CONTAINS
                          IF (thermolist(ipart)==HUGE(0)) THEN
                             thermolist(ipart) = ig
                          ELSE
-                            CPASSERT(.FALSE.)
+                            CPABORT("")
                          END IF
                       END DO
                    END DO

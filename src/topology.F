@@ -583,7 +583,7 @@ CONTAINS
        CALL read_coordinate_cp2k(topology,para_env,subsys_section)
     CASE DEFAULT
        ! We should never reach this point..
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     ! Parse &COORD section and in case overwrite

@@ -1644,7 +1644,7 @@ __LOCATION__,&
        m(iphi)    = NINT(pn   (icp(iwork(1))))
        IF (m(iphi)-pn   (icp(iwork(1))).GT.EPSILON(1.0_dp)) THEN
          ! non integer torsions not supported
-         CPASSERT(.FALSE.)
+         CPABORT("")
        ENDIF
 
        phi0(iphi) = phase(icp(iwork(1)))
@@ -1678,7 +1678,7 @@ __LOCATION__,&
              m(iphi)    = NINT(pn   (icp(iwork(i))))
              IF (m(iphi)-pn   (icp(iwork(i))).GT.EPSILON(1.0_dp)) THEN
                ! non integer torsions not supported
-               CPASSERT(.FALSE.)
+               CPABORT("")
              ENDIF
              phi0(iphi) = phase(icp(iwork(i)))
           END IF

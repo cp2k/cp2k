@@ -193,14 +193,14 @@ CONTAINS
        ALLOCATE(disp)
        SELECT CASE (vdw_type)
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        CASE (xc_vdw_fun_none)
           disp%defined = .FALSE.
        CASE (xc_vdw_fun_pairpot)
           ! setup information on pair potentials
           SELECT CASE (dispersion_env%pp_type)
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           CASE (vdw_pairpot_dftd2)
              CALL cite_reference(Grimme2006)
              disp%type = dftd2_pp

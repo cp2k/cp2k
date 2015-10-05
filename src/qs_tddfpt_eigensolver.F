@@ -108,7 +108,7 @@ CONTAINS
        CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env)
     ELSE
        IF (output_unit>0) WRITE (output_unit,*) "LUMOS are needed in TDDFPT!"
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
     DO restarts=1, dft_control%tddfpt_control%n_restarts
        IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals)) EXIT
@@ -361,7 +361,7 @@ CONTAINS
 
              ELSE
                 IF (output_unit>0) WRITE (output_unit,*) "unknown mode"
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
 
           END IF

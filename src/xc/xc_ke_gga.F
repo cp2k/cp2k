@@ -245,7 +245,7 @@ CONTAINS
     CASE (ke_revpbe)
        CALL efactor_pbex (s, fs, m, 2)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     IF ( order>=0 ) THEN
@@ -406,7 +406,7 @@ CONTAINS
        CASE (ke_t92)
           CALL efactor_t92 ( s, fs, m )
        CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
        END SELECT
 
        IF ( order>=0 ) THEN

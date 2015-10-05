@@ -1384,7 +1384,7 @@ CONTAINS
                ENDIF
             ENDIF
           CASE DEFAULT
-            CPASSERT(.FALSE.)
+            CPABORT("")
           END SELECT
 
 

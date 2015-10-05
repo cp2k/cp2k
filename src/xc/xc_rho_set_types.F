@@ -200,7 +200,7 @@ CONTAINS
                 CALL xc_rho_set_clean(rho_set,pw_pool)
                 rho_set%ref_count=0
              ELSE
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END IF
           END IF
 
@@ -648,7 +648,7 @@ CONTAINS
        CPASSERT(rho_r(1)%pw%in_use==REALDATA3D)
        CPASSERT(rho_r(2)%pw%in_use==REALDATA3D)
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     CALL xc_rho_set_clean(rho_set,pw_pool=pw_pool)
@@ -704,7 +704,7 @@ CONTAINS
                   pw_out=my_rho_r(ispin)%pw,&
                   coeffs=nn50_coeffs)
           CASE default
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        END IF
 
@@ -777,7 +777,7 @@ CONTAINS
                 END DO
                CPABORT("Drho collocation not implemented")
              CASE default
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
              CALL pw_pool_give_back_pw(pw_pool, tmp_g)
              IF (my_rho_g_local) THEN
@@ -822,7 +822,7 @@ CONTAINS
                 END DO
                CPABORT("Drho collocation not implemented")
              CASE default
-                CPASSERT(.FALSE.)
+                CPABORT("")
              END SELECT
           END IF
 

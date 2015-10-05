@@ -138,7 +138,7 @@ MODULE cell_opt
        CALL geoopt_cg(force_env,gopt_param,globenv,&
             geo_section, gopt_env, x0)
     CASE DEFAULT
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
   END SUBROUTINE cp_cell_opt_low

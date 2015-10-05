@@ -1970,7 +1970,7 @@ MODULE rpa_ri_gpw
            CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
                            ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm)
         CASE DEFAULT
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END SELECT
         t_end=m_walltime()
   
@@ -2053,7 +2053,7 @@ MODULE rpa_ri_gpw
              CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia_beta,alpha=alpha,matrix_a=fm_mat_S_beta,&
                              ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm_beta)
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
           t_end=m_walltime()
           actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))

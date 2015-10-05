@@ -324,7 +324,7 @@ CONTAINS
             END DO
          END DO
        CASE DEFAULT
-         CPASSERT(.FALSE.)
+         CPABORT("")
     END SELECT
 
   END SUBROUTINE add_qs_force

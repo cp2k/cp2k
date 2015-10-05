@@ -610,7 +610,7 @@ CONTAINS
        CPASSERT(.NOT.needs%rho_spin_1_3)
     CASE(2)
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&

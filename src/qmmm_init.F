@@ -920,7 +920,7 @@ CONTAINS
           CASE(do_qmmm_link_gho)
              ! do nothing for the moment
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        END DO
     END IF
@@ -1074,7 +1074,7 @@ CONTAINS
           IF (COUNT(wrk_tmp == wrk_tmp(ikind)) > 1) THEN
              WRITE(iw,'(/A)')"In the IMOMM scheme no more than one QM atom can be bounded to the same MM atom."
              WRITE(iw, '(A)')"Multiple link MM atom not allowed. Check your link sections."
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END IF
        END DO
        DEALLOCATE(wrk_tmp)
@@ -1102,7 +1102,7 @@ CONTAINS
     IF ( n_gho /= 0) THEN
        ! not yet implemented
        ! still to define : type, implementation into QS
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END IF
   END SUBROUTINE setup_qmmm_links
 

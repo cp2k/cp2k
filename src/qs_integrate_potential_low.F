@@ -388,7 +388,7 @@ CONTAINS
         offset=MODULO(cubecenter(i)+lb_cube(i)+rsgrid%desc%lb(i)-rsgrid%lb_local(i),ng(i))+1-lb_cube(i)
         ! check for out of bounds
         IF (ub_cube(i)+offset>UBOUND(grid,i).OR.lb_cube(i)+offset<LBOUND(grid,i)) THEN
-           CPASSERT(.FALSE.)
+           CPABORT("")
         ENDIF
         DO ig=lb_cube(i),ub_cube(i)
            map(ig,i) = ig+offset

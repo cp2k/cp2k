@@ -144,10 +144,10 @@ CONTAINS
              shortform = "wB97X-V, HFX+B97+VV10 functional (NOT TESTED)"//pol
           END IF
        ELSE
-         CPASSERT(.FALSE.)
+         CPABORT("")
        END IF
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
     END SELECT
   END SUBROUTINE b97_ref
 
@@ -532,7 +532,7 @@ CONTAINS
     CASE(xc_b97_mardirossian)
        res = params_b97_mardirossian
     CASE default
-       CPASSERT(.FALSE.)
+       CPABORT("")
        res=0.0_dp
     END SELECT
   END FUNCTION b97_coeffs

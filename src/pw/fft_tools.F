@@ -3068,7 +3068,7 @@ CONTAINS
 
           SELECT CASE (tf_type)
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           CASE (100)    ! fft3d_pb: full cube distribution
              mx1   = fft_sizes%mx1
              my1   = fft_sizes%my1
@@ -3390,7 +3390,7 @@ CONTAINS
           fft_scratch_current => fft_scratch_current%fft_scratch_next
        ELSE
           ! We cannot find the scratch type in this pool
-          CPASSERT(.FALSE.)
+          CPABORT("")
           EXIT
        END IF
     END DO

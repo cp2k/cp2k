@@ -263,7 +263,7 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
      IF (ASSOCIATED(enum)) THEN
         IF (val%type_of_var/=no_t.AND.val%type_of_var/=integer_t.AND.&
              val%type_of_var/=enum_t) THEN
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
         IF (ASSOCIATED(val%i_val)) THEN
            val%type_of_var=enum_t
@@ -386,10 +386,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%l_val)>0) THEN
            l_val=val%l_val(1)
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      ELSE
-        CPASSERT(.FALSE.)
+        CPABORT("")
      END IF
   END IF
 
@@ -399,10 +399,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%i_val)>0) THEN
            i_val=val%i_val(1)
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      ELSE
-        CPASSERT(.FALSE.)
+        CPABORT("")
      END IF
   END IF
 
@@ -412,10 +412,10 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
         IF (SIZE(val%r_val)>0) THEN
            r_val=val%r_val(1)
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      ELSE
-        CPASSERT(.FALSE.)
+        CPABORT("")
      END IF
   END IF
 
@@ -447,16 +447,16 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
               c_val=val%c_val(1)
            END IF
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      ELSE IF (ASSOCIATED(val%i_val).AND.ASSOCIATED(val%enum)) THEN
         IF (SIZE(val%i_val)>0) THEN
            c_val=enum_i2c(val%enum,val%i_val(1))
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      ELSE
-        CPASSERT(.FALSE.)
+        CPABORT("")
      END IF
   END IF
 
@@ -536,7 +536,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
                    val%l_val(i)
            END DO
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -567,7 +567,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
              i = i + 1
            END DO loop_i
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
@@ -584,7 +584,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               WRITE(unit=unit_nr,fmt="(' ',A)",advance="NO")TRIM(rcval)
            END DO
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      CASE (char_t)
         IF (ASSOCIATED(val%c_val)) THEN
@@ -607,7 +607,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               END IF
            END DO
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      CASE (lchar_t)
         IF (ASSOCIATED(val%c_val)) THEN
@@ -619,7 +619,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(SIZE(val%c_val)))
            END IF
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
      CASE (enum_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -636,7 +636,7 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt)
               WRITE(unit=unit_nr,fmt="(' ',a)",advance="NO") TRIM(c_string)
            END DO
         ELSE
-           CPASSERT(.FALSE.)
+           CPABORT("")
         END IF
 
      CASE(no_t)
@@ -688,7 +688,7 @@ END SUBROUTINE val_write
             WRITE (UNIT=string(2*i-1:),FMT="(L2)") val%l_val(i)
           END DO
         ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
       CASE (integer_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -696,7 +696,7 @@ END SUBROUTINE val_write
             WRITE (UNIT=string(12*i-11:),FMT="(I12)") val%i_val(i)
           END DO
         ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
       CASE (real_t)
         IF (ASSOCIATED(val%r_val)) THEN
@@ -712,7 +712,7 @@ END SUBROUTINE val_write
             END DO
           END IF
         ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
       CASE (char_t)
         IF (ASSOCIATED(val%c_val)) THEN
@@ -722,13 +722,13 @@ END SUBROUTINE val_write
             ipos = ipos + LEN_TRIM(ADJUSTL(val%c_val(i))) + 1
           END DO
         ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
       CASE (lchar_t)
         IF (ASSOCIATED(val%c_val)) THEN
           CALL val_get(val,c_val=string)
         ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
       CASE (enum_t)
         IF (ASSOCIATED(val%i_val)) THEN
@@ -737,7 +737,7 @@ END SUBROUTINE val_write
             WRITE (UNIT=string,FMT="(A)") TRIM(ADJUSTL(enum_string))
           END DO
         ELSE
-          CPASSERT(.FALSE.)
+          CPABORT("")
         END IF
       CASE default
         CPABORT("unexpected type_of_var for val ")

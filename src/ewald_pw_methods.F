@@ -129,7 +129,7 @@ SUBROUTINE ewald_pw_grid_update( ewald_pw, ewald_env, cell_hmat)
           poisson_env=poisson_env)
   CASE ( do_ewald_none )
   CASE default
-     CPASSERT(.FALSE.)
+     CPABORT("")
   END SELECT
   IF (ASSOCIATED(poisson_env)) THEN
      ALLOCATE(pw_pools(1))

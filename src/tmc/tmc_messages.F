@@ -219,7 +219,7 @@ CONTAINS
         CALL mp_send(m_send%task_real, dest, message_tag, para_env%group)
       END IF
       IF(m_send%info(4).GT.0) THEN
-        CPASSERT(.FALSE.)
+        CPABORT("")
         !TODO send characters CALL mp_send(m_send%task_char, dest, message_tag, para_env%group)
       END IF
       IF(DEBUG.GE.1) &
@@ -249,7 +249,7 @@ CONTAINS
         END IF
         IF(m_send%info(4).GT.0) THEN
           IF(.NOT.act_send_recv) ALLOCATE(m_send%task_char(m_send%info(3)))
-          CPASSERT(.FALSE.)
+          CPABORT("")
           !TODO bcast char CALL mp_bcast(m_send%task_char, MASTER_COMM_ID, para_env%group)
         END IF
       END IF
@@ -318,7 +318,7 @@ CONTAINS
       !-- receive message character part
       IF(m_send%info(4).GT.0) THEN
         ALLOCATE(m_send%task_char(m_send%info(4)))
-        CPASSERT(.FALSE.)
+        CPABORT("")
         !TODO recv characters CALL mp_recv(m_send%task_char, dest, message_tag, para_env%group)
       END IF
     END IF

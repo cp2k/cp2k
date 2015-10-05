@@ -233,7 +233,7 @@ FUNCTION wfi_get_snapshot(wf_history, index) RESULT(res)
   CPASSERT(ASSOCIATED(wf_history))
   CPASSERT(ASSOCIATED(wf_history%past_states))
   IF (index>wf_history%memory_depth.OR.index>wf_history%snapshot_count) THEN
-     CPASSERT(.FALSE.)
+     CPABORT("")
   END IF
   res => wf_history%past_states(&
        MODULO(wf_history%snapshot_count+1-index,&

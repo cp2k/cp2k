@@ -347,9 +347,9 @@ CONTAINS
         END DO
         WRITE(iw,'(" ",79("*"))')
       CASE (NUM_BASIS)
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
   END SUBROUTINE atom_print_basis
@@ -392,7 +392,7 @@ CONTAINS
            "F_EXPONENTS ",(atom_basis%am(i,3),i=1,atom_basis%nbas(3))
         END IF
       CASE (CGTO_BASIS)
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE (STO_BASIS)
         WRITE(iw,'(A)') "      BASIS_TYPE SLATER"
         IF ( atom_basis%nbas(0) > 0 ) THEN
@@ -420,9 +420,9 @@ CONTAINS
            "F_QUANTUM_NUMBERS ",(atom_basis%ns(i,3),i=1,atom_basis%nbas(3))
         END IF
       CASE (NUM_BASIS)
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
     CALL close_file(unit_number=iw)
 
@@ -457,7 +457,7 @@ CONTAINS
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
     SELECT CASE (meth)
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE (do_rks_atom)
         CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun)
       CASE (do_uks_atom)
@@ -472,7 +472,7 @@ CONTAINS
 
     SELECT CASE (meth)
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE (do_rks_atom)
         IF (iw > 0) WRITE (iw, fmt="(/,' METHOD    | Restricted Kohn-Sham Calculation')")
       CASE (do_uks_atom)
@@ -510,7 +510,7 @@ CONTAINS
 
       SELECT CASE (reltyp)
         CASE DEFAULT
-          CPASSERT(.FALSE.)
+          CPABORT("")
         CASE (do_nonrel_atom)
           IF (iw > 0) WRITE (iw, fmt="(' METHOD    | Nonrelativistic Calculation')")
         CASE (do_zoramp_atom)
@@ -637,7 +637,7 @@ CONTAINS
           END IF
         END DO
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
     IF (potential%confinement) THEN
       WRITE(iw,'(/,T10,A,T51,F12.6," * (R /",F6.2,")**",F6.2)') &
@@ -726,7 +726,7 @@ CONTAINS
 
     SELECT CASE (atom%method_type)
       CASE DEFAULT
-        CPASSERT(.FALSE.)
+        CPABORT("")
       CASE (do_rks_atom)
         CALL atom_print_orbitals_helper(atom,atom%orbitals%wfn,"",iw)
       CASE (do_uks_atom)
@@ -738,7 +738,7 @@ CONTAINS
         CALL atom_print_orbitals_helper(atom,atom%orbitals%wfna,"Alpha",iw)
         CALL atom_print_orbitals_helper(atom,atom%orbitals%wfnb,"Beta",iw)
       CASE (do_rohf_atom)
-        CPASSERT(.FALSE.)
+        CPABORT("")
     END SELECT
 
   END SUBROUTINE atom_print_orbitals

@@ -278,7 +278,7 @@ CONTAINS
 
           SELECT CASE (dft_control%qs_control%method_id)
              CASE DEFAULT
-               CPASSERT(.FALSE.)
+               CPABORT("")
              CASE (do_method_am1,do_method_rm1,do_method_mndo,do_method_pdg,&
                    do_method_pm3,do_method_pm6,do_method_mndod, do_method_pnnl)
                DO i=1,SIZE(h_blocka,1)

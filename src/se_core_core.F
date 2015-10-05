@@ -243,7 +243,7 @@ CONTAINS
                 force(jkind)%all_potential(3,atom_b) = force(jkind)%all_potential(3,atom_b) + force_ab(3)
              END IF
           CASE DEFAULT
-             CPASSERT(.FALSE.)
+             CPABORT("")
           END SELECT
        ELSE
           IF ( se_int_control%do_ewald_gks ) THEN

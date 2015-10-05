@@ -140,7 +140,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPASSERT(.FALSE.)
+    CPABORT("")
   END FUNCTION charg_int_3
 
 ! *****************************************************************************
@@ -174,7 +174,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPASSERT(.FALSE.)
+    CPABORT("")
   END FUNCTION coeff_int_3
 
 ! *****************************************************************************
@@ -211,7 +211,7 @@ CONTAINS
        RETURN
     END IF
     ! We should NEVER reach this point
-    CPASSERT(.FALSE.)
+    CPABORT("")
   END FUNCTION dcharg_int_3
 
 END MODULE semi_empirical_int3_utils

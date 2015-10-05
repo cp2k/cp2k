@@ -144,7 +144,7 @@ CONTAINS
     CASE(opt_force_matching)
       CALL force_matching(oi_env,input_declaration,root_section,para_env)
     CASE DEFAULT
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END SELECT
 
     CALL timestop(handle)
@@ -692,7 +692,7 @@ CONTAINS
        CALL section_vals_val_get(fm_section,"SHIFT_QM",r_val=oi_env%fm_env%shift_qm)
        CALL section_vals_val_get(fm_section,"SHIFT_AVERAGE",l_val=oi_env%fm_env%shift_average)
     CASE DEFAULT
-      CPASSERT(.FALSE.)
+      CPABORT("")
     END SELECT
 
     CALL timestop(handle)
