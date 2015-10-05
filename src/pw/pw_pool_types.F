@@ -66,7 +66,7 @@ MODULE pw_pool_types
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
             pw_pool_create_pw, pw_pool_give_back_pw,&
             pw_pool_create_cr3d, pw_pool_give_back_cr3d
-  PUBLIC :: pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache,&
+  PUBLIC :: pw_pools_copy, pw_pools_dealloc,&
             pw_pools_create_pws, pw_pools_give_back_pws
 
 ! *****************************************************************************
@@ -805,62 +805,5 @@ SUBROUTINE pw_pools_flush_cache(pools)
      CALL pw_pool_flush_cache(pools(i)%pool)
   END DO
 END SUBROUTINE pw_pools_flush_cache
-
-! *****************************************************************************
-!> \brief writes the actual contents of the pw_pool
-!> \param pw_pool ...
-!> \param unit_nr ...
-!> \par History
-!>      02.2003 created [fawzi]
-!> \author fawzi
-! *****************************************************************************
-SUBROUTINE pw_pool_write(pw_pool,unit_nr)
-    TYPE(pw_pool_type), POINTER              :: pw_pool
-    INTEGER                                  :: unit_nr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_write', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(cp_sll_pw_type), POINTER            :: iter
-    TYPE(pw_type), POINTER                   :: pw_att
-
-  IF (ASSOCIATED(pw_pool)) THEN
-     WRITE (unit=unit_nr, &
-          fmt="(' <pw_pool>{ id_nr=',i8,', ref_count=',i8,', max_cache=',i8,',')")&
-          pw_pool%id_nr,pw_pool%ref_count,pw_pool%max_cache
-
-     WRITE (unit=unit_nr, fmt="('real1d_pw=(')",advance="no")
-     iter => pw_pool%real1d_pw
-     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att))
-        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
-     END DO
-     WRITE (unit=unit_nr, fmt="('),')")
-
-     WRITE (unit=unit_nr, fmt="('real3d_pw=(')",advance="no")
-     iter => pw_pool%real3d_pw
-     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att))
-        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
-     END DO
-     WRITE (unit=unit_nr, fmt="('),')")
-
-     WRITE (unit=unit_nr, fmt="('complex1d_pw=(')",advance="no")
-     iter => pw_pool%complex1d_pw
-     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att))
-        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
-     END DO
-     WRITE (unit=unit_nr, fmt="('),')")
-
-     WRITE (unit=unit_nr, fmt="('complex3d_pw=(')",advance="no")
-     iter => pw_pool%complex3d_pw
-     DO WHILE(cp_sll_pw_next(iter,el_att=pw_att))
-        WRITE (unit=unit_nr, fmt="(i8,',')",advance="no") pw_att%id_nr
-     END DO
-     WRITE (unit=unit_nr, fmt="(')')")
-
-     WRITE (unit=unit_nr, fmt="('}')")
-  ELSE
-     WRITE (unit=unit_nr, fmt="('<pw_pool *null*>')")
-  END IF
-END SUBROUTINE pw_pool_write
 
 END MODULE pw_pool_types

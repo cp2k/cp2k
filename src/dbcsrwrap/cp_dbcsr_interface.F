@@ -24,21 +24,19 @@ MODULE cp_dbcsr_interface
        convert_offsets_to_sizes, convert_sizes_to_offsets, &
        cp_dbcsr_iterator=>dbcsr_iterator, &
        cp_distribution_get_num_images=>dbcsr_distribution_get_num_images_1d, &
-       create_bl_distribution, create_col_vec_from_matrix, &
-       create_replicated_col_vec_from_matrix, &
-       create_replicated_row_vec_from_matrix, create_row_vec_from_matrix, &
-       csr_create_from_dbcsr, csr_create_new, csr_create_template, &
-       csr_dbcsr_blkrow_dist, csr_destroy, csr_eqrow_ceil_dist, &
-       csr_eqrow_floor_dist, csr_print_sparsity, csr_type, dbcsr_add, &
-       dbcsr_add_on_diag, dbcsr_arnoldi_data, dbcsr_arnoldi_ev, &
-       dbcsr_arnoldi_extremal, dbcsr_binary_read, dbcsr_binary_write, &
-       dbcsr_checksum, dbcsr_clear_mempools, dbcsr_complete_redistribute, &
-       dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, &
-       dbcsr_create_dist_block_cyclic, dbcsr_create_dist_r_unrot, &
-       dbcsr_data_clear_pointer, dbcsr_data_init, dbcsr_data_new, &
-       dbcsr_data_obj, dbcsr_data_release, dbcsr_desymmetrize_deep, &
-       dbcsr_distribute, dbcsr_distribution, dbcsr_distribution_col_clusters, &
-       dbcsr_distribution_col_dist, dbcsr_distribution_has_col_clusters, &
+       create_bl_distribution, csr_create_from_dbcsr, csr_create_new, &
+       csr_create_template, csr_dbcsr_blkrow_dist, csr_destroy, &
+       csr_eqrow_ceil_dist, csr_eqrow_floor_dist, csr_print_sparsity, &
+       csr_type, dbcsr_add, dbcsr_add_on_diag, dbcsr_arnoldi_data, &
+       dbcsr_arnoldi_ev, dbcsr_arnoldi_extremal, dbcsr_binary_read, &
+       dbcsr_binary_write, dbcsr_checksum, dbcsr_clear_mempools, &
+       dbcsr_complete_redistribute, dbcsr_copy, dbcsr_copy_into_existing, &
+       dbcsr_create, dbcsr_create_dist_block_cyclic, &
+       dbcsr_create_dist_r_unrot, dbcsr_data_clear_pointer, dbcsr_data_init, &
+       dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, &
+       dbcsr_desymmetrize_deep, dbcsr_distribute, dbcsr_distribution, &
+       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
+       dbcsr_distribution_has_col_clusters, &
        dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_threads, &
        dbcsr_distribution_init, dbcsr_distribution_local_cols, &
        dbcsr_distribution_local_rows, dbcsr_distribution_mp, &
@@ -66,17 +64,16 @@ MODULE cp_dbcsr_interface
        dbcsr_mp_get_process, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
        dbcsr_mp_obj, dbcsr_mp_release, dbcsr_multiply, dbcsr_name, &
-       dbcsr_nblkcols_local, dbcsr_nblkcols_total, dbcsr_nblkrows_local, &
-       dbcsr_nblkrows_total, dbcsr_new_transposed, dbcsr_nfullcols_total, &
-       dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm, &
-       dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
-       dbcsr_obj, dbcsr_obj_type_p, dbcsr_print, dbcsr_print_block_sum, &
-       dbcsr_put_block, dbcsr_release, dbcsr_replicate, dbcsr_replicate_all, &
-       dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, dbcsr_reserve_blocks, &
-       dbcsr_reserve_diag_blocks, dbcsr_run_tests, dbcsr_scalar, &
-       dbcsr_scalar_fill_all, dbcsr_scalar_get_type, dbcsr_scalar_get_value, &
-       dbcsr_scalar_set_type, dbcsr_scalar_type, dbcsr_scalar_zero, &
-       dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
+       dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_new_transposed, &
+       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_no_transpose, &
+       dbcsr_norm, dbcsr_norm_column, dbcsr_norm_frobenius, &
+       dbcsr_norm_maxabsnorm, dbcsr_obj, dbcsr_obj_type_p, dbcsr_print, &
+       dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, &
+       dbcsr_replicate_all, dbcsr_reserve_all_blocks, dbcsr_reserve_block2d, &
+       dbcsr_reserve_blocks, dbcsr_reserve_diag_blocks, dbcsr_run_tests, &
+       dbcsr_scalar, dbcsr_scalar_fill_all, dbcsr_scalar_get_type, &
+       dbcsr_scalar_get_value, dbcsr_scalar_set_type, dbcsr_scalar_type, &
+       dbcsr_scalar_zero, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
        dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
        dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
@@ -823,36 +820,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \retval nblkrows_local ...
-! *****************************************************************************
-  FUNCTION cp_dbcsr_nblkrows_local(matrix) RESULT (nblkrows_local)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: nblkrows_local
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nblkrows_local', &
-      routineP = moduleN//':'//routineN
-
-    nblkrows_local = dbcsr_nblkrows_local(matrix%matrix)
-  END FUNCTION cp_dbcsr_nblkrows_local
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \retval nblkcols_local ...
-! *****************************************************************************
-  FUNCTION cp_dbcsr_nblkcols_local(matrix) RESULT (nblkcols_local)
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: nblkcols_local
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_nblkcols_local', &
-      routineP = moduleN//':'//routineN
-
-    nblkcols_local = dbcsr_nblkcols_local(matrix%matrix)
-  END FUNCTION cp_dbcsr_nblkcols_local
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
 !> \retval distribution ...
 ! *****************************************************************************
   FUNCTION cp_dbcsr_distribution (matrix) RESULT (distribution)
@@ -1113,29 +1080,6 @@ CONTAINS
 
     CALL dbcsr_replicate_all(matrix%matrix, dbcsr_error)
   END SUBROUTINE cp_dbcsr_replicate_all
-
-! *****************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param replicate_rows ...
-!> \param replicate_columns ...
-!> \param restrict_source ...
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_replicate(matrix, replicate_rows, replicate_columns,&
-       restrict_source)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
-    LOGICAL, INTENT(IN)                      :: replicate_rows, &
-                                                replicate_columns
-    INTEGER, INTENT(IN), OPTIONAL            :: restrict_source
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_replicate', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_replicate(matrix%matrix, replicate_rows, replicate_columns,&
-         restrict_source, dbcsr_error)
-  END SUBROUTINE cp_dbcsr_replicate
 
 ! *****************************************************************************
 !> \brief ...
@@ -1848,102 +1792,6 @@ CONTAINS
          transpose_data, mytranspose_distribution,&
          use_distribution=myuse_distribution, error=dbcsr_error)
   END SUBROUTINE cp_dbcsr_transposed
-
-! *****************************************************************************
-!> \brief creates a dbcsr col vector like object which lives on proc_col 0
-!>        and has the same row dist as the template matrix
-!>        the returned matrix is fully allocated and all blocks are set to 0
-!>        this is not a sparse object (and must never be)
-!> \param vec  the vector object to create must be allocated but not initialized
-!> \param matrix a dbcsr matrix used as template
-!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-! *****************************************************************************
-   SUBROUTINE cp_dbcsr_create_col_vec_from_matrix(vec,matrix,ncol)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: ncol
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_create_col_vec_from_matrix', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL create_col_vec_from_matrix(vec%matrix,matrix%matrix,ncol,dbcsr_error)
-
-   END SUBROUTINE cp_dbcsr_create_col_vec_from_matrix
-
-! *****************************************************************************
-!> \brief creates a dbcsr row vector like object which lives on proc_row 0
-!>        and has the same row dist as the template matrix
-!>        the returned matrix is fully allocated and all blocks are set to 0
-!>        this is not a sparse object (and must never be)
-!> \param vec  the vector object to create must be allocated but not initialized
-!> \param matrix a dbcsr matrix used as template
-!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-! *****************************************************************************
-   SUBROUTINE cp_dbcsr_create_row_vec_from_matrix(vec,matrix,nrow)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: nrow
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_create_row_vec_from_matrix', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL create_row_vec_from_matrix(vec%matrix,matrix%matrix,nrow,dbcsr_error)
-
-   END SUBROUTINE cp_dbcsr_create_row_vec_from_matrix
-
-! *****************************************************************************
-!> \brief creates a col vector like object whose blocks can be replicated
-!>        along the processor row and has the same row dist as the template matrix
-!>        the returned matrix is fully allocated and all blocks are set to 0
-!>        this is not a sparse object (and must never be)
-!> \param vec  the vector object to create must be allocated but not initialized
-!> \param matrix a dbcsr matrix used as template
-!> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-! *****************************************************************************
-   SUBROUTINE cp_dbcsr_create_rep_col_vec_from_matrix(vec,matrix,ncol)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: ncol
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_create_rep_col_vec_from_matrix', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL create_replicated_col_vec_from_matrix(vec%matrix,matrix%matrix,ncol,dbcsr_error)
-
-  END SUBROUTINE  cp_dbcsr_create_rep_col_vec_from_matrix
-
-! *****************************************************************************
-!> \brief creates a row vector like object whose blocks can be replicated
-!>        along the processor col and has the same col dist as the template matrix
-!>        the returned matrix is fully allocated and all blocks are set to 0
-!>        this is not a sparse object (and must never be)
-!> \param vec  the vector object to create must be allocated but not initialized
-!> \param matrix a dbcsr matrix used as template
-!> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-! *****************************************************************************
-   SUBROUTINE cp_dbcsr_create_rep_row_vec_from_matrix(vec,matrix,nrow)
-    TYPE(cp_dbcsr_type), INTENT(INOUT)       :: vec
-    TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
-    INTEGER                                  :: nrow
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_dbcsr_create_rep_row_vec_from_matrix', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL create_replicated_row_vec_from_matrix(vec%matrix,matrix%matrix,nrow,dbcsr_error)
-
-  END SUBROUTINE  cp_dbcsr_create_rep_row_vec_from_matrix
 
 ! *****************************************************************************
 !> \brief ...

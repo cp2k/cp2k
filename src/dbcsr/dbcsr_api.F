@@ -90,11 +90,10 @@ MODULE dbcsr_api
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
        dbcsr_has_symmetry, dbcsr_init, dbcsr_max_col_size, &
-       dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_local, &
-       dbcsr_nblkcols_total, dbcsr_nblkrows_local, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_setname, dbcsr_valid_index, &
-       dbcsr_wm_use_mutable
+       dbcsr_max_row_size, dbcsr_name, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_setname, &
+       dbcsr_valid_index, dbcsr_wm_use_mutable
   USE dbcsr_mp_methods,                ONLY: &
        dbcsr_mp_get_process, dbcsr_mp_group, dbcsr_mp_hold, dbcsr_mp_mynode, &
        dbcsr_mp_new, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, &
@@ -117,7 +116,6 @@ MODULE dbcsr_api
                                              dbcsr_desymmetrize_deep,&
                                              dbcsr_distribute,&
                                              dbcsr_new_transposed,&
-                                             dbcsr_replicate,&
                                              dbcsr_replicate_all
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_func_artanh, &
@@ -132,10 +130,6 @@ MODULE dbcsr_api
                                              convert_sizes_to_offsets,&
                                              dbcsr_checksum,&
                                              dbcsr_verify_matrix
-  USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix,&
-                                             create_replicated_col_vec_from_matrix,&
-                                             create_replicated_row_vec_from_matrix,&
-                                             create_row_vec_from_matrix
   USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                              dbcsr_create,&
                                              dbcsr_finalize,&
@@ -281,9 +275,7 @@ MODULE dbcsr_api
             dbcsr_multiply,&
             dbcsr_name,&
             dbcsr_setname,&
-            dbcsr_nblkcols_local,&
             dbcsr_nblkcols_total,&
-            dbcsr_nblkrows_local,&
             dbcsr_nblkrows_total,&
             dbcsr_new_transposed,&
             dbcsr_nfullcols_total,&
@@ -299,7 +291,6 @@ MODULE dbcsr_api
             dbcsr_print_block_sum,&
             dbcsr_put_block,&
             dbcsr_release,&
-            dbcsr_replicate,&
             dbcsr_replicate_all,&
             dbcsr_reserve_all_blocks,&
             dbcsr_reserve_block2d,&
@@ -341,10 +332,6 @@ MODULE dbcsr_api
             dbcsr_verify_matrix,&
             dbcsr_wm_use_mutable,&
             dbcsr_work_create,&
-            create_col_vec_from_matrix,&
-            create_row_vec_from_matrix,&
-            create_replicated_col_vec_from_matrix,&
-            create_replicated_row_vec_from_matrix,&
             has_acc,&
             has_mpi,&
             mm_driver_blas,&

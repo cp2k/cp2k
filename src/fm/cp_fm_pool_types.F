@@ -38,7 +38,7 @@ MODULE cp_fm_pool_types
             fm_pool_release,&
             fm_pool_create_fm, fm_pool_give_back_fm,&
             fm_pool_get_el_struct
-  PUBLIC :: fm_pools_copy, fm_pools_dealloc,&
+  PUBLIC :: fm_pools_dealloc,&
             fm_pools_create_fm_vect,&
             fm_pools_give_back_fm_vect
 !***

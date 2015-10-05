@@ -24,8 +24,7 @@ MODULE pw_env_types
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_release,&
                                              pw_pool_type,&
-                                             pw_pools_dealloc,&
-                                             pw_pools_flush_cache
+                                             pw_pools_dealloc
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              realspace_grid_desc_type,&
                                              realspace_grid_p_type,&
@@ -247,24 +246,5 @@ SUBROUTINE pw_env_release(pw_env, kg)
   END IF
   NULLIFY(pw_env)
 END SUBROUTINE pw_env_release
-
-! *****************************************************************************
-!> \brief flushes the cached pws
-!> \param pw_env the pw_env to be flushed
-!> \par History
-!>      11.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE pw_env_flush_cache(pw_env)
-    TYPE(pw_env_type), POINTER               :: pw_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-  CPASSERT(ASSOCIATED(pw_env))
-  IF (ASSOCIATED(pw_env%pw_pools)) THEN
-     CALL pw_pools_flush_cache(pw_env%pw_pools)
-  END IF
-END SUBROUTINE pw_env_flush_cache
 
 END MODULE pw_env_types

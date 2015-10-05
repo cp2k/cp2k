@@ -23,10 +23,8 @@ MODULE cp_para_env
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_para_env'
 
-  PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create,&
-            cp_para_env_write
-  PUBLIC :: cp_cart_create, cp_cart_release,&
-            cp_cart_write
+  PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create
+  PUBLIC :: cp_cart_create, cp_cart_release
 !***
 CONTAINS
 

@@ -26,7 +26,6 @@ MODULE cp_dbcsr_diag
                                              copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr
   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
-                                             cp_fm_syevr,&
                                              cp_fm_syevx
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -170,61 +169,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_dbcsr_syevx
-
-! *****************************************************************************
-!> \brief  computes selected eigenvalues and, optionally, eigenvectors of
-!>        a real symmetric matrix A distributed in 2D blockcyclic format by
-!>       calling the recommended sequence of ScaLAPACK routines.
-!>
-!> \param matrix ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
-!> \param ilow ...
-!> \param iup ...
-!> \param para_env ...
-!> \param blacs_env ...
-!> \par     matrix is supposed to be in upper triangular form, and overwritten by this routine
-!>          subsets of eigenvalues/vectors can be selected by
-!>          specifying a range of values or a range of indices for the desired eigenvalues.
-! *****************************************************************************
-  SUBROUTINE cp_dbcsr_syevr(matrix,eigenvectors,eigenvalues,ilow,iup,para_env,blacs_env)
-
-    TYPE(cp_dbcsr_type), POINTER             :: matrix
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: eigenvectors
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
-    INTEGER, INTENT(IN), OPTIONAL            :: ilow, iup
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_syevr', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, n
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_eigenvectors, fm_matrix
-
-! -------------------------------------------------------------------------
-
-    NULLIFY(fm_matrix, fm_eigenvectors, fm_struct)
-    CALL cp_dbcsr_get_info(matrix,nfullrows_total=n)
-
-    CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=n,&
-         ncol_global=n,para_env=para_env)
-    CALL cp_fm_create(fm_matrix,fm_struct,name="fm_matrix")
-    CALL cp_fm_create(fm_eigenvectors,fm_struct,name="fm_eigenvectors")
-    CALL cp_fm_struct_release(fm_struct)
-
-    CALL copy_dbcsr_to_fm(matrix, fm_matrix)
-
-    CALL cp_fm_syevr(fm_matrix,fm_eigenvectors,eigenvalues,ilow,iup)
-
-    IF(PRESENT(eigenvectors)) CALL copy_fm_to_dbcsr(fm_eigenvectors, eigenvectors)
-    IF(PRESENT(eigenvectors)) CALL cp_fm_release(fm_eigenvectors)
-    CALL cp_fm_release(fm_matrix)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE cp_dbcsr_syevr
 
 ! *****************************************************************************
 !> \brief ...
