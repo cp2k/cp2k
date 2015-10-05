@@ -644,6 +644,13 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="STRIDE",&
+         description="Stride to be used when building working groups from the parent MPI comm."//&
+                     "Can be used to layout slave groups over nodes in advanced ways (1 rank per node / 2 groups per node).",& 
+         usage="STRIDE 2", default_i_val=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="GROUP_PARTITION",&
          description="gives the exact number of processors for each group.",&
          usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1)

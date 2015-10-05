@@ -1825,6 +1825,7 @@ CONTAINS
 !> \param n_subgroups the number of subgroups wanted
 !> \param group_partition n_subgroups sized array containing the number of cpus wanted per group.
 !>                         should match the total number of cpus (only used if present and associated) (0..ngroups-1)
+!> \param stride create groups using a stride (default=1) through the ranks of the comm to be split.
 !> \par History
 !>      10.2003 created [fawzi]
 !>      02.2004 modified [Joost VandeVondele]
@@ -1836,12 +1837,13 @@ CONTAINS
 !>      just one comm is created that contains all cpus
 ! *****************************************************************************
   SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
-       subgroup_min_size, n_subgroups, group_partition)
+       subgroup_min_size, n_subgroups, group_partition, stride)
     INTEGER, INTENT(in)                      :: comm
     INTEGER, INTENT(out)                     :: sub_comm, ngroups
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size, n_subgroups
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: group_partition
+    INTEGER, OPTIONAL                        :: stride
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
       routineP = moduleN//':'//routineN
@@ -1849,7 +1851,9 @@ CONTAINS
     INTEGER                                  :: handle, ierr, mepos, nnodes
 #if defined(__parallel)
     INTEGER                                  :: color, i, j, k, &
-                                                my_subgroup_min_size
+                                                my_subgroup_min_size,&
+                                                istride, local_stride, irank
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: rank_permutation
 #endif
 
     ierr = 0
@@ -1893,10 +1897,23 @@ CONTAINS
        ENDIF
        my_subgroup_min_size = nnodes / ngroups
     ENDIF
+
+    ! rank_permutation: is a permutation of ranks, so that groups are not necessarily continuous in rank of the master group
+    ! while the order is not critical (we only color ranks), it can e.g. be used to make groups that have just 1 rank per node
+    ! (by setting stride equal to the number of mpi ranks per node), or by sharing  a node between two groups (stride 2).
+    ALLOCATE(rank_permutation(0:nnodes-1))
+    local_stride=1
+    IF (PRESENT(stride)) local_stride=stride
+    k=0
+    DO istride=1,local_stride
+       DO irank=istride-1,nnodes-1,local_stride
+          rank_permutation(k)=irank
+          k=k+1
+       ENDDO
+    ENDDO
+    
     DO i=0,nnodes-1
-       group_distribution(i)=i / my_subgroup_min_size
-       ! if part of the rest, join the last group
-       IF ( group_distribution(i) >= ngroups ) group_distribution(i)=ngroups-1
+       group_distribution(rank_permutation(i))=MIN(i / my_subgroup_min_size,ngroups-1)
     ENDDO
     ! even the user gave a partition, see if we can use it to overwrite this choice
     IF (PRESENT(group_partition)) THEN
@@ -1905,7 +1922,7 @@ CONTAINS
              k=0
              DO i=0,SIZE(group_partition)-1
                 DO j=1,group_partition(i)
-                   group_distribution(k)=i
+                   group_distribution(rank_permutation(k))=i
                    k=k+1
                 ENDDO
              ENDDO

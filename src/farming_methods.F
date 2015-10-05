@@ -165,7 +165,8 @@ CONTAINS
           farming_env%group_size_wish_set=.TRUE.
        END IF
     END IF
-
+    CALL section_vals_val_get(farming_section,"STRIDE",&
+         i_val=farming_env%stride)
 
     CALL section_vals_val_get(farming_section,"RESTART_FILE_NAME",&
          explicit=explicit)

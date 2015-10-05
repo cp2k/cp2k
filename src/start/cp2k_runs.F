@@ -530,11 +530,11 @@ CONTAINS
         IF (farming_env%group_size_wish_set) THEN
            farming_env%group_size_wish=MIN(farming_env%group_size_wish,para_env%num_pe)
            CALL mp_comm_split(slave_group,new_group,ngroups,group_distribution,&
-                   subgroup_min_size=farming_env%group_size_wish)
+                   subgroup_min_size=farming_env%group_size_wish,stride=farming_env%stride)
         ELSE IF (farming_env%ngroup_wish_set) THEN
            CALL mp_comm_split(slave_group,new_group,ngroups,group_distribution,&
                    n_subgroups=farming_env%ngroup_wish,&
-                   group_partition=farming_env%group_partition)
+                   group_partition=farming_env%group_partition,stride=farming_env%stride)
         ELSE
            CPABORT("must set either group_size_wish or ngroup_wish")
         ENDIF
@@ -567,6 +567,7 @@ CONTAINS
                 "  (",i," : ",group_distribution(i),")"
         END DO
         WRITE(output_unit,*)
+        CALL m_flush(output_unit)
     ENDIF
 
     ! protect about too many jobs being run in single go. Not more jobs are allowed than the number in the input file
@@ -708,14 +709,18 @@ CONTAINS
               TRIM(farming_env%Job(i)%input)," MPI group:", MODULO(i-1,ngroups)
            ENDDO
          ENDIF
+         CALL m_flush(output_unit)
        ENDIF
 
        DO ijob=ijob_start,ijob_end
           i=MODULO(ijob-1,farming_env%njobs)+1
           ! this farms out the jobs
           IF (MODULO(i-1,ngroups)==group_distribution(slave_rank)) THEN
-             IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,I5.5,A)",ADVANCE="NO") " Running Job ",i, &
+             IF (output_unit > 0) THEN
+                 WRITE(output_unit,FMT="(T2,A,I5.5,A)",ADVANCE="NO") " Running Job ",i, &
                            " in "//TRIM(farming_env%Job(i)%cwd)//"."
+                 CALL m_flush(output_unit) 
+             ENDIF
              CALL execute_job(i)
              IF (output_unit > 0) THEN
                 WRITE(output_unit,FMT="(A)") " Done, output in "//TRIM(output_file)
