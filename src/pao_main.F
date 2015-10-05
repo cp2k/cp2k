@@ -19,6 +19,8 @@ MODULE pao_main
        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, &
        cp_dbcsr_trace, cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
+                                             ls_scf_qs_atomic_guess
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                              ls_scf_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -88,11 +90,6 @@ CONTAINS
 
     CALL parse_pao_section(pao, input)
 
-    ! check for incompatible features
-    IF(ls_scf_env%extrapolation_order>1 .AND. pao%iw>0) &
-       WRITE (pao%iw,*) "PAO| WARNING: found ASPC EXTRAPOLATION_ORDER > 1 !!!!!"
-       ! ... otherwise the line search might get confused when doing large steps.
-
     ! preconditioner has to be build before pao_param_init()
     CALL pao_build_orthogonalizer(pao, qs_env)
 
@@ -149,9 +146,11 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Signal PAO that a new SCF optimization is about to start
+!> \param qs_env ...
 !> \param ls_scf_env ...
 ! *****************************************************************************
-  SUBROUTINE pao_scf_init(ls_scf_env)
+  SUBROUTINE pao_scf_init(qs_env,ls_scf_env)
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_scf_init', &
@@ -165,53 +164,51 @@ CONTAINS
 
     IF(.NOT. ls_scf_env%do_pao) RETURN
 
+    CALL timeset(routineN,handle)
     pao => ls_scf_env%pao_env
     ls_mstruct => ls_scf_env%ls_mstruct
-
 
     pao%istep = pao%istep + 1
     IF(pao%iw>0) WRITE(pao%iw,"(A,I9,A)") " PAO| ========================== STEP: ",&
                                pao%istep, " ==============================="
 
-    IF(pao%istep==1) RETURN
+    IF(pao%istep==1) THEN
+       ! TODO: use ASPC if run as MD
+       CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init)
+       IF(pao%iw>0) WRITE(pao%iw,'(A,F20.9)') " PAO| Energy from initial atomic guess:",ls_scf_env%energy_init
+    ELSE
+       pao => ls_scf_env%pao_env
+       ls_mstruct => ls_scf_env%ls_mstruct
 
-    CALL timeset(routineN,handle)
+       CALL cp_dbcsr_init(matrix_tmp)
+       CALL cp_dbcsr_create(matrix_tmp, template=ls_scf_env%ls_mstruct%matrix_B,matrix_type="N")
 
-    IF(pao%iw>0) WRITE (pao%iw,*) "PAO| Extrapolating density matrix from previous PAO iteration."
-    !IF(pao%istep == 0) THEN ! we have sth. to work with
-    !   ! first PAO iter after MD step, ie prim. basis changed, do full ASCP
-    !   ! Caution: might be first MD step
-    !ELSE
-    !    ! just use last element from history -> ASPC 0-order
-    !ENDIF
+       CALL cp_dbcsr_init(matrix_Z)
+       CALL cp_dbcsr_create(matrix_Z, template=ls_scf_env%matrix_p(1),matrix_type="N")
 
-    pao => ls_scf_env%pao_env
-    ls_mstruct => ls_scf_env%ls_mstruct
+       CALL cp_dbcsr_init(matrix_tmp2)
+       CALL cp_dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_p(1),matrix_type="N")
 
-    CALL cp_dbcsr_init(matrix_tmp)
-    CALL cp_dbcsr_create(matrix_tmp, template=ls_scf_env%ls_mstruct%matrix_B,matrix_type="N")
+       DO ispin=1, ls_scf_env%nspins
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_P_guess(ispin), ls_scf_env%ls_mstruct%matrix_B, &
+                                 0.0_dp, matrix_tmp)
+          CALL cp_dbcsr_multiply("T", "N", 1.0_dp, ls_scf_env%ls_mstruct%matrix_B, matrix_tmp, &
+                                 0.0_dp, matrix_Z)
 
-    CALL cp_dbcsr_init(matrix_Z)
-    CALL cp_dbcsr_create(matrix_Z, template=ls_scf_env%matrix_p(1),matrix_type="N")
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_Z, ls_scf_env%matrix_s_inv,&
+                                 0.0_dp, matrix_tmp2)
+          CALL cp_dbcsr_multiply("T", "N", 1.0_dp, ls_scf_env%matrix_s_inv, matrix_tmp2,&
+                                 0.0_dp, ls_scf_env%matrix_p(ispin))
+       ENDDO
 
-    CALL cp_dbcsr_init(matrix_tmp2)
-    CALL cp_dbcsr_create(matrix_tmp2, template=ls_scf_env%matrix_p(1),matrix_type="N")
+       CALL cp_dbcsr_release(matrix_Z)
+       CALL cp_dbcsr_release(matrix_tmp)
+       CALL cp_dbcsr_release(matrix_tmp2)
 
-    DO ispin=1, ls_scf_env%nspins
-       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_P_guess(ispin), ls_scf_env%ls_mstruct%matrix_B, &
-                              0.0_dp, matrix_tmp)
-       CALL cp_dbcsr_multiply("T", "N", 1.0_dp, ls_scf_env%ls_mstruct%matrix_B, matrix_tmp, &
-                              0.0_dp, matrix_Z)
-
-       CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_Z, ls_scf_env%matrix_s_inv,&
-                              0.0_dp, matrix_tmp2)
-       CALL cp_dbcsr_multiply("T", "N", 1.0_dp, ls_scf_env%matrix_s_inv, matrix_tmp2,&
-                              0.0_dp, ls_scf_env%matrix_p(ispin))
-    ENDDO
-
-    CALL cp_dbcsr_release(matrix_Z)
-    CALL cp_dbcsr_release(matrix_tmp)
-    CALL cp_dbcsr_release(matrix_tmp2)
+       ! compute corresponding energy and ks matrix
+       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,iscf=0)
+       IF(pao%iw>0) WRITE (pao%iw,*) "PAO| Energy from extrapolating prev. step:",ls_scf_env%energy_init
+    ENDIF
 
     CALL timestop(handle)
   END SUBROUTINE pao_scf_init

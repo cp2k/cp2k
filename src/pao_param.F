@@ -252,11 +252,11 @@ CONTAINS
     REAL(dp)                                 :: eps, Gij_num, symm
     REAL(dp), DIMENSION(:, :), POINTER       :: dU1, dU2, dUdX, dX
 
+    IF(pao%check_gradient_tol<0.0_dp) RETURN ! no checking
+
     N = SIZE(block_M, 1);  M = SIZE(block_M, 2)
     ALLOCATE(dUdX(N,M), dU1(N,N), dU2(N,N))
     ALLOCATE(dX(SIZE(block_X,1), SIZE(block_X,2)))
-
-    IF(pao%check_gradient_tol<0.0_dp) RETURN ! no checking
 
     SELECT CASE(pao%parameterization)
       CASE(pao_exp_param)
