@@ -745,7 +745,7 @@ CONTAINS
 !
     natoms = SIZE(mass)
     ALLOCATE(mass_kg(natoms))
-    mass_kg = mass**2*e_mass
+    mass_kg(:) = mass(:)**2*e_mass
     mass_tot = SUM(mass_kg)
     inertia_kg = inertia*e_mass*(a_bohr**2)
 
