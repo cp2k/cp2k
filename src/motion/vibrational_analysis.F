@@ -51,8 +51,8 @@ MODULE vibrational_analysis
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_methods,                ONLY: write_particle_matrix
   USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: massunit,&
-                                             vibfac
+  USE physcon,                         ONLY: a_bohr,boltzmann,e_mass,h_bar,hertz,kelvin,kjmol,massunit,&
+                                             n_avogadro,pascal,vibfac,wavenumbers
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                              rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
@@ -95,11 +95,11 @@ CONTAINS
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
       nRotTrM, nvib, output_unit, prep, proc_dist_type
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
-    LOGICAL                                  :: calc_intens, &
+    LOGICAL                                  :: calc_intens, calc_thchdata, &
                                                 do_mode_tracking, failure, &
                                                 keep_rotations, row_force, &
                                                 something_frozen
-    REAL(KIND=dp)                            :: dx, norm, tmp
+    REAL(KIND=dp)                            :: dx, inertia(3), minimum_energy, norm, tc_temp, tc_press, tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, konst, &
                                                 mass, pos0, rmass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -133,6 +133,12 @@ CONTAINS
     row_force = (proc_dist_type==do_rep_blocked)
     CALL section_vals_val_get(vib_section,"FULLY_PERIODIC",l_val=keep_rotations)
     CALL section_vals_val_get(vib_section,"INTENSITIES",l_val=calc_intens)
+    CALL section_vals_val_get(vib_section,"THERMOCHEMISTRY",l_val=calc_thchdata)
+    CALL section_vals_val_get(vib_section,"TC_TEMPERATURE",r_val=tc_temp)
+    CALL section_vals_val_get(vib_section,"TC_PRESSURE",r_val=tc_press)
+    tc_temp = tc_temp*kelvin
+    tc_press = tc_press*pascal
+
     mode_tracking_section=>section_vals_get_subs_vals(vib_section,"MODE_SELECTIVE")
     CALL section_vals_get(mode_tracking_section,explicit=do_mode_tracking)
     nrep = MAX(1,para_env%num_pe/prep)
@@ -191,7 +197,7 @@ CONTAINS
              ALLOCATE(RotTrM(natoms*3,nRotTrM))
           ELSE
              CALL rot_ana(particles,RotTrM,nRotTrM,print_section,&
-                  keep_rotations,mass_weighted=.TRUE.,natoms=natoms)
+                  keep_rotations,mass_weighted=.TRUE.,natoms=natoms,inertia=inertia)
           END IF
           ! Generate the suitable rototranslating basis set
           CALL build_D_matrix(RotTrM,nRotTrM,D,full=.FALSE.,&
@@ -327,6 +333,31 @@ CONTAINS
              imap             = Mlist(i)
              particles(imap)%r(1:3)=pos0((i-1)*3+1:(i-1)*3+3)
           ENDDO
+          DO j = 1, nrep
+             DO i = 1, ncoord
+                imap = Clist(i)
+                rep_env%r(imap,j)=pos0(i)
+             END DO
+             CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.)
+          ENDDO
+          j=1
+          minimum_energy = rep_env%f(rep_env%ndim+1,j)
+          IF (output_unit>0) THEN
+              WRITE(output_unit,'(T2,A)')&
+              "VIB| "," Minimum Structure - Energy and Forces:"
+                      !
+              WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
+              "VIB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j)
+              WRITE(output_unit,'(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))')lab(1),lab(2),lab(3)
+              DO i = 1, natoms
+                 imap = Mlist(i)
+                 WRITE(output_unit,'(T2,"VIB|",T12,A,T30,3(2X,F15.9))')&
+                       particles(imap)%atomic_kind%name,&
+                       rep_env%f((imap-1)*3+1:(imap-1)*3+3,j)
+              END DO
+          END IF
+
+
           ! Dump Info
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,A)')"VIB| Hessian in cartesian coordinates"
@@ -404,8 +435,13 @@ CONTAINS
              IF (iw>0) THEN
                 CALL vib_out(iw,nvib,D,konst,rmass,H_eigval2,particles,Mlist, intensities)
              END IF
-             IF(.NOT.something_frozen) CALL molden_out(input,particles,H_eigval2,D,intensities,calc_intens,&
-                                            dump_only_positive=.FALSE.,logger=logger)
+             IF(.NOT.something_frozen) THEN
+                 IF(calc_thchdata) THEN
+                    CALL get_thch_values(H_eigval2,iw,mass,nvib,inertia,1,minimum_energy,tc_temp,tc_press)
+                 ENDIF
+                 CALL molden_out(input,particles,H_eigval2,D,intensities,calc_intens,&
+                                 dump_only_positive=.FALSE.,logger=logger)
+             END IF
           ELSE
              IF (output_unit>0) THEN
                 WRITE(output_unit,'(T2,"VIB| No further vibrational info. Detected a single atom")')
@@ -667,5 +703,149 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE build_D_matrix
 
+
+! *****************************************************************************
+!> \brief Calculate a few thermochemical  properties from vibrational analysis
+!>         It is supposed to work for molecules in the gas phase and without constraints
+!> \author MI 10:2015
+! *****************************************************************************
+
+  SUBROUTINE get_thch_values(freqs,iw,mass,nvib,inertia,spin,totene,temp,pressure)
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'get_tdvalues', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER, INTENT(IN)                      :: nvib,iw,spin
+    REAL(KIND=dp), INTENT(IN)                :: totene,inertia(3)
+    REAL(KIND=dp), DIMENSION(:)              :: freqs, mass
+    REAL(KIND=dp), INTENT(IN)                :: temp,pressure
+
+
+    INTEGER                                  :: i,natoms,sym_num
+    REAL(KIND=dp)                            :: el_entropy, fact, fact2, freqsum, mass_tot
+    REAL(KIND=dp)                            :: exp_min_one, freq_arg, freq_arg2, one_min_exp
+    REAL(KIND=dp)                            :: inertia_kg(3), rot_cv, rot_energy, rot_entropy, rot_part_func
+    REAL(KIND=dp)                            :: tran_cv, tran_energy, tran_entropy, tran_enthalpy, tran_part_func
+    REAL(KIND=dp)                            :: vib_cv, vib_energy, vib_entropy, vib_part_func, zpe
+    REAL(KIND=dp)                            :: Gibbs, entropy, heat_capacity, partition_function, rotvibtra
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass_kg
+
+
+!    temp = 273.150_dp ! in Kelvin
+!    pressure = 101325.0_dp ! in Pascal
+    freqsum = 0.0_dp
+    DO i = 1,nvib
+      freqsum = freqsum+freqs(i)
+    ENDDO
+
+!   ZPE
+    zpe = 0.5_dp*(h_bar*2._dp*pi)*freqsum*(hertz/wavenumbers)*n_avogadro
+
+    el_entropy = (n_avogadro*boltzmann)*log(REAL(spin))
+!
+    natoms = SIZE(mass)
+    ALLOCATE(mass_kg(natoms))
+    mass_kg = mass**2*e_mass
+    mass_tot = SUM(mass_kg)
+    inertia_kg = inertia*e_mass*(a_bohr**2)
+
+!   ROTATIONAL: Partition function and Entropy
+    sym_num = 1
+    fact = temp *2.0_dp*boltzmann/(h_bar*h_bar)
+    IF(inertia_kg(1)*inertia_kg(2)*inertia_kg(3)>1.0_dp) THEN
+      rot_part_func = fact*fact*fact*inertia_kg(1)*inertia_kg(2)*inertia_kg(3)*pi
+      rot_part_func = sqrt(rot_part_func)
+      rot_entropy = n_avogadro*boltzmann*(log(rot_part_func)+1.5_dp)
+      rot_energy =  1.5_dp*n_avogadro*boltzmann*temp
+      rot_cv = 1.5_dp*n_avogadro*boltzmann
+    ELSE
+     !linear molecule
+      IF (inertia_kg(1)>1.0_dp) THEN
+        rot_part_func = fact*inertia_kg(1)
+      ELSE IF (inertia_kg(2)>1.0_dp) THEN
+        rot_part_func = fact*inertia_kg(2)
+      ELSE
+        rot_part_func = fact*inertia_kg(3)
+      END IF
+      rot_entropy = n_avogadro*boltzmann*(log(rot_part_func)+1.0_dp)
+      rot_energy = n_avogadro*boltzmann*temp
+      rot_cv = n_avogadro*boltzmann
+    END IF
+
+!   TRANSLATIONAL: Partition function and Entropy
+    tran_part_func = (boltzmann*temp)**2.5_dp/(pressure*(h_bar*2.0_dp*pi)**3.0_dp)*(2.0_dp*pi*mass_tot)**1.5_dp
+    tran_entropy = n_avogadro*boltzmann*(log(tran_part_func)+2.5_dp)
+    tran_energy = 1.5_dp*n_avogadro*boltzmann*temp
+    tran_enthalpy = 2.5_dp*n_avogadro*boltzmann*temp
+    tran_cv = 2.5_dp*n_avogadro*boltzmann
+
+!   VIBRATIONAL:  Partition fuction and Entropy
+    vib_part_func = 1.0_dp
+    vib_energy = 0.0_dp
+    vib_entropy = 0.0_dp
+    vib_cv = 0.0_dp
+    fact = 2.0_dp*pi*h_bar/boltzmann/temp*hertz/wavenumbers
+    fact2 =  2.0_dp*pi*h_bar*hertz/wavenumbers
+    DO i = 1,nvib
+      freq_arg = fact*freqs(i)
+      freq_arg2 = fact2*freqs(i)
+      exp_min_one = exp(freq_arg)-1.0_dp
+      one_min_exp = 1.0_dp - exp(-freq_arg)
+!dbg
+!  write(*,*) 'freq ', i, freqs(i), exp_min_one , one_min_exp
+!      vib_part_func = vib_part_func*(1.0_dp/(1.0_dp - exp(-fact*freqs(i))))
+      vib_part_func = vib_part_func*(1.0_dp/one_min_exp)
+!      vib_energy = vib_energy + fact2*freqs(i)*0.5_dp+fact2*freqs(i)/(exp(fact*freqs(i))-1.0_dp)
+      vib_energy = vib_energy + freq_arg2*0.5_dp+freq_arg2/exp_min_one
+!      vib_entropy = vib_entropy +fact*freqs(i)/(exp(fact*freqs(i))-1.0_dp)-log(1.0_dp - exp(-fact*freqs(i)))
+      vib_entropy = vib_entropy +freq_arg/exp_min_one-log(one_min_exp)
+!      vib_cv = vib_cv + fact*fact*freqs(i)*freqs(i)*exp(fact*freqs(i))/(exp(fact*freqs(i))-1.0_dp)/(exp(fact*freqs(i))-1.0_dp)
+      vib_cv = vib_cv +freq_arg*freq_arg*exp(freq_arg)/exp_min_one/exp_min_one
+    ENDDO
+    vib_energy = vib_energy * n_avogadro ! it contains already ZPE
+    vib_entropy = vib_entropy*(n_avogadro*boltzmann)
+    vib_cv = vib_cv*(n_avogadro*boltzmann)
+
+!   SUMMARY
+!dbg
+!    write(*,*) 'part ', rot_part_func,tran_part_func,vib_part_func
+    partition_function =    rot_part_func* tran_part_func*vib_part_func
+!dbg
+!    write(*,*) 'entropy ', el_entropy,rot_entropy,tran_entropy,vib_entropy
+
+    entropy = el_entropy+rot_entropy+tran_entropy+vib_entropy
+!dbg
+!    write(*,*) 'energy ', rot_energy , tran_enthalpy , vib_energy, totene*kjmol*1000.0_dp 
+
+    rotvibtra =  rot_energy + tran_enthalpy + vib_energy
+!dbg
+!    write(*,*) 'cv ', rot_cv, tran_cv, vib_cv
+    heat_capacity = vib_cv+tran_cv+rot_cv
+
+!   Free energy in J/mol: internal energy + PV - TS
+    Gibbs = vib_energy + rot_energy + tran_enthalpy - temp*entropy
+
+
+    DEALLOCATE(mass_kg)
+
+    WRITE(UNIT=iw,FMT="(/,T2,'VIB|',T30,'NORMAL MODES - THERMOCHEMICAL DATA')")
+    WRITE(UNIT=iw,FMT="(T2,'VIB|')")
+
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Symmetry number:',T70,I16)")   sym_num
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Temperature [K]:',T70,F16.2)")   temp
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Pressure [Pa]:',T70,F16.2)")   pressure
+
+    WRITE(UNIT=iw,FMT="(/)")
+
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Electronic energy (U) [kJ/mol]:',T60,F26.8)") totene*kjmol
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Zero-point correction [kJ/mol]:',T60,F26.8)") zpe/1000.0_dp
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Entropy [kJ/(mol K)]:',T60,F26.8)") entropy/1000.0_dp
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Enthalpy correction (H-U) [kJ/mol]:',T60,F26.8)") rotvibtra/1000.0_dp
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Gibbs energy correction [kJ/mol]:',T60,F26.8)") Gibbs/1000.0_dp
+    WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Heat capacity [kJ/(mol*K)]:',T70,F16.8)")  heat_capacity/1000.0_dp
+    WRITE(UNIT=iw,FMT="(/)")
+
+  END SUBROUTINE get_thch_values
 END MODULE vibrational_analysis
+ 
 

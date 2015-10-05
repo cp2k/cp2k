@@ -17,6 +17,7 @@ MODULE input_cp2k_vib
                                              low_print_level,&
                                              medium_print_level,&
                                              silent_print_level
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: do_rep_blocked,&
                                              do_rep_interleaved,&
                                              ms_guess_atomic,&
@@ -106,6 +107,26 @@ CONTAINS
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="THERMOCHEMISTRY",&
+         description="Calculation of the thermochemical data. Valid for molecules in the gas phase. ",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="TC_TEMPERATURE",&
+         description="Temperature for the calculation of the thermochemical data ",&
+         usage="tc_temperature 325.0",default_r_val=cp_unit_to_cp2k(value=273.150_dp,unit_str="K"),&
+         unit_str="K")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="TC_PRESSURE",&
+         description="Pressure for the calculation of the thermochemical data  ",&
+         default_r_val=cp_unit_to_cp2k(value=101325.0_dp,unit_str="Pa"), unit_str="Pa")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
 
     CALL create_mode_selective_section(subsection)
     CALL section_add_subsection(section, subsection)

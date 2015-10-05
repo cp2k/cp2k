@@ -74,7 +74,7 @@ CONTAINS
 !> \author Teodoro Laino 08.2006
 ! *****************************************************************************
   SUBROUTINE rot_ana(particles, mat, dof, print_section, keep_rotations, mass_weighted,&
-                     natoms, rot_dof)
+                     natoms, rot_dof, inertia)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -84,6 +84,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: keep_rotations, mass_weighted
     INTEGER, INTENT(IN)                      :: natoms
     INTEGER, INTENT(OUT), OPTIONAL           :: rot_dof
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: inertia(3)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
       routineP = moduleN//':'//routineN
@@ -133,6 +134,7 @@ CONTAINS
        END DO
        ! Diagonalize the Inertia Tensor
        CALL diamat_all(Ip,Ip_eigval)
+       IF (PRESENT(inertia)) inertia = Ip_eigval
        iw=cp_print_key_unit_nr(logger,print_section,"ROTATIONAL_INFO",extension=".vibLog")
        IF (iw>0) THEN
           WRITE(iw,'(T2,A,3F12.6)')"ROT| Rotational Analysis Info "
