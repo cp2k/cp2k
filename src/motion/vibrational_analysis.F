@@ -728,7 +728,7 @@ CONTAINS
     REAL(KIND=dp)                            :: tran_cv, tran_energy, tran_entropy, tran_enthalpy, tran_part_func
     REAL(KIND=dp)                            :: vib_cv, vib_energy, vib_entropy, vib_part_func, zpe
     REAL(KIND=dp)                            :: Gibbs, entropy, heat_capacity, partition_function, rotvibtra
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass_kg
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass_kg
 
 
 !    temp = 273.150_dp ! in Kelvin
