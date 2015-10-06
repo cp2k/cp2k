@@ -5,6 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 #normal mode analysis
 H2-vib.inp                                             8      9e-06             3855.5249239999998
+H2-vib_tc.inp                                         62      9e-06             -5.75148845
 # test thermostats
 H2O-2.inp                                              1      3e-14            -17.146196449545901
 H2O-3.inp                                              1      4e-14             -17.14553123459409
