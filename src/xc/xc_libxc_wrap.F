@@ -39,12 +39,8 @@ MODULE xc_libxc_wrap
                                              XC_GGA_K_THAKKAR,&
                                              XC_GGA_X_B88,&
                                              XC_GGA_X_HJS_B88,&
-                                             XC_GGA_X_HJS_B88,&
-                                             XC_GGA_X_HJS_B97X,&
                                              XC_GGA_X_HJS_B97X,&
                                              XC_GGA_X_HJS_PBE,&
-                                             XC_GGA_X_HJS_PBE,&
-                                             XC_GGA_X_HJS_PBE_SOL,&
                                              XC_GGA_X_HJS_PBE_SOL,&
                                              XC_GGA_X_LB,&
                                              XC_GGA_X_MB88,&
@@ -52,12 +48,8 @@ MODULE xc_libxc_wrap
                                              XC_GGA_X_OPTB88_VDW,&
                                              XC_GGA_X_WPBEH,&
                                              XC_HYB_GGA_XC_HJS_B88,&
-                                             XC_HYB_GGA_XC_HJS_B88,&
-                                             XC_HYB_GGA_XC_HJS_B97X,&
                                              XC_HYB_GGA_XC_HJS_B97X,&
                                              XC_HYB_GGA_XC_HJS_PBE,&
-                                             XC_HYB_GGA_XC_HJS_PBE,&
-                                             XC_HYB_GGA_XC_HJS_PBE_SOL,&
                                              XC_HYB_GGA_XC_HJS_PBE_SOL,&
                                              XC_HYB_GGA_XC_HSE03,&
                                              XC_HYB_GGA_XC_HSE06,&
