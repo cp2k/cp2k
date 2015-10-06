@@ -69,32 +69,27 @@
                     SELECT CASE(lb_max_local)
                              CASE(0) 
                                CALL xyz_to_vab_0_0(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
-                                                  lb_min_local, maxl, lvab, hvab)
+                                                  vab, & 
+                                                  lvab, hvab)
   
                              CASE(1) 
                                CALL xyz_to_vab_0_1(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
+                                                  rp, ra, rab, vab, coset, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(2) 
                                CALL xyz_to_vab_0_2(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
+                                                  rp, ra, rab, vab, coset, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(3) 
                                CALL xyz_to_vab_0_3(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
+                                                  rp, ra, rab, vab, coset, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(4) 
                                CALL xyz_to_vab_0_4(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
+                                                  rp, ra, rab, vab, coset, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE DEFAULT
@@ -107,31 +102,26 @@
                     SELECT CASE(lb_max_local)
                              CASE(0) 
                                CALL xyz_to_vab_1_0(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
-                                                  lb_min_local, maxl, lvab, hvab)
+                                                  rp, ra, vab, coset, la_min_local, & 
+                                                  maxl, lvab, hvab)
   
                              CASE(1) 
                                CALL xyz_to_vab_1_1(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(2) 
                                CALL xyz_to_vab_1_2(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(3) 
                                CALL xyz_to_vab_1_3(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(4) 
                                CALL xyz_to_vab_1_4(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
@@ -145,31 +135,26 @@
                     SELECT CASE(lb_max_local)
                              CASE(0) 
                                CALL xyz_to_vab_2_0(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
-                                                  lb_min_local, maxl, lvab, hvab)
+                                                  rp, ra, vab, coset, la_min_local, & 
+                                                  maxl, lvab, hvab)
   
                              CASE(1) 
                                CALL xyz_to_vab_2_1(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(2) 
                                CALL xyz_to_vab_2_2(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(3) 
                                CALL xyz_to_vab_2_3(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(4) 
                                CALL xyz_to_vab_2_4(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
@@ -183,31 +168,26 @@
                     SELECT CASE(lb_max_local)
                              CASE(0) 
                                CALL xyz_to_vab_3_0(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
-                                                  lb_min_local, maxl, lvab, hvab)
+                                                  rp, ra, vab, coset, la_min_local, & 
+                                                  maxl, lvab, hvab)
   
                              CASE(1) 
                                CALL xyz_to_vab_3_1(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(2) 
                                CALL xyz_to_vab_3_2(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(3) 
                                CALL xyz_to_vab_3_3(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(4) 
                                CALL xyz_to_vab_3_4(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
@@ -221,31 +201,26 @@
                     SELECT CASE(lb_max_local)
                              CASE(0) 
                                CALL xyz_to_vab_4_0(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
-                                                  rp, ra, rab, vab, coset, la_min_local, & 
-                                                  lb_min_local, maxl, lvab, hvab)
+                                                  rp, ra, vab, coset, la_min_local, & 
+                                                  maxl, lvab, hvab)
   
                              CASE(1) 
                                CALL xyz_to_vab_4_1(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(2) 
                                CALL xyz_to_vab_4_2(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(3) 
                                CALL xyz_to_vab_4_3(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
                              CASE(4) 
                                CALL xyz_to_vab_4_4(prefactor, coef_xyz, lp, &
-                                                  la_max_local, lb_max_local, &
                                                   rp, ra, rab, vab, coset, la_min_local, & 
                                                   lb_min_local, maxl, lvab, hvab)
   
@@ -273,39 +248,25 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
-!> \param rp ...
-!> \param ra ...
-!> \param rab ...
 !> \param vab ...
-!> \param coset ...
-!> \param la_min_local ...
-!> \param lb_min_local ...
-!> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_0_0 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, vab, &
+                           lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
                               lvab,hvab
-
-       INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
-                        INTENT(IN)     :: coset
 
        REAL(kind=dp),  DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
                         INTENT(INOUT) :: coef_xyz
        REAL(kind=dp),  DIMENSION(lvab,hvab), INTENT(INOUT) :: vab
-       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
    
        ! LOCAL
        INTEGER :: ico,jco
@@ -327,30 +288,27 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
 !> \param vab ...
 !> \param coset ...
-!> \param la_min_local ...
 !> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_0_1 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, rab, vab, coset, &
+                           lb_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              lb_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -556,30 +514,27 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
 !> \param vab ...
 !> \param coset ...
-!> \param la_min_local ...
 !> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_0_2 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, rab, vab, coset, &
+                           lb_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              lb_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -819,30 +774,27 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
 !> \param vab ...
 !> \param coset ...
-!> \param la_min_local ...
 !> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_0_3 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, rab, vab, coset, &
+                           lb_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              lb_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -1191,30 +1143,27 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
 !> \param vab ...
 !> \param coset ...
-!> \param la_min_local ...
 !> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_0_4 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, rab, vab, coset, &
+                           lb_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              lb_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -1696,30 +1645,26 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
-!> \param rab ...
 !> \param vab ...
 !> \param coset ...
 !> \param la_min_local ...
-!> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_1_0 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, vab, coset, &
+                           la_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              la_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -1728,7 +1673,7 @@
        REAL(kind=dp),  DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
                         INTENT(INOUT) :: coef_xyz
        REAL(kind=dp),  DIMENSION(lvab,hvab), INTENT(INOUT) :: vab
-       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
+       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra
    
        ! LOCAL
        INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp
@@ -1929,8 +1874,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -1943,7 +1886,7 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_1_1 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
+                           lp, rp, ra, rab, vab, coset, &
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
@@ -1951,7 +1894,7 @@
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
+       INTEGER, INTENT(IN) :: lp, &
                               lb_min_local, la_min_local, maxl, &
                               lvab,hvab
 
@@ -2295,8 +2238,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -2309,7 +2250,7 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_1_2 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
+                           lp, rp, ra, rab, vab, coset, &
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
@@ -2317,7 +2258,7 @@
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
+       INTEGER, INTENT(IN) :: lp, &
                               lb_min_local, la_min_local, maxl, &
                               lvab,hvab
 
@@ -2912,8 +2853,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -2926,7 +2865,7 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_1_3 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
+                           lp, rp, ra, rab, vab, coset, &
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
@@ -2934,7 +2873,7 @@
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
+       INTEGER, INTENT(IN) :: lp, &
                               lb_min_local, la_min_local, maxl, &
                               lvab,hvab
 
@@ -3853,8 +3792,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -3867,13 +3804,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_1_4 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -4009,30 +3946,26 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
-!> \param rab ...
 !> \param vab ...
 !> \param coset ...
 !> \param la_min_local ...
-!> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_2_0 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, vab, coset, &
+                           la_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              la_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -4041,7 +3974,7 @@
        REAL(kind=dp),  DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
                         INTENT(INOUT) :: coef_xyz
        REAL(kind=dp),  DIMENSION(lvab,hvab), INTENT(INOUT) :: vab
-       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
+       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra
    
        ! LOCAL
        INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
@@ -4299,8 +4232,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -4313,7 +4244,7 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_2_1 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
+                           lp, rp, ra, rab, vab, coset, &
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
@@ -4321,7 +4252,7 @@
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
+       INTEGER, INTENT(IN) :: lp, &
                               lb_min_local, la_min_local, maxl, &
                               lvab,hvab
 
@@ -4949,8 +4880,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -4963,7 +4892,7 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_2_2 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
+                           lp, rp, ra, rab, vab, coset, &
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
@@ -4971,7 +4900,7 @@
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
+       INTEGER, INTENT(IN) :: lp, &
                               lb_min_local, la_min_local, maxl, &
                               lvab,hvab
 
@@ -6103,8 +6032,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -6117,13 +6044,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_2_3 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -6259,8 +6186,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -6273,13 +6198,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_2_4 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp,& 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -6415,30 +6340,26 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
-!> \param rab ...
 !> \param vab ...
 !> \param coset ...
 !> \param la_min_local ...
-!> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_3_0 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, vab, coset, &
+                           la_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              la_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -6447,7 +6368,7 @@
        REAL(kind=dp),  DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
                         INTENT(INOUT) :: coef_xyz
        REAL(kind=dp),  DIMENSION(lvab,hvab), INTENT(INOUT) :: vab
-       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
+       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra
    
        ! LOCAL
        INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
@@ -6841,8 +6762,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -6855,7 +6774,7 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_3_1 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
+                           lp, rp, ra, rab, vab, coset, &
                            la_min_local, lb_min_local, maxl, lvab, hvab)
        
 
@@ -6863,7 +6782,7 @@
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
+       INTEGER, INTENT(IN) :: lp, &
                               lb_min_local, la_min_local, maxl, &
                               lvab,hvab
 
@@ -7862,8 +7781,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -7876,13 +7793,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_3_2 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -8018,8 +7935,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -8032,13 +7947,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_3_3 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -8174,8 +8089,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -8188,13 +8101,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_3_4 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -8330,30 +8243,26 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
-!> \param rab ...
 !> \param vab ...
 !> \param coset ...
 !> \param la_min_local ...
-!> \param lb_min_local ...
 !> \param maxl ...
 !> \param lvab ...
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_4_0 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset, &
-                           la_min_local, lb_min_local, maxl, lvab, hvab)
+                           lp, rp, ra, vab, coset, &
+                           la_min_local, maxl, lvab, hvab)
        
 
        USE kinds,                        ONLY: dp
 
        ! PARAMETERS
        REAL(KIND=dp), INTENT(IN) :: prefactor
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, &
-                              lb_min_local, la_min_local, maxl, &
+       INTEGER, INTENT(IN) :: lp, &
+                              la_min_local, maxl, &
                               lvab,hvab
 
        INTEGER,  DIMENSION(-1:maxl,-1:maxl,-1:maxl), &
@@ -8362,7 +8271,7 @@
        REAL(kind=dp),  DIMENSION(((lp+1)*(lp+2)*(lp+3))/6), &
                         INTENT(INOUT) :: coef_xyz
        REAL(kind=dp),  DIMENSION(lvab,hvab), INTENT(INOUT) :: vab
-       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra, rab
+       REAL(kind=dp), DIMENSION(3), INTENT(IN) :: rp, ra
    
        ! LOCAL
        INTEGER :: ico,jco,lxa,lxb,lxp,lxyz,lyp,lzp
@@ -8929,8 +8838,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -8943,13 +8850,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_4_1 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -9085,8 +8992,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -9099,13 +9004,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_4_2 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -9241,8 +9146,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -9255,13 +9158,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_4_3 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
@@ -9397,8 +9300,6 @@
 !> \param prefactor ...
 !> \param coef_xyz ...
 !> \param lp ...
-!> \param la_max_local ...
-!> \param lb_max_local ...
 !> \param rp ...
 !> \param ra ...
 !> \param rab ...
@@ -9411,13 +9312,13 @@
 !> \param hvab ...
 ! *****************************************************************************
     SUBROUTINE xyz_to_vab_4_4 (prefactor, coef_xyz, & 
-                           lp, la_max_local, lb_max_local, rp, ra, rab, vab, coset,&
+                           lp, rp, ra, rab, vab, coset,&
                            la_min_local, lb_min_local, maxl, lvab, hvab)
  
 
       USE kinds,                        ONLY: dp
        ! PARAMETERS
-       INTEGER, INTENT(IN) :: lp, la_max_local, lb_max_local, & 
+       INTEGER, INTENT(IN) :: lp, & 
                                maxl, lb_min_local, la_min_local, &
                                lvab,hvab
 
