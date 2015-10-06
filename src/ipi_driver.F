@@ -33,9 +33,13 @@ MODULE ipi_driver
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             dp
+                                             dp,&
+                                             int_4
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sync
+                                             mp_irecv,&
+                                             mp_send,&
+                                             mp_sync,&
+                                             mp_testany
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
@@ -63,6 +67,15 @@ MODULE ipi_driver
                        
   END INTERFACE 
 
+  
+  INTERFACE
+      SUBROUTINE uwait(sec) BIND(C,NAME="uwait")
+         USE ISO_C_BINDING, ONLY: C_DOUBLE
+    REAL(C_DOUBLE)                           :: sec
+
+      END SUBROUTINE
+  END INTERFACE
+  
   INTERFACE
     SUBROUTINE open_socket(psockfd, inet, port, host) BIND(C)
       IMPORT
@@ -90,7 +103,7 @@ MODULE ipi_driver
   END INTERFACE
 
   CONTAINS
-
+  
 ! *****************************************************************************
 !> \brief ...
 !> \param psockfd ...
@@ -304,10 +317,12 @@ MODULE ipi_driver
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
     CHARACTER(LEN=default_string_length)     :: header
     INTEGER                                  :: drv_port, handle, i_drv_unix, &
-                                                idir, ii, inet, ip, nat, &
-                                                output_unit, socket
-    LOGICAL                                  :: drv_unix, hasdata, ionode, &
-                                                should_stop
+                                                idir, ii, inet, ip, iwait, &
+                                                nat, output_unit, socket, &
+                                                wait_req(2)
+    INTEGER(KIND=int_4), POINTER             :: wait_msg(:)
+    LOGICAL                                  :: drv_unix, fwait, hasdata, &
+                                                ionode, should_stop
     REAL(KIND=dp)                            :: cellh(3,3), cellih(3,3), &
                                                 mxmat(9), pot, vir(3,3)
     REAL(KIND=dp), ALLOCATABLE               :: combuf(:)
@@ -357,8 +372,10 @@ MODULE ipi_driver
     c_hostname=TRIM(drv_hostname)//C_NULL_CHAR
     IF (ionode) CALL open_socket(socket,i_drv_unix, drv_port, c_hostname) 
     
+    NULLIFY(wait_msg)
+    ALLOCATE(wait_msg(1))
     !now we have a socket, so we can initialize the CP2K environments. 
-    NULLIFY(cpcell)
+    NULLIFY(cpcell)    
     CALL cell_create(cpcell)
     driver_loop: DO
       ! do communication on master node only...
@@ -366,8 +383,26 @@ MODULE ipi_driver
 
       CALL mp_sync(para_env%group)
 
-      IF (ionode) CALL readbuffer(socket, header, MSGLEN)
-      
+      ! non-blocking sync to avoid useless CPU consumption
+      IF (ionode) THEN
+         CALL readbuffer(socket, header, MSGLEN)
+         wait_msg=0
+         DO iwait=0,para_env%num_pe-1         
+           IF (iwait /= para_env%source) THEN   
+              CALL mp_send(msg=wait_msg,dest=iwait,gid=para_env%group,tag=666) 
+           ENDIF 
+         ENDDO
+      ELSE
+         CALL mp_irecv(msgout=wait_msg,source=para_env%source,comm=para_env%group,&
+                       tag=666, request=wait_req(2))         
+         CALL mp_testany(wait_req(2:), flag=fwait)
+         DO WHILE(.NOT. fwait)
+           CALL mp_testany(wait_req(2:), flag=fwait)           
+           CALL uwait(0.01d0)
+         ENDDO
+      ENDIF
+
+       
       CALL mp_sync(para_env%group)
 
       CALL mp_bcast(header,para_env%source, para_env%group)
