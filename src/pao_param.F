@@ -249,7 +249,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, M, N
-    REAL(dp)                                 :: eps, Gij_num, symm
+    REAL(dp)                                 :: delta, eps, Gij_num, symm
     REAL(dp), DIMENSION(:, :), POINTER       :: dU1, dU2, dUdX, dX
 
     IF(pao%check_gradient_tol<0.0_dp) RETURN ! no checking
@@ -281,11 +281,13 @@ CONTAINS
 
           dUdX = (dU1 - dU2) / (2.0_dp*eps)
           Gij_num = SUM( block_M * dUdX )
-          IF(ABS(Gij_num - block_G(i,j)) > pao%check_gradient_tol) THEN
+          delta=ABS(Gij_num - block_G(i,j))
+          IF(delta > pao%check_gradient_tol) THEN
              IF(pao%check_gradient_abort) THEN
-                CPABORT("Analyic and numeric gradients differ too much.")
+                CALL cp_abort(__LOCATION__,&
+                       "Analyic and numeric gradients differ too much:"//cp_to_string(delta))
              ELSE
-                CPWARN("PAO| Found missmatch of gradients")
+                CPWARN("PAO| Found mismatch of gradients.")
              ENDIF
           ENDIF
        ENDDO
