@@ -292,8 +292,8 @@ prettyclean:
 TOOL_HELP += "prettyclean : Remove prettify marker files and preprettify directories"
 
 $(PRETTYOBJDIR)/%.pretty: %.F $(DOXIFYOBJDIR)/%.doxified
-	cd $(dir $<); $(TOOLSRC)/prettify.py $(notdir $<)
 	@mkdir -p $(PRETTYOBJDIR)
+	cd $(dir $<); $(TOOLSRC)/prettify.py --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
 	@touch $@
 
 $(PRETTYOBJDIR)/%.pretty: %.c $(DOXIFYOBJDIR)/%.doxified
