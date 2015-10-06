@@ -44,6 +44,7 @@ Functions:
 #include <netinet/in.h>
 #include <sys/un.h>
 #include <netdb.h>
+#include <math.h>
 
 void open_socket(int *psockfd, int* inet, int* port, char* host)
 /* Opens a socket.
