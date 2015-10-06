@@ -840,6 +840,7 @@ CONTAINS
 
     DEALLOCATE(mass_kg)
 
+    IF(iw>0) THEN
     WRITE(UNIT=iw,FMT="(/,T2,'VIB|',T30,'NORMAL MODES - THERMOCHEMICAL DATA')")
     WRITE(UNIT=iw,FMT="(T2,'VIB|')")
 
@@ -856,6 +857,7 @@ CONTAINS
     WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Gibbs energy correction [kJ/mol]:',T60,F26.8)") Gibbs/1000.0_dp
     WRITE(UNIT=iw,FMT="(T2,'VIB|', T20, 'Heat capacity [kJ/(mol*K)]:',T70,F16.8)")  heat_capacity/1000.0_dp
     WRITE(UNIT=iw,FMT="(/)")
+    ENDIF
 
   END SUBROUTINE get_thch_values
 END MODULE vibrational_analysis
