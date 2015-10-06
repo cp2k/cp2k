@@ -244,9 +244,7 @@ CONTAINS
     ENDDO
     energy%efermi = energy%efermi /REAL(SIZE(mos),KIND=dp)
 
-
   END SUBROUTINE qs_scf_new_mos
-
 
 ! *****************************************************************************
 !> \brief Updates MOs and density matrix using diagonalization
@@ -265,16 +263,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos_kp', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ispin
     LOGICAL                                  :: has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks, matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kpoint_type), POINTER               :: kpoints
+    TYPE(mo_set_p_type), DIMENSION(:, :), &
+      POINTER                                :: mos
+    TYPE(qs_energy_type), POINTER            :: energy
 
     NULLIFY(dft_control, kpoints, matrix_ks, matrix_s)
 
-    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
-                    kpoints=kpoints)
+    CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,kpoints=kpoints)
     scf_env%iter_param = 0.0_dp
 
     IF(dft_control%roks)&
@@ -294,8 +295,6 @@ CONTAINS
           CALL get_qs_env(qs_env=qs_env,has_unit_metric=has_unit_metric)
           CPASSERT(has_unit_metric)
           ! Diagonlization in orthonormal case
-!         CALL do_special_diag(scf_env,mos,matrix_ks,&
-!                              scf_control,scf_section,diis_step)
           CALL cp_abort(__LOCATION__,&
                "KP code: Scf method not available: "//&
                cp_to_string(scf_env%method))
@@ -308,8 +307,17 @@ CONTAINS
                cp_to_string(scf_env%method))
     END SELECT
 
-  END SUBROUTINE qs_scf_new_mos_kp
+    CALL get_qs_env(qs_env=qs_env,energy=energy)
+    energy%kTS = 0.0_dp
+    energy%efermi = 0.0_dp
+    mos => kpoints%kp_env(1)%kpoint_env%mos
+    DO ispin=1,SIZE(mos,2)
+       energy%kTS = energy%kTS + mos(1,ispin)%mo_set%kTS
+       energy%efermi = energy%efermi + mos(1,ispin)%mo_set%mu
+    ENDDO
+    energy%efermi = energy%efermi/REAL(SIZE(mos,2),KIND=dp)
 
+  END SUBROUTINE qs_scf_new_mos_kp
 
 ! *****************************************************************************
 !> \brief the inner loop of scf, specific to using to the orbital transformation method

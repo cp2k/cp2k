@@ -291,15 +291,14 @@ CONTAINS
     nspin = SIZE(matrix_ks)
 
     CALL general_eigenproblem(scf_env,mos,matrix_ks,&
-               matrix_s,scf_control,scf_section, diis_step)
+                              matrix_s,scf_control,scf_section, diis_step)
 
     CALL set_mo_occupation(mo_array=mos,&
-                             smear=scf_control%smear)
+                           smear=scf_control%smear)
 
     DO ispin=1,nspin
-      ! does not yet handle k-points
-      CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                                    scf_env%p_mix_new(ispin,1)%matrix)
+       CALL calculate_density_matrix(mos(ispin)%mo_set,&
+                                     scf_env%p_mix_new(ispin,1)%matrix)
     END DO
 
   END SUBROUTINE do_general_diag
@@ -319,7 +318,6 @@ CONTAINS
 !> \par History
 !>      08.2014 created [JGH]
 ! *****************************************************************************
-
   SUBROUTINE do_general_diag_kp(scf_env,matrix_ks,matrix_s,kpoints,&
                                 scf_control,diis_step)
 
@@ -438,7 +436,8 @@ CONTAINS
                      xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
                 CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix)
-                CALL rskp_transform(rmatrix=rmatrix,rsmat=matrix_s,ispin=ispin,&
+                ! s matrix is not spin dependent
+                CALL rskp_transform(rmatrix=rmatrix,rsmat=matrix_s,ispin=1,&
                      xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
                 CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix)
@@ -450,7 +449,8 @@ CONTAINS
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(1)%matrix)
                 CALL cp_dbcsr_desymmetrize(cmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(2)%matrix)
-                CALL rskp_transform(rmatrix=rmatrix,cmatrix=cmatrix,rsmat=matrix_s,ispin=ispin,&
+                ! s matrix is not spin dependent, double the work
+                CALL rskp_transform(rmatrix=rmatrix,cmatrix=cmatrix,rsmat=matrix_s,ispin=1,&
                      xkp=xkp(1:3,ik),cell_to_index=cell_to_index,sab_nl=sab_nl)
                 CALL cp_dbcsr_desymmetrize(rmatrix,tmpmat)
                 CALL copy_dbcsr_to_fm(tmpmat,fmwork(3)%matrix)

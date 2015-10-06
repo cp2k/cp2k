@@ -33,6 +33,7 @@ DFTB/regtest-scc
 QMMM/SE/regtest-force-mixing
 QS/regtest-gpw-8
 QS/regtest-kp-1
+QS/regtest-kp-2
 QS/regtest-xc
 QMMM/QS/regtest-1
 QS/regtest-ps-implicit-1-2

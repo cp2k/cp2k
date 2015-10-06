@@ -47,13 +47,7 @@ MODULE qs_mo_io
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE kpoint_types,                    ONLY: kpoint_type
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_irecv,&
-                                             mp_isend,&
-                                             mp_sum,&
-                                             mp_sync,&
-                                             mp_wait
+  USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: indco,&
                                              nco,&
                                              nso
@@ -68,9 +62,7 @@ MODULE qs_mo_io
                                              get_qs_kind_set,&
                                              qs_kind_type
   USE qs_mo_occupation,                ONLY: set_mo_occupation
-  USE qs_mo_types,                     ONLY: deallocate_mo_set,&
-                                             duplicate_mo_set,&
-                                             mo_set_p_type,&
+  USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
@@ -104,19 +96,17 @@ CONTAINS
 !> \param mo_array ...
 !> \param particle_set ...
 !> \param dft_section ...
-!> \param kpoints ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 ! *****************************************************************************
   SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,&
-                                     kpoints,atomic_kind_set,qs_kind_set)
+                                     atomic_kind_set,qs_kind_set)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -128,7 +118,6 @@ CONTAINS
       keys = (/"SCF%PRINT%RESTART_HISTORY","SCF%PRINT%RESTART        "/)
 
     INTEGER                                  :: handle, ikey, ires, ispin
-    LOGICAL                                  :: write_kp
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -139,18 +128,12 @@ CONTAINS
          BTEST(cp_print_key_should_output(logger%iter_info,&
          dft_section,keys(2)),cp_p_file) ) THEN
 
-       IF(PRESENT(kpoints)) THEN
-          write_kp = (kpoints%nkp > 0)
-       ELSE
-          write_kp = .FALSE.
-       END IF
-
        IF(mo_array(1)%mo_set%use_mo_coeff_b) THEN
           ! we are using the dbcsr mo_coeff
           ! we copy it to the fm for anycase
           DO ispin=1,SIZE(mo_array)
              IF(.not.ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) THEN
-                CPABORT("")
+                CPASSERT(.FALSE.)
              ENDIF
              CALL copy_dbcsr_to_fm(mo_array(ispin)%mo_set%mo_coeff_b,&
                   mo_array(ispin)%mo_set%mo_coeff)!fm->dbcsr
@@ -169,8 +152,6 @@ CONTAINS
              CALL write_mo_set_low(mo_array, particle_set=particle_set, &
                                    qs_kind_set=qs_kind_set,ires=ires)
 
-             IF(write_kp) CALL write_mos_kp(kpoints, ires=ires)
-
              CALL cp_print_key_finished_output(ires,logger,dft_section,TRIM(keys(ikey)))
           END IF
        END DO
@@ -179,124 +160,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_to_restart
-
-! *****************************************************************************
-!> \brief ...
-!> \param kpoints ...
-!> \param ires ...
-! *****************************************************************************
-  SUBROUTINE write_mos_kp(kpoints,ires)
-
-    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
-    INTEGER, INTENT(IN)                      :: ires
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mos_kp', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ic, ik, ikk, iogroup, &
-                                                is, mosource, nc, ns, &
-                                                request, tag
-    LOGICAL                                  :: is_source, moalloc
-    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_inter_kp
-    TYPE(mo_set_p_type), DIMENSION(:, :), &
-      POINTER                                :: mos
-    TYPE(mo_set_type), POINTER               :: mo_set, mop
-
-    CALL timeset(routineN,handle)
-
-    ! first we dump the kpoint info
-    IF (ires > 0) THEN
-       WRITE (ires) "KPOINT INFO"
-       WRITE (ires) kpoints%nkp
-       DO ik=1,kpoints%nkp
-          WRITE (ires) kpoints%wkp(ik),kpoints%xkp(1:3,ik)
-       END DO
-    END IF
-
-    ! para groups
-    para_env => kpoints%para_env
-    para_env_inter_kp => kpoints%para_env_inter_kp
-    iogroup = 0
-    IF(kpoints%iogrp) THEN
-       iogroup = para_env_inter_kp%mepos
-    END IF
-    CALL mp_sum(iogroup,para_env_inter_kp%group)
-
-    moalloc = .FALSE.
-    ! as each proc owns at least one kpoint and all kpoint mo structures 
-    ! are the same, we can get the array dimensions this way
-    mos => kpoints%kp_env(1)%kpoint_env%mos
-    ns = SIZE(mos,2)
-    nc = SIZE(mos,1)
-    ! now come the mos at each kpoint
-    DO ik=1,kpoints%nkp
-       IF (ires > 0) WRITE (ires) ik,kpoints%wkp(ik),kpoints%xkp(1:3,ik)
-       is_source = .FALSE.
-       IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
-          ! this is our kpoint
-          ikk = ik - kpoints%kp_range(1) + 1
-          is_source = .TRUE.
-          mos => kpoints%kp_env(ikk)%kpoint_env%mos
-       END IF
-       IF(is_source .AND. kpoints%iogrp) THEN
-          ! this is a 'local' MO, print right away
-          DO is=1,SIZE(mos,2)
-             DO ic=1,SIZE(mos,1)
-                IF (ires > 0) WRITE (ires) ic,is
-                mo_set => mos(ic,is)%mo_set
-                CALL write_mo_set_basic(mo_set, ires)
-             END DO
-          END DO
-          ! this is for synchronization
-          mosource = 0
-          CALL mp_sum(mosource,para_env_inter_kp%group)
-       ELSE IF(is_source) THEN
-          mosource = para_env_inter_kp%mepos
-          CALL mp_sum(mosource,para_env_inter_kp%group)
-          tag = ik
-          DO is=1,SIZE(mos,2)
-             DO ic=1,SIZE(mos,1)
-                request = ic*100 + is
-                mo_set => mos(ic,is)%mo_set
-                CALL mp_isend(mo_set%mo_coeff%local_data,iogroup,para_env_inter_kp%group,request,tag)
-                CALL mp_wait(request)
-             END DO
-          END DO
-       ELSE IF(kpoints%iogrp) THEN
-          IF(.NOT.moalloc) THEN
-             NULLIFY(mop)
-             mos => kpoints%kp_env(1)%kpoint_env%mos
-             mo_set => mos(1,1)%mo_set
-             CALL duplicate_mo_set(mop,mo_set)
-             moalloc = .TRUE.
-          END IF
-          mosource = 0
-          CALL mp_sum(mosource,para_env_inter_kp%group)
-          tag = ik
-          DO is=1,SIZE(mos,2)
-             DO ic=1,SIZE(mos,1)
-                request = ic*100 + is
-                CALL mp_irecv(mop%mo_coeff%local_data,mosource,para_env_inter_kp%group,request,tag)
-                CALL mp_wait(request)
-                IF (ires > 0) WRITE (ires) ic,is
-                CALL write_mo_set_basic(mop, ires)
-             END DO
-          END DO
-       ELSE
-          mosource = 0
-          CALL mp_sum(mosource,para_env_inter_kp%group)
-       END IF
-       CALL mp_sync(para_env_inter_kp%group)
-    END DO
-
-    IF(moalloc) THEN
-       CALL deallocate_mo_set(mop)
-       moalloc = .FALSE.
-    END IF
-    
-    CALL timestop(handle)
-
-  END SUBROUTINE write_mos_kp
 
 ! *****************************************************************************
 !> \brief ...
@@ -535,23 +398,26 @@ CONTAINS
 !> \param exist ...
 !> \param section ...
 !> \param logger ...
+!> \param kp ...
 !> \param xas ...
 !> \param rtp ...
 ! *****************************************************************************
-  SUBROUTINE wfn_restart_file_name(filename,exist,section,logger,xas,rtp)
+  SUBROUTINE wfn_restart_file_name(filename,exist,section,logger,kp,xas,rtp)
     CHARACTER(LEN=default_path_length), &
       INTENT(OUT)                            :: filename
     LOGICAL, INTENT(OUT)                     :: exist
     TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL, INTENT(IN), OPTIONAL            :: xas, rtp
+    LOGICAL, INTENT(IN), OPTIONAL            :: kp, xas, rtp
 
     INTEGER                                  :: n_rep_val
-    LOGICAL                                  :: my_rtp, my_xas
+    LOGICAL                                  :: my_kp, my_rtp, my_xas
     TYPE(section_vals_type), POINTER         :: print_key
 
+    my_kp = .FALSE.
     my_xas = .FALSE.
     my_rtp = .FALSE.
+    IF(PRESENT(kp)) my_kp = kp
     IF(PRESENT(xas)) my_xas = xas
     IF(PRESENT(rtp)) my_rtp = rtp
 
@@ -560,16 +426,21 @@ CONTAINS
     IF (n_rep_val>0) THEN
       CALL section_vals_val_get(section,"WFN_RESTART_FILE_NAME",c_val=filename)
     ELSE
-      IF(my_xas) THEN
+      IF (my_xas) THEN
        ! try to read from the filename that is generated automatically from the printkey
         print_key => section_vals_get_subs_vals(section,"PRINT%RESTART")
         filename = cp_print_key_generate_filename(logger,print_key, &
                     extension="",my_local=.FALSE.)
-      ELSE IF (my_rtp)THEN
+      ELSE IF (my_rtp) THEN
        ! try to read from the filename that is generated automatically from the printkey
         print_key => section_vals_get_subs_vals(section,"REAL_TIME_PROPAGATION%PRINT%RESTART")
         filename = cp_print_key_generate_filename(logger,print_key, &
                     extension=".rtpwfn",my_local=.FALSE.)
+      ELSE IF (my_kp) THEN
+        ! try to read from the filename that is generated automatically from the printkey
+        print_key => section_vals_get_subs_vals(section,"SCF%PRINT%RESTART")
+        filename = cp_print_key_generate_filename(logger,print_key, &
+                    extension=".kp", my_local=.FALSE.)
       ELSE
         ! try to read from the filename that is generated automatically from the printkey
         print_key => section_vals_get_subs_vals(section,"SCF%PRINT%RESTART")
@@ -594,10 +465,9 @@ CONTAINS
 !> \param multiplicity ...
 !> \param dft_section ...
 !> \param natom_mismatch ...
-!> \param kpoints ...
 ! *****************************************************************************
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,qs_kind_set,particle_set,&
-       para_env,id_nr,multiplicity,dft_section,natom_mismatch,kpoints)
+       para_env,id_nr,multiplicity,dft_section,natom_mismatch)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -611,7 +481,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
     LOGICAL, INTENT(OUT), OPTIONAL           :: natom_mismatch
-    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
       routineP = moduleN//':'//routineN
@@ -660,12 +529,6 @@ CONTAINS
           RETURN
        ENDIF
     ENDIF
-
-    IF(PRESENT(kpoints)) THEN
-       IF(kpoints%nkp > 0) THEN
-          CALL read_mos_kp(kpoints,restart_unit)
-       END IF
-    END IF
 
     ! Close restart file
     IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
@@ -757,102 +620,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE read_rt_mos_from_restart
-! *****************************************************************************
-!> \brief ...
-!> \param kpoints ...
-!> \param ires ...
-! *****************************************************************************
-  SUBROUTINE read_mos_kp(kpoints,ires)
-
-    TYPE(kpoint_type), OPTIONAL, POINTER     :: kpoints
-    INTEGER, INTENT(IN)                      :: ires
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mos_kp', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ic, ik, ikk, is, jc, &
-                                                jk, js, nc, nkp, ns
-    LOGICAL                                  :: is_source, moalloc
-    REAL(KIND=dp)                            :: dd, wkp, xkp(3)
-    TYPE(mo_set_p_type), DIMENSION(:, :), &
-      POINTER                                :: mos
-    TYPE(mo_set_type), POINTER               :: mo_set, mop
-
-    CALL timeset(routineN,handle)
-
-    ! first we read the kpoint info
-    IF (ires > 0) THEN
-       READ (ires) 
-       READ (ires) nkp
-       IF(nkp/=kpoints%nkp)&
-          CPABORT("Different number of kpoints")
-       DO ik=1,kpoints%nkp
-          READ (ires) wkp,xkp(1:3)
-          dd = ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
-          IF(dd <= 1.0e-12_dp)&
-             CPABORT("Different order/position of kpoints")
-       END DO
-    END IF
-
-    moalloc = .FALSE.
-    ! as each proc owns at least one kpoint and all kpoint mo structures 
-    ! are the same, we can get the array dimensions this way
-    mos => kpoints%kp_env(1)%kpoint_env%mos
-    ns = SIZE(mos,2)
-    nc = SIZE(mos,1)
-    ! now come the mos at each kpoint
-    DO ik=1,kpoints%nkp
-       IF (ires > 0) THEN
-          READ (ires) jk,wkp,xkp(1:3)
-          dd = ABS(ik-jk)
-          dd = dd + ABS(wkp-kpoints%wkp(ik)) + SUM(ABS(xkp(1:3)-kpoints%xkp(1:3,ik)))
-          IF(dd <= 1.0e-12_dp)&
-             CPABORT("Different order/position of kpoints")
-       END IF
-       is_source = .FALSE.
-       IF (ik >= kpoints%kp_range(1) .AND. ik <= kpoints%kp_range(2)) THEN
-          ! this is our kpoint
-          ikk = ik - kpoints%kp_range(1) + 1
-          is_source = .TRUE.
-          mos => kpoints%kp_env(ikk)%kpoint_env%mos
-       END IF
-       IF(is_source .AND. kpoints%iogrp) THEN
-          ! this is a 'local' MO, print right away
-          DO is=1,SIZE(mos,2)
-             DO ic=1,SIZE(mos,1)
-                IF (ires > 0) THEN
-                   READ (ires) jc,js
-                   CALL cp_assert((ic==jc .AND. is==js),cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Different order/position/type of kpoints")
-                END IF
-                mo_set => mos(ic,is)%mo_set
-                CALL read_mo_set_basic(mo_set, ires)
-             END DO
-          END DO
-       ELSE IF(is_source) THEN
-          !  not yet implemented
-          CPABORT("")
-       ELSE IF(kpoints%iogrp) THEN
-          IF(.NOT.moalloc) THEN
-             NULLIFY(mop)
-             mos => kpoints%kp_env(1)%kpoint_env%mos
-             mo_set => mos(1,1)%mo_set
-             CALL duplicate_mo_set(mop,mo_set)
-             moalloc = .TRUE.
-          END IF
-          !  not yet implemented
-          CPABORT("")
-       END IF
-    END DO
-
-    IF(moalloc) THEN
-       CALL deallocate_mo_set(mop)
-       moalloc = .FALSE.
-    END IF
-    
-    CALL timestop(handle)
-
-  END SUBROUTINE read_mos_kp
 
 ! *****************************************************************************
 !> \brief Reading the mos from apreviously defined restart file

@@ -40,7 +40,9 @@ MODULE kpoint_methods
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
-  USE fermi_utils,                     ONLY: fermikp
+  USE fermi_utils,                     ONLY: fermikp,&
+                                             fermikp2
+  USE input_constants,                 ONLY: smear_fermi_dirac
   USE k290,                            ONLY: csym_type,&
                                              kp_sym_gen,&
                                              release_csym_type
@@ -175,7 +177,7 @@ CONTAINS
        CASE ("GENERAL")
           ! do nothing
        CASE DEFAULT
-          CPABORT("")
+          CPASSERT(.FALSE.)
     END SELECT
 
     ! check for consistency of options
@@ -288,7 +290,7 @@ CONTAINS
        ELSE IF(kpoint%parallel_group_size > 0) THEN
           ngr = MIN(kpoint%parallel_group_size,npe)
        ELSE
-          CPABORT("")
+          CPASSERT(.FALSE.)
        END IF
        nkp_grp = npe/ngr
        ! processor dimensions
@@ -699,9 +701,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ik, ikpgr, ispin, kplocal, &
-                                                nb, nelectron, nkp, nmo, nspin
+                                                nb, ne_a, ne_b, nelectron, &
+                                                nkp, nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
-    REAL(KIND=dp)                            :: kTS, mu, nel
+    REAL(KIND=dp)                            :: kTS, mu, mus(2), nel
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: weig, wocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, occupation, wkp
@@ -716,8 +719,9 @@ CONTAINS
     nspin = SIZE(kp%mos,2)
     mo_set => kp%mos(1,1)%mo_set
     CALL get_mo_set(mo_set,nmo=nmo,nelectron=nelectron)
+    ne_a = nelectron
     IF(nspin==2) THEN
-       CALL get_mo_set(kp%mos(1,2)%mo_set,nmo=nb)
+       CALL get_mo_set(kp%mos(1,2)%mo_set,nmo=nb,nelectron=ne_b)
        CPASSERT(nmo==nb)
     END IF
     ALLOCATE(weig(nmo,nkp,nspin),wocc(nmo,nkp,nspin))
@@ -737,17 +741,43 @@ CONTAINS
     CALL get_kpoint_info(kpoint,para_env_inter_kp=para_env_inter_kp)
     CALL mp_sum(weig,para_env_inter_kp%group)
 
-    nel = REAL(nelectron,KIND=dp)
     CALL get_kpoint_info(kpoint,wkp=wkp)
     IF(smear%do_smear) THEN
        ! finite electronic temperature
-       CPABORT("")
+       SELECT CASE (smear%method)
+          CASE (smear_fermi_dirac)
+             IF(nspin==1) THEN
+                nel = REAL(nelectron,KIND=dp)
+                CALL Fermikp(wocc(:,:,1),mus(1),kTS,weig(:,:,1),nel,wkp,&
+                             smear%electronic_temperature,2.0_dp)
+             ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
+                CPABORT("kpoints: Not supoorted")
+                nel = REAL(ne_a,KIND=dp)
+                CALL Fermikp(wocc(:,:,1),mus(1),kTS,weig(:,:,1),nel,wkp,&
+                             smear%electronic_temperature,1.0_dp)
+                nel = REAL(ne_b,KIND=dp)
+                CALL Fermikp(wocc(:,:,2),mus(2),kTS,weig(:,:,2),nel,wkp,&
+                             smear%electronic_temperature,1.0_dp)
+             ELSE
+                nel = REAL(ne_a,KIND=dp) + REAL(ne_b,KIND=dp)
+                CALL Fermikp2(wocc(:,:,:),mu,kTS,weig(:,:,:),nel,wkp,&
+                              smear%electronic_temperature)
+                kTS = kTS/2._dp
+                mus(1:2) = mu
+             END IF
+          CASE DEFAULT
+             CPABORT("kpoints: Not supported")
+       END SELECT
     ELSE
        ! fixed occupations (2/1)
        IF(nspin==1) THEN
-          CALL Fermikp(wocc(:,:,1),mu,kTS,weig(:,:,1),nel,wkp,0.0_dp,2.0_dp)
+          nel = REAL(nelectron,KIND=dp)
+          CALL Fermikp(wocc(:,:,1),mus(1),kTS,weig(:,:,1),nel,wkp,0.0_dp,2.0_dp)
        ELSE
-          CPABORT("")
+          nel = REAL(ne_a,KIND=dp)
+          CALL Fermikp(wocc(:,:,1),mus(1),kTS,weig(:,:,1),nel,wkp,0.0_dp,1.0_dp)
+          nel = REAL(ne_b,KIND=dp)
+          CALL Fermikp(wocc(:,:,2),mus(2),kTS,weig(:,:,2),nel,wkp,0.0_dp,1.0_dp)
        END IF
     END IF
     DO ikpgr = 1,kplocal
@@ -758,6 +788,8 @@ CONTAINS
           CALL get_mo_set(mo_set,eigenvalues=eigenvalues,occupation_numbers=occupation)
           eigenvalues(1:nmo) = weig(1:nmo,ik,ispin)
           occupation(1:nmo) = wocc(1:nmo,ik,ispin)
+          mo_set%kTS = kTS
+          mo_set%mu = mus(ispin)
        END DO
     END DO
 

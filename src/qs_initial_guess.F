@@ -38,27 +38,30 @@ MODULE qs_initial_guess
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
-  USE input_constants,                 ONLY: &
-       atomic_guess, core_guess, densities_guess, history_guess, mopac_guess, &
-       no_guess, random_guess, restart_guess, sparse_guess
+  USE input_constants,                 ONLY: atomic_guess,&
+                                             core_guess,&
+                                             history_guess,&
+                                             mopac_guess,&
+                                             no_guess,&
+                                             random_guess,&
+                                             restart_guess,&
+                                             sparse_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_path_length,&
                                              dp
+  USE kpoint_io,                       ONLY: read_kpoints_restart
   USE kpoint_types,                    ONLY: kpoint_type
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE particle_methods,                ONLY: get_particle_set
   USE particle_types,                  ONLY: particle_type
-  USE qs_collocate_density,            ONLY: collocate_atomic_charge_density
   USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_did_change
   USE qs_mo_io,                        ONLY: read_mo_set,&
                                              wfn_restart_file_name
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
@@ -138,8 +141,8 @@ CONTAINS
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: buff, buff2
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     REAL(KIND=dp)                            :: checksum, eps, length, &
-                                                maxocc, occ, scale, &
-                                                total_rho, trps1, zeff
+                                                maxocc, occ, scale, trps1, &
+                                                zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
     TYPE(atom_matrix_type), DIMENSION(:), &
       POINTER                                :: pmat
@@ -209,9 +212,9 @@ CONTAINS
     CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
 
     ! just initialize the first image, the other density are set to zero
-    DO ispin=1, dft_control%nspins
+    DO ispin=1,dft_control%nspins
        DO ic=1,SIZE(rho_ao_kp,2)
-          CALL cp_dbcsr_set(rho_ao_kp(ispin,ic)%matrix, 0.0_dp)
+          CALL cp_dbcsr_set(rho_ao_kp(ispin,ic)%matrix,0.0_dp)
        END DO
     END DO
     s_sparse => matrix_s_kp(:,1)
@@ -229,10 +232,6 @@ CONTAINS
     ofgpw = dft_control%qs_control%ofgpw
     density_guess=scf_control%density_guess
     do_std_diag = .FALSE.
-
-    IF(do_kpoints .AND. density_guess==restart_guess) THEN
-       CPABORT("calculate_first_density_matrix: restart not implemented for k-points")
-    ENDIF
 
     safe_density_guess = atomic_guess
     IF ( dft_control%qs_control%semi_empirical .OR. dft_control%qs_control%dftb .OR. &
@@ -258,22 +257,32 @@ CONTAINS
     ! in sync with read_mo_set
     id_nr=0
     IF (density_guess == restart_guess) THEN
-        ! only check existence on I/O node, otherwise if file exists there but
-        ! not on compute nodes, everything goes crazy even though only I/O
-        ! node actually reads the file
-        IF (para_env%ionode) &
-           CALL wfn_restart_file_name(file_name,exist,dft_section,logger)
-        CALL mp_bcast(exist, para_env%source, para_env%group)
-        CALL mp_bcast(file_name, para_env%source, para_env%group)
-        IF (.NOT.exist) THEN
-           CALL cp_warn(__LOCATION__,&
+       ! only check existence on I/O node, otherwise if file exists there but
+       ! not on compute nodes, everything goes crazy even though only I/O
+       ! node actually reads the file
+       IF(do_kpoints) THEN
+          IF (para_env%ionode) THEN
+             CALL wfn_restart_file_name(file_name,exist,dft_section,logger,kp=.TRUE.)
+          END IF
+       ELSE
+          IF (para_env%ionode) THEN
+             CALL wfn_restart_file_name(file_name,exist,dft_section,logger)
+          END IF
+       ENDIF
+       CALL mp_bcast(exist, para_env%source, para_env%group)
+       CALL mp_bcast(file_name, para_env%source, para_env%group)
+       IF (.NOT.exist) THEN
+          CALL cp_warn(__LOCATION__,&
                 "User requested to restart the wavefunction from the file named: "//&
                 TRIM(file_name)//". This file does not exist. Please check the existence of"//&
                 " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME."//&
                 " Calculation continues using ATOMIC GUESS. ")
-           density_guess = safe_density_guess
-        END IF
+          density_guess = safe_density_guess
+       END IF
     ELSE IF (density_guess == history_guess) THEN
+       IF(do_kpoints) THEN
+          CPABORT("calculate_first_density_matrix: history_guess not implemented for k-points")
+       ENDIF
        IF (para_env%ionode) &
           CALL wfn_restart_file_name(file_name,exist,dft_section,logger)
        CALL mp_bcast(exist, para_env%source, para_env%group)
@@ -295,8 +304,7 @@ CONTAINS
        IF (not_read == 1) THEN
           density_guess = restart_guess
           filename = TRIM(file_name)
-          IF (para_env%ionode) &
-             INQUIRE(FILE=filename,exist=exist)
+          IF (para_env%ionode) INQUIRE(FILE=filename,exist=exist)
           CALL mp_bcast(exist, para_env%source, para_env%group)
           IF (.NOT. exist) THEN
              CALL cp_warn(__LOCATION__,&
@@ -316,66 +324,74 @@ CONTAINS
 
     IF (density_guess == restart_guess) THEN
 
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-       CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,para_env,&
-            id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
-            natom_mismatch=natom_mismatch, kpoints=kpoints)
-
-       IF (natom_mismatch) THEN
-         density_guess = safe_density_guess
+       IF (do_kpoints) THEN
+          CALL read_kpoints_restart(rho_ao_kp,kpoints,work1,&
+               atomic_kind_set,qs_kind_set,particle_set,para_env,&
+               id_nr,dft_section,natom_mismatch)
+          IF (natom_mismatch) density_guess = safe_density_guess
        ELSE
-          DO ispin=1,nspin
-             IF (scf_control%level_shift /= 0.0_dp) THEN
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
+          CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,para_env,&
+               id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,&
+               natom_mismatch=natom_mismatch)
+
+          IF (natom_mismatch) THEN
+            density_guess = safe_density_guess
+          ELSE
+             DO ispin=1,nspin
+                IF (scf_control%level_shift /= 0.0_dp) THEN
+                   CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
+                   CALL cp_fm_to_fm(mo_coeff,ortho)
+                END IF
+
+                ! make all nmo vectors present orthonormal
                 CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                                mo_coeff=mo_coeff)
-                CALL cp_fm_to_fm(mo_coeff,ortho)
-             END IF
+                     mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
-             ! make all nmo vectors present orthonormal
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                  mo_coeff=mo_coeff, nmo=nmo, homo=homo)
+                IF(has_unit_metric) THEN
+                  CALL make_basis_simple(mo_coeff,nmo)
+                ELSEIF(dft_control%smear)THEN
+                  CALL make_basis_lowdin(vmatrix=mo_coeff,ncol=nmo,&
+                       matrix_s=s_sparse(1)%matrix)
+                ELSE
+                  ! ortho so that one can restart for different positions (basis sets?)
+                  CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix)
+                ENDIF
+                ! only alpha spin is kept for restricted
+                IF (dft_control%restricted) EXIT
+             ENDDO
+             IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
+   
+             CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear)
+   
+             DO ispin=1,nspin
+   
+                IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
+                   CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
+                                         mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
+                ENDIF!fm->dbcsr
+   
+                CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                     p_rmpv(ispin)%matrix)
+             ENDDO
+          ENDIF ! natom_mismatch
 
-             IF(has_unit_metric) THEN
-               CALL make_basis_simple(mo_coeff,nmo)
-             ELSEIF(dft_control%smear)THEN
-               CALL make_basis_lowdin(vmatrix=mo_coeff,ncol=nmo,&
-                    matrix_s=s_sparse(1)%matrix)
-             ELSE
-               ! ortho so that one can restart for different positions (basis sets?)
-               CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix)
-             ENDIF
-            ! only alpha spin is kept for restricted
-             IF (dft_control%restricted) EXIT
-          ENDDO
-          IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
-
-          CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear)
-
-          DO ispin=1,nspin
-
-             IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
-                CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
-             ENDIF!fm->dbcsr
-
-             CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                  p_rmpv(ispin)%matrix)
-          ENDDO
-       ENDIF ! natom_mismatch
+       END IF
 
        did_guess = .TRUE.
     END IF
+
     IF (density_guess == history_guess) THEN
        IF (not_read > 1) THEN
           DO i=1, last_read
              j = last_read -i
              CALL read_mo_set(mo_array,atomic_kind_set,qs_kind_set,particle_set,para_env,&
                   id_nr=j,multiplicity=dft_control%multiplicity,&
-                  dft_section=dft_section, kpoints=kpoints)
+                  dft_section=dft_section)
 
              DO ispin=1,nspin
                 IF (scf_control%level_shift /= 0.0_dp) THEN
-                   CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                                   mo_coeff=mo_coeff)
+                   CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
                    CALL cp_fm_to_fm(mo_coeff,ortho)
                 END IF
 
@@ -399,11 +415,11 @@ CONTAINS
              ENDDO
 
              DO ispin=1,nspin
-          IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
-CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
-          ENDIF!fm->dbcsr
-                CALL calculate_density_matrix(mo_array(ispin)%mo_set, &
-                                              p_rmpv(ispin)%matrix)
+                IF(scf_control%use_ot .OR. scf_env%method==ot_diag_method_nr) THEN!fm->dbcsr
+                   CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,&
+                                   mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
+                END IF!fm->dbcsr
+                CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix)
              ENDDO
 
              ! Write to extrapolation pipeline
@@ -413,6 +429,7 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        did_guess = .TRUE.
     END IF
+
     IF (density_guess == random_guess) THEN
 
        DO ispin=1,nspin
@@ -441,23 +458,24 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
                                    mo_array(ispin)%mo_set%mo_coeff_b)!fm->dbcsr
           ENDIF!fm->dbcsr
 
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv(ispin)%matrix)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix)
        ENDDO
 
        did_guess = .TRUE.
     END IF
+
     IF (density_guess == core_guess) THEN
 
+       IF(do_kpoints) THEN
+          CPABORT("calculate_first_density_matrix: core_guess not implemented for k-points")
+       ENDIF
+
        ispin = 1
-
        ! Load core Hamiltonian into work matrix
-
        CALL copy_dbcsr_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix)
 
        ! Diagonalize the core Hamiltonian matrix and retrieve a first set of
        ! molecular orbitals (MOs)
-
        IF (has_unit_metric) THEN
           CALL eigensolver_simple(matrix_ks=work1(ispin)%matrix,&
                                   mo_set=mo_array(ispin)%mo_set,&
@@ -475,7 +493,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        END IF
 
        ! Open shell case: copy alpha MOs to beta MOs
-
        IF (nspin == 2) THEN
           CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=moa)
           CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mob,nmo=nmo)
@@ -484,16 +501,14 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
 
        ! Build an initial density matrix (for each spin in the case of
        ! an open shell calculation) from the first MOs set
-
        DO ispin=1,nspin
-         CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                smear=scf_control%smear)
-         CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       p_rmpv(ispin)%matrix)
+          CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,smear=scf_control%smear)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix)
        END DO
 
        did_guess = .TRUE.
     END IF
+
     IF (density_guess == atomic_guess) THEN
 
        subsys_section => section_vals_get_subs_vals(input,"SUBSYS")
@@ -581,13 +596,16 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&
                                          "PRINT%KINDS")
 
-
        did_guess = .TRUE.
     END IF
+
     IF (density_guess == sparse_guess) THEN
 
        IF (ofgpw) CPABORT("SPARSE_GUESS not implemented for OFGPW")
        IF(.NOT.scf_control%use_ot) CPABORT("OT needed!")
+       IF(do_kpoints) THEN
+          CPABORT("calculate_first_density_matrix: sparse_guess not implemented for k-points")
+       ENDIF
 
        eps = 1.0E-5_dp
 
@@ -882,46 +900,6 @@ CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin)%mo_set%mo_
              CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                                            p_rmpv(ispin)%matrix)
           END IF
-       END DO
-
-       did_guess = .TRUE.
-    END IF
-    IF (density_guess == densities_guess) THEN
-
-       ! Collocation of the density into the PW-grid
-       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env)
-
-       ! do some assertions here on these matrices having the same structure,
-       ! as is currently required
-       ! end sparsity check
-
-       qs_env%scf_env%iter_count = 1
-
-       CALL qs_ks_did_change(ks_env=qs_env%ks_env, rho_changed=.TRUE.)
-
-       CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.,&
-                                just_energy=.FALSE.)
-
-       ! diagonalization
-       DO ispin=1, dft_control%nspins
-          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix,&
-                             qs_env%scf_env%scf_work1(ispin)%matrix)
-       END DO
-
-       qs_env%scf_env%iter_method = "Mixing/Diag"
-       qs_env%scf_env%iter_delta = 0.0_dp
-
-       DO ispin=1, dft_control%nspins
-         CALL eigensolver(matrix_ks_fm=qs_env%scf_env%scf_work1(ispin)%matrix, &
-                          mo_set=mo_array(ispin)%mo_set,&
-                          ortho=qs_env%scf_env%ortho, &
-                          work=qs_env%scf_env%scf_work2,&
-                          cholesky_method=scf_env%cholesky_method,&
-                          use_jacobi=.FALSE.)
-         CALL set_mo_occupation(mo_set=mo_array(ispin)%mo_set,&
-                                smear=scf_control%smear)
-         CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-                                       p_rmpv(ispin)%matrix)
        END DO
 
        did_guess = .TRUE.

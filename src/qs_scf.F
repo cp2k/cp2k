@@ -73,6 +73,7 @@ MODULE qs_scf
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE kpoint_io,                       ONLY: write_kpoints_restart
   USE kpoint_types,                    ONLY: kpoint_type
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -311,7 +312,7 @@ CONTAINS
                     pw_env=pw_env,&
                     para_env=para_env)
 
-    CALL qs_rho_get(rho, rho_ao_kp=rho_ao_kp)
+    CALL qs_rho_get(rho,rho_ao_kp=rho_ao_kp)
 
     dft_section => section_vals_get_subs_vals(input,"DFT")
     scf_section => section_vals_get_subs_vals(dft_section,"SCF")
@@ -422,10 +423,13 @@ CONTAINS
 
           END IF
 
-          ! Write WaveFunction restart file
-          CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
-                            atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set,&
-                            kpoints=kpoints)
+          IF(do_kpoints) THEN
+             CALL write_kpoints_restart(rho_ao_kp,kpoints,scf_env,dft_section,particle_set,qs_kind_set)
+          ELSE
+             ! Write Wavefunction restart file
+             CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
+                               atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
+          END IF
 
           ! Exit if we have finished with the SCF inner loop
           IF (exit_inner_loop) THEN

@@ -314,9 +314,6 @@ CONTAINS
     CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, qmmm_decoupl, my_cell,& 
          force_env_section, subsys_section, para_env)
 
-    CALL qs_init_subsys(qs_env,para_env,subsys,my_cell,my_cell_ref,use_ref_cell,&
-         root_section,subsys_section)
-
     ! kpoints
     CALL get_qs_env(qs_env=qs_env,kpoints=kpoints)
     kpoint_section => section_vals_get_subs_vals(qs_env%input,"DFT%KPOINTS")
@@ -324,6 +321,11 @@ CONTAINS
     CALL kpoint_initialize(kpoints, particle_set, my_cell)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT")
     CALL write_kpoint_info(kpoints,dft_section)
+
+    CALL qs_init_subsys(qs_env,para_env,subsys,my_cell,my_cell_ref,use_ref_cell,&
+         root_section,subsys_section)
+
+    ! more kpoint stuff
     kpoints%para_env => para_env
     CALL cp_para_env_retain(para_env)
     CALL get_qs_env(qs_env=qs_env,blacs_env=blacs_env)
@@ -437,7 +439,8 @@ CONTAINS
       n_ao_aux_fit, n_mo_add, natom, nelectron, output_unit
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
     LOGICAL                                  :: all_potential_present, &
-                                                has_unit_metric, was_present
+                                                do_kpoints, has_unit_metric, &
+                                                was_present
     REAL(dp)                                 :: ewald_rcut, maxocc, &
                                                 verlet_skin
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1061,10 +1064,24 @@ CONTAINS
               "More beta than alpha MOs requested. "//&
               "The number of beta MOs will be reduced to the number alpha MOs.")
       n_mo(2) = MIN(n_mo(1),n_mo(2))
+      CPASSERT(n_mo(1) >= nelectron_spin(1))
+      CPASSERT(n_mo(2) >= nelectron_spin(2))
+    END IF
+
+    ! kpoints
+    CALL get_qs_env(qs_env=qs_env,do_kpoints=do_kpoints)
+    IF(do_kpoints .AND. dft_control%nspins == 2) THEN
+       ! we need equal number of calculated states
+       IF(n_mo(2) /= n_mo(1))&
+         CALL cp_warn(__LOCATION__,&
+              "Kpoints: Different number of MOs requested. "//&
+              "The number of beta MOs will be set to the number alpha MOs.")
+       n_mo(2) = n_mo(1)
+       CPASSERT(n_mo(1) >= nelectron_spin(1))
+       CPASSERT(n_mo(2) >= nelectron_spin(2))
     END IF
 
     ! Compatibility checks for smearing
-
     IF (scf_control%smear%do_smear) THEN
       IF (scf_control%added_mos(1) == 0) THEN
         CPABORT("Extra MOs (ADDED_MOS) are required for smearing")

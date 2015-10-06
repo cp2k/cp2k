@@ -31,19 +31,18 @@ MODULE input_cp2k_dft
   USE input_constants,                 ONLY: &
        atomic_guess, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
        cholesky_reduce, cholesky_restore, constant_env, core_guess, &
-       densities_guess, diag_block_davidson, diag_block_krylov, &
-       diag_filter_matrix, diag_ot, diag_standard, dispersion_d3, &
-       dispersion_uff, do_admm_aux_exch_func_bee, &
-       do_admm_aux_exch_func_default, do_admm_aux_exch_func_none, &
-       do_admm_aux_exch_func_opt, do_admm_aux_exch_func_pbex, &
-       do_admm_basis_projection, do_admm_blocked_projection, &
-       do_admm_blocking_purify_full, do_admm_charge_constrained_projection, &
-       do_admm_exch_scaling_merlot, do_admm_exch_scaling_none, &
-       do_admm_purify_cauchy, do_admm_purify_cauchy_subspace, &
-       do_admm_purify_mcweeny, do_admm_purify_mo_diag, &
-       do_admm_purify_mo_no_diag, do_admm_purify_none, &
-       do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, &
-       do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
+       diag_block_davidson, diag_block_krylov, diag_filter_matrix, diag_ot, &
+       diag_standard, dispersion_d3, dispersion_uff, &
+       do_admm_aux_exch_func_bee, do_admm_aux_exch_func_default, &
+       do_admm_aux_exch_func_none, do_admm_aux_exch_func_opt, &
+       do_admm_aux_exch_func_pbex, do_admm_basis_projection, &
+       do_admm_blocked_projection, do_admm_blocking_purify_full, &
+       do_admm_charge_constrained_projection, do_admm_exch_scaling_merlot, &
+       do_admm_exch_scaling_none, do_admm_purify_cauchy, &
+       do_admm_purify_cauchy_subspace, do_admm_purify_mcweeny, &
+       do_admm_purify_mo_diag, do_admm_purify_mo_no_diag, &
+       do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, &
+       do_cn, do_ddapc_constraint, do_ddapc_restraint, do_em, do_etrs, &
        do_full_density, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_loc_both, &
        do_loc_crazy, do_loc_direct, do_loc_homo, do_loc_jacobi, &
        do_loc_l1_norm_sd, do_loc_lumo, do_loc_max, do_loc_min, do_loc_none, &
@@ -4171,19 +4170,18 @@ CONTAINS
     CALL keyword_create(keyword, name="SCF_GUESS",&
          description="Change the initial guess for the wavefunction.",&
          usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
-         enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES",&
+         enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE",&
          "HISTORY_RESTART","MOPAC","SPARSE","NONE"),&
          enum_desc=s2a("Generate an atomic density using the atomic code", &
          "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
          "Use random wavefunction coefficients.", &
          "Diagonalize the core hamiltonian for an initial guess.", &
-         "Use the aux_basis_set for collocation.", &
          "Extrapolated from previous RESTART files.", &
          "Use same guess as MOPAC for semi-empirical methods or a simple diagonal density matrix for other methods", &
          "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
          "Skip initial guess (only for NON-SCC DFTB)."), &
          enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
-         densities_guess,history_guess,mopac_guess,sparse_guess,no_guess/))
+         history_guess,mopac_guess,sparse_guess,no_guess/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

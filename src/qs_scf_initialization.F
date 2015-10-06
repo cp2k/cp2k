@@ -40,7 +40,7 @@ MODULE qs_scf_initialization
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: &
        broy_mix, broy_mix_new, cholesky_dbcsr, cholesky_inverse, &
-       cholesky_off, densities_guess, diag_block_davidson, diag_block_krylov, &
+       cholesky_off, diag_block_davidson, diag_block_krylov, &
        diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
        multisec_mix, no_mix, plus_u_lowdin, pulay_mix, wfi_frozen_method_nr, &
        wfi_use_guess_method_nr
@@ -1065,10 +1065,8 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO")
     IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
        CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env)
-       IF (.NOT.(scf_control%density_guess==densities_guess)) THEN
-         CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
-       END IF
+       CALL qs_rho_update_rho(rho, qs_env=qs_env)
+       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
     END IF
 
     ! Some preparation for the mixing

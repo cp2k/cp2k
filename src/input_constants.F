@@ -186,13 +186,12 @@ MODULE input_constants
                                               restart_guess=2,&
                                               random_guess=3,&
                                               core_guess=4,&
-                                              densities_guess=5,&
-                                              history_guess=6,&
-                                              no_guess=7,&
-                                              mopac_guess=8,&
-                                              sparse_guess=9,&
-                                              almo_scf_guess=10,&
-                                              molecular_guess=11
+                                              history_guess=5,&
+                                              no_guess=6,&
+                                              mopac_guess=7,&
+                                              sparse_guess=8,&
+                                              almo_scf_guess=9,&
+                                              molecular_guess=10
                                              
   INTEGER, PARAMETER, PUBLIC               :: almo_frz_none=0,&
                                               almo_frz_isolated=1,&
