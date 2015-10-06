@@ -364,9 +364,10 @@ def svn_log(limit=None):
         rev_date_str = entry.getElementsByTagName('date')[0].firstChild.nodeValue
         rev['date'] = datetime.strptime(rev_date_str[:19], '%Y-%m-%dT%H:%M:%S')
         # some revisions lack an author
-        tags = entry.getElementsByTagName('author')
-        rev['author'] = tags[0].firstChild.nodeValue if (len(tags)==1) else ""
-        rev['msg'] = entry.getElementsByTagName('msg')[0].firstChild.nodeValue
+        author = entry.getElementsByTagName('author')
+        rev['author'] = author[0].firstChild.nodeValue if (len(author)==1) else ""
+        msg = entry.getElementsByTagName('msg')[0].firstChild
+        rev['msg'] = msg.nodeValue.strip() if(msg) else ""
         revisions.append(rev)
     print("done.")
     return(revisions)
