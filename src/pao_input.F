@@ -86,8 +86,8 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CHECK_GRADIENT_TOL",r_val=pao%check_gradient_tol)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","CHECK_GRADIENT_TOL",pao%check_gradient_tol
 
-    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CHECK_GRADIENT_ABORT",l_val=pao%check_gradient_abort)
-    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,L10)") " PAO|","CHECK_GRADIENT_ABORT",pao%check_gradient_abort
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CHECK_UNITARY_TOL",r_val=pao%check_unitary_tol)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","CHECK_UNITARY_TOL",pao%check_unitary_tol
 
   END SUBROUTINE parse_pao_section
 
@@ -198,10 +198,10 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="CHECK_GRADIENT_ABORT",&
-         description="Whether the similation should be aborted in case of gradient divergence."//&
+    CALL keyword_create(keyword, name="CHECK_UNITARY_TOL",&
+         description="Check if rotation matrix is unitary."//&
          " Negative values mean don't check at all.",&
-         default_l_val=.TRUE.)
+         default_r_val=-1.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

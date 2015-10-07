@@ -341,7 +341,7 @@ CONTAINS
          IF(this%energies(1) < this%energies(2)) THEN
             step_size = 0.5_dp * this%scan_step
             this%scan_step = step_size
-            CPWARN(label//"LS| Need extra step for 2pnt")
+            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| Need extra step for 2pnt"
          ELSE
             c = this%energies(1)
             b = -slope
@@ -349,7 +349,7 @@ CONTAINS
             a = (this%energies(2)-b*x2-c)/(x2**2)
 
             IF (a < 0.0_dp) THEN
-               CPWARN(label//"LS| quenched a")
+               IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| had to quench curvature"
                a = 1.0E-15_dp
             ENDIF
 
@@ -364,7 +364,7 @@ CONTAINS
 
             IF(step_size > this%max_step_size) THEN
                step_size = this%max_step_size
-               CPWARN(label//"LS| limiting step_size to MAX_STEP_SIZE")
+               IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| limiting step_size to MAX_STEP_SIZE"
             ENDIF
 
             this%last_step_size = step_size
@@ -407,7 +407,7 @@ CONTAINS
       CASE(1)
          step_size = (2.0_dp/3.0_dp) * this%last_step_size
          IF(step_size < this%tiny_step_size) THEN
-            CPWARN(label//"LS| initial step size too small, using TINY_STEP_SIZE")
+            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| initial step size too small, using TINY_STEP_SIZE"
             step_size = this%tiny_step_size
          ENDIF
          this%scan_steps(1) = 0.0_dp
@@ -426,8 +426,8 @@ CONTAINS
          y1 = this%energies(1);   y2 = this%energies(2);   y3 = this%energies(3)
          x1 = this%scan_steps(1); x2 = this%scan_steps(2); x3 = this%scan_steps(3)
 
-         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt scan_steps: ", this%scan_steps
-         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt energies: ", this%energies
+         IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt scan_steps: ", this%scan_steps
+         IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt energies: ", this%energies
 
          ! Cramer's Rule
          denom = (x1 - x2)*(x1 - x3)*(x2 - x3)
@@ -437,22 +437,22 @@ CONTAINS
 
          step_size = - b/(2.0_dp*a)
          pred_energy = a*step_size**2 + b*step_size + c
-         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt suggested step_size: ", step_size
-         IF(unit_nr>0) WRITE (unit_nr,*) label//"LS| 3pnt predicted energy", pred_energy
+         IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt suggested step_size: ", step_size
+         IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| 3pnt predicted energy", pred_energy
 
          IF(a < 0) THEN
             step_size = -2.0_dp * step_size
-            CPWARN(label//"LS| inverting step size")
+            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| inverting step size"
          END IF
 
          IF(step_size < 0) THEN
             step_size = this%tiny_step_size
-            CPWARN(label//"LS| makeing a step of size TINY_STEP_SIZE")
+            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| makeing a step of size TINY_STEP_SIZE"
          ENDIF
 
          IF(step_size > this%max_step_size) THEN
             step_size = this%max_step_size
-            CPWARN(label//"LS| limiting step_size to MAX_STEP_SIZE")
+            IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| limiting step_size to MAX_STEP_SIZE"
          ENDIF
 
          this%last_step_size = step_size
@@ -536,7 +536,9 @@ CONTAINS
        ENDIF
     ENDIF
 
-    IF(this%count>3) CPWARN(label//"LS| Need extra step")
+    IF(this%count>3) THEN
+       IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| Need extra step"
+    ENDIF
     IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: ", this%have_left, this%have_middle,  this%have_right
     IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: scan_steps: ", this%left_x, this%middle_x, this%right_x
     IF(unit_nr>0) WRITE (unit_nr,*) label,"LS| adapt: energies: ", this%left_e, this%middle_e, this%right_e

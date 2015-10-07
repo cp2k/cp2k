@@ -15,6 +15,10 @@ MODULE pao_utils
                                              cp_dbcsr_iterator_stop,&
                                              cp_dbcsr_type
   USE kinds,                           ONLY: dp
+  USE parallel_rng_types,              ONLY: create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number,&
+                                             rng_stream_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
@@ -42,18 +46,21 @@ CONTAINS
     INTEGER                                  :: acol, arow, handle, i, j
     REAL(dp), DIMENSION(:, :), POINTER       :: block
     TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
+    NULLIFY(rng_stream)
     CALL timeset(routineN,handle)
 
     CALL cp_dbcsr_iterator_start(iter, matrix)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block)
-       CALL RANDOM_SEED()
+       CALL create_rng_stream(rng_stream, name="pao")
        DO i=1, SIZE(block, 1)
           DO j=1, SIZE(block, 2)
-             CALL RANDOM_NUMBER(block(i,j))
+             block(i,j) = next_random_number(rng_stream)
           ENDDO
        ENDDO
+       CALL delete_rng_stream(rng_stream)
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
 

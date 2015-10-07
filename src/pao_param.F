@@ -131,7 +131,7 @@ CONTAINS
 
     CALL cp_dbcsr_iterator_stop(iter)
 
-    CALL assert_unitary(pao%matrix_U, pao%matrix_Y)
+    CALL assert_unitary(pao, pao%matrix_U, pao%matrix_Y)
 
   END SUBROUTINE pao_calc_U
 
@@ -281,14 +281,10 @@ CONTAINS
 
           dUdX = (dU1 - dU2) / (2.0_dp*eps)
           Gij_num = SUM( block_M * dUdX )
-          delta=ABS(Gij_num - block_G(i,j))
+          delta = ABS(Gij_num - block_G(i,j))
           IF(delta > pao%check_gradient_tol) THEN
-             IF(pao%check_gradient_abort) THEN
-                CALL cp_abort(__LOCATION__,&
-                       "Analyic and numeric gradients differ too much:"//cp_to_string(delta))
-             ELSE
-                CPWARN("PAO| Found mismatch of gradients.")
-             ENDIF
+             CALL cp_abort(__LOCATION__,&
+                   "Analytic and numeric gradients differ too much:"//cp_to_string(delta))
           ENDIF
        ENDDO
     ENDDO
@@ -399,10 +395,12 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Debugging routine, check unitaryness of U
+!> \param pao ...
 !> \param matrix_test ...
 !> \param matrix_Y ...
 ! *****************************************************************************
-  SUBROUTINE assert_unitary(matrix_test, matrix_Y)
+  SUBROUTINE assert_unitary(pao, matrix_test, matrix_Y)
+    TYPE(pao_env_type), POINTER              :: pao
     TYPE(cp_dbcsr_type)                      :: matrix_test, matrix_Y
 
     CHARACTER(len=*), PARAMETER :: routineN = 'assert_unitary', &
@@ -410,9 +408,12 @@ CONTAINS
 
     INTEGER                                  :: acol, arow, i, M, N
     LOGICAL                                  :: found
+    REAL(dp)                                 :: delta
     REAL(dp), DIMENSION(:, :), POINTER       :: block_test, block_Y, tmp1, &
                                                 tmp2
     TYPE(cp_dbcsr_iterator)                  :: iter
+
+    IF(pao%check_unitary_tol<0.0_dp) RETURN ! no checking
 
     CALL cp_dbcsr_iterator_start(iter, matrix_test)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
@@ -430,7 +431,11 @@ CONTAINS
           tmp2(i,i) = tmp2(i,i) - 1.0_dp
        ENDDO
 
-       IF(MAXVAL(ABS(tmp2)) > 1e-10) CPWARN("PAO| found bad unitaryness")
+       delta = MAXVAL(ABS(tmp2))
+       IF(delta > pao%check_unitary_tol) THEN
+          CALL cp_abort(__LOCATION__,&
+             "Found bad unitaryness:"//cp_to_string(delta))
+       ENDIF
 
        DEALLOCATE(tmp1, tmp2)
     END DO
