@@ -16,8 +16,7 @@ MODULE swarm_message
                                              int_8,&
                                              real_4,&
                                              real_8
-  USE message_passing,                 ONLY: mp_abort,&
-                                             mp_bcast,&
+  USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
                                              mp_recv,&
                                              mp_send

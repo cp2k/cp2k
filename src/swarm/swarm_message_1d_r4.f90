@@ -49,7 +49,7 @@
    TYPE(message_entry_type), POINTER :: curr_entry
    !WRITE (*,*) "swarm_message_get_1d_r4: key=",key
 
-   IF(ASSOCIATED(value)) CALL mp_abort("swarm_message_get_1d_r4: value already associated")
+   IF(ASSOCIATED(value)) CPABORT("swarm_message_get_1d_r4: value already associated")
 
    curr_entry => msg%root
    DO WHILE(ASSOCIATED(curr_entry))
