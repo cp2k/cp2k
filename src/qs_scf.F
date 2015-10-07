@@ -202,13 +202,7 @@ CONTAINS
                         converged=converged, should_stop=should_stop)
 
       ! If SCF has not converged, then we should not start MP2                  
-      IF (ASSOCIATED(qs_env%mp2_env)) THEN
-         IF (.NOT. converged) THEN
-            qs_env%mp2_env%hf_fail = .TRUE.
-         ELSE
-            qs_env%mp2_env%hf_fail = .FALSE.
-         ENDIF
-      ENDIF
+      IF (ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%hf_fail = .NOT. converged
 
       !   *** add the converged wavefunction to the wavefunction history
       IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
