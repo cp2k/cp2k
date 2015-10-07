@@ -48,7 +48,7 @@ def process_log_file(fn, public_symbols, used_symbols):
     module_name = None
 
     curr_symbol = curr_procedure = stat_var = stat_stm = None
-    
+
     for line in lines:
         line = line.strip()
         tokens = line.split()
@@ -65,7 +65,7 @@ def process_log_file(fn, public_symbols, used_symbols):
             else:
                 print(loc+': Found %s with unchecked STAT in "%s"'%(stat_stm,curr_procedure))
                 stat_var = stat_stm = None # reset
-        
+
         elif(line.startswith("procedure name =")):
             curr_procedure = line.split("=")[1].strip()
             if(not module_name):
@@ -100,6 +100,10 @@ def process_log_file(fn, public_symbols, used_symbols):
         elif(line.startswith("CALL")):
             if(tokens[1].upper() in BANNED_CALL):
                 print(loc+": Found CALL "+tokens[1]+' in procedure "'+curr_procedure+'"')
+            elif(tokens[1].lower().startswith("_gfortran_arandom_")):
+                print(loc+': Found CALL RANDOM_NUMBER in procedure "'+curr_procedure+'"')
+            elif(tokens[1].lower().startswith("_gfortran_random_seed_")):
+                print(loc+': Found CALL RANDOM_SEED in procedure "'+curr_procedure+'"')
 
         elif(tokens and tokens[0] in BANNED_STM):
             print(loc+": Found "+tokens[0]+' statement in procedure "'+curr_procedure+'"')
