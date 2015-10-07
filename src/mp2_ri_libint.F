@@ -41,11 +41,11 @@ MODULE mp2_ri_libint
   USE hfx_screening_methods,           ONLY: calc_pair_dist_radii,&
                                              calc_screening_functions
   USE hfx_types,                       ONLY: &
-       hfx_basis_info_type, hfx_basis_type, hfx_cell_loop_info_type, &
-       hfx_create_neighbor_cells, hfx_general_type, hfx_load_balance_type, &
-       hfx_memory_type, hfx_pgf_list, hfx_pgf_product_list, &
-       hfx_potential_type, hfx_screen_coeff_type, hfx_screening_type, &
-       hfx_type, log_zero, pair_set_list_type
+       hfx_basis_info_type, hfx_basis_type, hfx_create_neighbor_cells, &
+       hfx_general_type, hfx_load_balance_type, hfx_memory_type, &
+       hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, &
+       hfx_screen_coeff_type, hfx_screening_type, hfx_type, log_zero, &
+       pair_set_list_type
   USE input_constants,                 ONLY: do_mp2_potential_TShPSC
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -509,7 +509,6 @@ MODULE mp2_ri_libint
     TYPE(hfx_basis_info_type), POINTER       :: basis_info
     TYPE(hfx_basis_type), DIMENSION(:), &
       POINTER                                :: basis_parameter
-    TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
     TYPE(hfx_general_type)                   :: general_parameter
     TYPE(hfx_load_balance_type), POINTER     :: load_balance_parameter
     TYPE(hfx_memory_type), POINTER           :: memory_parameter
@@ -556,9 +555,6 @@ MODULE mp2_ri_libint
                     qs_kind_set=qs_kind_set,&
                     cell=cell,&
                     dft_control=dft_control)
-
-    ! kpoint variable needed inside coulomb4
-    cell_loop_info%dokp = .FALSE.
 
     !! Calculate l_max used in fgamma , because init_md_ftable is definitely not thread safe
     nkind = SIZE(qs_kind_set,1)
@@ -955,7 +951,7 @@ MODULE mp2_ri_libint
                           sphi_c_ext_set,&
                           sphi_d_ext_set,&
                           ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
-                          nimages,do_periodic, p_work, cell_loop_info)
+                          nimages,do_periodic, p_work) 
 
             primitive_counter=0
             DO llB=1, nsgfd(lset)
@@ -1221,7 +1217,7 @@ MODULE mp2_ri_libint
                              sphi_c_ext_set,&
                              sphi_d_ext_set,&
                              ee_work,ee_work2,ee_buffer1,ee_buffer2, ee_primitives_tmp,&
-                             nimages,do_periodic, p_work, cell_loop_info)
+                             nimages,do_periodic, p_work) 
 
              nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)
              neris_total = neris_total + nints

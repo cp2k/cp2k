@@ -47,13 +47,12 @@ MODULE hfx_derivatives
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
        alloc_containers, dealloc_containers, hfx_basis_info_type, &
-       hfx_basis_type, hfx_cache_type, hfx_cell_loop_info_type, &
-       hfx_cell_type, hfx_container_type, hfx_distribution, hfx_general_type, &
-       hfx_init_container, hfx_load_balance_type, hfx_memory_type, &
-       hfx_p_kind, hfx_pgf_list, hfx_pgf_product_list, hfx_potential_type, &
-       hfx_screen_coeff_type, hfx_screening_type, hfx_task_list_type, &
-       hfx_type, init_t_c_g0_lmax, log_zero, pair_list_type, &
-       pair_set_list_type
+       hfx_basis_type, hfx_cache_type, hfx_cell_type, hfx_container_type, &
+       hfx_distribution, hfx_general_type, hfx_init_container, &
+       hfx_load_balance_type, hfx_memory_type, hfx_p_kind, hfx_pgf_list, &
+       hfx_pgf_product_list, hfx_potential_type, hfx_screen_coeff_type, &
+       hfx_screening_type, hfx_task_list_type, hfx_type, init_t_c_g0_lmax, &
+       log_zero, pair_list_type, pair_set_list_type
   USE input_constants,                 ONLY: do_hfx_potential_mix_cl_trunc,&
                                              do_hfx_potential_truncated,&
                                              hfx_do_eval_forces
@@ -208,7 +207,6 @@ MODULE hfx_derivatives
     TYPE(hfx_cache_type), DIMENSION(:), &
       POINTER                                :: integral_caches
     TYPE(hfx_cache_type), POINTER            :: maxval_cache
-    TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
     TYPE(hfx_container_type), DIMENSION(:), &
       POINTER                                :: integral_containers
     TYPE(hfx_container_type), POINTER        :: maxval_container
@@ -262,7 +260,6 @@ MODULE hfx_derivatives
     nspins = dft_control%nspins
     nkimages = dft_control%nimages
     CPASSERT(nkimages==1)
-    cell_loop_info%dokp = .FALSE.
 
     !! One atom systems have no contribution to forces
     IF( SIZE(particle_set,1) == 1) THEN
@@ -314,7 +311,6 @@ MODULE hfx_derivatives
 !$OMP                                  rho_ao_mp2,&
 !$OMP                                  with_mp2_density,&
 !$OMP                                  hfx_section,&
-!$OMP                                  cell_loop_info,&
 !$OMP                                  para_env,&
 !$OMP                                  irep,&
 !$OMP                                  ncoset,&
@@ -1335,8 +1331,7 @@ MODULE hfx_derivatives
                                ede_work,ede_work2,ede_work_forces, &
                                ede_buffer1,ede_buffer2,ede_primitives_tmp, &
                                nimages,do_periodic,use_virial, ede_work_virial, ede_work2_virial, &
-                               ede_primitives_tmp_virial, primitive_forces_virial, cartesian_estimate_virial,&
-                               cell_loop_info)
+                               ede_primitives_tmp_virial, primitive_forces_virial, cartesian_estimate_virial)
 
                   nints = nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)*12
                   neris_total = neris_total + nints
@@ -1848,7 +1843,6 @@ MODULE hfx_derivatives
 !> \param ede_primitives_tmp_virial ...
 !> \param primitive_integrals_virial ...
 !> \param cart_estimate_virial ...
-!> \param cell_loop_info ...
 ! *****************************************************************************
   SUBROUTINE forces4(deriv, ra, rb, rc, rd, npgfa, npgfb, npgfc, npgfd, &
                      la_min, la_max, lb_min, lb_max,&
@@ -1872,7 +1866,7 @@ MODULE hfx_derivatives
                      ede_buffer1,ede_buffer2,ede_primitives_tmp, &
                      nimages, do_periodic, use_virial, ede_work_virial, &
                      ede_work2_virial, ede_primitives_tmp_virial, primitive_integrals_virial,&
-                     cart_estimate_virial, cell_loop_info)
+                     cart_estimate_virial) 
 
     TYPE(lib_deriv)                          :: deriv
     REAL(dp), INTENT(IN)                     :: ra(3), rb(3), rc(3), rd(3)
@@ -1919,7 +1913,6 @@ MODULE hfx_derivatives
     REAL(dp), DIMENSION(nsgfa, nsgfb, nsgfc,&
       nsgfd, 12, 3)                          :: primitive_integrals_virial
     REAL(dp)                                 :: cart_estimate_virial
-    TYPE(hfx_cell_loop_info_type)            :: cell_loop_info
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
       max_l, ncoa, ncob, ncoc, ncod, nelements_ij, nelements_kl, nneighbors3, &
@@ -1964,7 +1957,7 @@ MODULE hfx_derivatives
         nneighbors3 = SIZE(neighbor_cells)*pgf_list_ij(list_ij)%nimages*pgf_list_kl(list_kl)%nimages
         CALL build_pgf_product_list(nneighbors3, pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
                                     nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
-                                    potential_parameter, max_l, do_periodic, cell_loop_info)
+                                    potential_parameter, max_l, do_periodic) 
         s_offset_a = 0
         DO la = la_min,la_max
           s_offset_b = 0
