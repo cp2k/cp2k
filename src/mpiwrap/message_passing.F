@@ -975,7 +975,7 @@ CONTAINS
 
     WRITE(default_output_unit,*)
     IF (PRESENT(message)) THEN
-       WRITE(default_output_unit,'(A)')         ' CP2K| Error: '//TRIM(message)
+       WRITE(default_output_unit,'(A)')   ' CP2K| Error: '//TRIM(message)
     ENDIF
     WRITE(default_output_unit,'(A,I0)')   ' CP2K| Abnormal program termination, stopped by process number ',taskid
     WRITE(default_output_unit,*) 

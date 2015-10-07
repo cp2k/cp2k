@@ -137,6 +137,7 @@ CONTAINS
     unit_nr = cp_logger_get_default_io_unit()
     IF(unit_nr>0) THEN
        CALL print_message("ABORT in "//TRIM(location)//' :: '//TRIM(ADJUSTL(message)),unit_nr,2,1,1)
+       CALL m_flush(unit_nr)
        CALL print_stack(unit_nr)
        CALL m_flush(unit_nr)
     ENDIF
