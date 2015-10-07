@@ -508,7 +508,7 @@ MODULE admm_dm_methods
 
        ! reverse McWeeny iteration
        DO WHILE (ASSOCIATED(history_curr))
-          IF(unit_nr>1) WRITE(unit_nr,'(t3,a,i5)')"Reverse McWeeny-Step ", history_curr%count
+          IF(unit_nr>0) WRITE(unit_nr,'(t3,a,i5)')"Reverse McWeeny-Step ", history_curr%count
           CALL reverse_mcweeny_step(matrix_k=matrix_k,&
                                     matrix_s=matrix_s_aux_fit(1)%matrix,&
                                     matrix_p=history_curr%m)
