@@ -5,16 +5,16 @@
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
 H2O-ls-emd.inp                                         1      1e-11                 -17.0890686606
-H2O-ls-emd-ngs.inp                                     1    1.0E-14                 -17.0255071971
-H2O-ls-rtp-bch.inp                                     1    1.0E-14                 -17.0890773065
-H2O-ls-rtp.inp                                         1    1.0E-14                 -17.0890773264
-H2O-ls-rtp-scf-restart.inp                             1    1.0E-14                 -17.0890773264
+H2O-ls-emd-ngs.inp                                     1    1.0E-14                 -17.02550719708634 
+H2O-ls-rtp-bch.inp                                     1    1.0E-14                 -17.08907730649009
+H2O-ls-rtp.inp                                         1    1.0E-14                 -17.08907732640686 
+H2O-ls-rtp-scf-restart.inp                             1    1.0E-14                 -17.08907732640686 
 H2O-ls-emd-scf-restart.inp                             1      1e-11                 -17.0890686606
 H2O-ls-emd-mcweeny.inp                                 1      1e-11                 -17.0890686606
 H2O-ls-emd-mcweeny-rt-restart.inp                      1      1e-11                 -17.0890598734
-emd-KG.inp                                             1      1e-14                 -18.1068269888
-H2plus-ls-rtp.inp                                      1    1.0E-14                  -0.5280970816
-H2plus-ls-rtp2.inp                                     1    1.0E-14                  -0.5362416616
-H2O-ls-ortho-emd.inp                                   1    1.0E-14                 -17.0889974663
+emd-KG.inp                                             1      1e-14                 -18.10682698881515
+H2plus-ls-rtp.inp                                      1    1.0E-14                  -0.52809708162056
+H2plus-ls-rtp2.inp                                     1    1.0E-14                  -0.53624166156286
+H2O-ls-ortho-emd.inp                                   1    1.0E-14                 -17.08899746632009 
 H2O-ls-emd-mixing.inp             1     2e-11                 -17.0889404255
 #EOF

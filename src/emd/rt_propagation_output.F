@@ -171,13 +171,13 @@ CONTAINS
             tot_rho_r,&
             tot_rho_r + &
             REAL(n_electrons,dp)
-       WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.10))")&
+       WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.14))")&
                "Total energy:",rtp%energy_new
        IF(run_type==ehrenfest)&
-            WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.10))")&
+            WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.14))")&
             "Energy difference to previous iteration step:",rtp%energy_new-rtp%energy_old
        IF(run_type==real_time_propagation)&
-            WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.10))")&
+            WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.14))")&
             "Energy difference to initial state:",rtp%energy_new-rtp%energy_old
        IF(PRESENT(delta_iter))&
        WRITE (UNIT=output_unit,FMT="((T3,A,T61,E20.6))")&
@@ -186,7 +186,7 @@ CONTAINS
            IF(run_type==real_time_propagation)&
                WRITE (UNIT=output_unit,FMT="((T3,A,T61,F12.2))")&
                "Time needed for propagation:",used_time
-           WRITE (UNIT=output_unit,FMT="(/,(T3,A,3X,F16.10))")&
+           WRITE (UNIT=output_unit,FMT="(/,(T3,A,3X,F16.14))")&
            "CONVERGENCE REACHED",rtp%energy_new-rtp%energy_old
        END IF
     END IF
