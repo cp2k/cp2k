@@ -201,6 +201,15 @@ CONTAINS
       CALL scf_env_do_scf(scf_env=scf_env, scf_control=scf_control, qs_env=qs_env,  &
                         converged=converged, should_stop=should_stop)
 
+      ! If SCF has not converged, then we should not start MP2                  
+      IF (ASSOCIATED(qs_env%mp2_env)) THEN
+         IF (.NOT. converged) THEN
+            qs_env%mp2_env%hf_fail = .TRUE.
+         ELSE
+            qs_env%mp2_env%hf_fail = .FALSE.
+         ENDIF
+      ENDIF
+
       !   *** add the converged wavefunction to the wavefunction history
       IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
           ((scf_control%density_guess .NE. history_guess) .OR. &

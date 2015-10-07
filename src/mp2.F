@@ -176,6 +176,13 @@ MODULE mp2
     TYPE(section_vals_type), POINTER         :: hfx_sections, input
     TYPE(virial_type), POINTER               :: virial
 
+! If SCF has not converged we should abort MP2 calculation
+
+    IF (qs_env%mp2_env%hf_fail) THEN
+       CALL cp_abort(__LOCATION__,"SCF not converged: "//&
+                      "not possible to run MP2")
+    ENDIF
+
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
     logger => cp_get_default_logger()

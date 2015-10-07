@@ -163,6 +163,7 @@ MODULE mp2_types
        INTEGER  :: block_size_row
        INTEGER  :: block_size_col
        LOGICAL  :: calc_PQ_cond_num
+       LOGICAL  :: hf_fail
   END TYPE
 
   TYPE integ_mat_buffer_type
