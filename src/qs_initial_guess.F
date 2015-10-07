@@ -325,9 +325,9 @@ CONTAINS
     IF (density_guess == restart_guess) THEN
 
        IF (do_kpoints) THEN
+          natoms = SIZE(particle_set)
           CALL read_kpoints_restart(rho_ao_kp,kpoints,work1,&
-               atomic_kind_set,qs_kind_set,particle_set,para_env,&
-               id_nr,dft_section,natom_mismatch)
+               natoms,para_env,id_nr,dft_section,natom_mismatch)
           IF (natom_mismatch) density_guess = safe_density_guess
        ELSE
           CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)

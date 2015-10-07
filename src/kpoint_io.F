@@ -10,8 +10,7 @@
 ! *****************************************************************************
 MODULE kpoint_io 
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_info,&
@@ -294,28 +293,21 @@ CONTAINS
 !> \param denmat ...
 !> \param kpoints ...
 !> \param fmwork ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-!> \param particle_set ...
+!> \param natom ...
 !> \param para_env ...
 !> \param id_nr ...
 !> \param dft_section ...
 !> \param natom_mismatch ...
 ! *****************************************************************************
-  SUBROUTINE read_kpoints_restart(denmat,kpoints,fmwork,atomic_kind_set,&
-       qs_kind_set,particle_set,para_env,id_nr,dft_section,natom_mismatch)
+  SUBROUTINE read_kpoints_restart(denmat,kpoints,fmwork,natom,&
+             para_env,id_nr,dft_section,natom_mismatch)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: denmat
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: fmwork
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: natom
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: id_nr
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -325,8 +317,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name
-    INTEGER                                  :: group, handle, natom, &
-                                                restart_unit, source
+    INTEGER                                  :: group, handle, restart_unit, &
+                                                source
     LOGICAL                                  :: exist
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -340,7 +332,6 @@ CONTAINS
 
     IF (para_env%ionode) THEN
 
-       natom = SIZE(particle_set,1)
        CALL wfn_restart_file_name(file_name,exist,dft_section,logger,kp=.TRUE.)
        IF (id_nr/=0) THEN
           ! Is it one of the backup files?
@@ -358,8 +349,8 @@ CONTAINS
     CPASSERT(ASSOCIATED(fmwork))
     CPASSERT(ASSOCIATED(fmwork(1)%matrix))
 
-    CALL read_kpoints_restart_low (denmat,kpoints,fmwork(1)%matrix,para_env,qs_kind_set,&
-         particle_set,natom,restart_unit,natom_mismatch)
+    CALL read_kpoints_restart_low (denmat,kpoints,fmwork(1)%matrix,para_env,&
+         natom,restart_unit,natom_mismatch)
 
     ! only the io_node returns natom_mismatch, must broadcast it
     CALL mp_bcast(natom_mismatch,source,group)
@@ -377,8 +368,6 @@ CONTAINS
 !> \param kpoints ...
 !> \param fmat ...
 !> \param para_env ...
-!> \param qs_kind_set ...
-!> \param particle_set ...
 !> \param natom ...
 !> \param rst_unit ...
 !> \param natom_mismatch ...
@@ -386,18 +375,14 @@ CONTAINS
 !>      12.2007 created [MI]
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE read_kpoints_restart_low (denmat,kpoints,fmat,para_env,qs_kind_set,&
-             particle_set,natom,rst_unit,natom_mismatch)
+  SUBROUTINE read_kpoints_restart_low (denmat,kpoints,fmat,para_env,&
+             natom,rst_unit,natom_mismatch)
 
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: denmat
     TYPE(kpoint_type), POINTER               :: kpoints
     TYPE(cp_fm_type), POINTER                :: fmat
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: natom, rst_unit
     LOGICAL, INTENT(OUT)                     :: natom_mismatch
 
