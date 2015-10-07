@@ -65,8 +65,10 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     now = datetime.utcnow().replace(microsecond=0)
 
     output  = html_header(title="CP2K Dashboard")
-    output += '<div id="flex-container">\n'
+    output += '<div id="flex-container"><div>\n'
+    output += html_svnbox(log)
     output += html_linkbox()
+    output += '</div>\n'
     output += '<table border="1" cellspacing="3" cellpadding="5">\n'
     output += '<tr><th>Name</th><th>Host</th><th>Status</th>'
     output += '<th>Revision</th><th>Summary</th><th>Last OK</th><th>Tickets</th></tr>\n\n'
@@ -289,24 +291,26 @@ def html_header(title):
     output += '#flex-container {\n'
     output += '  display: -webkit-flex; /* Safari */\n'
     output += '  display: flex;\n'
-    output += '  -webkit-flex-flow: row wrap; /* Safari */\n'
-    output += '  flex-flow:         row wrap;\n'
+    output += '  -webkit-flex-flow: row wrap-reverse; /* Safari */\n'
+    output += '  flex-flow:         row wrap-reverse;\n'
     output += '  -webkit-justify-content: space-around; /* Safari */\n'
     output += '  justify-content:         space-around;\n'
-    output += '  -webkit-align-items: flex-start; /* Safari */\n'
-    output += '  align-items:         flex-start;\n'
+    output += '  -webkit-align-items: flex-end; /* Safari */\n'
+    output += '  align-items:         flex-end;\n'
     output += '}\n'
-    output += '#linkbox {\n'
+    output += '.sidebox {\n'
     output += '  width: 15em;\n'
     output += '  border-radius: 1em;\n'
     output += '  box-shadow: .2em .2em .7em 0 #777;\n'
     output += '  background: #f7f7f0;\n'
-    output += '  font-size: 14px;\n'
     output += '  padding: 1em;\n'
-    output += '  margin: 20px;\n'
+    output += '  margin: 40px 20px;\n'
     output += '}\n'
-    output += '#linkbox h2 {\n'
+    output += '.sidebox h2 {\n'
     output += '  margin: 0 0 0.5em 0;\n'
+    output += '}\n'
+    output += '.sidebox p {\n'
+    output += '  margin: 0.5em;\n'
     output += '}\n'
     output += '#dummybox {\n'
     output += '  width: 15em;\n'
@@ -320,10 +324,27 @@ def html_header(title):
 
 #===============================================================================
 def html_linkbox():
-    output  = '<div id="linkbox">\n'
+    output  = '<div class="sidebox">\n'
     output += '<h2>More...</h2>\n'
     output += '<a href="regtest_survey.html">Regtest Survey</a><br>\n'
     output += '<a href="http://www.cp2k.org/static/coverage/">Test Coverage</a><br>\n'
+    output += '</div>\n'
+    return(output)
+
+#===============================================================================
+def html_svnbox(log):
+    now = datetime.utcnow()
+    output  = '<div class="sidebox">\n'
+    output += '<h2>Recent Commits</h2>\n'
+    for r in log[0:10]:
+        url = "http://sourceforge.net/p/cp2k/code/%d/"%r['num']
+        msg = r['msg'].split("\n")[0]
+        if(len(msg) > 27):
+            msg = msg[:26] + "..."
+        output += '<p><a title="%s" href="%s">%s</a><br>\n'%(r['msg'], url, msg)
+        delta = now - r['date']
+        age = delta.days*24.0 + delta.seconds/3600.0
+        output += '<small>%s %s %.1fh ago.</small></p>\n'%(r['num'], r['author'], age)
     output += '</div>\n'
     return(output)
 
