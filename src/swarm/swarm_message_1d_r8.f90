@@ -13,7 +13,7 @@
    TYPE(message_entry_type), POINTER :: new_entry
 
    IF(swarm_message_haskey(msg, key)) &
-      CALL mp_abort("swarm_message_add_1d_r8: key already exists: "//TRIM(key))
+      CPABORT("swarm_message_add_1d_r8: key already exists: "//TRIM(key))
 
    ALLOCATE(new_entry)
    new_entry%key = key
@@ -55,7 +55,7 @@
    DO WHILE(ASSOCIATED(curr_entry))
       IF(TRIM(curr_entry%key) == TRIM(key)) THEN
          IF(.NOT. ASSOCIATED(curr_entry%value_1d_r8)) &
-            CALL mp_abort("swarm_message_get_1d_r8: value not associated key: "//TRIM(key))
+            CPABORT("swarm_message_get_1d_r8: value not associated key: "//TRIM(key))
          ALLOCATE(value(SIZE(curr_entry%value_1d_r8)))
          value = curr_entry%value_1d_r8
          !WRITE (*,*) "swarm_message_get_1d_r8: value=",value
@@ -63,7 +63,7 @@
       ENDIF
       curr_entry => curr_entry%next
    END DO
-   CALL mp_abort("swarm_message_get: key not found: "//TRIM(key))
+   CPABORT("swarm_message_get: key not found: "//TRIM(key))
  END SUBROUTINE swarm_message_get_1d_r8
 
 !EOF

@@ -16,7 +16,6 @@ MODULE mdctrl_methods
   USE glbopt_callback,                 ONLY: glbopt_md_callback
   USE md_environment_types,            ONLY: md_environment_type
   USE mdctrl_types,                    ONLY: mdctrl_type
-  USE message_passing,                 ONLY: mp_abort
 #include "../common/cp_common_uses.f90"
 
   IMPLICIT NONE
@@ -51,7 +50,7 @@ CONTAINS
     !ELSE IF(ASSOCIATED(mdctrl%your_own_hook)) THEN ...
 
     ELSE
-      CALL mp_abort("mdctrl_callback: No hook found.")
+      CPABORT("mdctrl_callback: No hook found.")
     ENDIF
 
   END SUBROUTINE mdctrl_callback

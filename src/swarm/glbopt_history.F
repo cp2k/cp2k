@@ -12,7 +12,6 @@ MODULE glbopt_history
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_abort
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "../common/cp_common_uses.f90"
@@ -131,7 +130,7 @@ MODULE glbopt_history
       DIMENSION(:, :)                        :: matrix, work
     REAL(KIND=dp), DIMENSION(3)              :: d
 
-    IF(ASSOCIATED(res)) CALL mp_abort("goedecker_fingerprint: res already allocated")
+    IF(ASSOCIATED(res)) CPABORT("goedecker_fingerprint: res already allocated")
     N = SIZE(pos) / 3 ! number of atoms
 
     ALLOCATE(matrix(N,N), work(N,N))
@@ -149,7 +148,7 @@ MODULE glbopt_history
     !TODO: do we need to store lower triangle of matrix?
     ALLOCATE(res(N))
     CALL DSYEV('N','U',N,matrix,N, res, work, N**2, info)
-    IF(info /= 0) CALL mp_abort("goedecker_fingerprint: DSYEV failed")
+    IF(info /= 0) CPABORT("goedecker_fingerprint: DSYEV failed")
  END SUBROUTINE goedecker_fingerprint
 
 
@@ -241,7 +240,7 @@ MODULE glbopt_history
           !WRITE(*,*) "history: ", k, "Epot",history%entries(k)%p%Epot
           IF(k>1)THEN
              IF(history%entries(k-1)%p%Epot > history%entries(k)%p%Epot) &
-               CALL mp_abort("history_add: history in wrong order")
+               CPABORT("history_add: history in wrong order")
            END IF
        END DO
     ENDIF
@@ -384,7 +383,7 @@ MODULE glbopt_history
 
     IF(found_i /= found_i_ref) THEN
       WRITE (*,*) found_i, found_i_ref
-      CALL mp_abort("verify_history_lookup failed")
+      CPABORT("verify_history_lookup failed")
     ENDIF
 
  END SUBROUTINE verify_history_lookup
