@@ -94,7 +94,11 @@ CONTAINS
          enum_c_vals=s2a("B3LYP","PBE0","BLYP","BP","PADE","LDA","PBE","TPSS","HCTH120","OLYP","BEEFVDW","NO_SHORTCUT","NONE"),&
          enum_i_vals=(/xc_funct_b3lyp,xc_funct_pbe0,xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pade,xc_funct_pbe,&
          xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_beefvdw,xc_funct_no_shortcut,xc_none/),&
-         enum_desc=s2a("B3LYP","PBE0","BLYP","BP","PADE","Alias for PADE","PBE","TPSS","HCTH120","OLYP",&
+         enum_desc=s2a("B3LYP",&
+                       "PBE0. See note in section XC/XC_FUNCTIONAL/PBE.",&
+                       "BLYP","BP","PADE","Alias for PADE",&
+                       "PBE. See note in section XC/XC_FUNCTIONAL/PBE.",&
+                       "TPSS","HCTH120","OLYP",&
                        "BEEFVDW","NO_SHORTCUT","NONE"),&
          default_i_val=xc_funct_no_shortcut,&
          lone_keyword_i_val=xc_funct_no_shortcut)
@@ -512,7 +516,10 @@ CONTAINS
     CALL keyword_release(keyword)
     CALL keyword_create(keyword,"parametrization",&
          description="switches between the different "//&
-         "parametrizations of the functional",&
+         "parametrizations of the functional. "//&
+         "Note: Beta parameters used have only 5 significant digits, "//&
+         "as published. For higher precision and program comparison "//&
+         "use section XC/XC_FUNCTIONAL/LIBXC.",&
          enum_i_vals=(/xc_pbe_orig,xc_pbe_rev,xc_pbe_sol/),&
          enum_c_vals=(/"ORIG  ","revPBE","PBEsol"/),&
          enum_desc=(/"original PBE                        ",&
