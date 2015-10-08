@@ -190,4 +190,4 @@ TMC/regtest_ana_on_the_fly                                  parallel mpiranks>2
 optimize_input/regtest-1
 FE/regtest-2
 Fist/regtest-quip                                           quip
-#QS/regtest-pao
+QS/regtest-pao
