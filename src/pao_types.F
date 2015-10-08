@@ -49,6 +49,7 @@ MODULE pao_types
      REAL(KIND=dp)                    :: energy_prev = 0.0_dp
      REAL(KIND=dp)                    :: check_gradient_tol = 0.0_dp
      REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
+     REAL(KIND=dp)                    :: check_param_tol = 0.0_dp
      TYPE(cp_dbcsr_type)              :: matrix_z2c
      TYPE(cp_dbcsr_type), DIMENSION(:), POINTER :: matrix_V_terms => Null()
      TYPE(cp_dbcsr_type)              :: matrix_precon

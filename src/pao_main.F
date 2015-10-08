@@ -243,7 +243,7 @@ CONTAINS
 
        ! compute corresponding energy and ks matrix
        CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,ls_scf_env%energy_init,iscf=0)
-       IF(pao%iw>0) WRITE (pao%iw,*) "PAO| Energy from extrapolating prev. step:",ls_scf_env%energy_init
+       IF(pao%iw>0) WRITE (pao%iw,*) "PAO| Initial energy from stored density:",ls_scf_env%energy_init
     ENDIF
 
     CALL timestop(handle)
@@ -405,9 +405,6 @@ CONTAINS
     ls_mstruct => ls_scf_env%ls_mstruct
     pao => ls_scf_env%pao_env
 
-    ! store matrix_P big before AB changes
-    CALL pao_store_P(qs_env, ls_scf_env)
-
     IF(pao%istep >= pao%max_pao) THEN
         IF(pao%iw>0) WRITE(pao%iw,*) "PAO| not converged!"
         pao_is_done = .TRUE.
@@ -422,6 +419,11 @@ CONTAINS
 
        pao_is_done = .FALSE.
        IF(pao%line_search_start) THEN
+          ! store prim. matrix_P before linesearch starts to wander off
+          CALL pao_store_P(qs_env, ls_scf_env)
+
+          CALL pao_write_restart(pao, qs_env)
+
           CALL pao_calc_grad(qs_env, ls_scf_env)
 
           ! determine CG mixing factor
@@ -452,8 +454,6 @@ CONTAINS
           CALL pao_update_AB(pao, ls_mstruct)
        ENDIF
     ENDIF
-
-    CALL pao_write_restart(pao, qs_env)
 
     CALL timestop(handle)
   END SUBROUTINE pao_update
@@ -534,7 +534,7 @@ CONTAINS
        ENDIF
 
        IF(pao%max_outer_pao>0 .AND. pao%istep-pao%last_reset > pao%max_outer_pao) THEN
-          IF(pao%iw>0) WRITE(pao%iw,*) "PAO| resetting X because of MAX_OUTER_PAO"
+          IF(pao%iw>0) WRITE(pao%iw,*) "PAO|CG| resetting because of MAX_OUTER_PAO"
           pao%last_reset = pao%istep
           beta = 0.0_dp
        ENDIF
@@ -608,7 +608,7 @@ CONTAINS
     ls_mstruct => ls_scf_env%ls_mstruct
     pao => ls_scf_env%pao_env
 
-    IF(pao%iw>0) WRITE (pao%iw,*) "PAO| Storing density matrix for next PAO interation."
+    IF(pao%iw>0) WRITE (pao%iw,*) "PAO| Storing primary density matrix for next PAO interation."
 
     CALL get_qs_env(qs_env, matrix_s=matrix_s)
 

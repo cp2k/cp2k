@@ -89,6 +89,9 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CHECK_UNITARY_TOL",r_val=pao%check_unitary_tol)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","CHECK_UNITARY_TOL",pao%check_unitary_tol
 
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CHECK_PARAMETRIZATION_TOL",r_val=pao%check_param_tol)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","CHECK_PARAMETRIZATION_TOL",pao%check_param_tol
+
   END SUBROUTINE parse_pao_section
 
 ! *****************************************************************************
@@ -202,6 +205,13 @@ CONTAINS
          description="Check if rotation matrix is unitary."//&
          " Negative values mean don't check at all.",&
          default_r_val=-1.0_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CHECK_PARAMETRIZATION_TOL",&
+         description="Check if parametrization is well conditioned."//&
+         " Negative values mean don't check at all.",&
+         default_r_val=1.0e-10_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

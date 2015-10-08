@@ -282,7 +282,10 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
        block_precon = 0.0_dp
        block_precon_inv = 0.0_dp
        DO k=1, nterms
-          IF(ABS(evals(k)) < 1e-5_dp) CPABORT("parametrization broken")
+          IF(ABS(evals(k)) < pao%check_param_tol) THEN
+             CALL cp_abort(__LOCATION__,"Parametrization ill-conditioned. "//&
+                  "Found tiny eigenvalue in linpot overlap matrix:"//cp_to_string(evals(k)))
+          ENDIF
           v = 1.0_dp/evals(k)
           w = 1.0_dp/v
           DO i=1, nterms
