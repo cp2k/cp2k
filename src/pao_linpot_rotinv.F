@@ -52,9 +52,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_count_terms', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, iset, ishell, jset, &
-                                                jshell, natoms, pot_maxl, &
-                                                pot_neighbors
+    INTEGER :: dim_avail, ikind, iset, ishell, jneighbor, jset, jshell, li, &
+      lj, lpot, natoms, pot_maxl, pot_neighbors
     TYPE(gto_basis_set_type), POINTER        :: basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -79,11 +78,27 @@ CONTAINS
      DO jset=1, iset
         DO ishell=1, basis_set%nshell(iset)
         DO jshell=1, ishell
-           IF(basis_set%l(ishell,iset)==0 .AND. basis_set%l(jshell,jset)==0) THEN
-              nterms = nterms + 1
+           li = basis_set%l(ishell,iset)
+           lj = basis_set%l(jshell,jset)
+
+           ! calculate the block's number of dimensions
+           IF(li==lj) THEN
+              dim_avail = 2*li+1
            ELSE
-              nterms = nterms + (pot_maxl+1) * pot_neighbors
+              dim_avail = (2*li+1) * (2*lj+1)
            ENDIF
+
+           inner:&
+           DO lpot=0, pot_maxl
+              ! basis function can only detect potentials of lower order
+              IF(lpot > MIN(li, lj)) CYCLE
+              DO jneighbor=1, pot_neighbors
+                 nterms = nterms + 1
+                 ! don't generate more terms than available dimensions
+                 dim_avail = dim_avail - 1
+                 IF(dim_avail==0) EXIT inner
+              ENDDO
+           ENDDO inner
         ENDDO
         ENDDO
      ENDDO
@@ -108,14 +123,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(dp), PARAMETER                      :: inf_dist = 0.1*HUGE(1.0) 
 
-    INTEGER :: c, i, idx_i, idx_j, ikind, iset, ishell, jatom, jneighbor, &
-      jset, jshell, la1_max, la1_min, la2_max, la2_min, lb_max, lb_min, lpot, &
-      m, na1, na2, natoms, nb, ncfga1, ncfga2, ncfgb, npgfa1, npgfa2, npgfb, &
-      nsgfa1, nsgfa2, pot_maxl, pot_neighbors
+    INTEGER :: c, dim_avail, i, idx_i, idx_j, ikind, iset, ishell, jatom, &
+      jneighbor, jset, jshell, la1_max, la1_min, la2_max, la2_min, lb_max, &
+      lb_min, li, lj, lpot, m, na1, na2, natoms, nb, ncfga1, ncfga2, ncfgb, &
+      npgfa1, npgfa2, npgfb, nsgfa1, nsgfa2, pot_maxl, pot_neighbors
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: neighbor_order
     REAL(dp)                                 :: coeff
     REAL(dp), DIMENSION(:), POINTER          :: rpgfa1, rpgfa2, zeta1, zeta2
-    REAL(dp), DIMENSION(:, :), POINTER       :: qab, sab
+    REAL(dp), DIMENSION(:, :), POINTER       :: sab
     REAL(KIND=dp)                            :: c2s, pot_beta, pot_exp, &
                                                 R_vdw, y
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: neighbor_dist
@@ -154,22 +169,29 @@ CONTAINS
      DO jset=1, iset
         DO ishell=1, basis_set%nshell(iset)
         DO jshell=1, ishell
-           IF(basis_set%l(ishell,iset)==0 .AND. basis_set%l(jshell,jset)==0) THEN
-              jneighbor=-1; lpot=-1
-              c = c + 1
-              IF(c==kterm) EXIT outer
+           li = basis_set%l(ishell,iset)
+           lj = basis_set%l(jshell,jset)
+           IF(li==lj) THEN
+              dim_avail = 2*li+1
            ELSE
+              dim_avail = (2*li+1) * (2*lj+1)
+           ENDIF
+
+           inner:&
+           DO lpot=0, pot_maxl
+              IF(lpot > MIN(li, lj)) CYCLE
               DO jneighbor=1, pot_neighbors
-              DO lpot=0, pot_maxl
                  c = c + 1
                  IF(c==kterm) EXIT outer
+                 dim_avail = dim_avail - 1
+                 IF(dim_avail==0) EXIT inner
               ENDDO
-              ENDDO
-           ENDIF
+           ENDDO inner
         ENDDO
         ENDDO
      ENDDO
      ENDDO outer
+
 
      ! find neighbors
      ! TODO: this is a quadratic algorithm, use a neighbor-list instead
@@ -253,7 +275,7 @@ CONTAINS
         nsgfa2 = 2*basis_set%l(jshell,jset) + 1
 
         ! allocate storage for integrals in spherical basis
-        ALLOCATE(qab(nsgfa1,nsgfa2), sab(na1, na2))
+        ALLOCATE(sab(na1, na2))
 
         ! map zonal Harmonic in direction of atom_j onto carthesian Harmonics
         rab_dir = rab / SQRT(SUM(rab*rab))
@@ -275,8 +297,7 @@ CONTAINS
         ENDDO
 
         CALL my_contract(sab, block_V, basis_set, iset, ishell, jset, jshell)
-        DEALLOCATE(saab, qab, sab)
-
+        DEALLOCATE(saab, sab)
     ENDIF
 
     block_V = block_V + TRANSPOSE(block_V)
