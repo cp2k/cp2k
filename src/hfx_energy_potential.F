@@ -572,6 +572,8 @@ MODULE hfx_energy_potential
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2))
     ALLOCATE(pgf_list_kl(max_pgf**2))
+    ! TODO this is a memory sink, not obvious how to reduce the memory usage,
+    !      but typically most of them memory allocated here is never touched (i.e. remains virt not resident)
     ALLOCATE(pgf_product_list(nneighbors**3))
     ALLOCATE(nimages(max_pgf**2))
 
