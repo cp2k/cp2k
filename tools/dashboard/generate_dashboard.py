@@ -23,6 +23,11 @@ from os import path
 from pprint import pformat
 from xml.dom import minidom
 from glob import glob
+import matplotlib.pyplot as plt
+import itertools
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 #===============================================================================
@@ -162,16 +167,6 @@ def gen_archive(config, log, outdir, full_archive=False):
         report_type = config.get(s,"report_type")
         info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
 
-
-        # generate archive index
-        archive_output = html_header(title=name)
-        archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>'
-        if(info_url):
-            archive_output += '<p>Get <a href="%s">more information</a></p>'%info_url
-        archive_output += full_index_link
-        archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
-        archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
-
         # read all archived reports
         archive_reports = dict()
         for fn in sorted(glob(outdir+"archive/%s/rev_*.txt.gz"%s), reverse=True):
@@ -179,6 +174,18 @@ def gen_archive(config, log, outdir, full_archive=False):
             report = parse_report(report_txt, report_type)
             report['url'] = path.basename(fn)[:-3]
             archive_reports[report['revision']] = report
+        
+        # generate archive index  
+        archive_output = html_header(title=name)
+        archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>\n'
+        if(info_url):
+            archive_output += '<p>Get <a href="%s">more information</a></p>\n'%info_url
+         
+        archive_output += gen_plots(archive_reports, outdir+"archive/"+s+"/")
+         
+        archive_output += full_index_link
+        archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
+        archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
 
         # loop over all relevant revisions
         rev_start = max(min(archive_reports.keys()), min(log_index.keys()))
@@ -205,6 +212,54 @@ def gen_archive(config, log, outdir, full_archive=False):
 
     out_fn = "list_full.txt" if (full_archive) else "list_recent.txt"
     write_file(outdir+"archive/"+out_fn, url_list)
+
+#===============================================================================
+def gen_plots(all_reports, outdir):
+    # collect plot data
+    plots = {}
+    for report in all_reports.values():
+        for p in report['plots']:
+            if(p['name'] not in plots.keys()):
+                plots[p['name']] = {'points':[]}
+            plots[p['name']]['title'] = p['title'] # update title
+            plots[p['name']]['ylabel'] = p['ylabel'] # update label
+        for pp in report['plotpoints']:
+            pp['x'] = report['revision']
+            plots[pp['plot']]['points'].append(pp)
+    
+    # create png images
+    markers = itertools.cycle('os>^*')
+    for pname, p in plots.items():
+        print "Working on plot: "+pname
+        fig = plt.figure(figsize=(10,4))
+        fig.subplots_adjust(bottom=0.18, left=0.08, right=0.97)
+        fig.suptitle(p['title'], fontsize=14, fontweight='bold')
+        ax = fig.add_subplot(111)
+        ax.set_xlabel('SVN Revision')
+        ax.set_ylabel(p['ylabel'])
+        curves = set([pp['name'] for pp in p['points']])
+        for c in curves:
+            xvals = [pp['x'] for pp in p['points'] if pp['name']==c]
+            yvals = [pp['y'] for pp in p['points'] if pp['name']==c]
+            yerrs = [pp['yerr'] for pp in p['points'] if pp['name']==c]
+            label = [pp['label'] for pp in p['points'] if pp['name']==c][-1]
+            ax.errorbar(xvals, yvals, yerr=yerrs,
+                        marker=markers.next(), label=label,
+                        linewidth=2, markersize=7)
+        xticks = range(xvals[0], xvals[-1]+1)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticks, rotation=45)
+        ax.legend(loc='upper center',
+                  numpoints=1,
+                  ncol=3,
+                  fancybox=True, shadow=True)
+        fig.savefig(outdir+pname+".png")
+            
+    # write html output
+    output = ""
+    for pname, p in plots.items():
+        output += '<p><img src="%s.png" alt="%s"></p>\n'%(pname, p['title']) 
+    return(output)
 
 #===============================================================================
 def retrieve_report(report_url):
@@ -494,7 +549,9 @@ def parse_generic_report(report_txt):
     report['revision']  = int(re.search("(^|\n)Revision: (\d+)\n", report_txt).group(2))
     report['summary'] = re.search("(^|\n)Summary: (.+)\n", report_txt).group(2)
     report['status'] = re.search("(^|\n)Status: (.+)\n", report_txt).group(2)
-
+    report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
+    report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
+   
     return(report)
 
 #===============================================================================
