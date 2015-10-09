@@ -223,8 +223,7 @@ CONTAINS
          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
               "Adiabatic Thermostat has been defined but the ensemble provided "//&
               "does not support thermostat for Particles! Ignoring thermostat input."//&
-__LOCATION__,&
-              only_ionode=.TRUE.)
+              __LOCATION__,only_ionode=.TRUE.)
       END IF
       CALL release_thermostat_info(thermostats%thermostat_info_fast)
       CALL release_thermostat_info(thermostats%thermostat_info_slow)
@@ -280,16 +279,14 @@ __LOCATION__,&
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
                "does not support thermostat for Particles! Ignoring thermostat input."//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+               __LOCATION__,only_ionode=.TRUE.)
        END IF
     ELSE IF (apply_general_thermo) THEN
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
             "One constant temperature ensemble has been required, but no thermostat for the "//&
             "particles has been defined. You may want to change your input and add a "//&
             "THERMOSTAT section in the MD section."//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+            __LOCATION__,only_ionode=.TRUE.)
     END IF
 
     ! Core-Shell Model
@@ -330,8 +327,7 @@ __LOCATION__,&
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                      "Thermostat for Core-Shell motion only with adiabatic shell-model. "//&
                      "Continuing calculation ignoring the thermostat info! No Thermostat "//&
-                     "applied to Shells!"//&
-__LOCATION__,&
+                     "applied to Shells!"//__LOCATION__,&
                      only_ionode=.TRUE.)
                 CALL release_thermostat_type(thermostats%thermostat_shell)
                 CALL release_thermostat_info(thermostats%thermostat_info_shell)
@@ -339,16 +335,14 @@ __LOCATION__,&
           ELSE
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
              "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
-             " shell model has not been implemented! Ignoring thermostat input."//&
-__LOCATION__,&
+             " shell model has not been implemented! Ignoring thermostat input."//__LOCATION__,&
              only_ionode=.TRUE.)
           END IF
        END IF
     ELSE IF (explicit_shell) THEN
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
             "Thermostat for Shells has been defined but the system provided "//&
-            "does not contain any Shells! Ignoring thermostat input."//&
-__LOCATION__,&
+            "does not contain any Shells! Ignoring thermostat input."//__LOCATION__,&
             only_ionode=.TRUE.)
     END IF
 
@@ -394,8 +388,7 @@ __LOCATION__,&
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
                   "Thermostat for Barostat has been defined but the ensemble provided "//&
                   "does not support thermostat for Barostat! Ignoring thermostat input."//&
-__LOCATION__,&
-                  only_ionode=.TRUE.)
+                  __LOCATION__,only_ionode=.TRUE.)
           END IF
           ! Let's remove the section
           CALL section_vals_remove_values(thermo_baro_section)
