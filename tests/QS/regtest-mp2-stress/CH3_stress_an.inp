@@ -29,8 +29,7 @@
     &END MGRID
     &QS
       METHOD GPW
-      EPS_DEFAULT 1.0E-15
-      EPS_PGF_ORB 1.0E-30
+      EPS_DEFAULT 1.0E-10
     &END QS
     &SCF
       SCF_GUESS ATOMIC
@@ -43,7 +42,7 @@
       &HF
         FRACTION 1.0000000
         &SCREENING
-          EPS_SCHWARZ 1.0E-8
+          EPS_SCHWARZ 1.0E-5
           SCREEN_ON_INITIAL_P FALSE 
         &END SCREENING
         &INTERACTION_POTENTIAL
