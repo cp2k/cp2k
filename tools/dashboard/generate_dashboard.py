@@ -181,7 +181,8 @@ def gen_archive(config, log, outdir, full_archive=False):
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>\n'%info_url
          
-        archive_output += gen_plots(archive_reports, outdir+"archive/"+s+"/")
+        if(report_type == "generic"):
+            archive_output += gen_plots(archive_reports, outdir+"archive/"+s+"/")
          
         archive_output += full_index_link
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
