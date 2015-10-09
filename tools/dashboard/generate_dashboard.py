@@ -249,6 +249,7 @@ def gen_plots(all_reports, outdir):
         xticks = range(xvals[0], xvals[-1]+1)
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticks, rotation=45)
+        ax.set_xlim(xticks[0]-0.1, xticks[-1]+0.1)
         ax.legend(loc='upper center',
                   numpoints=1,
                   ncol=3,
