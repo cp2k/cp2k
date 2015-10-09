@@ -1,4 +1,4 @@
 H2O_stress_an.inp                                     31       1E-5           -0.78262624400000003
 H2_stress_num.inp                                     31      2e-04           -0.54626478700000003
-CH3_stress_an.inp                                     31      2e-04            0.790678394
+#CH3_stress_an.inp                                     31      2e-04            0.790678394
 #EOF
