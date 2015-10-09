@@ -23,12 +23,11 @@ from os import path
 from pprint import pformat
 from xml.dom import minidom
 from glob import glob
-import matplotlib.pyplot as plt
 import itertools
-import warnings
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
+import matplotlib as mpl
+mpl.use('Agg')  # change backend, to run without X11
+import matplotlib.pyplot as plt
 
 #===============================================================================
 def main():
