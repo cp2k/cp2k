@@ -335,8 +335,8 @@ CONTAINS
           ELSE
              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
              "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
-             " shell model has not been implemented! Ignoring thermostat input."//__LOCATION__,&
-             only_ionode=.TRUE.)
+             " shell model has not been implemented! Ignoring thermostat input."//&
+             __LOCATION__,only_ionode=.TRUE.)
           END IF
        END IF
     ELSE IF (explicit_shell) THEN
