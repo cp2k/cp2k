@@ -249,7 +249,7 @@ def gen_plots(all_reports, outdir):
             label = [pp['label'] for pp in p['points'] if pp['name']==c][-1]
             ax.errorbar(xvals, yvals, yerr=yerrs, label=label,
                         marker=markers.next(), linewidth=2, markersize=7)
-        xticks = range(min(revs), max(revs)+1) # all plots get same x-axis
+        xticks = range(min(revs), max(revs)+1, 10) # all plots get same x-axis
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticks, rotation=45)
         ax.set_xlim(xticks[0]-0.3, xticks[-1]+0.3)
