@@ -252,7 +252,7 @@ def gen_plots(all_reports, outdir):
         xticks = range(min(revs), max(revs)+1, 10) # all plots get same x-axis
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticks, rotation=45)
-        ax.set_xlim(xticks[0]-0.3, xticks[-1]+0.3)
+        ax.set_xlim(xticks[0]-0.3, max(max(revs)+1,xticks[-1])+0.3)
         ax.legend(loc='upper center', numpoints=1, ncol=3, fancybox=True, shadow=True)
         fig.savefig(outdir+pname+".png")
             
