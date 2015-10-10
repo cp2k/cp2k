@@ -217,7 +217,8 @@ def gen_archive(config, log, outdir, full_archive=False):
 def gen_plots(all_reports, outdir):
     # collect plot data
     plots = {}
-    for report in all_reports.values():
+    for revision in sorted(all_reports.keys()):
+        report = all_reports[revision]
         for p in report['plots']:
             if(p['name'] not in plots.keys()):
                 plots[p['name']] = {'points':[]}
@@ -226,6 +227,9 @@ def gen_plots(all_reports, outdir):
         for pp in report['plotpoints']:
             pp['x'] = report['revision']
             plots[pp['plot']]['points'].append(pp)
+    
+     # collect all revisions that appear in any of the plot
+    revs = set([pp['x'] for p in plots.values() for pp in p['points']])
     
     # create png images
     markers = itertools.cycle('os>^*')
@@ -243,17 +247,13 @@ def gen_plots(all_reports, outdir):
             yvals = [pp['y'] for pp in p['points'] if pp['name']==c]
             yerrs = [pp['yerr'] for pp in p['points'] if pp['name']==c]
             label = [pp['label'] for pp in p['points'] if pp['name']==c][-1]
-            ax.errorbar(xvals, yvals, yerr=yerrs,
-                        marker=markers.next(), label=label,
-                        linewidth=2, markersize=7)
-        xticks = range(xvals[0], xvals[-1]+1)
+            ax.errorbar(xvals, yvals, yerr=yerrs, label=label,
+                        marker=markers.next(), linewidth=2, markersize=7)
+        xticks = range(min(revs), max(revs)+1) # all plots get same x-axis
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticks, rotation=45)
-        ax.set_xlim(xticks[0]-0.1, xticks[-1]+0.1)
-        ax.legend(loc='upper center',
-                  numpoints=1,
-                  ncol=3,
-                  fancybox=True, shadow=True)
+        ax.set_xlim(xticks[0]-0.3, xticks[-1]+0.3)
+        ax.legend(loc='upper center', numpoints=1, ncol=3, fancybox=True, shadow=True)
         fig.savefig(outdir+pname+".png")
             
     # write html output
