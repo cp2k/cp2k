@@ -669,16 +669,20 @@ if [[ ${leakcheck} == "YES" ]]; then
    fi
 fi
 
-# Start testing
-echo "*************************** testing started ******************************"
-echo " started on " `date`
-echo " checking version ${svndate} "
-echo " configuration: ${dir_triplet}-${cp2k_version} "
+function file_info() {
 echo " regtesting location summary file: $summary"
 echo " regtesting location error_summary file: $error_description_file"
 echo " regtesting location memory_summary file: $memory_description_file"
 echo " regtesting location output dir: $dir_out"
 echo " regtesting location last dir: $dir_last"
+}
+
+# Start testing
+echo "*************************** testing started ******************************"
+echo " started on " `date`
+echo " checking version ${svndate} "
+echo " configuration: ${dir_triplet}-${cp2k_version} "
+file_info
 #
 # should include all flags, ideally
 #
@@ -875,6 +879,11 @@ if [[ ${skiptest} != "skiptest" ]]; then
    n_correct=0
    n_tests=0
    n_new=0
+
+   echo "------------------------- dynamic libraries linked -----------------------"
+   echo "ldd  ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version} : "
+   ldd  ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}
+   echo "--------------------------------------------------------------------------"
    
    printf "Copying tests into working directory ... "
    
@@ -1106,6 +1115,8 @@ EOF
    
    echo "--------------------------------------------------------------------------"
    cat "${error_description_file}"
+   echo "--------------------------------------------------------------------------"
+   file_info 
    echo "--------------------------------- Summary --------------------------------"
    if [[ ${quick} != "quick" ]]; then
       printf "Number of COMPILE warns %d\n" ${compile_warnings} | tee -a ${summary}
