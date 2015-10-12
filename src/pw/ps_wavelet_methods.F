@@ -15,7 +15,8 @@ MODULE ps_wavelet_methods
                                              cite_reference
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_alltoall,&
-                                             mp_cart_rank
+                                             mp_cart_rank,&
+                                             mp_max
   USE ps_wavelet_kernel,               ONLY: createKernel
   USE ps_wavelet_types,                ONLY: WAVELET0D,&
                                              ps_wavelet_type
@@ -179,7 +180,7 @@ CONTAINS
 
     INTEGER                                  :: dest, handle, i, ii, iproc, &
                                                 j, k, l, local_z_dim, loz, m, &
-                                                m2, md2, nproc
+                                                m2, md2, nproc, should_warn
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, scount, &
                                                 sdispl, tmp
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
@@ -214,35 +215,33 @@ CONTAINS
        END DO
     END DO
 
-
+    should_warn=0
     IF(wavelet%geocode=='S'.OR.wavelet%geocode=='F')THEN
        max_val_low=0._dp
        max_val_up=0._dp
        IF(lb(2)==pw_grid%bounds(1,2))max_val_low=MAXVAL(ABS(density % cr3d(:,lb(2),:)))
        IF(ub(2)==pw_grid%bounds(2,2))max_val_up=MAXVAL(ABS(density % cr3d(:,ub(2),:)))
-       IF(max_val_low.GE.0.0001_dp)&
-          CPWARN("Density hits the lower boundary of the system in XZ-plane")
-       IF(max_val_up.GE.0.0001_dp)&
-          CPWARN("Density hits the upper boundary of the system in XZ-plane")
+       IF(max_val_low.GE.0.0001_dp) should_warn=1
+       IF(max_val_up.GE.0.0001_dp) should_warn=1
        IF(wavelet%geocode=='F')THEN
           max_val_low=0._dp
           max_val_up=0._dp
           IF(lb(1)==pw_grid%bounds(1,1))max_val_low=MAXVAL(ABS(density % cr3d(lb(1),:,:)))
           IF(ub(1)==pw_grid%bounds(2,1))max_val_up=MAXVAL(ABS(density % cr3d(ub(1),:,:)))
-          IF(max_val_low.GE.0.0001_dp)&
-             CPWARN("Density hits the lower boundary of the system in YZ-plane")
-          IF(max_val_up.GE.0.0001_dp)&
-             CPWARN("Density hits the upper boundary of the system in YZ-plane")
+          IF(max_val_low.GE.0.0001_dp) should_warn=1
+          IF(max_val_up.GE.0.0001_dp) should_warn=1
           max_val_low=0._dp
           max_val_up=0._dp
           IF(lb(3)==pw_grid%bounds(1,3))max_val_low=MAXVAL(ABS(density % cr3d(:,:,lb(3))))
           IF(ub(3)==pw_grid%bounds(2,3))max_val_up=MAXVAL(ABS(density % cr3d(:,:,ub(3))))
-          IF(max_val_low.GE.0.0001_dp)&
-             CPWARN("Density hits the lower boundary of the system in XY-plane")
-          IF(max_val_up.GE.0.0001_dp)&
-             CPWARN("Density hits the upper boundary of the system in XY-plane")
+          IF(max_val_low.GE.0.0001_dp) should_warn=1
+          IF(max_val_up.GE.0.0001_dp) should_warn=1
        END IF
     END IF
+
+    CALL mp_max(should_warn, pw_grid % para % group)
+    IF (should_warn>0 .AND. iproc == 0) &
+       CPWARN("Density non-zero on the edges of the unit cell: wrong results in WAVELET solver")
 
     DO i = 0,pw_grid % para % rs_dims(1)-1
        DO j= 0, pw_grid % para % rs_dims(2)-1
