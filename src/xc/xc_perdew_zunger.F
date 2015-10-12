@@ -168,13 +168,7 @@ CONTAINS
 
     CALL pz_init(method, rho_cutoff)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy=> rho
-    END IF
+    dummy=> rho
 
     e_0 => dummy
     e_rho => dummy
@@ -206,12 +200,6 @@ CONTAINS
     END IF
 
     CALL pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, sc)
-
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
 
     CALL timestop(timer_handle)
 
@@ -319,13 +307,7 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
     CALL pz_init(method, rho_cutoff)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy=> a
-    END IF
+    dummy=> a
 
     e_0 => dummy
     ea => dummy; 
@@ -373,12 +355,6 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order, 
 
     CALL pz_lsd_calc(a,b,e_0,ea,eaa,eab,ebb,eaaa,eaab,eabb,&
       ebbb, npoints, order, sc)
-
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
 
     CALL timestop(timer_handle)
 

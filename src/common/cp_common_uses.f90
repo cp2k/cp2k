@@ -20,8 +20,7 @@
                                              cp_add_default_logger,&
                                              cp_rm_default_logger,&
                                              cp_to_string
-  USE cp_error_handling,               ONLY: cp_debug,&
-                                             cp_abort,&
+  USE cp_error_handling,               ONLY: cp_abort,&
                                              cp_warn,&
                                              cp_assertion_failed,&
                                              cp_internal_error,&

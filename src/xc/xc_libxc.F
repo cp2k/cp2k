@@ -411,11 +411,7 @@ CONTAINS
 
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy => rho
-    END IF
+    dummy => rho
 
     ! due to assumed shape array usage in next routine
     IF (.NOT.ASSOCIATED(norm_drho)) norm_drho => dummy
@@ -577,11 +573,7 @@ CONTAINS
 
 !$omp end parallel
 
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
+    NULLIFY(dummy)
 
     CALL xc_f90_func_end(xc_func)
 
@@ -682,11 +674,7 @@ CONTAINS
 
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy=> rhoa
-    END IF
+    dummy=> rhoa
 
     ! due to assumed shape array usage in next routine
     IF (.NOT.ASSOCIATED(norm_drho)) norm_drho => dummy
@@ -1126,11 +1114,7 @@ CONTAINS
 
 !$omp end parallel
 
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
+    NULLIFY(dummy)
 
     CALL xc_f90_func_end(xc_func)
 

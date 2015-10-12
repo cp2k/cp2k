@@ -1259,14 +1259,6 @@ CONTAINS
        END IF
     END IF
 
-    IF (cp_debug.AND.debug_this_module.AND.unit_nr>0) THEN
-       IF (do_rebuild) THEN
-          WRITE(unit_nr,*) "qs_ks_update_qs_env: did update"
-       ELSE
-          WRITE(unit_nr,*) "qs_ks_update_qs_env: did NOT update"
-       END IF
-    END IF
-
     CALL timestop(handle)
 
   END SUBROUTINE qs_ks_update_qs_env

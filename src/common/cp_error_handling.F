@@ -45,22 +45,13 @@ MODULE cp_error_handling
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_error_handling'
 
   !API parameters var
-  PUBLIC :: cp_debug, cp_assertion_failed, cp_internal_error, cp_wrong_args_error,&
+  PUBLIC :: cp_assertion_failed, cp_internal_error, cp_wrong_args_error,&
             cp_precondition_failed, cp_caller_error
 
   !API public routines
   PUBLIC :: cp_assert, cp_abort, cp_warn
   !API public routines used via macros
   PUBLIC :: cp__a, cp__b, cp__w, cp__l
-
-#ifdef FD_DEBUG
-  !! global variable to turn on/off the debugging, as i am lazy I use the
-  !! preprocessor variable FD_DEBUG to decide if it should be on or off.
-  !! this way it is always right (on in debug builds, off in optimized ones)
-  LOGICAL, PARAMETER :: cp_debug=.TRUE.
-#else
-  LOGICAL, PARAMETER :: cp_debug=.FALSE.
-#endif
 
   !! error number: no error
   INTEGER, PARAMETER :: cp_no_error = 0

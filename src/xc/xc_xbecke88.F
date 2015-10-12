@@ -155,13 +155,7 @@ CONTAINS
          norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy=> rho
-    END IF
+    dummy=> rho
 
     e_0 => dummy
     e_rho => dummy
@@ -234,11 +228,6 @@ CONTAINS
 
     !$omp end parallel
 
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
     CALL timestop(handle)
   END SUBROUTINE xb88_lda_eval
 
@@ -698,13 +687,7 @@ CONTAINS
          local_bounds=bo)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy=> rho(1)%array
-    END IF
+    dummy=> rho(1)%array
 
     e_0=>dummy
     DO i=1,2
@@ -819,11 +802,6 @@ CONTAINS
 
     END DO
 
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
     CALL timestop(handle)
 
   END SUBROUTINE xb88_lsd_eval

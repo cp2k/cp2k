@@ -44,7 +44,6 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE cp_linked_list_xc_deriv
-  USE kinds,                           ONLY: dp
   USE xc_derivative_types,             ONLY: xc_derivative_p_type,&
                                              xc_derivative_type
 #include "../common/cp_common_uses.f90"
@@ -60,8 +59,7 @@ MODULE cp_linked_list_xc_deriv
 !API common methods
   PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next
 !API special get
-  PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
-       cp_get_element_at, cp_to_array
+  PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_length, cp_get_element_at, cp_to_array
 !API special set
   PUBLIC :: cp_set_element_at
 !API structure manipulation
@@ -73,15 +71,13 @@ MODULE cp_linked_list_xc_deriv
   PUBLIC :: cp_sll_xc_deriv_create, cp_sll_xc_deriv_dealloc,&
        cp_sll_xc_deriv_dealloc_node,cp_sll_xc_deriv_set,&
        cp_sll_xc_deriv_get,cp_sll_xc_deriv_next,&
-       cp_sll_xc_deriv_get_first_el, cp_sll_xc_deriv_get_rest,&
-       cp_sll_xc_deriv_get_empty, cp_sll_xc_deriv_get_length,&
+       cp_sll_xc_deriv_get_length,&
        cp_sll_xc_deriv_get_el_at, cp_sll_xc_deriv_set_el_at,&
        cp_sll_xc_deriv_insert_el, cp_sll_xc_deriv_insert_el_at,&
+       cp_sll_xc_deriv_get_first_el, cp_sll_xc_deriv_get_rest,&
        cp_sll_xc_deriv_rm_first_el, cp_sll_xc_deriv_rm_el_at,&
        cp_sll_xc_deriv_rm_all_el, &
-       cp_sll_xc_deriv_to_array,&
-       cp_sll_xc_deriv_from_array, cp_sll_xc_deriv_insert_ordered,&
-       cp_sll_xc_deriv_insert_ordered2
+       cp_sll_xc_deriv_to_array 
 
 ! creation of an object (from a pointer)
   INTERFACE cp_create
@@ -115,10 +111,6 @@ MODULE cp_linked_list_xc_deriv
   INTERFACE cp_get_rest
      MODULE PROCEDURE cp_sll_xc_deriv_get_rest
   END INTERFACE
-! returns if the list is empty
-  INTERFACE cp_get_empty
-     MODULE PROCEDURE cp_sll_xc_deriv_get_empty
-  END INTERFACE
 ! returns the length of the list
   INTERFACE cp_get_length
      MODULE PROCEDURE cp_sll_xc_deriv_get_length
@@ -135,10 +127,6 @@ MODULE cp_linked_list_xc_deriv
   INTERFACE cp_insert
      MODULE PROCEDURE cp_sll_xc_deriv_insert_el
   END INTERFACE
-!MK  INTERFACE cp_insert_ordered
-!MK     MODULE PROCEDURE cp_sll_xc_deriv_insert_ordered,&
-!MK          cp_sll_xc_deriv_insert_ordered2
-!MK  END INTERFACE
   INTERFACE cp_insert_at
      MODULE PROCEDURE cp_sll_xc_deriv_insert_el_at
   END INTERFACE
@@ -379,10 +367,6 @@ END FUNCTION
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get_first_el', &
       routineP = moduleN//':'//routineN
 
-    IF (cp_debug) THEN
-       CPASSERT(ASSOCIATED(sll))
-    END IF
-
     res => sll%first_el
   END FUNCTION cp_sll_xc_deriv_get_first_el
 
@@ -431,24 +415,6 @@ END FUNCTION
        END IF
     END IF
   END FUNCTION cp_sll_xc_deriv_get_rest
-
-! *****************************************************************************
-!> \brief ...
-!> \param sll the single linked list to get the rest from
-!> \retval res ...
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION cp_sll_xc_deriv_get_empty(sll) RESULT(res)
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: sll
-    LOGICAL                                  :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get_empty', &
-      routineP = moduleN//':'//routineN
-
-    res = .NOT.ASSOCIATED(sll)
-  END FUNCTION cp_sll_xc_deriv_get_empty
 
 ! *****************************************************************************
 !> \brief returns the length of the list
@@ -502,9 +468,6 @@ END FUNCTION
 
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
 
-    IF (cp_debug) THEN
-       CPASSERT(index>0.OR.index==-1)
-    END IF
     IF (index==-1) THEN
        pos => cp_sll_xc_deriv_get_rest(sll, iter=-1)
     ELSE
@@ -687,9 +650,6 @@ END FUNCTION
 
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
 
-    IF (cp_debug) THEN
-       CPASSERT(index>0.OR.index==-1)
-    END IF
     IF (index==1) THEN
        CALL cp_sll_xc_deriv_rm_first_el(sll)
     ELSE
@@ -758,191 +718,6 @@ FUNCTION cp_sll_xc_deriv_to_array(sll) RESULT(res)
      CPASSERT(cp_sll_xc_deriv_next(iter).OR.i==len)
   END DO
 END FUNCTION cp_sll_xc_deriv_to_array
-
-! *****************************************************************************
-!> \brief returns a linked list with the same contents as the given array
-!> \param array the array you want to copy
-!> \retval res ...
-!> \par History
-!>      07.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-FUNCTION cp_sll_xc_deriv_from_array(array) RESULT(res)
-    TYPE(xc_derivative_p_type), &
-      DIMENSION(:), INTENT(in)               :: array
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_from_array', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: last_el
-
-  NULLIFY(res,last_el)
-  IF (SIZE(array)>0) THEN
-     CALL cp_sll_xc_deriv_create(res,&
-          first_el=array(1)%deriv)
-     last_el => res
-  END IF
-  DO i=2,SIZE(array)
-     CALL cp_sll_xc_deriv_create(last_el%rest,&
-          first_el=array(i)%deriv)
-     last_el => last_el%rest
-  END DO
-END FUNCTION cp_sll_xc_deriv_from_array
-
-! *****************************************************************************
-!> \brief insert an element mantaining the order
-!> \param sll the list you want to insert in
-!> \param el the element that you want to insert
-!> \param insert_equals if equal elements should be inserted
-!>        (defaults to false)
-!> \param did_insert true if it did insert the element
-!> \param pos node where the element has been inserted (or of the same
-!>        element that was already in the list)
-!> \par History
-!>      07.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE cp_sll_xc_deriv_insert_ordered(sll,el,insert_equals,&
-     did_insert,pos)
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: sll
-    TYPE(xc_derivative_type), POINTER        :: el
-    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
-    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
-    TYPE(cp_sll_xc_deriv_type), OPTIONAL, &
-      POINTER                                :: pos
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_sll_xc_deriv_insert_ordered', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: i_eq
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: iter
-
-  i_eq=.FALSE.
-
-  IF (PRESENT(did_insert)) did_insert=.FALSE.
-  IF (PRESENT(pos)) NULLIFY(pos)
-
-  IF (PRESENT(insert_equals)) i_eq=insert_equals
-  IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_xc_deriv_create(sll,first_el=el)
-     IF (PRESENT(did_insert)) did_insert=.TRUE.
-     IF (PRESENT(pos)) pos=>sll
-  ELSE IF (.NOT.cp_sll_deriv_less_q(sll%first_el,el)) THEN
-     IF (PRESENT(pos)) pos=>sll
-     IF (i_eq.OR.cp_sll_deriv_less_q(el,sll%first_el)) THEN
-        CALL cp_sll_xc_deriv_insert_el(sll,el)
-        IF (PRESENT(did_insert)) did_insert=.TRUE.
-        IF (PRESENT(pos)) pos=>sll
-     END IF
-  ELSE
-     iter => sll
-     DO
-        IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_xc_deriv_insert_el(iter%rest,el)
-           IF (PRESENT(did_insert)) did_insert=.TRUE.
-           IF (PRESENT(pos)) pos=>iter%rest
-           EXIT
-        ELSE IF (.NOT.cp_sll_deriv_less_q(iter%rest%first_el,el)) THEN
-           IF (PRESENT(pos)) pos=>iter
-           IF (i_eq.OR. cp_sll_deriv_less_q(el,iter%rest%first_el)) THEN
-              CALL cp_sll_xc_deriv_insert_el(iter%rest,el)
-              IF (PRESENT(did_insert)) did_insert=.TRUE.
-              IF (PRESENT(pos)) pos=>iter%rest
-           END IF
-           EXIT
-        END IF
-        CPASSERT(cp_sll_xc_deriv_next(iter))
-     END DO
-     CPASSERT(ASSOCIATED(iter))
-  END IF
-END SUBROUTINE cp_sll_xc_deriv_insert_ordered
-
-! *****************************************************************************
-!> \brief insert an element mantaining the order defined by a user given function
-!> \param sll the list you want to insert in
-!> \param el the element that you want to insert
-!> \param compare_function a function used to compare two elements,
-!>        it should return a negative number if the first argument is less
-!>        than the second, 0 if they are equal, otherwise a positive number
-!> \param insert_equals if equal elements should be inserted
-!>        (defaults to false)
-!> \param did_insert ...
-!> \param pos ...
-!> \par History
-!>      07.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE cp_sll_xc_deriv_insert_ordered2(sll,el,compare_function,&
-     insert_equals,did_insert,pos)
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: sll
-    TYPE(xc_derivative_type), POINTER        :: el
-  INTERFACE
-! *****************************************************************************
-     FUNCTION compare_function(el1,el2)
-       USE kinds, ONLY: dp
-USE xc_derivative_types, ONLY: xc_derivative_type,xc_derivative_p_type
-       INTEGER :: compare_function
-       TYPE(xc_derivative_type),POINTER :: el1,el2
-     END FUNCTION compare_function
-  END INTERFACE
-    LOGICAL, INTENT(in), OPTIONAL            :: insert_equals
-    LOGICAL, INTENT(out), OPTIONAL           :: did_insert
-    TYPE(cp_sll_xc_deriv_type), OPTIONAL, &
-      POINTER                                :: pos
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'cp_sll_xc_deriv_insert_ordered2', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: comp
-    LOGICAL                                  :: i_eq
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: iter
-
-  i_eq=.FALSE.
-
-  IF (PRESENT(did_insert)) did_insert=.FALSE.
-  IF (PRESENT(pos)) NULLIFY(pos)
-
-  IF (PRESENT(insert_equals)) i_eq=insert_equals
-  IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_xc_deriv_create(sll,first_el=el)
-     IF (PRESENT(did_insert)) did_insert=.TRUE.
-     IF (PRESENT(pos)) pos=>sll%rest
-     RETURN
-  END IF
-  comp=compare_function(sll%first_el,el)
-  IF (comp>=0) THEN
-     IF (i_eq.OR.comp/=0) THEN
-        CALL cp_sll_xc_deriv_insert_el(sll,el)
-        IF (PRESENT(did_insert)) did_insert=.TRUE.
-        IF (PRESENT(pos)) pos=>sll%rest
-     END IF
-  ELSE
-     iter => sll
-     DO
-        IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_xc_deriv_insert_el(iter%rest,el)
-           IF (PRESENT(did_insert)) did_insert=.TRUE.
-           IF (PRESENT(pos)) pos=>iter%rest
-           EXIT
-        END IF
-        comp=compare_function(iter%rest%first_el,el)
-        IF (comp>=0) THEN
-           IF (i_eq.OR. comp/=0) THEN
-              CALL cp_sll_xc_deriv_insert_el(iter%rest,el)
-              IF (PRESENT(did_insert)) did_insert=.TRUE.
-              IF (PRESENT(pos)) pos=>iter%rest
-           END IF
-           EXIT
-        END IF
-        CPASSERT(cp_sll_xc_deriv_next(iter))
-     END DO
-     CPASSERT(ASSOCIATED(iter))
-  END IF
-END SUBROUTINE cp_sll_xc_deriv_insert_ordered2
 
 ! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)

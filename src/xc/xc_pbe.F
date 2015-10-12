@@ -312,13 +312,7 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
        norm_drho=norm_drho,local_bounds=bo,rho_cutoff=epsilon_rho)
   npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-  ! meaningful default for the arrays we don't need: let us make compiler
-  ! and debugger happy...
-  IF (cp_debug) THEN
-     ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-  ELSE
-     dummy=> rho
-  END IF
+  dummy=> rho
 
   e_0 => dummy
   e_rho => dummy
@@ -393,12 +387,6 @@ SUBROUTINE pbe_lda_eval(rho_set,deriv_set,grad_deriv,pbe_params)
        npoints=npoints,epsilon_rho=epsilon_rho,&
        param=param,scale_ec=scale_ec,scale_ex=scale_ex)
 !$omp end parallel
-
-  IF (cp_debug) THEN
-     DEALLOCATE(dummy)
-  ELSE
-     NULLIFY(dummy)
-  END IF
 
   CALL timestop(handle)
 END SUBROUTINE pbe_lda_eval
@@ -1398,13 +1386,7 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
        local_bounds=bo)
   npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-  ! meaningful default for the arrays we don't need: let us make compiler
-  ! and debugger happy...
-  IF (cp_debug) THEN
-     ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-  ELSE
-     dummy=> rhoa
-  END IF
+  dummy=> rhoa
   e_0 => dummy
   e_ra => dummy
   e_rb => dummy
@@ -1503,11 +1485,6 @@ SUBROUTINE pbe_lsd_eval(rho_set,deriv_set,grad_deriv,pbe_params)
        param=param,scale_ec=scale_ec,scale_ex=scale_ex)
 !$omp end parallel
 
-  IF (cp_debug) THEN
-     DEALLOCATE(dummy)
-  ELSE
-     NULLIFY(dummy)
-  END IF
   CALL timestop(handle)
 END SUBROUTINE pbe_lsd_eval
 

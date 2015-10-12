@@ -20,7 +20,6 @@ MODULE cp_fm_pool_types
   USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
                                              cp_sll_fm_get_first_el,&
                                              cp_sll_fm_insert_el,&
-                                             cp_sll_fm_insert_ordered,&
                                              cp_sll_fm_next,&
                                              cp_sll_fm_rm_first_el,&
                                              cp_sll_fm_type
@@ -234,8 +233,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fm_pool_give_back_fm', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: did_insert
-
     CPASSERT(ASSOCIATED(pool))
     CPASSERT(pool%ref_count>0)
     CPASSERT(ASSOCIATED(element))
@@ -243,13 +240,7 @@ CONTAINS
        CPABORT("pool cannot reuse matrixes with another structure")
 
     CPASSERT(element%ref_count==1)
-    IF (cp_debug) THEN
-       CALL cp_sll_fm_insert_ordered(pool%cache, el=element,&
-            insert_equals=.FALSE., did_insert=did_insert)
-       CPASSERT(did_insert)
-    ELSE
-       CALL cp_sll_fm_insert_el(pool%cache, el=element)
-    END IF
+    CALL cp_sll_fm_insert_el(pool%cache, el=element)
     NULLIFY(element)
   END SUBROUTINE fm_pool_give_back_fm
 

@@ -542,11 +542,7 @@ CONTAINS
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
     CALL vwn_init(epsilon_rho, vwn_params)
 
-    IF (cp_debug) THEN
-      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-      dummy=> rhoa
-    END IF
+    dummy=> rhoa
 
     e_0 => dummy
     e_a => dummy
@@ -647,12 +643,6 @@ CONTAINS
       CASE DEFAULT
         CPABORT(" Only functionals VWN3 and VWN5 are supported")
     END SELECT
-
-    IF (cp_debug) THEN
-      DEALLOCATE(dummy)
-    ELSE
-      NULLIFY(dummy)
-    END IF
 
     CALL timestop(handle)
 

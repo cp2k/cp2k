@@ -19,7 +19,6 @@ MODULE xc_tpss
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -167,8 +166,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ii, non_coer, &
-                                                npoints, unit_nr
+    INTEGER                                  :: handle, non_coer, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
@@ -192,13 +190,7 @@ CONTAINS
          tau=tau,tau_cutoff=epsilon_tau)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy=> rho
-    END IF
+    dummy=> rho
 
     e_0 => dummy
     e_rho => dummy
@@ -244,22 +236,6 @@ CONTAINS
 
     logger => cp_get_default_logger()
 
-    IF (cp_debug) THEN
-       unit_nr=cp_logger_get_default_io_unit(logger)
-       CALL mp_sum(non_coer,logger%para_env%group)
-       ii=npoints
-       CALL mp_sum(ii,logger%para_env%group)
-       IF (unit_nr>0) THEN
-          WRITE(unit_nr,"('non_coer: ',i10,' of ',i10,' =',f6.3,'%')")&
-               non_coer,2*ii,REAL(non_coer,dp)/REAL(ii,dp)*100._dp
-       END IF
-    END IF
-
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
     CALL timestop(handle)
   END SUBROUTINE tpss_lda_eval
 
@@ -283,15 +259,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'tpss_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ii, non_coer, &
-                                                npoints, unit_nr
+    INTEGER                                  :: handle, non_coer, npoints
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     REAL(kind=dp)                            :: epsilon_rho, epsilon_tau, &
                                                 scale_ec, scale_ex
     REAL(kind=dp), DIMENSION(:, :, :), POINTER :: dummy, e_0, e_ndrho, &
       e_ndrhoa, e_ndrhob, e_rhoa, e_rhob, e_tau_a, e_tau_b, norm_drho, &
       norm_drhoa, norm_drhob, rhoa, rhob, tau_a, tau_b
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,handle)
@@ -308,13 +282,7 @@ CONTAINS
          local_bounds=bo,rho_cutoff=epsilon_rho,tau_cutoff=epsilon_tau)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-       ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-       dummy=> rhoa
-    END IF
+    dummy=> rhoa
 
     e_0 => dummy
     e_rhoa => dummy
@@ -380,24 +348,6 @@ CONTAINS
 
     !$omp end parallel
 
-    logger => cp_get_default_logger()
-
-    IF (cp_debug) THEN
-       unit_nr=cp_logger_get_default_io_unit(logger)
-       CALL mp_sum(non_coer,logger%para_env%group)
-       ii=npoints
-       CALL mp_sum(ii,logger%para_env%group)
-       IF (unit_nr>0) THEN
-          WRITE(unit_nr,"('non_coer: ',i10,' of ',i10,' =',f6.3,'%')")&
-               non_coer,2*ii,REAL(non_coer,dp)/REAL(2*ii,dp)*100._dp
-       END IF
-    END IF
-
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
     CALL timestop(handle)
   END SUBROUTINE tpss_lsd_eval
 

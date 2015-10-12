@@ -31,7 +31,6 @@ MODULE pw_pool_types
                                              cp_sll_pw_get_first_el,&
                                              cp_sll_pw_get_length,&
                                              cp_sll_pw_insert_el,&
-                                             cp_sll_pw_insert_ordered,&
                                              cp_sll_pw_next,&
                                              cp_sll_pw_rm_first_el,&
                                              cp_sll_pw_type
@@ -421,7 +420,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: did_insert, failure, &
+    LOGICAL                                  :: failure, &
                                                 my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -469,13 +468,7 @@ CONTAINS
        SELECT CASE(pw%in_use)
        CASE(REALDATA1D)
           IF (cp_sll_pw_get_length(pool%real1d_pw)<pool%max_cache) THEN
-             IF (cp_debug) THEN
-                CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
-                CPASSERT(did_insert)
-             ELSE
-                CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
-             END IF
+             CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
           ELSE
              IF(max_max_cache>=0)&
                 CPWARN("hit max_cache")
@@ -484,13 +477,7 @@ CONTAINS
        CASE(REALDATA3D)
           IF (ASSOCIATED(pw%cr3d)) THEN
              IF (cp_sll_pw_get_length(pool%real3d_pw)<pool%max_cache) THEN
-                IF (cp_debug) THEN
-                   CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
-                        insert_equals=.FALSE., did_insert=did_insert)
-                   CPASSERT(did_insert)
-                ELSE
-                   CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw)
-                END IF
+                CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw)
              ELSE
                 IF(max_max_cache>=0)&
                    CPWARN("hit max_cache")
@@ -508,13 +495,7 @@ CONTAINS
           END IF
        CASE(COMPLEXDATA1D)
           IF (cp_sll_pw_get_length(pool%complex1d_pw)<pool%max_cache) THEN
-             IF (cp_debug) THEN
-                CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
-                CPASSERT(did_insert)
-             ELSE
-                CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
-             END IF
+             CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
           ELSE
              IF(max_max_cache>=0)&
                 CPWARN("hit max_cache")
@@ -522,13 +503,7 @@ CONTAINS
           END IF
        CASE(COMPLEXDATA3D)
           IF (cp_sll_pw_get_length(pool%complex3d_pw)<pool%max_cache) THEN
-             IF (cp_debug) THEN
-                CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
-                     insert_equals=.FALSE., did_insert=did_insert)
-                CPASSERT(did_insert)
-             ELSE
-                CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
-             END IF
+             CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
           ELSE
              IF(max_max_cache>=0)&
                 CPWARN("hit max_cache")

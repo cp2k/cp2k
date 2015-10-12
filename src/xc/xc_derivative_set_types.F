@@ -11,7 +11,7 @@
 ! *****************************************************************************
 MODULE xc_derivative_set_types
   USE cp_linked_list_xc_deriv,         ONLY: cp_sll_xc_deriv_dealloc,&
-                                             cp_sll_xc_deriv_insert_ordered,&
+                                             cp_sll_xc_deriv_insert_el,&
                                              cp_sll_xc_deriv_next,&
                                              cp_sll_xc_deriv_type
   USE kinds,                           ONLY: dp
@@ -103,7 +103,7 @@ CONTAINS
        cr3d_ptr=0.0_dp
        CALL xc_derivative_create(res, std_deriv_desc, &
                                  cr3d_ptr=cr3d_ptr)
-       CALL cp_sll_xc_deriv_insert_ordered(derivative_set%derivs,res)
+       CALL cp_sll_xc_deriv_insert_el(derivative_set%derivs,res)
     END IF
   END FUNCTION xc_dset_get_derivative
 

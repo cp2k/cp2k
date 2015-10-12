@@ -216,13 +216,7 @@ CONTAINS
          rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-      dummy=> rho
-    END IF
+    dummy=> rho
 
     e_0 => dummy
     e_rho => dummy
@@ -274,11 +268,6 @@ CONTAINS
 
     !$omp end parallel
 
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
     CALL timestop(handle)
   END SUBROUTINE xbr_pbe_lda_hole_tc_lr_lda_eval
 
@@ -506,13 +495,7 @@ CONTAINS
          rho_cutoff=epsilon_rho)
     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-    ! meaningful default for the arrays we don't need: let us make compiler
-    ! and debugger happy...
-    IF (cp_debug) THEN
-      ALLOCATE(dummy(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)))
-    ELSE
-      dummy=> rhoa
-    END IF
+    dummy=> rhoa
 
     e_0 => dummy
     e_rhoa => dummy
@@ -592,11 +575,6 @@ CONTAINS
 
     !$omp end parallel
 
-    IF (cp_debug) THEN
-       DEALLOCATE(dummy)
-    ELSE
-       NULLIFY(dummy)
-    END IF
     CALL timestop(handle)
   END SUBROUTINE xbr_pbe_lda_hole_tc_lr_lsd_eval
 ! *****************************************************************************
