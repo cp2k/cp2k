@@ -44,12 +44,6 @@ MODULE acc_hostmem
      MODULE PROCEDURE acc_hostmem_alloc_i_2D, acc_hostmem_alloc_l_2D
      MODULE PROCEDURE acc_hostmem_alloc_r_2D, acc_hostmem_alloc_d_2D
      MODULE PROCEDURE acc_hostmem_alloc_c_2D, acc_hostmem_alloc_z_2D
-     MODULE PROCEDURE acc_hostmem_alloc_i_3D, acc_hostmem_alloc_l_3D
-     MODULE PROCEDURE acc_hostmem_alloc_r_3D, acc_hostmem_alloc_d_3D
-     MODULE PROCEDURE acc_hostmem_alloc_c_3D, acc_hostmem_alloc_z_3D
-     MODULE PROCEDURE acc_hostmem_alloc_i_4D, acc_hostmem_alloc_l_4D
-     MODULE PROCEDURE acc_hostmem_alloc_r_4D, acc_hostmem_alloc_d_4D
-     MODULE PROCEDURE acc_hostmem_alloc_c_4D, acc_hostmem_alloc_z_4D
   END INTERFACE
 
   INTERFACE acc_hostmem_deallocate
@@ -59,12 +53,6 @@ MODULE acc_hostmem
      MODULE PROCEDURE acc_hostmem_dealloc_i_2D, acc_hostmem_dealloc_l_2D
      MODULE PROCEDURE acc_hostmem_dealloc_r_2D, acc_hostmem_dealloc_d_2D
      MODULE PROCEDURE acc_hostmem_dealloc_c_2D, acc_hostmem_dealloc_z_2D
-     MODULE PROCEDURE acc_hostmem_dealloc_i_3D, acc_hostmem_dealloc_l_3D
-     MODULE PROCEDURE acc_hostmem_dealloc_r_3D, acc_hostmem_dealloc_d_3D
-     MODULE PROCEDURE acc_hostmem_dealloc_c_3D, acc_hostmem_dealloc_z_3D
-     MODULE PROCEDURE acc_hostmem_dealloc_i_4D, acc_hostmem_dealloc_l_4D
-     MODULE PROCEDURE acc_hostmem_dealloc_r_4D, acc_hostmem_dealloc_d_4D
-     MODULE PROCEDURE acc_hostmem_dealloc_c_4D, acc_hostmem_dealloc_z_4D
   END INTERFACE
 
 
