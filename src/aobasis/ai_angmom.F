@@ -14,22 +14,6 @@
 ! *****************************************************************************
 MODULE ai_angmom
 
-! ax,ay,az  : Angular momentum index numbers of orbital a.
-! bx,by,bz  : Angular momentum index numbers of orbital b.
-! coset     : Cartesian orbital set pointer.
-! dab       : Distance between the atomic centers a and b.
-! l{a,b}    : Angular momentum quantum number of shell a or b.
-! l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
-! l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
-! rac       : Distance vector between the atomic center a and C.
-! rbc       : Distance vector between the atomic center b and C.
-! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
-! angab     : Shell set of angular momentum integrals.
-! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
-! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
-
-  USE ai_derivatives,                  ONLY: dabdr
-  USE ai_moments,                      ONLY: moment
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
@@ -84,6 +68,19 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(ncoset(la_max),&
       ncoset(lb_max), 3)                     :: as
 
+! ax,ay,az  : Angular momentum index numbers of orbital a.
+! bx,by,bz  : Angular momentum index numbers of orbital b.
+! coset     : Cartesian orbital set pointer.
+! dab       : Distance between the atomic centers a and b.
+! l{a,b}    : Angular momentum quantum number of shell a or b.
+! l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
+! l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
+! rac       : Distance vector between the atomic center a and C.
+! rbc       : Distance vector between the atomic center b and C.
+! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
+! angab     : Shell set of angular momentum integrals.
+! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
+! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 !   *** Calculate the distance between the centers a and b ***
 
     rab = rbc - rac
@@ -910,81 +907,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE angmom
-
-! *****************************************************************************
-!> \brief ...
-!> \param la_max ...
-!> \param npgfa ...
-!> \param zeta ...
-!> \param rpgfa ...
-!> \param la_min ...
-!> \param lb_max ...
-!> \param npgfb ...
-!> \param zetb ...
-!> \param rpgfb ...
-!> \param lb_min ...
-!> \param rac ...
-!> \param rbc ...
-!> \param angab ...
-! *****************************************************************************
-  SUBROUTINE angmom2(la_max,npgfa,zeta,rpgfa,la_min,&
-                     lb_max,npgfb,zetb,rpgfb,lb_min,&
-                     rac,rbc,angab)
-
-    INTEGER, INTENT(IN)                      :: la_max, npgfa
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
-    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT)                          :: angab
-
-    INTEGER                                  :: i, ia, ib, ja, jb, lda_min, &
-                                                ldb_min, lds, lmax, na, nb
-    REAL(KIND=dp)                            :: dab
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: mab
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: dmab
-
-    dab = SQRT( SUM ((rac - rbc)**2) )
-
-    lda_min = MAX ( 0, la_min-1 )
-    ldb_min = MAX ( 0, lb_min-1 )
-    lmax = MAX(la_max+1,lb_max+1)
-    lds = ncoset(lmax+1)*MAX(npgfa,npgfb)
-    ALLOCATE(mab(lds,lds,3))
-    ALLOCATE(dmab(lds,lds,3,3))
-    mab = 0.0_dp
-    CALL moment(lb_max+1,npgfb,zetb,rpgfb,ldb_min,&
-                la_max,npgfa,zeta,rpgfa,&
-                1,rbc,rac,mab)
-
-    DO i=1,3
-      CALL dabdr(lb_max,npgfb,zetb,rpgfb,lb_min,&
-                 la_max,npgfa,rpgfa,la_min,&
-                 dab,mab(:,:,i),dmab(:,:,1,i),dmab(:,:,2,i),dmab(:,:,3,i))
-    END DO
-
-    na=0
-    DO ia=1,npgfa
-      nb=0
-      DO ib=1,npgfb
-        DO ja=na+1,na+ncoset(la_max)
-          DO jb=nb+1,nb+ncoset(lb_max)
-            angab(ja,jb,1) = -dmab(jb,ja,3,2) + dmab(jb,ja,2,3)
-            angab(ja,jb,2) = -dmab(jb,ja,1,3) + dmab(jb,ja,3,1)
-            angab(ja,jb,3) = -dmab(jb,ja,2,1) + dmab(jb,ja,1,2)
-          ENDDO
-        ENDDO
-        nb = nb + ncoset(lb_max)
-      END DO
-      na = na + ncoset(la_max)
-    END DO
-
-    DEALLOCATE(mab,dmab)
-
-  END SUBROUTINE angmom2
 
 END MODULE ai_angmom
