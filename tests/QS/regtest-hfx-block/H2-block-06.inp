@@ -1,0 +1,198 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 30
+    &END MGRID
+    &QS
+      METHOD GAPW
+      EPS_PGF_ORB 1.0E-15
+    &END QS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      MAX_SCF 1
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        &SCREENING
+          EPS_SCHWARZ 1.0E-15
+        &END
+        &MEMORY
+          MAX_MEMORY  0 
+        &END
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 12 12 12
+      PERIODIC NONE
+    &END CELL
+    &COORD
+       H07 6.0 6.0 5.2
+       H08 6.0 6.0 6.0
+
+       H09 4.5 6.0 5.2
+       H10 4.5 6.0 6.0
+
+       H11 7.5 6.0 5.2
+       H12 7.5 6.0 6.0
+
+       H07 6.0 4.5 5.2
+       H08 6.0 4.5 6.0
+
+       H09 4.5 4.5 5.2
+       H10 4.5 4.5 6.0
+
+       H11 7.5 4.5 5.2
+       H12 7.5 4.5 6.0
+    &END COORD
+    &KIND H01 ! nsgf 1
+      ELEMENT H
+      &BASIS
+       1
+       1 0 0 3 1 
+       1.0 1.0
+       0.4 1.0
+       0.1 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H02 ! nsgf 2
+      ELEMENT H
+      &BASIS
+       1
+       1 0 0 3 2 
+       1.0 1.0 1.0
+       0.4 1.0 0.0
+       0.1 1.0 0.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H03 ! nsgf 3
+      ELEMENT H
+      &BASIS
+       1
+       1 0 0 3 3 
+       1.0 1.0 1.0 0.0
+       0.4 1.0 0.0 1.0
+       0.1 1.0 0.0 0.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H04 ! nsgf 4
+      ELEMENT H
+      &BASIS
+       1
+       1 0 1 3 1 1 
+       1.0 1.0 1.0
+       0.4 1.0 1.0
+       0.1 1.0 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H05 !nsgf 5
+      ELEMENT H
+      &BASIS
+       1
+       1 0 1 3 2 1
+       1.0 1.0 1.0 1.0
+       0.4 1.0 0.0 1.0
+       0.1 1.0 0.0 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H06 ! nsgf 6
+      ELEMENT H
+      &BASIS
+       1
+       1 0 1 3 3 1 
+       1.0 1.0 1.0 0.0 1.0
+       0.4 1.0 0.0 1.0 1.0 
+       0.1 1.0 0.0 0.0 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H07 ! nsgf 7
+      ELEMENT H
+      &BASIS
+       1
+       1 0 1 3 1 2 
+       1.0 1.0 1.0 1.0
+       0.4 1.0 0.0 1.0
+       0.1 1.0 0.0 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H08 ! nsgf 9
+      ELEMENT H
+      &BASIS
+       1
+       1 0 2 3 1 1 1 
+       1.0 1.0 1.0 1.0
+       0.4 1.0 1.0 1.0
+       0.1 1.0 1.0 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H09 ! nsgf 10
+      ELEMENT H
+      &BASIS
+       1
+       1 0 2 3 2 1 1 
+       1.0 1.0 1.0 1.0 1.0
+       0.4 1.0 0.0 1.0 1.0
+       0.1 1.0 0.0 1.0 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H10 ! nsgf 11
+      ELEMENT H
+      &BASIS
+       1
+       1 0 2 3 3 1 1 
+       1.0 1.0 1.0 0.0 1.0 1.0
+       0.4 1.0 0.0 1.0 1.0 1.0
+       0.1 1.0 0.0 0.0 1.0 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H11 ! nsgf 15
+      ELEMENT H
+      &BASIS
+       1
+       1 0 2 3 2 1 2 
+       1.0 1.0 1.0 1.0 1.0 1.0
+       0.4 1.0 0.0 1.0 1.0 0.0
+       0.1 1.0 0.0 1.0 1.0 0.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+    &KIND H12
+      ELEMENT H
+      &BASIS
+       1
+       1 0 0 3 1 
+       1.0 1.0
+       0.4 1.0
+       0.1 1.0
+      &END
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT H2O-hfx-1
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE ENERGY
+&END GLOBAL
