@@ -28,6 +28,7 @@ import itertools
 import matplotlib as mpl
 mpl.use('Agg')  # change backend, to run without X11
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
 
 #===============================================================================
 def main():
@@ -173,16 +174,14 @@ def gen_archive(config, log, outdir, full_archive=False):
             report = parse_report(report_txt, report_type)
             report['url'] = path.basename(fn)[:-3]
             archive_reports[report['revision']] = report
-        
-        # generate archive index  
+
+        # generate archive index
         archive_output = html_header(title=name)
         archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>\n'
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>\n'%info_url
-         
         if(report_type == "generic"):
-            archive_output += gen_plots(archive_reports, outdir+"archive/"+s+"/")
-         
+            archive_output += gen_plots(archive_reports, log, outdir+"archive/"+s+"/", full_archive)
         archive_output += full_index_link
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
@@ -214,25 +213,50 @@ def gen_archive(config, log, outdir, full_archive=False):
     write_file(outdir+"archive/"+out_fn, url_list)
 
 #===============================================================================
-def gen_plots(all_reports, outdir):
+def gen_plots(all_reports, log, outdir, full_archive):
     # collect plot data
     plots = {}
     for revision in sorted(all_reports.keys()):
         report = all_reports[revision]
         for p in report['plots']:
             if(p['name'] not in plots.keys()):
-                plots[p['name']] = {'points':[]}
+                plots[p['name']] = {'curves':{}}
             plots[p['name']]['title'] = p['title'] # update title
             plots[p['name']]['ylabel'] = p['ylabel'] # update label
         for pp in report['plotpoints']:
-            pp['x'] = report['revision']
-            plots[pp['plot']]['points'].append(pp)
-    
-     # collect all revisions that appear in any of the plot
-    revs = set([pp['x'] for p in plots.values() for pp in p['points']])
-    
+            p = plots[pp['plot']]
+            if(pp['name'] not in p['curves'].keys()):
+                p['curves'][pp['name']] = {'x':[], 'y':[], 'yerr':[]}
+            c = p['curves'][pp['name']]
+            c['x'].append(report['revision'])
+            c['y'].append(pp['y'])
+            c['yerr'].append(pp['yerr'])
+            c['label'] = pp['label'] # update label
+
+    # write raw data
+    tags = sorted([(pname, cname) for pname, p in plots.items() for cname in p['curves'].keys()])
+    raw_output = "#%9s"%"revision"
+    for pname, cname in tags:
+        raw_output += "   %18s   %22s"%(pname+"/"+cname,pname+"/"+cname+"_err")
+    raw_output += "\n"
+    for revision in sorted(all_reports.keys(), reverse=True):
+        report = all_reports[revision]
+        raw_output += "%10d"%revision
+        for pname, cname in tags:
+            pp = [pp for pp in report['plotpoints'] if(pp['plot']==pname and pp['name']==cname)]
+            assert(len(pp)<=1)
+            if(pp):
+                raw_output += "   %18f   %22f"%(pp[0]['y'],pp[0]['yerr'])
+            else:
+                raw_output += "   %18s   %22s"%("?","?")
+        raw_output += "\n"
+    write_file(outdir+"plot_data.txt", raw_output)
+
     # create png images
+    fig_ext = "_full.png" if(full_archive) else ".png"
     markers = itertools.cycle('os>^*')
+    rev_end = log[0]['num']
+    rev_start = min(all_reports.keys()) if(full_archive) else rev_end-100
     for pname, p in plots.items():
         print "Working on plot: "+pname
         fig = plt.figure(figsize=(10,4))
@@ -241,26 +265,23 @@ def gen_plots(all_reports, outdir):
         ax = fig.add_subplot(111)
         ax.set_xlabel('SVN Revision')
         ax.set_ylabel(p['ylabel'])
-        curves = set([pp['name'] for pp in p['points']])
-        for c in curves:
-            xvals = [pp['x'] for pp in p['points'] if pp['name']==c]
-            yvals = [pp['y'] for pp in p['points'] if pp['name']==c]
-            yerrs = [pp['yerr'] for pp in p['points'] if pp['name']==c]
-            label = [pp['label'] for pp in p['points'] if pp['name']==c][-1]
-            ax.errorbar(xvals, yvals, yerr=yerrs, label=label,
+        for cname, c in p['curves'].items():
+            ax.errorbar(c['x'], c['y'], yerr=c['yerr'], label=c['label'],
                         marker=markers.next(), linewidth=2, markersize=7)
-        xticks = range(min(revs), max(revs)+1, 10) # all plots get same x-axis
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticks, rotation=45)
-        ax.set_xlim(xticks[0]-0.3, max(max(revs)+1,xticks[-1])+0.3)
+        ax.set_xlim(rev_start-1, rev_end+1)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.legend(loc='upper center', numpoints=1, ncol=3, fancybox=True, shadow=True)
-        fig.savefig(outdir+pname+".png")
-            
+        if(not full_archive): # protect against outlayers
+            ymin = min([min(c['y']) for c in p['curves'].values()]) # lowest point from lowest curve
+            ymax = max([min(c['y']) for c in p['curves'].values()]) # lowest point from highest curve
+            ax.set_ylim(0.95*ymin, 1.3*ymax)
+        fig.savefig(outdir+pname+fig_ext)
+
     # write html output
-    output = ""
+    html_output = ""
     for pname, p in plots.items():
-        output += '<p><img src="%s.png" alt="%s"></p>\n'%(pname, p['title']) 
-    return(output)
+        html_output += '<p><a href="plot_data.txt"><img src="%s" alt="%s"></a></p>\n'%(pname+fig_ext, p['title'])
+    return(html_output)
 
 #===============================================================================
 def retrieve_report(report_url):
