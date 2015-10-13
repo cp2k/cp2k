@@ -22,7 +22,7 @@ cell_opt_cg_2pnt_geo_opt_lbfgs.inp                    11      2e-09            -
 cell_opt_lbfgs_geo_opt_lbfgs.inp                      11      4e-09            -35.644084195558335
 # Geometry optimisation using core-shell models
 cs_geo_opt_bfgs.inp                                   11    1.0E-14            -34.165775691654950
-cs_geo_opt_cg_2pnt.inp                                11    1.0E-14            -34.165775860241943
+cs_geo_opt_cg_2pnt.inp           11     2e-14            -34.165775860241943
 cs_geo_opt_cg_fit.inp                                 11    1.0E-14            -34.165775838192260
 cs_geo_opt_cg_gold.inp                                11    1.0E-14            -34.165775835825670
 cs_geo_opt_lbfgs.inp                                  11    1.0E-14            -34.165775670048319
