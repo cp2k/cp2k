@@ -85,19 +85,7 @@
  'lessQ':'CP_SLL_C_LESS_Q',
  'equalQ':'CP_SLL_C_EQUAL_Q',
  'write_el':'',
- 'private_routines':r"""
-! *****************************************************************************
-!> \brief ...
-!> \param str ...
-!> \param unit_nr ...
-! *****************************************************************************
-subroutine write_string(str,unit_nr)
-  character(len=*),intent(in) :: str
-  integer, intent(in) :: unit_nr
-
-  write(unit_nr,"(a,a,a)") '"',trim(str),'"'
-end subroutine write_string
-"""
+ 'private_routines':''
 },
 {
  'template':'../common/cp_linked_list__nametype1_.template',

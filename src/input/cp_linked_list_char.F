@@ -173,18 +173,6 @@ MODULE cp_linked_list_char
 CONTAINS
 
 
-! *****************************************************************************
-!> \brief ...
-!> \param str ...
-!> \param unit_nr ...
-! *****************************************************************************
-SUBROUTINE write_string(str,unit_nr)
-    CHARACTER(len=*), INTENT(in)             :: str
-    INTEGER, INTENT(in)                      :: unit_nr
-
-  WRITE(unit_nr,"(a,a,a)") '"',TRIM(str),'"'
-END SUBROUTINE write_string
-
 ! =========== creation / distruction ========
 
 ! *****************************************************************************
@@ -643,20 +631,7 @@ END FUNCTION cp_sll_char_to_array
 !  equalQ = "CP_SLL_C_EQUAL_Q"
 !  lessQ = "CP_SLL_C_LESS_Q"
 !  nametype1 = "char"
-!  private_routines = 
-!    "
-!     ! *****************************************************************************
-!     !> \brief ...
-!     !> \param str ...
-!     !> \param unit_nr ...
-!     ! *****************************************************************************
-!     subroutine write_string(str,unit_nr)
-!       character(len=*),intent(in) :: str
-!       integer, intent(in) :: unit_nr
-!     
-!       write(unit_nr,"(a,a,a)") '"',trim(str),'"'
-!     end subroutine write_string
-!     "
+!  private_routines = ""
 !  template = "../common/cp_linked_list__nametype1_.template"
 !  type1 = "character(len=default_string_length)"
 !  type1arrayEl = "character(len=default_string_length)"
