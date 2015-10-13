@@ -57,27 +57,24 @@ MODULE cp_linked_list_xc_deriv
 !API type
   PUBLIC :: cp_sll_xc_deriv_type, cp_sll_xc_deriv_p_type
 !API common methods
-  PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next
+  PUBLIC :: cp_create, cp_dealloc, cp_next
 !API special get
   PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_length, cp_get_element_at, cp_to_array
 !API special set
   PUBLIC :: cp_set_element_at
 !API structure manipulation
   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
-!API low level
-  PUBLIC :: cp_dealloc_node
 
   !API underlying routines
   PUBLIC :: cp_sll_xc_deriv_create, cp_sll_xc_deriv_dealloc,&
-       cp_sll_xc_deriv_dealloc_node,cp_sll_xc_deriv_set,&
-       cp_sll_xc_deriv_get,cp_sll_xc_deriv_next,&
+       cp_sll_xc_deriv_next,&
        cp_sll_xc_deriv_get_length,&
        cp_sll_xc_deriv_get_el_at, cp_sll_xc_deriv_set_el_at,&
-       cp_sll_xc_deriv_insert_el, cp_sll_xc_deriv_insert_el_at,&
        cp_sll_xc_deriv_get_first_el, cp_sll_xc_deriv_get_rest,&
+       cp_sll_xc_deriv_insert_el, cp_sll_xc_deriv_insert_el_at,&
        cp_sll_xc_deriv_rm_first_el, cp_sll_xc_deriv_rm_el_at,&
        cp_sll_xc_deriv_rm_all_el, &
-       cp_sll_xc_deriv_to_array 
+       cp_sll_xc_deriv_to_array
 
 ! creation of an object (from a pointer)
   INTERFACE cp_create
@@ -86,18 +83,6 @@ MODULE cp_linked_list_xc_deriv
 ! destruction of an object (from a pointer)
   INTERFACE cp_dealloc
      MODULE PROCEDURE cp_sll_xc_deriv_dealloc
-  END INTERFACE
-! destruction only of the node (low level)
-  INTERFACE cp_dealloc_node
-     MODULE PROCEDURE cp_sll_xc_deriv_dealloc_node
-  END INTERFACE
-! modifies attributes of an object
-  INTERFACE cp_set
-     MODULE PROCEDURE cp_sll_xc_deriv_set
-  END INTERFACE
-! returns attributes of an object
-  INTERFACE cp_get
-     MODULE PROCEDURE cp_sll_xc_deriv_get
   END INTERFACE
 ! iterates to the next element
   INTERFACE cp_next
@@ -281,76 +266,6 @@ END FUNCTION
   END SUBROUTINE cp_sll_xc_deriv_dealloc_node
 
 ! ============= get/set ============
-
-! *****************************************************************************
-!> \brief sets tha various attributes of a single linked list
-!>      It is an error to set the rest of an empty list without setting
-!>      the first_el (change and make it simply a sll=>rest ?)
-!> \param sll the single linked list to change
-!> \param first_el the element to replace the first element of this list
-!> \param rest the rest of the list (can be unassociated)
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_sll_xc_deriv_set(sll,first_el,rest)
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: sll
-    TYPE(xc_derivative_type), OPTIONAL, &
-      POINTER                                :: first_el
-    TYPE(cp_sll_xc_deriv_type), OPTIONAL, &
-      POINTER                                :: rest
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_set', &
-      routineP = moduleN//':'//routineN
-
-    IF (.NOT.ASSOCIATED(sll)) THEN
-       IF (PRESENT(first_el)) THEN
-          CALL cp_sll_xc_deriv_create(sll,first_el,rest)
-       ELSE
-          CPASSERT(.NOT.PRESENT(rest))
-       END IF
-    ELSE
-       IF (PRESENT(first_el)) sll%first_el => first_el
-       IF (PRESENT(rest)) sll%rest => rest
-    END IF
-  END SUBROUTINE cp_sll_xc_deriv_set
-
-! *****************************************************************************
-!> \brief returns various attributes from the linked list
-!> \param sll the single linked list to change
-!> \param first_el the first element of this list (can be unassociated)
-!> \param rest the rest of the list (can be unassociated)
-!> \param empty ...
-!> \param length the length of the list
-!> \par History
-!>      none
-!> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_sll_xc_deriv_get(sll,first_el,rest,empty,length)
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: sll
-    TYPE(xc_derivative_type), OPTIONAL, &
-      POINTER                                :: first_el
-    TYPE(cp_sll_xc_deriv_type), OPTIONAL, &
-      POINTER                                :: rest
-    LOGICAL, INTENT(out), OPTIONAL           :: empty
-    INTEGER, INTENT(out), OPTIONAL           :: length
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_xc_deriv_get', &
-      routineP = moduleN//':'//routineN
-
-    IF (.NOT.ASSOCIATED(sll)) THEN
-       CPASSERT(.NOT.PRESENT(first_el))
-       IF (PRESENT(rest)) NULLIFY(rest)
-       IF (PRESENT(empty)) empty=.TRUE.
-       IF (PRESENT(length)) length=0
-    ELSE
-       IF (PRESENT(first_el)) first_el => sll%first_el
-       IF (PRESENT(rest)) rest => sll%rest
-       IF (PRESENT(empty)) empty = .FALSE.
-       IF (PRESENT(length)) &
-            length = cp_sll_xc_deriv_get_length(sll)
-    END IF
-  END SUBROUTINE cp_sll_xc_deriv_get
 
 ! *****************************************************************************
 !> \brief returns the first element stored in the list
