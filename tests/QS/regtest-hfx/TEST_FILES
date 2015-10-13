@@ -19,4 +19,5 @@ H2O-hfx-ls-rtp.inp                1     6e-14             -16.83980778496522
 H2O-hfx-ls-rtp-bch.inp            1     6e-14             -16.83980778496523
 H2O-hfx-ls-emd-bch.inp                                 2    1.0E-14            -0.168398027546E+02
 H2O-hfx-ls-emd-ngs.inp                                 2    1.0E-14            -0.167496522883E+02
+H2-block.inp                                           1    1e-11               3.75501024576680
 #EOF
