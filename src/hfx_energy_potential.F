@@ -1652,10 +1652,11 @@ MODULE hfx_energy_potential
                     END DO
                   END IF
                 END IF
-!!!  DEBUG, print out primitive integrals and indices. Only works serial no OMP  !!!
-!               CALL print_integrals(iatom,jatom,katom,latom,shm_set_offset,shm_atomic_block_offset,&
-!                    iset, jset, kset, lset,nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),primitive_integrals)
-!!!  DEBUG END
+                !!!  DEBUG, print out primitive integrals and indices. Only works serial no OMP  !!!
+                IF (.FALSE.) THEN
+                  CALL print_integrals(iatom,jatom,katom,latom,shm_set_offset,shm_atomic_block_offset,&
+                       iset, jset, kset, lset,nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset),primitive_integrals)
+                ENDIF
                 IF(.NOT.is_anti_symmetric)THEN
                   !! Update Kohn-Sham matrix
                   CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
