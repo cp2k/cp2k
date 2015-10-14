@@ -16,9 +16,9 @@ MODULE input_cp2k_dft
        Fattebert2002, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
        Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
        Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
-       Rayson2009, Repasky2002, Rocha2006, Schenter2008, Seifert1996, &
-       Souza2002, Stengel2009, Stewart1982, Stewart1989, Stewart2007, &
-       Thiel1992, Tozer1996, Umari2002, VandeVondele2003, VandeVondele2005a, &
+       Repasky2002, Rocha2006, Schenter2008, Seifert1996, Souza2002, &
+       Stengel2009, Stewart1982, Stewart1989, Stewart2007, Thiel1992, &
+       Tozer1996, Umari2002, VandeVondele2003, VandeVondele2005a, &
        VandeVondele2005b, VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
@@ -128,6 +128,7 @@ MODULE input_cp2k_dft
                                              precond_spl3_aint,&
                                              precond_spl3_aint2
   USE qs_density_mixing_types,         ONLY: create_mixing_section
+  USE qs_fb_input,                     ONLY: create_filtermatrix_section
   USE string_utilities,                ONLY: newline,&
                                              s2a
 #include "./common/cp_common_uses.f90"
@@ -4767,7 +4768,7 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="LRIGPW",&
-         description="This section specifies optional parameters for LRIGPW.",& 
+         description="This section specifies optional parameters for LRIGPW.",&
          n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
     NULLIFY(keyword)
@@ -6048,92 +6049,6 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Input section for filter matrix diagonalisation method
-!> \param section : section to be created
-!> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE create_filtermatrix_section(section)
-    TYPE(section_type), POINTER              :: section
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_filtermatrix_section', &
-      routineP = moduleN//':'//routineN
-
-    TYPE(keyword_type), POINTER              :: keyword
-
-    CPASSERT(.NOT.ASSOCIATED(section))
-
-    CALL section_create(section,"FILTER_MATRIX",&
-                        description=" ",&
-                        n_keywords=1, n_subsections=0, repeats=.FALSE.)
-
-    NULLIFY(keyword)
-
-    CALL keyword_create(keyword, &
-                        name="FILTER_TEMPERATURE", &
-                        description="Temperature used for the filter function used "//&
-                                    "to construct the filter matrix.", &
-                        repeats=.FALSE., &
-                        n_var=1, &
-                        type_of_var=real_t, &
-                        default_r_val=cp_unit_to_cp2k(value=10000.0_dp, &
-                                                      unit_str="K"),&
-                        unit_str="K", &
-                        usage="FILTER_TEMPERATURE [K] 10000", &
-                        citations=(/Rayson2009/))
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, &
-                        name="AUTO_CUTOFF_SCALE", &
-                        description="Scalar constant multiplied to maximum orbital "//&
-                                    "size of each atom, used for automatically "//&
-                                    "creating cutoff radii for atomic matrices", &
-                        repeats=.FALSE., &
-                        n_var=1, &
-                        type_of_var=real_t, &
-                        default_r_val=0.5_dp, &
-                        usage="AUTO_CUTOFF_SCALE 0.5_dp", &
-                        citations=(/Rayson2009/))
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, &
-                        name="EPS_FB", &
-                        description="Default tolerance used in generating the filter "//&
-                                    "matrix. Anything less than EPS_FB will be "//&
-                                    "regarded as zero", &
-                        repeats=.FALSE., &
-                        n_var=1, &
-                        type_of_var=real_t, &
-                        default_r_val=1.e-12_dp, &
-                        usage="EPS_FB 1.e-12", &
-                        citations=(/Rayson2009/))
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, &
-                        name="COLLECTIVE_COMMUNICATION", &
-                        description="If set to TRUE, then all MPI communications "//&
-                                    "required for the construction of the "//&
-                                    "filter matrix is done at the start and end "//&
-                                    "of each filter matrix calculation. This "//&
-                                    "makes communications more efficient, at "//&
-                                    "the expense of using more memory. If you "//&
-                                    "find the fb_fltrmat_add_blkcol_mpi times "//&
-                                    "at the end of CP2K output is high, then "//&
-                                    "run again with this option set to .TRUE.", &
-                        repeats=.FALSE., &
-                        n_var=1, &
-                        type_of_var=logical_t, &
-                        default_l_val=.FALSE., &
-                        usage="COLLECTIVE_COMMUNICATION T")
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
-  END SUBROUTINE create_filtermatrix_section
-
-
-! *****************************************************************************
 !> \brief ...
 !> \param section ...
 ! *****************************************************************************
@@ -6959,7 +6874,7 @@ CONTAINS
     CALL keyword_release(keyword)
     CALL section_add_subsection(print_section,print_key)
     CALL section_release(print_key)
-    
+
     CALL cp_print_key_section_create(print_key,"CURRENT",&
          description="Print the current during an EMD simulation to cube files."//&
          "Under development, sign might be wrong. Does not yet work with orthonormal keyword in REAL_TIME_PROPAGATION section.",&
@@ -6980,7 +6895,7 @@ CONTAINS
          usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t)
     CALL section_add_keyword(print_key,keyword)
     CALL keyword_release(keyword)
-    
+
     CALL section_add_subsection(print_section,print_key)
     CALL section_release(print_key)
 
