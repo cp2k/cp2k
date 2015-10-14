@@ -926,8 +926,7 @@ CONTAINS
 #endif
 
     CALL timeset(routineN,handle)
-
-#if defined(__SCALAPACK)
+#if defined(__SCALAPACK) && ((__ELPA) || defined (__ELPA2))
 
     success = .TRUE.
 
@@ -957,8 +956,6 @@ CONTAINS
     ALLOCATE(eval(n))
 
     ! Calculate eigenvalues/eigenvectors
-#if defined (__ELPA) || defined (__ELPA2)
-
 #if defined (__ELPA)
     CALL solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group)
 
@@ -969,9 +966,6 @@ CONTAINS
         CPABORT("ELPA failed to diagonalize a matrix")
 #endif
 
-#else
-    CPABORT("")
-#endif
     eigenvalues(1:neig) = eval(1:neig)
 
     DEALLOCATE(eval)
@@ -980,6 +974,13 @@ CONTAINS
     CALL mp_comm_free(comm_row)
     CALL mp_comm_free(comm_col)
 
+#else
+
+    MARK_USED(matrix)
+    MARK_USED(eigenvectors)
+    MARK_USED(eigenvalues)
+
+    CPABORT("CP2K compiled without the ELPA library.")
 #endif
 
     CALL timestop(handle)
