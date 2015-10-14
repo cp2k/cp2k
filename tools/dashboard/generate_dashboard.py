@@ -266,8 +266,11 @@ def gen_plots(all_reports, log, outdir, full_archive):
         ax.set_xlabel('SVN Revision')
         ax.set_ylabel(p['ylabel'])
         for cname, c in p['curves'].items():
-            ax.errorbar(c['x'], c['y'], yerr=c['yerr'], label=c['label'],
-                        marker=markers.next(), linewidth=2, markersize=7)
+            if(full_archive):
+                ax.plot(c['x'], c['y'], label=c['label'], linewidth=2) # less crowded
+            else:
+                ax.errorbar(c['x'], c['y'], yerr=c['yerr'], label=c['label'],
+                            marker=markers.next(), linewidth=2, markersize=7)
         ax.set_xlim(rev_start-1, rev_end+1)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.legend(loc='upper center', numpoints=1, ncol=3, fancybox=True, shadow=True)
