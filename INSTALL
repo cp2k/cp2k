@@ -239,10 +239,10 @@ The following flags should be present (or not) in the arch file, partially depen
   * with -D__HAS_LIBGRID (and -L/path/to/libgrid.a in LIBS) tuned versions of
     integrate and collocate routines can be generated.
     See cp2k/tools/autotune_grid/README for details
-  * -D__PILAENV_BLOCKSIZE=1024 or similar is a hack to overwrite (if the linker allows this)
-    the PILAENV function provided by Scalapack.
-    This can lead to much improved PDGEMM performance.
-    The optimal value depends on hardware (GPU?) and precise problem.
+  * -D__PILAENV_BLOCKSIZE : can be used to specify the blocksize (e.g. -D__PILAENV_BLOCKSIZE=1024),
+    which is a hack to overwrite (if the linker allows this) the PILAENV function provided by Scalapack.
+    This can lead to much improved PDGEMM performance. The optimal value depends on hardware (GPU?) and precise problem.
+  * -D__STATM_RESIDENT or -D__STATM_TOTAL toggles memory usage reporting between resident memory and total memory
 
 Features useful to deal with legacy systems
   * -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
