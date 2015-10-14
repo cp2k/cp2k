@@ -44,6 +44,7 @@ MODULE force_fields_ext
                                              timestop
   USE topology_amber,                  ONLY: rdparm_amber_8
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

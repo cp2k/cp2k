@@ -151,6 +151,7 @@ MODULE qs_environment_types
                                              xas_env_retain,&
                                              xas_environment_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

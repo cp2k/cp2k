@@ -78,6 +78,7 @@ MODULE thermostat_methods
                                              setup_adiabatic_thermostat_info,&
                                              setup_thermostat_info
 #include "../../common/cp_common_uses.f90"
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -39,6 +39,7 @@ MODULE glbopt_worker
                                              swarm_message_get,&
                                              swarm_message_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
  IMPLICIT NONE
  PRIVATE

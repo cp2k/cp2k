@@ -5,7 +5,7 @@
  'type1':'real(kind=dp),dimension(:,:,:),pointer',
  'type1in':'real(kind=dp),dimension(:,:,:), pointer',
  'type1out':'real(kind=dp),dimension(:,:,:), pointer',
- 'common_dir':'../common/',
+ 'common_dir':'../common',
  'template':'../common/cp_linked_list__nametype1_.template',
  'USE':
 """USE kinds, only: dp

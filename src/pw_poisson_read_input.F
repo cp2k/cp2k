@@ -35,6 +35,7 @@ MODULE pw_poisson_read_input
        pw_poisson_mt, pw_poisson_multipole, pw_poisson_none, &
        pw_poisson_parameter_type, pw_poisson_periodic, pw_poisson_wavelet
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -54,6 +54,7 @@ MODULE input_cp2k_xc
        xc_test_lsd_f_routine, xgga_b88x, xgga_ev93, xgga_opt, xgga_pbex, &
        xgga_pw86, xgga_pw91, xgga_revpbe
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

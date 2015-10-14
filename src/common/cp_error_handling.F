@@ -29,14 +29,15 @@
 !>      @version 1.2002
 ! *****************************************************************************
 MODULE cp_error_handling
+  USE base_hooks,                      ONLY: cp_abort_hook,&
+                                             cp_warn_hook
   USE cp_log_handling,                 ONLY: CP_WARNING_LEVEL,&
-                                             cp_logger_get_default_io_unit,&
-                                             cp_to_string
-  USE kinds,                           ONLY: default_string_length
+                                             cp_logger_get_default_io_unit
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_abort
   USE termination,                     ONLY: print_message
   USE timings,                         ONLY: print_stack
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -49,9 +50,7 @@ MODULE cp_error_handling
             cp_precondition_failed, cp_caller_error
 
   !API public routines
-  PUBLIC :: cp_assert, cp_abort, cp_warn
-  !API public routines used via macros
-  PUBLIC :: cp__a, cp__b, cp__w, cp__l
+  PUBLIC :: cp_assert, cp_error_handling_setup
 
   !! error number: no error
   INTEGER, PARAMETER :: cp_no_error = 0
@@ -71,6 +70,15 @@ MODULE cp_error_handling
   INTEGER, PARAMETER :: cp_assertion_failed = -300
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Registers handlers with base_hooks.F
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE cp_error_handling_setup()
+    cp_abort_hook => cp_abort_handler
+    cp_warn_hook => cp_warn_handler
+  END SUBROUTINE cp_error_handling_setup
 
 ! *****************************************************************************
 !> \brief routine that checks an assertion, if it fails set the optional
@@ -120,7 +128,7 @@ CONTAINS
 !> \param message ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp_abort(location, message)
+  SUBROUTINE cp_abort_handler(location, message)
     CHARACTER(len=*), INTENT(in)             :: location, message
 
     INTEGER                                  :: unit_nr
@@ -134,7 +142,7 @@ CONTAINS
     ENDIF
 
     CALL mp_abort(message)
-  END SUBROUTINE cp_abort
+  END SUBROUTINE cp_abort_handler
 
 ! *****************************************************************************
 !> \brief Signal a warning
@@ -142,7 +150,7 @@ CONTAINS
 !> \param message ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE cp_warn(location, message)
+  SUBROUTINE cp_warn_handler(location, message)
     CHARACTER(len=*), INTENT(in)             :: location, message
 
     INTEGER                                  :: unit_nr
@@ -152,65 +160,6 @@ CONTAINS
        CALL print_message("WARNING in "//TRIM(location)//' :: '//TRIM(ADJUSTL(message)),unit_nr,1,1,1)
        CALL m_flush(unit_nr)
     ENDIF
-  END SUBROUTINE cp_warn
-
-! *****************************************************************************
-!> \brief CPASSERT handler
-!> \param filename ...
-!> \param lineNr ...
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE cp__a(filename,lineNr)
-    CHARACTER(len=*), INTENT(in)             :: filename
-    INTEGER, INTENT(in)                      :: lineNr
-
-    CALL cp_abort(location=cp__l(filename,lineNr), message="CPASSERT failed")
-  END SUBROUTINE cp__a
-
-! *****************************************************************************
-!> \brief CPABORT handler
-!> \param filename ...
-!> \param lineNr ...
-!> \param message ...
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE cp__b(filename,lineNr,message)
-    CHARACTER(len=*), INTENT(in)             :: filename
-    INTEGER, INTENT(in)                      :: lineNr
-    CHARACTER(len=*), INTENT(in)             :: message
-
-    CALL cp_abort(location=cp__l(filename,lineNr), message=message)
-  END SUBROUTINE cp__b
-
-! *****************************************************************************
-!> \brief CPWARN handler
-!> \param filename ...
-!> \param lineNr ...
-!> \param message ...
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE cp__w(filename, lineNr,message)
-    CHARACTER(len=*), INTENT(in)             :: filename
-    INTEGER, INTENT(in)                      :: lineNr
-    CHARACTER(len=*), INTENT(in)             :: message
-
-    CALL cp_warn(location=cp__l(filename,lineNr), message=message)
-  END SUBROUTINE cp__w
-
-! *****************************************************************************
-!> \brief Helper routine to assemble __LOCATION__
-!> \param filename ...
-!> \param lineNr ...
-!> \retval location ...
-!> \author Ole Schuett
-! *****************************************************************************
-  FUNCTION cp__l(filename, lineNr) RESULT(location)
-    CHARACTER(len=*), INTENT(in)             :: filename
-    INTEGER, INTENT(in)                      :: lineNr
-    CHARACTER(len=default_string_length)     :: location
-
-    location = filename//':'//TRIM(ADJUSTL(cp_to_string(lineNr)))
-
-  END FUNCTION cp__l
+  END SUBROUTINE cp_warn_handler
 
 END MODULE cp_error_handling

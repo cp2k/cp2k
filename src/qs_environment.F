@@ -181,6 +181,7 @@ MODULE qs_environment
   USE transport,                       ONLY: transport_env_create
 !  USE xas_control,                     ONLY: write_xas_control
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

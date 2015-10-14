@@ -122,6 +122,7 @@ MODULE qs_linres_methods
                                              xc_rho_set_type,&
                                              xc_rho_set_update
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -37,6 +37,7 @@ MODULE input_cp2k_ls
   USE qs_density_mixing_types,         ONLY: create_mixing_section
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

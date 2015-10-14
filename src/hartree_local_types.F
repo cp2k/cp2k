@@ -8,6 +8,7 @@ MODULE hartree_local_types
   USE kinds,                           ONLY: dp
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

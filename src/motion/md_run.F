@@ -100,6 +100,7 @@ MODULE md_run
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              create_wiener_process_cv
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

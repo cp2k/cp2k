@@ -18,6 +18,7 @@ MODULE lri_optimize_ri_basis_types
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

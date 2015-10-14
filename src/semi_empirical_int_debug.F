@@ -24,6 +24,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
                                              semi_empirical_type,&
                                              se_int_control_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
@@ -160,6 +161,7 @@ SUBROUTINE rot_2el_2c_first_debug(sepi, sepj, rijv, se_int_control, se_taper, in
                                              se_taper_type
   USE semi_empirical_int_utils,        ONLY: rot_2el_2c_first
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
@@ -255,6 +257,7 @@ SUBROUTINE check_dssss_nucint_ana (sepi,sepj,r,dssss,itype,se_int_control,se_tap
                                              se_int_control_type,&
                                              se_taper_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
@@ -307,6 +310,7 @@ SUBROUTINE check_dcore_nucint_ana (sepi,sepj,r,dcore,itype,se_int_control,se_tap
                                              se_int_control_type,&
                                              se_taper_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
@@ -408,6 +412,7 @@ SUBROUTINE check_drotnuc_ana(sepi, sepj, rijv, itype, se_int_control, se_taper, 
                                              se_int_control_type,&
                                              se_taper_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -513,6 +518,7 @@ SUBROUTINE check_dcorecore_ana(sepi, sepj, rijv, itype,se_int_control, se_taper,
                                              se_int_control_type,&
                                              se_taper_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -576,6 +582,7 @@ SUBROUTINE check_dterep_ana (sepi,sepj,r,ri,dri,se_int_control,se_taper,lgrad)
                                              se_int_control_type,&
                                              se_taper_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), INTENT(IN)                     :: r
@@ -647,6 +654,7 @@ SUBROUTINE check_rotint_ana(sepi,sepj,rijv,w,dw,se_int_control,se_taper)
                                              se_int_control_type,&
                                              se_taper_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv

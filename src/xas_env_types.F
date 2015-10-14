@@ -33,6 +33,7 @@ MODULE xas_env_types
                                              scf_c_retain,&
                                              scf_control_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

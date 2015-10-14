@@ -14,6 +14,7 @@ MODULE cp_realspace_grid_cube
   USE pw_types,                        ONLY: pw_type
   USE realspace_grid_cube,             ONLY: pw_to_cube
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -42,6 +42,7 @@ MODULE cp_ddapc_forces
                                              timestop
 !NB for reducing results of calculations that use dq, which is now spread over nodes
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -18,6 +18,7 @@ MODULE cp_control_types
   USE xas_control,                     ONLY: xas_control_release,&
                                              xas_control_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

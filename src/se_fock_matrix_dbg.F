@@ -14,6 +14,7 @@ MODULE se_fock_matrix_dbg
   USE se_fock_matrix_coulomb,          ONLY: build_fock_matrix_coulomb_lr
   USE semi_empirical_store_int_types,  ONLY: semi_empirical_si_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

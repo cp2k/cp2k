@@ -21,6 +21,7 @@ MODULE farming_methods
                                              section_vals_val_get
   USE message_passing,                 ONLY: mp_bcast
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

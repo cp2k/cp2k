@@ -22,6 +22,7 @@ MODULE force_field_types
   USE shell_potential_types,           ONLY: shell_p_release,&
                                              shell_p_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

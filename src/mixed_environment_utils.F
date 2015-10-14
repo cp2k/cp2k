@@ -27,6 +27,7 @@ MODULE mixed_environment_utils
                                              virial_type,&
                                              zero_virial
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

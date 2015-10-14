@@ -30,6 +30,7 @@ MODULE tmc_dot_tree
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_param_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

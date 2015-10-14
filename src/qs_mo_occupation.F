@@ -30,6 +30,7 @@ MODULE qs_mo_occupation
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              xas_environment_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -37,7 +37,6 @@ MODULE termination
   PUBLIC :: print_message,&
             set_error_unit,&
             stop_memory,&
-            stop_program,&
             stop_read,&
             stop_write
 

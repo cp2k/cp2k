@@ -24,6 +24,7 @@ MODULE cp_parser_inpp_methods
   USE string_utilities,                ONLY: is_whitespace,&
                                              uppercase
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

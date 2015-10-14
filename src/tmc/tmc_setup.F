@@ -77,6 +77,7 @@ MODULE tmc_setup
                                              get_atom_kinds_and_cell,&
                                              get_initial_conf
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

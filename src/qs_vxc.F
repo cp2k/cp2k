@@ -56,6 +56,7 @@ MODULE qs_vxc
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -62,6 +62,7 @@ MODULE xas_restart
                                              set_xas_env,&
                                              xas_environment_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

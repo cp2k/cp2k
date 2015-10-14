@@ -30,6 +30,7 @@ MODULE xc_derivative_set_types
                                              xc_derivative_release,&
                                              xc_derivative_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -117,6 +117,7 @@ MODULE xas_methods
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf,&
                                              xes_scf_once
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

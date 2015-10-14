@@ -25,6 +25,7 @@ MODULE cell_opt_types
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

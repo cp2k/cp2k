@@ -49,6 +49,7 @@ MODULE atom_kind_orbitals
                                              qs_kind_type
   USE rel_control_types,               ONLY: rel_control_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

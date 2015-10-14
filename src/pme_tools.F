@@ -20,6 +20,7 @@ MODULE pme_tools
   USE particle_types,                  ONLY: particle_type
   USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

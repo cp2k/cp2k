@@ -20,6 +20,7 @@ MODULE fft_lib
                                              fftw3_do_init,&
                                              fftw3_get_lengths
 #include "../../common/cp_common_uses.f90"
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

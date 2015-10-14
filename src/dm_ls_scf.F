@@ -107,6 +107,7 @@ MODULE dm_ls_scf
                                              transport_initialize
   USE transport_env_types,             ONLY: transport_env_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

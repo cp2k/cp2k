@@ -87,6 +87,7 @@ MODULE topology
   USE topology_xtl,                    ONLY: read_coordinate_xtl
   USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

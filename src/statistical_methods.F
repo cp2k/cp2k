@@ -18,6 +18,7 @@ MODULE statistical_methods
   USE parallel_rng_types,              ONLY: next_random_number
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

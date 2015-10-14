@@ -28,6 +28,7 @@ MODULE ai_overlap_ppl
   USE mathconstants,                   ONLY: fac,&
                                              pi
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

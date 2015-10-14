@@ -57,6 +57,7 @@ MODULE parallel_rng_types
                                              dp
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 

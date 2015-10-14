@@ -19,6 +19,7 @@ MODULE hfx_compression_methods
   USE kinds,                           ONLY: dp,&
                                              int_8
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

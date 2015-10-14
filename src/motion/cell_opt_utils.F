@@ -36,6 +36,7 @@ MODULE cell_opt_utils
   USE mathconstants,                   ONLY: sqrt3
   USE mathlib,                         ONLY: angle
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

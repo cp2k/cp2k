@@ -47,7 +47,8 @@
 MODULE cp_linked_list_3d_r
   USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
-#include "../common//cp_common_uses.f90"
+#include "../common/cp_common_uses.f90"
+#include "../common/../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -629,7 +630,7 @@ END FUNCTION cp_sll_3d_r_to_array
 !     USE cp_array_utils_r, only: cp_3d_r_p_type"
 !  array= = "=>"
 !  arrayEl = "%array"
-!  common_dir = "../common/"
+!  common_dir = "../common"
 !  defines = 
 !    "! less not much meningful... and defines oly a partial ordering.
 !     #define CP_SLL_R_LESS_Q(el1,el2) ( all(el1 < el2) )

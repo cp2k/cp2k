@@ -47,6 +47,7 @@ MODULE input_section_types
                                              uppercase
   USE termination,                     ONLY: print_message
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

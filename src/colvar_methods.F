@@ -96,6 +96,7 @@ MODULE colvar_methods
                                              timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -34,6 +34,7 @@ MODULE lri_environment_init
                                              clebsch_gordon_deallocate,&
                                              clebsch_gordon_init
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

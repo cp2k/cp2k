@@ -43,6 +43,7 @@ MODULE cp_array_utils_logical
   USE machine,                         ONLY: m_flush
 ! dummy line needed for coverage broadcasting
 #include "cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

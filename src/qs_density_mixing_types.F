@@ -33,6 +33,7 @@ MODULE qs_density_mixing_types
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE string_utilities,                ONLY: s2a
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

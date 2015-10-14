@@ -30,6 +30,7 @@ MODULE qmmm_elpot
   USE qmmm_types_low,                  ONLY: qmmm_Pot_Type,&
                                              qmmm_pot_p_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

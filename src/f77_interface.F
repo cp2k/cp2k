@@ -24,6 +24,7 @@ MODULE f77_interface
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_finalize_lib,&
                                              cp_dbcsr_init_lib
+  USE cp_error_handling,               ONLY: cp_error_handling_setup
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
   USE cp_log_handling,                 ONLY: cp_logger_retain
@@ -127,6 +128,7 @@ MODULE f77_interface
   USE timings_types,                   ONLY: timer_env_type
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -205,6 +207,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (.NOT. module_initialized) THEN
+       ! install error handler hooks
+       CALL cp_error_handling_setup()
 
        ! Initialise preconnection list
        CALL init_preconnection_list()

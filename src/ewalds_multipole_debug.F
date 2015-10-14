@@ -38,6 +38,7 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
 
   TYPE charge_mono_type
@@ -691,6 +692,7 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env
   TYPE(ewald_pw_type), POINTER             :: ewald_pw
@@ -894,6 +896,7 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env
   TYPE(ewald_pw_type), POINTER             :: ewald_pw

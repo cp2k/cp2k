@@ -42,6 +42,7 @@ MODULE ewalds
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.

@@ -177,6 +177,7 @@ MODULE qs_scf_post_gpw
   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
                                              xray_diffraction_spectrum
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

@@ -17,6 +17,7 @@ MODULE qs_period_efield_types
                                              cp_dbcsr_p_type
   USE kinds,                           ONLY: dp
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

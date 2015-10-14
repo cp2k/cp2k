@@ -95,6 +95,7 @@ MODULE pw_env_methods
        xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
        xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

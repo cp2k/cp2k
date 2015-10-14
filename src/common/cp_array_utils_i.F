@@ -43,6 +43,7 @@ MODULE cp_array_utils_i
   USE kinds,                           ONLY: int_4
   USE machine,                         ONLY: m_flush
 #include "cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

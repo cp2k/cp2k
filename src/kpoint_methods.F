@@ -77,6 +77,7 @@ MODULE kpoint_methods
   USE scf_control_types,               ONLY: smear_type
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

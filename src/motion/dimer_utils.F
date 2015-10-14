@@ -18,6 +18,7 @@ MODULE dimer_utils
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

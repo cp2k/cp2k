@@ -57,6 +57,7 @@ MODULE qs_vxc_atom
                                              xc_rho_set_release,&
                                              xc_rho_set_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -46,6 +46,7 @@
 MODULE cp_linked_list_char
   USE kinds,                           ONLY: default_string_length
 #include "../common/cp_common_uses.f90"
+#include "../common/../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

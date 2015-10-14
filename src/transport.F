@@ -48,6 +48,7 @@ MODULE transport
                                              csr_interop_nullify,&
                                              transport_env_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

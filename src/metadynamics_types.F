@@ -19,6 +19,7 @@ MODULE metadynamics_types
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
                                              rng_stream_p_type
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

@@ -134,6 +134,7 @@ MODULE tamc_run
                                              create_wiener_process_cv
 !!!!! monte carlo part
 #include "../../common/cp_common_uses.f90"
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 

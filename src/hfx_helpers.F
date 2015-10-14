@@ -20,6 +20,7 @@ MODULE hfx_helpers
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

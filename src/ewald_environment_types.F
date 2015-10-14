@@ -35,6 +35,7 @@ MODULE ewald_environment_types
                                              do_ewald_pme,&
                                              do_ewald_spme
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

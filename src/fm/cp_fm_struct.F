@@ -20,6 +20,7 @@ MODULE cp_fm_struct
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_sum
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

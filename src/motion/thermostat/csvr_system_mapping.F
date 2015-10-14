@@ -30,6 +30,7 @@ MODULE csvr_system_mapping
                                              thermostat_mapping_region
   USE thermostat_types,                ONLY: thermostat_info_type
 #include "../../common/cp_common_uses.f90"
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 

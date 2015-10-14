@@ -46,6 +46,7 @@ MODULE qmmm_force
   USE qs_force,                        ONLY: qs_calc_energy_force
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

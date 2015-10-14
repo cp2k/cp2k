@@ -38,6 +38,7 @@ MODULE xc_adiabatic_utils
                                              timestop
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

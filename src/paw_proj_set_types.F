@@ -33,6 +33,7 @@ MODULE paw_proj_set_types
                                              nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
 #include "./common/cp_common_uses.f90"
+#include "./base/base_uses.f90"
 
   IMPLICIT NONE
 

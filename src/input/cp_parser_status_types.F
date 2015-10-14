@@ -14,6 +14,7 @@ MODULE cp_parser_status_types
                                              release_buffer_type
   USE kinds,                           ONLY: max_line_length
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

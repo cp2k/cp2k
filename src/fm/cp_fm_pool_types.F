@@ -24,6 +24,7 @@ MODULE cp_fm_pool_types
                                              cp_sll_fm_rm_first_el,&
                                              cp_sll_fm_type
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

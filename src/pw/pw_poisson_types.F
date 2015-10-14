@@ -55,6 +55,7 @@ MODULE pw_poisson_types
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_grid_release
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

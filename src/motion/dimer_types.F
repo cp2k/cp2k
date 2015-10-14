@@ -20,6 +20,7 @@ MODULE dimer_types
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: random_numbers
 #include "../common/cp_common_uses.f90"
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE

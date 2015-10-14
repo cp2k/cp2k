@@ -12,7 +12,7 @@ varRe=re.compile(r" *(?P<var>[a-zA-Z_0-9]+) *(?P<rest>(?:\((?P<param>(?:[^()]+|\
 useParseRe=re.compile(
     r" *use +(?P<module>[a-zA-Z_][a-zA-Z_0-9]*)(?P<only> *, *only *:)? *(?P<imports>.*)$",
     flags=re.IGNORECASE)
-commonUsesRe=re.compile("^#include *\"([^\"]*cp_common_uses.f90)\"")
+commonUsesRe=re.compile("^#include *\"([^\"]*(cp_common_uses.f90|base_uses.f90))\"")
 localNameRe=re.compile(" *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$")
 
 def readFortranLine(infile):
@@ -702,7 +702,7 @@ def parseUse(inFile):
             break
         else:
             if comments and commonUsesRe.match(comments):
-                commonUses="".join(lines)
+                commonUses += "".join(lines)
             elif len(modules)==0:
                 preComments.append(("".join(lines)))
             elif comments:
