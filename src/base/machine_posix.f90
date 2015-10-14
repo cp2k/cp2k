@@ -14,7 +14,7 @@
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: m_cputime, m_flush, m_memory, &
+  PUBLIC :: m_flush, m_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_mov, &
             m_memory_details, m_procrun
@@ -44,16 +44,6 @@ CONTAINS
 
     ic = COMMAND_ARGUMENT_COUNT ()
   END FUNCTION m_iargc
-
-
-! *****************************************************************************
-!  cpu time in seconds
-! *****************************************************************************
-  FUNCTION m_cputime() RESULT (ct)
-    REAL(KIND=dp)                            :: ct
-
-    CALL CPU_TIME(ct)
-  END FUNCTION m_cputime
 
 
 ! *****************************************************************************
