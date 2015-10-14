@@ -44,6 +44,7 @@ MODULE distribution_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
+                                             int_8,&
                                              int_size
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: pi
@@ -1135,7 +1136,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, icluster, level, &
-                                                natom, ncluster, output_unit
+                                                natom, output_unit
+    INTEGER(KIND=int_8)                      :: ncluster
     INTEGER, ALLOCATABLE, DIMENSION(:) :: atom_to_cluster, cluster_cost, &
       cluster_count, cluster_to_col, cluster_to_row, piv_cost, proc_cost, &
       sorted_cost
@@ -1161,7 +1163,7 @@ CONTAINS
     CALL cluster_recurse(coords, scaled_coords, cell, costs, atom_to_cluster, ncluster, icluster, cluster_cost)
 
     sorted_cost(:)=cluster_cost(:)
-    CALL sort(sorted_cost,ncluster,piv_cost)
+    CALL sort(sorted_cost,INT(ncluster),piv_cost)
 
     ALLOCATE(proc_cost(nprows))
     proc_cost=0; level=1
@@ -1269,7 +1271,8 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, DIMENSION(:), INTENT(IN)        :: costs
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: cluster_inds
-    INTEGER, INTENT(INOUT)                   :: ncluster, icluster
+    INTEGER(KIND=int_8), INTENT(INOUT)       :: ncluster
+    INTEGER, INTENT(INOUT)                   :: icluster
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: fin_cluster_cost
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cluster_recurse', &
@@ -1278,8 +1281,10 @@ CONTAINS
     INTEGER                                  :: i, ibeg, iend, maxv(1), &
                                                 min_seed, natoms, nleft, &
                                                 nsplits, seed, tot_cost
+    INTEGER(KIND=int_8), ALLOCATABLE, &
+      DIMENSION(:)                           :: ncluster_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_cost, inds_tmp, &
-                                                nat_cluster, ncluster_new, piv
+                                                nat_cluster, piv
     LOGICAL                                  :: found
     REAL(KIND=dp)                            :: balance, balance_new, conv
 
@@ -1289,7 +1294,7 @@ CONTAINS
     IF (natoms.le.1) THEN
        nsplits=1
     ELSE
-       nsplits=MIN(MIN(MAX(6, INT(60.00/LOG(REAL(natoms)))), ncluster), natoms)
+       nsplits=MIN(INT(MIN(INT(MAX(6, INT(60.00/LOG(REAL(natoms)))),KIND=int_8), ncluster)), natoms)
     ENDIF
     IF (nsplits==1) THEN
        icluster=icluster+1
@@ -1330,7 +1335,7 @@ CONTAINS
        tot_cost=SUM(cluster_cost)
        ! compute new splitting, can be done more elegant 
        ncluster_new(:)=ncluster*cluster_cost(:)/tot_cost
-       nleft=ncluster-SUM(ncluster_new)
+       nleft=INT(ncluster-SUM(ncluster_new))
        ! As we won't have empty clusters, we can not have 0 as new size, so we correct for this at first
        DO i=1, nsplits
            IF(ncluster_new(i)==0)THEN
