@@ -75,7 +75,7 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
   outfile.close()
   infile.close()
 
-def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
+def evaluateInstantiationFile(instantiationFile,bkDir,logFile=sys.stdout,outDir=None):
     import os
     generatedFiles=[]
     try:
@@ -112,7 +112,7 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
           logFile.write("ERROR opening template '"+outName+"'\n")
           raise
         instantiateTemplate(infile,outfile,substitution,logFile)
-        prettify.prettfyInplace(outName,logFile=logFile)
+        prettify.prettfyInplace(outName,bkDir=bkDir,logFile=logFile)
         generatedFiles.append(outName)
     except:
         import sys
@@ -126,10 +126,17 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
 
 if __name__ == '__main__':
     if len(sys.argv)<2:
-        print "usage:", sys.argv[0]," template1.instantiation [template2.instantiation ...]"
+        print "usage:", sys.argv[0]," [--backup-dir=bk_dir] template1.instantiation [template2.instantiation ...]"
     else:
-        for name in sys.argv[1:]:
-            evaluateInstantiationFile(name,sys.stdout)
+        if(sys.argv[1].startswith("--backup-dir=")):
+            bkDir = sys.argv[1].split("=",1)[1]
+            files = sys.argv[2:]
+        else:
+            bkDir="preprettify"
+            files = sys.argv[1:]
+
+        for name in files:
+            evaluateInstantiationFile(name,bkDir,sys.stdout)
 # Local Variables:
 # py-indent-offset: 2
 # End:
