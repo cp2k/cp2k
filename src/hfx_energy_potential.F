@@ -1126,10 +1126,12 @@ MODULE hfx_energy_potential
         IF( shm_task_counter <= shm_total_bins) THEN
           my_thread_id = shm_task_list(shm_task_counter)%thread_id
           my_bin_id = shm_task_list(shm_task_counter)%bin_id
-          maxval_cache => x_data(irep,my_thread_id)%maxval_cache(my_bin_id)
-          maxval_container => x_data(irep,my_thread_id)%maxval_container(my_bin_id)
-          integral_caches => x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
-          integral_containers => x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
+          IF (.NOT.  memory_parameter%do_all_on_the_fly) THEN
+             maxval_cache => x_data(irep,my_thread_id)%maxval_cache(my_bin_id)
+             maxval_container => x_data(irep,my_thread_id)%maxval_container(my_bin_id)
+             integral_caches => x_data(irep,my_thread_id)%integral_caches(:,my_bin_id)
+             integral_containers => x_data(irep,my_thread_id)%integral_containers(:,my_bin_id)
+          ENDIF
           distribution_energy => x_data(irep,my_thread_id)%distribution_energy(my_bin_id)
           do_it = .TRUE.
           bins_left = .TRUE.
