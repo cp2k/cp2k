@@ -153,12 +153,12 @@ def gen_archive(config, log, outdir, full_archive=False):
         print "Doing the full archive index pages"
         trunk_revision = None # trunk_version changes too quickly, leave it out.
         out_fn = "index_full.html"
-        full_index_link = ''
+        other_index_link = '<p>View <a href="index.html">recent archive</a></p>'
     else:
         print "Doing recent archive index pages"
         trunk_revision = log[0]['num']
         out_fn = "index.html"
-        full_index_link = '<p>View <a href="index_full.html">full archive</a></p>'
+        other_index_link = '<p>View <a href="index_full.html">full archive</a></p>'
 
     url_list = ""
     for s in config.sections():
@@ -182,7 +182,7 @@ def gen_archive(config, log, outdir, full_archive=False):
             archive_output += '<p>Get <a href="%s">more information</a></p>\n'%info_url
         if(report_type == "generic"):
             archive_output += gen_plots(archive_reports, log, outdir+"archive/"+s+"/", full_archive)
-        archive_output += full_index_link
+        archive_output += other_index_link
         archive_output += '<table border="1" cellspacing="3" cellpadding="5">\n'
         archive_output += '<tr><th>Revision</th><th>Status</th><th>Summary</th><th>Author</th><th>Commit Message</th></tr>\n\n'
 
@@ -205,7 +205,7 @@ def gen_archive(config, log, outdir, full_archive=False):
             archive_output += '</tr>\n\n'
 
         archive_output += '</table>\n'
-        archive_output += full_index_link
+        archive_output += other_index_link
         archive_output += html_footer()
         write_file(outdir+"archive/%s/%s"%(s,out_fn), archive_output)
 
