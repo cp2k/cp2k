@@ -98,6 +98,8 @@ MODULE dbcsr_mm_sched
     INTEGER(kind=int_8)                              :: acc_num_stacks = 0
     INTEGER(kind=int_8)                              :: acc_flop = 0
     INTEGER(kind=int_8)                              :: cpu_flop = 0
+    INTEGER(kind=int_8)                              :: max_acc_flop = 0
+    INTEGER(kind=int_8)                              :: max_cpu_flop = 0
     INTEGER(kind=int_8), DIMENSION(:,:), ALLOCATABLE :: num_mnk_stacks
     ! ensure that array-elements are on different cache lines
     INTEGER(kind=int_4), DIMENSION(64)               :: padding
@@ -576,6 +578,11 @@ MODULE dbcsr_mm_sched
 
     CALL mp_environ(nranks, myrank, group)
 
+    report%max_acc_flop = report%acc_flop
+    CALL mp_max(report%max_acc_flop, group)
+    report%max_cpu_flop = report%cpu_flop
+    CALL mp_max(report%max_cpu_flop, group)
+
     CALL mp_sum(report%acc_flop, group)
     CALL mp_sum(report%cpu_flop, group)
     CALL mp_sum(report%cpu_num_stacks, group)
@@ -649,6 +656,9 @@ MODULE dbcsr_mm_sched
     percent = 100*REAL(report%acc_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%acc_flop))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " flops total",&
        report%cpu_flop, report%acc_flop, percent
+
+    WRITE (output_unit,'(A,T30,I20,1X,I20)') " flops max/rank",&
+       report%max_cpu_flop, report%max_acc_flop
 
     percent = 100*REAL(report%num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(1,4:5))))
     WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls inhomo. stacks",&

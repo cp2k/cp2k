@@ -354,18 +354,18 @@ MODULE dbcsr_mm_cannon
           WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
           WRITE (output_unit,'(A,T30,EN20.6)') " max memory usage/rank",total_max_memory
           WRITE (output_unit,'(A,T30,I20)') " # max total images/rank",dbcsr_mpi_statistics%nimages
-          WRITE (output_unit,'(A,T30,I20)') " # MPI data exchanged",total_nexchanged
-          WRITE (output_unit,'(A,T30,I20)') " # MPI data filtered",total_nfiltered
-          WRITE (output_unit,'(A)') " MPI data size (elements):"
-          WRITE (output_unit,'(A,T30,EN20.6)') "  total",&
+          WRITE (output_unit,'(A,T30,I20)') " # MPI messages exchanged",total_nexchanged
+          WRITE (output_unit,'(A,T30,I20)') " # MPI messages filtered",total_nfiltered
+          WRITE (output_unit,'(A)') " MPI messages size (elements):"
+          WRITE (output_unit,'(A,T30,EN20.6)') "  total size",&
                SUM(total_recv_data(:))
-          WRITE (output_unit,'(A,T30,EN20.6)') "  min",&
+          WRITE (output_unit,'(A,T30,EN20.6)') "  min size",&
                MINVAL(min_recv_data(:))
-          WRITE (output_unit,'(A,T30,EN20.6)') "  max",&
+          WRITE (output_unit,'(A,T30,EN20.6)') "  max size",&
                MAXVAL(max_recv_data(:))
-          WRITE (output_unit,'(A,T30,EN20.6)') "  average",average
+          WRITE (output_unit,'(A,T30,EN20.6)') "  average size",average
 
-          WRITE (output_unit,'(A)') " MPI breakdown and total data size (bytes):"
+          WRITE (output_unit,'(A)') " MPI breakdown and total messages size (bytes):"
           WRITE (output_unit,'(A,I8,T40,I10,T55,I20)') "             size <= ",dbcsr_mpi_size_limits(1),&
                SUM(total_recv_breakdown(1,1,:)),SUM(total_recv_breakdown(1,2,:))
           DO ilimit=2,SIZE(dbcsr_mpi_size_limits)
