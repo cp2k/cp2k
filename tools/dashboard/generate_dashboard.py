@@ -275,9 +275,11 @@ def gen_plots(all_reports, log, outdir, full_archive):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.legend(loc='upper center', numpoints=1, ncol=3, fancybox=True, shadow=True)
         if(not full_archive): # protect against outlayers
-            ymin = min([min(c['y']) for c in p['curves'].values()]) # lowest point from lowest curve
-            ymax = max([min(c['y']) for c in p['curves'].values()]) # lowest point from highest curve
-            ax.set_ylim(0.95*ymin, 1.3*ymax)
+            ymin  = min([min(c['y']) for c in p['curves'].values()]) # lowest point from lowest curve
+            ymax1 = max([min(c['y']) for c in p['curves'].values()]) # lowest point from highest curve
+            # highest *visible* point from highest curve
+            ymax2 = max([max([y for x,y in zip(c['x'],c['y']) if x>=rev_start]) for c in p['curves'].values()])
+            ax.set_ylim(0.95*ymin, min(1.3*ymax1, 1.05*ymax2))
         fig.savefig(outdir+pname+fig_ext)
 
     # write html output
