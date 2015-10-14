@@ -42,6 +42,7 @@
 &GLOBAL
   PROJECT H2O_OT
   RUN_TYPE MD
+  ECHO_ALL_HOSTS
   ! test debug level printing works
   PRINT_LEVEL DEBUG
   ! show basic output
