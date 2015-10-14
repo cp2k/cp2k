@@ -463,7 +463,7 @@ CONTAINS
        sll => sll%rest
        CALL cp_sll_[nametype1]_dealloc_node(node_to_rm)
     ELSE
-       CPWARN("tried to remove first el of an empty list")
+       CPABORT("tried to remove first el of an empty list")
     END IF
   END SUBROUTINE cp_sll_[nametype1]_rm_first_el
 

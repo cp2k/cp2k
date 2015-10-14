@@ -483,7 +483,7 @@ CONTAINS
        sll => sll%rest
        CALL cp_sll_val_dealloc_node(node_to_rm)
     ELSE
-       CPWARN("tried to remove first el of an empty list")
+       CPABORT("tried to remove first el of an empty list")
     END IF
   END SUBROUTINE cp_sll_val_rm_first_el
 

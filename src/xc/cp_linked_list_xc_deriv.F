@@ -507,7 +507,7 @@ END FUNCTION
        sll => sll%rest
        CALL cp_sll_xc_deriv_dealloc_node(node_to_rm)
     ELSE
-       CPWARN("tried to remove first el of an empty list")
+       CPABORT("tried to remove first el of an empty list")
     END IF
   END SUBROUTINE cp_sll_xc_deriv_rm_first_el
 
