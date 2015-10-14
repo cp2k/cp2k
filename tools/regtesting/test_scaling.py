@@ -41,6 +41,7 @@ def main():
         print("\nRunning tests for %s ..."%inp_fn)
         runtimes = []
         summary = []
+        plotpoints = []
         for c in configs:
             label = "%s-%dx%d"%(c[2], c[0], c[1])
             out_fn = inp_fn.replace(".inp", "-%s.out"%label)
@@ -50,10 +51,13 @@ def main():
                 t = parse_output(out_fn)
                 runtimes.append(t)
                 summary.append("%s: runtime %.f sec"%(label, t))
+                plotpoints.append('PlotPoint: name="%s", plot="perf", label="%s", y=%f, yerr=0.0'%(label, label, t))
             except Exception as e:
                 summary.append("%s: Error: %s"%(label, str(sys.exc_info()[1])))
                 error = True
 
+        print('\nPlot: name="perf", title="%s", ylabel="time [s]"'%inp_fn)
+        print("\n".join(plotpoints))
         print("\nTimings for "+inp_fn)
         print("  "+"\n  ".join(summary))
         mean = np.mean(runtimes)
