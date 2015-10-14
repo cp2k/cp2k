@@ -915,7 +915,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-#if defined(__SCALAPACK)
+#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2))
     INTEGER                                  :: comm_col, comm_row, group, &
                                                 mypcol, &
                                                 myprow, n, n_rows, nblk, neig
