@@ -926,7 +926,7 @@ CONTAINS
 #endif
 
     CALL timeset(routineN,handle)
-#if defined(__SCALAPACK) && ((__ELPA) || defined (__ELPA2))
+#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2))
 
     success = .TRUE.
 
