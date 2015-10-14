@@ -49,9 +49,8 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
 
     COMPLEX(dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: z
-    INTEGER :: after( 20 ), before( 20 ), chunk, i, ic, id, iend, ierr, &
-      inzee, isig, istart, iterations, itr, length, lot, nfft, now( 20 ), &
-      num_threads
+    INTEGER :: after( 20 ), before( 20 ), chunk, i, ic, id, iend, inzee, &
+      isig, istart, iterations, itr, length, lot, nfft, now( 20 ), num_threads
     LOGICAL                                  :: tscal
     REAL(dp)                                 :: trig( 2, 1024 )
 
@@ -70,17 +69,13 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, n, m, isign,
   id = 0; num_threads = 1
 
 !$omp parallel &
-!$omp private ( id, istart, iend, nfft, i, inzee, itr,ierr ) default(none) &
+!$omp private ( id, istart, iend, nfft, i, inzee, itr) default(none) &
 !$omp shared (num_threads,z,iterations,chunk,LOT,length,m,transa,isig, &
 !$omp         before,after,now,trig,a,n,ldax,tscal,scale,ic,transb,ldbx,b)
 
 !$omp single
 !$  num_threads = omp_get_num_threads()
-  ALLOCATE ( Z ( LENGTH, 2, 0:num_threads - 1 ), stat=ierr )
-  IF (ierr /= 0) THEN
-     WRITE (*,*) "Error in allocating memory for z in mltfftsg.F"
-     CPABORT("")
-  ENDIF
+  ALLOCATE ( Z ( LENGTH, 2, 0:num_threads - 1 ))
   iterations = (M + LOT - 1) / LOT
   chunk = LOT * ((iterations + num_threads - 1) / num_threads)
 !$omp end single
