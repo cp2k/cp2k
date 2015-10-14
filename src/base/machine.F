@@ -121,18 +121,15 @@ END FUNCTION m_walltime
 FUNCTION m_energy() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
-    wt = 0.0 ! fallback default
-
 #if defined(__CRAY_PM_ENERGY)
    wt = read_energy("/sys/cray/pm_counters/energy")
 #elif defined(__CRAY_PM_ACCEL_ENERGY)
    wt = read_energy("/sys/cray/pm_counters/accel_energy")
-#elif defined(__CRAY_PM_FAKE_ENERGY)
-   ! reads from the current working dir
-   wt = read_energy("energy")
+#else
+   wt = 0.0 ! fallback default
 #endif
-END FUNCTION m_energy
 
+END FUNCTION m_energy
 
 ! *****************************************************************************
 !> \brief reads energy values from the sys-filesystem
