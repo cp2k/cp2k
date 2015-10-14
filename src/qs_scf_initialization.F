@@ -723,7 +723,6 @@ CONTAINS
       ! Filter matrix diagonalisation method
       CASE(diag_filter_matrix)
          scf_env%method=filter_matrix_diag_method_nr
-         scf_env%cholesky_method = cholesky_inverse
          IF (.NOT. fb_env_has_data(scf_env%filter_matrix_env)) THEN
             CALL fb_env_create(scf_env%filter_matrix_env)
          END IF

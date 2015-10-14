@@ -30,7 +30,9 @@ MODULE qs_fb_env_methods
                                              cp_fm_triangular_invert,&
                                              cp_fm_triangular_multiply,&
                                              cp_fm_upper_to_full
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                              cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -46,6 +48,11 @@ MODULE qs_fb_env_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
+  USE input_constants,                 ONLY: cholesky_dbcsr,&
+                                             cholesky_inverse,&
+                                             cholesky_off,&
+                                             cholesky_reduce,&
+                                             cholesky_restore
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -151,8 +158,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: filtered_rowORcol_block_sizes,&
                                                 original_rowORcol_block_sizes
     LOGICAL                                  :: collective_com
-    REAL(kind=dp) :: diis_error, eps_diis, eps_eigval, fermi_level, &
-      filter_temp, flexible_electron_count, KTS_filtered, maxocc, mu_filtered
+    REAL(kind=dp) :: diis_error, eps_default, eps_diis, eps_eigval, &
+      fermi_level, filter_temp, flexible_electron_count, KTS_filtered, &
+      maxocc, mu_filtered
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
                                                 eigenvalues_filtered, occ, &
                                                 occ_filtered
@@ -219,7 +227,7 @@ CONTAINS
     END DO
 
     eps_diis = scf_control%eps_diis
-    eps_eigval = scf_control%eps_eigval
+    eps_eigval = EPSILON(0.0_dp)
 
     IF (scf_env%iter_count > 1 .AND. .NOT. scf_env%skip_diis) THEN
        CALL qs_diis_b_step(scf_env%scf_diis_buffer, mos, scf_env%scf_work1, &
@@ -251,7 +259,8 @@ CONTAINS
 
     CALL fb_env_get(fb_env=fb_env, &
                     filter_temperature=filter_temp, &
-                    atomic_halos=atomic_halos)
+                    atomic_halos=atomic_halos, &
+                    eps_default=eps_default)
 
     ! construct trial functions
     CALL get_mo_set(mo_set=mos(1)%mo_set, maxocc=maxocc)
@@ -302,7 +311,8 @@ CONTAINS
        !                       fermi_level=fermi_level, &
        !                       filter_temp=filter_temp, &
        !                       name=name, &
-       !                       filter_mat=matrix_filter(ispin)%matrix)
+       !                       filter_mat=matrix_filter(ispin)%matrix,
+       !                       tolerance=eps_default)
 !END:ORIG:LT:2015/01/2
 !BEG:REPL:LT:2015/01/2
        CALL fb_env_get(fb_env=fb_env, &
@@ -317,7 +327,8 @@ CONTAINS
                                   fermi_level=fermi_level, &
                                   filter_temp=filter_temp, &
                                   name=name, &
-                                  filter_mat=matrix_filter(ispin)%matrix)
+                                  filter_mat=matrix_filter(ispin)%matrix, &
+                                  tolerance=eps_default)
        ELSE
           CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
                                 S_mat=matrix_s_desymm%matrix, &
@@ -328,7 +339,8 @@ CONTAINS
                                 fermi_level=fermi_level, &
                                 filter_temp=filter_temp, &
                                 name=name, &
-                                filter_mat=matrix_filter(ispin)%matrix)
+                                filter_mat=matrix_filter(ispin)%matrix, &
+                                tolerance=eps_default)
        END IF
 !END:REPL:LT:2015/01/2
 
@@ -484,7 +496,8 @@ CONTAINS
                                fm_matrix_ortho, &
                                fm_matrix_work, &
                                eps_eigval, &
-                               ndep)
+                               ndep, &
+                               scf_env%cholesky_method)
     END DO ! ispin
 
     ! release temporary matrices
@@ -663,20 +676,24 @@ CONTAINS
 !> \param ndep : if the overlap is not positive definite, then ndep > 0,
 !>               and equals to the number of linear dependent basis functions
 !>               in the filtered basis set
+!> \param method : method for solving generalised eigenvalue problem
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_env_eigensolver(fm_KS, fm_S, mo_set, fm_ortho, &
-                                fm_work, eps_eigval, ndep)
+                                fm_work, eps_eigval, ndep, method)
     TYPE(cp_fm_type), POINTER                :: fm_KS, fm_S
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: fm_ortho, fm_work
     REAL(KIND=dp), INTENT(IN)                :: eps_eigval
     INTEGER, INTENT(OUT)                     :: ndep
+    INTEGER, INTENT(IN)                      :: method
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_env_eigensolver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, info, nao, nmo
+    CHARACTER(len=8)                         :: ndep_string
+    INTEGER                                  :: handle, info, my_method, nao, &
+                                                nmo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
@@ -687,58 +704,84 @@ CONTAINS
                     nmo=nmo, &
                     eigenvalues=mo_eigenvalues, &
                     mo_coeff=mo_coeff)
+    my_method = method
     ndep = 0
 
     ! first, obtain orthogonalisation (ortho) matrix
-    CALL cp_fm_to_fm(fm_S, fm_ortho)
-    CALL cp_fm_cholesky_decompose(fm_ortho, info_out=info)
-    IF (info == 0) THEN
-       ! we are able to use cholesky inverse method
-       CALL cp_fm_triangular_invert(fm_ortho)
-       ! solve eigen equation using inverse of cholesky U
-       CALL cp_fm_upper_to_full(fm_KS, fm_work)
-       CALL cp_fm_triangular_multiply(fm_ortho, &
-                                      fm_KS, &
-                                      side="R", &
-                                      transpose_tr=.FALSE., &
-                                      invert_tr=.FALSE., &
-                                      uplo_tr="U", &
-                                      n_rows=nao, &
-                                      n_cols=nao, &
-                                      alpha=1.0_dp)
-       CALL cp_fm_triangular_multiply(fm_ortho, &
-                                      fm_KS, &
-                                      side="L", &
-                                      transpose_tr=.TRUE., &
-                                      invert_tr=.FALSE., &
-                                      uplo_tr="U", &
-                                      n_rows=nao, &
-                                      n_cols=nao, &
-                                      alpha=1.0_dp)
-       CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues)
-       CALL cp_fm_triangular_multiply(fm_ortho, &
-                                      fm_work, &
-                                      side="L", &
-                                      transpose_tr=.FALSE., &
-                                      invert_tr=.FALSE., &
-                                      uplo_tr="U", &
-                                      n_rows=nao, &
-                                      n_cols=nmo, &
-                                      alpha=1.0_dp)
-       CALL cp_fm_to_fm(fm_work, mo_coeff, nmo, 1, 1)
-    ELSE
-       CALL cp_warn(__LOCATION__,&
-            "Unable to perform Cholesky decomposition on the overlap "//&
-            "matrix. The new filtered basis may not be linearly "//&
-            "independent set. Revert to using inverse square-root "//&
-            "of the overlap. To avoid this warning, you can try"//&
-            "to use a higher filter termperature.")
-       ! cholesky decomposition has failed, revert to calculating
-       ! ortho as S^-1/2 using diagonalisation of S, and solve
-       ! accordingly
+    IF (my_method .NE. cholesky_off) THEN
+       CALL cp_fm_to_fm(fm_S, fm_ortho)
+       CALL cp_fm_cholesky_decompose(fm_ortho, info_out=info)
+       IF (info .NE. 0) THEN
+          CALL cp_warn(__LOCATION__,&
+               "Unable to perform Cholesky decomposition on the overlap "//&
+               "matrix. The new filtered basis may not be linearly "//&
+               "independent set. Revert to using inverse square-root "//&
+               "of the overlap. To avoid this warning, you can try"//&
+               "to use a higher filter termperature.")
+          my_method = cholesky_off
+       ELSE
+          SELECT CASE(my_method)
+          CASE(cholesky_dbcsr)
+             CALL cp_abort(__LOCATION__, &
+                  "filter matrix method with CHOLESKY_DBCSR is not yet implemented")
+          CASE(cholesky_reduce)
+             CALL cp_fm_cholesky_reduce(fm_KS, fm_ortho)
+             CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues)
+             CALL cp_fm_cholesky_restore(fm_work, nmo, fm_ortho, mo_coeff, "SOLVE")
+          CASE(cholesky_restore)
+             CALL cp_fm_upper_to_full(fm_KS, fm_work)
+             CALL cp_fm_cholesky_restore(fm_KS, nao, fm_ortho, fm_work, "SOLVE", &
+                                         pos="RIGHT")
+             CALL cp_fm_cholesky_restore(fm_work, nao, fm_ortho, fm_KS, "SOLVE", &
+                                         pos="LEFT", transa="T")
+             CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues)
+             CALL cp_fm_cholesky_restore(fm_work, nmo, fm_ortho, mo_coeff, "SOLVE")
+          CASE(cholesky_inverse)
+             CALL cp_fm_triangular_invert(fm_ortho)
+             CALL cp_fm_upper_to_full(fm_KS, fm_work)
+             CALL cp_fm_triangular_multiply(fm_ortho, &
+                                            fm_KS, &
+                                            side="R", &
+                                            transpose_tr=.FALSE., &
+                                            invert_tr=.FALSE., &
+                                            uplo_tr="U", &
+                                            n_rows=nao, &
+                                            n_cols=nao, &
+                                            alpha=1.0_dp)
+             CALL cp_fm_triangular_multiply(fm_ortho, &
+                                            fm_KS, &
+                                            side="L", &
+                                            transpose_tr=.TRUE., &
+                                            invert_tr=.FALSE., &
+                                            uplo_tr="U", &
+                                            n_rows=nao, &
+                                            n_cols=nao, &
+                                            alpha=1.0_dp)
+             CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues)
+             CALL cp_fm_triangular_multiply(fm_ortho, &
+                                            fm_work, &
+                                            side="L", &
+                                            transpose_tr=.FALSE., &
+                                            invert_tr=.FALSE., &
+                                            uplo_tr="U", &
+                                            n_rows=nao, &
+                                            n_cols=nmo, &
+                                            alpha=1.0_dp)
+             CALL cp_fm_to_fm(fm_work, mo_coeff, nmo, 1, 1)
+          END SELECT
+       END IF
+    END IF
+    IF (my_method == cholesky_off) THEN
+       ! calculating ortho as S^-1/2 using diagonalisation of S, and
+       ! solve accordingly
        CALL cp_fm_to_fm(fm_S, fm_ortho)
        CALL cp_fm_power(fm_ortho, fm_work, -0.5_dp, &
                         eps_eigval, ndep)
+       IF (ndep > 0) THEN
+          WRITE (ndep_string, FMT="(I8)") ndep
+          CALL cp_warn(__LOCATION__, &
+               "Number of linearly dependent filtered orbitals: "//ndep_string)
+       END IF
        ! solve eigen equatoin using S^-1/2
        CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, fm_KS, fm_ortho, &
                        0.0_dp, fm_work)
@@ -794,6 +837,11 @@ CONTAINS
                               l_val=l_val)
     CALL fb_env_set(fb_env=fb_env, &
                     collective_com=l_val)
+    ! eps_default
+    CALL section_vals_val_get(fb_section, "EPS_FB", &
+                              r_val=r_val)
+    CALL fb_env_set(fb_env=fb_env, &
+                    eps_default=r_val)
 
     CALL timestop(handle)
 

@@ -55,6 +55,7 @@ MODULE qs_fb_env_types
 !> \param auto_cutoff_scale  : scale multiplied to max atomic orbital
 !>                             radii used for automatic construction of
 !>                             rcut
+!> \param eps_default        : anything less than it is regarded as zero
 !> \param collective_com     : whether the MPI communications are
 !>                             to be done collectively together
 !>                             at the start and end of each
@@ -74,6 +75,7 @@ MODULE qs_fb_env_types
      TYPE(fb_trial_fns_obj) :: trial_fns
      REAL(KIND=dp) :: filter_temperature
      REAL(KIND=dp) :: auto_cutoff_scale
+     REAL(KIND=dp) :: eps_default
      LOGICAL :: collective_com
      INTEGER, DIMENSION(:), POINTER :: local_atoms
      INTEGER :: nlocal_atoms
@@ -218,6 +220,7 @@ CONTAINS
     CALL fb_trial_fns_nullify(fb_env%obj%trial_fns)
     fb_env%obj%filter_temperature = 0.0_dp
     fb_env%obj%auto_cutoff_scale = 1.0_dp
+    fb_env%obj%eps_default = 0.0_dp
     fb_env%obj%collective_com = .TRUE.
     NULLIFY(fb_env%obj%local_atoms)
     fb_env%obj%nlocal_atoms = 0
@@ -248,6 +251,7 @@ CONTAINS
     CALL fb_trial_fns_release(fb_env%obj%trial_fns)
     fb_env%obj%filter_temperature = 0.0_dp
     fb_env%obj%auto_cutoff_scale = 1.0_dp
+    fb_env%obj%eps_default = 0.0_dp
     fb_env%obj%collective_com = .TRUE.
     IF (ASSOCIATED(fb_env%obj%local_atoms)) THEN
        DEALLOCATE(fb_env%obj%local_atoms)
@@ -261,10 +265,12 @@ CONTAINS
 !> \brief ...
 !> \param fb_env : the fb_env object in question
 !> \param rcut   : outputs pointer to rcut attribute of fb_env (optional)
-!> \param filter_temperature : outputs pointer to filter_temperature
-!>                             attribute of fb_env (optional)
-!> \param auto_cutoff_scale  : outputs pointer to auto_cutoff_scale
-!>                             attribure of fb_env (optional)
+!> \param filter_temperature : outputs filter_temperature attribute
+!>                             of fb_env (optional)
+!> \param auto_cutoff_scale  : outputs auto_cutoff_scale attribute
+!>                             of fb_env (optional)
+!> \param eps_default        : outputs eps_default attribute
+!>                             of fb_env (optional)
 !> \param atomic_halos       : outputs pointer to atomic_halos
 !>                             attribute of fb_env (optional)
 !> \param trial_fns          : outputs pointer to trial_fns
@@ -278,6 +284,7 @@ CONTAINS
                         rcut, &
                         filter_temperature, &
                         auto_cutoff_scale, &
+                        eps_default, &
                         atomic_halos, &
                         trial_fns, &
                         collective_com, &
@@ -287,7 +294,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rcut
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: filter_temperature, &
-                                                auto_cutoff_scale
+                                                auto_cutoff_scale, eps_default
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(OUT), OPTIONAL                  :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(OUT), &
@@ -307,6 +314,8 @@ CONTAINS
          filter_temperature = fb_env%obj%filter_temperature
     IF (PRESENT(auto_cutoff_scale)) &
          auto_cutoff_scale = fb_env%obj%auto_cutoff_scale
+    IF (PRESENT(eps_default)) &
+         eps_default = fb_env%obj%eps_default
     IF (PRESENT(atomic_halos)) &
          CALL fb_atomic_halo_list_associate(atomic_halos, fb_env%obj%atomic_halos)
     IF (PRESENT(trial_fns)) &
@@ -327,6 +336,7 @@ CONTAINS
 !> \param rcut   : sets rcut attribute of fb_env (optional)
 !> \param filter_temperature : sets filter_temperature attribute of fb_env (optional)
 !> \param auto_cutoff_scale  : sets auto_cutoff_scale attribute of fb_env (optional)
+!> \param eps_default        : sets eps_default attribute of fb_env (optional)
 !> \param atomic_halos       : sets atomic_halos attribute of fb_env (optional)
 !> \param trial_fns          : sets trial_fns attribute of fb_env (optional)
 !> \param collective_com     : sets collective_com attribute of fb_env (optional)
@@ -338,6 +348,7 @@ CONTAINS
                         rcut, &
                         filter_temperature, &
                         auto_cutoff_scale, &
+                        eps_default, &
                         atomic_halos, &
                         trial_fns, &
                         collective_com, &
@@ -347,7 +358,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: rcut
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: filter_temperature, &
-                                                auto_cutoff_scale
+                                                auto_cutoff_scale, eps_default
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN), OPTIONAL                   :: atomic_halos
     TYPE(fb_trial_fns_obj), INTENT(IN), &
@@ -370,6 +381,8 @@ CONTAINS
          fb_env%obj%filter_temperature = filter_temperature
     IF (PRESENT(auto_cutoff_scale)) &
          fb_env%obj%auto_cutoff_scale = auto_cutoff_scale
+    IF (PRESENT(eps_default)) &
+         fb_env%obj%eps_default = eps_default
     IF (PRESENT(atomic_halos)) THEN
        IF (fb_atomic_halo_list_has_data(atomic_halos)) &
             CALL fb_atomic_halo_list_retain(atomic_halos)

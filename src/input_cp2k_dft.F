@@ -6075,10 +6075,10 @@ CONTAINS
                         repeats=.FALSE., &
                         n_var=1, &
                         type_of_var=real_t, &
-                        default_r_val=cp_unit_to_cp2k(value=30000.0_dp, &
+                        default_r_val=cp_unit_to_cp2k(value=10000.0_dp, &
                                                       unit_str="K"),&
                         unit_str="K", &
-                        usage="FILTER_TEMPERATURE [K] 30000", &
+                        usage="FILTER_TEMPERATURE [K] 10000", &
                         citations=(/Rayson2009/))
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
@@ -6091,8 +6091,22 @@ CONTAINS
                         repeats=.FALSE., &
                         n_var=1, &
                         type_of_var=real_t, &
-                        default_r_val=1.0_dp, &
+                        default_r_val=0.5_dp, &
                         usage="AUTO_CUTOFF_SCALE 0.5_dp", &
+                        citations=(/Rayson2009/))
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, &
+                        name="EPS_FB", &
+                        description="Default tolerance used in generating the filter "//&
+                                    "matrix. Anything less than EPS_FB will be "//&
+                                    "regarded as zero", &
+                        repeats=.FALSE., &
+                        n_var=1, &
+                        type_of_var=real_t, &
+                        default_r_val=1.e-12_dp, &
+                        usage="EPS_FB 1.e-12", &
                         citations=(/Rayson2009/))
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)

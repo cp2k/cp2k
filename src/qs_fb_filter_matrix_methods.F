@@ -90,6 +90,7 @@ CONTAINS
 !>                      filter function
 !> \param name        : name given to the filter matrix
 !> \param filter_mat  : DBCSR format filter matrix
+!> \param tolerance   : anything less than tolerance is treated as zero
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_build(H_mat, &
@@ -101,7 +102,8 @@ CONTAINS
                               fermi_level, &
                               filter_temp, &
                               name, &
-                              filter_mat)
+                              filter_mat, &
+                              tolerance)
     TYPE(cp_dbcsr_type), POINTER             :: H_mat, S_mat
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
@@ -112,6 +114,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_dbcsr_type), POINTER             :: filter_mat
+    REAL(KIND=dp), INTENT(IN)                :: tolerance
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build', &
       routineP = moduleN//':'//routineN
@@ -209,7 +212,8 @@ CONTAINS
                                      particle_set, &
                                      fermi_level, &
                                      filter_temp, &
-                                     filter_mat)
+                                     filter_mat, &
+                                     tolerance)
        ELSE
           CALL fb_fltrmat_add_blkcol(H_mat, &
                                      S_mat, &
@@ -219,7 +223,8 @@ CONTAINS
                                      particle_set, &
                                      fermi_level, &
                                      filter_temp, &
-                                     filter_mat)
+                                     filter_mat, &
+                                     tolerance)
        END IF ! send_data_only
     END DO
 
@@ -254,6 +259,7 @@ CONTAINS
 !>                      filter function
 !> \param name        : name given to the filter matrix
 !> \param filter_mat  : DBCSR format filter matrix
+!> \param tolerance   : anything less than tolerance is treated as zero
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_build_2(H_mat, &
@@ -265,7 +271,8 @@ CONTAINS
                                 fermi_level, &
                                 filter_temp, &
                                 name, &
-                                filter_mat)
+                                filter_mat, &
+                                tolerance)
     TYPE(cp_dbcsr_type), POINTER             :: H_mat, S_mat
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
@@ -276,6 +283,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_dbcsr_type), POINTER             :: filter_mat
+    REAL(KIND=dp), INTENT(IN)                :: tolerance
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_build_2', &
       routineP = moduleN//':'//routineN
@@ -411,7 +419,8 @@ CONTAINS
                                     particle_set, &
                                     fermi_level, &
                                     filter_temp, &
-                                    filter_mat_data)
+                                    filter_mat_data, &
+                                    tolerance)
     END DO
     ! clean up
     CALL fb_matrix_data_release(H_mat_data)
@@ -464,6 +473,7 @@ CONTAINS
 !> \param filter_temp : the filter temperature used for defining the
 !>                      filter function
 !> \param filter_mat  : DBCSR format filter matrix
+!> \param tolerance   : anything smaller than tolerance is treated as zero
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_add_blkcol(H_mat, &
@@ -474,7 +484,8 @@ CONTAINS
                                    particle_set, &
                                    fermi_level, &
                                    filter_temp, &
-                                   filter_mat)
+                                   filter_mat, &
+                                   tolerance)
     TYPE(cp_dbcsr_type), POINTER             :: H_mat, S_mat
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
     TYPE(fb_trial_fns_obj), INTENT(IN)       :: trial_fns
@@ -483,6 +494,7 @@ CONTAINS
       POINTER                                :: particle_set
     REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
     TYPE(cp_dbcsr_type), POINTER             :: filter_mat
+    REAL(KIND=dp), INTENT(IN)                :: tolerance
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol', &
       routineP = moduleN//':'//routineN
@@ -643,7 +655,8 @@ CONTAINS
                                             atomic_S, &
                                             fermi_level, &
                                             filter_temp, &
-                                            atomic_filter_mat)
+                                            atomic_filter_mat, &
+                                            tolerance)
     END IF
 
     ! ----------------------------------------------------------------------
@@ -785,6 +798,7 @@ CONTAINS
 !>                      filter function
 !> \param filter_mat_data : local storage for the the computed filter matrix
 !>                          blocks
+!> \param tolerance : anything less than this is regarded as zero
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_add_blkcol_2(H_mat, &
@@ -796,7 +810,8 @@ CONTAINS
                                      particle_set, &
                                      fermi_level, &
                                      filter_temp, &
-                                     filter_mat_data)
+                                     filter_mat_data, &
+                                     tolerance)
     TYPE(cp_dbcsr_type), POINTER             :: H_mat, S_mat
     TYPE(fb_matrix_data_obj), INTENT(IN)     :: H_mat_data, S_mat_data
     TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
@@ -805,6 +820,7 @@ CONTAINS
       POINTER                                :: particle_set
     REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
     TYPE(fb_matrix_data_obj), INTENT(INOUT)  :: filter_mat_data
+    REAL(KIND=dp), INTENT(IN)                :: tolerance
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fb_fltrmat_add_blkcol_2', &
       routineP = moduleN//':'//routineN
@@ -900,7 +916,8 @@ CONTAINS
                                             atomic_S, &
                                             fermi_level, &
                                             filter_temp, &
-                                            atomic_filter_mat)
+                                            atomic_filter_mat, &
+                                            tolerance)
     END IF
 
     ! ----------------------------------------------------------------------
@@ -1288,18 +1305,21 @@ CONTAINS
 !> \param filter_temp : temperature used to construct the Fermi-Dirac
 !>                      filter function
 !> \param atomic_filter_mat : the atomic filter matrix
+!> \param tolerance : anything smaller than tolerance is treated as zero
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_fltrmat_build_atomic_fltrmat(atomic_H, &
                                              atomic_S, &
                                              fermi_level, &
                                              filter_temp, &
-                                             atomic_filter_mat)
+                                             atomic_filter_mat, &
+                                             tolerance)
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: atomic_H, atomic_S
     REAL(KIND=dp), INTENT(IN)                :: fermi_level, filter_temp
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: atomic_filter_mat
+    REAL(KIND=dp), INTENT(IN)                :: tolerance
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_fltrmat_build_atomic_fltrmat', &
@@ -1427,11 +1447,11 @@ CONTAINS
 
     CALL timestop(handle_dgemm)
 
-    ! remove small negative terms due to numerical the filter
+    ! remove small negative terms due to numerical error, the filter
     ! matrix must not be negative definite
     DO jj = 1, SIZE(atomic_filter_mat,2)
        DO ii = 1, SIZE(atomic_filter_mat,1)
-          IF (ABS(atomic_filter_mat(ii,jj)) < EPSILON(0.0_dp)) THEN
+          IF (ABS(atomic_filter_mat(ii,jj)) < tolerance) THEN
              atomic_filter_mat(ii,jj) = 0.0_dp
           END IF
        END DO
