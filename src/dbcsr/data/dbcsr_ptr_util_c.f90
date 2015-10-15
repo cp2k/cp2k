@@ -51,7 +51,7 @@
     COMPLEX(kind=real_4), DIMENSION(:), POINTER           :: newarray
 
 !   ---------------------------------------------------------------------------
-    !CALL dbcsr_error_set(routineN, error_handler)
+    !CALL timeset(routineN, error_handler)
     dbg = .FALSE.
 
     IF (PRESENT (nocopy)) THEN
@@ -75,7 +75,7 @@
             "Arrays must start at 1", __LINE__)
        CALL mem_alloc_c (array, ub, mem_type=mem_type)
        IF (pad .AND. ub .GT. 0) CALL mem_zero_c (array, ub)
-       !CALL dbcsr_error_stop(error_handler)
+       !CALL timestop(error_handler)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
@@ -83,7 +83,7 @@
     old_size = ub_orig - lb_orig + 1
     ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       !CALL dbcsr_error_stop(error_handler)
+       !CALL timestop(error_handler)
        RETURN
     ENDIF
     ! A reallocation must be performed
@@ -148,7 +148,7 @@
     ENDIF
     array => newarray
     IF (dbg) WRITE(*,*)routineP//' New array size', SIZE(array)
-    !CALL dbcsr_error_stop(error_handler)
+    !CALL timestop(error_handler)
   END SUBROUTINE ensure_array_size_c
 
 ! *****************************************************************************
@@ -192,7 +192,7 @@
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle)
+       CALL timeset (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc .AND. n>1) THEN
        CALL acc_hostmem_allocate(mem, n, mem_type%acc_stream)
@@ -203,7 +203,7 @@
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle)
+       CALL timestop (error_handle)
   END SUBROUTINE mem_alloc_c
 
 
@@ -223,7 +223,7 @@
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle)
+       CALL timeset (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
@@ -238,7 +238,7 @@
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle)
+       CALL timestop (error_handle)
   END SUBROUTINE mem_alloc_c_2d
 
 
@@ -256,7 +256,7 @@
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle)
+       CALL timeset (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc .AND. SIZE(mem)>1) THEN
        CALL acc_hostmem_deallocate(mem, mem_type%acc_stream)
@@ -267,7 +267,7 @@
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle)
+       CALL timestop (error_handle)
   END SUBROUTINE mem_dealloc_c
 
 
@@ -285,7 +285,7 @@
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle)
+       CALL timeset (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
@@ -300,7 +300,7 @@
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle)
+       CALL timestop (error_handle)
   END SUBROUTINE mem_dealloc_c_2d
 
 

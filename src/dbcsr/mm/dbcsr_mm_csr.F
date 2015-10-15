@@ -18,7 +18,6 @@
 !>               dbcsr_mm_methods.
 !>  - 2013-01    extensive refactoring (Ole Schuett)
 ! *****************************************************************************
-
 MODULE dbcsr_mm_csr
 
   USE array_types,                     ONLY: array_data
@@ -26,8 +25,6 @@ MODULE dbcsr_mm_csr
                                              default_resize_factor,&
                                              mm_stack_size
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -50,6 +47,7 @@ MODULE dbcsr_mm_csr
                                              int_8,&
                                              real_8,&
                                              sp
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -504,7 +502,7 @@ MODULE dbcsr_mm_csr
     TYPE(stack_descriptor_type), &
       ALLOCATABLE, DIMENSION(:)              :: tmp_descr
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
@@ -658,7 +656,7 @@ MODULE dbcsr_mm_csr
     CALL dbcsr_mm_sched_init(this%sched, &
                 product_wm=this%product_wm)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_mm_csr_init
 
@@ -687,7 +685,7 @@ MODULE dbcsr_mm_csr
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     imat = 1
     !$ imat = OMP_GET_THREAD_NUM() + 1
     IF (PRESENT (row_map)) THEN
@@ -715,7 +713,7 @@ MODULE dbcsr_mm_csr
        IF (PRESENT (col_map)) col = col_map(col)
        CALL hash_table_add(hashes(row), col, i)
     ENDDO
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE fill_hash_tables
 
 

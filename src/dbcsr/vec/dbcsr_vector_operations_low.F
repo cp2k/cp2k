@@ -23,8 +23,6 @@ MODULE dbcsr_vector_operations_low
   USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
                                              dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -49,6 +47,7 @@ MODULE dbcsr_vector_operations_low
                                              real_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -124,7 +123,7 @@ CONTAINS
 
     INTEGER                                  :: handle, matrix_type
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     matrix_type=matrix%m%data_type
     SELECT CASE(matrix_type)
@@ -138,7 +137,7 @@ CONTAINS
        CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%c_sp, beta%c_sp, work_row, work_col)
     END SELECT
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_low_any
 
@@ -162,7 +161,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     npcol=SIZE(distri%d%mp_env%mp%pgrid,2)
@@ -184,7 +183,7 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_col_vec_from_matrix
 
@@ -208,7 +207,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     nprow=SIZE(distri%d%mp_env%mp%pgrid,1)
@@ -231,7 +230,7 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_row_vec_from_matrix
 
@@ -256,7 +255,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     npcol=SIZE(distri%d%mp_env%mp%pgrid,2)
@@ -282,7 +281,7 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_replicated_col_vec_from_matrix
 
@@ -307,7 +306,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     nprow=SIZE(distri%d%mp_env%mp%pgrid,1)
@@ -333,7 +332,7 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_replicated_row_vec_from_matrix
 
@@ -351,7 +350,7 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     SELECT CASE(vec%m%data_type)
     CASE(dbcsr_type_real_8)
@@ -364,7 +363,7 @@ CONTAINS
       CALL create_fast_col_vec_access_c(vec, fast_vec_access)
     END SELECT
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_fast_col_vec_access
 
@@ -382,7 +381,7 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     SELECT CASE(vec%m%data_type)
     CASE(dbcsr_type_real_8)
@@ -395,7 +394,7 @@ CONTAINS
        CALL create_fast_row_vec_access_z(vec, fast_vec_access)
     END SELECT
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_fast_row_vec_access
 
@@ -411,7 +410,7 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     CALL hash_table_release(fast_vec_access%hash_table)
     IF (ALLOCATED(fast_vec_access%blk_map_d)) DEALLOCATE(fast_vec_access%blk_map_d)
@@ -419,7 +418,7 @@ CONTAINS
     IF (ALLOCATED(fast_vec_access%blk_map_c)) DEALLOCATE(fast_vec_access%blk_map_c)
     IF (ALLOCATED(fast_vec_access%blk_map_z)) DEALLOCATE(fast_vec_access%blk_map_z)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE release_fast_vec_access
 

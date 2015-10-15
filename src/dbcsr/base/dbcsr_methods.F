@@ -27,10 +27,13 @@ MODULE dbcsr_methods
                                              btree_new_z => btree_new
   USE dbcsr_data_methods,              ONLY: dbcsr_data_init,&
                                              dbcsr_data_release
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
        dbcsr_2d_array_type, dbcsr_array_type, dbcsr_data_obj, &
@@ -43,6 +46,7 @@ MODULE dbcsr_methods
        dbcsr_work_type
   USE kinds,                           ONLY: default_string_length
   USE message_passing,                 ONLY: mp_comm_free
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
   IMPLICIT NONE
@@ -264,7 +268,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_warning_level, dbcsr_caller_error, routineN,&
          "Can not destroy uninitialized matrix object.",__LINE__)
@@ -306,7 +310,7 @@ CONTAINS
           CALL dbcsr_init (matrix%m)
        ENDIF
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_destroy
 
 ! *****************************************************************************
@@ -957,7 +961,7 @@ CONTAINS
 !type(dbcsr_iterator_type) :: iter
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     row_blk_sizes => dbcsr_row_block_sizes (matrix)
     col_blk_sizes => dbcsr_col_block_sizes (matrix)
     data_size = 0
@@ -972,7 +976,7 @@ CONTAINS
        ENDDO
     ENDDO
     !$OMP END DO
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END FUNCTION dbcsr_get_data_size_used
 
 

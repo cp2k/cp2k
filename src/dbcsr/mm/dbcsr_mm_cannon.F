@@ -76,9 +76,8 @@ MODULE dbcsr_mm_cannon
                                              image_calculator,&
                                              make_sizes_dense
   USE dbcsr_error_handling,            ONLY: &
-       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_failure_level, &
+       dbcsr_fatal_level, dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
        dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: &
        dbcsr_count_row_index, dbcsr_has_local_row_index, dbcsr_index_compact, &
@@ -173,6 +172,7 @@ MODULE dbcsr_mm_cannon
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_max, mp_min, &
        mp_request_null, mp_rget, mp_sum, mp_testany, mp_waitall, &
        mp_win_create, mp_win_free, mp_win_lock_all, mp_win_unlock_all
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -530,7 +530,7 @@ MODULE dbcsr_mm_cannon
                                                 product_matrix
     TYPE(dbcsr_scalar_type)                  :: eps_any
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL array_nullify(dense_k_sizes)
     CALL array_nullify(dense_col_sizes)
     CALL array_nullify(dense_row_sizes)
@@ -1041,12 +1041,12 @@ MODULE dbcsr_mm_cannon
 
     IF (PRESENT (flop)) THEN
        ! return the average number of flops per MPI rank. Variance (which is fairly large) could be computed as well.
-       CALL dbcsr_error_set(routineN//"_mpsum_flop",error_handler2)
+       CALL timeset(routineN//"_mpsum_flop",error_handler2)
        comm = dbcsr_mp_group (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
        numnodes = dbcsr_mp_numnodes (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
        CALL mp_sum(my_flop,comm)
        flop = (my_flop + numnodes - 1) / numnodes
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
     ENDIF
     !
     IF (new_left) CALL dbcsr_release (matrix_left)
@@ -1122,7 +1122,7 @@ MODULE dbcsr_mm_cannon
     !
     IF (.FALSE.) WRITE(*,*)"Finished with one multiplication."
     output_unit = default_output_unit
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_mm_cannon_multiply
 
 
@@ -1330,7 +1330,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index (source),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Matrix not initialized.",__LINE__)
@@ -1341,7 +1341,7 @@ MODULE dbcsr_mm_cannon
          scale_value=scale_value)
     normalized%image_dist = target_image_dist
     CALL dbcsr_image_dist_hold (normalized%image_dist)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_make_images
 
 ! *****************************************************************************
@@ -1405,7 +1405,7 @@ MODULE dbcsr_mm_cannon
 ! Set convenient variables to access input matrix info
 !
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     nocopy = .FALSE.
     IF (PRESENT (no_copy_data)) nocopy = no_copy_data
     sm = ism%m
@@ -1605,10 +1605,10 @@ MODULE dbcsr_mm_cannon
 !$omp end critical
 !$omp barrier
 !$omp master
-    CALL dbcsr_error_set(routineN//"_sizes", error_handler2)
+    CALL timeset(routineN//"_sizes", error_handler2)
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
          mp_group)
-    CALL dbcsr_error_stop(error_handler2)
+    CALL timestop(error_handler2)
 !$omp end master
 !$omp barrier
     ! Fill in the meta data structures and copy the data.
@@ -1678,7 +1678,7 @@ MODULE dbcsr_mm_cannon
 
     ! Add timing call to the packing of the send buffers 
     !
-    CALL dbcsr_error_set(routineN//"_pack", error_handler2)
+    CALL timeset(routineN//"_pack", error_handler2)
     ! Copies metadata and actual data to be sent into the send buffers.
     CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
@@ -1746,13 +1746,13 @@ MODULE dbcsr_mm_cannon
     DEALLOCATE (myt_total_send_count)
     DEALLOCATE (myt_smp, myt_sdp)
 
-    CALL dbcsr_error_stop(error_handler2)
+    CALL timestop(error_handler2)
 !$omp end parallel
 
     ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same),
     ! there are only very few processors that need to exchange data.
     ! The hybrid_alltoall deals with this by doing point to point communication
-    CALL dbcsr_error_set(routineN//"_data", error_handler2)
+    CALL timeset(routineN//"_data", error_handler2)
     CALL hybrid_alltoall_any(send_data_area,total_send_count(2,:),sd_disp(:)-1,&
                              recv_data_area,total_recv_count(2,:),rd_disp(:)-1,&
                              mp_obj,&
@@ -1762,7 +1762,7 @@ MODULE dbcsr_mm_cannon
          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1,&
          most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
          mp_env = mp_obj)
-    CALL dbcsr_error_stop(error_handler2)
+    CALL timestop(error_handler2)
 
     ! Now create the work index and/or copy the relevant data from the
     ! receive buffer into the local indices.
@@ -1849,7 +1849,7 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_release (received_data_area)
     CALL dbcsr_data_release (recv_data_area)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE make_images
 
 ! *****************************************************************************
@@ -1895,7 +1895,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     old_rdist = images%image_dist
     !
     DO mat_row = 1, images%image_dist%i%row_decimation
@@ -1944,7 +1944,7 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_image_dist_release (images%image_dist)
     images%image_dist = new_rdist
     CALL dbcsr_image_dist_hold (images%image_dist)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_make_images_dense
 
 ! *****************************************************************************
@@ -2032,7 +2032,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     NULLIFY(trs_stackbuf_calc, trs_stackbuf_comm)
     !
     ALLOCATE (left_buffer_2, right_buffer_2)
@@ -2475,7 +2475,7 @@ MODULE dbcsr_mm_cannon
             "last k",(metronome+1)*min_nimages-1
        ! Wait for right matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm1", error_handler2)
+       CALL timeset(routineN//"_metrocomm1", error_handler2)
        wait_right: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           !
@@ -2484,7 +2484,7 @@ MODULE dbcsr_mm_cannon
           CALL mp_waitall (right_index_sr)
           CALL mp_waitall (right_index_rr)
        ENDIF wait_right
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
        ! Right matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_right: IF (metronome .LT. nsteps_k) THEN
@@ -2548,9 +2548,9 @@ MODULE dbcsr_mm_cannon
                   shifting='R')
              !
              IF (mm_driver == mm_driver_acc) THEN
-                CALL dbcsr_error_set(routineN//"_acc_sync_right", error_handler3)
+                CALL timeset(routineN//"_acc_sync_right", error_handler3)
                 CALL acc_event_synchronize(right_buffer_comm%mats(v_ki+1, 1)%m%data_area%d%acc_ready)
-                CALL dbcsr_error_stop(error_handler3)
+                CALL timestop(error_handler3)
              ENDIF
 
              right_src_p = right_pgrid(right_src_prow, right_src_pcol)
@@ -2575,7 +2575,7 @@ MODULE dbcsr_mm_cannon
                 grp = dbcsr_mp_group (right_mp_obj)
              ENDIF
              !
-             CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2)
+             CALL timeset(routineN//"_metrocomm2", error_handler2)
              CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
                   grp, right_data_rr(v_ki+1), tag=right_src_vrow)
              CALL mp_irecv (right_index_rp, right_recv_p,&
@@ -2588,7 +2588,7 @@ MODULE dbcsr_mm_cannon
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
                   dbcsr_data_get_size(right_data_rp),&
                   dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
-             CALL dbcsr_error_stop(error_handler2)
+             CALL timestop(error_handler2)
           ENDDO
        ENDIF xfer_right
        !
@@ -2602,7 +2602,7 @@ MODULE dbcsr_mm_cannon
        !
        ! Wait for left matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm3", error_handler2)
+       CALL timeset(routineN//"_metrocomm3", error_handler2)
        wait_left: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
@@ -2610,7 +2610,7 @@ MODULE dbcsr_mm_cannon
           CALL mp_waitall (left_index_sr)
           CALL mp_waitall (left_index_rr)
        ENDIF wait_left
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
        ! Left matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_left: IF (metronome .LT. nsteps_k) THEN
@@ -2673,9 +2673,9 @@ MODULE dbcsr_mm_cannon
                   shifting='L')
              !
              IF (mm_driver == mm_driver_acc) THEN
-                CALL dbcsr_error_set(routineN//"_acc_sync_left", error_handler3)
+                CALL timeset(routineN//"_acc_sync_left", error_handler3)
                 CALL acc_event_synchronize(left_buffer_comm%mats(1, v_ki+1)%m%data_area%d%acc_ready)
-                CALL dbcsr_error_stop(error_handler3)
+                CALL timestop(error_handler3)
              ENDIF
 
              left_src_p = left_pgrid (left_src_prow, left_src_pcol)
@@ -2700,7 +2700,7 @@ MODULE dbcsr_mm_cannon
                 grp = dbcsr_mp_group (left_mp_obj)
              ENDIF
              !
-             CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2)
+             CALL timeset(routineN//"_metrocomm4", error_handler2)
              CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
                   grp, left_data_rr(v_ki+1), tag=left_src_vcol)
              CALL mp_irecv (left_index_rp, left_recv_p,&
@@ -2713,7 +2713,7 @@ MODULE dbcsr_mm_cannon
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
                   dbcsr_data_get_size(left_data_rp),&
                   dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
-             CALL dbcsr_error_stop(error_handler2)
+             CALL timestop(error_handler2)
           ENDDO
        ENDIF xfer_left
        !
@@ -2725,7 +2725,7 @@ MODULE dbcsr_mm_cannon
           ENDDO
        ENDIF calc_case_left
 
-       CALL dbcsr_error_set(routineN//"_multrec", error_handler2)
+       CALL timeset(routineN//"_multrec", error_handler2)
        DO v_ki = 0, min_nimages-1
           IF (debug_mod) THEN
              CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE.)
@@ -2824,7 +2824,7 @@ MODULE dbcsr_mm_cannon
           flop_total = flop_total + flop_single
        ENDDO
 
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
 
        CALL dbcsr_switch (left_buffer_calc, left_buffer_comm)
        CALL dbcsr_switch (right_buffer_calc, right_buffer_comm)
@@ -2879,7 +2879,7 @@ MODULE dbcsr_mm_cannon
     flop = flop_total
     DEALLOCATE (left_buffer_2, right_buffer_2)
     !
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE cannon_multiply_low
 
 
@@ -2965,7 +2965,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     NULLIFY(meta_get, local_rows)
     NULLIFY(rma_buffers_calc, rma_buffers_comm, rma_buffers)
     !
@@ -3437,7 +3437,7 @@ MODULE dbcsr_mm_cannon
        CALL mp_win_lock_all(left_data_win)
        CALL mp_win_lock_all(left_meta_win)
        !
-       CALL dbcsr_error_set(routineN//"_precannon", error_handler2)
+       CALL timeset(routineN//"_precannon", error_handler2)
        !
        ! Pre-CANNON execution: filtering and resize buffers for communications
        IF (otf_filtering.AND.use_mpi_filtering) THEN
@@ -3560,7 +3560,7 @@ MODULE dbcsr_mm_cannon
           DEALLOCATE(right_max_norms,left_max_norms)
        ENDIF
        !
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
        !
        ! Setup the receive data pointers
        CALL dbcsr_data_init(data_get)
@@ -3650,7 +3650,7 @@ MODULE dbcsr_mm_cannon
             "last k",(metronome+1)*min_nimages-1
        ! Wait for right matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm1", error_handler2)
+       CALL timeset(routineN//"_metrocomm1", error_handler2)
        wait_right: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           !
@@ -3664,15 +3664,15 @@ MODULE dbcsr_mm_cannon
              CALL mp_win_free(right_meta_win)
           ENDIF
        ENDIF wait_right
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
        ! Right matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_right: IF (metronome .LT. nsteps_k) THEN
           !
           IF (mm_driver == mm_driver_acc) THEN
-             CALL dbcsr_error_set(routineN//"_acc_sync_right", error_handler3)
+             CALL timeset(routineN//"_acc_sync_right", error_handler3)
              CALL acc_event_synchronize(rma_buffers_comm%right_data%d%acc_ready)
-             CALL dbcsr_error_stop(error_handler3)
+             CALL timestop(error_handler3)
           ENDIF
           !
           right_meta_offset = 0
@@ -3691,7 +3691,7 @@ MODULE dbcsr_mm_cannon
                 !
                 IF (right_refs(imeta_size,recv_vrow,recv_vcol).GT.0.AND.&
                     right_recv_filtered(v_ki,v_ci,metronome).LT.left_row_nimages) THEN
-                   CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2)
+                   CALL timeset(routineN//"_metrocomm2", error_handler2)
                    !
                    rma_buffers_comm%right_offset_data(v_ci+2+v_i) = &
                         rma_buffers_comm%right_offset_data(v_ci+1+v_i) + &
@@ -3725,7 +3725,7 @@ MODULE dbcsr_mm_cannon
                         right_meta_win,right_refs(imeta_displ,recv_vrow,recv_vcol),&
                         right_get_requests(2,v_ci+v_i))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
-                   CALL dbcsr_error_stop(error_handler2)
+                   CALL timestop(error_handler2)
                 ELSE
                    rma_buffers_comm%right_offset_data(v_ci+2+v_i) = &
                         rma_buffers_comm%right_offset_data(v_ci+1+v_i)
@@ -3750,7 +3750,7 @@ MODULE dbcsr_mm_cannon
        !
        ! Wait for left matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm3", error_handler2)
+       CALL timeset(routineN//"_metrocomm3", error_handler2)
        wait_left: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_get_requests)
@@ -3763,15 +3763,15 @@ MODULE dbcsr_mm_cannon
              CALL mp_win_free(left_meta_win)
           ENDIF
        ENDIF wait_left
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
        ! Left matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_left: IF (metronome .LT. nsteps_k) THEN
           !
           IF (mm_driver == mm_driver_acc) THEN
-             CALL dbcsr_error_set(routineN//"_acc_sync_left", error_handler3)
+             CALL timeset(routineN//"_acc_sync_left", error_handler3)
              CALL acc_event_synchronize(rma_buffers_comm%left_data%d%acc_ready)
-             CALL dbcsr_error_stop(error_handler3)
+             CALL timestop(error_handler3)
           ENDIF
           !
           left_meta_offset = 0
@@ -3790,7 +3790,7 @@ MODULE dbcsr_mm_cannon
                 !
                 IF (left_refs(idata_size,recv_vrow,recv_vcol).GT.0.AND.&
                     left_recv_filtered(v_ri,v_ki,metronome).LT.right_col_nimages) THEN
-                   CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2)
+                   CALL timeset(routineN//"_metrocomm4", error_handler2)
                    !
                    rma_buffers_comm%left_offset_data(v_ri+2+v_i) = &
                         rma_buffers_comm%left_offset_data(v_ri+1+v_i) + &
@@ -3823,7 +3823,7 @@ MODULE dbcsr_mm_cannon
                         left_meta_win,left_refs(imeta_displ,recv_vrow,recv_vcol),&
                         left_get_requests(2,v_ri+v_i))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
-                   CALL dbcsr_error_stop(error_handler2)
+                   CALL timestop(error_handler2)
                 ELSE
                    rma_buffers_comm%left_offset_data(v_ri+2+v_i) = &
                         rma_buffers_comm%left_offset_data(v_ri+1+v_i)
@@ -3848,7 +3848,7 @@ MODULE dbcsr_mm_cannon
        !
        ! Do the multiplications.
        !
-       CALL dbcsr_error_set(routineN//"_multrec", error_handler2)
+       CALL timeset(routineN//"_multrec", error_handler2)
        !
        IF (mm_driver==mm_driver_acc) THEN
           CALL dbcsr_data_host2dev(rma_buffers_calc%right_data)
@@ -3925,7 +3925,7 @@ MODULE dbcsr_mm_cannon
        ENDIF
 !$omp end parallel
        !
-       CALL dbcsr_error_stop(error_handler2)
+       CALL timestop(error_handler2)
        !
        IF (metronome.LT.nsteps_k) THEN
           rma_buffers => rma_buffers_comm
@@ -3974,7 +3974,7 @@ MODULE dbcsr_mm_cannon
     DEALLOCATE(multrec)
     DEALLOCATE(left_offset_data_1, right_offset_data_1)
     !
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE cannon_multiply_low_rma
 
 ! *****************************************************************************
@@ -4201,7 +4201,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_image_dist_init (buffer_set%image_dist)
     ALLOCATE (buffer_set%mats(buff_nrows, buff_ncols))
@@ -4227,7 +4227,7 @@ MODULE dbcsr_mm_cannon
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Global cols should exist.", __LINE__)
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE setup_buffer_matrices
 
 ! *****************************************************************************
@@ -4334,7 +4334,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     !
     IF (is_left) THEN
        nimages_unmerged = ncols_images
@@ -4387,7 +4387,7 @@ MODULE dbcsr_mm_cannon
        ENDDO images_merge
     ENDDO images_unmerge
     !
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE buffer_matrices_ensure_size_images
 
 ! ******************************************************************************
@@ -4416,7 +4416,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     DO row_image = 1, SIZE(buffer_set%mats, 1)
        DO col_image = 1, SIZE(buffer_set%mats, 2)
@@ -4424,7 +4424,7 @@ MODULE dbcsr_mm_cannon
                index_size, data_size)
        ENDDO
     ENDDO
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE buffer_matrices_ensure_size
 
 
@@ -4450,7 +4450,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     DO i_row = 1, n_rows
        DO i_col = 1, n_cols
           IF (.FALSE.) &
@@ -4502,7 +4502,7 @@ MODULE dbcsr_mm_cannon
           !$OMP END PARALLEL
        ENDDO
     ENDDO
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE setup_rec_index
 
 
@@ -4526,10 +4526,10 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     IF (.FALSE.) WRITE(*,*)" Calling rec_sort_index, size", nblks
     CALL rec_sort_index(1, m, 1, n, nblks, idx, 0)
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE call_rec_sort_index
 
 
@@ -4736,7 +4736,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     ! Checks for validity
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -4848,7 +4848,7 @@ MODULE dbcsr_mm_cannon
     !
     IF (PRESENT(max_val)) max_val = my_max_val
     !
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE calculate_norms
 
 
@@ -4876,7 +4876,7 @@ MODULE dbcsr_mm_cannon
       row_blk_sizes2enum, trs_stack
     INTEGER, DIMENSION(3, matrix%m%nblks)    :: tmp_stack
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
 
     NULLIFY(row_blk_sizes2enum, enum2row_blk_sizes)
     NULLIFY(col_blk_sizes2enum, enum2col_blk_sizes)
@@ -4985,7 +4985,7 @@ MODULE dbcsr_mm_cannon
 
     DEALLOCATE(row_blk_sizes2enum, enum2row_blk_sizes)
     DEALLOCATE(col_blk_sizes2enum, enum2col_blk_sizes)
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE acc_transpose_blocks
 
 
@@ -5171,7 +5171,7 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_obj), POINTER                 :: image_obj
     TYPE(dbcsr_type), POINTER                :: image
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     !
     IF (do_merge_rows) THEN
        ! merge over rows (left)
@@ -5376,7 +5376,7 @@ MODULE dbcsr_mm_cannon
        CALL setup_rec_index (images, nimages_unmerged, 1)
     ENDIF
     !
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE merge_images
 
 #include "dbcsr_mm_cannon_d.f90"

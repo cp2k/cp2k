@@ -17,7 +17,6 @@ MODULE dbcsr_error_handling
   PRIVATE
 
   ! procedures
-  PUBLIC :: dbcsr_error_set, dbcsr_error_stop
   PUBLIC :: dbcsr_assert, dbcsr_abort
   ! parameters
   PUBLIC :: dbcsr_warning_level, dbcsr_failure_level, dbcsr_fatal_level
@@ -68,31 +67,6 @@ MODULE dbcsr_error_handling
 CONTAINS
 
 ! *****************************************************************************
-!> \brief set the error
-!> \param[in]    name    name of the routine
-!> \param handler ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_error_set(name, handler)
-    CHARACTER(len=*), INTENT(in)             :: name
-    INTEGER, INTENT(out)                     :: handler
-
-    CALL timeset(name, handler)
-
-  END SUBROUTINE dbcsr_error_set
-
-! *****************************************************************************
-!> \brief stop the error
-!> \param handler ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_error_stop(handler)
-    INTEGER, INTENT(inout)                   :: handler
-
-    CALL timestop(handler)
-
-  END SUBROUTINE dbcsr_error_stop
-
-
-! *****************************************************************************
 !> \brief ...
 !> \param routine ...
 !> \param line ...
@@ -121,6 +95,8 @@ CONTAINS
     INTEGER, INTENT(in)                      :: level, etype
     CHARACTER(*), INTENT(in)                 :: routine, msg
     INTEGER, INTENT(in)                      :: line
+
+    MARK_USED(etype)
 
     IF(level==dbcsr_warning_level) THEN
        CALL cp_warn(cp__l(routine, line), msg)

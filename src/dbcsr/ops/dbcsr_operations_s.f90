@@ -26,7 +26,7 @@
     TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
 
     row_blk_size => array_data (matrix_a%m%row_blk_size)
     col_blk_size => array_data (matrix_a%m%col_blk_size)
@@ -71,7 +71,7 @@
     ! summe
     CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE dbcsr_trace_a_s
 
 ! *****************************************************************************
@@ -264,7 +264,7 @@
     sc = dbcsr_scalar (alpha_scalar)
     CALL dbcsr_scalar_fill_all (sc)
     sc%data_type = dbcsr_get_data_type (matrix_a)
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     IF (PRESENT (last_column)) THEN
        CALL dbcsr_scale_anytype(matrix_a,&
             alpha_scalar=sc,&
@@ -272,7 +272,7 @@
     ELSE
        CALL dbcsr_scale_anytype(matrix_a, alpha_scalar=sc)
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_scale_s
 
 ! *****************************************************************************

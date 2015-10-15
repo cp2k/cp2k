@@ -48,11 +48,14 @@ MODULE dbcsr_work_operations
                                              dbcsr_distribution_ncols,&
                                              dbcsr_distribution_nrows,&
                                              dbcsr_distribution_release
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
-       dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_unimplemented_error_nr,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_build_row_index,&
                                              dbcsr_clearfrom_index_array,&
@@ -105,6 +108,7 @@ MODULE dbcsr_work_operations
                                              int_8,&
                                              real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, omp_in_parallel
 
@@ -215,7 +219,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert(dbcsr_is_initialized(matrix), &
            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
            "Matrix may not have been initialized with dbcsr_init",__LINE__)
@@ -489,7 +493,7 @@ CONTAINS
        CALL dbcsr_make_index_exist (matrix%m)
     ENDIF
     matrix%m%valid = .TRUE.
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_create_new
 
 
@@ -718,7 +722,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF(careful_mod) CALL dbcsr_error_set(routineN, error_handler)
+    IF(careful_mod) CALL timeset(routineN, error_handler)
     wm%lastblk = 0
     wm%datasize = 0
     ! Index
@@ -756,7 +760,7 @@ CONTAINS
        CALL dbcsr_data_new (wm%data_area, data_type, memory_type=memory_type)
     ENDIF
     CALL dbcsr_mutable_init (wm%mutable)
-    IF(careful_mod) CALL dbcsr_error_stop(error_handler)
+    IF(careful_mod) CALL timestop(error_handler)
   END SUBROUTINE dbcsr_init_wm
 
 
@@ -789,7 +793,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_is_initialized(matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not create work matrix for nonexisting matrix object.",__LINE__)
@@ -843,7 +847,7 @@ CONTAINS
     ENDIF
     matrix%m%valid = .FALSE.
     !$OMP END MASTER
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_work_create
 
 
@@ -879,7 +883,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     !$OMP BARRIER
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
@@ -900,7 +904,7 @@ CONTAINS
        matrix%m%valid = .TRUE.
        !$OMP END MASTER
        !$OMP BARRIER
-       CALL dbcsr_error_stop(error_handler)
+       CALL timestop(error_handler)
        RETURN
     ENDIF
     !
@@ -1068,7 +1072,7 @@ CONTAINS
     ENDIF
 !$OMP END MASTER
 !$OMP BARRIER
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_finalize
 
 ! *****************************************************************************
@@ -1089,7 +1093,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
@@ -1163,7 +1167,7 @@ CONTAINS
        !$OMP END SINGLE
     ENDIF
     !$OMP BARRIER
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_special_finalize
 
 ! *****************************************************************************
@@ -1211,7 +1215,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     !$OMP SECTIONS
     !$OMP SECTION
     nblks = matrix%m%wms(1)%lastblk
@@ -1239,7 +1243,7 @@ CONTAINS
     !$OMP SECTION
     CALL dbcsr_switch_data_area (matrix, matrix%m%wms(1)%data_area)
     !$OMP END SECTIONS
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE quick_finalize
 
 
@@ -1264,7 +1268,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     !$OMP BARRIER
     preexists = ASSOCIATED (matrix%m%wms)
     IF (preexists) THEN
@@ -1299,7 +1303,7 @@ CONTAINS
     CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix, size_used,&
          limits=limits)
     !$OMP BARRIER
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_add_wm_from_matrix
 
 
@@ -1334,7 +1338,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     nwms = SIZE (matrix%m%wms)
     mt = .FALSE.
     !$ IF (nwms .GT. 1) mt = omp_get_num_threads() .GT. 1
@@ -1423,7 +1427,7 @@ CONTAINS
           wm(which_wm)%datasize = dbcsr_data_get_size_referenced (wm(which_wm)%data_area)
        ENDDO
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_fill_wm_from_matrix
 
 ! *****************************************************************************
@@ -1458,7 +1462,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, error_handler)
 
     IF (ASSOCIATED (wm%row_i)) THEN
        DEALLOCATE(wm%row_i)
@@ -1472,7 +1476,7 @@ CONTAINS
     CALL dbcsr_data_release (wm%data_area)
     CALL dbcsr_mutable_destroy (wm%mutable)
 
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
+    IF (careful_mod) CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_work_destroy
 
@@ -1491,7 +1495,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert (ASSOCIATED (m%wms), dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Want to destroy nonexisting work matrices.",__LINE__)
@@ -1502,7 +1506,7 @@ CONTAINS
        DEALLOCATE (m%wms)
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_work_destroy_all
 
@@ -1531,7 +1535,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, error_handler)
     matrix%lastblk = matrix%lastblk+1
     CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk,&
          factor=default_resize_factor)
@@ -1545,7 +1549,7 @@ CONTAINS
        matrix%blk_p(matrix%lastblk) = blk
     ENDIF
     IF (PRESENT (index)) index = matrix%lastblk
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
+    IF (careful_mod) CALL timestop(error_handler)
   END SUBROUTINE add_work_coordinate
 
 ! *****************************************************************************
@@ -1592,7 +1596,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     !> \par Outline
 
     !> Each thread has a work matrix.  These must be merged and made
@@ -1846,7 +1850,7 @@ CONTAINS
     !$OMP END MASTER
     !$OMP BARRIER
     IF (dbg) WRITE(*,*)routineN//" stopped"
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_merge_all
 
 ! *****************************************************************************
@@ -1871,7 +1875,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     !> \par Outline
 
     !> There is a single work matrix.  Data blocks are sorted and copied
@@ -1939,7 +1943,7 @@ CONTAINS
     DEALLOCATE (blk_d)
     !$OMP END MASTER
     IF (dbg) WRITE(*,*)routineN//" stopped"
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_merge_single_wm
 
 
@@ -1992,7 +1996,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     !
     ALLOCATE (tmp_arr(max_row_count))
     ALLOCATE (blk_p_buff(max_row_count))
@@ -2041,7 +2045,7 @@ CONTAINS
     DEALLOCATE (tmp_arr)
     DEALLOCATE (blk_p_buff)
     !
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE merge_index
 
 

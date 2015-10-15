@@ -22,8 +22,6 @@ MODULE dbcsr_mm_hostdrv
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
@@ -45,6 +43,7 @@ MODULE dbcsr_mm_hostdrv
                                              real_4,&
                                              real_8,&
                                              sp
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -90,11 +89,11 @@ CONTAINS
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     this%data_area = product_wm%data_area
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_mm_hostdrv_init
 
@@ -170,7 +169,7 @@ CONTAINS
     REAL(KIND=dp)                            :: rnd
 
     IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
-       CALL dbcsr_error_set (routineN, error_handle)
+       CALL timeset (routineN, error_handle)
 
     success = .TRUE. !host driver never failes...hopefully
 
@@ -277,7 +276,7 @@ CONTAINS
 
 
     IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
-       CALL dbcsr_error_stop(error_handle)
+       CALL timestop(error_handle)
 
 
   END SUBROUTINE dbcsr_mm_hostdrv_process

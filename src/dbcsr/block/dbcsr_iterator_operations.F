@@ -23,8 +23,6 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_distribution_num_threads,&
                                              dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_warning_level,&
@@ -39,6 +37,7 @@ MODULE dbcsr_iterator_operations
                                              dbcsr_scalar_type
   USE kinds,                           ONLY: real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, omp_in_parallel
 
@@ -176,7 +175,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     iterator%shared = .TRUE.
 !$  iterator%shared = omp_in_parallel()
 !ub!$  CALL dbcsr_assert (omp_in_parallel(), "IMP", PRESENT (shared),&
@@ -300,7 +299,7 @@ CONTAINS
     !$ ELSE
     CALL dbcsr_iterator_seek (iterator, 1)
     !$ ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_iterator_start
 
 ! *****************************************************************************
@@ -317,7 +316,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     iterator%row = 0
     iterator%pos = 0
 
@@ -339,7 +338,7 @@ CONTAINS
        NULLIFY (iterator%local_rows)
        NULLIFY (iterator%global_rows)
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_iterator_stop
 
 
@@ -648,7 +647,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     IF (iterator%nblks .GT. 0 .AND. row .LE. iterator%nblkrows_total) THEN
        iterator%row = row
        ! This line is replaced because iterator_advance increments the block
@@ -661,7 +660,7 @@ CONTAINS
        iterator%row = 0
        iterator%pos = 0
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_iterator_seek
 
 ! *****************************************************************************
@@ -692,7 +691,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -714,7 +713,7 @@ CONTAINS
        row = 0
        column = 0
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
   END SUBROUTINE iterator_next_block_index
 
 ! *****************************************************************************
@@ -749,7 +748,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
 
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
@@ -782,7 +781,7 @@ CONTAINS
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
 
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
 
   END SUBROUTINE iterator_next_area_block
 

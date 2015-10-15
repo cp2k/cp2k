@@ -23,10 +23,13 @@ MODULE dbcsr_data_operations
                                              dbcsr_data_release,&
                                              dbcsr_data_set_size_referenced,&
                                              dbcsr_get_data
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_obj,&
                                              dbcsr_type_complex_4,&
@@ -36,6 +39,7 @@ MODULE dbcsr_data_operations
   USE dbcsr_util,                      ONLY: sgn
   USE kinds,                           ONLY: real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -73,7 +77,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler)
+    CALL timeset (routineN, error_handler)
     IF (PRESENT (previous_data_area)) THEN
        previous_data_area = matrix%m%data_area
     ELSE
@@ -81,7 +85,7 @@ CONTAINS
     ENDIF
     matrix%m%data_area = data_area
     CALL dbcsr_data_hold (matrix%m%data_area)
-    CALL dbcsr_error_stop (error_handler)
+    CALL timestop (error_handler)
   END SUBROUTINE dbcsr_switch_data_area
 
 ! *****************************************************************************
@@ -103,7 +107,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__)
     CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
@@ -146,7 +150,7 @@ CONTAINS
                routineN, "Invalid data type",__LINE__)
        END SELECT
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_data_copyall
 
 ! *****************************************************************************
@@ -427,7 +431,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
     IF (nblks .GT. 0) THEN
@@ -462,7 +466,7 @@ CONTAINS
        ENDDO
        !$OMP END DO NOWAIT
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_sort_data
 
 

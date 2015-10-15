@@ -16,8 +16,6 @@
 !>               dbcsr_mm_methods.
 !>  - 2013-01    extensive refactoring (Ole Schuett)
 ! *****************************************************************************
-
-
 MODULE dbcsr_mm_sched
   USE dbcsr_block_operations,          ONLY: dbcsr_data_clear
   USE dbcsr_config,                    ONLY: accdrv_avoid_after_busy,&
@@ -28,9 +26,7 @@ MODULE dbcsr_mm_sched
                                              mm_driver_acc
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE dbcsr_mm_accdrv,                 ONLY: dbcsr_mm_accdrv_barrier,&
                                              dbcsr_mm_accdrv_finalize,&
                                              dbcsr_mm_accdrv_init,&
@@ -63,6 +59,7 @@ MODULE dbcsr_mm_sched
                                              mp_environ,&
                                              mp_max,&
                                              mp_sum
+#include "../../base/base_uses.f90"
 
  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -216,7 +213,7 @@ MODULE dbcsr_mm_sched
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     this%product_wm => product_wm
 
@@ -230,7 +227,7 @@ MODULE dbcsr_mm_sched
     IF (mm_driver == mm_driver_acc) &
        CALL dbcsr_mm_accdrv_init(this%accdrv, product_wm)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_mm_sched_init
 
@@ -261,7 +258,7 @@ MODULE dbcsr_mm_sched
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     ! Just in case dbcsr_mm_sched_process was never called (really needed?)
     CALL ensure_product_wm_cleared(this)
@@ -270,7 +267,7 @@ MODULE dbcsr_mm_sched
     IF (mm_driver == mm_driver_acc) &
        CALL dbcsr_mm_accdrv_finalize(this%accdrv)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_mm_sched_finalize
 

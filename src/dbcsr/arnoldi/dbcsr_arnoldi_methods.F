@@ -17,8 +17,6 @@ MODULE dbcsr_arnoldi_methods
        get_data_d, get_data_s, get_data_z, has_d_cmplx, has_d_real, &
        has_s_cmplx, has_s_real, m_x_v_vectors
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop
   USE dbcsr_geev,                      ONLY: dbcsr_general_local_diag,&
                                              dbcsr_symm_local_diag,&
                                              dbcsr_tridiag_local_diag
@@ -38,6 +36,7 @@ MODULE dbcsr_arnoldi_methods
                                              real_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -69,14 +68,14 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL arnoldi_iram_d(arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL arnoldi_iram_s(arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_iram_z(arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_iram_c(arnoldi_data)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE arnoldi_iram
 
@@ -93,14 +92,14 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL compute_evals_d(arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL compute_evals_s(arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL compute_evals_z(arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL compute_evals_c(arnoldi_data)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE compute_evals
 
@@ -122,14 +121,14 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL arnoldi_init_d (matrix, vectors, arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL arnoldi_init_s (matrix, vectors, arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_init_z (matrix, vectors, arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_init_c (matrix, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE arnoldi_init
 
@@ -151,14 +150,14 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL gev_arnoldi_init_d (matrix, matrix_arnoldi, vectors, arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL gev_arnoldi_init_s (matrix, matrix_arnoldi, vectors, arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL gev_arnoldi_init_z (matrix, matrix_arnoldi, vectors, arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL gev_arnoldi_init_c (matrix, matrix_arnoldi, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE gev_arnoldi_init
 
@@ -178,14 +177,14 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL build_subspace_d (matrix, vectors, arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL build_subspace_s (matrix, vectors, arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL build_subspace_z (matrix, vectors, arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL build_subspace_c (matrix, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE build_subspace
 
@@ -206,14 +205,14 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL gev_build_subspace_d (matrix, vectors, arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL gev_build_subspace_s (matrix, vectors, arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL gev_build_subspace_z (matrix, vectors, arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL gev_build_subspace_c (matrix, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE gev_build_subspace
 
@@ -236,14 +235,14 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL gev_update_data_d (matrix, matrix_arnoldi, vectors, arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL gev_update_data_s (matrix, matrix_arnoldi, vectors, arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL gev_update_data_z (matrix, matrix_arnoldi, vectors, arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL gev_update_data_c (matrix, matrix_arnoldi, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE gev_update_data
 

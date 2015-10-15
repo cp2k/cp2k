@@ -34,8 +34,6 @@ MODULE dbcsr_test_methods
                                              dbcsr_distribution_release
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -73,6 +71,7 @@ MODULE dbcsr_test_methods
                                              real_8
   USE message_passing,                 ONLY: mp_comm_null,&
                                              mp_environ
+#include "../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -162,7 +161,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: tmp
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_data_get_sizes ( dense, dense_row_size, dense_col_size, valid)
     CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -250,7 +249,7 @@ CONTAINS
 
     CALL dbcsr_data_release ( tmp )
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_impose_sparsity
 
@@ -277,7 +276,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_data_get_sizes (dense, dense_row_size, dense_col_size, valid)
     CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -347,7 +346,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (block)
     CALL dbcsr_data_release (block)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_to_dense_local
 
@@ -414,7 +413,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     ! the counter goes into the seed. Every new call gives a new random matrix
     randmat_counter=randmat_counter+1
     ! Create the matrix
@@ -533,7 +532,7 @@ CONTAINS
     CALL dbcsr_finalize (matrix)
     CALL dbcsr_verify_matrix (matrix)
     !
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_make_random_matrix
 
 ! *****************************************************************************

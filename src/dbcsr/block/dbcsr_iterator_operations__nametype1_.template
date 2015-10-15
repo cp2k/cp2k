@@ -101,7 +101,7 @@
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -133,5 +133,5 @@
        NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
   END SUBROUTINE iterator_next_2d_block_[nametype1]

@@ -26,10 +26,14 @@ MODULE dbcsr_data_methods_low
        dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, &
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
        dbcsr_type_real_8_2d
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate,&
                                              memory_zero,&
@@ -37,6 +41,7 @@ MODULE dbcsr_data_methods_low
   USE kinds,                           ONLY: dp,&
                                              real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -167,7 +172,7 @@ MODULE dbcsr_data_methods_low
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     IF (debug_mod) &
          WRITE(*,*)routineN//" Setting to sizes", sizes
     IF (dbcsr_type_is_2d (area%data_type)) THEN
@@ -216,7 +221,7 @@ MODULE dbcsr_data_methods_low
        CALL acc_event_create(area%acc_ready)
     ENDIF
 
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
 
   END SUBROUTINE internal_data_allocate
 
@@ -236,7 +241,7 @@ MODULE dbcsr_data_methods_low
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler)
+    CALL timeset (routineN, error_handler)
 
     SELECT CASE (area%data_type)
        CASE (dbcsr_type_int_4)
@@ -282,7 +287,7 @@ MODULE dbcsr_data_methods_low
        CALL acc_event_destroy(area%acc_ready)
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE internal_data_deallocate
 
 
@@ -367,7 +372,7 @@ MODULE dbcsr_data_methods_low
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) THEN
-       CALL dbcsr_error_set (routineN, error_handle)
+       CALL timeset (routineN, error_handle)
     ENDIF
     !
     valid = dbcsr_data_valid (area)
@@ -401,7 +406,7 @@ MODULE dbcsr_data_methods_low
     END SELECT
 
     IF (careful_mod) THEN
-       CALL dbcsr_error_stop(error_handle)
+       CALL timestop(error_handle)
     ENDIF
   END FUNCTION dbcsr_data_exists
 
@@ -619,7 +624,7 @@ MODULE dbcsr_data_methods_low
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler)
+    CALL timeset (routineN, error_handler)
     data_type = dbcsr_data_get_type (area)
     IF (dbcsr_type_is_2d (data_type)) THEN
        CALL dbcsr_assert (SIZE (lb), "EQ", 2, dbcsr_fatal_level,&
@@ -721,7 +726,7 @@ MODULE dbcsr_data_methods_low
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type", __LINE__)
     END SELECT
-    CALL dbcsr_error_stop (error_handler)
+    CALL timestop (error_handler)
   END SUBROUTINE dbcsr_data_verify_bounds
 
 
@@ -744,7 +749,7 @@ MODULE dbcsr_data_methods_low
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) THEN
-       CALL dbcsr_error_set (routineN, error_handle)
+       CALL timeset (routineN, error_handle)
     ENDIF
 
     SELECT CASE (area%d%data_type)
@@ -773,7 +778,7 @@ MODULE dbcsr_data_methods_low
        CALL dbcsr_abort(routineP,__LINE__,"not yet supported for acc devmem")
 
     IF (careful_mod) THEN
-       CALL dbcsr_error_stop(error_handle)
+       CALL timestop(error_handle)
     ENDIF
   END SUBROUTINE dbcsr_data_zero
 
@@ -796,7 +801,7 @@ MODULE dbcsr_data_methods_low
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-         CALL dbcsr_error_set (routineN, error_handler)
+         CALL timeset (routineN, error_handler)
 
     valid = .FALSE.
     sizes(:) = 0
@@ -843,7 +848,7 @@ MODULE dbcsr_data_methods_low
        ENDIF
     ENDIF
     IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handler)
+         CALL timestop(error_handler)
   END SUBROUTINE dbcsr_data_get_sizes_any
 
 ! *****************************************************************************
@@ -867,7 +872,7 @@ MODULE dbcsr_data_methods_low
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handler)
+       CALL timeset (routineN, error_handler)
     IF (ASSOCIATED (area%d)) THEN
        IF (careful_mod) &
             CALL dbcsr_assert (dbcsr_type_is_2d (area%d%data_type),&
@@ -883,7 +888,7 @@ MODULE dbcsr_data_methods_low
        col_size = 0
     ENDIF
     IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handler)
+         CALL timestop(error_handler)
   END SUBROUTINE dbcsr_data_get_sizes_2
 
 ! *****************************************************************************
@@ -905,7 +910,7 @@ MODULE dbcsr_data_methods_low
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler)
+    CALL timeset (routineN, error_handler)
 
     IF (ASSOCIATED (area%d)) THEN
        IF (careful_mod) &
@@ -919,7 +924,7 @@ MODULE dbcsr_data_methods_low
        valid = .FALSE.
        total_size = 0
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_data_get_sizes_1
 
 

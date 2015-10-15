@@ -30,8 +30,6 @@ MODULE dbcsr_mm_multrec
                                              dbcsr_distribution_row_dist,&
                                              dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -49,6 +47,7 @@ MODULE dbcsr_mm_multrec
   USE kinds,                           ONLY: int_8,&
                                              real_8,&
                                              sp
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -202,7 +201,7 @@ MODULE dbcsr_mm_multrec
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
@@ -362,7 +361,7 @@ MODULE dbcsr_mm_multrec
        m_sizes=this%m_sizes, n_sizes=this%n_sizes) 
 
     this%initialized = .TRUE.
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_mm_multrec_init
 
 
@@ -490,7 +489,7 @@ MODULE dbcsr_mm_multrec
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert(this%initialized,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "multrec not initialized.", __LINE__)
@@ -521,7 +520,7 @@ MODULE dbcsr_mm_multrec
     ENDIF
 
     this%initialized = .FALSE.
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_mm_multrec_finalize
 
 

@@ -29,7 +29,7 @@
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     ! srt = .TRUE. ! Not needed because of the copy
     treesize = btree_size_d(wm%mutable%m%btree_d)
     CALL dbcsr_assert(wm%lastblk .EQ. treesize,&
@@ -69,6 +69,6 @@
     ENDDO
     DEALLOCATE (keys, values)
     CALL dbcsr_mutable_release (wm%mutable)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE tree_to_linear_d
 

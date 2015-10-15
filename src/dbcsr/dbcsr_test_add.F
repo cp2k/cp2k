@@ -22,8 +22,6 @@ MODULE dbcsr_test_add
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_io,                        ONLY: dbcsr_print
@@ -55,6 +53,7 @@ MODULE dbcsr_test_add
                                              real_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ
+#include "../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -121,7 +120,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     NULLIFY(my_sizes_m, my_sizes_n, sizes_m, sizes_n)
 
     !
@@ -236,7 +235,7 @@ CONTAINS
 
     ENDDO !isymm
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_test_adds
 
@@ -285,7 +284,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)
@@ -375,7 +374,7 @@ CONTAINS
     CALL dbcsr_release (m_a)
     CALL dbcsr_release (m_b)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE test_add
 
@@ -425,7 +424,7 @@ CONTAINS
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: work
     REAL(real_8), EXTERNAL                   :: dlamch, dlange, zlange
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL mp_environ (numnodes, mynode, mp_group)
 
@@ -605,7 +604,7 @@ CONTAINS
 
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_check_add
 

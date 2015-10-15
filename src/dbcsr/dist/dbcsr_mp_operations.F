@@ -18,8 +18,6 @@ MODULE dbcsr_mp_operations
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_type
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_warning_level,&
@@ -41,6 +39,7 @@ MODULE dbcsr_mp_operations
   USE message_passing,                 ONLY: &
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_rget, &
        mp_type_descriptor_type, mp_type_make, mp_waitall, mp_win_create
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -100,7 +99,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
 
     SELECT CASE (dbcsr_data_get_type (sb))
     CASE (dbcsr_type_real_4)
@@ -124,7 +123,7 @@ CONTAINS
             routineN, "Invalid data type",__LINE__)
     END SELECT
 
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE hybrid_alltoall_any
 
 

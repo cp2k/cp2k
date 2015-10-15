@@ -382,7 +382,7 @@
          routineP = moduleN//':'//routineN
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     ! Let's do the orthonormalization, first try the Gram Schmidt scheme
     h_vec=CMPLX(0.0, 0.0, real_4); f_vec=CMPLX(0.0, 0.0, real_4); s_vec=CMPLX(0.0, 0.0, real_4)
@@ -394,7 +394,7 @@
                                       nrow_local, h_vec, 1, CMPLX(0.0, 0.0, real_4), f_vec, 1)
     f_vec(:)=w_vec(:)-f_vec(:)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE Gram_Schmidt_ortho_c
 
@@ -422,7 +422,7 @@
     LOGICAL                                          :: local_comp
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     IF(local_comp)CALL cgemv('T', nrow_local, j, CMPLX(1.0, 0.0, real_4), local_history, &
                                        nrow_local, f_vec, 1, CMPLX(0.0, 0.0, real_4), s_vec, 1)
@@ -431,7 +431,7 @@
                                        nrow_local, s_vec, 1, CMPLX(1.0, 0.0, real_4), f_vec, 1)
     h_vec(1:j)=h_vec(1:j)+s_vec(1:j)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE DGKS_ortho_c
 

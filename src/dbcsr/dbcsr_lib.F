@@ -12,8 +12,6 @@
 MODULE dbcsr_lib
   USE dbcsr_config,                    ONLY: is_initialized
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_multiply_api,              ONLY: dbcsr_multiply_clear_mempools,&
@@ -23,6 +21,7 @@ MODULE dbcsr_lib
                                              int_2_size,&
                                              int_4_size,&
                                              int_8_size
+#include "../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -55,7 +54,7 @@ MODULE dbcsr_lib
 !TODO: problem: init/finalize are called by cp2k_runs AND f77_interface
 
     IF (is_initialized) RETURN
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     !
     CALL dbcsr_assert (int_1_size, "EQ", 1,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -79,7 +78,7 @@ MODULE dbcsr_lib
     !$omp end parallel
 
     is_initialized = .TRUE.
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_init_lib
 
 
@@ -101,7 +100,7 @@ MODULE dbcsr_lib
 !TODO: problem: init/finalize are called by cp2k_runs AND f77_interface
 
     IF (.NOT. is_initialized) RETURN
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
 
     IF(output_unit>0)THEN
        WRITE (UNIT=output_unit,FMT="(/,T2,A)") REPEAT("-",79)
@@ -117,7 +116,7 @@ MODULE dbcsr_lib
     IF(output_unit>0) WRITE (UNIT=output_unit,FMT="(T2,A)") REPEAT("-",79)
 
     is_initialized = .FALSE.
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_finalize_lib
 
 

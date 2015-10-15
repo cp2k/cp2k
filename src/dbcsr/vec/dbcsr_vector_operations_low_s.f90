@@ -66,7 +66,7 @@
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col
     INTEGER                                  :: prow, pcol
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
     ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
@@ -87,7 +87,7 @@
 
 ! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
 ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
-    CALL dbcsr_error_set(routineN//"_local_mm", handle1)
+    CALL timeset(routineN//"_local_mm", handle1)
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,transposed,ithread,pcol,prow) &
 !$OMP          SHARED(matrix,fast_vec_col,fast_vec_row)
@@ -104,7 +104,7 @@
     CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-    CALL dbcsr_error_stop(handle1)
+    CALL timestop(handle1)
 
 ! sum all the data onto the first processor col where the original vector is stored
     data_vec => dbcsr_get_data_p (work_col%m%data_area, select_data_type=0.0_real_4)
@@ -128,7 +128,7 @@
     CALL release_fast_vec_access(fast_vec_row)
     CALL release_fast_vec_access(fast_vec_col)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_matrix_vector_mult_s
 
@@ -166,7 +166,7 @@
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col
     INTEGER                                  :: prow, pcol
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
     ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
@@ -193,7 +193,7 @@
     CALL mp_bcast(data_vec, 0, prow_group)
 
 ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
-    CALL dbcsr_error_set(routineN//"local_mm", handle1)
+    CALL timeset(routineN//"local_mm", handle1)
     CALL dbcsr_get_info(matrix=work_col, nfullcols_local=ncols)
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread,prow,pcol) &
 !$OMP          SHARED(matrix,fast_vec_row,fast_vec_col,skip_diag,ncols)
@@ -220,7 +220,7 @@
     CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-    CALL dbcsr_error_stop(handle1)
+    CALL timestop(handle1)
 
 ! sum all the data within a processor column to obtain the replicated result
     data_vec => dbcsr_get_data_p (work_row%m%data_area, select_data_type=0.0_real_4)
@@ -244,7 +244,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_matrixT_vector_mult_s 
 
@@ -273,7 +273,7 @@
     TYPE(dbcsr_distribution_obj)             :: distri
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
 ! get information about the parallel environment
     CALL dbcsr_get_info(matrix=vec_in, distribution=distri)
@@ -314,7 +314,7 @@
     data_vec_rep => dbcsr_get_data_p (rep_row_vec%m%data_area, select_data_type=0.0_real_4)
     CALL mp_sum(data_vec_rep(1:ncols*nrows), pcol_group)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_col_vec_to_rep_row_s    
        
@@ -343,7 +343,7 @@
     TYPE(dbcsr_distribution_obj)             :: distri
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
 ! get information about the parallel environment
     CALL dbcsr_get_info(matrix=rep_col_vec, distribution=distri)
@@ -372,7 +372,7 @@
     data_vec_rep => dbcsr_get_data_p (rep_col_vec%m%data_area, select_data_type=0.0_real_4)
     CALL mp_sum(data_vec_rep(1:nrows*ncols), prow_group)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_rep_row_to_rep_col_vec_s
 
@@ -395,7 +395,7 @@
     REAL(kind=real_4), DIMENSION(:, :), POINTER       :: vec_bl
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     ! figure out the number of threads
     nthreads = 1
@@ -426,7 +426,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_fast_col_vec_access_s
 
@@ -448,7 +448,7 @@
     REAL(kind=real_4), DIMENSION(:, :), POINTER       :: vec_bl
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     ! figure out the number of threads
     nthreads = 1
@@ -480,7 +480,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE create_fast_row_vec_access_s
 
@@ -517,7 +517,7 @@
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col, res_fast_vec_row, res_fast_vec_col
     INTEGER                                  :: prow, pcol, rprow, rpcol
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
     ithread=0
 ! We need some work matrices as we try to exploit operations on the replicated vectors which are duplicated otherwise
     CALL dbcsr_get_info(matrix=vec_in,nfullcols_total=vec_dim)
@@ -546,7 +546,7 @@
 
 ! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
 ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
-    CALL dbcsr_error_set(routineN//"_local_mm", handle1)
+    CALL timeset(routineN//"_local_mm", handle1)
 
 !------ perform the multiplication, we have to take car to take the correct blocks ----------
 
@@ -588,7 +588,7 @@
     CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-    CALL dbcsr_error_stop(handle1)
+    CALL timestop(handle1)
 
     ! sum all the data within a processor column to obtain the replicated result from lower
     data_vec => dbcsr_get_data_p (result_row%m%data_area, select_data_type=0.0_real_4)
@@ -622,7 +622,7 @@
 
     CALL dbcsr_release(result_row); CALL dbcsr_release(result_col)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_sym_matrix_vector_mult_s
 

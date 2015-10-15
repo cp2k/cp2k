@@ -23,8 +23,6 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
                                              dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -58,6 +56,7 @@ MODULE dbcsr_performance_multiply
   USE message_passing,                 ONLY: mp_environ,&
                                              mp_sum,&
                                              mp_sync
+#include "../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -255,7 +254,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     NULLIFY(my_sizes_k, my_sizes_m, my_sizes_n,&
             sizes_k, sizes_m, sizes_n)
 
@@ -449,7 +448,7 @@ CONTAINS
     CALL dbcsr_release (matrix_c)
 
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_perf_multiply_low
 
@@ -513,7 +512,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL mp_environ (numnodes, mynode, mp_group)
 
@@ -700,7 +699,7 @@ CONTAINS
     DEALLOCATE(times, flops, t_max, flops_node, flops_thread, flops_all, &
          flop_sum, t_min, t, load_imb)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE perf_multiply
 

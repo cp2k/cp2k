@@ -36,7 +36,7 @@
     LOGICAL                                  :: stored_tr
     COMPLEX(kind=real_8), DIMENSION(1,1), TARGET, SAVE    :: block0
 !   ---------------------------------------------------------------------------
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
     IF (debug_mod) THEN
        CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_8,&
             dbcsr_fatal_level, dbcsr_caller_error,&
@@ -87,7 +87,7 @@
           ENDIF
        ENDIF
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
   END SUBROUTINE dbcsr_get_2d_block_p_z
 
 
@@ -496,10 +496,10 @@
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handler)
+    IF (careful_mod) CALL timeset (routineN, error_handler)
     CALL dbcsr_get_data (matrix%m%data_area, lin_blk_p,&
          lb=base_offset, ub=base_offset+rsize*csize-1)
     CALL pointer_rank_remap2 (pointer_any, rsize, csize,&
          lin_blk_p)
-    IF (careful_mod) CALL dbcsr_error_stop (error_handler)
+    IF (careful_mod) CALL timestop (error_handler)
   END SUBROUTINE dbcsr_set_block_pointer_2d_z

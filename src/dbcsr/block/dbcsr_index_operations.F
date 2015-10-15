@@ -25,11 +25,14 @@ MODULE dbcsr_index_operations
                                              dbcsr_distribution_nrows,&
                                              dbcsr_distribution_thread_dist
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
-       dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_unimplemented_error_nr,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_get_index_memory_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
@@ -48,6 +51,7 @@ MODULE dbcsr_index_operations
        dbcsr_slot_row_p, dbcsr_slot_size, dbcsr_slot_thr_c, dbcsr_type
   USE kinds,                           ONLY: int_4,&
                                              int_8
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -264,7 +268,7 @@ CONTAINS
 
     INTEGER                                  :: blk, error_handle, row
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
 
     row_p(1) = 0
     row_p(nrows+1) = nblks
@@ -284,7 +288,7 @@ CONTAINS
        row = row+1
     ENDDO
 
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
 
   END SUBROUTINE dbcsr_make_dbcsr_index
 
@@ -615,7 +619,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (m%index),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Index array does not yet exist.", __LINE__)
@@ -633,7 +637,7 @@ CONTAINS
             reservation=0)
     ENDIF
     CALL dbcsr_repoint_index (m)
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_make_index_exist
 
 
@@ -671,7 +675,7 @@ CONTAINS
 
     IF (SIZE (row_i) .EQ. 0) RETURN
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
 
     CALL dbcsr_assert(SIZE(row_i),'GE',n, dbcsr_failure_level,&
          dbcsr_caller_error, routineP, 'row_i too small',__LINE__)
@@ -722,7 +726,7 @@ CONTAINS
     DEALLOCATE (sort_keys)
     IF(debug_mod.AND.PRESENT(blk_p))&
          WRITE(*,*)routineP//' sort, blk_p =',blk_p
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
 
   END SUBROUTINE dbcsr_sort_indices
 
@@ -747,7 +751,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     !
     old_row_p => matrix%m%row_p
     old_col_i => matrix%m%col_i
@@ -795,7 +799,7 @@ CONTAINS
     !
     DEALLOCATE (new_col_i, new_blk_p, new_row_count)
     !
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE dbcsr_index_prune_deleted
 
 
@@ -828,7 +832,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     blks = PRESENT (new_blk_p) .AND. PRESENT (old_blk_p)
     nblks = SIZE (old_col_i)
     nrows_old = SIZE (old_row_p)-1
@@ -840,7 +844,7 @@ CONTAINS
     CALL dbcsr_sort_indices (nblks, new_col_i, new_row_i, new_blk_p)
     CALL dbcsr_make_dbcsr_index (new_col_p, new_col_i, ncols_new, nblks)
     DEALLOCATE(new_col_i)
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE transpose_index_local
 
 
@@ -1249,7 +1253,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (matrix%m%row_p),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "The row index must be initialized.", __LINE__)
@@ -1310,7 +1314,7 @@ CONTAINS
     ENDIF
     DEALLOCATE (local_row_p)
     !
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_make_index_local_row
 
 
@@ -1336,7 +1340,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (matrix%m%row_p),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "The row index must be initialized.", __LINE__)
@@ -1477,7 +1481,7 @@ CONTAINS
 
     DEALLOCATE (blki)
     !
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_make_index_list
 
 
@@ -1504,7 +1508,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     !> Ensures the index pointers are set.
     CALL dbcsr_repoint_index (matrix%m)
     ! Check that compaction is even needed.
@@ -1610,7 +1614,7 @@ CONTAINS
        ENDIF
        CALL dbcsr_repoint_index (matrix%m)
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_index_compact
 
 ! *****************************************************************************
@@ -1629,13 +1633,13 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     !
     checksum = joaat_hash ( (/ joaat_hash (matrix%m%row_p),&
                                joaat_hash (matrix%m%col_i),&
                                joaat_hash (matrix%m%blk_p) /) )
     !
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_index_checksum
 
 ! *****************************************************************************

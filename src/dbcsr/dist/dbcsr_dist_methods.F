@@ -19,8 +19,6 @@ MODULE dbcsr_dist_methods
   USE dbcsr_config,                    ONLY: avg_elements_images,&
                                              comm_thread_load
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -42,6 +40,7 @@ MODULE dbcsr_dist_methods
                                              heap_release,&
                                              heap_reset_first,&
                                              heap_t
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_IN_PARALLEL
   IMPLICIT NONE
@@ -105,7 +104,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     ALLOCATE (dist%d)
     dist%d%refcount = 1
@@ -262,7 +261,7 @@ CONTAINS
     dist%d%has_global_row_map = .FALSE.
     dist%d%has_global_col_map = .FALSE.
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_distribution_new
 

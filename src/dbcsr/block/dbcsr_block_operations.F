@@ -23,10 +23,14 @@ MODULE dbcsr_block_operations
        dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_z, &
        dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
        dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, &
        dbcsr_type_complex_4, dbcsr_type_complex_4_2d, dbcsr_type_complex_8, &
@@ -36,6 +40,7 @@ MODULE dbcsr_block_operations
                                              real_4,&
                                              real_8,&
                                              sp
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
   IMPLICIT NONE
@@ -443,7 +448,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, error_handler)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -494,7 +499,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__)
     END SELECT
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
+    IF (careful_mod) CALL timestop(error_handler)
   END SUBROUTINE dbcsr_block_scale
 
 ! *****************************************************************************
@@ -525,7 +530,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, error_handler)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -585,7 +590,7 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_caller_error, routineN, &
             "Incorrect data type.",__LINE__)
     END SELECT
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
+    IF (careful_mod) CALL timestop(error_handler)
   END SUBROUTINE dbcsr_block_real_neg
 
 ! *****************************************************************************
@@ -616,7 +621,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, error_handler)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -664,7 +669,7 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_caller_error, routineN, &
             "Incorrect data type.",__LINE__)
     END SELECT
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
+    IF (careful_mod) CALL timestop(error_handler)
   END SUBROUTINE dbcsr_block_conjg
 
 ! *****************************************************************************
@@ -687,7 +692,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-         CALL dbcsr_error_set(routineN, error_handler)
+         CALL timeset(routineN, error_handler)
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_block_transpose (area%d%r_dp,&
@@ -706,7 +711,7 @@ CONTAINS
             routineN, "Invalid data type",__LINE__)
     END SELECT
     IF (careful_mod) &
-         CALL dbcsr_error_stop(error_handler)
+         CALL timestop(error_handler)
   END SUBROUTINE dbcsr_block_transpose_a
 
 
@@ -945,7 +950,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler)
+    CALL timeset (routineN, error_handler)
     !
     src_dt = dbcsr_data_get_type (src)
     dst_dt = dbcsr_data_get_type (dst)
@@ -1109,7 +1114,7 @@ CONTAINS
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type",__LINE__)
     END SELECT
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_data_copy_aa2
 
 ! *****************************************************************************
@@ -1164,7 +1169,7 @@ CONTAINS
     INTEGER                                  :: l, l2, s, u, u2
 
 !   ---------------------------------------------------------------------------
-! CALL dbcsr_error_set(routineN, error_handler)
+! CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert (ASSOCIATED(area%d),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -1380,7 +1385,7 @@ CONTAINS
             routineN, "Invalid or unsupported data type.",__LINE__)
     END SELECT
 
-    ! CALL dbcsr_error_stop(error_handler)
+    ! CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_data_clear0
 

@@ -19,14 +19,13 @@ MODULE dbcsr_mem_methods
                                              dbcsr_mempool_entry_type,&
                                              dbcsr_mempool_type,&
                                              dbcsr_memtype_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE kinds,                           ONLY: dp
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
   !$                    omp_set_lock, omp_unset_lock, omp_init_lock, omp_lock_kind, omp_destroy_lock
 
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -244,7 +243,7 @@ MODULE dbcsr_mem_methods
 
     IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated")
 
-    CALL dbcsr_error_set (routineN, error_handler)
+    CALL timeset (routineN, error_handler)
 
     !$ CALL OMP_SET_LOCK(pool%lock)
     cur => pool%root%next
@@ -258,7 +257,7 @@ MODULE dbcsr_mem_methods
     NULLIFY(pool%root%next)
     !$ CALL OMP_UNSET_LOCK(pool%lock)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
  END SUBROUTINE dbcsr_mempool_clear
 
 ! *****************************************************************************

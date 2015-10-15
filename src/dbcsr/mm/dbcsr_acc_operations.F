@@ -20,11 +20,10 @@ MODULE dbcsr_acc_operations
                                              acc_devmem_type
   USE acc_stream,                      ONLY: acc_stream_cptr,&
                                              acc_stream_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
   USE message_passing,                 ONLY: mp_abort
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -113,7 +112,7 @@ CONTAINS
     INTEGER                                  :: error_handle, istat
     INTEGER(KIND=C_INT)                      :: mnk
 
-   IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+   IF (careful_mod) CALL timeset (routineN, error_handle)
 
     mnk = 0
     IF (def_mnk) mnk = 1
@@ -134,7 +133,7 @@ CONTAINS
 
     success = (istat == 0) ! false if no suitable kernel was found
 
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
 #endif
   END SUBROUTINE dbcsr_acc_do_mm_stack
 
@@ -169,7 +168,7 @@ CONTAINS
 
     INTEGER                                  :: error_handle, istat
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
 
     istat = libsmm_acc_transpose_cu(acc_devmem_cptr(trs_stack),&
                              INT(offset, KIND=C_INT),&
@@ -181,7 +180,7 @@ CONTAINS
                              acc_stream_cptr(stream))
 
     IF (istat /= 0) CALL dbcsr_abort(routineP,__LINE__,"something went wrong.")
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
 #endif
   END SUBROUTINE dbcsr_acc_transpose
 

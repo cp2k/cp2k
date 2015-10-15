@@ -24,8 +24,6 @@ MODULE dbcsr_tests
                                              dbcsr_distribution_release
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
@@ -64,6 +62,7 @@ MODULE dbcsr_tests
   USE message_passing,                 ONLY: &
        mp_cart_create, mp_cart_rank, mp_comm_free, mp_comm_null, &
        mp_dims_create, mp_environ, mp_max, mp_sum, mp_sync
+#include "../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -136,7 +135,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     ! Create the row/column block sizes.
     IF (ASSOCIATED (bs_m)) THEN
        bmin = MINVAL (bs_m(2::2))
@@ -262,7 +261,7 @@ CONTAINS
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_release (matrix_c)
     CALL mp_comm_free(cart_group)
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_run_tests
 
 ! *****************************************************************************
@@ -409,7 +408,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (SIZE(group_sizes, 2), "EQ", 2, dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
          "second dimension of group_sizes must be 2",__LINE__)
@@ -561,7 +560,7 @@ CONTAINS
        ENDIF alive
        CALL mp_comm_free(cart_group)
     ENDDO p_sizes
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE test_multiplies_multiproc
 
 ! *****************************************************************************
@@ -592,7 +591,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL mp_environ (numnodes, mynode, mp_group)
     IF (PRESENT (nprocs)) THEN
        CALL dbcsr_assert (nprocs, "LE", numnodes,&
@@ -623,7 +622,7 @@ CONTAINS
     ELSE
        CALL dbcsr_mp_init (mp_env)
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_mp_make_env
 
 

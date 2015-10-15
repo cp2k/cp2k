@@ -23,10 +23,13 @@ MODULE dbcsr_ptr_util
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_unimplemented_error_nr, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_unimplemented_error_nr,&
+                                             dbcsr_wrong_args_error
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -34,6 +37,7 @@ MODULE dbcsr_ptr_util
                                              real_8
   USE message_passing,                 ONLY: mp_allocate,&
                                              mp_deallocate
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 

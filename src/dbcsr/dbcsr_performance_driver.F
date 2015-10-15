@@ -15,8 +15,6 @@
 PROGRAM dbcsr_performance_driver
   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
@@ -35,6 +33,7 @@ PROGRAM dbcsr_performance_driver
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
+#include "../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -56,7 +55,7 @@ PROGRAM dbcsr_performance_driver
 
   !
   ! initialize libdbcsr errors
-  CALL dbcsr_error_set (routineN, error_handler)
+  CALL timeset (routineN, error_handler)
 
   !
   ! initialize mpi
@@ -120,6 +119,6 @@ PROGRAM dbcsr_performance_driver
 
   !
   ! finalize libdbcsr errors
-  CALL dbcsr_error_stop (error_handler)
+  CALL timestop (error_handler)
 
 END PROGRAM dbcsr_performance_driver

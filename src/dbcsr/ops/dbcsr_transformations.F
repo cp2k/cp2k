@@ -49,11 +49,14 @@ MODULE dbcsr_transformations
                                              dbcsr_reblocking_targets,&
                                              dbcsr_transpose_dims,&
                                              dbcsr_transpose_distribution
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
-       dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_unimplemented_error_nr,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
                                              dbcsr_repoint_index,&
@@ -107,6 +110,7 @@ MODULE dbcsr_transformations
                                              sp
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_alltoall
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -174,7 +178,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert (dbcsr_valid_index(normal), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix does not exist.",__LINE__)
@@ -307,7 +311,7 @@ CONTAINS
        CALL dbcsr_release (transposed)
        transposed = t2
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_new_transposed
 
 ! *****************************************************************************
@@ -348,7 +352,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Input matrix is invalid.",__LINE__)
@@ -557,7 +561,7 @@ CONTAINS
     DEALLOCATE(recv_meta)
     CALL dbcsr_data_release (send_data)
     DEALLOCATE(send_meta)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_desymmetrize_deep
 
 
@@ -590,7 +594,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__)
@@ -686,7 +690,7 @@ CONTAINS
        matrix%m%nblks = distributed%m%nblks
        CALL dbcsr_release (distributed)
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_distribute
 
 
@@ -710,7 +714,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     rbs => dbcsr_row_block_sizes (matrix)
     cbs => dbcsr_col_block_sizes (matrix)
     sym_negation = matrix%m%negate_real
@@ -748,7 +752,7 @@ CONTAINS
     CALL dbcsr_data_release (block_data)
 !$OMP END PARALLEL
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_make_untransposed_blocks
 
 
@@ -785,7 +789,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_init (dense_matrix)
     CALL dbcsr_create (dense_matrix, template=matrix,&
          dist = dense_dist,&
@@ -815,7 +819,7 @@ CONTAINS
        cs = dbcsr_checksum (dense_matrix)
        WRITE(*,*)routineN//" prod cs pst", cs
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_make_dense
 
 ! *****************************************************************************
@@ -875,7 +879,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     !
     nfullrows = nfull_elements (und_row_blk_offsets, und_local_rows)
     nfullcols = nfull_elements (und_col_blk_offsets, und_local_cols)
@@ -983,7 +987,7 @@ CONTAINS
     DEALLOCATE (row_internal_offsets)
     DEALLOCATE (col_internal_offsets)
     !
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_make_dense_low
 
 
@@ -1027,7 +1031,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     IF (dbg) THEN
        cs = dbcsr_checksum (matrix)
        WRITE(*,*)routineN//" prod cs pre", cs
@@ -1133,7 +1137,7 @@ CONTAINS
     DEALLOCATE (dense_local_col_blk_offsets)
     DEALLOCATE (row_internal_offsets)
     DEALLOCATE (col_internal_offsets)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_make_undense
 
 ! *****************************************************************************
@@ -1182,7 +1186,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (dbcsr_data_get_size (dense_data), 'GE',&
          nfullrows*nfullcols,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1257,7 +1261,7 @@ CONTAINS
        CALL dbcsr_data_release (block)
 !$OMP END PARALLEL
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE make_dense_data
 
 ! *****************************************************************************
@@ -1415,7 +1419,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__)
@@ -1647,7 +1651,7 @@ CONTAINS
     matrix%m%nblks = replicated%m%nblks
     CALL dbcsr_release (replicated)
     CALL dbcsr_verify_matrix (matrix)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_replicate
 
 
@@ -1699,7 +1703,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Input not valid.",__LINE__)
@@ -2059,7 +2063,7 @@ CONTAINS
     ENDIF
     !CALL dbcsr_assert (cs1-cs2 .LT. 0.00001, dbcsr_fatal_level, dbcsr_internal_error,&
     !     routineN, "Mangled data!")
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_complete_redistribute
 
 ! *****************************************************************************
@@ -2101,7 +2105,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     !call dbcsr_print_dist (matrix%m%dist)
     !call dbcsr_print_dist (redist%m%dist)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
@@ -2305,7 +2309,7 @@ CONTAINS
     DEALLOCATE(rm_disp)
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_meta)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_redistribute
 
 ! *****************************************************************************
@@ -2370,7 +2374,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_mp_obj)                       :: mp_env
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
 
      dist = dbcsr_distribution (new_matrix)
@@ -2562,7 +2566,7 @@ CONTAINS
      DEALLOCATE(send_meta)
      DEALLOCATE(extra_nblks); DEALLOCATE(extra_darea_size)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
     CONTAINS
     
 ! *****************************************************************************

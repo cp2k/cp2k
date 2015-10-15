@@ -44,11 +44,11 @@ MODULE cp_dbcsr_interface
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
-       dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
-       dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
-       dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
+       dbcsr_distribution_row_dist, dbcsr_filter, dbcsr_finalize, &
+       dbcsr_finalize_lib, dbcsr_frobenius_norm, dbcsr_func_artanh, &
+       dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
+       dbcsr_function_of_elements, dbcsr_gershgorin_norm, &
+       dbcsr_get_block_diag, dbcsr_get_block_p, &
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
        dbcsr_get_conf_max_ele_block, dbcsr_get_conf_mm_driver, &
        dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
@@ -110,7 +110,7 @@ MODULE cp_dbcsr_interface
 
   !
   ! Interface to libdbcsr (contains cp2k timing and error) 
-  PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_get_conf_comm_thread_load,&
+  PUBLIC :: dbcsr_get_conf_comm_thread_load,&
             dbcsr_get_conf_avg_elements_images,&
             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
             dbcsr_set_conf_mm_stacksize,&

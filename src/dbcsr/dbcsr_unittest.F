@@ -18,8 +18,6 @@ PROGRAM dbcsr_unittest
   USE acc_device,                      ONLY: acc_get_ndevices,&
                                              acc_set_active_device
   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop
   USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_new,&
@@ -35,6 +33,7 @@ PROGRAM dbcsr_unittest
                                              mp_environ,&
                                              mp_world_finalize,&
                                              mp_world_init
+#include "../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -55,7 +54,7 @@ PROGRAM dbcsr_unittest
 
   !
   ! initialize libdbcsr errors
-  CALL dbcsr_error_set (routineN, error_handler)
+  CALL timeset (routineN, error_handler)
 
   !
   ! initialize mpi
@@ -330,6 +329,6 @@ PROGRAM dbcsr_unittest
 
   !
   ! finalize libdbcsr errors
-  CALL dbcsr_error_stop (error_handler)
+  CALL timestop (error_handler)
 
 END PROGRAM dbcsr_unittest

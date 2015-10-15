@@ -32,8 +32,6 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_warning_level,&
@@ -61,6 +59,7 @@ MODULE dbcsr_dist_operations
                                              heap_release,&
                                              heap_reset_first,&
                                              heap_t
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -1515,7 +1514,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     !
     CALL dbcsr_assert (dbcsr_distribution_has_threads (product_dist), &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1603,7 +1602,7 @@ CONTAINS
     CALL array_release (new_n_dist)
     CALL array_release (new_k_vdist)
     !
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE dbcsr_make_dists_dense
 
 
@@ -1729,7 +1728,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
     INTEGER, DIMENSION(:), POINTER           :: itmp, row_dist
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. dist%d%has_other_l_rows) THEN
        dist%d%has_other_l_rows = .TRUE.
@@ -1760,7 +1759,7 @@ CONTAINS
        ENDIF
     ENDIF
     local_rows = dist%d%other_l_rows(local_prow)
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_local_rows
 
 ! *****************************************************************************
@@ -1782,7 +1781,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
     INTEGER, DIMENSION(:), POINTER           :: col_dist, itmp
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. dist%d%has_other_l_cols) THEN
        dist%d%has_other_l_cols = .TRUE.
@@ -1813,7 +1812,7 @@ CONTAINS
        ENDIF
     ENDIF
     local_cols = dist%d%other_l_cols(local_pcol)
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_local_cols
 
 
@@ -1833,7 +1832,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nprows
     INTEGER, DIMENSION(:), POINTER           :: rmap, row_dist
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. dist%d%has_global_row_map) THEN
        row_dist => dbcsr_distribution_row_dist (dist)
@@ -1850,7 +1849,7 @@ CONTAINS
        ENDIF
     ENDIF
     row_map = dist%d%global_row_map
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_global_row_map
 
 
@@ -1870,7 +1869,7 @@ CONTAINS
     INTEGER                                  :: error_handle, npcols
     INTEGER, DIMENSION(:), POINTER           :: cmap, col_dist
 
-    CALL dbcsr_error_set(routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. dist%d%has_global_col_map) THEN
        col_dist => dbcsr_distribution_col_dist (dist)
@@ -1887,7 +1886,7 @@ CONTAINS
        ENDIF
     ENDIF
     col_map = dist%d%global_col_map
-    CALL dbcsr_error_stop(error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_global_col_map
 
 
@@ -1957,7 +1956,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: vrow_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
+    IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_other_vl_rows) THEN
        imgdist%i%has_other_vl_rows = .TRUE.
@@ -1989,7 +1988,7 @@ CONTAINS
        ENDIF
     ENDIF
     local_vrows = imgdist%i%other_vl_rows(local_vprow)
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
+    IF (careful_mod) CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_local_vrows
 
 ! *****************************************************************************
@@ -2012,7 +2011,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
     INTEGER, DIMENSION(:), POINTER           :: itmp, vcol_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
+    IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_other_vl_cols) THEN
        imgdist%i%has_other_vl_cols = .TRUE.
@@ -2044,7 +2043,7 @@ CONTAINS
        ENDIF
     ENDIF
     local_vcols = imgdist%i%other_vl_cols(local_vpcol)
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
+    IF (careful_mod) CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_local_vcols
 
 ! *****************************************************************************
@@ -2063,7 +2062,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nvprows
     INTEGER, DIMENSION(:), POINTER           :: rmap, vrow_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
+    IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_global_vrow_map) THEN
        vrow_dist => array_data (imgdist%i%vrow_dist)
@@ -2081,7 +2080,7 @@ CONTAINS
        ENDIF
     ENDIF
     vrow_map = imgdist%i%global_vrow_map
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
+    IF (careful_mod) CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_global_vrow_map
 
 ! *****************************************************************************
@@ -2100,7 +2099,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nvpcols
     INTEGER, DIMENSION(:), POINTER           :: rmap, vcol_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
+    IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_global_vcol_map) THEN
        vcol_dist => array_data (imgdist%i%vcol_dist)
@@ -2118,7 +2117,7 @@ CONTAINS
        ENDIF
     ENDIF
     vcol_map = imgdist%i%global_vcol_map
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
+    IF (careful_mod) CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_global_vcol_map
 
 
@@ -2415,7 +2414,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     ALLOCATE (bin_dist (nelements))
     IF (PRESENT (element_sizes)) THEN
        CALL dbcsr_assert (SIZE(element_sizes), "EQ", nelements,&
@@ -2438,7 +2437,7 @@ CONTAINS
           bin_dist(i) = MOD (INT (rn*REAL (nbins, kind=sp)), nbins)
        ENDDO
     ENDIF
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_dist_bin
 
 END MODULE dbcsr_dist_operations

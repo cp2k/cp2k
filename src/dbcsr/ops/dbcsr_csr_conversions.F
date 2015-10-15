@@ -29,8 +29,6 @@ MODULE dbcsr_csr_conversions
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_warning_level,&
@@ -75,6 +73,7 @@ MODULE dbcsr_csr_conversions
                                              mp_recv,&
                                              mp_send,&
                                              mp_sum
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -217,7 +216,7 @@ CONTAINS
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(nrows_total, "GE", nrows_local,& 
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
@@ -274,7 +273,7 @@ CONTAINS
     csr_mat%has_mapping = .FALSE.
     csr_mat%has_indices = .FALSE.
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE csr_create_new
 
@@ -297,7 +296,7 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(csr_mapping_data)                   :: map
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "Source CSR matrix must be created.",__LINE__)
@@ -344,7 +343,7 @@ CONTAINS
       
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_create_template
 
 ! *****************************************************************************
@@ -364,7 +363,7 @@ CONTAINS
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "Source CSR matrix must be created.",__LINE__)
@@ -404,7 +403,7 @@ CONTAINS
          matrix_b%nzval_local%c_dp = matrix_a%nzval_local%c_dp
      END SELECT
 
-  CALL dbcsr_error_stop(error_handler)
+  CALL timestop(error_handler)
 
   END SUBROUTINE csr_copy
 
@@ -427,7 +426,7 @@ CONTAINS
 
     INTEGER                                  :: error_handler, k
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "CSR matrix must be created.",__LINE__)
@@ -436,7 +435,7 @@ CONTAINS
       nzerow(k) = csr_mat%rowptr_local(k+1) - csr_mat%rowptr_local(k) 
     ENDDO
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_create_nzerow
    
 ! *****************************************************************************
@@ -455,7 +454,7 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(csr_mapping_data)                   :: map
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,& 
       "CSR matrix must be created before destroying it.",__LINE__)
@@ -498,7 +497,7 @@ CONTAINS
     csr_mat%has_indices = .FALSE.
     csr_mat%nzval_local%data_type = -1
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_destroy
  
 ! *****************************************************************************
@@ -525,7 +524,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: cdist, csr_index, dbcsr_index
     TYPE(dbcsr_distribution_obj)             :: dist_current
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     NULLIFY(dbcsr_index, csr_index, cdist)
 
     dist_current = dbcsr_distribution(brd_mat)
@@ -560,7 +559,7 @@ CONTAINS
     csr_mat%has_mapping = .TRUE.
     csr_mat%dbcsr_mapping%brd_mat = brd_mat
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_create_from_brd
 
 ! *****************************************************************************
@@ -595,7 +594,7 @@ CONTAINS
     LOGICAL                                  :: tr
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     NULLIFY(dbcsr_index, csr_index) 
 
@@ -700,7 +699,7 @@ CONTAINS
       csr_nze_local = nze
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_get_dbcsr_mapping
 
 
@@ -723,7 +722,7 @@ CONTAINS
     INTEGER                                  :: data_type, error_handler, &
                                                 ind, k, nze
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     data_type = dbcsr_get_data_type(brd_mat) 
     nze = dbcsr_get_nze(brd_mat)
@@ -755,7 +754,7 @@ CONTAINS
       END SELECT
     ENDDO
 
-   CALL dbcsr_error_stop(error_handler)
+   CALL timestop(error_handler)
   END SUBROUTINE convert_csr_to_brd
 
 ! *****************************************************************************
@@ -785,7 +784,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     NULLIFY(rowptr, colind, dbcsr_index, csr_index)
 
     dbcsr_index => csr_mat%dbcsr_mapping%csr_to_brd_ind
@@ -904,7 +903,7 @@ CONTAINS
 
     IF (new_ind) csr_mat%has_indices = .TRUE.
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE convert_brd_to_csr
 
 ! *****************************************************************************
@@ -951,7 +950,7 @@ CONTAINS
                                                 csr_sparsity_nosym, &
                                                 dbcsr_mat_nosym
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
@@ -1044,7 +1043,7 @@ CONTAINS
     CALL dbcsr_release(csr_sparsity_nosym)
     CALL dbcsr_release(csr_sparsity_brd)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_create_from_dbcsr
 
 ! *****************************************************************************
@@ -1095,7 +1094,7 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(csr_mapping_data)                   :: map
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     map = csr_mat%dbcsr_mapping
     IF (map%has_dbcsr_block_data) THEN
       CALL dbcsr_assert(map%dbcsr_nblkcols_total .EQ.&
@@ -1135,7 +1134,7 @@ CONTAINS
         "Can not assert consistency of the matrices as no block data stored in CSR matrix.",&
         __LINE__)
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_assert_consistency_with_dbcsr
 
 ! *****************************************************************************
@@ -1156,7 +1155,7 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
@@ -1185,7 +1184,7 @@ CONTAINS
 
     IF(dbcsr_has_symmetry(dbcsr_mat)) CALL dbcsr_release(dbcsr_mat_nosym)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE convert_dbcsr_to_csr
 
 ! *****************************************************************************
@@ -1207,7 +1206,7 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
@@ -1240,7 +1239,7 @@ CONTAINS
     ! 2) BRD -> DBCSR
     CALL dbcsr_complete_redistribute(csr_mat%dbcsr_mapping%brd_mat, dbcsr_mat)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE convert_csr_to_dbcsr
 
 ! *****************************************************************************
@@ -1334,7 +1333,7 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(dbcsr_obj)                          :: csr_sparsity, dbcsr_mat_conv
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_to_csr_filter(dbcsr_mat, csr_sparsity, eps)
 
@@ -1351,7 +1350,7 @@ CONTAINS
 
     CALL dbcsr_release(dbcsr_mat_conv)
     CALL dbcsr_release(csr_sparsity)
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_conversion_test
  
 ! *****************************************************************************
@@ -1390,7 +1389,7 @@ CONTAINS
     REAL(KIND=real_8), ALLOCATABLE, &
       DIMENSION(:)                           :: nzval_to_master_r_dp
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     IF (PRESENT(upper_triangle)) THEN
       ut = upper_triangle
@@ -1525,7 +1524,7 @@ CONTAINS
       ENDIF
     ENDDO
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE csr_write
  
@@ -1550,7 +1549,7 @@ CONTAINS
     REAL(KIND=real_8)                        :: dbcsr_nze_percentage, &
                                                 nze_percentage
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(csr_mat%valid,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
@@ -1579,7 +1578,7 @@ CONTAINS
       !ENDIF
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE csr_print_sparsity
 
 ! *****************************************************************************
@@ -1618,7 +1617,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist_current, dist_new
     TYPE(dbcsr_mp_obj)                       :: mp_obj_current, mp_obj_new
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
  
     NULLIFY(row_blk_size, rdist, row_blk_size_new)
     CALL dbcsr_get_info(dbcsr_mat,&
@@ -1727,7 +1726,7 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_new)
     CALL dbcsr_mp_release(mp_obj_new)
     
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_create_brd
 

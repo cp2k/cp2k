@@ -22,8 +22,6 @@ MODULE dbcsr_io
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_warning_level
@@ -59,6 +57,7 @@ MODULE dbcsr_io
        mp_file_open, mp_file_read_at_all, mp_file_write_at, &
        mp_file_write_at_all, mp_sum, mp_type_descriptor_type, mp_type_size, &
        mpi_character_size, mpi_integer_size
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -124,7 +123,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Can not print invalid matrix.",__LINE__)
@@ -284,7 +283,7 @@ CONTAINS
           ENDDO
        ENDDO
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_print
 
 
@@ -748,7 +747,7 @@ CONTAINS
     INTEGER(kind=file_offset), PARAMETER                 :: BOF = 0
     INTEGER, PARAMETER          :: char_count = version_len+default_string_length+1 !version, matrix_name, matrix_type
 
-   CALL dbcsr_error_set(routineN, error_handler)
+   CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert (default_string_length==80,&
          dbcsr_warning_level, dbcsr_caller_error,&
@@ -852,7 +851,7 @@ CONTAINS
     DEALLOCATE(subh2_disps,subh2_offsets,subh3_disps,subh3_offsets)
     DEALLOCATE(bdata_disps,bdata_offsets)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
     
     CONTAINS
 ! *****************************************************************************
@@ -943,7 +942,7 @@ CONTAINS
                                                localinfo_offset, blockdata_offset, sum_nblks, subh3_length, data_area_size
     INTEGER, PARAMETER                      :: char_count = 1+version_len+default_string_length
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
 
     IF (PRESENT(groupid)) THEN
@@ -1198,7 +1197,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (dblk) 
     DEALLOCATE (dblk%d)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
     CONTAINS
 ! *****************************************************************************
 !> \brief ...
@@ -1250,7 +1249,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Can not print invalid matrix.",__LINE__)
@@ -1311,7 +1310,7 @@ CONTAINS
        ENDDO
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   
   END SUBROUTINE dbcsr_print_block_sum
 

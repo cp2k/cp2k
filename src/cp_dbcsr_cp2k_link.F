@@ -22,20 +22,20 @@ MODULE cp_dbcsr_cp2k_link
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, cp_dbcsr_finalize, &
        cp_dbcsr_get_block_p, cp_dbcsr_get_matrix_type, cp_dbcsr_has_symmetry, &
-       cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_get_conf_avg_elements_images, &
-       dbcsr_get_conf_comm_thread_load, dbcsr_get_conf_mm_driver, &
-       dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_mpi_mem, &
-       dbcsr_get_conf_nstacks, dbcsr_get_conf_randmat_seed, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_filtering, &
-       dbcsr_get_conf_use_mpi_rma, dbcsr_set_conf_avg_elements_images, &
-       dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_filtering, &
-       dbcsr_set_conf_use_mpi_rma, dbcsr_type_no_symmetry, has_acc, has_mpi, &
-       mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+       cp_dbcsr_reserve_blocks, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_comm_thread_load, &
+       dbcsr_get_conf_mm_driver, dbcsr_get_conf_mm_stacksize, &
+       dbcsr_get_conf_mpi_mem, dbcsr_get_conf_nstacks, &
+       dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_get_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_rma, &
+       dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_set_conf_use_mpi_filtering, dbcsr_set_conf_use_mpi_rma, &
+       dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -89,7 +89,7 @@ CONTAINS
                                                 use_mpi_filtering, use_mpi_rma
     TYPE(section_vals_type), POINTER         :: dbcsr_section
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset(routineN, error_handle)
     dbcsr_section => section_vals_get_subs_vals(root_section,&
       "GLOBAL%DBCSR")
     CALL section_vals_val_get(dbcsr_section,&
@@ -152,7 +152,7 @@ CONTAINS
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load)
     CALL dbcsr_set_conf_randmat_seed(randmat_seed)
 
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop(error_handle)
   END SUBROUTINE cp_dbcsr_config
 
 

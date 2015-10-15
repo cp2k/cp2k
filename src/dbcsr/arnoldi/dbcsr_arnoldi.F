@@ -30,8 +30,6 @@ MODULE dbcsr_arnoldi
                                              dbcsr_arnoldi_data,&
                                              get_control,&
                                              m_x_v_vectors
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop
   USE dbcsr_methods,                   ONLY: dbcsr_init,&
                                              dbcsr_release
   USE dbcsr_operations,                ONLY: dbcsr_copy,&
@@ -42,6 +40,7 @@ MODULE dbcsr_arnoldi
                                              create_replicated_col_vec_from_matrix,&
                                              create_replicated_row_vec_from_matrix
   USE kinds,                           ONLY: dp
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -109,7 +108,7 @@ CONTAINS
     TYPE(m_x_v_vectors)                      :: vectors
 
     NULLIFY(restart_vec)
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
 !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
     CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
@@ -159,7 +158,7 @@ CONTAINS
     CALL dbcsr_release(vectors%rep_row_vec)
     CALL dbcsr_release(restart_vec)
     DEALLOCATE(restart_vec)
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_arnoldi_normal_ev
 
@@ -194,7 +193,7 @@ CONTAINS
       DIMENSION(:)                           :: matrix_arnoldi
     TYPE(m_x_v_vectors)                      :: vectors
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
     ALLOCATE(matrix_arnoldi(2))
     ! this matrix will contain +/- A-rho*B
     CALL dbcsr_init(A_rho_B)
@@ -244,7 +243,7 @@ CONTAINS
     CALL dbcsr_release(A_rho_B)
     DEALLOCATE(matrix_arnoldi)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_arnoldi_generalized_ev
 
@@ -276,7 +275,7 @@ CONTAINS
     TYPE(dbcsr_obj_type_p), DIMENSION(:), &
       POINTER                                :: arnoldi_matrices
 
-    CALL dbcsr_error_set(routineN, handle)
+    CALL timeset(routineN, handle)
 
     ! we go in chunks of max_iter_internal, and restart ater each of those.
     ! at low threshold smaller values of max_iter_internal make sense
@@ -299,7 +298,7 @@ CONTAINS
     CALL deallocate_arnoldi_data(my_arnoldi)
     DEALLOCATE(arnoldi_matrices)
 
-    CALL dbcsr_error_stop(handle)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_arnoldi_extremal
 

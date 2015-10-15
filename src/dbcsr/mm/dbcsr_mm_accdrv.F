@@ -17,8 +17,6 @@
 !>  - 2013-01    extensive refactoring (Ole Schuett)
 !>  - 2014-04    generalized into acc-framework (Ole Schuett)
 ! *****************************************************************************
-
-
 MODULE dbcsr_mm_accdrv
   USE acc_devmem,                      ONLY: acc_devmem_allocate_bytes,&
                                              acc_devmem_allocated,&
@@ -53,8 +51,6 @@ MODULE dbcsr_mm_accdrv
                                              dbcsr_data_get_type,&
                                              dbcsr_data_new,&
                                              dbcsr_data_release
-  USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
                                              dbcsr_mempool_ensure_capacity,&
                                              dbcsr_memtype_setup
@@ -71,6 +67,7 @@ MODULE dbcsr_mm_accdrv
                                              int_4_size,&
                                              int_8
   USE message_passing,                 ONLY: mp_abort
+#include "../../base/base_uses.f90"
 
  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -199,7 +196,7 @@ MODULE dbcsr_mm_accdrv
     TYPE(dbcsr_data_obj)                     :: c_area
     TYPE(thread_private_type), POINTER       :: thread_privates
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
@@ -230,7 +227,7 @@ MODULE dbcsr_mm_accdrv
     CALL acc_event_record(this%c_buffer%d%acc_ready,&
                  stream=this%c_buffer%d%memory_type%acc_stream)
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_mm_accdrv_init
 
 
@@ -589,7 +586,7 @@ MODULE dbcsr_mm_accdrv
        RETURN
     END IF
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
     stacked_datasize   = this%product_wm%datasize
     CALL dbcsr_data_ensure_size(this%c_buffer, stacked_datasize, &
                      factor=default_resize_factor, zero_pad=.TRUE.)
@@ -597,7 +594,7 @@ MODULE dbcsr_mm_accdrv
     !===========================================================================
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
     ! are not too busy, or device gain is very large
-    CALL dbcsr_error_set (routineN//"_sort", error_handle2)
+    CALL timeset (routineN//"_sort", error_handle2)
     flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
     IF(flop_per_entry > accdrv_min_flop_sort) THEN
@@ -606,7 +603,7 @@ MODULE dbcsr_mm_accdrv
        CALL stack_binning(params, stackbuf%hostmem, stack_size)
     ENDIF
 
-    CALL dbcsr_error_stop (error_handle2)
+    CALL timestop (error_handle2)
 
     a_area => left%data_area%d
     b_area => right%data_area%d
@@ -652,7 +649,7 @@ MODULE dbcsr_mm_accdrv
       CALL acc_stream_wait_event(c_area%memory_type%acc_stream, stackbuf%calculated)
     ENDIF
 
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
   END SUBROUTINE dbcsr_mm_accdrv_process
 
 

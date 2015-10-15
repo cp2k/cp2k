@@ -27,8 +27,6 @@ MODULE dbcsr_util
                                              dbcsr_distribution_nrows
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_set,&
-                                             dbcsr_error_stop,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
@@ -61,6 +59,7 @@ MODULE dbcsr_util
                                              real_4,&
                                              real_8
   USE message_passing,                 ONLY: mp_sum
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
   IMPLICIT NONE
@@ -541,7 +540,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index(matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Invalid matrix.",__LINE__)
@@ -635,7 +634,7 @@ CONTAINS
             matrix%m%dist)))
        checksum = local_cs
     ENDIF
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END FUNCTION dbcsr_checksum
 
 ! *****************************************************************************
@@ -703,7 +702,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_is_initialized(m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not verify non-existing matrix object.",__LINE__)
@@ -872,7 +871,7 @@ CONTAINS
             sparsity_total,'%'
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_verify_matrix
 
 

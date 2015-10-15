@@ -39,10 +39,13 @@ MODULE dbcsr_data_methods
        dbcsr_memtype_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_int_4, dbcsr_type_int_8, dbcsr_type_real_4, &
        dbcsr_type_real_8
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_unimplemented_error_nr,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
@@ -51,6 +54,7 @@ MODULE dbcsr_data_methods
                                              int_8,&
                                              real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -205,7 +209,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert(.NOT.ASSOCIATED(area%d), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN,&
@@ -250,7 +254,7 @@ CONTAINS
        END IF
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
   END SUBROUTINE dbcsr_data_new
 
 ! *****************************************************************************
@@ -280,7 +284,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, error_handler)
     CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data area must be setup.",__LINE__)
     current_size = dbcsr_data_get_size (area)
@@ -302,7 +306,7 @@ CONTAINS
 
     CALL dbcsr_data_set_size_referenced (area, data_size)
     IF (current_size .GT. 1 .AND. current_size .GE. wanted_size) THEN
-       IF (careful_mod) CALL dbcsr_error_stop(error_handler)
+       IF (careful_mod) CALL timestop(error_handler)
        RETURN
     ENDIF
     !
@@ -390,7 +394,7 @@ CONTAINS
        ENDIF
 
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
+    IF (careful_mod) CALL timestop(error_handler)
   END SUBROUTINE dbcsr_data_ensure_size
 
 
@@ -409,7 +413,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
+    CALL timeset(routineN, error_handler)
 
     CALL dbcsr_assert (ASSOCIATED (area%d), &
          dbcsr_warning_level, dbcsr_caller_error,&
@@ -437,7 +441,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler)
+    CALL timestop(error_handler)
 
   END SUBROUTINE dbcsr_data_release
 

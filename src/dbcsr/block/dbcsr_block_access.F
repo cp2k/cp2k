@@ -42,10 +42,13 @@ MODULE dbcsr_block_access
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_block_index,&
                                              dbcsr_get_stored_block_info,&
                                              dbcsr_get_stored_coordinates
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
                                              dbcsr_expand_row_index,&
@@ -73,6 +76,7 @@ MODULE dbcsr_block_access
   USE kinds,                           ONLY: dp,&
                                              real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -171,7 +175,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
     IF (PRESENT (block_number)) THEN
        b = block_number
        CALL dbcsr_assert (block_number .LE. matrix%m%nblks, dbcsr_failure_level,&
@@ -198,7 +202,7 @@ CONTAINS
                "Block does not exist or is already deleted.",__LINE__)
        ENDIF
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
   END SUBROUTINE dbcsr_remove_block
 
 ! *****************************************************************************
@@ -237,7 +241,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
 
@@ -297,7 +301,7 @@ CONTAINS
           END SELECT
        ENDIF
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
   END SUBROUTINE dbcsr_get_block_p_area
 
 
@@ -335,7 +339,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
+    IF (careful_mod) CALL timeset (routineN, error_handle)
     data_type_m = dbcsr_get_data_type (matrix)
     do_scale = PRESENT (scale)
     IF (do_scale) THEN
@@ -424,7 +428,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Invalid data type",__LINE__)
     END SELECT
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
+    IF (careful_mod) CALL timestop (error_handle)
   END SUBROUTINE dbcsr_put_block_area
 
 ! *****************************************************************************
@@ -445,7 +449,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows
     LOGICAL                                  :: tr
 
-    CALL dbcsr_error_set (routineN, error_handle)
+    CALL timeset (routineN, error_handle)
 
     myrank = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix)))
     local_rows => dbcsr_distribution_local_rows (dbcsr_distribution (matrix))
@@ -485,7 +489,7 @@ CONTAINS
 
     CALL dbcsr_reserve_blocks(matrix,rows,columns)
 
-    CALL dbcsr_error_stop (error_handle)
+    CALL timestop (error_handle)
 
   END SUBROUTINE dbcsr_reserve_all_blocks
 
@@ -571,7 +575,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler)
+    CALL timeset (routineN, error_handler)
     CALL dbcsr_assert (SIZE(rows), "EQ", SIZE(columns), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
          "Size of rows and columns array must match.", __LINE__)
@@ -676,7 +680,7 @@ CONTAINS
                lb=data_size_old+1, ub=matrix%m%nze)
        ENDIF
     ENDIF
-    CALL dbcsr_error_stop (error_handler)
+    CALL timestop (error_handler)
   END SUBROUTINE dbcsr_reserve_blocks
 
 

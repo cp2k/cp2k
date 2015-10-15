@@ -37,9 +37,9 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
-       dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_mp_hold, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj, &
-       dbcsr_norm_frobenius, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+       dbcsr_distribution_row_dist, dbcsr_mp_hold, dbcsr_mp_npcols, &
+       dbcsr_mp_nprows, dbcsr_mp_obj, dbcsr_norm_frobenius, &
+       dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
        dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
        dbcsr_type_symmetric
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -682,11 +682,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_p, col, col_l, col_size, error_handler, group, handle, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_local, nfullcols_total, &
-      nfullrows_local, nfullrows_total, nrow_block, nrow_global, nze, row, &
-      row_l, row_size
+    INTEGER :: blk_p, col, col_l, col_size, group, handle, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_local, nfullcols_total, nfullrows_local, &
+      nfullrows_total, nrow_block, nrow_global, nze, row, row_l, row_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -704,7 +703,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -842,7 +840,6 @@ CONTAINS
     CALL cp_dbcsr_release (bc_mat)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE copy_fm_to_dbcsr
 
 ! *****************************************************************************
@@ -859,11 +856,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_fm_to_dbcsr_bc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_p, col, col_l, col_size, data_type, error_handler, group, &
-      handle, my_blk, mypcol, myproc, myprow, nblkcols_local, nblkcols_total, &
-      nblkrows_local, nblkrows_total, ncol_block, ncol_global, &
-      nfullcols_local, nfullcols_total, nfullrows_local, nfullrows_total, &
-      nrow_block, nrow_global, numproc, nze, row, row_l, row_size
+    INTEGER :: blk_p, col, col_l, col_size, data_type, group, handle, my_blk, &
+      mypcol, myproc, myprow, nblkcols_local, nblkcols_total, nblkrows_local, &
+      nblkrows_total, ncol_block, ncol_global, nfullcols_local, &
+      nfullcols_total, nfullrows_local, nfullrows_total, nrow_block, &
+      nrow_global, numproc, nze, row, row_l, row_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -883,7 +880,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -1031,7 +1027,6 @@ CONTAINS
     DEALLOCATE(blk_map)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE copy_fm_to_dbcsr_bc
 ! *****************************************************************************
 !> \brief   Copy a BLACS matrix to a dbcsr matrix.
@@ -1059,11 +1054,10 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: blk_1d
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: fm_block
-    INTEGER :: blk_p, col, col_l, col_size, error_handler, group, handle, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_local, nfullcols_total, &
-      nfullrows_local, nfullrows_total, nrow_block, nrow_global, nze, row, &
-      row_l, row_size
+    INTEGER :: blk_p, col, col_l, col_size, group, handle, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_local, nfullcols_total, nfullrows_local, &
+      nfullrows_total, nrow_block, nrow_global, nze, row, row_l, row_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1076,7 +1070,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -1187,7 +1180,6 @@ CONTAINS
     CALL cp_dbcsr_release (bc_mat)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE copy_cfm_to_dbcsr
 ! *****************************************************************************
@@ -1203,10 +1195,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
-      nprow, nrow_block, nrow_global, row
+    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
+      nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1223,7 +1215,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1328,7 +1319,6 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat)
-    CALL dbcsr_error_stop (error_handle)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_fm
@@ -1348,10 +1338,10 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: blk_2d, fm_block
-    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
-      nprow, nrow_block, nrow_global, row
+    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
+      nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1366,7 +1356,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1461,7 +1450,6 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat)
-    CALL dbcsr_error_stop (error_handle)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_cfm
@@ -1478,10 +1466,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: col, error_handle, group, handle, mypcol, mype, myprow, &
-      nblkcols_local, nblkcols_total, nblkrows_local, nblkrows_total, &
-      ncol_block, ncol_global, nfullcols_total, nfullrows_total, npcol, npe, &
-      nprow, nrow_block, nrow_global, row
+    INTEGER :: col, group, handle, mypcol, mype, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, &
+      ncol_global, nfullcols_total, nfullrows_total, npcol, npe, nprow, &
+      nrow_block, nrow_global, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_col, first_row, &
                                                 last_col, last_row, &
                                                 local_col_sizes, &
@@ -1497,7 +1485,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1592,7 +1579,6 @@ CONTAINS
     DEALLOCATE(row_blk_size, col_blk_size)
 
     CALL dbcsr_distribution_release (bc_dist)
-    CALL dbcsr_error_stop (error_handle)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_fm_bc
