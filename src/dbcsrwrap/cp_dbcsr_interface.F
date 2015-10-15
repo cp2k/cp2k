@@ -1218,10 +1218,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_triu', &
       routineP = moduleN//':'//routineN
 
-!CALL cluster_buffer_flush (matrix%buffers)
-
     CALL dbcsr_triu(matrix%matrix)
-    !CALL dbcsr_index_compact(matrix%matrix)
 
   END SUBROUTINE cp_dbcsr_triu
 
@@ -1631,9 +1628,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
-!     IF(matrix_b%ref_count .le. 0)&
-!        CPWARN("Matrix not created.")
-
     IF (matrix_b%ref_count .EQ. 0) THEN
        CALL cp_dbcsr_create (matrix_b, template=matrix_a)
     ENDIF
@@ -1671,9 +1665,6 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_desymmetrize', &
       routineP = moduleN//':'//routineN
-
-!     IF(matrix_b%ref_count .le. 0)&
-!        CPWARN("Matrix not created.")
 
     IF (matrix_b%ref_count .EQ. 0) THEN
        CALL cp_dbcsr_create (matrix_b, template=matrix_a)
@@ -2233,7 +2224,7 @@ CONTAINS
 
     CALL cp_dbcsr_release (matrix)
     IF(cp_dbcsr_valid_index(matrix))&
-       CALL cp_warn(__LOCATION__,&
+       CALL cp_abort(__LOCATION__,&
          'You should not "deallocate" a referenced matrix. '//&
          'Avoid pointers to DBCSR matrices.')
     DEALLOCATE (matrix)
@@ -2266,8 +2257,6 @@ CONTAINS
     ALLOCATE (matrix_set(nmatrix))
     DO imatrix=1,nmatrix
        NULLIFY (matrix_set(imatrix)%matrix)
-       !ALLOCATE (matrix_set(imatrix)%matrix)
-       !CALL cp_dbcsr_init (matrix_set(imatrix)%matrix)
     END DO
   END SUBROUTINE allocate_dbcsr_matrix_set
 
@@ -2294,8 +2283,6 @@ CONTAINS
     DO jmatrix=1,mmatrix
       DO imatrix=1,nmatrix
          NULLIFY (matrix_set(imatrix,jmatrix)%matrix)
-         !ALLOCATE (matrix_set(imatrix,jmatrix)%matrix)
-         !CALL cp_dbcsr_init (matrix_set(imatrix,jmatrix)%matrix)
       END DO
     END DO
   END SUBROUTINE allocate_dbcsr_matrix_set_2d
