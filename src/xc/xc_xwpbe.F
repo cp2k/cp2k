@@ -20,8 +20,6 @@ MODULE xc_xwpbe
   USE mathconstants,                   ONLY: pi,&
                                              rootpi
   USE mathlib,                         ONLY: expint
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&

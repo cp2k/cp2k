@@ -28,8 +28,6 @@ MODULE manybody_eam
                                              eam_pot_type,&
                                              pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

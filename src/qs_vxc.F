@@ -50,8 +50,6 @@ MODULE qs_vxc
                                              qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1

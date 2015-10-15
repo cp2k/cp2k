@@ -20,8 +20,6 @@ MODULE mixed_main
   USE mixed_environment_types,         ONLY: mixed_env_create,&
                                              mixed_environment_type,&
                                              set_mixed_env
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

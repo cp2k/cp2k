@@ -49,8 +49,6 @@ MODULE force_fields
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

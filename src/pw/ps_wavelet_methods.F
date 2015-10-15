@@ -27,8 +27,6 @@ MODULE ps_wavelet_methods
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
   USE pw_types,                        ONLY: pw_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"

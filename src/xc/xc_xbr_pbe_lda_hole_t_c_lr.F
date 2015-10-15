@@ -30,8 +30,6 @@ MODULE xc_xbr_pbe_lda_hole_t_c_lr
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&

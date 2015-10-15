@@ -12,8 +12,6 @@
 
 MODULE tmc_tree_search
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_stati,                       ONLY: TMC_STATUS_WAIT_FOR_NEW_TASK
   USE tmc_tree_references,             ONLY: add_to_references,&
                                              search_and_remove_reference_in_list

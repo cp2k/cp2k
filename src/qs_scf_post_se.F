@@ -56,8 +56,6 @@ MODULE qs_scf_post_se
                                              qs_subsys_type
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

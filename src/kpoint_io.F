@@ -41,8 +41,6 @@ MODULE kpoint_io
                                              qs_kind_type
   USE qs_mo_io,                        ONLY: wfn_restart_file_name
   USE qs_scf_types,                    ONLY: qs_scf_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

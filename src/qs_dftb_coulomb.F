@@ -91,8 +91,6 @@ MODULE qs_dftb_coulomb
        realspace_grid_type, rs2pw, rs_grid_create, rs_grid_release, &
        rs_grid_set_box, rs_grid_zero, rs_pw_transfer
   USE spme,                            ONLY: get_patch
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

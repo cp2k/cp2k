@@ -105,8 +105,6 @@ MODULE qs_scf_initialization
                                              wfi_get_method_label,&
                                              wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: xas_initialize_rho
 #include "./common/cp_common_uses.f90"

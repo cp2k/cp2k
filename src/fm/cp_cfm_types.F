@@ -20,8 +20,6 @@ MODULE cp_cfm_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: cp2k_is_parallel
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

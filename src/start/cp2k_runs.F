@@ -125,8 +125,6 @@ MODULE cp2k_runs
                                              write_html_tables
   USE swarm,                           ONLY: run_swarm
   USE tamc_run,                        ONLY: qs_tamc
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_setup,                       ONLY: do_analyze_files,&
                                              do_tmc
   USE vibrational_analysis,            ONLY: vb_anal

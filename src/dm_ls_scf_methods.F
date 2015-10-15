@@ -32,8 +32,6 @@ MODULE dm_ls_scf_methods
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

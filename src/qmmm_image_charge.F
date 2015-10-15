@@ -64,8 +64,6 @@ MODULE  qmmm_image_charge
                                              rs_grid_release,&
                                              rs_grid_retain,&
                                              rs_pw_transfer
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

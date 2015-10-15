@@ -74,8 +74,6 @@ MODULE fist_force
                                              do_ewald_spme
   USE shell_potential_types,           ONLY: shell_kind_type
   USE spme,                            ONLY: spme_evaluate
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

@@ -22,8 +22,6 @@ MODULE tmc_file_io
                                              default_string_length,&
                                              dp
   USE physcon,                         ONLY: au2a => angstrom
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_analysis_types,              ONLY: tmc_analysis_env
   USE tmc_calculations,                ONLY: get_cell_scaling,&
                                              get_scaled_cell

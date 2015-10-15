@@ -37,8 +37,6 @@ MODULE pw_spline_utils
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

@@ -20,8 +20,6 @@ MODULE virial_methods
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

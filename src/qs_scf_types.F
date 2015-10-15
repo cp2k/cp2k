@@ -38,8 +38,6 @@ MODULE qs_scf_types
                                              fb_env_release
   USE qs_ot_types,                     ONLY: qs_ot_destroy,&
                                              qs_ot_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

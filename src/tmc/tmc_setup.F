@@ -42,8 +42,6 @@ MODULE tmc_setup
                                              delete_rng_stream
   USE physcon,                         ONLY: au2a => angstrom,&
                                              au2bar => bar
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_analysis,                    ONLY: analysis_init,&
                                              analysis_restart_print,&
                                              analysis_restart_read,&

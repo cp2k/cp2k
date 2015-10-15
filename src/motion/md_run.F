@@ -92,8 +92,6 @@ MODULE md_run
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
                                              thermostats_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type

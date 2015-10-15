@@ -49,8 +49,6 @@ MODULE se_fock_matrix_exchange
                                              setup_se_int_control_type
   USE semi_empirical_utils,            ONLY: finalize_se_taper,&
                                              initialize_se_taper
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

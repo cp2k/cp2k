@@ -40,8 +40,6 @@ MODULE matrix_exp
                                              mp_max,&
                                              mp_reordering,&
                                              mp_sum
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

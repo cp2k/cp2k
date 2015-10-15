@@ -68,8 +68,6 @@ MODULE qmmm_create
                                              qs_env_create,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

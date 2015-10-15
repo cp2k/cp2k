@@ -83,8 +83,6 @@ MODULE mp2_ri_grad
                                              rs_grid_retain
   USE rs_pw_interface,                 ONLY: potential_pw2rs
   USE task_list_types,                 ONLY: task_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

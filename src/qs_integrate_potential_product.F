@@ -69,8 +69,6 @@ MODULE qs_integrate_potential_product
   USE task_list_methods,               ONLY: int2pair,&
                                              rs_distribute_matrix
   USE task_list_types,                 ONLY: task_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads

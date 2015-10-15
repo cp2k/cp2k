@@ -30,8 +30,6 @@ MODULE pexsi_types
                                              cp_pexsi_plan_finalize,&
                                              cp_pexsi_plan_initialize,&
                                              cp_pexsi_set_options
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

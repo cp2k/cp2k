@@ -40,8 +40,6 @@ MODULE qs_ot_scf
                                              qs_ot_settings_init,&
                                              qs_ot_type
   USE scf_control_types,               ONLY: smear_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

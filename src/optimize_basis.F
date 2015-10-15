@@ -54,8 +54,6 @@ MODULE optimize_basis
                                              qs_environment_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

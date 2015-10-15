@@ -66,8 +66,6 @@ MODULE qs_rho0_ggrid
        realspace_grid_p_type, realspace_grid_type, rs2pw, rs_grid_create, &
        rs_grid_release, rs_grid_retain, rs_grid_zero, rs_pw_transfer
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

@@ -38,8 +38,6 @@ MODULE qs_dftb3_methods
                                              neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

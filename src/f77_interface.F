@@ -123,8 +123,7 @@ MODULE f77_interface
                                              rm_timer_env,&
                                              timer_env_release,&
                                              timer_env_retain,&
-                                             timeset,&
-                                             timestop
+                                             timings_register_hooks
   USE timings_types,                   ONLY: timer_env_type
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
@@ -209,6 +208,9 @@ CONTAINS
     IF (.NOT. module_initialized) THEN
        ! install error handler hooks
        CALL cp_error_handling_setup()
+
+       ! install timming handler hooks
+       CALL timings_register_hooks()
 
        ! Initialise preconnection list
        CALL init_preconnection_list()

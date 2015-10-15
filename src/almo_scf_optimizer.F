@@ -80,8 +80,6 @@ MODULE almo_scf_optimizer
                                              m_walltime
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

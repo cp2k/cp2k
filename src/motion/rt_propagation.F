@@ -68,8 +68,6 @@ MODULE rt_propagation
   USE rt_propagator_init,              ONLY: init_propagators,&
                                              rt_initialize_rho_from_ks,&
                                              rt_initialize_rho_from_mos
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

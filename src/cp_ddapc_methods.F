@@ -30,8 +30,6 @@ MODULE cp_ddapc_methods
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
   USE pw_types,                        ONLY: pw_type
   USE spherical_harmonics,             ONLY: legendre
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

@@ -20,8 +20,6 @@ MODULE cp_external_control
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_probe
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

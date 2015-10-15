@@ -38,8 +38,6 @@ MODULE cp_fm_types
                                              random_numbers,&
                                              reset_to_next_rng_substream,&
                                              rng_stream_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

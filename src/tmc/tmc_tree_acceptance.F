@@ -17,8 +17,6 @@ MODULE tmc_tree_acceptance
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: boltzmann,&
                                              joule
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_calculations,                ONLY: compute_estimated_prob,&
                                              get_scaled_cell
   USE tmc_dot_tree,                    ONLY: create_dot_color,&

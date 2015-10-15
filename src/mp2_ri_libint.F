@@ -65,8 +65,6 @@ MODULE mp2_ri_libint
                                              qs_kind_type
   USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

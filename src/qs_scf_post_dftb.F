@@ -59,8 +59,6 @@ MODULE qs_scf_post_dftb
                                              qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE qs_scf_wfn_mix,                  ONLY: wfn_mix
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

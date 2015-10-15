@@ -25,8 +25,6 @@ MODULE qs_fb_atomic_halo_types
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: locate,&
                                              sort
 #include "./common/cp_common_uses.f90"

@@ -27,8 +27,6 @@ MODULE qs_fb_distribution_methods
                                              fb_env_obj,&
                                              fb_env_set
   USE qs_kind_types,                   ONLY: qs_kind_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

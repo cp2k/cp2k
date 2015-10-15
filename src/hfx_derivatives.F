@@ -70,8 +70,6 @@ MODULE hfx_derivatives
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
   USE t_c_g0,                          ONLY: init
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
   USE virial_types,                    ONLY: virial_type
 

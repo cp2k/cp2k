@@ -40,8 +40,6 @@ MODULE transport
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE transport_env_types,             ONLY: cp2k_csr_interop_type,&
                                              cp2k_transport_parameters,&
                                              csr_interop_matrix_get_info,&

@@ -30,8 +30,6 @@ MODULE topology_util
   USE string_table,                    ONLY: id2str,&
                                              str2id
   USE string_utilities,                ONLY: uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type

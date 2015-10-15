@@ -123,8 +123,6 @@ MODULE qs_linres_current
                                              int2pair,&
                                              rs_distribute_matrix,&
                                              task_list_inner_loop
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

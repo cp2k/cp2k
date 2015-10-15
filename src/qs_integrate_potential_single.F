@@ -74,8 +74,6 @@ MODULE qs_integrate_potential_single
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scp_vector_type,&
                                              scptb_parameter_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

@@ -63,8 +63,6 @@ MODULE qs_linres_atom_current
   USE sap_kind_types,                  ONLY: alist_pre_align_blk,&
                                              alist_type,&
                                              get_alist
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

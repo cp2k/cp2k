@@ -22,8 +22,6 @@
 ! *****************************************************************************
 
 MODULE tmc_cancelation
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_dot_tree,                    ONLY: create_dot_color
   USE tmc_tree_types,                  ONLY: &
        add_to_list, elem_list_type, status_accepted, status_accepted_result, &

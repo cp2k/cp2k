@@ -25,8 +25,6 @@ MODULE almo_scf_diis_types
                                              set_submatrices
   USE domain_submatrix_types,          ONLY: domain_submatrix_type
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

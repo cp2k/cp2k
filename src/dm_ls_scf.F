@@ -101,8 +101,6 @@ MODULE dm_ls_scf
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
                                              write_mo_free_results
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE transport,                       ONLY: external_scf_method,&
                                              transport_initialize
   USE transport_env_types,             ONLY: transport_env_type

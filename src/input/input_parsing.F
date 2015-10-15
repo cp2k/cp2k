@@ -59,8 +59,6 @@ MODULE input_parsing
                                              max_line_length
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: print_message
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

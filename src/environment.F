@@ -92,8 +92,6 @@ MODULE environment
                                              stop_memory
   USE timings,                         ONLY: add_timer_env,&
                                              rm_timer_env,&
-                                             timeset,&
-                                             timestop,&
                                              timings_setup_tracing
   USE timings_report,                  ONLY: cost_type_energy,&
                                              cost_type_time,&

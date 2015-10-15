@@ -25,8 +25,6 @@ MODULE xc_xbecke88_lr_adiabatic
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi,&
                                              rootpi
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&

@@ -40,8 +40,6 @@ MODULE kg_tnadd_mat
                                              neighbor_list_set_p_type,&
                                              nl_set_sub_iterator,&
                                              nl_sub_iterate
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 

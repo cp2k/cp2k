@@ -22,8 +22,6 @@ MODULE averages_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE md_ener_types,                   ONLY: md_ener_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_create,&
                                              virial_release,&
                                              virial_type

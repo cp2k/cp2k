@@ -30,8 +30,6 @@ MODULE cp_symmetry
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: massunit
   USE string_utilities,                ONLY: uppercase
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

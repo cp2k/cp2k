@@ -39,8 +39,6 @@ MODULE dirichlet_bc_methods
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE
   USE rs_methods,                      ONLY: setup_grid_axes
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

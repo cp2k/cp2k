@@ -6,7 +6,9 @@
                                              cp__w,&
                                              cp__l,&
                                              cp_abort,&
-                                             cp_warn
+                                             cp_warn,&
+                                             timeset,&
+                                             timestop
 
 
 ! Dangerous: Full path can be arbitrarily long and might overflow Fortran line.

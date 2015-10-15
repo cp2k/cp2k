@@ -53,8 +53,6 @@ MODULE input_cp2k
   USE string_utilities,                ONLY: newline,&
                                              s2a
   USE swarm_input,                     ONLY: create_swarm_section
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

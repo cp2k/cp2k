@@ -40,8 +40,6 @@ MODULE qs_vxc_atom
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
   USE xc_atom,                         ONLY: fill_rho_set,&
                                              vxc_of_r_new,&

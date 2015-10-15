@@ -13,6 +13,8 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE timings
+  USE base_hooks,                      ONLY: timeset_hook,&
+                                             timestop_hook
   USE cuda_profiling,                  ONLY: cuda_mem_info,&
                                              cuda_nvtx_range_pop,&
                                              cuda_nvtx_range_push
@@ -48,8 +50,7 @@ MODULE timings
   IMPLICIT NONE
   PRIVATE
 
-  ! the famous routines
-  PUBLIC :: timeset, timestop, print_stack
+  PUBLIC :: print_stack, timings_register_hooks
 
   ! these routines are currently only used by environment.F and f77_interface.F
   PUBLIC :: add_timer_env, rm_timer_env, get_timer_env
@@ -61,6 +62,15 @@ MODULE timings
   TYPE(list_timerenv_type), SAVE, PRIVATE                  :: timers_stack
 
   CONTAINS
+
+! *****************************************************************************
+!> \brief Registers handlers with base_hooks.F
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE timings_register_hooks()
+    timeset_hook => timeset_handler
+    timestop_hook => timestop_handler
+  END SUBROUTINE timings_register_hooks
 
 ! *****************************************************************************
 !> \brief adds the given timer_env to the top of the stack
@@ -193,7 +203,7 @@ MODULE timings
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timeset(routineN, handle)
+  SUBROUTINE timeset_handler(routineN, handle)
     CHARACTER(LEN=*), INTENT(IN)             :: routineN
     INTEGER, INTENT(OUT)                     :: handle
 
@@ -258,7 +268,7 @@ MODULE timings
 
 
 
-  END SUBROUTINE timeset
+  END SUBROUTINE timeset_handler
 
 ! *****************************************************************************
 !> \brief End timer
@@ -267,7 +277,7 @@ MODULE timings
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE timestop(handle)
+  SUBROUTINE timestop_handler(handle)
     INTEGER, INTENT(in)                      :: handle
 
     CHARACTER(LEN=400)                       :: line, mystring
@@ -363,7 +373,7 @@ MODULE timings
 !$OMP END CRITICAL(time_setstop)
 !$OMP END MASTER
 
-  END SUBROUTINE timestop
+  END SUBROUTINE timestop_handler
 
 ! *****************************************************************************
 !> \brief Set routine tracer

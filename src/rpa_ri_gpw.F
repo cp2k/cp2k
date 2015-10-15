@@ -55,8 +55,6 @@ MODULE rpa_ri_gpw
   USE rpa_communication,               ONLY: fm_redistribute,&
                                              initialize_buffer,&
                                              release_buffer
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

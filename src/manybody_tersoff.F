@@ -21,8 +21,6 @@ MODULE manybody_tersoff
                                              pair_potential_single_type,&
                                              tersoff_pot_type,&
                                              tersoff_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

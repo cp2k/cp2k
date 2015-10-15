@@ -105,8 +105,6 @@ MODULE mp2_gpw
   USE task_list_types,                 ONLY: allocate_task_list,&
                                              deallocate_task_list,&
                                              task_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

@@ -30,8 +30,6 @@ MODULE dm_ls_chebyshev
                                              m_walltime
   USE mathconstants,                   ONLY: pi
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

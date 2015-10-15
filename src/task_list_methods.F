@@ -59,8 +59,6 @@ MODULE task_list_methods
                                              rs_grid_release,&
                                              rs_grid_reorder_ranks
   USE task_list_types,                 ONLY: task_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&

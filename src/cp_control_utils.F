@@ -53,8 +53,6 @@ MODULE cp_control_utils
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivatives,                  ONLY: xc_functionals_get_needs
   USE xc_input_constants,              ONLY: xc_deriv_collocate
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type

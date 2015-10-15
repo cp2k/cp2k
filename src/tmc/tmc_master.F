@@ -28,8 +28,6 @@ MODULE tmc_master
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_calculations,                ONLY: get_subtree_efficiency
   USE tmc_cancelation,                 ONLY: free_cancelation_list
   USE tmc_dot_tree,                    ONLY: create_dot_color,&

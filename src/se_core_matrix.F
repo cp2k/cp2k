@@ -58,8 +58,6 @@ MODULE se_core_matrix
   USE semi_empirical_types,            ONLY: get_se_param,&
                                              semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

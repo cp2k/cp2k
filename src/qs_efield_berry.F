@@ -75,8 +75,6 @@ MODULE qs_efield_berry
   USE qs_period_efield_types,          ONLY: efield_berry_type,&
                                              init_efield_matrices,&
                                              set_efield_matrices
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

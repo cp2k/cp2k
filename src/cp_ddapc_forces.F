@@ -38,8 +38,6 @@ MODULE cp_ddapc_forces
   USE qs_force_types,                  ONLY: qs_force_type
   USE spherical_harmonics,             ONLY: dlegendre,&
                                              legendre
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 !NB for reducing results of calculations that use dq, which is now spread over nodes
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

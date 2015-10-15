@@ -50,8 +50,6 @@ MODULE tmc_worker
                                              next_random_number,&
                                              set_rng_stream
   USE particle_list_types,             ONLY: particle_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_analysis,                    ONLY: analysis_init,&
                                              analysis_restart_print,&
                                              analysis_restart_read,&

@@ -102,8 +102,6 @@ MODULE xas_methods
                                              scf_c_read_parameters,&
                                              scf_c_release,&
                                              scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xas_control,                     ONLY: read_xas_control,&
                                              write_xas_control,&
                                              xas_control_create,&

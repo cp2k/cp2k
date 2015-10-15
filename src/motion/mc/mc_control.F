@@ -51,8 +51,6 @@ MODULE mc_control
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 

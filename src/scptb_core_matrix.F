@@ -49,8 +49,6 @@ MODULE scptb_core_matrix
   USE scptb_types,                     ONLY: get_scptb_parameter,&
                                              scptb_parameter_p_type,&
                                              scptb_parameter_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

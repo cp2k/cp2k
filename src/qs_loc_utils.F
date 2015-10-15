@@ -85,8 +85,6 @@ MODULE qs_loc_utils
                                              neighbor_list_set_p_type
   USE qs_scf_types,                    ONLY: ot_method_nr
   USE scf_control_types,               ONLY: scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

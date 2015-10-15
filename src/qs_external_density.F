@@ -34,8 +34,6 @@ MODULE qs_external_density
                                              rs_grid_create,&
                                              rs_grid_zero
   USE rs_pw_interface,                 ONLY: density_rs2pw
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

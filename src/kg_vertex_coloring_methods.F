@@ -30,8 +30,6 @@ MODULE kg_vertex_coloring_methods
                                              valt
   USE kinds,                           ONLY: int_4,&
                                              int_8
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

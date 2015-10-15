@@ -14,8 +14,6 @@
 MODULE xc_tfw
   USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_get_derivative
   USE xc_derivative_types,             ONLY: xc_derivative_get,&

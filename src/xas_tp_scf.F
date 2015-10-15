@@ -89,8 +89,6 @@ MODULE xas_tp_scf
                                              qs_scf_env_type,&
                                              scf_env_release
   USE scf_control_types,               ONLY: scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xas_control,                     ONLY: xas_control_type
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              set_xas_env,&

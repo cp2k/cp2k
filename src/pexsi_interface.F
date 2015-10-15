@@ -23,8 +23,6 @@ MODULE pexsi_interface
 #endif
   USE kinds,                           ONLY: int_8,&
                                              real_8
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

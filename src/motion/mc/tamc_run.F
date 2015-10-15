@@ -126,8 +126,6 @@ MODULE tamc_run
   USE thermostat_methods,              ONLY: create_thermostats
   USE thermostat_types,                ONLY: release_thermostats,&
                                              thermostats_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
   USE wiener_process,                  ONLY: create_wiener_process,&

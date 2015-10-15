@@ -30,8 +30,6 @@ MODULE mscfg_types
 !cp_dbcsr_nblkrows_total, cp_dbcsr_print, &
 !dbcsr_mp_group, dbcsr_mp_numnodes, dbcsr_norm_maxabsnorm, &
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

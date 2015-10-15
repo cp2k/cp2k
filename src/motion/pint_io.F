@@ -41,8 +41,6 @@ MODULE pint_io
                                              e_kin_virial_id,&
                                              e_potential_id,&
                                              pint_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

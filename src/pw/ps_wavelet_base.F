@@ -14,8 +14,6 @@ MODULE ps_wavelet_base
   USE ps_wavelet_fft3d,                ONLY: ctrig,&
                                              ctrig_length,&
                                              fftstp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

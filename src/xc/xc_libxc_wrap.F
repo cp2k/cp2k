@@ -66,8 +66,6 @@ MODULE xc_libxc_wrap
                                              XC_MGGA_X_MS2H,&
                                              XC_MGGA_X_TB09
   USE kinds,                           ONLY: dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_f90_lib_m,                    ONLY: xc_f90_func_end,&
                                              xc_f90_func_init,&
                                              xc_f90_functional_get_number,&

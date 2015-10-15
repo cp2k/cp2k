@@ -41,8 +41,6 @@ MODULE core_ppnl
                                              release_sap_int,&
                                              sap_int_type,&
                                              sap_sort
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 

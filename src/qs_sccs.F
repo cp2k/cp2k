@@ -93,8 +93,6 @@ MODULE qs_sccs
   USE rs_methods,                      ONLY: derive_fdm_cd3,&
                                              derive_fdm_cd5,&
                                              derive_fdm_cd7
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

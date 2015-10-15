@@ -24,8 +24,6 @@ MODULE qs_mo_occupation
                                              mo_set_type,&
                                              set_mo_set
   USE scf_control_types,               ONLY: smear_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              xas_environment_type

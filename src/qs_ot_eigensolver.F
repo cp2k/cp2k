@@ -35,8 +35,6 @@ MODULE qs_ot_eigensolver
                                              qs_ot_settings_init,&
                                              qs_ot_settings_type,&
                                              qs_ot_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

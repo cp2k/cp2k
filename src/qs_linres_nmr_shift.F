@@ -72,8 +72,6 @@ MODULE qs_linres_nmr_shift
                                              nmr_env_type
   USE qs_rho_types,                    ONLY: qs_rho_get
   USE realspace_grid_types,            ONLY: realspace_grid_desc_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

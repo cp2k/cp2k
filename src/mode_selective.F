@@ -45,8 +45,6 @@ MODULE mode_selective
                                              vibfac
   USE replica_methods,                 ONLY: rep_env_calc_e_f
   USE replica_types,                   ONLY: replica_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

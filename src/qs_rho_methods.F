@@ -51,8 +51,6 @@ MODULE qs_rho_methods
                                              qs_rho_set,&
                                              qs_rho_type
   USE task_list_types,                 ONLY: task_list_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

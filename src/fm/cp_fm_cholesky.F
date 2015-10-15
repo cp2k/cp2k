@@ -14,8 +14,6 @@ MODULE cp_fm_cholesky
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE kinds,                           ONLY: dp,&
                                              sp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

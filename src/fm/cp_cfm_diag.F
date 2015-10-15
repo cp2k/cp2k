@@ -21,8 +21,6 @@ MODULE cp_cfm_diag
                                              dp_size,&
                                              int_size
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #if defined (__HAS_IEEE_EXCEPTIONS)
   USE ieee_exceptions,                 ONLY: ieee_get_halting_mode,&
                                              ieee_set_halting_mode,&

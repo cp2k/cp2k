@@ -18,8 +18,6 @@
 ! *****************************************************************************
 
 MODULE tmc_tree_references
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_cancelation,                 ONLY: add_to_canceling_list
   USE tmc_tree_types,                  ONLY: global_tree_type,&
                                              gt_elem_list_type,&

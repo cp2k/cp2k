@@ -60,8 +60,6 @@ MODULE qs_rho_atom_methods
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_deallocate,&
                                              clebsch_gordon_init
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
   USE whittaker,                       ONLY: whittaker_c0a,&
                                              whittaker_ci

@@ -48,8 +48,6 @@ MODULE topology
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_amber,                  ONLY: read_connectivity_amber,&
                                              read_coordinate_crd
   USE topology_cif,                    ONLY: read_coordinate_cif

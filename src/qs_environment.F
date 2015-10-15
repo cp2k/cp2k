@@ -176,8 +176,6 @@ MODULE qs_environment
   USE semi_empirical_types,            ONLY: se_taper_create,&
                                              se_taper_type
   USE semi_empirical_utils,            ONLY: se_cutoff_compatible
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE transport,                       ONLY: transport_env_create
 !  USE xas_control,                     ONLY: write_xas_control
 #include "./common/cp_common_uses.f90"

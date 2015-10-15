@@ -83,8 +83,6 @@ MODULE qs_initial_guess
                                              qs_scf_env_type
   USE qs_wf_history_methods,           ONLY: wfi_update
   USE scf_control_types,               ONLY: scf_control_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

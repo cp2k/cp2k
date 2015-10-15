@@ -18,8 +18,6 @@ MODULE particle_types
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

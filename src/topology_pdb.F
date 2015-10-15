@@ -73,8 +73,6 @@ MODULE topology_pdb
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
 #include "./common/cp_common_uses.f90"

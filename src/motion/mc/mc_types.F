@@ -54,8 +54,6 @@ MODULE mc_types
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 

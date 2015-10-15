@@ -56,8 +56,6 @@ MODULE pw_grids
                                              PW_MODE_LOCAL,&
                                              map_pn,&
                                              pw_grid_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit,&
                                              sort
 #include "../common/cp_common_uses.f90"

@@ -19,8 +19,6 @@ MODULE qmmm_topology_util
                                              s2s,&
                                              str2id
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_types,                  ONLY: topology_parameters_type
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

@@ -92,8 +92,6 @@ MODULE scptb_ks_matrix
        scp_vector_create, scp_vector_dot, scp_vector_mult, scp_vector_p_type, &
        scp_vector_release, scp_vector_set, scp_vector_type, &
        scptb_parameter_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"

@@ -31,8 +31,6 @@ MODULE wannier_states
                                              dp
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE wannier_states_types,            ONLY: wannier_centres_type
 !!!! this ones are needed to mapping
 #include "./common/cp_common_uses.f90"

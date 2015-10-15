@@ -88,8 +88,6 @@ MODULE hfx_energy_potential
   USE qs_ks_types,                     ONLY: get_ks_env,&
                                              qs_ks_env_type
   USE t_c_g0,                          ONLY: init
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: sort
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads

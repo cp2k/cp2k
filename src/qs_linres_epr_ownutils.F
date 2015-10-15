@@ -75,8 +75,6 @@ MODULE qs_linres_epr_ownutils
                                              qs_rho_p_type,&
                                              qs_rho_type
   USE realspace_grid_types,            ONLY: realspace_grid_desc_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: get_limit
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

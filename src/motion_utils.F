@@ -42,8 +42,6 @@ MODULE motion_utils
   USE particle_methods,                ONLY: write_particle_coordinates
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE virial_types,                    ONLY: virial_type
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

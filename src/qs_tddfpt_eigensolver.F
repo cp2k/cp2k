@@ -48,8 +48,6 @@ MODULE qs_tddfpt_eigensolver
   USE qs_tddfpt_utils,                 ONLY: co_initial_guess,&
                                              normalize,&
                                              reorthogonalize
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

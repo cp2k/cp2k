@@ -86,8 +86,6 @@ MODULE qs_energy_utils
   USE scptb_core_matrix,               ONLY: build_scptb_core_matrix
   USE se_core_core,                    ONLY: se_core_core_interaction
   USE se_core_matrix,                  ONLY: build_se_core_matrix
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xas_methods,                     ONLY: xas
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"

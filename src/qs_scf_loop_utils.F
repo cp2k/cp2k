@@ -60,8 +60,6 @@ MODULE qs_scf_loop_utils
                                              special_diag_method_nr
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

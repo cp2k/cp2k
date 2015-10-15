@@ -28,8 +28,6 @@ MODULE tmc_calculations
                                              set_rng_stream
   USE physcon,                         ONLY: boltzmann,&
                                              joule
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_move_types,                  ONLY: mv_type_MD
   USE tmc_stati,                       ONLY: task_type_MC,&
                                              task_type_gaussian_adaptation,&

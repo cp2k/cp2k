@@ -33,8 +33,6 @@ MODULE topology_amber
   USE string_table,                    ONLY: id2str,&
                                              s2s,&
                                              str2id
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE topology_generate_util,          ONLY: topology_generate_molname
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&

@@ -11,8 +11,6 @@ MODULE xc_derivatives
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc_b97,                          ONLY: b97_lda_eval,&
                                              b97_lda_info,&
                                              b97_lsd_eval,&

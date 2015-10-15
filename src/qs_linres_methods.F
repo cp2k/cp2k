@@ -111,8 +111,6 @@ MODULE qs_linres_methods
                                              qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
   USE string_utilities,                ONLY: xstring
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv,&
                                              xc_prep_2nd_deriv
   USE xc_derivatives,                  ONLY: xc_functionals_get_needs

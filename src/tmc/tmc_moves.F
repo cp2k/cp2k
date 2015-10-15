@@ -24,8 +24,6 @@ MODULE tmc_moves
                                              set_rng_stream
   USE physcon,                         ONLY: boltzmann,&
                                              joule
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE tmc_calculations,                ONLY: center_of_mass,&
                                              geometrical_center,&
                                              get_scaled_cell,&

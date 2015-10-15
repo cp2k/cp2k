@@ -22,8 +22,6 @@ MODULE lri_os_integrals
                                              overlap_ab_test,&
                                              overlap_abc_test
   USE orbital_pointers,                ONLY: ncoset
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

@@ -71,8 +71,6 @@ MODULE md_vel_utils
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: thermal_region_type,&
                                              thermal_regions_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

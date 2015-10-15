@@ -57,8 +57,6 @@ MODULE replica_methods
                                              rep_envs_add_rep_env,&
                                              rep_envs_get_rep_env,&
                                              replica_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

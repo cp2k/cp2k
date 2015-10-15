@@ -45,8 +45,6 @@ MODULE fft_tools
        mp_comm_compare, mp_comm_free, mp_comm_null, mp_environ, mp_irecv, &
        mp_isend, mp_rank_compare, mp_sum, mp_sync, mp_waitall
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 

@@ -41,8 +41,6 @@ MODULE thermostat_mapping
                                              molecule_type
   USE simpar_types,                    ONLY: simpar_type
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE util,                            ONLY: locate,&
                                              sort
 #include "../../common/cp_common_uses.f90"

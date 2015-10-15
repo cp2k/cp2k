@@ -131,8 +131,6 @@ MODULE qs_collocate_density
                                              rs_distribute_matrix
   USE task_list_types,                 ONLY: task_list_type
   USE termination,                     ONLY: stop_memory
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 

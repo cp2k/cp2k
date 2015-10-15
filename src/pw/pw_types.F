@@ -25,9 +25,7 @@ MODULE pw_types
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
                                              pw_grid_retain
-  USE timings,                         ONLY: print_stack,&
-                                             timeset,&
-                                             timestop
+  USE timings,                         ONLY: print_stack
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

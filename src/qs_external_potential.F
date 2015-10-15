@@ -38,8 +38,6 @@ MODULE qs_external_potential
                                              qs_kind_type
   USE realspace_grid_cube,             ONLY: cube_to_pw
   USE string_utilities,                ONLY: compress
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

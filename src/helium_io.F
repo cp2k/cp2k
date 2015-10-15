@@ -37,8 +37,6 @@ MODULE helium_io
   USE machine,                         ONLY: m_flush
   USE message_passing,                 ONLY: mp_gather,&
                                              mp_sum
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

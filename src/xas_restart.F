@@ -56,8 +56,6 @@ MODULE xas_restart
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: xstring
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              set_xas_env,&
                                              xas_environment_type

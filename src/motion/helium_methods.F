@@ -61,8 +61,6 @@ MODULE helium_methods
   USE splines_types,                   ONLY: spline_data_create,&
                                              spline_data_release,&
                                              spline_data_retain
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

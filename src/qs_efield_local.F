@@ -51,8 +51,6 @@ MODULE qs_efield_local
                                              set_efield_matrices
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 

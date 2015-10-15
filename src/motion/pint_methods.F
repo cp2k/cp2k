@@ -95,8 +95,6 @@ MODULE pint_methods
                                              rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
                                              replica_env_type
-  USE timings,                         ONLY: timeset,&
-                                             timestop
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 

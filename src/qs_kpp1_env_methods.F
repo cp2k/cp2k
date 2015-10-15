@@ -72,8 +72,6 @@ MODULE qs_kpp1_env_methods
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
-  USE timings,                         ONLY: timeset,&
-                                             timestop
   USE xc,                              ONLY: xc_calc_2nd_deriv,&
                                              xc_prep_2nd_deriv
   USE xc_derivative_set_types,         ONLY: xc_dset_release
