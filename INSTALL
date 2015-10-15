@@ -101,10 +101,10 @@ cp2k/tools/hfx_tools/libint_tools/README_LIBINT
 Tested against libinit-1.1.4 and currently hardcoded to the default angular momentum LIBINT_MAX_AM 5
 -D__LIBINT_MAX_AM and -D__LIBDERIV_MAX_AM1 can be used to change these defaults (see README_LIBINT).
 (check your include/libint/libint.h to see if it matches)
-http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download
-Note that you should **NOT** use libinit-1.1.3.
 -D__MAX_CONTR=4 (default=2) can be used to compile efficient contraction kernels up to l=4,
 will take longer to compile.
+http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download
+Note Do **NOT** use libinit-1.1.3, which was buggy.
 
 ==== 2h. libsmm (optional, improved performance for matrix multiplication) ====
   * A library for small matrix multiplies can be built from the included
