@@ -118,7 +118,8 @@ CONTAINS
     IF(ASSOCIATED(timestop_hook)) THEN
        CALL timestop_hook(handle)
     ELSE
-       IF(handle/=-1) CALL cp_abort("base_hooks::timestop","Got wrong handle")
+       IF(handle/=-1) &
+          CALL cp_abort(cp__l("base_hooks.F",__LINE__),"Got wrong handle")
     ENDIF
   END SUBROUTINE timestop
 
