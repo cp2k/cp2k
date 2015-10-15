@@ -13,11 +13,13 @@
 !> - Created 2011-04-05
 ! *****************************************************************************
 MODULE dbcsr_config
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_fatal_level, dbcsr_wrong_args_error, &
-       external_timeset, external_timestop, timeset_interface, &
-       timestop_interface
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_error_type,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_wrong_args_error
   USE kinds,                           ONLY: dp
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -43,10 +45,8 @@ MODULE dbcsr_config
   PUBLIC :: dbcsr_set_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_filtering
   PUBLIC :: dbcsr_set_conf_use_comm_thread, dbcsr_get_conf_use_comm_thread
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_get_conf_comm_thread_load
-  PUBLIC :: dbcsr_set_conf_external_timing
   PUBLIC :: dbcsr_get_conf_max_ele_block, dbcsr_set_conf_max_ele_block
   PUBLIC :: dbcsr_get_conf_randmat_seed, dbcsr_set_conf_randmat_seed
-  
 
   ! These are for DBCSR internal use.
   !
@@ -624,30 +624,6 @@ CONTAINS
           driver_is_async = .TRUE.
     END SELECT
   END FUNCTION driver_is_async
-
-! *****************************************************************************
-!> \brief Set the callback routines for the external timing hooks.
-!> \param timeset ...
-!> \param timestop ...
-!> \param error ...
-!> \date    2012-12-20
-!> \author  Ole Schuett
-!>
-!> \note <b>Modification history:</b>
-!> \note - Created 2012-12-20
-! *****************************************************************************
-  SUBROUTINE dbcsr_set_conf_external_timing(timeset, timestop, error)
-    PROCEDURE (timeset_interface)            :: timeset
-    PROCEDURE (timestop_interface)           :: timestop
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
-
-! no call to dbcsr_error_set / dbcsr_error_stop here,
-! otherwise thie would lead to mismatched calls to timeset/timestop
-
-    external_timeset  => timeset
-    external_timestop => timestop
-                
-  END SUBROUTINE dbcsr_set_conf_external_timing
 
 ! *****************************************************************************
 !> \brief Configure DBCSR driver with default values.

@@ -12,13 +12,7 @@
 ! *****************************************************************************
 MODULE dbcsr_error_handling
 
-  USE kinds,                           ONLY: default_string_length
-  USE machine,                         ONLY: default_output_unit,&
-                                             m_flush
-  USE message_passing,                 ONLY: mp_abort
-
-  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
-
+#include "../../base/base_uses.f90"
   IMPLICIT NONE
   PRIVATE
 
@@ -32,10 +26,6 @@ MODULE dbcsr_error_handling
   PUBLIC :: dbcsr_caller_error, dbcsr_wrong_args_error,&
             dbcsr_internal_error,&
             dbcsr_unimplemented_error_nr
-
-  ! external timing hooks
-  PUBLIC :: external_timeset, external_timestop
-  PUBLIC :: timeset_interface, timestop_interface
 
   ! interfaces
   INTERFACE dbcsr_assert
@@ -78,47 +68,12 @@ MODULE dbcsr_error_handling
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_error_handling'
 
 ! *****************************************************************************
-!> \brief stack fo the error type (DBCSR library)
-! *****************************************************************************
-  TYPE dbcsr_error_stack_type
-     INTEGER :: level = 0
-     CHARACTER(len=default_string_length) :: pre = ''
-     CHARACTER(len=default_string_length) :: post = ''
-     CHARACTER(len=default_string_length), DIMENSION(dbcsr_error_stack_size) :: s = ''
-     INTEGER, DIMENSION(dbcsr_error_stack_size) :: handler = 0
-     INTEGER, DIMENSION(dbcsr_error_stack_size) :: external_handler = 0
-  END TYPE dbcsr_error_stack_type
-
-! *****************************************************************************
 !> \brief error type for the DBCSR library
 ! *****************************************************************************
   TYPE dbcsr_error_type
-     INTEGER :: etype = 0
-     INTEGER :: line = 0
-     INTEGER :: level = 0
-     CHARACTER(len=default_string_length) :: msg
-     CHARACTER(len=default_string_length) :: routine
-     TYPE(dbcsr_error_stack_type) :: stack
+     PRIVATE
+     INTEGER :: dummy = 42 ! empty types confuse some compilers
   END TYPE dbcsr_error_type
-
-
-  ! external timing hooks
-  ! this interface (with subroutines in it) musst to be defined right before
-  ! the regular subroutines/functions - otherwise prettify.py will screw up.
-  INTERFACE
-    SUBROUTINE timeset_interface(routineN, handle)
-    CHARACTER(LEN=*), INTENT(IN)             :: routineN
-    INTEGER, INTENT(OUT)                     :: handle
-
-    END SUBROUTINE timeset_interface
-    SUBROUTINE timestop_interface(handle)
-    INTEGER, INTENT(IN)                      :: handle
-
-    END SUBROUTINE timestop_interface
-  END INTERFACE
-
-  PROCEDURE(timeset_interface), POINTER  :: external_timeset  => NULL()
-  PROCEDURE(timestop_interface), POINTER :: external_timestop => NULL()
 
 CONTAINS
 
@@ -133,20 +88,8 @@ CONTAINS
     INTEGER, INTENT(out)                     :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_error_set', &
-      routineP = moduleN//':'//routineN
+    CALL timeset(name, handler)
 
-!$OMP MASTER
-    error%stack%level = error%stack%level + 1
-    IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
-       error%stack%level.LT.1) CALL dbcsr_abort(routineP,__LINE__,"",error)
-
-    error%stack%s(error%stack%level) = name
-    handler = error%stack%level
-    error%stack%handler(error%stack%level) = handler
-    IF (ASSOCIATED(external_timeset)) &
-       CALL external_timeset(name, error%stack%external_handler(error%stack%level) )
-!$OMP END MASTER
   END SUBROUTINE dbcsr_error_set
 
 ! *****************************************************************************
@@ -158,78 +101,10 @@ CONTAINS
     INTEGER, INTENT(inout)                   :: handler
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_error_stop', &
-      routineP = moduleN//':'//routineN
+    CALL timestop(handler)
 
-!$OMP MASTER
-    IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
-       error%stack%level.LT.1) THEN
-       WRITE(*,*) 'dbcsr_error_stop'
-       WRITE(*,*) 'level=',error%stack%level
-       WRITE(*,*) 'dbcsr_error_stack_size=',dbcsr_error_stack_size
-       CALL dbcsr_abort(routineP,__LINE__,"",error)
-    ENDIF
-    IF(handler.NE.error%stack%handler(error%stack%level)) THEN
-       WRITE(*,*) 'get handler=',handler
-       WRITE(*,*) 'expected handler=',error%stack%handler(error%stack%level)
-       WRITE(*,*) 'you may have forget to call dbcsr_error_stop (may be a RETURN)...'
-       CALL dbcsr_abort_low (error%stack%level, dbcsr_failure_level, error%routine,&
-            "", error%line, error)
-    ENDIF
-    IF (ASSOCIATED(external_timestop)) &
-       CALL external_timestop(error%stack%external_handler(error%stack%level) )
-    error%stack%s(error%stack%level) = ''
-    error%stack%handler(error%stack%level) = 0
-    error%stack%level = error%stack%level - 1
-    ! destroy the handler for any case
-    handler = -HUGE(0)
-!$OMP END MASTER
   END SUBROUTINE dbcsr_error_stop
 
-! *****************************************************************************
-!> \brief stop the error
-!> \param[inout] error   dbcsr error
-!> \param output_unit ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_error_print_stack(error, output_unit)
-    TYPE(dbcsr_error_type)                   :: error
-    INTEGER, INTENT(in)                      :: output_unit
-
-    INTEGER                                  :: ilevel
-
-    IF(error%stack%level.GT.dbcsr_error_stack_size.OR.&
-       error%stack%level.LT.1) THEN
-       WRITE(*,*) 'dbcsr_error_print_stack'
-       WRITE(*,*) 'error%msg=',error%msg
-       WRITE(*,*) 'error%routine=',error%routine
-       WRITE(*,*) 'error%etype=',error%etype
-       WRITE(*,*) 'error%level=',error%level
-       WRITE(*,*) 'error%line=',error%line
-       WRITE(*,*) 'error%stack%level=',error%stack%level
-       WRITE(*,*) 'dbcsr_error_stack_size=',dbcsr_error_stack_size
-       RETURN
-    ENDIF
-
-    WRITE(output_unit,'(A)') ''
-    WRITE(output_unit,'(A)') ''
-    IF(LEN_TRIM(error%stack%pre).GT.0) &
-         WRITE(output_unit,'(T3,A,A)') 'prestack: ',TRIM(error%stack%pre)
-    WRITE(output_unit,'(T3,A)') 'stack: '
-
-    WRITE(output_unit,'(T3,A,A,A,I5,A,I3)') 'error in ',&
-         TRIM(error%routine),' at line ',error%line,' with error type ',error%etype
-    IF(LEN_TRIM(error%msg).GT.0)WRITE(output_unit,'(T3,A,A)') 'message: ',TRIM(error%msg)
-    WRITE(output_unit,'(T3,I3,3A,I5)') error%stack%level,' error in ',&
-         TRIM(error%stack%s(error%stack%level)),' at line ',error%line
-    DO ilevel = error%stack%level-1,1,-1
-       WRITE(output_unit,'(T3,I3,A,A)') ilevel,' called from ',TRIM(error%stack%s(ilevel))
-    ENDDO
-    IF(LEN_TRIM(error%stack%post).GT.0) &
-         WRITE(output_unit,'(T3,A,A)') 'poststack: ',TRIM(error%stack%post)
-    WRITE(output_unit,'(A)') ''
-    WRITE(output_unit,'(A)') ''
-    CALL m_flush(output_unit)
-  END SUBROUTINE dbcsr_error_print_stack
 
 ! *****************************************************************************
 !> \brief ...
@@ -265,27 +140,12 @@ CONTAINS
     INTEGER, INTENT(in)                      :: line
     TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    INTEGER                                  :: output_unit
-
-    error%msg = msg
-    error%routine = routine
-    error%etype = etype
-    error%level = level
-    error%line = line
-    !
-    ! set for the moment the output units to the default one
-    output_unit = default_output_unit
-    !
-    ! print the stack
-    CALL dbcsr_error_print_stack(error, output_unit)
-    !
-    ! abort if needed
-    IF(error%level.NE.dbcsr_warning_level) THEN
-       ! Segmentation faults can be handy for debugging.
-       !WRITE(*,*)error%stack%handler(-line - 666)
-       CALL mp_abort()
+    IF(level==dbcsr_warning_level) THEN
+       CALL cp_warn(cp__l(routine, line), msg)
+    ELSE
+       CALL cp_abort(cp__l(routine, line), msg)
     ENDIF
-    !
+
   END SUBROUTINE dbcsr_abort_low
 
 ! *****************************************************************************

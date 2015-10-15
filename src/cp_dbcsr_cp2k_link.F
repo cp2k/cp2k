@@ -30,13 +30,13 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, &
        dbcsr_get_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_rma, &
        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_filtering, &
-       dbcsr_set_conf_use_mpi_rma, dbcsr_type_no_symmetry, has_acc, has_mpi, &
-       mm_driver_acc, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_set_conf_use_mpi_filtering, dbcsr_set_conf_use_mpi_rma, &
+       dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
+       mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -90,11 +90,6 @@ CONTAINS
                                                 use_mpi_filtering, use_mpi_rma
     TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(section_vals_type), POINTER         :: dbcsr_section
-
-! need to call dbcsr_set_conf_external_timing() before dbcsr_error_set()
-! otherwise this would lead to mismatched calls to timeset/timestop
-
-    CALL dbcsr_set_conf_external_timing(timeset, timestop, error=dbcsr_error)
 
     CALL dbcsr_error_set (routineN, error_handle, dbcsr_error)
     dbcsr_section => section_vals_get_subs_vals(root_section,&

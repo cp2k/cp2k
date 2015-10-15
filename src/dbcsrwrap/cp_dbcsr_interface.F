@@ -75,18 +75,18 @@ MODULE cp_dbcsr_interface
        dbcsr_scalar_get_value, dbcsr_scalar_set_type, dbcsr_scalar_type, &
        dbcsr_scalar_zero, dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, &
        dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_comm_thread_load, &
-       dbcsr_set_conf_external_timing, dbcsr_set_conf_max_ele_block, &
-       dbcsr_set_conf_mm_driver, dbcsr_set_conf_mm_stacksize, &
-       dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, &
-       dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_filtering, &
-       dbcsr_set_conf_use_mpi_rma, dbcsr_set_diag, dbcsr_setname, &
-       dbcsr_sum_replicated, dbcsr_test_arnoldi, dbcsr_test_binary_io, &
-       dbcsr_test_mm, dbcsr_trace, dbcsr_triu, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, &
-       dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_real_default, dbcsr_type_symmetric, &
-       dbcsr_valid_index, dbcsr_verify_matrix, dbcsr_wm_use_mutable, &
-       dbcsr_work_create, deallocate_arnoldi_data, get_selected_ritz_val, &
+       dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver, &
+       dbcsr_set_conf_mm_stacksize, dbcsr_set_conf_nstacks, &
+       dbcsr_set_conf_randmat_seed, dbcsr_set_conf_use_comm_thread, &
+       dbcsr_set_conf_use_mpi_filtering, dbcsr_set_conf_use_mpi_rma, &
+       dbcsr_set_diag, dbcsr_setname, dbcsr_sum_replicated, &
+       dbcsr_test_arnoldi, dbcsr_test_binary_io, dbcsr_test_mm, dbcsr_trace, &
+       dbcsr_triu, dbcsr_type_antisymmetric, dbcsr_type_complex_4, &
+       dbcsr_type_complex_8, dbcsr_type_complex_default, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index, &
+       dbcsr_verify_matrix, dbcsr_wm_use_mutable, dbcsr_work_create, &
+       deallocate_arnoldi_data, get_selected_ritz_val, &
        get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, &
        heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
@@ -113,7 +113,7 @@ MODULE cp_dbcsr_interface
   PUBLIC :: dbcsr_error_set, dbcsr_error_stop, dbcsr_get_conf_comm_thread_load,&
             dbcsr_get_conf_avg_elements_images,&
             dbcsr_get_conf_mm_stacksize, dbcsr_get_conf_nstacks,&
-            dbcsr_set_conf_external_timing, dbcsr_set_conf_mm_stacksize,&
+            dbcsr_set_conf_mm_stacksize,&
             dbcsr_get_conf_use_mpi_rma, dbcsr_get_conf_use_mpi_filtering
   PUBLIC :: dbcsr_set_conf_comm_thread_load, dbcsr_set_conf_max_ele_block, dbcsr_set_conf_mm_driver,&
             dbcsr_set_conf_avg_elements_images, dbcsr_set_conf_nstacks, dbcsr_set_conf_use_comm_thread,&
