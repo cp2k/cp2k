@@ -156,12 +156,12 @@ CONTAINS
 
     CHARACTER                                :: symm
     INTEGER :: blk, col, col_offset, col_size, data_type, dense_col_size, &
-      dense_row_size, error_handler, row, row_offset, row_size
+      dense_row_size, handle, row, row_offset, row_size
     LOGICAL                                  :: valid
     TYPE(dbcsr_data_obj)                     :: tmp
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_data_get_sizes ( dense, dense_row_size, dense_col_size, valid)
     CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -249,7 +249,7 @@ CONTAINS
 
     CALL dbcsr_data_release ( tmp )
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_impose_sparsity
 
@@ -271,12 +271,12 @@ CONTAINS
 
     CHARACTER                                :: symm
     INTEGER :: col, col_offset, col_size, data_type, dense_col_size, &
-      dense_row_size, error_handler, row, row_offset, row_size
+      dense_row_size, handle, row, row_offset, row_size
     LOGICAL                                  :: tr, valid
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_data_get_sizes (dense, dense_row_size, dense_col_size, valid)
     CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
@@ -346,7 +346,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (block)
     CALL dbcsr_data_release (block)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_to_dense_local
 

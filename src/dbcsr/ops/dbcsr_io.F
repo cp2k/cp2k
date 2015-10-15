@@ -110,9 +110,8 @@ CONTAINS
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
     INTEGER                                  :: ablk_p, bc, blk, blk_p, br, &
-                                                ebr, error_handler, fblk, &
-                                                ibr, iunit, lblk, m, mn, n, &
-                                                sblk
+                                                ebr, fblk, handle, ibr, &
+                                                iunit, lblk, m, mn, n, sblk
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, &
                                                 local_cols, local_rows, &
                                                 row_blk_offset, row_blk_size
@@ -123,7 +122,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Can not print invalid matrix.",__LINE__)
@@ -283,7 +282,7 @@ CONTAINS
           ENDDO
        ENDDO
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_print
 
 
@@ -723,7 +722,7 @@ CONTAINS
                                              thefile, i, sendbuf, data_area_size, &
                                              data_type, type_size, &
                                              mp_group, mynode, numnodes, & 
-                                             ginfo_size, linfo_size, error_handler                
+                                             ginfo_size, linfo_size, handle                
     INTEGER, DIMENSION(:), POINTER        :: row_p, col_i, blk_p,&
                                              row_blk_size, col_blk_size
     INTEGER, DIMENSION(:,:), POINTER      :: pgrid                              
@@ -747,7 +746,7 @@ CONTAINS
     INTEGER(kind=file_offset), PARAMETER                 :: BOF = 0
     INTEGER, PARAMETER          :: char_count = version_len+default_string_length+1 !version, matrix_name, matrix_type
 
-   CALL timeset(routineN, error_handler)
+   CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (default_string_length==80,&
          dbcsr_warning_level, dbcsr_caller_error,&
@@ -851,7 +850,7 @@ CONTAINS
     DEALLOCATE(subh2_disps,subh2_offsets,subh3_disps,subh3_offsets)
     DEALLOCATE(bdata_disps,bdata_offsets)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
     
     CONTAINS
 ! *****************************************************************************
@@ -908,7 +907,7 @@ CONTAINS
                                              share_size, order, cur_blks,  &
                                              job_count, start_index, end_index,&
                                              localinfo_length, blockdata_length,&
-                                             group_id, worker_id, group_list_size, error_handler, linfo_length
+                                             group_id, worker_id, group_list_size, handle, linfo_length
     CHARACTER                             :: matrix_type
     CHARACTER(LEN=default_string_length)  :: matrix_name
     INTEGER, PARAMETER                    :: version_len=10
@@ -942,7 +941,7 @@ CONTAINS
                                                localinfo_offset, blockdata_offset, sum_nblks, subh3_length, data_area_size
     INTEGER, PARAMETER                      :: char_count = 1+version_len+default_string_length
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
 
     IF (PRESENT(groupid)) THEN
@@ -1197,7 +1196,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (dblk) 
     DEALLOCATE (dblk%d)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
     CONTAINS
 ! *****************************************************************************
 !> \brief ...
@@ -1238,8 +1237,8 @@ CONTAINS
     COMPLEX(KIND=real_8)                     :: blk_sum_c_dp
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
-    INTEGER                                  :: bc, blk, blk_p, br, &
-                                                error_handler, iunit, m, mn, n
+    INTEGER                                  :: bc, blk, blk_p, br, handle, &
+                                                iunit, m, mn, n
     INTEGER, DIMENSION(:), POINTER           :: col_blk_offset, col_blk_size, &
                                                 row_blk_offset, row_blk_size
     REAL(KIND=real_4)                        :: blk_sum_r_sp
@@ -1249,7 +1248,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Can not print invalid matrix.",__LINE__)
@@ -1310,7 +1309,7 @@ CONTAINS
        ENDDO
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   
   END SUBROUTINE dbcsr_print_block_sum
 

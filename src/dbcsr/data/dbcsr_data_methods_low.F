@@ -237,11 +237,11 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_data_deallocate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
 
     SELECT CASE (area%data_type)
        CASE (dbcsr_type_int_4)
@@ -287,7 +287,7 @@ MODULE dbcsr_data_methods_low
        CALL acc_event_destroy(area%acc_ready)
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE internal_data_deallocate
 
 
@@ -620,11 +620,11 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_verify_bounds', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_type, error_handler
+    INTEGER                                  :: data_type, handle
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
     data_type = dbcsr_data_get_type (area)
     IF (dbcsr_type_is_2d (data_type)) THEN
        CALL dbcsr_assert (SIZE (lb), "EQ", 2, dbcsr_fatal_level,&
@@ -726,7 +726,7 @@ MODULE dbcsr_data_methods_low
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type", __LINE__)
     END SELECT
-    CALL timestop (error_handler)
+    CALL timestop (handle)
   END SUBROUTINE dbcsr_data_verify_bounds
 
 
@@ -796,12 +796,12 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_any', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-         CALL timeset (routineN, error_handler)
+         CALL timeset (routineN, handle)
 
     valid = .FALSE.
     sizes(:) = 0
@@ -848,7 +848,7 @@ MODULE dbcsr_data_methods_low
        ENDIF
     ENDIF
     IF (careful_mod) &
-         CALL timestop(error_handler)
+         CALL timestop(handle)
   END SUBROUTINE dbcsr_data_get_sizes_any
 
 ! *****************************************************************************
@@ -866,13 +866,13 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     INTEGER, DIMENSION(2)                    :: s
 
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL timeset (routineN, error_handler)
+       CALL timeset (routineN, handle)
     IF (ASSOCIATED (area%d)) THEN
        IF (careful_mod) &
             CALL dbcsr_assert (dbcsr_type_is_2d (area%d%data_type),&
@@ -888,7 +888,7 @@ MODULE dbcsr_data_methods_low
        col_size = 0
     ENDIF
     IF (careful_mod) &
-         CALL timestop(error_handler)
+         CALL timestop(handle)
   END SUBROUTINE dbcsr_data_get_sizes_2
 
 ! *****************************************************************************
@@ -905,12 +905,12 @@ MODULE dbcsr_data_methods_low
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_get_sizes_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     INTEGER, DIMENSION(1)                    :: s
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
 
     IF (ASSOCIATED (area%d)) THEN
        IF (careful_mod) &
@@ -924,7 +924,7 @@ MODULE dbcsr_data_methods_low
        valid = .FALSE.
        total_size = 0
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_data_get_sizes_1
 
 

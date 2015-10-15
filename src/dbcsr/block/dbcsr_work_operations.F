@@ -211,7 +211,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: matrix_type_l
-    INTEGER                                  :: error_handler, my_nze
+    INTEGER                                  :: handle, my_nze
     INTEGER, DIMENSION(:), POINTER           :: vec_col_blk_offset, &
                                                 vec_row_blk_offset
     INTEGER, DIMENSION(dbcsr_meta_size)      :: new_meta
@@ -219,7 +219,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert(dbcsr_is_initialized(matrix), &
            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
            "Matrix may not have been initialized with dbcsr_init",__LINE__)
@@ -493,7 +493,7 @@ CONTAINS
        CALL dbcsr_make_index_exist (matrix%m)
     ENDIF
     matrix%m%valid = .TRUE.
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_create_new
 
 
@@ -718,11 +718,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_wm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, nblks, stat
+    INTEGER                                  :: handle, nblks, stat
 
 !   ---------------------------------------------------------------------------
 
-    IF(careful_mod) CALL timeset(routineN, error_handler)
+    IF(careful_mod) CALL timeset(routineN, handle)
     wm%lastblk = 0
     wm%datasize = 0
     ! Index
@@ -760,7 +760,7 @@ CONTAINS
        CALL dbcsr_data_new (wm%data_area, data_type, memory_type=memory_type)
     ENDIF
     CALL dbcsr_mutable_init (wm%mutable)
-    IF(careful_mod) CALL timestop(error_handler)
+    IF(careful_mod) CALL timestop(handle)
   END SUBROUTINE dbcsr_init_wm
 
 
@@ -786,14 +786,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, iw, nw, ow
+    INTEGER                                  :: handle, iw, nw, ow
     LOGICAL                                  :: wms_new, wms_realloc
     TYPE(dbcsr_work_type), DIMENSION(:), &
       POINTER                                :: wms
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_is_initialized(matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not create work matrix for nonexisting matrix object.",__LINE__)
@@ -847,7 +847,7 @@ CONTAINS
     ENDIF
     matrix%m%valid = .FALSE.
     !$OMP END MASTER
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_work_create
 
 
@@ -872,8 +872,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, i, nblks, &
-                                                nwms, start_offset
+    INTEGER                                  :: handle, i, nblks, nwms, &
+                                                start_offset
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       SAVE, TARGET                           :: empty_row_p
     INTEGER, DIMENSION(:), POINTER, SAVE     :: old_blk_p, old_col_i, &
@@ -883,7 +883,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     !$OMP BARRIER
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
@@ -904,7 +904,7 @@ CONTAINS
        matrix%m%valid = .TRUE.
        !$OMP END MASTER
        !$OMP BARRIER
-       CALL timestop(error_handler)
+       CALL timestop(handle)
        RETURN
     ENDIF
     !
@@ -1072,7 +1072,7 @@ CONTAINS
     ENDIF
 !$OMP END MASTER
 !$OMP BARRIER
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_finalize
 
 ! *****************************************************************************
@@ -1088,12 +1088,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     LOGICAL                                  :: can_quick, sort_data
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
@@ -1167,7 +1167,7 @@ CONTAINS
        !$OMP END SINGLE
     ENDIF
     !$OMP BARRIER
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_special_finalize
 
 ! *****************************************************************************
@@ -1261,14 +1261,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_wm_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, ithread, &
-                                                nthreads, nwms, old_nwms, &
-                                                size_used
+    INTEGER                                  :: handle, ithread, nthreads, &
+                                                nwms, old_nwms, size_used
     LOGICAL                                  :: preexists
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     !$OMP BARRIER
     preexists = ASSOCIATED (matrix%m%wms)
     IF (preexists) THEN
@@ -1303,7 +1302,7 @@ CONTAINS
     CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix, size_used,&
          limits=limits)
     !$OMP BARRIER
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_add_wm_from_matrix
 
 
@@ -1329,8 +1328,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_fill_wm_from_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, blk_p, col, error_handler, ithread, nthreads, nwms, nze, &
-      row, wblk_p, which_wm, wm_first, wm_last
+    INTEGER                                  :: blk, blk_p, col, handle, &
+                                                ithread, nthreads, nwms, nze, &
+                                                row, wblk_p, which_wm, &
+                                                wm_first, wm_last
     LOGICAL                                  :: careful, limit, mt, tr
     LOGICAL, SAVE                            :: mutable
     TYPE(dbcsr_data_obj)                     :: data_block
@@ -1338,7 +1339,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     nwms = SIZE (matrix%m%wms)
     mt = .FALSE.
     !$ IF (nwms .GT. 1) mt = omp_get_num_threads() .GT. 1
@@ -1427,7 +1428,7 @@ CONTAINS
           wm(which_wm)%datasize = dbcsr_data_get_size_referenced (wm(which_wm)%data_area)
        ENDDO
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_fill_wm_from_matrix
 
 ! *****************************************************************************
@@ -1458,11 +1459,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL timeset(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, handle)
 
     IF (ASSOCIATED (wm%row_i)) THEN
        DEALLOCATE(wm%row_i)
@@ -1476,7 +1477,7 @@ CONTAINS
     CALL dbcsr_data_release (wm%data_area)
     CALL dbcsr_mutable_destroy (wm%mutable)
 
-    IF (careful_mod) CALL timestop(error_handler)
+    IF (careful_mod) CALL timestop(handle)
 
   END SUBROUTINE dbcsr_work_destroy
 
@@ -1491,11 +1492,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_destroy_all', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i
+    INTEGER                                  :: handle, i
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (ASSOCIATED (m%wms), dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Want to destroy nonexisting work matrices.",__LINE__)
@@ -1506,7 +1507,7 @@ CONTAINS
        DEALLOCATE (m%wms)
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_work_destroy_all
 
@@ -1531,11 +1532,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'add_work_coordinate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL timeset(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, handle)
     matrix%lastblk = matrix%lastblk+1
     CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk,&
          factor=default_resize_factor)
@@ -1549,7 +1550,7 @@ CONTAINS
        matrix%blk_p(matrix%lastblk) = blk
     ENDIF
     IF (PRESENT (index)) index = matrix%lastblk
-    IF (careful_mod) CALL timestop(error_handler)
+    IF (careful_mod) CALL timestop(handle)
   END SUBROUTINE add_work_coordinate
 
 ! *****************************************************************************
@@ -1572,10 +1573,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, my_row_count, &
-                                                nblks, new_data_size, nrows, &
-                                                nwms, row, t, which_wm, &
-                                                wm_datasize
+    INTEGER                                  :: handle, my_row_count, nblks, &
+                                                new_data_size, nrows, nwms, &
+                                                row, t, which_wm, wm_datasize
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: all_data_offsets, &
                                                 all_data_sizes, &
                                                 new_blk_p_sorted, &
@@ -1596,7 +1596,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     !> \par Outline
 
     !> Each thread has a work matrix.  These must be merged and made
@@ -1850,7 +1850,7 @@ CONTAINS
     !$OMP END MASTER
     !$OMP BARRIER
     IF (dbg) WRITE(*,*)routineN//" stopped"
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_merge_all
 
 ! *****************************************************************************
@@ -1865,7 +1865,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, nblks, nrows
+    INTEGER                                  :: handle, nblks, nrows
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: new_blk_p_sorted, &
                                                 new_blk_sizes, new_row_p
     INTEGER, ALLOCATABLE, DIMENSION(:), &
@@ -1875,7 +1875,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     !> \par Outline
 
     !> There is a single work matrix.  Data blocks are sorted and copied
@@ -1943,7 +1943,7 @@ CONTAINS
     DEALLOCATE (blk_d)
     !$OMP END MASTER
     IF (dbg) WRITE(*,*)routineN//" stopped"
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_merge_single_wm
 
 

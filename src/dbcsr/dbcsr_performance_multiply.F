@@ -241,8 +241,7 @@ CONTAINS
 
     CHARACTER                                :: a_symm, b_symm, c_symm, &
                                                 transa, transb
-    INTEGER                                  :: error_handler, mynode, &
-                                                numnodes
+    INTEGER                                  :: handle, mynode, numnodes
     INTEGER, DIMENSION(:), POINTER :: col_dist_a, col_dist_b, col_dist_c, &
       my_sizes_k, my_sizes_m, my_sizes_n, row_dist_a, row_dist_b, row_dist_c, &
       sizes_k, sizes_m, sizes_n
@@ -254,7 +253,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     NULLIFY(my_sizes_k, my_sizes_m, my_sizes_n,&
             sizes_k, sizes_m, sizes_n)
 
@@ -448,7 +447,7 @@ CONTAINS
     CALL dbcsr_release (matrix_c)
 
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_perf_multiply_low
 
@@ -486,10 +485,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'perf_multiply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: c_a, c_b, c_c, error_handler, &
-                                                irep, istat, mynode, &
-                                                nthreads, numnodes, r_a, r_b, &
-                                                r_c
+    INTEGER                                  :: c_a, c_b, c_c, handle, irep, &
+                                                istat, mynode, nthreads, &
+                                                numnodes, r_a, r_b, r_c
     INTEGER(int_8)                           :: flop
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: flop_sum
@@ -512,7 +510,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL mp_environ (numnodes, mynode, mp_group)
 
@@ -699,7 +697,7 @@ CONTAINS
     DEALLOCATE(times, flops, t_max, flops_node, flops_thread, flops_all, &
          flop_sum, t_min, t, load_imb)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE perf_multiply
 

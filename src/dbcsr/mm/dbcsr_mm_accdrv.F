@@ -191,12 +191,11 @@ MODULE dbcsr_mm_accdrv
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_accdrv_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, ithread, &
-                                                nthreads
+    INTEGER                                  :: handle, i, ithread, nthreads
     TYPE(dbcsr_data_obj)                     :: c_area
     TYPE(thread_private_type), POINTER       :: thread_privates
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
@@ -227,7 +226,7 @@ MODULE dbcsr_mm_accdrv
     CALL acc_event_record(this%c_buffer%d%acc_ready,&
                  stream=this%c_buffer%d%memory_type%acc_stream)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_mm_accdrv_init
 
 

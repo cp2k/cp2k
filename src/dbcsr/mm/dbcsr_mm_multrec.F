@@ -193,15 +193,15 @@ MODULE dbcsr_mm_multrec
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
     INTEGER                                  :: c_nblkcols_local, &
-                                                c_nblkrows_local, &
-                                                error_handler, i, ithread
+                                                c_nblkrows_local, handle, i, &
+                                                ithread
     INTEGER, DIMENSION(:), POINTER           :: c_local_cols, c_local_rows
 
 !$  INTEGER, DIMENSION(:), POINTER           :: product_thread_dist
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
@@ -361,7 +361,7 @@ MODULE dbcsr_mm_multrec
        m_sizes=this%m_sizes, n_sizes=this%n_sizes) 
 
     this%initialized = .TRUE.
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_mm_multrec_init
 
 
@@ -485,11 +485,11 @@ MODULE dbcsr_mm_multrec
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_finalize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, ithread
+    INTEGER                                  :: handle, ithread
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert(this%initialized,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "multrec not initialized.", __LINE__)
@@ -520,7 +520,7 @@ MODULE dbcsr_mm_multrec
     ENDIF
 
     this%initialized = .FALSE.
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_mm_multrec_finalize
 
 

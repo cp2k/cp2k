@@ -531,7 +531,7 @@ CONTAINS
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: c_dp
     INTEGER                                  :: bc, blk, blk_p, br, co, &
-                                                error_handler, m, mn, n, ro
+                                                handle, m, mn, n, ro
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm, pd, tr
     REAL(KIND=dp)                            :: blk_cs, local_cs, local_cs_row
@@ -540,7 +540,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index(matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Invalid matrix.",__LINE__)
@@ -634,7 +634,7 @@ CONTAINS
             matrix%m%dist)))
        checksum = local_cs
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END FUNCTION dbcsr_checksum
 
 ! *****************************************************************************
@@ -693,8 +693,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_verify_matrix', &
       r = moduleN//':'//routineN
 
-    INTEGER :: bc, blk, blk_p, br, data_size_referenced, dbg, error_handler, &
-      i, mb, mn, n, n_have_blocks_local, n_have_blocks_total, prev_br
+    INTEGER :: bc, blk, blk_p, br, data_size_referenced, dbg, handle, i, mb, &
+      mn, n, n_have_blocks_local, n_have_blocks_total, prev_br
     INTEGER(KIND=int_8)                      :: n_full_blocks_total
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: nocomm
@@ -702,7 +702,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_is_initialized(m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Can not verify non-existing matrix object.",__LINE__)
@@ -871,7 +871,7 @@ CONTAINS
             sparsity_total,'%'
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_verify_matrix
 
 

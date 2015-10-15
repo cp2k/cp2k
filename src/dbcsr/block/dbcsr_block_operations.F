@@ -443,12 +443,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_scale', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_size, error_handler, &
-                                                lb2_t, lb_t, ub_t
+    INTEGER                                  :: data_size, handle, lb2_t, &
+                                                lb_t, ub_t
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL timeset(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, handle)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -499,7 +499,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__)
     END SELECT
-    IF (careful_mod) CALL timestop(error_handler)
+    IF (careful_mod) CALL timestop(handle)
   END SUBROUTINE dbcsr_block_scale
 
 ! *****************************************************************************
@@ -525,12 +525,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_real_neg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_size, error_handler, &
-                                                lb2_t, lb_t, ub_t
+    INTEGER                                  :: data_size, handle, lb2_t, &
+                                                lb_t, ub_t
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL timeset(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, handle)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -590,7 +590,7 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_caller_error, routineN, &
             "Incorrect data type.",__LINE__)
     END SELECT
-    IF (careful_mod) CALL timestop(error_handler)
+    IF (careful_mod) CALL timestop(handle)
   END SUBROUTINE dbcsr_block_real_neg
 
 ! *****************************************************************************
@@ -616,12 +616,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_conjg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_size, error_handler, &
-                                                lb2_t, lb_t, ub_t
+    INTEGER                                  :: data_size, handle, lb2_t, &
+                                                lb_t, ub_t
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL timeset(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, handle)
     IF (debug_mod) THEN
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -669,7 +669,7 @@ CONTAINS
             dbcsr_fatal_level, dbcsr_caller_error, routineN, &
             "Incorrect data type.",__LINE__)
     END SELECT
-    IF (careful_mod) CALL timestop(error_handler)
+    IF (careful_mod) CALL timestop(handle)
   END SUBROUTINE dbcsr_block_conjg
 
 ! *****************************************************************************
@@ -687,12 +687,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_block_transpose_a', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-         CALL timeset(routineN, error_handler)
+         CALL timeset(routineN, handle)
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_real_8)
        CALL dbcsr_block_transpose (area%d%r_dp,&
@@ -711,7 +711,7 @@ CONTAINS
             routineN, "Invalid data type",__LINE__)
     END SELECT
     IF (careful_mod) &
-         CALL timestop(error_handler)
+         CALL timestop(handle)
   END SUBROUTINE dbcsr_block_transpose_a
 
 
@@ -944,13 +944,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_copy_aa2', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dst_d, dst_dt, error_handler, &
-                                                src_d, src_dt
+    INTEGER                                  :: dst_d, dst_dt, handle, src_d, &
+                                                src_dt
     INTEGER, DIMENSION(2)                    :: dst_ub, src_ub
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
     !
     src_dt = dbcsr_data_get_type (src)
     dst_dt = dbcsr_data_get_type (dst)
@@ -1114,7 +1114,7 @@ CONTAINS
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
             routineN, "Invalid data type",__LINE__)
     END SELECT
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_data_copy_aa2
 
 ! *****************************************************************************
@@ -1169,7 +1169,7 @@ CONTAINS
     INTEGER                                  :: l, l2, s, u, u2
 
 !   ---------------------------------------------------------------------------
-! CALL timeset(routineN, error_handler)
+! CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (ASSOCIATED(area%d),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
@@ -1385,7 +1385,7 @@ CONTAINS
             routineN, "Invalid or unsupported data type.",__LINE__)
     END SELECT
 
-    ! CALL timestop(error_handler)
+    ! CALL timestop(handle)
 
   END SUBROUTINE dbcsr_data_clear0
 

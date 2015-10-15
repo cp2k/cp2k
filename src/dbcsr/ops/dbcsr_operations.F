@@ -237,8 +237,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_conjg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, data_type, &
-                                                error_handler, row
+    INTEGER                                  :: blk, col, data_type, handle, &
+                                                row
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
@@ -246,7 +246,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     data_type = dbcsr_get_data_type(matrix)
     CALL dbcsr_data_init (data_any)
     CALL dbcsr_data_new (data_any, data_type)
@@ -265,7 +265,7 @@ CONTAINS
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer(data_any)
     CALL dbcsr_data_release(data_any)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_conjg
 
 ! *****************************************************************************
@@ -326,9 +326,9 @@ CONTAINS
                                                 first_row_i = 1, &
                                                 last_col_i = 4, last_row_i = 2
 
-    INTEGER :: a_col, a_col_size, a_row, a_row_size, col_offset, &
-      error_handler, row_offset, scale_col_offset, scale_col_size, &
-      scale_row_offset, scale_row_size
+    INTEGER :: a_col, a_col_size, a_row, a_row_size, col_offset, handle, &
+      row_offset, scale_col_offset, scale_col_size, scale_row_offset, &
+      scale_row_size
     INTEGER, DIMENSION(4)                    :: my_limits
     LOGICAL                                  :: do_scale, has_limits, tr
     TYPE(dbcsr_data_obj)                     :: data_any
@@ -337,7 +337,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     ! Limits are only honored if the argument is present and any are
     ! non-zero.
@@ -432,7 +432,7 @@ CONTAINS
        CALL dbcsr_data_release (data_any)
        !$OMP END PARALLEL
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_scale_anytype
 
 
@@ -479,14 +479,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: a_blk, a_col, a_col_size, a_nze, a_row, a_row_size, &
-      col_offset, data_type, error_handler, i, icol, irow, row_offset
+      col_offset, data_type, handle, i, icol, irow, row_offset
     LOGICAL                                  :: right, tr
     TYPE(dbcsr_data_obj)                     :: data_any
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
 ! check that alpha and matrix have the same data type
     CALL dbcsr_assert (dbcsr_get_data_type (matrix_a).EQ.alpha%d%data_type, dbcsr_fatal_level,&
@@ -575,7 +575,7 @@ CONTAINS
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer (data_any)
     CALL dbcsr_data_release (data_any)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_scale_by_vector_anytype
 
@@ -593,7 +593,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_anytype', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, error_handler, row
+    INTEGER                                  :: blk, col, handle, row
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -601,7 +601,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_data_init (data_block)
     CALL dbcsr_data_new (data_block, dbcsr_get_data_type (matrix))
     CALL dbcsr_iterator_start(iter, matrix)
@@ -612,7 +612,7 @@ CONTAINS
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer (data_block)
     CALL dbcsr_data_release (data_block)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
     !
   END SUBROUTINE dbcsr_set_anytype
 
@@ -636,8 +636,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, data_type_a, &
-                                                data_type_b, error_handler, &
-                                                row, size_a, size_b
+                                                data_type_b, handle, row, &
+                                                size_a, size_b
     LOGICAL                                  :: do_scale, tr
     TYPE(dbcsr_data_obj)                     :: data_block
     TYPE(dbcsr_iterator)                     :: iter
@@ -646,7 +646,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index (matrix_a), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Invalid matrix", __LINE__)
 
@@ -722,7 +722,7 @@ CONTAINS
        CALL dbcsr_data_release (data_block)
        !$OMP END PARALLEL
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_add_anytype
 
 !> \brief Interface for dbcsr_add
@@ -739,9 +739,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF(    dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
            dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8) THEN
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
@@ -776,7 +776,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Invalid combination of data type, NYI",__LINE__)
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_add_d
 
 ! *****************************************************************************
@@ -794,9 +794,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
        dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_4) THEN
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
@@ -806,7 +806,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Invalid combination of data type, NYI",__LINE__)
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_add_s
 
 ! *****************************************************************************
@@ -824,9 +824,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_z', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_8 .AND. &
        dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_complex_8) THEN
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
@@ -841,7 +841,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Invalid combination of data type, NYI",__LINE__)
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_add_z
 
 ! *****************************************************************************
@@ -859,9 +859,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_c', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_complex_4 .AND. &
        dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_complex_4) THEN
        CALL dbcsr_add_anytype(matrix_a, matrix_b,&
@@ -871,7 +871,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Invalid combination of data type, NYI",__LINE__)
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_add_c
 
 ! *****************************************************************************
@@ -909,8 +909,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, col_size, &
-                                                data_type, error_handler, &
-                                                ielem, nze, row, row_size
+                                                data_type, handle, ielem, &
+                                                nze, row, row_size
     LOGICAL                                  :: tr_a
     REAL(kind=dp)                            :: p0, p1, p2
     TYPE(dbcsr_data_obj)                     :: a_data
@@ -918,7 +918,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     
     IF (PRESENT(a0)) THEN
        p0=a0
@@ -1036,7 +1036,7 @@ CONTAINS
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer (a_data)
     CALL dbcsr_data_release (a_data)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_function_of_elements
 
@@ -1059,8 +1059,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, col, col_size, &
-                                                data_type, error_handler, &
-                                                nze, row, row_size
+                                                data_type, handle, nze, row, &
+                                                row_size
     LOGICAL                                  :: assume_blocks_in_b, found, &
                                                 tr_a, tr_b
     REAL(KIND=dp)                            :: assumed_b_value
@@ -1077,7 +1077,7 @@ CONTAINS
        assumed_b_value=0.0_dp
     ENDIF
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b).AND.&
          dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_c), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
@@ -1151,7 +1151,7 @@ CONTAINS
     CALL dbcsr_data_release (c_data)
     CALL dbcsr_data_release (a_data)
     CALL dbcsr_data_release (b_data)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_hadamard_product
 
 ! *****************************************************************************
@@ -1169,15 +1169,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_on_diag_anytype', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: error_handler, hold, imax, imin, my_first_row, my_last_row, &
-      mynode, offset_beg, offset_end, row, row_size, stored_row
+    INTEGER :: handle, hold, imax, imin, my_first_row, my_last_row, mynode, &
+      offset_beg, offset_end, row, row_size, stored_row
     INTEGER, DIMENSION(:), POINTER           :: row_blk_offsets
     LOGICAL                                  :: found, tr
     TYPE(dbcsr_data_obj)                     :: buff, data_a, small_buff
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_nblkrows_total(matrix).EQ.dbcsr_nblkcols_total(matrix).AND.&
          dbcsr_nfullrows_total(matrix).EQ.dbcsr_nfullrows_total(matrix), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__)
@@ -1241,7 +1241,7 @@ CONTAINS
     CALL dbcsr_data_release (buff)
     CALL dbcsr_data_release (data_a)
     CALL dbcsr_finalize(matrix)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_add_on_diag_anytype
 
 ! *****************************************************************************
@@ -1256,8 +1256,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_random', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: col, col_size, error_handler, hold, iseed(4), mynode, ncol, &
-      nrow, row, row_size, stored_col, stored_row
+    INTEGER                                  :: col, col_size, handle, hold, &
+                                                iseed(4), mynode, ncol, nrow, &
+                                                row, row_size, stored_col, &
+                                                stored_row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found, my_keep_sparsity, tr
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: rnd
@@ -1268,7 +1270,7 @@ CONTAINS
     my_keep_sparsity=.FALSE.
     IF (PRESENT(keep_sparsity)) my_keep_sparsity=keep_sparsity
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
@@ -1310,7 +1312,7 @@ CONTAINS
     DEALLOCATE(rnd)
 
     CALL dbcsr_finalize(matrix)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_init_random
 
@@ -1328,14 +1330,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_diag', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, error_handler, row
+    INTEGER                                  :: blk, col, handle, row
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_a
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_create(diag, name='diag of '//TRIM(matrix%m%name), &
          template=matrix)
 
@@ -1350,7 +1352,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (data_a)
     CALL dbcsr_data_release (data_a)
     CALL dbcsr_finalize(diag)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_get_block_diag
 
 
@@ -1368,16 +1370,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag_anytype', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, data_type, &
-                                                error_handler, row, &
-                                                row_offset, row_size
+    INTEGER                                  :: blk, col, data_type, handle, &
+                                                row, row_offset, row_size
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_a, diag_a
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (dbcsr_nfullrows_total(matrix), "LE", dbcsr_data_get_size(diag), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -1407,7 +1408,7 @@ CONTAINS
     CALL dbcsr_data_release (diag_a)
     CALL dbcsr_data_clear_pointer (data_a)
     CALL dbcsr_data_release (data_a)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_get_diag_anytype
 
 ! *****************************************************************************
@@ -1424,15 +1425,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag_anytype', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, dt, error_handler, &
-                                                row, row_offset, row_size
+    INTEGER                                  :: blk, col, dt, handle, row, &
+                                                row_offset, row_size
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_a, diag_a
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (dbcsr_nfullrows_total(matrix), "LE", dbcsr_data_get_size(diag), &
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -1459,7 +1460,7 @@ CONTAINS
     CALL dbcsr_data_release (diag_a)
     CALL dbcsr_data_clear_pointer (data_a)
     CALL dbcsr_data_release (data_a)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_set_diag_anytype
 
 
@@ -1563,12 +1564,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER                                :: new_matrix_type, repl_type
-    INTEGER                                  :: error_handler, new_type
+    INTEGER                                  :: handle, new_type
     LOGICAL                                  :: keep_sparse, shallow
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (symmetry_consistent(dbcsr_get_matrix_type(matrix_a),&
                                            dbcsr_get_data_type(matrix_a)),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
@@ -1657,7 +1658,7 @@ CONTAINS
 
        matrix_b%m%sparsity_id = matrix_a%m%sparsity_id
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_copy
 
 ! *****************************************************************************
@@ -1672,8 +1673,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: col_size, data_type, dst_col, dst_row, error_handler, rel, &
-      row_size, src_col, src_cs, src_row, src_rs
+    INTEGER                                  :: col_size, data_type, dst_col, &
+                                                dst_row, handle, rel, &
+                                                row_size, src_col, src_cs, &
+                                                src_row, src_rs
     LOGICAL                                  :: dst_tr, making_symmetric, &
                                                 neg_imag, neg_real, src_tr
     TYPE(dbcsr_data_obj)                     :: dst_data, src_data
@@ -1681,7 +1684,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_b)&
          .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__)
@@ -1692,7 +1695,7 @@ CONTAINS
          .AND. .NOT. dbcsr_has_symmetry (matrix_a)
     IF (making_symmetric) THEN
        CALL dbcsr_copy_into_existing_sym(matrix_b, matrix_a)
-       CALL timestop(error_handler)
+       CALL timestop(handle)
        RETURN
     ENDIF
     CALL dbcsr_data_init (src_data)
@@ -1759,7 +1762,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (dst_data)
     CALL dbcsr_data_release (src_data)
     CALL dbcsr_data_release (dst_data)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_copy_into_existing
 
@@ -1775,8 +1778,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_into_existing_sym', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: col_size, data_type, dst_col, dst_row, error_handler, &
-      row_size, src_col, src_cs, src_row, src_rs
+    INTEGER                                  :: col_size, data_type, dst_col, &
+                                                dst_row, handle, row_size, &
+                                                src_col, src_cs, src_row, &
+                                                src_rs
     LOGICAL                                  :: dst_tr, found, neg_imag, &
                                                 neg_real, src_tr
     TYPE(dbcsr_data_obj)                     :: dst_data, src_data
@@ -1784,7 +1789,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_get_data_type(matrix_b)&
          .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__)
@@ -1841,7 +1846,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (dst_data)
     CALL dbcsr_data_release (src_data)
     CALL dbcsr_data_release (dst_data)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_copy_into_existing_sym
 
@@ -1903,8 +1908,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_copy_submatrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk_p, col, error_handler, &
-                                                nblocks, new_blk, old_blk, row
+    INTEGER                                  :: blk_p, col, handle, nblocks, &
+                                                new_blk, old_blk, row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blkp_list, col_list, row_list
     LOGICAL                                  :: shallow, tr
     TYPE(dbcsr_data_obj)                     :: data_block
@@ -1912,7 +1917,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF (PRESENT (shallow_data)) THEN
        shallow = shallow_data
     ELSE
@@ -1999,7 +2004,7 @@ CONTAINS
             col_list(1:new_blk), blkp_list(1:new_blk))
     ENDIF
     !
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_copy_submatrix
 
 
@@ -2028,8 +2033,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_crop_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, error_handler, f_col_f, &
-                                                f_row_f, l_col_l, l_row_l, row
+    INTEGER                                  :: col, f_col_f, f_row_f, &
+                                                handle, l_col_l, l_row_l, row
     INTEGER, DIMENSION(2)                    :: block_col_bounds, &
                                                 block_row_bounds
     LOGICAL                                  :: part_col, part_f_col, &
@@ -2041,7 +2046,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF (PRESENT (shallow_data)) THEN
        shallow = shallow_data
     ELSE
@@ -2201,7 +2206,7 @@ CONTAINS
 !$OMP END PARALLEL
     ENDIF
     !
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_crop_matrix
 
 
@@ -2220,15 +2225,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                error_handler, i, j, row, &
-                                                row_size
+                                                handle, i, j, row, row_size
     LOGICAL                                  :: tr
     REAL(dp), DIMENSION(:, :), POINTER       :: DATA
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_iterator_start(iter, matrix_a)
 
     DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -2248,7 +2252,7 @@ CONTAINS
     CALL dbcsr_iterator_stop(iter)
 
     CALL dbcsr_finalize (matrix_a)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_triu
 
 ! *****************************************************************************
@@ -2277,8 +2281,8 @@ CONTAINS
     COMPLEX(KIND=real_8), DIMENSION(:), &
       POINTER                                :: data_z
     INTEGER                                  :: blk, blk_nze, col, col_size, &
-                                                error_handler, my_method, &
-                                                row, row_size
+                                                handle, my_method, row, &
+                                                row_size
     LOGICAL                                  :: gt0, my_filter_diag, tr
     REAL(KIND=real_4)                        :: nrm_s, sdot
     REAL(KIND=real_4), DIMENSION(:), POINTER :: data_s
@@ -2289,7 +2293,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     my_method = dbcsr_filter_frobenius
     IF(PRESENT(method)) my_method = method
     my_absolute = 1.0_dp
@@ -2403,7 +2407,7 @@ CONTAINS
        !$OMP END PARALLEL
 
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_filter_anytype
 
 ! *****************************************************************************
@@ -2425,16 +2429,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_norm_anytype', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, col_offset, &
-                                                error_handler, i, j, row, &
-                                                row_offset
+    INTEGER                                  :: blk, col, col_offset, handle, &
+                                                i, j, row, row_offset
     LOGICAL                                  :: tr
     TYPE(dbcsr_data_obj)                     :: data_a
     TYPE(dbcsr_iterator)                     :: iter
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     SELECT CASE(which_norm)
 
@@ -2545,7 +2548,7 @@ CONTAINS
             "this norm is NYI",__LINE__)
 
     END SELECT
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_norm_anytype
 
 ! *****************************************************************************
@@ -2785,7 +2788,7 @@ CONTAINS
       POINTER                                :: data_c
     COMPLEX(KIND=real_8), DIMENSION(:, :), &
       POINTER                                :: data_z
-    INTEGER                                  :: blk, col, error_handler, row
+    INTEGER                                  :: blk, col, handle, row
     LOGICAL                                  :: any_sym, my_local, tr
     REAL(KIND=real_4), DIMENSION(:, :), &
       POINTER                                :: data_r
@@ -2796,7 +2799,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     my_local = .FALSE.
     IF(PRESENT(local)) my_local = local
@@ -2841,7 +2844,7 @@ CONTAINS
     IF(.NOT.my_local) CALL mp_sum(norm,dbcsr_mp_group(dbcsr_distribution_mp(matrix%m%dist)))
     norm = SQRT(norm)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END FUNCTION dbcsr_frobenius_norm_r8
 
@@ -2856,15 +2859,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sum_replicated', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: comm, error_handler, &
-                                                index_checksum, mynode, &
-                                                numnodes
+    INTEGER                                  :: comm, handle, index_checksum, &
+                                                mynode, numnodes
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: all_checksums
     TYPE(dbcsr_mp_obj)                       :: mp
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     mp = dbcsr_distribution_mp (dbcsr_distribution (matrix))
     comm = dbcsr_mp_group (mp)
     numnodes = dbcsr_mp_numnodes (mp)
@@ -2893,7 +2895,7 @@ CONTAINS
             routineN, "Incorrect data type", __LINE__)
     END SELECT
     !
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_sum_replicated
 
 
@@ -2915,10 +2917,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_b_d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     REAL(kind=real_4)                        :: trace_4
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF(    dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND. &
            dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8 .OR. &
            dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_4 .AND. &
@@ -2935,7 +2937,7 @@ CONTAINS
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Invalid combination of data type, NYI",__LINE__)
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_trace_a_b_d
 
 

@@ -609,13 +609,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_default_config', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: comm_thread_load, &
-                                                error_handler, max_ele_block, &
-                                                mm_driver, mm_ss
+    INTEGER                                  :: comm_thread_load, handle, &
+                                                max_ele_block, mm_driver, &
+                                                mm_ss
     INTEGER, DIMENSION(3)                    :: nstacks
     LOGICAL                                  :: use_comm_thread, use_mpi_mem
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
 
     use_mpi_mem = dbcsr_get_conf_mpi_mem()
     mm_ss = -1
@@ -636,7 +636,7 @@ CONTAINS
     CALL dbcsr_set_conf_use_comm_thread(use_comm_thread)
     CALL dbcsr_set_conf_comm_thread_load(comm_thread_load)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_set_default_config
 

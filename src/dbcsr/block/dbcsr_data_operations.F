@@ -73,11 +73,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_switch_data_area', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
     IF (PRESENT (previous_data_area)) THEN
        previous_data_area = matrix%m%data_area
     ELSE
@@ -85,7 +85,7 @@ CONTAINS
     ENDIF
     matrix%m%data_area = data_area
     CALL dbcsr_data_hold (matrix%m%data_area)
-    CALL timestop (error_handler)
+    CALL timestop (handle)
   END SUBROUTINE dbcsr_switch_data_area
 
 ! *****************************************************************************
@@ -426,12 +426,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sort_data', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, nblks
+    INTEGER                                  :: handle, i, nblks
     LOGICAL                                  :: multidata
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     multidata = PRESENT (srcs) .AND. PRESENT (old_blk_d)
     nblks = SIZE(old_blk_p)
     IF (nblks .GT. 0) THEN
@@ -466,7 +466,7 @@ CONTAINS
        ENDDO
        !$OMP END DO NOWAIT
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_sort_data
 
 

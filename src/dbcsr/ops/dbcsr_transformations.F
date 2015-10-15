@@ -169,7 +169,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler, stat
+    INTEGER                                  :: handle, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
     LOGICAL                                  :: redist, shallow, tr_blocks, &
                                                 tr_dist, tr_index
@@ -178,7 +178,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (dbcsr_valid_index(normal), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix does not exist.",__LINE__)
@@ -311,7 +311,7 @@ CONTAINS
        CALL dbcsr_release (transposed)
        transposed = t2
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_new_transposed
 
 ! *****************************************************************************
@@ -332,9 +332,9 @@ CONTAINS
     INTEGER, PARAMETER                       :: idata = 2, imeta = 1, &
                                                 metalen = 3
 
-    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, &
-      error_handler, mp_group, nsymmetries, numproc, nze, pcol, prow, row, &
-      row_size, src_p, stored_col, stored_row, symmetry_i
+    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, handle, &
+      mp_group, nsymmetries, numproc, nze, pcol, prow, row, row_size, src_p, &
+      stored_col, stored_row, symmetry_i
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -352,7 +352,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index (sm),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
          "Input matrix is invalid.",__LINE__)
@@ -561,7 +561,7 @@ CONTAINS
     DEALLOCATE(recv_meta)
     CALL dbcsr_data_release (send_data)
     DEALLOCATE(send_meta)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_desymmetrize_deep
 
 
@@ -579,8 +579,8 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER                                  :: blk, col, error_handler, &
-                                                mynode, nblks, nze, p, row
+    INTEGER                                  :: blk, col, handle, mynode, &
+                                                nblks, nze, p, row
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size, &
                                                 tmp_index
     LOGICAL                                  :: mini, tr
@@ -594,7 +594,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__)
@@ -690,7 +690,7 @@ CONTAINS
        matrix%m%nblks = distributed%m%nblks
        CALL dbcsr_release (distributed)
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_distribute
 
 
@@ -705,8 +705,8 @@ CONTAINS
       routineN = 'dbcsr_make_untransposed_blocks', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, col_size, &
-                                                error_handler, row, row_size
+    INTEGER                                  :: blk, col, col_size, handle, &
+                                                row, row_size
     INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
     LOGICAL                                  :: sym_negation, tr
     TYPE(dbcsr_data_obj)                     :: block_data
@@ -714,7 +714,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     rbs => dbcsr_row_block_sizes (matrix)
     cbs => dbcsr_col_block_sizes (matrix)
     sym_negation = matrix%m%negate_real
@@ -752,7 +752,7 @@ CONTAINS
     CALL dbcsr_data_release (block_data)
 !$OMP END PARALLEL
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_make_untransposed_blocks
 
 
@@ -781,7 +781,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     REAL(kind=dp)                            :: cs
     TYPE(array_i1d_obj)                      :: dense_local_cols, &
                                                 dense_local_rows
@@ -789,7 +789,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_init (dense_matrix)
     CALL dbcsr_create (dense_matrix, template=matrix,&
          dist = dense_dist,&
@@ -819,7 +819,7 @@ CONTAINS
        cs = dbcsr_checksum (dense_matrix)
        WRITE(*,*)routineN//" prod cs pst", cs
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_make_dense
 
 ! *****************************************************************************
@@ -1019,7 +1019,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: error_handler, nblkcols_local, nblkcols_total, nblkrows_local, &
+    INTEGER :: handle, nblkcols_local, nblkcols_total, nblkrows_local, &
       nblkrows_total, nfullcols_local, nfullrows_local
     INTEGER, ALLOCATABLE, DIMENSION(:) :: col_internal_offsets, &
       dense_local_col_blk_offsets, dense_local_row_blk_offsets, &
@@ -1031,7 +1031,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     IF (dbg) THEN
        cs = dbcsr_checksum (matrix)
        WRITE(*,*)routineN//" prod cs pre", cs
@@ -1137,7 +1137,7 @@ CONTAINS
     DEALLOCATE (dense_local_col_blk_offsets)
     DEALLOCATE (row_internal_offsets)
     DEALLOCATE (col_internal_offsets)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_make_undense
 
 ! *****************************************************************************
@@ -1397,9 +1397,8 @@ CONTAINS
 
     CHARACTER                                :: rep_type
     INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, data_type, &
-      dst_p, error_handler, mp_group, mynode, mypcol, myprow, nblks, &
-      numnodes, nze, offset, row, row_size, smp, src_p, stored_blk_p, &
-      stored_col, stored_row
+      dst_p, handle, mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, &
+      offset, row, row_size, smp, src_p, stored_blk_p, stored_col, stored_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 send_meta
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count
@@ -1419,7 +1418,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Matrix not initialized.",__LINE__)
@@ -1651,7 +1650,7 @@ CONTAINS
     matrix%m%nblks = replicated%m%nblks
     CALL dbcsr_release (replicated)
     CALL dbcsr_verify_matrix (matrix)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_replicate
 
 
@@ -1678,8 +1677,8 @@ CONTAINS
 
     INTEGER :: blk, blk_col_new, blk_ps, blk_row_new, blks, cnt_fnd, cnt_new, &
       cnt_skip, col, col_int, col_offset_new, col_offset_old, col_rle, &
-      col_size, col_size_new, data_offset_l, data_type, dst_p, error_handler, &
-      i, meta_l, mp_group, numnodes, nze_rle, row, row_int, row_offset_new, &
+      col_size, col_size_new, data_offset_l, data_type, dst_p, handle, i, &
+      meta_l, mp_group, numnodes, nze_rle, row, row_int, row_offset_new, &
       row_offset_old, row_rle, row_size, row_size_new, src_p, stored_col_new, &
       stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, &
@@ -1703,7 +1702,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
          dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Input not valid.",__LINE__)
@@ -2063,7 +2062,7 @@ CONTAINS
     ENDIF
     !CALL dbcsr_assert (cs1-cs2 .LT. 0.00001, dbcsr_fatal_level, dbcsr_internal_error,&
     !     routineN, "Mangled data!")
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_complete_redistribute
 
 ! *****************************************************************************
@@ -2083,9 +2082,9 @@ CONTAINS
     INTEGER, PARAMETER                       :: metalen = 2
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER :: blk, blk_ps, blks, col, col_size, data_type, dst_p, &
-      error_handler, meta_l, mp_group, numnodes, nze, row, row_size, src_p, &
-      stored_col_new, stored_row_new
+    INTEGER :: blk, blk_ps, blks, col, col_size, data_type, dst_p, handle, &
+      meta_l, mp_group, numnodes, nze, row, row_size, src_p, stored_col_new, &
+      stored_row_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
                                                 sd_disp, sdp, send_meta, &
                                                 sm_disp, smp
@@ -2105,7 +2104,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     !call dbcsr_print_dist (matrix%m%dist)
     !call dbcsr_print_dist (redist%m%dist)
     CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
@@ -2309,7 +2308,7 @@ CONTAINS
     DEALLOCATE(rm_disp)
     DEALLOCATE(recv_meta)
     DEALLOCATE(send_meta)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_redistribute
 
 ! *****************************************************************************
@@ -2352,7 +2351,7 @@ CONTAINS
     COMPLEX(kind=dp), DIMENSION(:), POINTER  :: c_dp
     COMPLEX(kind=sp), DIMENSION(:), POINTER  :: c_sp
     INTEGER :: bcol, blk, blk_ps, blk_size, blks, brow, col_size, data_type, &
-      dst_p, error_handler, i, ind, job_count, meta_l, mp_group, &
+      dst_p, handle, i, ind, job_count, meta_l, mp_group, &
       nblkrows_total, numnodes, row_size, src_p, stored_col_new, &
       stored_row_new
     INTEGER(kind=int_8)                      :: actual_blk, blkp, end_ind, &
@@ -2374,7 +2373,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist
     TYPE(dbcsr_mp_obj)                       :: mp_env
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
 
      dist = dbcsr_distribution (new_matrix)
@@ -2566,7 +2565,7 @@ CONTAINS
      DEALLOCATE(send_meta)
      DEALLOCATE(extra_nblks); DEALLOCATE(extra_darea_size)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
     CONTAINS
     
 ! *****************************************************************************

@@ -214,9 +214,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(nrows_total, "GE", nrows_local,& 
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
@@ -273,7 +273,7 @@ CONTAINS
     csr_mat%has_mapping = .FALSE.
     csr_mat%has_indices = .FALSE.
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE csr_create_new
 
@@ -293,10 +293,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_template', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     TYPE(csr_mapping_data)                   :: map
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "Source CSR matrix must be created.",__LINE__)
@@ -343,7 +343,7 @@ CONTAINS
       
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_create_template
 
 ! *****************************************************************************
@@ -361,9 +361,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "Source CSR matrix must be created.",__LINE__)
@@ -403,7 +403,7 @@ CONTAINS
          matrix_b%nzval_local%c_dp = matrix_a%nzval_local%c_dp
      END SELECT
 
-  CALL timestop(error_handler)
+  CALL timestop(handle)
 
   END SUBROUTINE csr_copy
 
@@ -424,9 +424,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_nzerow', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, k
+    INTEGER                                  :: handle, k
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
       "CSR matrix must be created.",__LINE__)
@@ -435,7 +435,7 @@ CONTAINS
       nzerow(k) = csr_mat%rowptr_local(k+1) - csr_mat%rowptr_local(k) 
     ENDDO
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_create_nzerow
    
 ! *****************************************************************************
@@ -451,10 +451,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_destroy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     TYPE(csr_mapping_data)                   :: map
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,& 
       "CSR matrix must be created before destroying it.",__LINE__)
@@ -497,7 +497,7 @@ CONTAINS
     csr_mat%has_indices = .FALSE.
     csr_mat%nzval_local%data_type = -1
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_destroy
  
 ! *****************************************************************************
@@ -518,13 +518,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_brd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_type, error_handler, mp_group, nfullcols_total, &
-      nfullrows, nfullrows_total, nze_local
+    INTEGER                                  :: data_type, handle, mp_group, &
+                                                nfullcols_total, nfullrows, &
+                                                nfullrows_total, nze_local
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, DIMENSION(:), POINTER           :: cdist, csr_index, dbcsr_index
     TYPE(dbcsr_distribution_obj)             :: dist_current
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     NULLIFY(dbcsr_index, csr_index, cdist)
 
     dist_current = dbcsr_distribution(brd_mat)
@@ -559,7 +560,7 @@ CONTAINS
     csr_mat%has_mapping = .TRUE.
     csr_mat%dbcsr_mapping%brd_mat = brd_mat
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_create_from_brd
 
 ! *****************************************************************************
@@ -586,15 +587,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, blkcol, blkrow, col_blk_size, csr_ind, data_type, &
-      dbcsr_ind, el_sum, error_handler, fullcol_sum_blkrow, l, m, n, &
-      nblkrows_total, nze, prev_blk, prev_blkrow, prev_row_blk_size, &
-      row_blk_offset, row_blk_size
+      dbcsr_ind, el_sum, fullcol_sum_blkrow, handle, l, m, n, nblkrows_total, &
+      nze, prev_blk, prev_blkrow, prev_row_blk_size, row_blk_offset, &
+      row_blk_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: csr_nze, nfullcol_blkrow
     INTEGER, DIMENSION(:), POINTER           :: dbcsr_index_nozeroes
     LOGICAL                                  :: tr
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     NULLIFY(dbcsr_index, csr_index) 
 
@@ -699,7 +700,7 @@ CONTAINS
       csr_nze_local = nze
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_get_dbcsr_mapping
 
 
@@ -719,10 +720,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_to_brd', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: data_type, error_handler, &
-                                                ind, k, nze
+    INTEGER                                  :: data_type, handle, ind, k, nze
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     data_type = dbcsr_get_data_type(brd_mat) 
     nze = dbcsr_get_nze(brd_mat)
@@ -754,7 +754,7 @@ CONTAINS
       END SELECT
     ENDDO
 
-   CALL timestop(error_handler)
+   CALL timestop(handle)
   END SUBROUTINE convert_csr_to_brd
 
 ! *****************************************************************************
@@ -774,9 +774,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, blkcol, blkrow, col_blk_offset, col_blk_size, csr_ind, &
-      data_type, dbcsr_ind, el_sum, error_handler, ind_blk_data, k, &
-      local_row_ind, m, n, nblkrows_total, node_row_offset, prev_blkrow, &
-      prev_row_blk_size, row_blk_offset, row_blk_size
+      data_type, dbcsr_ind, el_sum, handle, ind_blk_data, k, local_row_ind, &
+      m, n, nblkrows_total, node_row_offset, prev_blkrow, prev_row_blk_size, &
+      row_blk_offset, row_blk_size
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nfullcol_blkrow
     INTEGER, DIMENSION(:), POINTER           :: colind, csr_index, &
                                                 dbcsr_index, nzerow, rowptr
@@ -784,7 +784,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     NULLIFY(rowptr, colind, dbcsr_index, csr_index)
 
     dbcsr_index => csr_mat%dbcsr_mapping%csr_to_brd_ind
@@ -903,7 +903,7 @@ CONTAINS
 
     IF (new_ind) csr_mat%has_indices = .TRUE.
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE convert_brd_to_csr
 
 ! *****************************************************************************
@@ -940,8 +940,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dbcsr_numnodes, &
-                                                error_handler, &
+    INTEGER                                  :: dbcsr_numnodes, handle, &
                                                 nblkcols_total, &
                                                 nblkrows_total, nblks_local, &
                                                 num_p
@@ -950,7 +949,7 @@ CONTAINS
                                                 csr_sparsity_nosym, &
                                                 dbcsr_mat_nosym
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
@@ -1043,7 +1042,7 @@ CONTAINS
     CALL dbcsr_release(csr_sparsity_nosym)
     CALL dbcsr_release(csr_sparsity_brd)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_create_from_dbcsr
 
 ! *****************************************************************************
@@ -1091,10 +1090,10 @@ CONTAINS
       routineN = 'csr_assert_consistency_with_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     TYPE(csr_mapping_data)                   :: map
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     map = csr_mat%dbcsr_mapping
     IF (map%has_dbcsr_block_data) THEN
       CALL dbcsr_assert(map%dbcsr_nblkcols_total .EQ.&
@@ -1134,7 +1133,7 @@ CONTAINS
         "Can not assert consistency of the matrices as no block data stored in CSR matrix.",&
         __LINE__)
     ENDIF
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_assert_consistency_with_dbcsr
 
 ! *****************************************************************************
@@ -1152,10 +1151,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_dbcsr_to_csr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
@@ -1184,7 +1183,7 @@ CONTAINS
 
     IF(dbcsr_has_symmetry(dbcsr_mat)) CALL dbcsr_release(dbcsr_mat_nosym)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE convert_dbcsr_to_csr
 
 ! *****************************************************************************
@@ -1203,10 +1202,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_to_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
     dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
@@ -1239,7 +1238,7 @@ CONTAINS
     ! 2) BRD -> DBCSR
     CALL dbcsr_complete_redistribute(csr_mat%dbcsr_mapping%brd_mat, dbcsr_mat)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE convert_csr_to_dbcsr
 
 ! *****************************************************************************
@@ -1330,10 +1329,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_conversion_test', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     TYPE(dbcsr_obj)                          :: csr_sparsity, dbcsr_mat_conv
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_to_csr_filter(dbcsr_mat, csr_sparsity, eps)
 
@@ -1350,7 +1349,7 @@ CONTAINS
 
     CALL dbcsr_release(dbcsr_mat_conv)
     CALL dbcsr_release(csr_sparsity)
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_conversion_test
  
 ! *****************************************************************************
@@ -1376,9 +1375,9 @@ CONTAINS
       DIMENSION(:)                           :: nzval_to_master_c_sp
     COMPLEX(KIND=real_8), ALLOCATABLE, &
       DIMENSION(:)                           :: nzval_to_master_c_dp
-    INTEGER                                  :: error_handler, i, k, l, m, &
-                                                mynode, numnodes, rowind, &
-                                                tag1, tag2, tag3
+    INTEGER                                  :: handle, i, k, l, m, mynode, &
+                                                numnodes, rowind, tag1, tag2, &
+                                                tag3
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind_to_master, &
                                                 nzerow_to_master, &
                                                 sizes_numrowlocal, &
@@ -1389,7 +1388,7 @@ CONTAINS
     REAL(KIND=real_8), ALLOCATABLE, &
       DIMENSION(:)                           :: nzval_to_master_r_dp
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     IF (PRESENT(upper_triangle)) THEN
       ut = upper_triangle
@@ -1524,7 +1523,7 @@ CONTAINS
       ENDIF
     ENDDO
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE csr_write
  
@@ -1543,13 +1542,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_print_sparsity', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, mynode, &
-                                                numnodes
+    INTEGER                                  :: handle, mynode, numnodes
     INTEGER(KIND=int_8)                      :: dbcsr_nze_total
     REAL(KIND=real_8)                        :: dbcsr_nze_percentage, &
                                                 nze_percentage
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(csr_mat%valid,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
@@ -1578,7 +1576,7 @@ CONTAINS
       !ENDIF
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE csr_print_sparsity
 
 ! *****************************************************************************
@@ -1605,10 +1603,9 @@ CONTAINS
 
     CHARACTER                                :: matrix_type
     CHARACTER(LEN=default_string_length)     :: matrix_name
-    INTEGER :: chunk_size, data_type, error_handler, i, k, l, m, mp_group, &
-      mynode, nblkcols_total, nblkrows_total, nfullrows_local, &
-      nfullrows_total, node_size, numnodes_total, remainder, row_index, &
-      split_row
+    INTEGER :: chunk_size, data_type, handle, i, k, l, m, mp_group, mynode, &
+      nblkcols_total, nblkrows_total, nfullrows_local, nfullrows_total, &
+      node_size, numnodes_total, remainder, row_index, split_row
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rdist_tmp, &
                                                 row_blk_size_new_tmp
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: pgrid
@@ -1617,7 +1614,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist_current, dist_new
     TYPE(dbcsr_mp_obj)                       :: mp_obj_current, mp_obj_new
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
  
     NULLIFY(row_blk_size, rdist, row_blk_size_new)
     CALL dbcsr_get_info(dbcsr_mat,&
@@ -1726,7 +1723,7 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_new)
     CALL dbcsr_mp_release(mp_obj_new)
     
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_create_brd
 

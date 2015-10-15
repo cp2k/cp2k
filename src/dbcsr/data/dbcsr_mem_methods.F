@@ -238,12 +238,12 @@ MODULE dbcsr_mem_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_mempool_clear', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
     TYPE(dbcsr_mempool_entry_type), POINTER  :: cur, prev
 
     IF(.NOT.ASSOCIATED(pool)) CALL dbcsr_abort(routineP,__LINE__,"pool not allocated")
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
 
     !$ CALL OMP_SET_LOCK(pool%lock)
     cur => pool%root%next
@@ -257,7 +257,7 @@ MODULE dbcsr_mem_methods
     NULLIFY(pool%root%next)
     !$ CALL OMP_UNSET_LOCK(pool%lock)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
  END SUBROUTINE dbcsr_mempool_clear
 
 ! *****************************************************************************

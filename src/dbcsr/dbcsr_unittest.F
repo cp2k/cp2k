@@ -41,7 +41,7 @@ PROGRAM dbcsr_unittest
 
 
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-       prow, pcol, io_unit, error_handler
+       prow, pcol, io_unit, handle
   INTEGER, DIMENSION(2)                    :: npdims, myploc
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(dbcsr_mp_obj)                       :: mp_env
@@ -54,7 +54,7 @@ PROGRAM dbcsr_unittest
 
   !
   ! initialize libdbcsr errors
-  CALL timeset (routineN, error_handler)
+  CALL timeset (routineN, handle)
 
   !
   ! initialize mpi
@@ -329,6 +329,6 @@ PROGRAM dbcsr_unittest
 
   !
   ! finalize libdbcsr errors
-  CALL timestop (error_handler)
+  CALL timestop (handle)
 
 END PROGRAM dbcsr_unittest

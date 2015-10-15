@@ -200,7 +200,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: d, error_handler, &
+    INTEGER                                  :: d, handle, &
                                                 total_size_oversized, &
                                                 total_size_requested
     INTEGER, DIMENSION(2)                    :: sizes_oversized, &
@@ -209,7 +209,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert(.NOT.ASSOCIATED(area%d), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN,&
@@ -254,7 +254,7 @@ CONTAINS
        END IF
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE dbcsr_data_new
 
 ! *****************************************************************************
@@ -277,14 +277,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: current_size, error_handler, &
+    INTEGER                                  :: current_size, handle, &
                                                 wanted_size
     LOGICAL                                  :: nocp, pad
     TYPE(dbcsr_data_obj)                     :: area_tmp
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL timeset(routineN, error_handler)
+    IF (careful_mod) CALL timeset(routineN, handle)
     CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
          routineN, "Data area must be setup.",__LINE__)
     current_size = dbcsr_data_get_size (area)
@@ -306,7 +306,7 @@ CONTAINS
 
     CALL dbcsr_data_set_size_referenced (area, data_size)
     IF (current_size .GT. 1 .AND. current_size .GE. wanted_size) THEN
-       IF (careful_mod) CALL timestop(error_handler)
+       IF (careful_mod) CALL timestop(handle)
        RETURN
     ENDIF
     !
@@ -394,7 +394,7 @@ CONTAINS
        ENDIF
 
     ENDIF
-    IF (careful_mod) CALL timestop(error_handler)
+    IF (careful_mod) CALL timestop(handle)
   END SUBROUTINE dbcsr_data_ensure_size
 
 
@@ -409,11 +409,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_assert (ASSOCIATED (area%d), &
          dbcsr_warning_level, dbcsr_caller_error,&
@@ -441,7 +441,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_data_release
 

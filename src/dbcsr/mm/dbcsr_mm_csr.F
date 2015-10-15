@@ -492,8 +492,8 @@ MODULE dbcsr_mm_csr
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: block_estimate, default_stack, error_handler, istack, ithread, &
-      k_map, k_size, m_map, m_size, n_map, n_size, nstacks, nthreads, ps_g
+    INTEGER :: block_estimate, default_stack, handle, istack, ithread, k_map, &
+      k_size, m_map, m_size, n_map, n_size, nstacks, nthreads, ps_g
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: flop_index, flop_list, &
                                                 most_common_k, most_common_m, &
                                                 most_common_n
@@ -502,7 +502,7 @@ MODULE dbcsr_mm_csr
     TYPE(stack_descriptor_type), &
       ALLOCATABLE, DIMENSION(:)              :: tmp_descr
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
@@ -656,7 +656,7 @@ MODULE dbcsr_mm_csr
     CALL dbcsr_mm_sched_init(this%sched, &
                 product_wm=this%product_wm)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_mm_csr_init
 
@@ -680,12 +680,12 @@ MODULE dbcsr_mm_csr
     CHARACTER(len=*), PARAMETER :: routineN = 'fill_hash_tables', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col, error_handler, i, imat, &
-                                                n_rows, row
+    INTEGER                                  :: col, handle, i, imat, n_rows, &
+                                                row
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     imat = 1
     !$ imat = OMP_GET_THREAD_NUM() + 1
     IF (PRESENT (row_map)) THEN
@@ -713,7 +713,7 @@ MODULE dbcsr_mm_csr
        IF (PRESENT (col_map)) col = col_map(col)
        CALL hash_table_add(hashes(row), col, i)
     ENDDO
-    CALL timestop(error_handler)
+    CALL timestop(handle)
   END SUBROUTINE fill_hash_tables
 
 

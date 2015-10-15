@@ -108,9 +108,9 @@ CONTAINS
       dbcsr_type_real_8, dbcsr_type_complex_4, dbcsr_type_complex_8/)
 
     CHARACTER                                :: a_symm, b_symm
-    INTEGER                                  :: a_c, a_r, b_c, b_r, &
-                                                error_handler, isymm, itype, &
-                                                mynode, numnodes, TYPE
+    INTEGER                                  :: a_c, a_r, b_c, b_r, handle, &
+                                                isymm, itype, mynode, &
+                                                numnodes, TYPE
     INTEGER, DIMENSION(:), POINTER           :: my_sizes_m, my_sizes_n, &
                                                 sizes_m, sizes_n
     LOGICAL                                  :: do_complex
@@ -120,7 +120,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
     NULLIFY(my_sizes_m, my_sizes_n, sizes_m, sizes_n)
 
     !
@@ -235,7 +235,7 @@ CONTAINS
 
     ENDDO !isymm
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_test_adds
 
@@ -274,7 +274,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'test_add', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: c, error_handler, r
+    INTEGER                                  :: c, handle, r
     INTEGER, DIMENSION(:), POINTER           :: col_dist_a, col_dist_b, &
                                                 row_dist_a, row_dist_b
     LOGICAL                                  :: success
@@ -284,7 +284,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)
@@ -374,7 +374,7 @@ CONTAINS
     CALL dbcsr_release (m_a)
     CALL dbcsr_release (m_b)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE test_add
 
@@ -409,8 +409,8 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_add', &
       routineP = moduleN//':'//routineN
-    INTEGER                                  :: col, col_size, error_handler, &
-                                                i, istat, j, ld, lwork, m, &
+    INTEGER                                  :: col, col_size, handle, i, &
+                                                istat, j, ld, lwork, m, &
                                                 mynode, n, numnodes, row, &
                                                 row_size
     CHARACTER, PARAMETER                     :: norm = 'I'
@@ -424,7 +424,7 @@ CONTAINS
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: work
     REAL(real_8), EXTERNAL                   :: dlamch, dlange, zlange
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     CALL mp_environ (numnodes, mynode, mp_group)
 
@@ -604,7 +604,7 @@ CONTAINS
 
     ENDIF
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_check_add
 

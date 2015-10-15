@@ -87,13 +87,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_hostdrv_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     this%data_area = product_wm%data_area
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_mm_hostdrv_init
 

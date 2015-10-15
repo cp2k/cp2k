@@ -132,9 +132,9 @@ CONTAINS
     CHARACTER                                :: a_symm, b_symm, c_symm, &
                                                 transa, transb
     INTEGER                                  :: a_c, a_r, a_tr, b_c, b_r, &
-                                                b_tr, c_c, c_r, &
-                                                error_handler, isymm, itype, &
-                                                mynode, numnodes, TYPE
+                                                b_tr, c_c, c_r, handle, &
+                                                isymm, itype, mynode, &
+                                                numnodes, TYPE
     INTEGER, DIMENSION(:), POINTER           :: my_sizes_k, my_sizes_m, &
                                                 my_sizes_n, sizes_k, sizes_m, &
                                                 sizes_n
@@ -146,7 +146,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
     NULLIFY(my_sizes_k, my_sizes_m, my_sizes_n,&
             sizes_k, sizes_m, sizes_n)
     !
@@ -353,7 +353,7 @@ CONTAINS
 
     END DO !isymm
 
-    CALL timestop (error_handler)
+    CALL timestop (handle)
 
   END SUBROUTINE dbcsr_test_multiplies
 
@@ -399,8 +399,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'test_multiply', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: c_a, c_b, c_c, error_handler, &
-                                                r_a, r_b, r_c
+    INTEGER                                  :: c_a, c_b, c_c, handle, r_a, &
+                                                r_b, r_c
     INTEGER, DIMENSION(:), POINTER           :: blk_offsets, col_dist_a, &
                                                 col_dist_b, col_dist_c, &
                                                 row_dist_a, row_dist_b, &
@@ -413,7 +413,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
     NULLIFY(row_dist_a,col_dist_a,&
             row_dist_b,col_dist_b,&
             row_dist_c,col_dist_c)
@@ -553,7 +553,7 @@ CONTAINS
     CALL dbcsr_release (m_b)
     CALL dbcsr_release (m_c)
 
-    CALL timestop (error_handler)
+    CALL timestop (handle)
 
   END SUBROUTINE test_multiply
 
@@ -593,8 +593,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_multiply', &
       routineP = moduleN//':'//routineN
     INTEGER :: a_col, a_m, a_n, a_row, b_col, b_m, b_n, b_row, c_col, &
-      c_col_size, c_row, c_row_size, error_handler, i, istat, j, k, lda, ldb, &
-      ldc, lwork, m, mynode, n, numnodes
+      c_col_size, c_row, c_row_size, handle, i, istat, j, k, lda, ldb, ldc, &
+      lwork, m, mynode, n, numnodes
     CHARACTER, PARAMETER                     :: norm = 'I'
 
     LOGICAL                                  :: valid
@@ -606,7 +606,7 @@ CONTAINS
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: work
     REAL(real_8), EXTERNAL                   :: dlamch, dlange, zlange
 
-    CALL timeset (routineN, error_handler)
+    CALL timeset (routineN, handle)
 
     CALL mp_environ (numnodes, mynode, mp_group)
 
@@ -823,7 +823,7 @@ CONTAINS
 
     END IF
 
-    CALL timestop (error_handler)
+    CALL timestop (handle)
 
   END SUBROUTINE dbcsr_check_multiply
 

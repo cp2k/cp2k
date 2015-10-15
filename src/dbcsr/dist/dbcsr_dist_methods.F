@@ -97,14 +97,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribution_new', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler, i, lcmv, &
-                                                mypcoor, nclusters, seq
+    INTEGER                                  :: handle, i, lcmv, mypcoor, &
+                                                nclusters, seq
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_dist
     INTEGER, DIMENSION(:), POINTER           :: col_dist_tmp, ld, row_dist_tmp
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     ALLOCATE (dist%d)
     dist%d%refcount = 1
@@ -261,7 +261,7 @@ CONTAINS
     dist%d%has_global_row_map = .FALSE.
     dist%d%has_global_col_map = .FALSE.
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_distribution_new
 

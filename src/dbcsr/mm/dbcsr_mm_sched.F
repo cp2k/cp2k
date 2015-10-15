@@ -211,9 +211,9 @@ MODULE dbcsr_mm_sched
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_sched_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     this%product_wm => product_wm
 
@@ -227,7 +227,7 @@ MODULE dbcsr_mm_sched
     IF (mm_driver == mm_driver_acc) &
        CALL dbcsr_mm_accdrv_init(this%accdrv, product_wm)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_mm_sched_init
 
@@ -256,9 +256,9 @@ MODULE dbcsr_mm_sched
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_sched_finalize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handler
+    INTEGER                                  :: handle
 
-    CALL timeset(routineN, error_handler)
+    CALL timeset(routineN, handle)
 
     ! Just in case dbcsr_mm_sched_process was never called (really needed?)
     CALL ensure_product_wm_cleared(this)
@@ -267,7 +267,7 @@ MODULE dbcsr_mm_sched
     IF (mm_driver == mm_driver_acc) &
        CALL dbcsr_mm_accdrv_finalize(this%accdrv)
 
-    CALL timestop(error_handler)
+    CALL timestop(handle)
 
   END SUBROUTINE dbcsr_mm_sched_finalize
 

@@ -41,7 +41,7 @@ PROGRAM dbcsr_performance_driver
 
 
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
-       prow, pcol, io_unit, narg, error_handler
+       prow, pcol, io_unit, narg, handle
   INTEGER, DIMENSION(2)                    :: npdims, myploc
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(dbcsr_mp_obj)                       :: mp_env
@@ -55,7 +55,7 @@ PROGRAM dbcsr_performance_driver
 
   !
   ! initialize libdbcsr errors
-  CALL timeset (routineN, error_handler)
+  CALL timeset (routineN, handle)
 
   !
   ! initialize mpi
@@ -119,6 +119,6 @@ PROGRAM dbcsr_performance_driver
 
   !
   ! finalize libdbcsr errors
-  CALL timestop (error_handler)
+  CALL timestop (handle)
 
 END PROGRAM dbcsr_performance_driver
