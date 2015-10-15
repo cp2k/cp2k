@@ -516,3 +516,5 @@ dbcsr_test_csr_conversions.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_test_
 dbcsr_test_csr_conversions.F: Found CALL RANDOM_NUMBER in procedure "make_random_dbcsr_matrix"
 dbcsr_test_csr_conversions.F: Found CALL RANDOM_SEED in procedure "dbcsr_test_csr_conversions"
 graph.F: Found CALL RANDOM_SEED in procedure "graph"
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort"
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
