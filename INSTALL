@@ -103,7 +103,7 @@ Tested against libinit-1.1.4 and currently hardcoded to the default angular mome
 (check your include/libint/libint.h to see if it matches)
 http://sourceforge.net/projects/libint/files/v1-releases/libint-1.1.4.tar.gz/download
 Note that you should **NOT** use libinit-1.1.3.
-__MAX_CONTR : -D__MAX_CONTR=4 (default=2) can be used to compile efficient contraction kernels up to l=4,
+-D__MAX_CONTR=4 (default=2) can be used to compile efficient contraction kernels up to l=4,
 will take longer to compile.
 
 ==== 2h. libsmm (optional, improved performance for matrix multiplication) ====
@@ -122,7 +122,7 @@ will take longer to compile.
   * -D__ACC needed to switch on the accelerator support
   * Use the -D__DBCSR_ACC to compile with accelerator support
     support for matrix multiplication.  For linking add -lcudart and -lrt
-    to LIBS.  
+    to LIBS.
   * Use -D__PW_CUDA for CUDA support for PW (gather/scatter/fft)
     calculations.  The Fortran compiler must use an appended
     underscore for linking C subroutines.
@@ -182,7 +182,7 @@ Support for QUIP can be enabled via the flag -D__QUIP .
 For more information see http://www.libatoms.org/ .
 
 ==== 2m. PLUMED (optional, enables various enhanced sampling methods) ====
-CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMED 2.x (-D__PLUMED2). 
+CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMED 2.x (-D__PLUMED2).
 Note that the code can only be built for one of these libraries at a time.
 
 See http://cp2k.org/howto:install_with_plumed for full instructions.
@@ -246,7 +246,7 @@ The following flags should be present (or not) in the arch file, partially depen
     which is a hack to overwrite (if the linker allows this) the PILAENV function provided by Scalapack.
     This can lead to much improved PDGEMM performance. The optimal value depends on hardware (GPU?) and precise problem.
   * -D__STATM_RESIDENT or -D__STATM_TOTAL toggles memory usage reporting between resident memory and total memory
-  * _D__CRAY_PM_ACCEL_ENERGY or -D__CRAY_PM_ENERGY switch on energy profiling on Cray systems 
+  * -D__CRAY_PM_ACCEL_ENERGY or -D__CRAY_PM_ENERGY switch on energy profiling on Cray systems 
 
 Features useful to deal with legacy systems
   * -D__NO_MPI_THREAD_SUPPORT_CHECK  - Workaround for MPI libraries that do
@@ -268,7 +268,7 @@ Features useful to deal with legacy systems
     If this is not the case specify this flag to compile.
     Runtime performance will be poorer on low numbers of processors
   * -D__HAS_NO_CUDA_STREAM_PRIORITIES - Needed for CUDA sdk version < 5.5
-  * -D__NO_STATM_ACCESS    - Do not try to read from /proc/self/statm to
+  * -D__NO_STATM_ACCESS - Do not try to read from /proc/self/statm to
     get memory usage information. This is otherwise attempted on several
     Linux-based architectures or using with the NAG, gfortran, compilers.
 
