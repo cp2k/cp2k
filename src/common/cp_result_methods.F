@@ -501,8 +501,7 @@ CONTAINS
        CASE(result_type_logical)
           CALL mp_bcast(results%result_value(i)%value%logical_type, source, para_env%group)
        CASE DEFAULT
-          ! Type not implemented in cp_result_type
-          CPABORT("")
+          CPABORT("Type not implemented in cp_result_type")
        END SELECT
     END DO
     DEALLOCATE(type_in_use)
