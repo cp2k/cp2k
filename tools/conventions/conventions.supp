@@ -420,8 +420,8 @@ t_sh_p_s_c.F: Copyright banner malformed
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list"
 termination.F: Unused dummy argument ‘line_number’ at (1) [-Wunused-dummy-argument]
 timings.F: Found WRITE statement with hardcoded unit in "routine_name2id"
-timings.F: Found WRITE statement with hardcoded unit in "timeset"
-timings.F: Found WRITE statement with hardcoded unit in "timestop"
+timings.F: Found WRITE statement with hardcoded unit in "timeset_handler"
+timings.F: Found WRITE statement with hardcoded unit in "timestop_handler"
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement"
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_dipole_moment"
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_paircorrelation"

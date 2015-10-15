@@ -17,7 +17,6 @@ PROGRAM dbcsr_performance_driver
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
@@ -47,7 +46,6 @@ PROGRAM dbcsr_performance_driver
   INTEGER, DIMENSION(2)                    :: npdims, myploc
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(dbcsr_mp_obj)                       :: mp_env
-  TYPE(dbcsr_error_type)                   :: error
   CHARACTER(len=default_string_length)     :: args(100)
 
 
@@ -58,7 +56,7 @@ PROGRAM dbcsr_performance_driver
 
   !
   ! initialize libdbcsr errors
-  CALL dbcsr_error_set (routineN, error_handler, error)
+  CALL dbcsr_error_set (routineN, error_handler)
 
   !
   ! initialize mpi
@@ -90,26 +88,26 @@ PROGRAM dbcsr_performance_driver
   CALL mp_bcast (narg, 0, group)
   CALL mp_bcast (args, 0, group)
   CALL dbcsr_assert (narg.GE.1, dbcsr_fatal_level, dbcsr_wrong_args_error, &
-     routineN, "nargs not correct", __LINE__, error)
+     routineN, "nargs not correct", __LINE__)
 
   !
   ! initialize libdbcsr
-  CALL dbcsr_init_lib (error)
-  CALL dbcsr_set_default_config (error=error)
+  CALL dbcsr_init_lib ()
+  CALL dbcsr_set_default_config ()
 
   !
   ! select the operation
   SELECT CASE(args(1))
     CASE('dbcsr_multiply')
-       CALL dbcsr_perf_multiply (group, mp_env, npdims, io_unit, narg, args, error=error)
+       CALL dbcsr_perf_multiply (group, mp_env, npdims, io_unit, narg, args)
     CASE DEFAULT
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-          routineN, "operation not found", __LINE__, error)
+          routineN, "operation not found", __LINE__)
   END SELECT
 
   !
   ! finalize libdbcsr
-  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
+  CALL dbcsr_finalize_lib (mp_comm, io_unit)
 
   !
   ! clean mp enviroment
@@ -122,6 +120,6 @@ PROGRAM dbcsr_performance_driver
 
   !
   ! finalize libdbcsr errors
-  CALL dbcsr_error_stop (error_handler, error)
+  CALL dbcsr_error_stop (error_handler)
 
 END PROGRAM dbcsr_performance_driver

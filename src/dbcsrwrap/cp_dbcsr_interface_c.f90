@@ -256,11 +256,10 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_a_c', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_scalar_type)                  :: trace_scalar
 
     trace_scalar = dbcsr_scalar_zero (cp_dbcsr_get_data_type(matrix_a))
-    CALL dbcsr_trace(matrix_a%matrix, trace_scalar, dbcsr_error)
+    CALL dbcsr_trace(matrix_a%matrix, trace_scalar)
     CALL dbcsr_scalar_fill_all (trace_scalar)
     CALL dbcsr_scalar_get_value (trace_scalar, trace)
   END SUBROUTINE cp_dbcsr_trace_a_c
@@ -284,9 +283,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_trace_ab_c', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace, trans_a, trans_b, local_sum, dbcsr_error)
+    CALL dbcsr_trace(matrix_a%matrix, matrix_b%matrix, trace, trans_a, trans_b, local_sum)
   END SUBROUTINE cp_dbcsr_trace_ab_c
 
 
@@ -336,7 +333,6 @@
                                                 trans_b
     LOGICAL                                  :: my_match_matrix_sizes
     TYPE(cp_dbcsr_type)                      :: new_a, new_b
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     trans_a = transa
     trans_b = transb
@@ -363,7 +359,7 @@
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, &
          filter_eps=filter_eps,&
-         error=dbcsr_error, flop=flop)
+         flop=flop)
 
     CALL cp_dbcsr_release (new_a)
     CALL cp_dbcsr_release (new_b)
@@ -385,9 +381,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_by_vector_c ', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                    :: dbcsr_error
-
-    CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side, dbcsr_error)
+    CALL dbcsr_scale_by_vector(matrix_a%matrix, alpha, side)
   END SUBROUTINE cp_dbcsr_scale_by_vector_c
 
 
@@ -405,9 +399,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_scale_c', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column, dbcsr_error)
+    CALL dbcsr_scale(matrix_a%matrix, alpha_scalar, last_column)
   END SUBROUTINE cp_dbcsr_scale_c
 
 
@@ -423,9 +415,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_c', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix), dbcsr_error)
+    CALL dbcsr_set(matrix%matrix, cp_dbcsr_conform_scalar (alpha, matrix))
   END SUBROUTINE cp_dbcsr_set_c
 
 
@@ -444,9 +434,7 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_c', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar, dbcsr_error)
+    CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar)
   END SUBROUTINE cp_dbcsr_add_c
 
 ! *****************************************************************************

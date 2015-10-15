@@ -7,13 +7,11 @@
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_matrix_colvec_multiply_low_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
+  SUBROUTINE dbcsr_matrix_colvec_multiply_low_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(kind=real_4)                          :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_colvec_multiply_low', &
       routineP = moduleN//':'//routineN
@@ -23,16 +21,16 @@
     matrix_type=dbcsr_get_matrix_type(matrix)
     SELECT CASE(matrix_type)
     CASE(dbcsr_type_no_symmetry)
-       CALL dbcsr_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
+       CALL dbcsr_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     CASE(dbcsr_type_symmetric)
-       CALL dbcsr_sym_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
+       CALL dbcsr_sym_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     CASE(dbcsr_type_antisymmetric)
         ! Not yet implemented, should mainly be some prefactor magic, but who knows how antisymmetric matrices are stored???
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error, &
-            routineN, "NYI, antisymmetric matrix not permitted", __LINE__, error)
+            routineN, "NYI, antisymmetric matrix not permitted", __LINE__)
     CASE DEFAULT
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error, &
-            routineN, "Unknown matrix type, ...", __LINE__, error)
+            routineN, "Unknown matrix type, ...", __LINE__)
     END SELECT
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_low_c
@@ -46,13 +44,11 @@
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
+  SUBROUTINE dbcsr_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(kind=real_4)                          :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult', &
       routineP = moduleN//':'//routineN
@@ -70,7 +66,7 @@
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col
     INTEGER                                  :: prow, pcol
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
     ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
@@ -80,18 +76,18 @@
     mypcol=distri%d%mp_env%mp%mypcol
     myprow=distri%d%mp_env%mp%myprow
 
-    CALL create_fast_row_vec_access(work_row, fast_vec_row, error)
-    CALL create_fast_col_vec_access(work_col, fast_vec_col, error)
+    CALL create_fast_row_vec_access(work_row, fast_vec_row)
+    CALL create_fast_col_vec_access(work_col, fast_vec_col)
 
 ! Transfer the correct parts of the input vector to the correct locations so we can do a local multiply
-    CALL dbcsr_col_vec_to_rep_row_c(vec_in, work_col, work_row, fast_vec_col, error)
+    CALL dbcsr_col_vec_to_rep_row_c(vec_in, work_col, work_row, fast_vec_col)
 
 ! Set the work vector for the results to 0
-    CALL dbcsr_set(work_col, CMPLX(0.0, 0.0, real_4), error=error)
+    CALL dbcsr_set(work_col, CMPLX(0.0, 0.0, real_4))
 
 ! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
 ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
-    CALL dbcsr_error_set(routineN//"_local_mm", handle1, error)
+    CALL dbcsr_error_set(routineN//"_local_mm", handle1)
 
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,transposed,ithread,pcol,prow) &
 !$OMP          SHARED(matrix,fast_vec_col,fast_vec_row)
@@ -108,7 +104,7 @@
     CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-    CALL dbcsr_error_stop(handle1, error)
+    CALL dbcsr_error_stop(handle1)
 
 ! sum all the data onto the first processor col where the original vector is stored
     data_vec => dbcsr_get_data_p (work_col%m%data_area, select_data_type=CMPLX(0.0, 0.0, real_4))
@@ -129,10 +125,10 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL release_fast_vec_access(fast_vec_row, error)
-    CALL release_fast_vec_access(fast_vec_col, error)
+    CALL release_fast_vec_access(fast_vec_row)
+    CALL release_fast_vec_access(fast_vec_col)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE dbcsr_matrix_vector_mult_c
 
@@ -146,14 +142,12 @@
 !> \param work_row ...
 !> \param work_col ...
 !> \param skip_diag ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_matrixT_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, skip_diag, error)
+  SUBROUTINE dbcsr_matrixT_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, skip_diag)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(kind=real_4)                          :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
     LOGICAL                                  :: skip_diag
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult', &
       routineP = moduleN//':'//routineN
@@ -172,7 +166,7 @@
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col
     INTEGER                                  :: prow, pcol
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
     ithread=0
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
@@ -180,11 +174,11 @@
     prow_group=distri%d%mp_env%mp%prow_group; pcol_group=distri%d%mp_env%mp%pcol_group
     mypcol=distri%d%mp_env%mp%mypcol; myprow=distri%d%mp_env%mp%myprow
 
-    CALL create_fast_row_vec_access(work_row, fast_vec_row, error)
-    CALL create_fast_col_vec_access(work_col, fast_vec_col, error)
+    CALL create_fast_row_vec_access(work_row, fast_vec_row)
+    CALL create_fast_col_vec_access(work_col, fast_vec_col)
 
 ! Set the work vector for the results to 0
-    CALL dbcsr_set(work_row, CMPLX(0.0, 0.0, real_4), error=error)
+    CALL dbcsr_set(work_row, CMPLX(0.0, 0.0, real_4))
 
 ! Transfer the correct parts of the input vector to the replicated vector on proc_col 0
     CALL dbcsr_iterator_start(iter, vec_in)
@@ -199,7 +193,7 @@
     CALL mp_bcast(data_vec, 0, prow_group)
 
 ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
-    CALL dbcsr_error_set(routineN//"local_mm", handle1, error)
+    CALL dbcsr_error_set(routineN//"local_mm", handle1)
     CALL dbcsr_get_info(matrix=work_col, nfullcols_local=ncols)
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,row_size,col_size,transposed,ithread,prow,pcol) &
 !$OMP          SHARED(matrix,fast_vec_row,fast_vec_col,skip_diag,ncols)
@@ -226,7 +220,7 @@
     CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-    CALL dbcsr_error_stop(handle1, error)
+    CALL dbcsr_error_stop(handle1)
 
 ! sum all the data within a processor column to obtain the replicated result
     data_vec => dbcsr_get_data_p (work_row%m%data_area, select_data_type=CMPLX(0.0, 0.0, real_4))
@@ -235,7 +229,7 @@
     CALL mp_sum(data_vec(1:nrows*ncols), pcol_group)
 
 ! Convert the result to a column wise distribution
-    CALL dbcsr_rep_row_to_rep_col_vec_c(work_col, work_row, fast_vec_row, error=error)
+    CALL dbcsr_rep_row_to_rep_col_vec_c(work_col, work_row, fast_vec_row)
     
 ! Create_the final vector by summing it to the result vector which lives on proc_col 0
     CALL dbcsr_iterator_start(iter, vec_out)
@@ -250,7 +244,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE dbcsr_matrixT_vector_mult_c 
 
@@ -260,13 +254,11 @@
 !> \param rep_col_vec ...
 !> \param rep_row_vec ...
 !> \param fast_vec_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_col_vec_to_rep_row_c(vec_in, rep_col_vec, rep_row_vec, fast_vec_col, error)
+  SUBROUTINE dbcsr_col_vec_to_rep_row_c(vec_in, rep_col_vec, rep_row_vec, fast_vec_col)
     TYPE(dbcsr_obj)                          :: vec_in, rep_col_vec, &
                                                 rep_row_vec
     TYPE(fast_vec_access_type), INTENT(IN)   :: fast_vec_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_col_vec_to_rep_row', &
       routineP = moduleN//':'//routineN
@@ -281,7 +273,7 @@
     TYPE(dbcsr_distribution_obj)             :: distri
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
 ! get information about the parallel environment
     CALL dbcsr_get_info(matrix=vec_in, distribution=distri)
@@ -308,7 +300,7 @@
 ! Anyway, as the blocks don't repeat in the col_vec, a different fraction of the row vec will be available
 ! on every replica in the processor column, by summing along the column we end up with the complete vector everywhere
 ! Hope this clarifies the idea
-    CALL dbcsr_set(rep_row_vec, CMPLX(0.0, 0.0, real_4), error=error)
+    CALL dbcsr_set(rep_row_vec, CMPLX(0.0, 0.0, real_4))
     CALL dbcsr_get_info(matrix=rep_row_vec, nfullrows_local=nrows, local_cols=local_cols, nfullcols_local=ncols)
     CALL dbcsr_iterator_start(iter, rep_row_vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -322,7 +314,7 @@
     data_vec_rep => dbcsr_get_data_p (rep_row_vec%m%data_area, select_data_type=CMPLX(0.0, 0.0, real_4))
     CALL mp_sum(data_vec_rep(1:ncols*nrows), pcol_group)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE dbcsr_col_vec_to_rep_row_c    
        
@@ -332,13 +324,11 @@
 !> \param rep_row_vec ...
 !> \param fast_vec_row ...
 !> \param fast_vec_col_add ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_rep_row_to_rep_col_vec_c(rep_col_vec, rep_row_vec, fast_vec_row, fast_vec_col_add, error)
+  SUBROUTINE dbcsr_rep_row_to_rep_col_vec_c(rep_col_vec, rep_row_vec, fast_vec_row, fast_vec_col_add)
     TYPE(dbcsr_obj)                          :: rep_col_vec, rep_row_vec
     TYPE(fast_vec_access_type), OPTIONAL     :: fast_vec_col_add
     TYPE(fast_vec_access_type)               :: fast_vec_row
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_rep_row_to_rep_col_vec', &
       routineP = moduleN//':'//routineN
@@ -353,7 +343,7 @@
     TYPE(dbcsr_distribution_obj)             :: distri
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
 ! get information about the parallel environment
     CALL dbcsr_get_info(matrix=rep_col_vec, distribution=distri)
@@ -365,7 +355,7 @@
     col_dist=> dbcsr_distribution_col_dist (dbcsr_distribution(rep_row_vec))
 
 ! The same trick as described above with opposite direction
-    CALL dbcsr_set(rep_col_vec, CMPLX(0.0, 0.0, real_4), error=error)
+    CALL dbcsr_set(rep_col_vec, CMPLX(0.0, 0.0, real_4))
     CALL dbcsr_iterator_start(iter, rep_col_vec)
     DO WHILE (dbcsr_iterator_blocks_left(iter))
        CALL dbcsr_iterator_next_block(iter, row, col, vec_col, transposed)
@@ -382,7 +372,7 @@
     data_vec_rep => dbcsr_get_data_p (rep_col_vec%m%data_area, select_data_type=CMPLX(0.0, 0.0, real_4))
     CALL mp_sum(data_vec_rep(1:nrows*ncols), prow_group)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE dbcsr_rep_row_to_rep_col_vec_c
 
@@ -391,12 +381,10 @@
 !> \brief given a column vector, prepare the fast_vec_access container
 !> \param vec ...
 !> \param fast_vec_access ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_fast_col_vec_access_c(vec, fast_vec_access, error)
+  SUBROUTINE create_fast_col_vec_access_c(vec, fast_vec_access)
     TYPE(dbcsr_obj)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access_c', &
       routineP = moduleN//':'//routineN
@@ -407,7 +395,7 @@
     COMPLEX(kind=real_4), DIMENSION(:, :), POINTER       :: vec_bl
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     ! figure out the number of threads
     nthreads = 1
@@ -424,7 +412,7 @@
     ALLOCATE(fast_vec_access%blk_map_c(0:nblk_local))
 
     CALL dbcsr_get_info(matrix=vec, nblkcols_local=col)
-    IF (col.GT.1) CALL dbcsr_abort(routineP,__LINE__,"BUG",error)
+    IF (col.GT.1) CALL dbcsr_abort(routineP,__LINE__,"BUG")
 
     ! go through the blocks of the vector
     iblock=0
@@ -438,7 +426,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_fast_col_vec_access_c
 
@@ -446,12 +434,10 @@
 !> \brief given a row vector, prepare the fast_vec_access_container
 !> \param vec ...
 !> \param fast_vec_access ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_fast_row_vec_access_c(vec, fast_vec_access, error)
+  SUBROUTINE create_fast_row_vec_access_c(vec, fast_vec_access)
     TYPE(dbcsr_obj)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access_c', &
       routineP = moduleN//':'//routineN
@@ -462,7 +448,7 @@
     COMPLEX(kind=real_4), DIMENSION(:, :), POINTER       :: vec_bl
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     ! figure out the number of threads
     nthreads = 1
@@ -480,7 +466,7 @@
 
     ! sanity check
     CALL dbcsr_get_info(matrix=vec, nblkrows_local=row)
-    IF (row.GT.1) CALL dbcsr_abort(routineP,__LINE__,"BUG",error)
+    IF (row.GT.1) CALL dbcsr_abort(routineP,__LINE__,"BUG")
 
     ! go through the blocks of the vector
     iblock=0
@@ -494,7 +480,7 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_fast_row_vec_access_c
 
@@ -507,13 +493,11 @@
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_sym_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
+  SUBROUTINE dbcsr_sym_matrix_vector_mult_c(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(kind=real_4)                          :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_sym_m_v_mult', &
       routineP = moduleN//':'//routineN
@@ -533,36 +517,36 @@
     TYPE(fast_vec_access_type)               :: fast_vec_row, fast_vec_col, res_fast_vec_row, res_fast_vec_col
     INTEGER                                  :: prow, pcol, rprow, rpcol
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
     ithread=0
 ! We need some work matrices as we try to exploit operations on the replicated vectors which are duplicated otherwise
     CALL dbcsr_get_info(matrix=vec_in,nfullcols_total=vec_dim)
 ! This is a performance hack as the new creation of a replicated vector is a fair bit more expensive
     CALL dbcsr_init(result_col)
-    CALL dbcsr_set(work_col, CMPLX(0.0, 0.0, real_4), error=error)
-    CALL dbcsr_copy(result_col, work_col, error=error)
+    CALL dbcsr_set(work_col, CMPLX(0.0, 0.0, real_4))
+    CALL dbcsr_copy(result_col, work_col)
     CALL dbcsr_init(result_row)
-    CALL dbcsr_set(work_row, CMPLX(0.0, 0.0, real_4), error=error)
-    CALL dbcsr_copy(result_row, work_row, error=error)
+    CALL dbcsr_set(work_row, CMPLX(0.0, 0.0, real_4))
+    CALL dbcsr_copy(result_row, work_row)
 
 ! Collect some data about the parallel environment. We will use them later to move the vector around
     CALL dbcsr_get_info(matrix=matrix, distribution=distri)
     prow_group=distri%d%mp_env%mp%prow_group; pcol_group=distri%d%mp_env%mp%pcol_group
     mypcol=distri%d%mp_env%mp%mypcol; myprow=distri%d%mp_env%mp%myprow
 
-    CALL create_fast_row_vec_access(work_row, fast_vec_row, error)
-    CALL create_fast_col_vec_access(work_col, fast_vec_col, error)
-    CALL create_fast_row_vec_access(result_row, res_fast_vec_row, error)
-    CALL create_fast_col_vec_access(result_col, res_fast_vec_col, error)
+    CALL create_fast_row_vec_access(work_row, fast_vec_row)
+    CALL create_fast_col_vec_access(work_col, fast_vec_col)
+    CALL create_fast_row_vec_access(result_row, res_fast_vec_row)
+    CALL create_fast_col_vec_access(result_col, res_fast_vec_col)
 
 ! Transfer the correct parts of the input vector to the correct locations so we can do a local multiply
-    CALL dbcsr_col_vec_to_rep_row_c(vec_in, work_col, work_row, fast_vec_col, error)
+    CALL dbcsr_col_vec_to_rep_row_c(vec_in, work_col, work_row, fast_vec_col)
 
 ! Probably I should rename the routine above as it delivers both the replicated row and column vector
 
 ! Perform the local multiply. Here we exploit, that we have the blocks replicated on the mpi processes
 ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
-    CALL dbcsr_error_set(routineN//"_local_mm", handle1, error)
+    CALL dbcsr_error_set(routineN//"_local_mm", handle1)
 
 !------ perform the multiplication, we have to take car to take the correct blocks ----------
 
@@ -604,7 +588,7 @@
     CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-    CALL dbcsr_error_stop(handle1, error)
+    CALL dbcsr_error_stop(handle1)
 
     ! sum all the data within a processor column to obtain the replicated result from lower
     data_vec => dbcsr_get_data_p (result_row%m%data_area, select_data_type=CMPLX(0.0, 0.0, real_4))
@@ -616,7 +600,7 @@
 !! While the result_col still has the partial results in parallel. The routine below takes care of that and saves an
 !! mp_sum. Of the res_row vectors are created only taking the approriate element (0 otherwise) while the res_col
 !! parallel bits are locally added. The mp_sum magically creates the correct vector
-    CALL dbcsr_rep_row_to_rep_col_vec_c(work_col, result_row, res_fast_vec_row, res_fast_vec_col, error)
+    CALL dbcsr_rep_row_to_rep_col_vec_c(work_col, result_row, res_fast_vec_row, res_fast_vec_col)
 
 !    ! Create_the final vector by summing it to the result vector which lives on proc_col 0 lower
     CALL dbcsr_iterator_start(iter, vec_out)
@@ -631,14 +615,14 @@
     END DO
     CALL dbcsr_iterator_stop(iter)
 
-    CALL release_fast_vec_access(fast_vec_row, error)
-    CALL release_fast_vec_access(fast_vec_col, error)
-    CALL release_fast_vec_access(res_fast_vec_row, error)
-    CALL release_fast_vec_access(res_fast_vec_col, error)
+    CALL release_fast_vec_access(fast_vec_row)
+    CALL release_fast_vec_access(fast_vec_col)
+    CALL release_fast_vec_access(res_fast_vec_row)
+    CALL release_fast_vec_access(res_fast_vec_col)
 
     CALL dbcsr_release(result_row); CALL dbcsr_release(result_col)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE dbcsr_sym_matrix_vector_mult_c
 

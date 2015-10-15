@@ -38,10 +38,10 @@ MODULE cp_dbcsr_operations
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
        dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_mp_hold, dbcsr_mp_npcols, dbcsr_mp_nprows, &
-       dbcsr_mp_obj, dbcsr_norm_frobenius, dbcsr_type_antisymmetric, &
-       dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, &
-       dbcsr_type_real_8, dbcsr_type_symmetric
+       dbcsr_mp_hold, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj, &
+       dbcsr_norm_frobenius, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
+       dbcsr_type_symmetric
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -701,11 +701,10 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -803,7 +802,7 @@ CONTAINS
           col_size = col_blk_size(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p, error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p)
           IF (fm%use_sp) THEN
              !blk_1d_sp => bc_mat%m%wms(1)%data_area%d%r_sp(blk_p:blk_p+nze-1)
              blk_1d_sp => cp_dbcsr_get_data_p (bc_mat, 1,&
@@ -843,7 +842,7 @@ CONTAINS
     CALL cp_dbcsr_release (bc_mat)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE copy_fm_to_dbcsr
 
 ! *****************************************************************************
@@ -880,12 +879,11 @@ CONTAINS
     REAL(kind=sp), DIMENSION(:, :), POINTER  :: fm_block_sp
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -988,7 +986,7 @@ CONTAINS
           col_size = col_blk_size(col)
           my_blk=(row_l-1)*nblkcols_local+col_l-1
           nze = row_size*col_size
-          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_map(my_blk), error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_map(my_blk))
           blk_map(my_blk+1)=blk_map(my_blk)+nze
        ENDDO bc_cols
     ENDDO bc_rows
@@ -1033,7 +1031,7 @@ CONTAINS
     DEALLOCATE(blk_map)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE copy_fm_to_dbcsr_bc
 ! *****************************************************************************
 !> \brief   Copy a BLACS matrix to a dbcsr matrix.
@@ -1075,11 +1073,10 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL timeset(routineN,handle)
 
     NULLIFY(col_blk_size,row_blk_size)
@@ -1168,7 +1165,7 @@ CONTAINS
           col_size = col_blk_size(col)
           nze = row_size*col_size
           !WRITE(*,*)routineN//" Adding block",row,col,"size",nze
-          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p, error=dbcsr_error)
+          CALL cp_add_work_coordinate(bc_mat, 1, row, col, blk_p)
           !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
           blk_1d => cp_dbcsr_get_data_p (bc_mat, 1,&
                select_data_type=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
@@ -1190,7 +1187,7 @@ CONTAINS
     CALL cp_dbcsr_release (bc_mat)
 
     CALL timestop(handle)
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE copy_cfm_to_dbcsr
 ! *****************************************************************************
@@ -1222,12 +1219,11 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_error_set (routineN, error_handle)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1332,7 +1328,7 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat)
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
+    CALL dbcsr_error_stop (error_handle)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_fm
@@ -1366,12 +1362,11 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_type)                      :: bc_mat
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_error_set (routineN, error_handle)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1466,7 +1461,7 @@ CONTAINS
     CALL cp_dbcsr_iterator_stop(iter)
 
     CALL cp_dbcsr_release (bc_mat)
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
+    CALL dbcsr_error_stop (error_handle)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_cfm
@@ -1498,12 +1493,11 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(dbcsr_distribution_obj)             :: bc_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,handle)
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_error_set (routineN, error_handle)
 
     NULLIFY(col_blk_size,row_blk_size)
 
@@ -1598,7 +1592,7 @@ CONTAINS
     DEALLOCATE(row_blk_size, col_blk_size)
 
     CALL dbcsr_distribution_release (bc_dist)
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
+    CALL dbcsr_error_stop (error_handle)
 
     CALL timestop(handle)
   END SUBROUTINE copy_dbcsr_to_fm_bc

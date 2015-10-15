@@ -25,7 +25,6 @@ MODULE dbcsr_vector_operations_low
                                              dbcsr_caller_error,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -113,13 +112,11 @@ CONTAINS
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_matrix_colvec_multiply_low_any(matrix, vec_in, vec_out, alpha, beta, work_row, work_col, error)
+  SUBROUTINE dbcsr_matrix_colvec_multiply_low_any(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     TYPE(dbcsr_scalar_type)                  :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dbcsr_matrix_colvec_multiply_low_any', &
@@ -127,21 +124,21 @@ CONTAINS
 
     INTEGER                                  :: handle, matrix_type
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     matrix_type=matrix%m%data_type
     SELECT CASE(matrix_type)
     CASE(dbcsr_type_real_8)
-       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%r_dp, beta%r_dp, work_row, work_col, error)
+       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%r_dp, beta%r_dp, work_row, work_col)
     CASE(dbcsr_type_real_4)
-       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%r_sp, beta%r_sp, work_row, work_col, error)
+       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%r_sp, beta%r_sp, work_row, work_col)
     CASE(dbcsr_type_complex_8)
-       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%c_dp, beta%c_dp, work_row, work_col, error)
+       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%c_dp, beta%c_dp, work_row, work_col)
     CASE(dbcsr_type_complex_4)
-       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%c_sp, beta%c_sp, work_row, work_col, error)
+       CALL dbcsr_matrix_colvec_multiply_low(matrix, vec_in, vec_out, alpha%c_sp, beta%c_sp, work_row, work_col)
     END SELECT
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_low_any
 
@@ -153,12 +150,10 @@ CONTAINS
 !> \param dbcsr_vec  the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
 !> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_col_vec_from_matrix(dbcsr_vec,matrix,ncol,error) 
+  SUBROUTINE create_col_vec_from_matrix(dbcsr_vec,matrix,ncol) 
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
     INTEGER                                  :: ncol
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_col_vec_from_matrix', &
       routineP = moduleN//':'//routineN
@@ -167,7 +162,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     npcol=SIZE(distri%d%mp_env%mp%pgrid,2)
@@ -182,14 +177,14 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
             dbcsr_row_block_sizes(matrix), col_sizes,&
-            nze=0, data_type=matrix%m%data_type, error=error)    
+            nze=0, data_type=matrix%m%data_type)    
 
-    CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)    
+    CALL dbcsr_reserve_all_blocks(dbcsr_vec)    
 
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_col_vec_from_matrix
 
@@ -201,12 +196,10 @@ CONTAINS
 !> \param dbcsr_vec ...
 !> \param matrix a dbcsr matrix used as template
 !> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-!> \param error ... 
 ! *****************************************************************************
-  SUBROUTINE create_row_vec_from_matrix(dbcsr_vec,matrix,nrow,error)
+  SUBROUTINE create_row_vec_from_matrix(dbcsr_vec,matrix,nrow)
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
     INTEGER                                  :: nrow
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_row_vec_from_matrix', &
       routineP = moduleN//':'//routineN
@@ -215,7 +208,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     nprow=SIZE(distri%d%mp_env%mp%pgrid,1)
@@ -231,14 +224,14 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
             row_sizes, dbcsr_col_block_sizes(matrix), &
-            nze=0, data_type=matrix%m%data_type, error=error)    
+            nze=0, data_type=matrix%m%data_type)    
 
-    CALL dbcsr_reserve_all_blocks(dbcsr_vec,error) 
+    CALL dbcsr_reserve_all_blocks(dbcsr_vec) 
 
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_row_vec_from_matrix
 
@@ -250,12 +243,10 @@ CONTAINS
 !> \param dbcsr_vec the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
 !> \param ncol number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_replicated_col_vec_from_matrix(dbcsr_vec,matrix,ncol,error)
+  SUBROUTINE create_replicated_col_vec_from_matrix(dbcsr_vec,matrix,ncol)
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
     INTEGER                                  :: ncol
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'create_replicated_col_vec_from_matrix', &
@@ -265,7 +256,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_sizes, dist_col
     TYPE(dbcsr_distribution_obj)             :: dist_col_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     npcol=SIZE(distri%d%mp_env%mp%pgrid,2)
@@ -284,14 +275,14 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, dbcsr_type_no_symmetry, &
             dbcsr_row_block_sizes(matrix), col_sizes,&
-            nze=0, data_type=matrix%m%data_type, error=error)
+            nze=0, data_type=matrix%m%data_type)
 
-    CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)
+    CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
     CALL dbcsr_distribution_release(dist_col_vec)
     DEALLOCATE(dist_col,col_sizes)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_replicated_col_vec_from_matrix
 
@@ -303,12 +294,10 @@ CONTAINS
 !> \param dbcsr_vec the vector object to create must be allocated but not initialized
 !> \param matrix a dbcsr matrix used as template
 !> \param nrow number of vectors in the dbcsr_object (1 for vector, n for skinny matrix)
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_replicated_row_vec_from_matrix(dbcsr_vec,matrix,nrow,error)
+  SUBROUTINE create_replicated_row_vec_from_matrix(dbcsr_vec,matrix,nrow)
     TYPE(dbcsr_obj)                          :: dbcsr_vec, matrix
     INTEGER                                  :: nrow
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'create_replicated_row_vec_from_matrix', &
@@ -318,7 +307,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: dist_row, row_sizes
     TYPE(dbcsr_distribution_obj)             :: dist_row_vec, distri
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     CALL dbcsr_get_info(matrix=matrix,distribution=distri)
     nprow=SIZE(distri%d%mp_env%mp%pgrid,1)
@@ -337,14 +326,14 @@ CONTAINS
     CALL dbcsr_init(dbcsr_vec)
     CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
             row_sizes, dbcsr_col_block_sizes(matrix), &
-            nze=0, data_type=matrix%m%data_type, error=error)   
+            nze=0, data_type=matrix%m%data_type)   
 
-    CALL dbcsr_reserve_all_blocks(dbcsr_vec,error)
+    CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
     CALL dbcsr_distribution_release(dist_row_vec)
     DEALLOCATE(dist_row,row_sizes)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_replicated_row_vec_from_matrix
 
@@ -352,32 +341,30 @@ CONTAINS
 !> \brief given a column vector, prepare the fast_vec_access container
 !> \param vec ...
 !> \param fast_vec_access ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_fast_col_vec_access(vec, fast_vec_access, error)
+  SUBROUTINE create_fast_col_vec_access(vec, fast_vec_access)
     TYPE(dbcsr_obj)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_col_vec_access', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     SELECT CASE(vec%m%data_type)
     CASE(dbcsr_type_real_8)
-      CALL create_fast_col_vec_access_d(vec, fast_vec_access, error)
+      CALL create_fast_col_vec_access_d(vec, fast_vec_access)
     CASE(dbcsr_type_real_4)
-      CALL create_fast_col_vec_access_s(vec, fast_vec_access, error)
+      CALL create_fast_col_vec_access_s(vec, fast_vec_access)
     CASE(dbcsr_type_complex_8)
-      CALL create_fast_col_vec_access_z(vec, fast_vec_access, error)
+      CALL create_fast_col_vec_access_z(vec, fast_vec_access)
     CASE(dbcsr_type_complex_4)
-      CALL create_fast_col_vec_access_c(vec, fast_vec_access, error)
+      CALL create_fast_col_vec_access_c(vec, fast_vec_access)
     END SELECT
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_fast_col_vec_access
 
@@ -385,50 +372,46 @@ CONTAINS
 !> \brief given a row vector, prepare the fast_vec_access_container
 !> \param vec ...
 !> \param fast_vec_access ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE create_fast_row_vec_access(vec, fast_vec_access, error)
+  SUBROUTINE create_fast_row_vec_access(vec, fast_vec_access)
     TYPE(dbcsr_obj)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_fast_row_vec_access', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     SELECT CASE(vec%m%data_type)
     CASE(dbcsr_type_real_8)
-       CALL create_fast_row_vec_access_d(vec, fast_vec_access, error)
+       CALL create_fast_row_vec_access_d(vec, fast_vec_access)
     CASE(dbcsr_type_real_4)
-       CALL create_fast_row_vec_access_s(vec, fast_vec_access, error)
+       CALL create_fast_row_vec_access_s(vec, fast_vec_access)
     CASE(dbcsr_type_complex_8)
-       CALL create_fast_row_vec_access_c(vec, fast_vec_access, error)
+       CALL create_fast_row_vec_access_c(vec, fast_vec_access)
     CASE(dbcsr_type_complex_4)
-       CALL create_fast_row_vec_access_z(vec, fast_vec_access, error)
+       CALL create_fast_row_vec_access_z(vec, fast_vec_access)
     END SELECT
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE create_fast_row_vec_access
 
 ! *****************************************************************************
 !> \brief release all memory associated with the fast_vec_access type
 !> \param fast_vec_access ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE release_fast_vec_access(fast_vec_access, error)
+  SUBROUTINE release_fast_vec_access(fast_vec_access)
     TYPE(fast_vec_access_type)               :: fast_vec_access
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'release_fast_vec_access', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     CALL hash_table_release(fast_vec_access%hash_table)
     IF (ALLOCATED(fast_vec_access%blk_map_d)) DEALLOCATE(fast_vec_access%blk_map_d)
@@ -436,7 +419,7 @@ CONTAINS
     IF (ALLOCATED(fast_vec_access%blk_map_c)) DEALLOCATE(fast_vec_access%blk_map_c)
     IF (ALLOCATED(fast_vec_access%blk_map_z)) DEALLOCATE(fast_vec_access%blk_map_z)
 
-    CALL dbcsr_error_stop(handle, error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE release_fast_vec_access
 

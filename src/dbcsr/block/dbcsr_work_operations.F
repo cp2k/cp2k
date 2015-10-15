@@ -50,9 +50,9 @@ MODULE dbcsr_work_operations
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
+       dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
+       dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_build_row_index,&
                                              dbcsr_clearfrom_index_array,&
@@ -166,7 +166,6 @@ CONTAINS
 !> \param make_index ...
 !> \param[in] replication_type     replication to be used for this matrix;
 !>                                 default is dbcsr_repl_none
-!> \param[in,out] error       cp2k error
 !> \par The matrix itself is allocated, as well as the essential parts of
 !>      the index. When passed the nze argument, the data is also allocated
 !>      to that size.
@@ -179,8 +178,7 @@ CONTAINS
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
        thread_dist,&
-       reuse, reuse_arrays, mutable_work, make_index, replication_type,&
-       error)
+       reuse, reuse_arrays, mutable_work, make_index, replication_type)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     CHARACTER(len=*), INTENT(IN)             :: name
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
@@ -204,7 +202,6 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse, reuse_arrays, &
                                                 mutable_work, make_index
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_new', &
       routineP = moduleN//':'//routineN
@@ -218,10 +215,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL dbcsr_assert(dbcsr_is_initialized(matrix), &
            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-           "Matrix may not have been initialized with dbcsr_init",__LINE__,error)
+           "Matrix may not have been initialized with dbcsr_init",__LINE__)
 
     ! Reuse matrix only if has actually been allocated.
     hijack = ASSOCIATED(matrix%m%index)
@@ -257,7 +254,7 @@ CONTAINS
           matrix%m%data_type = dbcsr_type_complex_8
        CASE DEFAULT
          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-              routineN, "Invalid matrix type",__LINE__,error)
+              routineN, "Invalid matrix type",__LINE__)
       END SELECT
     ELSE
        matrix%m%data_type = dbcsr_type_real_default
@@ -303,12 +300,12 @@ CONTAINS
           CALL dbcsr_assert(dbcsr_data_valid(data_buffer), dbcsr_failure_level,&
                dbcsr_wrong_args_error, routineN,&
                "Input data buffer not valid.",&
-               __LINE__, error=error)
+               __LINE__)
           CALL dbcsr_assert (matrix%m%data_type, "EQ",&
                data_buffer%d%data_type,&
                dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
                "Input buffer data type different by matrix data type.",&
-               __LINE__, error=error)
+               __LINE__)
           matrix%m%data_memory_type = data_buffer%d%memory_type
           matrix%m%data_area = data_buffer
           CALL dbcsr_data_hold(matrix%m%data_area)
@@ -351,19 +348,19 @@ CONTAINS
          dbcsr_distribution_nrows (dist),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Number of blocked rows does match blocked row distribution.",&
-         __LINE__, error=error)
+         __LINE__)
     CALL dbcsr_assert (array_size (matrix%m%col_blk_size), "EQ",&
          dbcsr_distribution_ncols (dist),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Number of blocked columns does match blocked column distribution.",&
-         __LINE__, error=error)
+         __LINE__)
     ! initialize row/col offsets
     IF (PRESENT(row_blk_offset)) THEN
        CALL dbcsr_assert (dbcsr_distribution_nrows (dist)+1, "EQ",&
             array_size(row_blk_offset),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Number of blocked offset rows does match blocked row distribution.",&
-         __LINE__, error=error)
+         __LINE__)
        matrix%m%row_blk_offset = row_blk_offset
        CALL array_hold(matrix%m%row_blk_offset)
     ELSE
@@ -377,7 +374,7 @@ CONTAINS
             array_size(col_blk_offset),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Number of blocked offset columns does match blocked colum distribution.",&
-            __LINE__, error=error)
+            __LINE__)
        matrix%m%col_blk_offset = col_blk_offset
        CALL array_hold(matrix%m%col_blk_offset)
     ELSE
@@ -421,11 +418,11 @@ CONTAINS
             .OR. replication_type .EQ. dbcsr_repl_row&
             .OR. replication_type .EQ. dbcsr_repl_col,&
             dbcsr_failure_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid replication type '"//replication_type//"'",__LINE__,error)
+            "Invalid replication type '"//replication_type//"'",__LINE__)
        CALL dbcsr_assert (replication_type .NE. dbcsr_repl_row&
             .AND. replication_type .NE. dbcsr_repl_col,&
             dbcsr_warning_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Row and column replication not fully supported",__LINE__,error)
+            "Row and column replication not fully supported",__LINE__)
        matrix%m%replication_type = replication_type
     ELSE
        matrix%m%replication_type = dbcsr_repl_none
@@ -441,13 +438,12 @@ CONTAINS
        !
        NULLIFY (matrix%m%index)
        CALL ensure_array_size (matrix%m%index, lb=1, ub=dbcsr_num_slots,&
-            zero_pad = .TRUE., memory_type = matrix%m%index_memory_type,&
-            error=error)
+            zero_pad = .TRUE., memory_type = matrix%m%index_memory_type)
     ENDIF
     CALL dbcsr_assert (LBOUND (matrix%m%index, 1) .LE. 1&
          .AND. UBOUND (matrix%m%index, 1) .GE. dbcsr_num_slots,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Index is not large enough",__LINE__,error)
+         "Index is not large enough",__LINE__)
     matrix%m%index(1:dbcsr_num_slots) = 0
     matrix%m%index(1:dbcsr_meta_size) = new_meta(1:dbcsr_meta_size)
     matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
@@ -474,7 +470,7 @@ CONTAINS
        matrix%m%negate_real = .TRUE.
     CASE DEFAULT
        CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
-            dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__,error)
+            dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__)
     END SELECT
     matrix%m%bcsc = .FALSE.
     matrix%m%local_indexing = .FALSE.
@@ -490,10 +486,10 @@ CONTAINS
     my_make_index = .TRUE.
     IF (PRESENT(make_index)) my_make_index = make_index
     IF (my_make_index) THEN
-       CALL dbcsr_make_index_exist (matrix%m, error=error)
+       CALL dbcsr_make_index_exist (matrix%m)
     ENDIF
     matrix%m%valid = .TRUE.
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_create_new
 
 
@@ -519,14 +515,13 @@ CONTAINS
 !> \param mutable_work ...
 !> \param make_index ...
 !> \param replication_type ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_create_template(matrix, template, name, dist, matrix_type,&
        row_blk_size, col_blk_size, nze, data_type,&
        data_buffer, data_memory_type, index_memory_type,&
        max_rbs, max_cbs,&
        row_blk_offset, col_blk_offset,&
-       reuse_arrays, mutable_work, make_index, replication_type, error)
+       reuse_arrays, mutable_work, make_index, replication_type)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_obj), INTENT(IN)              :: template
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: name
@@ -547,7 +542,6 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: reuse_arrays, mutable_work, &
                                                 make_index
     CHARACTER, INTENT(IN), OPTIONAL          :: replication_type
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_template', &
       routineP = moduleN//':'//routineN
@@ -662,8 +656,7 @@ CONTAINS
             reuse_arrays = reuse_arrays,&
             mutable_work = new_mutable_work,&
             make_index=make_index,&
-            replication_type = new_replication_type,&
-            error=error)
+            replication_type = new_replication_type)
     ELSE
        CALL dbcsr_create (matrix, name=new_name, dist=new_dist,&
             matrix_type = new_matrix_type,&
@@ -682,8 +675,7 @@ CONTAINS
             reuse_arrays = reuse_arrays,&
             mutable_work = new_mutable_work,&
             make_index=make_index,&
-            replication_type = new_replication_type,&
-            error=error)
+            replication_type = new_replication_type)
     ENDIF
     ! Copy stuff from the meta-array.  These are not normally needed,
     ! but have to be here for creating matrices from "image" matrices.
@@ -711,15 +703,13 @@ CONTAINS
 !> \param[in] nblks_guess     (optional) estimated number of blocks
 !> \param[in] sizedata_guess  (optional) estimated size of data
 !> \param memory_type ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, memory_type, error)
+  SUBROUTINE dbcsr_init_wm (wm, data_type, nblks_guess, sizedata_guess, memory_type)
     TYPE(dbcsr_work_type), INTENT(OUT)       :: wm
     INTEGER, INTENT(IN)                      :: data_type
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: memory_type
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_init_wm', &
       routineP = moduleN//':'//routineN
@@ -728,7 +718,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF(careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    IF(careful_mod) CALL dbcsr_error_set(routineN, error_handler)
     wm%lastblk = 0
     wm%datasize = 0
     ! Index
@@ -736,19 +726,19 @@ CONTAINS
        nblks = nblks_guess
        CALL dbcsr_assert (nblks_guess, "GE", 0, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN, &
-            "Can not have negative block count.", __LINE__, error=error)
+            "Can not have negative block count.", __LINE__)
        ALLOCATE(wm%row_i(nblks), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
             dbcsr_internal_error, routineN,&
-            "wm%row_i",__LINE__,error)
+            "wm%row_i",__LINE__)
        ALLOCATE(wm%col_i(nblks), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
             dbcsr_internal_error, routineN,&
-            "wm%col_i",__LINE__,error)
+            "wm%col_i",__LINE__)
        ALLOCATE(wm%blk_p(nblks), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
             dbcsr_internal_error, routineN,&
-            "wm%blk_p",__LINE__,error)
+            "wm%blk_p",__LINE__)
     ELSE
        NULLIFY (wm%row_i, wm%col_i, wm%blk_p)
        !nblks = CEILING (REAL (matrix%nblkrows_local * matrix%nblkcols_local)&
@@ -759,14 +749,14 @@ CONTAINS
     IF(PRESENT(sizedata_guess)) THEN
        CALL dbcsr_assert (sizedata_guess, "GE", 0, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN,&
-            "Can not have negative data size.", __LINE__, error=error)
+            "Can not have negative data size.", __LINE__)
        CALL dbcsr_data_new (wm%data_area, data_type,&
             data_size=sizedata_guess, memory_type=memory_type)
     ELSE
        CALL dbcsr_data_new (wm%data_area, data_type, memory_type=memory_type)
     ENDIF
     CALL dbcsr_mutable_init (wm%mutable)
-    IF(careful_mod) CALL dbcsr_error_stop(error_handler, error)
+    IF(careful_mod) CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_init_wm
 
 
@@ -780,16 +770,14 @@ CONTAINS
 !> \param[in] work_mutable    (optional) use mutable work type, default is
 !>                            what was specified in create
 !> \param memory_type ...
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n,&
-       work_mutable, memory_type, error)
+       work_mutable, memory_type)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: nblks_guess, sizedata_guess, n
     LOGICAL, INTENT(in), OPTIONAL            :: work_mutable
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: memory_type
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_work_create', &
       routineP = moduleN//':'//routineN
@@ -801,10 +789,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_is_initialized(matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not create work matrix for nonexisting matrix object.",__LINE__,error)
+         routineN, "Can not create work matrix for nonexisting matrix object.",__LINE__)
     IF (PRESENT (n)) THEN
        nw = n
     ELSE
@@ -822,7 +810,7 @@ CONTAINS
        ow = SIZE(matrix%m%wms)
        CALL dbcsr_assert (ow, 'GE', nw, dbcsr_warning_level,&
             dbcsr_internal_error, routineN,&
-            "Number of work matrices less than threads.",__LINE__,error)
+            "Number of work matrices less than threads.",__LINE__)
        IF (ow .LT. nw) wms_realloc = .TRUE.
     ENDIF
     IF (PRESENT (work_mutable)) THEN
@@ -836,7 +824,7 @@ CONTAINS
        DO iw = ow+1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
                nblks_guess=nblks_guess, sizedata_guess=sizedata_guess,&
-               memory_type=memory_type, error=error)
+               memory_type=memory_type)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))
@@ -847,7 +835,7 @@ CONTAINS
        DO iw = 1, nw
           CALL dbcsr_init_wm (matrix%m%wms(iw), matrix%m%data_type,&
                nblks_guess=nblks_guess, sizedata_guess=sizedata_guess,&
-               memory_type=memory_type, error=error)
+               memory_type=memory_type)
           IF (matrix%m%work_mutable) &
                CALL dbcsr_mutable_new (matrix%m%wms(iw)%mutable,&
                dbcsr_get_data_type (matrix))
@@ -855,7 +843,7 @@ CONTAINS
     ENDIF
     matrix%m%valid = .FALSE.
     !$OMP END MASTER
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_work_create
 
 
@@ -871,12 +859,10 @@ CONTAINS
 !> \param[in,out] matrix      final matrix
 !> \param[in] reshuffle       whether the data should be reshuffled,
 !>                            default is false
-!> \param error     cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_finalize(matrix, reshuffle, error)
+  SUBROUTINE dbcsr_finalize(matrix, reshuffle)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_finalize', &
       routineP = moduleN//':'//routineN
@@ -893,12 +879,12 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     !$OMP BARRIER
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not finalize uninitialized matrix.",__LINE__,error)
+         routineN, "Can not finalize uninitialized matrix.",__LINE__)
 
     ! If the matrix is not marked as dirty then skip the work.
     IF (dbcsr_valid_index(matrix)) THEN
@@ -914,7 +900,7 @@ CONTAINS
        matrix%m%valid = .TRUE.
        !$OMP END MASTER
        !$OMP BARRIER
-       CALL dbcsr_error_stop(error_handler, error)
+       CALL dbcsr_error_stop(error_handler)
        RETURN
     ENDIF
     !
@@ -940,7 +926,7 @@ CONTAINS
     ! to have no data. (This value is ignored if reshuffle is true
     ! because the main data area is always new.)
     start_offset = matrix%m%nze
-    i = dbcsr_get_data_size_used (matrix, error)
+    i = dbcsr_get_data_size_used (matrix)
     !$OMP MASTER
     matrix%m%nze = 0
     !$OMP END MASTER
@@ -958,13 +944,13 @@ CONTAINS
        CALL dbcsr_assert (matrix%m%nze, "EQ", &
             dbcsr_data_get_size_referenced (matrix%m%data_area),&
             dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Should reshuffle.", __LINE__, error=error)
+            "Should reshuffle.", __LINE__)
        IF (ASSOCIATED (matrix%m%wms)) THEN
           sort_data = .NOT. dbcsr_wm_use_mutable (matrix%m%wms(1))
        ENDIF
     ENDIF
     IF (sort_data .AND. matrix%m%nze .GT. 0) THEN
-       CALL dbcsr_add_wm_from_matrix (matrix, error=error)
+       CALL dbcsr_add_wm_from_matrix (matrix)
        matrix%m%nze = 0
        !$OMP MASTER
        fake_row_p  = .TRUE.
@@ -978,11 +964,11 @@ CONTAINS
        ALLOCATE (empty_row_p (matrix%m%nblkrows_total+1))
        empty_row_p(:) = 0
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
-            DATA=empty_row_p, extra=0, error=error)
+            DATA=empty_row_p, extra=0)
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_col_i,&
-            reservation=0, error=error)
+            reservation=0)
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_blk_p,&
-            reservation=0, error=error)
+            reservation=0)
        CALL dbcsr_repoint_index (matrix%m)
     ENDIF
     !$OMP END MASTER
@@ -993,7 +979,7 @@ CONTAINS
     ! If the matrix, work matricies, and environment fit several
     ! criteria, then a quick O(1) finalization is performed.
     IF (can_quick .AND. .NOT. sort_data) THEN
-       CALL quick_finalize (matrix, error=error)
+       CALL quick_finalize (matrix)
     ELSE
        !
        !$OMP MASTER
@@ -1002,7 +988,7 @@ CONTAINS
        IF (.NOT. ASSOCIATED (matrix%m%wms)) THEN
           nwms = 1
           !$ nwms = omp_get_num_threads()
-          CALL dbcsr_work_create (matrix, n=nwms, error=error)
+          CALL dbcsr_work_create (matrix, n=nwms)
        ENDIF
        !$OMP END MASTER
        !$OMP BARRIER
@@ -1011,13 +997,13 @@ CONTAINS
        !$OMP DO SCHEDULE (STATIC, 1)
        DO i = 1, SIZE(matrix%m%wms)
           IF (.NOT. ASSOCIATED (matrix%m%wms(i)%row_i)) THEN
-             CALL ensure_array_size(matrix%m%wms(i)%row_i, ub=0, error=error)
+             CALL ensure_array_size(matrix%m%wms(i)%row_i, ub=0)
           ENDIF
           IF (.NOT. ASSOCIATED (matrix%m%wms(i)%col_i)) THEN
-             CALL ensure_array_size(matrix%m%wms(i)%col_i, ub=0, error=error)
+             CALL ensure_array_size(matrix%m%wms(i)%col_i, ub=0)
           ENDIF
           IF (.NOT. ASSOCIATED (matrix%m%wms(i)%blk_p)) THEN
-             CALL ensure_array_size(matrix%m%wms(i)%blk_p, ub=0, error=error)
+             CALL ensure_array_size(matrix%m%wms(i)%blk_p, ub=0)
           ENDIF
        ENDDO
        !$OMP ENDDO
@@ -1026,7 +1012,7 @@ CONTAINS
        !$OMP MASTER
        nblks = matrix%m%row_p(matrix%m%nblkrows_total+1)
        IF (ANY(matrix%m%blk_p(1:nblks) .EQ. 0)) THEN
-          CALL dbcsr_index_prune_deleted (matrix, error)
+          CALL dbcsr_index_prune_deleted (matrix)
        ENDIF
        old_row_p => matrix%m%row_p
        old_col_i => matrix%m%col_i
@@ -1051,17 +1037,15 @@ CONTAINS
           !$OMP PARALLEL IF (spawn) &
           !$OMP          DEFAULT (none) &
           !$OMP          SHARED (matrix, old_row_p, old_col_i, old_blk_p,&
-          !$OMP                  start_offset, sort_data, error)
+          !$OMP                  start_offset, sort_data)
           CALL dbcsr_merge_all (matrix%m,&
                old_row_p, old_col_i, old_blk_p,&
-               sort_data=sort_data, &
-               error=error)
+               sort_data=sort_data)
           !$OMP END PARALLEL
        ELSE
           CALL dbcsr_merge_all (matrix%m,&
                old_row_p, old_col_i, old_blk_p,&
-               sort_data=sort_data, &
-               error=error)
+               sort_data=sort_data)
        ENDIF
     ENDIF
 !$OMP BARRIER
@@ -1075,7 +1059,7 @@ CONTAINS
 !$OMP BARRIER
     IF (dbg) THEN
        !$OMP SINGLE
-       CALL dbcsr_verify_matrix (matrix, error=error)
+       CALL dbcsr_verify_matrix (matrix)
        !$OMP END SINGLE
     ENDIF
 !$OMP MASTER
@@ -1084,19 +1068,17 @@ CONTAINS
     ENDIF
 !$OMP END MASTER
 !$OMP BARRIER
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_finalize
 
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param reshuffle ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_special_finalize(matrix, reshuffle, error)
+  SUBROUTINE dbcsr_special_finalize(matrix, reshuffle)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: reshuffle
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_special_finalize', &
       routineP = moduleN//':'//routineN
@@ -1107,23 +1089,23 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not finalize uninitialized matrix.",__LINE__,error)
+         routineN, "Can not finalize uninitialized matrix.",__LINE__)
     CALL dbcsr_assert (matrix%m%nblks .EQ. 0,&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires empty matrix.",__LINE__,error)
+         routineN, "Optimized finalize requires empty matrix.",__LINE__)
     CALL dbcsr_assert (.NOT. dbcsr_valid_index(matrix),&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires invalid matrix.",__LINE__,error)
+         routineN, "Optimized finalize requires invalid matrix.",__LINE__)
     CALL dbcsr_assert (ASSOCIATED (matrix%m%wms),&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires work matrices exist.",__LINE__,error)
+         routineN, "Optimized finalize requires work matrices exist.",__LINE__)
     CALL dbcsr_assert (SIZE(matrix%m%wms).EQ. 1,&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires single work matrix",__LINE__,error)
+         routineN, "Optimized finalize requires single work matrix",__LINE__)
 
     !
     ! If possible, data copying is avoided.
@@ -1139,31 +1121,30 @@ CONTAINS
     ! If the matrix, work matricies, and environment fit several
     ! criteria, then a quick O(1) finalization is performed.
     IF (can_quick .AND. .NOT. sort_data) THEN
-       CALL quick_finalize (matrix, error=error)
+       CALL quick_finalize (matrix)
     ELSE
        CALL dbcsr_assert (sort_data,&
          dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "merge_single_wm only supports data sorting",__LINE__,error)
+         routineN, "merge_single_wm only supports data sorting",__LINE__)
        !
        ! Ensure needed index arrays at least exist.
        !$OMP MASTER
        !
        IF (.NOT. ASSOCIATED (matrix%m%wms(1)%row_i)) THEN
-          CALL ensure_array_size(matrix%m%wms(1)%row_i, ub=0, error=error)
+          CALL ensure_array_size(matrix%m%wms(1)%row_i, ub=0)
        ENDIF
        IF (.NOT. ASSOCIATED (matrix%m%wms(1)%col_i)) THEN
-          CALL ensure_array_size(matrix%m%wms(1)%col_i, ub=0, error=error)
+          CALL ensure_array_size(matrix%m%wms(1)%col_i, ub=0)
        ENDIF
        IF (.NOT. ASSOCIATED (matrix%m%wms(1)%blk_p)) THEN
-          CALL ensure_array_size(matrix%m%wms(1)%blk_p, ub=0, error=error)
+          CALL ensure_array_size(matrix%m%wms(1)%blk_p, ub=0)
        ENDIF
        !
        !$OMP END MASTER
        !$OMP BARRIER
        !
-       !$OMP PARALLEL DEFAULT (none), SHARED(matrix, error)
-         CALL dbcsr_merge_single_wm (matrix%m,&
-            error=error)
+       !$OMP PARALLEL DEFAULT (none), SHARED(matrix)
+         CALL dbcsr_merge_single_wm (matrix%m)
        !$OMP END PARALLEL
 
     ENDIF
@@ -1178,11 +1159,11 @@ CONTAINS
     !$OMP BARRIER
     IF (dbg) THEN
        !$OMP SINGLE
-       CALL dbcsr_verify_matrix (matrix, error=error)
+       CALL dbcsr_verify_matrix (matrix)
        !$OMP END SINGLE
     ENDIF
     !$OMP BARRIER
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_special_finalize
 
 ! *****************************************************************************
@@ -1219,11 +1200,9 @@ CONTAINS
 !> The data area from the work matrix is accepted as the new matrix's data
 !> area and the index is built from the work matrix.
 !> \param[in,out] matrix      matrix to finalize
-!> \param[in,out] error       error
 ! *****************************************************************************
-  SUBROUTINE quick_finalize (matrix, error)
+  SUBROUTINE quick_finalize (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'quick_finalize', &
       routineP = moduleN//':'//routineN
@@ -1232,7 +1211,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     !$OMP SECTIONS
     !$OMP SECTION
     nblks = matrix%m%wms(1)%lastblk
@@ -1245,22 +1224,22 @@ CONTAINS
     CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_col_i)
     CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_blk_p)
     CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_row_p,&
-         reservation=nrows+1, extra=2*nblks, error=error)
+         reservation=nrows+1, extra=2*nblks)
     CALL dbcsr_make_dbcsr_index (matrix%m%row_p, matrix%m%wms(1)%row_i,&
          nrows, nblks)
     CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_col_i,&
-         DATA=matrix%m%wms(1)%col_i(1:nblks), error=error)
+         DATA=matrix%m%wms(1)%col_i(1:nblks))
     CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_blk_p,&
-         DATA=matrix%m%wms(1)%blk_p(1:nblks), error=error)
+         DATA=matrix%m%wms(1)%blk_p(1:nblks))
     matrix%m%nblks = nblks
     matrix%m%nze = matrix%m%wms(1)%datasize
     matrix%m%index(dbcsr_slot_nblks) = nblks
     matrix%m%index(dbcsr_slot_nze) = matrix%m%wms(1)%datasize
     CALL dbcsr_repoint_index (matrix%m)
     !$OMP SECTION
-    CALL dbcsr_switch_data_area (matrix, matrix%m%wms(1)%data_area, error=error)
+    CALL dbcsr_switch_data_area (matrix, matrix%m%wms(1)%data_area)
     !$OMP END SECTIONS
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE quick_finalize
 
 
@@ -1269,13 +1248,11 @@ CONTAINS
 !> \brief Creates a work matrix from the data present in a finalized matrix.
 !> \param[in,out] matrix      DBCSR matrix
 !> \param[in] limits          (optional) the limits to use for copying
-!> \param[in,out] error       error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_wm_from_matrix(matrix, limits, error)
+  SUBROUTINE dbcsr_add_wm_from_matrix(matrix, limits)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, DIMENSION(4), INTENT(IN), &
       OPTIONAL                               :: limits
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_wm_from_matrix', &
       routineP = moduleN//':'//routineN
@@ -1287,14 +1264,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     !$OMP BARRIER
     preexists = ASSOCIATED (matrix%m%wms)
     IF (preexists) THEN
        old_nwms = SIZE (matrix%m%wms)
        CALL dbcsr_assert (old_nwms, "NE", 0, dbcsr_warning_level,&
             dbcsr_internal_error, routineN, "Nonexisting work matrices?!",&
-            __LINE__, error=error)
+            __LINE__)
     ELSE
        old_nwms = 0
     ENDIF
@@ -1304,7 +1281,7 @@ CONTAINS
        CALL dbcsr_assert (old_nwms .EQ. nthreads, "OR", old_nwms .EQ. 0,&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Number of work matrices and threads do not match",&
-            __LINE__, error=error)
+            __LINE__)
     ENDIF
     nwms = MAX(1, old_nwms)
     !$ nwms = MAX(nwms, nthreads)
@@ -1314,15 +1291,15 @@ CONTAINS
        CALL dbcsr_work_create (matrix, &
               INT(matrix%m%nblks * default_resize_factor / nwms), &
               INT(matrix%m%nze * default_resize_factor / nwms), &
-              n=nwms, work_mutable=.FALSE., error=error)
+              n=nwms, work_mutable=.FALSE.)
     ENDIF
     !$OMP END MASTER
     !$OMP BARRIER
     size_used = matrix%m%nze
     CALL dbcsr_fill_wm_from_matrix (matrix%m%wms, matrix, size_used,&
-         limits=limits, error=error)
+         limits=limits)
     !$OMP BARRIER
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_add_wm_from_matrix
 
 
@@ -1333,19 +1310,17 @@ CONTAINS
 !> \param[in,out] matrix      DBCSR matrix
 !> \param size_used ...
 !> \param[in] limits          (optional) only fills blocks within this range
-!> \param[in,out] error       error
 !> \par limits
 !> The limits is a 4-tuple
 !> (lower_row, higher_row, lower_column, higher_column).
 ! *****************************************************************************
-  SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix, size_used, limits, error)
+  SUBROUTINE dbcsr_fill_wm_from_matrix(wm, matrix, size_used, limits)
     TYPE(dbcsr_work_type), DIMENSION(:), &
       INTENT(INOUT)                          :: wm
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: size_used
     INTEGER, DIMENSION(4), INTENT(IN), &
       OPTIONAL                               :: limits
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_fill_wm_from_matrix', &
       routineP = moduleN//':'//routineN
@@ -1359,7 +1334,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     nwms = SIZE (matrix%m%wms)
     mt = .FALSE.
     !$ IF (nwms .GT. 1) mt = omp_get_num_threads() .GT. 1
@@ -1389,8 +1364,7 @@ CONTAINS
     DO which_wm = wm_first, wm_last
        CALL dbcsr_assert ("NOT", dbcsr_wm_use_mutable (wm(which_wm)),&
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Adding main matrix into mutable not supported.", __LINE__,&
-            error=error)
+            "Adding main matrix into mutable not supported.", __LINE__)
        IF (mutable) THEN
           IF (.NOT. dbcsr_mutable_instantiated (wm(which_wm)%mutable)) THEN
              CALL dbcsr_mutable_new (wm(which_wm)%mutable, matrix%m%data_type)
@@ -1398,7 +1372,7 @@ CONTAINS
        ELSE
           ! We don't know how much data we'll get so we have to be generous.
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-               size_used/nwms, error=error)
+               size_used/nwms)
           CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area, 0)
        ENDIF
     ENDDO
@@ -1419,9 +1393,9 @@ CONTAINS
           ! The data gets copied block by block so the block pointers
           ! are ordered accordingly.
           IF (.not.mutable) THEN
-             CALL add_work_coordinate (wm(which_wm), row, col, wblk_p, error=error)
+             CALL add_work_coordinate (wm(which_wm), row, col, wblk_p)
              CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-                  ABS(wblk_p)+nze-1,factor=default_resize_factor, error=error)
+                  ABS(wblk_p)+nze-1,factor=default_resize_factor)
              CALL dbcsr_data_set_size_referenced (wm(which_wm)%data_area,&
                   ABS(wblk_p) + nze - 1)
              CALL dbcsr_data_set (wm(which_wm)%data_area,&
@@ -1432,7 +1406,7 @@ CONTAINS
        ELSE
           ! The data gets copied all at once so the block pointers
           ! should remain the same as they were.
-          CALL add_work_coordinate (wm(which_wm), row, col, blk_p, error=error)
+          CALL add_work_coordinate (wm(which_wm), row, col, blk_p)
        ENDIF
        IF (.NOT. mutable) &
             wm(which_wm)%datasize = wm(which_wm)%datasize+nze
@@ -1444,13 +1418,12 @@ CONTAINS
     IF (.NOT. mt .AND. .NOT. limit .AND. .NOT. careful .AND. .NOT. mutable) THEN
        DO which_wm = 1, nwms
           CALL dbcsr_data_ensure_size (wm(which_wm)%data_area,&
-               dbcsr_data_get_size_referenced (matrix%m%data_area), error=error)
-          CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%m%data_area,&
-               error=error)
+               dbcsr_data_get_size_referenced (matrix%m%data_area))
+          CALL dbcsr_data_copyall (wm(which_wm)%data_area, matrix%m%data_area)
           wm(which_wm)%datasize = dbcsr_data_get_size_referenced (wm(which_wm)%data_area)
        ENDDO
     ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_fill_wm_from_matrix
 
 ! *****************************************************************************
@@ -1482,11 +1455,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
 
     IF (ASSOCIATED (wm%row_i)) THEN
        DEALLOCATE(wm%row_i)
@@ -1500,7 +1472,7 @@ CONTAINS
     CALL dbcsr_data_release (wm%data_area)
     CALL dbcsr_mutable_destroy (wm%mutable)
 
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE dbcsr_work_destroy
 
@@ -1516,14 +1488,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, i
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert (ASSOCIATED (m%wms), dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Want to destroy nonexisting work matrices.",__LINE__,error)
+         routineN, "Want to destroy nonexisting work matrices.",__LINE__)
     IF (ASSOCIATED (m%wms)) THEN
        DO i = 1, SIZE (m%wms)
           CALL dbcsr_work_destroy (m%wms(i))
@@ -1531,7 +1502,7 @@ CONTAINS
        DEALLOCATE (m%wms)
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE dbcsr_work_destroy_all
 
@@ -1545,15 +1516,13 @@ CONTAINS
 !> \param[in] col col data to add
 !> \param[in] blk   (optional) block pointer to add
 !> \param[out] index          (optional) saved position
-!> \param error     cp2k error
 !> \note  Uses the matrix%lastblk to keep track of the current position.
 ! *****************************************************************************
-  SUBROUTINE add_work_coordinate(matrix, row, col, blk, index, error)
+  SUBROUTINE add_work_coordinate(matrix, row, col, blk, index)
     TYPE(dbcsr_work_type), INTENT(INOUT)     :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     INTEGER, INTENT(IN), OPTIONAL            :: blk
     INTEGER, INTENT(OUT), OPTIONAL           :: index
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'add_work_coordinate', &
       routineP = moduleN//':'//routineN
@@ -1562,21 +1531,21 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
     matrix%lastblk = matrix%lastblk+1
     CALL ensure_array_size(matrix%row_i, ub=matrix%lastblk,&
-         factor=default_resize_factor,error=error)
+         factor=default_resize_factor)
     CALL ensure_array_size(matrix%col_i, ub=matrix%lastblk,&
-         factor=default_resize_factor,error=error)
+         factor=default_resize_factor)
     matrix%row_i(matrix%lastblk) = row
     matrix%col_i(matrix%lastblk) = col
     IF (PRESENT(blk)) THEN
        CALL ensure_array_size(matrix%blk_p, ub=matrix%lastblk,&
-            factor=default_resize_factor,error=error)
+            factor=default_resize_factor)
        matrix%blk_p(matrix%lastblk) = blk
     ENDIF
     IF (PRESENT (index)) index = matrix%lastblk
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE add_work_coordinate
 
 ! *****************************************************************************
@@ -1587,15 +1556,13 @@ CONTAINS
 !> \param old_col_i ...
 !> \param old_blk_p ...
 !> \param[in] sort_data       whether data will be fully sorted
-!> \param[in,out] error       error
 ! *****************************************************************************
   SUBROUTINE dbcsr_merge_all (matrix, old_row_p, old_col_i, old_blk_p,&
-       sort_data, error)
+       sort_data)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, DIMENSION(*), INTENT(IN)        :: old_row_p, old_col_i, &
                                                 old_blk_p
     LOGICAL, INTENT(IN)                      :: sort_data
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_all', &
       routineP = moduleN//':'//routineN
@@ -1625,7 +1592,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     !> \par Outline
 
     !> Each thread has a work matrix.  These must be merged and made
@@ -1642,7 +1609,7 @@ CONTAINS
     !$ call dbcsr_assert (nwms, "EQ", OMP_GET_NUM_THREADS (),&
     !$      dbcsr_fatal_level, dbcsr_caller_error, routineN,&
     !$      "Number of threads does not match number of work matrices.",&
-    !$      __LINE__, error=error)
+    !$      __LINE__)
     which_wm = 1
     !$ which_wm = OMP_GET_THREAD_NUM () + 1
     wm => matrix%wms(which_wm)
@@ -1651,16 +1618,16 @@ CONTAINS
     IF (dbcsr_wm_use_mutable (wm)) THEN
        SELECT CASE (wm%mutable%m%data_type)
        CASE (dbcsr_type_real_4)
-          CALL tree_to_linear_s (wm, error=error)
+          CALL tree_to_linear_s (wm)
        CASE (dbcsr_type_real_8)
-          CALL tree_to_linear_d (wm, error=error)
+          CALL tree_to_linear_d (wm)
        CASE (dbcsr_type_complex_4)
-          CALL tree_to_linear_c (wm, error=error)
+          CALL tree_to_linear_c (wm)
        CASE (dbcsr_type_complex_8)
-          CALL tree_to_linear_z (wm, error=error)
+          CALL tree_to_linear_z (wm)
        CASE default
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-               routineN, "Invalid data type",__LINE__,error)
+               routineN, "Invalid data type",__LINE__)
        END SELECT
     ENDIF
     !
@@ -1730,7 +1697,7 @@ CONTAINS
        all_data_sizes(which_wm) = wm%datasize
        CALL dbcsr_assert (wm%datasize, "LE", dbcsr_data_get_size_referenced (wm%data_area),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Data size mismatch.", __LINE__, error=error)
+            "Data size mismatch.", __LINE__)
     ENDIF
     all_col_i(which_wm)%p => wm%col_i
     all_blk_p(which_wm)%p => wm%blk_p
@@ -1776,8 +1743,7 @@ CONTAINS
          blk_d,&
          old_row_p, old_col_i, old_blk_p,&
          all_row_p, all_col_i, all_blk_p,&
-         all_data_offsets, nwms, nrows, max_row_count, sort_data, &
-         error)
+         all_data_offsets, nwms, nrows, max_row_count, sort_data)
     !
     ! The data is then merged in one of two ways.
     !
@@ -1800,7 +1766,7 @@ CONTAINS
     ELSE
        ! Data stored in the work matrices will be just appended to the
        ! current data area.
-       CALL dbcsr_data_ensure_size (matrix%data_area, new_data_size, error=error)
+       CALL dbcsr_data_ensure_size (matrix%data_area, new_data_size)
     ENDIF
     !$OMP END MASTER
     !$OMP BARRIER
@@ -1810,7 +1776,7 @@ CONTAINS
        CALL dbcsr_sort_data (new_blk_p_sorted, new_blk_p,&
             new_blk_sizes, dsts=matrix%data_area,&
             src=all_data_areas(0),&
-            srcs=all_data_areas, old_blk_d=blk_d, error=error)
+            srcs=all_data_areas, old_blk_d=blk_d)
     ELSE
        IF (all_data_sizes(which_wm) .GT. 0) THEN
           CALL dbcsr_data_copy(dst=matrix%data_area,&
@@ -1818,8 +1784,7 @@ CONTAINS
                dst_sizes=(/ all_data_sizes(which_wm) /),&
                src=wm%data_area,&
                src_lb=(/ 1 /),&
-               src_sizes=(/ all_data_sizes(which_wm) /),&
-               error=error)
+               src_sizes=(/ all_data_sizes(which_wm) /))
        ENDIF
     ENDIF
     !
@@ -1830,15 +1795,15 @@ CONTAINS
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_col_i)
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
     CALL dbcsr_addto_index_array (matrix, dbcsr_slot_row_p,&
-         DATA=new_row_p(1:nrows+1), extra=new_nblks*2, error=error)
+         DATA=new_row_p(1:nrows+1), extra=new_nblks*2)
     CALL dbcsr_addto_index_array (matrix, dbcsr_slot_col_i,&
-         DATA=new_col_i(1:new_nblks), error=error)
+         DATA=new_col_i(1:new_nblks))
     IF (sort_data) THEN
        CALL dbcsr_addto_index_array (matrix, dbcsr_slot_blk_p,&
-            DATA=new_blk_p_sorted, error=error)
+            DATA=new_blk_p_sorted)
     ELSE
        CALL dbcsr_addto_index_array (matrix, dbcsr_slot_blk_p,&
-            DATA=new_blk_p, error=error)
+            DATA=new_blk_p)
     ENDIF
     matrix%nblks = new_nblks
     matrix%nze = new_data_size
@@ -1881,18 +1846,16 @@ CONTAINS
     !$OMP END MASTER
     !$OMP BARRIER
     IF (dbg) WRITE(*,*)routineN//" stopped"
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_merge_all
 
 ! *****************************************************************************
 !> \brief Sort data from the WM into the final matrix, based closely on dbcsr_merge_all
 !>
 !> \param[in,out] matrix      matrix to work on
-!> \param[in,out] error       error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_merge_single_wm (matrix, error)
+  SUBROUTINE dbcsr_merge_single_wm (matrix)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_merge_single_wm', &
       routineP = moduleN//':'//routineN
@@ -1908,7 +1871,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     !> \par Outline
 
     !> There is a single work matrix.  Data blocks are sorted and copied
@@ -1920,7 +1883,7 @@ CONTAINS
     CALL dbcsr_assert (.NOT.dbcsr_wm_use_mutable (wm),&
           dbcsr_fatal_level, dbcsr_caller_error, routineN,&
           "Number of threads does not match number of work matrices.",&
-          __LINE__, error=error)
+          __LINE__)
     !
     ! The following is valid because the data actually referenced
     ! by blocks is explicitly calculated in dbcsr_finalize.
@@ -1943,15 +1906,14 @@ CONTAINS
     ! The matrix data area is resized.  Blocks from the work
     ! matrices will be copied into it in order.
     !
-    CALL dbcsr_data_ensure_size(matrix%data_area, wm%datasize, nocopy=.TRUE., error=error)
+    CALL dbcsr_data_ensure_size(matrix%data_area, wm%datasize, nocopy=.TRUE.)
     !$OMP END MASTER
     !$OMP BARRIER
     CALL dbcsr_calc_block_sizes(new_blk_sizes,&
          new_row_p, wm%col_i, rbs, cbs)
     CALL dbcsr_sort_data (new_blk_p_sorted, wm%blk_p,&
          new_blk_sizes, dsts=matrix%data_area,&
-         src=wm%data_area,&
-         error=error)
+         src=wm%data_area)
     !
     ! Creates a new index array.
     !
@@ -1961,11 +1923,11 @@ CONTAINS
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_col_i)
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_blk_p)
     CALL dbcsr_addto_index_array (matrix, dbcsr_slot_row_p,&
-         DATA=new_row_p(1:nrows+1), extra=nblks*2, error=error)
+         DATA=new_row_p(1:nrows+1), extra=nblks*2)
     CALL dbcsr_addto_index_array (matrix, dbcsr_slot_col_i,&
-         DATA=wm%col_i(1:nblks), error=error)
+         DATA=wm%col_i(1:nblks))
     CALL dbcsr_addto_index_array (matrix, dbcsr_slot_blk_p,&
-            DATA=new_blk_p_sorted, error=error)
+            DATA=new_blk_p_sorted)
     matrix%nblks = nblks
     matrix%nze = wm%datasize
     matrix%index(dbcsr_slot_nblks) = matrix%nblks
@@ -1977,7 +1939,7 @@ CONTAINS
     DEALLOCATE (blk_d)
     !$OMP END MASTER
     IF (dbg) WRITE(*,*)routineN//" stopped"
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_merge_single_wm
 
 
@@ -2000,12 +1962,11 @@ CONTAINS
 !> \param nrows ...
 !> \param max_row_count ...
 !> \param sort_data ...
-!> \param[in,out] error       error
 ! *****************************************************************************
   SUBROUTINE merge_index (new_row_p, new_col_i, new_blk_p,&
        blk_d, old_row_p, old_col_i, old_blk_p,&
        all_row_p, all_col_i, all_blk_p,&
-       all_data_offsets, nwms, nrows, max_row_count, sort_data, error)
+       all_data_offsets, nwms, nrows, max_row_count, sort_data)
     INTEGER, DIMENSION(*), INTENT(IN)        :: new_row_p
     INTEGER, DIMENSION(*), INTENT(OUT), &
       TARGET                                 :: new_col_i, new_blk_p
@@ -2019,7 +1980,6 @@ CONTAINS
     INTEGER, DIMENSION(*), INTENT(IN)        :: all_data_offsets
     INTEGER, INTENT(IN)                      :: nwms, nrows, max_row_count
     LOGICAL, INTENT(IN)                      :: sort_data
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'merge_index', &
       routineP = moduleN//':'//routineN
@@ -2032,7 +1992,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_error_set (routineN, error_handle)
     !
     ALLOCATE (tmp_arr(max_row_count))
     ALLOCATE (blk_p_buff(max_row_count))
@@ -2081,7 +2041,7 @@ CONTAINS
     DEALLOCATE (tmp_arr)
     DEALLOCATE (blk_p_buff)
     !
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE merge_index
 
 

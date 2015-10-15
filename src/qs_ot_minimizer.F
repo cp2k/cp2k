@@ -11,10 +11,14 @@
 ! *****************************************************************************
 MODULE qs_ot_minimizer
 
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_get_info, cp_dbcsr_init_random, &
-       cp_dbcsr_p_type, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_trace, &
-       dbcsr_error_type
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add,&
+                                             cp_dbcsr_copy,&
+                                             cp_dbcsr_get_info,&
+                                             cp_dbcsr_init_random,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_scale,&
+                                             cp_dbcsr_set,&
+                                             cp_dbcsr_trace
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathlib,                         ONLY: diamat_all
@@ -1183,7 +1187,6 @@ SUBROUTINE ot_broyden_step(qs_ot_env)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: G, S
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     eta = qs_ot_env ( 1 ) % settings % broyden_eta
     omega = qs_ot_env ( 1 ) % settings % broyden_omega
@@ -1297,7 +1300,7 @@ SUBROUTINE ot_broyden_step(qs_ot_env)
 
     S = 0.0_dp
     DO ispin=1,nspin
-        CALL cp_dbcsr_init_random(qs_ot_env(ispin)%matrix_x,error=dbcsr_error)
+        CALL cp_dbcsr_init_random(qs_ot_env(ispin)%matrix_x)
         DO i=1,diis_bound
             CALL cp_dbcsr_trace( &
                 qs_ot_env(ispin)%matrix_h_x(circ_index(i))%matrix, &

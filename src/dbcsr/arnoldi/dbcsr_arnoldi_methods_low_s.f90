@@ -46,14 +46,12 @@
 !> \param matrix ...
 !> \param vectors ...
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE arnoldi_init_s (matrix, vectors, arnoldi_data, error)
+  SUBROUTINE arnoldi_init_s (matrix, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init_s', &
       routineP = moduleN//':'//routineN
@@ -104,7 +102,7 @@
     CALL compute_norms_s(v_vec, norm, rnorm, control%pcol_group)
 
     IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
-    CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm, error=error)
+    CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm)
 
     ! Everything prepared, initialize the Arnoldi iteration
     CALL transfer_dbcsr_to_local_array_s(vectors%input_vec, v_vec, nrow_local, control%local_comp)
@@ -112,8 +110,8 @@
     ! This permits to compute the subspace of a matrix which is a product of multiple matrices
     DO i=1, SIZE(matrix)
        CALL dbcsr_matrix_colvec_multiply(matrix(i)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_4, &
-                                        0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
-       CALL dbcsr_copy(vectors%input_vec, vectors%result_vec, error=error)
+                                        0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
+       CALL dbcsr_copy(vectors%input_vec, vectors%result_vec)
     END DO
 
     CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, w_vec, nrow_local, control%local_comp)
@@ -139,12 +137,10 @@
 !>        QR and  gemms can be made linear and a N^2 sacling will be acchieved
 !>        however this already sets the framework but should be used with care
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE arnoldi_iram_s(arnoldi_data,error)
+  SUBROUTINE arnoldi_iram_s(arnoldi_data)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_iram_s', &
          routineP = moduleN//':'//routineN
@@ -242,14 +238,11 @@
 !> \param matrix ...
 !> \param vectors ...
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
-
-  SUBROUTINE build_subspace_s(matrix, vectors, arnoldi_data, error)
+  SUBROUTINE build_subspace_s(matrix, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors), TARGET              :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_s', &
          routineP = moduleN//':'//routineN
@@ -293,7 +286,7 @@
        ! This permits to compute the subspace of a matrix which is a product of two matrices
        DO i=1, SIZE(matrix)
           CALL dbcsr_matrix_colvec_multiply(matrix(i)%matrix, input_vec, result_vec, 1.0_real_4, &
-                                            0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
+                                            0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
           swap_vec=>input_vec
           input_vec=>result_vec
           result_vec=>swap_vec
@@ -303,12 +296,12 @@
 
        ! Let's do the orthonormalization, to get the new f_vec. First try the Gram Schmidt scheme
        CALL Gram_Schmidt_ortho_s(h_vec, ar_data%f_vec, s_vec, w_vec, nrow_local, j+1, &
-                               ar_data%local_history, ar_data%local_history, control%local_comp, control%pcol_group, error)
+                               ar_data%local_history, ar_data%local_history, control%local_comp, control%pcol_group)
 
        ! A bit more expensive but simpliy always top up with a DGKS correction, otherwise numerics
        ! can become a problem later on, there is probably a good check whether it's necessary, but we don't perform it
        CALL DGKS_ortho_s(h_vec, ar_data%f_vec, s_vec, nrow_local, j+1, ar_data%local_history, &
-                                   ar_data%local_history, control%local_comp, control%pcol_group, error)
+                                   ar_data%local_history, control%local_comp, control%pcol_group)
        ! Finally we can put the projections into our Hessenberg matrix
        ar_data%Hessenberg(1:j+1, j+1)= h_vec(1:j+1)
        control%current_step=j+1
@@ -377,21 +370,19 @@
 !> \param reorth_mat ...
 !> \param local_comp ...
 !> \param pcol_group ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE Gram_Schmidt_ortho_s(h_vec, f_vec, s_vec, w_vec, nrow_local,&
-                                            j, local_history, reorth_mat, local_comp, pcol_group, error)
+                                            j, local_history, reorth_mat, local_comp, pcol_group)
     REAL(kind=real_4), DIMENSION(:)      :: h_vec, s_vec, f_vec, w_vec
     REAL(kind=real_4), DIMENSION(:, :)    :: local_history, reorth_mat
     INTEGER                                          :: nrow_local, j, pcol_group
     LOGICAL                                          :: local_comp
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'Gram_Schmidt_ortho_s', &
          routineP = moduleN//':'//routineN
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     ! Let's do the orthonormalization, first try the Gram Schmidt scheme
     h_vec=0.0_real_4; f_vec=0.0_real_4; s_vec=0.0_real_4
@@ -403,7 +394,7 @@
                                       nrow_local, h_vec, 1, 0.0_real_4, f_vec, 1)
     f_vec(:)=w_vec(:)-f_vec(:)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE Gram_Schmidt_ortho_s
 
@@ -418,14 +409,12 @@
 !> \param reorth_mat ...
 !> \param local_comp ...
 !> \param pcol_group ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE DGKS_ortho_s(h_vec, f_vec, s_vec, nrow_local, j, &
-                                    local_history, reorth_mat, local_comp, pcol_group, error)
+                                    local_history, reorth_mat, local_comp, pcol_group)
     REAL(kind=real_4), DIMENSION(:)      :: h_vec, s_vec, f_vec
     REAL(kind=real_4), DIMENSION(:, :)    :: local_history, reorth_mat
     INTEGER                                          :: nrow_local, j, pcol_group
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'DGKS_ortho_s', &
          routineP = moduleN//':'//routineN
@@ -433,7 +422,7 @@
     LOGICAL                                          :: local_comp
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     IF(local_comp)CALL sgemv('T', nrow_local, j, 1.0_real_4, local_history, &
                                        nrow_local, f_vec, 1, 0.0_real_4, s_vec, 1)
@@ -442,7 +431,7 @@
                                        nrow_local, s_vec, 1, 1.0_real_4, f_vec, 1)
     h_vec(1:j)=h_vec(1:j)+s_vec(1:j)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE DGKS_ortho_s
 
@@ -475,15 +464,13 @@
 !> \param matrix_arnoldi ...
 !> \param vectors ...
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE gev_arnoldi_init_s (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+  SUBROUTINE gev_arnoldi_init_s (matrix, matrix_arnoldi, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix_arnoldi
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init_s', &
       routineP = moduleN//':'//routineN
@@ -534,10 +521,10 @@
     CALL compute_norms_s(v_vec, norm, rnorm, control%pcol_group)
 
     IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
-    CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm, error=error)
+    CALL dbcsr_scale(vectors%input_vec, REAL(1.0, real_4)/rnorm)
 
     CALL dbcsr_matrix_colvec_multiply(matrix(1)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_4, &
-                                      0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
+                                      0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
 
     CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, w_vec, nrow_local, control%local_comp)
    
@@ -546,7 +533,7 @@
     CALL mp_sum(ar_data%rho_scale, pcol_group)
 
     CALL dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_4, &
-                                      0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
+                                      0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
 
     CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, w_vec, nrow_local, control%local_comp)
     
@@ -557,8 +544,8 @@
     CALL mp_bcast(ar_data%rho_scale,0,control%mp_group)
 
     ! if the maximum ev is requested we need to optimize with -A-rho*B
-    CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix,error=error)
-    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, 1.0_real_4, -ar_data%rho_scale, error)
+    CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix)
+    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, 1.0_real_4, -ar_data%rho_scale)
    
     ar_data%x_vec=v_vec
 
@@ -572,14 +559,12 @@
 !> \param matrix ...
 !> \param vectors ...
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE gev_build_subspace_s(matrix, vectors, arnoldi_data, error) 
+  SUBROUTINE gev_build_subspace_s(matrix, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace_s', &
          routineP = moduleN//':'//routineN
@@ -606,7 +591,7 @@
 
     CALL transfer_local_array_to_dbcsr_s(vectors%input_vec, ar_data%x_vec, nrow_local, control%local_comp)
     CALL dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_4, &
-                                      0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
+                                      0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
     CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, BZmat(:,1), nrow_local, control%local_comp)
     
     norm=0.0_real_4 
@@ -620,22 +605,22 @@
        control%current_step=j
        CALL transfer_local_array_to_dbcsr_s(vectors%input_vec, Zmat(:,j), nrow_local, control%local_comp)
        CALL dbcsr_matrix_colvec_multiply(matrix(1)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_4, &
-                                        0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
+                                        0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
        CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, CZmat(:,j), nrow_local, control%local_comp)
        w_vec(:)=CZmat(:,j)                         
        
        ! Let's do the orthonormalization, to get the new f_vec. First try the Gram Schmidt scheme
        CALL Gram_Schmidt_ortho_s(h_vec, ar_data%f_vec, s_vec, w_vec, nrow_local, j, &
-                               BZmat, Zmat, control%local_comp, control%pcol_group, error)
+                               BZmat, Zmat, control%local_comp, control%pcol_group)
 
        ! A bit more expensive but simpliy always top up with a DGKS correction, otherwise numerics
        ! can becom a problem later on, there is probably a good check, but we don't perform it
        CALL DGKS_ortho_s(h_vec, ar_data%f_vec, s_vec, nrow_local, j, BZmat, &
-                                    Zmat, control%local_comp, control%pcol_group, error)
+                                    Zmat, control%local_comp, control%pcol_group)
     
        CALL transfer_local_array_to_dbcsr_s(vectors%input_vec, ar_data%f_vec, nrow_local, control%local_comp)
        CALL dbcsr_matrix_colvec_multiply(matrix(2)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_4, &
-                                        0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
+                                        0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
        CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, v_vec, nrow_local, control%local_comp)
        norm=0.0_real_4
        norm=DOT_PRODUCT(ar_data%f_vec,v_vec)
@@ -681,15 +666,13 @@
 !> \param matrix_arnoldi ...
 !> \param vectors ...
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE gev_update_data_s(matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+  SUBROUTINE gev_update_data_s(matrix, matrix_arnoldi, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix_arnoldi
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_update_data_s', &
       routineP = moduleN//':'//routineN
@@ -719,8 +702,8 @@
 !                        ar_data%revec(1:control%current_step,control%selected_ind(1)))
 
 ! update the C-matrix (A-rho*B), if teh maximum value is requested we have to use -A-rho*B
-    CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix,error=error)
-    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, 1.0_real_4, -ar_data%rho_scale, error)
+    CALL dbcsr_copy(matrix_arnoldi(1)%matrix,matrix(1)%matrix)
+    CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, 1.0_real_4, -ar_data%rho_scale)
 
 ! compute convergence and set the correct eigenvalue and eigenvector
     CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local)
@@ -730,8 +713,8 @@
     v_vec(:)=ar_data%x_vec(:)/rnorm
     CALL transfer_local_array_to_dbcsr_s(vectors%input_vec, v_vec, nrow_local, control%local_comp)
     CALL dbcsr_matrix_colvec_multiply(matrix_arnoldi(1)%matrix, vectors%input_vec, vectors%result_vec, 1.0_real_4, &
-                                            0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec, error)
-    CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, v_vec, nrow_local, control%local_comp)                              
+                                            0.0_real_4, vectors%rep_row_vec, vectors%rep_col_vec)
+    CALL transfer_dbcsr_to_local_array_s(vectors%result_vec, v_vec, nrow_local, control%local_comp)
     CALL compute_norms_s(v_vec, norm, rnorm, control%pcol_group)
 
 ! check convergence and broadcast the real eigenvalue    

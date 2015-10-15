@@ -77,8 +77,8 @@ MODULE dbcsr_mm_cannon
                                              make_sizes_dense
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, &
-       dbcsr_error_stop, dbcsr_error_type, dbcsr_failure_level, &
-       dbcsr_fatal_level, dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
+       dbcsr_error_stop, dbcsr_failure_level, dbcsr_fatal_level, &
+       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
        dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: &
        dbcsr_count_row_index, dbcsr_has_local_row_index, dbcsr_index_compact, &
@@ -238,18 +238,16 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Initialize the library
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_cannon_lib_init(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE dbcsr_mm_cannon_lib_init()
 
     INTEGER                                  :: ithread, nthreads
 
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
 
-    CALL dbcsr_mm_multrec_lib_init(error)
+    CALL dbcsr_mm_multrec_lib_init()
 
     !$OMP MASTER
     dbcsr_mpi_statistics%nimages = -1
@@ -267,8 +265,8 @@ MODULE dbcsr_mm_cannon
 
     ! Each thread has its own working-matrix and its own mempool
     ALLOCATE(memtype_product_wm(ithread)%p)
-    CALL dbcsr_memtype_setup(memtype_product_wm(ithread)%p, has_pool=.TRUE., error=error)
-    CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=1, error=error)
+    CALL dbcsr_memtype_setup(memtype_product_wm(ithread)%p, has_pool=.TRUE.)
+    CALL dbcsr_mempool_ensure_capacity(memtype_product_wm(ithread)%p%pool, capacity=1)
   END SUBROUTINE dbcsr_mm_cannon_lib_init
 
 
@@ -276,12 +274,10 @@ MODULE dbcsr_mm_cannon
 !> \brief Finalize the library
 !> \param group ...
 !> \param output_unit ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_cannon_lib_finalize(group, output_unit, error)
+  SUBROUTINE dbcsr_mm_cannon_lib_finalize(group, output_unit)
     INTEGER, INTENT(IN)                      :: group, output_unit
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_cannon_lib_finalize', &
       routineP = moduleN//':'//routineN
@@ -297,14 +293,14 @@ MODULE dbcsr_mm_cannon
     REAL, DIMENSION(2)                       :: max_recv_data, min_recv_data, &
                                                 total_recv_data
 
-     CALL dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
+     CALL dbcsr_mm_multrec_lib_finalize(group, output_unit)
 
      ithread = 0
      !$  ithread = omp_get_thread_num()
 
      ! Each thread has its own working-matrix and its own mempool
      IF (ASSOCIATED(memtype_product_wm(ithread)%p%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_product_wm(ithread)%p%pool, error)
+        CALL dbcsr_mempool_destruct(memtype_product_wm(ithread)%p%pool)
      DEALLOCATE(memtype_product_wm(ithread)%p)
 
      !$OMP BARRIER
@@ -391,13 +387,13 @@ MODULE dbcsr_mm_cannon
        ENDIF
      ENDIF
      IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_trsbuffer_1%pool, error)
+        CALL dbcsr_mempool_destruct(memtype_trsbuffer_1%pool)
      IF (ASSOCIATED(memtype_trsbuffer_2%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_trsbuffer_2%pool, error)
+        CALL dbcsr_mempool_destruct(memtype_trsbuffer_2%pool)
      IF (ASSOCIATED(memtype_abpanel_1%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_abpanel_1%pool, error)
+        CALL dbcsr_mempool_destruct(memtype_abpanel_1%pool)
      IF (ASSOCIATED(memtype_abpanel_2%pool)) &
-        CALL dbcsr_mempool_destruct(memtype_abpanel_2%pool, error)
+        CALL dbcsr_mempool_destruct(memtype_abpanel_2%pool)
      IF(acc_stream_associated(stream_1)) &
         CALL acc_stream_destroy(stream_1)
      IF(acc_stream_associated(stream_2)) &
@@ -407,11 +403,9 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief Deallocate memory contained in mempools
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_cannon_clear_mempools(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE dbcsr_mm_cannon_clear_mempools()
 
     INTEGER                                  :: ithread
 
@@ -420,17 +414,17 @@ MODULE dbcsr_mm_cannon
 
      ! Each thread has its own working-matrix and its own mempool
      IF (ASSOCIATED(memtype_product_wm(ithread)%p%pool)) &
-        CALL dbcsr_mempool_clear(memtype_product_wm(ithread)%p%pool, error)
+        CALL dbcsr_mempool_clear(memtype_product_wm(ithread)%p%pool)
 
      !$omp master
      IF (ASSOCIATED(memtype_trsbuffer_1%pool)) &
-        CALL dbcsr_mempool_clear(memtype_trsbuffer_1%pool, error)
+        CALL dbcsr_mempool_clear(memtype_trsbuffer_1%pool)
      IF (ASSOCIATED(memtype_trsbuffer_2%pool)) &
-        CALL dbcsr_mempool_clear(memtype_trsbuffer_2%pool, error)
+        CALL dbcsr_mempool_clear(memtype_trsbuffer_2%pool)
      IF (ASSOCIATED(memtype_abpanel_1%pool)) &
-        CALL dbcsr_mempool_clear(memtype_abpanel_1%pool, error)
+        CALL dbcsr_mempool_clear(memtype_abpanel_1%pool)
      IF (ASSOCIATED(memtype_abpanel_2%pool)) &
-        CALL dbcsr_mempool_clear(memtype_abpanel_2%pool, error)
+        CALL dbcsr_mempool_clear(memtype_abpanel_2%pool)
      !$omp end master
   END SUBROUTINE dbcsr_mm_cannon_clear_mempools
 
@@ -463,7 +457,6 @@ MODULE dbcsr_mm_cannon
 !> \param[in] retain_sparsity (optional) enforce the sparsity pattern of the
 !>                            existing product matrix; default is no
 !> \param[in] filter_eps      Filtering of the matrix
-!> \param[in,out] error       error
 !> \param[out] flop           (optional) effective flop
 !> \par Matrices m_a and m_b are multiplied into the m_c product matrix. If the
 !>      dist2d parameter is not specified, then a new distribution_2d is
@@ -493,7 +486,7 @@ MODULE dbcsr_mm_cannon
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, filter_eps,&
-       error, flop)
+       flop)
 
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     TYPE(dbcsr_scalar_type), INTENT(IN)      :: alpha
@@ -505,7 +498,6 @@ MODULE dbcsr_mm_cannon
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
@@ -538,7 +530,7 @@ MODULE dbcsr_mm_cannon
                                                 product_matrix
     TYPE(dbcsr_scalar_type)                  :: eps_any
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL array_nullify(dense_k_sizes)
     CALL array_nullify(dense_col_sizes)
     CALL array_nullify(dense_row_sizes)
@@ -557,26 +549,26 @@ MODULE dbcsr_mm_cannon
 
        CALL dbcsr_memtype_setup(memtype_abpanel_1, has_pool=.TRUE.,&
             acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1,&
-            mpi=.TRUE., oversize_factor=default_resize_factor, error=error)
+            mpi=.TRUE., oversize_factor=default_resize_factor)
 
        CALL dbcsr_memtype_setup(memtype_abpanel_2, has_pool=.TRUE.,&
             acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_2,&
-            mpi=.TRUE., oversize_factor=default_resize_factor, error=error)
+            mpi=.TRUE., oversize_factor=default_resize_factor)
 
        !TODO: ensure capacity 2/3?
        CALL dbcsr_memtype_setup(memtype_trsbuffer_1,has_pool=.TRUE.,&
-            acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1,error=error)
-       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=1, error=error)
+            acc_hostalloc=.TRUE., acc_devalloc=.TRUE., acc_stream=stream_1)
+       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_1%pool, capacity=1)
 
        CALL dbcsr_memtype_setup(memtype_trsbuffer_2, has_pool=.TRUE.,&
-            acc_hostalloc=.TRUE., acc_devalloc=.TRUE.,acc_stream=stream_2, error=error)
-       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=1, error=error)
+            acc_hostalloc=.TRUE., acc_devalloc=.TRUE.,acc_stream=stream_2)
+       CALL dbcsr_mempool_ensure_capacity(memtype_trsbuffer_2%pool, capacity=1)
     ELSE
-       CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE., error=error)
-       CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE., error=error)
+       CALL dbcsr_memtype_setup(memtype_abpanel_1, mpi=.TRUE.)
+       CALL dbcsr_memtype_setup(memtype_abpanel_2, mpi=.TRUE.)
     ENDIF
 
-    CALL dbcsr_memtype_setup(memtype_mpi_buffer, mpi=.TRUE., error=error)
+    CALL dbcsr_memtype_setup(memtype_mpi_buffer, mpi=.TRUE.)
 
     ! check parameters ---------------------------------------------------------
     transa_l = transa
@@ -587,26 +579,26 @@ MODULE dbcsr_mm_cannon
                       transa_l.EQ.dbcsr_transpose.OR.&
                       transa_l.EQ.dbcsr_conjugate_transpose,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Invalid transa_l = "//transa_l, __LINE__, error)
+         "Invalid transa_l = "//transa_l, __LINE__)
     CALL dbcsr_assert(transb_l.EQ.dbcsr_no_transpose.OR.&
                       transb_l.EQ.dbcsr_transpose.OR.&
                       transb_l.EQ.dbcsr_conjugate_transpose,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Invalid transb_l = "//transb_l, __LINE__, error)
+         "Invalid transb_l = "//transb_l, __LINE__)
 
     IF (dbg) THEN
        WRITE(*,*)'========== MULTIPLICATION ========================'
-       CALL dbcsr_verify_matrix (matrix_a, error=error)
-       CALL dbcsr_verify_matrix (matrix_b, error=error)
-       CALL dbcsr_verify_matrix (matrix_c, error=error)
+       CALL dbcsr_verify_matrix (matrix_a)
+       CALL dbcsr_verify_matrix (matrix_b)
+       CALL dbcsr_verify_matrix (matrix_c)
        WRITE(*,*)routineN//" ABC checksums",&
-            dbcsr_checksum(matrix_a, error=error),&
-            dbcsr_checksum(matrix_b, error=error),&
-            dbcsr_checksum(matrix_c, error=error)
+            dbcsr_checksum(matrix_a),&
+            dbcsr_checksum(matrix_b),&
+            dbcsr_checksum(matrix_c)
        IF (dbg) THEN
-          CALL dbcsr_print (matrix_a, nodata=.TRUE., error=error)
-          CALL dbcsr_print (matrix_b, nodata=.TRUE., error=error)
-          CALL dbcsr_print (matrix_c, nodata=.TRUE., error=error)
+          CALL dbcsr_print (matrix_a, nodata=.TRUE.)
+          CALL dbcsr_print (matrix_b, nodata=.TRUE.)
+          CALL dbcsr_print (matrix_c, nodata=.TRUE.)
        ENDIF
     ENDIF
 
@@ -623,23 +615,23 @@ MODULE dbcsr_mm_cannon
           ! shallow_data_copy=.TRUE. doesnt handle properly antisymm matrices
           CALL dbcsr_new_transposed (matrix_left, matrix_a,&
                shallow_data_copy=.FALSE., redistribute=.FALSE., &
-               transpose_distribution=.FALSE., error=error)
+               transpose_distribution=.FALSE.)
        ELSE
           CALL dbcsr_new_transposed (matrix_left, matrix_a,&
                shallow_data_copy=.TRUE., redistribute=.FALSE.,&
-               transpose_distribution=.FALSE., error=error)
+               transpose_distribution=.FALSE.)
        ENDIF
        new_left = .TRUE.
     CASE(dbcsr_conjugate_transpose)
        CALL dbcsr_init(matrix_left)
        CALL dbcsr_new_transposed (matrix_left, matrix_a,&
             shallow_data_copy=.FALSE., redistribute=.FALSE.,&
-            transpose_distribution=.FALSE., error=error)
-       CALL dbcsr_conjg(matrix_left, error=error)
+            transpose_distribution=.FALSE.)
+       CALL dbcsr_conjg(matrix_left)
        new_left = .TRUE.
     CASE DEFAULT
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-            routineN, "wrong transa_l = "//transa_l, __LINE__, error)
+            routineN, "wrong transa_l = "//transa_l, __LINE__)
     END SELECT
 
     SELECT CASE(transb_l)
@@ -654,23 +646,23 @@ MODULE dbcsr_mm_cannon
           ! shallow_data_copy=.TRUE. doesnt handle properly antisymm matrices
           CALL dbcsr_new_transposed (matrix_right, matrix_b,&
                shallow_data_copy=.FALSE., redistribute=.FALSE.,&
-               transpose_distribution=.FALSE., error=error)
+               transpose_distribution=.FALSE.)
        ELSE
           CALL dbcsr_new_transposed (matrix_right, matrix_b,&
                shallow_data_copy=.TRUE., redistribute=.FALSE.,&
-               transpose_distribution=.FALSE., error=error)
+               transpose_distribution=.FALSE.)
        ENDIF
        new_right = .TRUE.
     CASE(dbcsr_conjugate_transpose)
        CALL dbcsr_init(matrix_right)
        CALL dbcsr_new_transposed (matrix_right, matrix_b,&
             shallow_data_copy=.FALSE., redistribute=.FALSE.,&
-            transpose_distribution=.FALSE., error=error)
-       CALL dbcsr_conjg(matrix_right, error=error)
+            transpose_distribution=.FALSE.)
+       CALL dbcsr_conjg(matrix_right)
        new_right = .TRUE.
     CASE DEFAULT
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-            routineN, "wrong transb_l = "//transb_l, __LINE__, error)
+            routineN, "wrong transb_l = "//transb_l, __LINE__)
     END SELECT
 
     !
@@ -678,15 +670,15 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_assert (array_equality (dbcsr_row_block_offsets (matrix_c),&
                                        dbcsr_row_block_offsets (matrix_left)),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "C/A rows not equal", __LINE__, error=error)
+         "C/A rows not equal", __LINE__)
     CALL dbcsr_assert (array_equality (dbcsr_col_block_offsets (matrix_c),&
                                        dbcsr_col_block_offsets (matrix_right)),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "C/B columns not equal", __LINE__, error=error)
+         "C/B columns not equal", __LINE__)
     CALL dbcsr_assert (array_equality (dbcsr_col_block_offsets (matrix_left),&
                                        dbcsr_row_block_offsets (matrix_right)),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "A cols/B rows not equal", __LINE__, error=error)
+         "A cols/B rows not equal", __LINE__)
 
     !
     ! No dense multiplication when filtering is used.
@@ -720,7 +712,7 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_assert(first_row .GE. 1&
             .AND. first_row .LE. dbcsr_nfullrows_total(matrix_c),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid first row specified", __LINE__, error)
+            "Invalid first row specified", __LINE__)
        f_row = first_row
     ENDIF
     IF (PRESENT (last_row)) THEN
@@ -728,14 +720,14 @@ MODULE dbcsr_mm_cannon
             .AND. last_row .LE. dbcsr_nfullrows_total(matrix_c)&
             .OR. last_row .LT. 1 ,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid last row specified", __LINE__, error)
+            "Invalid last row specified", __LINE__)
        l_row = last_row
     ENDIF
     IF (PRESENT (first_column)) THEN
        CALL dbcsr_assert(first_column .GE. 1&
             .AND. first_column .LE. dbcsr_nfullcols_total(matrix_c),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid first col specified", __LINE__, error)
+            "Invalid first col specified", __LINE__)
        f_col = first_column
     ENDIF
     IF (PRESENT (last_column)) THEN
@@ -743,19 +735,19 @@ MODULE dbcsr_mm_cannon
             .AND. last_column .LE. dbcsr_nfullcols_total(matrix_c)&
             .OR. last_column .LT. 1,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid last column specified (C)", __LINE__, error)
+            "Invalid last column specified (C)", __LINE__)
        CALL dbcsr_assert(last_column .GE. 1&
             .AND. last_column .LE. dbcsr_nfullcols_total(matrix_right)&
             .OR. last_column .LT. 1,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid last column specified (B)", __LINE__, error)
+            "Invalid last column specified (B)", __LINE__)
        l_col = last_column
     ENDIF
     IF (PRESENT (first_k)) THEN
        CALL dbcsr_assert(first_k .GE. 1&
             .AND. first_k .LE. dbcsr_nfullcols_total(matrix_left),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid first k specified (A)", __LINE__, error)
+            "Invalid first k specified (A)", __LINE__)
        f_k = first_k
     ENDIF
     IF (PRESENT (last_k)) THEN
@@ -763,7 +755,7 @@ MODULE dbcsr_mm_cannon
             .AND. last_k .LE. dbcsr_nfullcols_total(matrix_left)&
             .OR. last_k  .LT. 1,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid last k specified (A)", __LINE__, error)
+            "Invalid last k specified (A)", __LINE__)
        l_k = last_k
     ENDIF
 
@@ -795,10 +787,10 @@ MODULE dbcsr_mm_cannon
     ENDIF
     CALL dbcsr_assert (f_row .LE. l_row, dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN, "Last row smaller than first row", &
-         __LINE__, error)
+         __LINE__)
     CALL dbcsr_assert (f_col .LE. l_col, dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN, "Last col smaller than first col", &
-         __LINE__, error)
+         __LINE__)
 
     !
     ! if we have limits we need to turn of make dense for the moment...
@@ -820,7 +812,7 @@ MODULE dbcsr_mm_cannon
     !
     IF (.NOT. dbcsr_scalar_are_equal (beta, dbcsr_scalar_one(beta%data_type)) .AND. keep_product_data) THEN
        CALL dbcsr_scale (matrix_c, alpha_scalar=beta, &
-            limits=(/f_row,l_row,f_col,l_col/), error=error)
+            limits=(/f_row,l_row,f_col,l_col/))
     ENDIF
     !
     ! The index of the product matrix is twiddled into canonical form
@@ -842,7 +834,7 @@ MODULE dbcsr_mm_cannon
     ! dense) distribution
     !CALL dbcsr_assert (dbcsr_distribution_has_threads(product_matrix%m%dist),&
     !     dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-    !     "Thread distribution not defined.", __LINE__, error=error)
+    !     "Thread distribution not defined.", __LINE__)
     IF (.NOT. dbcsr_distribution_has_threads(matrix_c%m%dist)) THEN
        release_tdist = .TRUE.
        CALL dbcsr_distribution_make_threads (matrix_c%m%dist)
@@ -857,7 +849,7 @@ MODULE dbcsr_mm_cannon
                                          dbcsr_distribution_row_clusters(matrix_right%m%dist)),&
                           dbcsr_fatal_level,&
                           dbcsr_wrong_args_error, routineN, "A cols/B rows clusters not equal", &
-                          __LINE__, error) 
+                          __LINE__) 
     ENDIF
     !
     ! Compute number of clusters
@@ -925,24 +917,21 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_make_dists_dense (dbcsr_distribution (matrix_c),&
             rdist_left, rdist_right, dense_product_distribution,&
             dense_rdist_left, dense_rdist_right, .not.use_dense_mult,&
-            m_map, k_vmap, n_map, matrix_c%m%row_blk_size, error=error)
+            m_map, k_vmap, n_map, matrix_c%m%row_blk_size)
        CALL make_sizes_dense (matrix_c%m%row_blk_size, m_map,&
             dbcsr_distribution_nrows (dense_product_distribution),&
-            dense_row_sizes,&
-            error=error)
+            dense_row_sizes)
        CALL make_sizes_dense (matrix_c%m%col_blk_size, n_map, &
             dbcsr_distribution_ncols (dense_product_distribution),&
-            dense_col_sizes,&
-            error=error)
+            dense_col_sizes)
        CALL make_sizes_dense (matrix_right%m%row_blk_size, k_vmap,&
             dbcsr_distribution_nrows (dense_rdist_right%i%main),&
-            dense_k_sizes,&
-            error=error)
+            dense_k_sizes)
     ENDIF
     !
     CALL dbcsr_assert (use_dense_mult, "IMP", ab_dense,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Wrong logic when making dense matrices.", __LINE__, error=error)
+         "Wrong logic when making dense matrices.", __LINE__)
     IF (use_dense_mult) THEN
        old_product_row_blk_offsets = matrix_c%m%row_blk_offset
        old_product_col_blk_offsets = matrix_c%m%col_blk_offset
@@ -958,11 +947,10 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_make_dense (matrix_c, product_matrix,&
             dense_product_distribution,&
             dense_row_sizes, dense_col_sizes,&
-            m_map, n_map,&
-            error=error)
+            m_map, n_map)
     ELSE
        CALL dbcsr_init (product_matrix)
-       CALL dbcsr_copy(product_matrix, matrix_c, shallow_data=.TRUE., error=error)
+       CALL dbcsr_copy(product_matrix, matrix_c, shallow_data=.TRUE.)
     ENDIF
     IF (ab_dense) THEN
        CALL dbcsr_distribution_release (dense_product_distribution)
@@ -971,7 +959,7 @@ MODULE dbcsr_mm_cannon
 
     ! This is needed to build the hash tables because they are
     ! locally indexed.
-    CALL dbcsr_reset_locals (product_matrix, error=error)
+    CALL dbcsr_reset_locals (product_matrix)
 
     IF (debug_mod) THEN
        WRITE(*,*)routineN//" Matrices ", dbcsr_get_matrix_type(matrix_a),&
@@ -985,22 +973,22 @@ MODULE dbcsr_mm_cannon
        ENDIF
        CALL dbcsr_assert (.NOT. ASSOCIATED (product_matrix%m%wms),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Product matrix should be finalized!", __LINE__, error=error)
-       CALL dbcsr_make_untransposed_blocks (product_matrix, error=error)
+            "Product matrix should be finalized!", __LINE__)
+       CALL dbcsr_make_untransposed_blocks (product_matrix)
 !$omp parallel &
-!$omp default (none) shared (product_matrix, error)
+!$omp default (none) shared (product_matrix)
        ! For the multiply logic to work correctly, existing data must
        ! be added only after the index has been transformed into the
        ! canonical form.
-       CALL dbcsr_add_wm_from_matrix(product_matrix, error=error)
+       CALL dbcsr_add_wm_from_matrix(product_matrix)
 !$omp end parallel
     ELSE
 !$omp parallel default(none) private(ithread) &
-!$omp shared(product_matrix, memtype_product_wm, error)
+!$omp shared(product_matrix, memtype_product_wm)
        ithread = 0
        !$ ithread = OMP_GET_THREAD_NUM ()
        CALL dbcsr_work_create(product_matrix, work_mutable=.FALSE., &
-               memory_type=memtype_product_wm(ithread)%p, error=error)
+               memory_type=memtype_product_wm(ithread)%p)
 !$omp end parallel
     ENDIF
     product_matrix%m%nze = 0
@@ -1015,15 +1003,14 @@ MODULE dbcsr_mm_cannon
                   "R",f_k,l_k,f_row,l_row,f_col,l_col,&
                   dense_k_sizes,dense_col_sizes,&
                   k_vmap,m_map,n_map,&
-                  alpha,error)
+                  alpha)
     !
     ! Left images
     CALL make_m2s(matrix_left,m2s_left,rdist_left,dense_rdist_left,&
                   use_dense_mult,ab_dense,use_local_indexing,use_list_indexing,&
                   "L",f_k,l_k,f_row,l_row,f_col,l_col,&
                   dense_row_sizes,dense_k_sizes,&
-                  k_vmap,m_map,n_map,&
-                  error=error)
+                  k_vmap,m_map,n_map)
     !
     IF (ab_dense) THEN
        CALL array_release (k_vmap)
@@ -1041,25 +1028,25 @@ MODULE dbcsr_mm_cannon
     IF (use_mpi_rma) THEN
        CALL cannon_multiply_low_rma(m2s_left, m2s_right, product_matrix,&
             retain_sparsity=retain_sparsity,&
-            filter_eps=filter_eps, error=error,&
+            filter_eps=filter_eps,&
             flop=my_flop)
     ELSE
        CALL cannon_multiply_low(m2s_left, m2s_right, product_matrix,&
             retain_sparsity=retain_sparsity,&
-            filter_eps=filter_eps, error=error,&
+            filter_eps=filter_eps,&
             flop=my_flop)
     ENDIF
 
-    CALL dbcsr_finalize(product_matrix, error=error)
+    CALL dbcsr_finalize(product_matrix)
 
     IF (PRESENT (flop)) THEN
        ! return the average number of flops per MPI rank. Variance (which is fairly large) could be computed as well.
-       CALL dbcsr_error_set(routineN//"_mpsum_flop",error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_mpsum_flop",error_handler2)
        comm = dbcsr_mp_group (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
        numnodes = dbcsr_mp_numnodes (dbcsr_distribution_mp (dbcsr_distribution (product_matrix)))
        CALL mp_sum(my_flop,comm)
        flop = (my_flop + numnodes - 1) / numnodes
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
     ENDIF
     !
     IF (new_left) CALL dbcsr_release (matrix_left)
@@ -1068,7 +1055,7 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
     ENDIF
     !
-    CALL dbcsr_release_locals (product_matrix, error=error)
+    CALL dbcsr_release_locals (product_matrix)
     ! The index of the product matrix is reset to the CP2K form if it
     ! was previously set to the canonical form.
     IF (product_reindex) THEN
@@ -1082,7 +1069,7 @@ MODULE dbcsr_mm_cannon
             old_product_distribution,&
             old_product_row_blk_offsets, old_product_col_blk_offsets,&
             old_product_row_blk_sizes, old_product_col_blk_sizes,&
-            m_map, n_map, error=error)
+            m_map, n_map)
        CALL dbcsr_release (product_matrix)
        CALL array_release (old_product_row_blk_offsets)
        CALL array_release (old_product_col_blk_offsets)
@@ -1092,17 +1079,17 @@ MODULE dbcsr_mm_cannon
     ELSE
        CALL dbcsr_release (matrix_c)
        CALL dbcsr_init (matrix_c)
-       CALL dbcsr_copy (matrix_c, product_matrix, shallow_data=.TRUE., error=error)
+       CALL dbcsr_copy (matrix_c, product_matrix, shallow_data=.TRUE.)
        CALL dbcsr_release (product_matrix)
     ENDIF
     !
-    CALL dbcsr_destroy_array (m2s_left, error=error)
+    CALL dbcsr_destroy_array (m2s_left)
     DEALLOCATE (m2s_left)
-    CALL dbcsr_destroy_array (m2s_right, error=error)
+    CALL dbcsr_destroy_array (m2s_right)
     DEALLOCATE (m2s_right)
     !
-    CALL dbcsr_image_dist_release (rdist_left, error=error)
-    CALL dbcsr_image_dist_release (rdist_right, error=error)
+    CALL dbcsr_image_dist_release (rdist_left)
+    CALL dbcsr_image_dist_release (rdist_right)
     IF (ab_dense) THEN
        CALL array_release (m_map)
        CALL array_release (n_map)
@@ -1114,28 +1101,28 @@ MODULE dbcsr_mm_cannon
        eps_any = dbcsr_scalar(filter_eps)
        CALL dbcsr_scalar_fill_all(eps_any)
        CALL dbcsr_scalar_set_type(eps_any, dbcsr_get_data_type(matrix_c))
-       CALL dbcsr_filter (matrix_c, eps_any, quick=.FALSE., error=error)
+       CALL dbcsr_filter (matrix_c, eps_any, quick=.FALSE.)
     ENDIF
     !
     ! To support the canonical multiply (all non-transposed blocks),
     ! blocks may have to be transposed according to the CP2K
     ! triangular index.
-    CALL dbcsr_make_untransposed_blocks (matrix_c, error=error)
+    CALL dbcsr_make_untransposed_blocks (matrix_c)
     !
     IF (debug_mod .OR. careful_mod) THEN
        IF (debug_mod) &
             WRITE(*,*)routineN//" Use dense mult, symm",&
             use_dense_mult, ab_dense, dbcsr_has_symmetry (matrix_c)
-       CALL dbcsr_verify_matrix (matrix_c, error=error)
+       CALL dbcsr_verify_matrix (matrix_c)
        IF (debug_mod) THEN
-          cs = dbcsr_checksum (matrix_c, error=error)
+          cs = dbcsr_checksum (matrix_c)
           WRITE(*,*)routineN//" Product checksum", cs
        ENDIF
     ENDIF
     !
     IF (.FALSE.) WRITE(*,*)"Finished with one multiplication."
     output_unit = default_output_unit
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_mm_cannon_multiply
 
 
@@ -1163,7 +1150,6 @@ MODULE dbcsr_mm_cannon
 !> \param[in] m_map ...
 !> \param[in] n_map ...
 !> \param[in] alpha ...
-!> \param[in,out] error ...
 ! *****************************************************************************
   SUBROUTINE make_m2s(matrix,m2s,rdist,dense_rdist,&
                       use_dense_mult,ab_dense,&
@@ -1171,7 +1157,7 @@ MODULE dbcsr_mm_cannon
                       predistribute,f_k,l_k,f_row,l_row,f_col,l_col,&
                       row_blk_size,col_blk_size,&
                       k_vmap,m_map,n_map,&
-                      alpha,error)
+                      alpha)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_2d_array_type), INTENT(OUT), &
       POINTER                                :: m2s
@@ -1187,7 +1173,6 @@ MODULE dbcsr_mm_cannon
     TYPE(array_i1d_obj), INTENT(IN)          :: k_vmap, m_map, n_map
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: i, im, j, jm, nthreads
     INTEGER, DIMENSION(4)                    :: f_crop
@@ -1207,11 +1192,11 @@ MODULE dbcsr_mm_cannon
        ! Copy and scale matrix if alpha is not 1.
        CALL dbcsr_make_images (matrix, m2s, rdist,&
             predistribute=predistribute, &
-            no_copy_data=use_dense_mult, scale_value=alpha, error=error)
+            no_copy_data=use_dense_mult, scale_value=alpha)
     ELSE
        CALL dbcsr_make_images (matrix, m2s, rdist,&
             predistribute=predistribute, &
-            no_copy_data=use_dense_mult, error=error)
+            no_copy_data=use_dense_mult)
     END IF
     
     im = SIZE (m2s%mats,1)
@@ -1239,19 +1224,18 @@ MODULE dbcsr_mm_cannon
     ! Post-processing of images.
     DO i = 1, im
        DO j = 1, jm
-          CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist, error=error)
+          CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist)
           ! Crop if necessary
           IF (ANY(f_crop .NE. 0)) THEN
              CALL dbcsr_init (matrix_tmp)
              CALL dbcsr_crop_matrix (matrix_tmp, m2s%mats(i,j),&
                   full_row_bounds=f_crop(1:2),&
                   full_column_bounds=f_crop(3:4),&
-                  shallow_data = .FALSE., error=error)
+                  shallow_data = .FALSE.)
              CALL dbcsr_release (m2s%mats(i,j))
-             CALL dbcsr_copy (m2s%mats(i,j), matrix_tmp, shallow_data=.TRUE.,&
-                  error=error)
+             CALL dbcsr_copy (m2s%mats(i,j), matrix_tmp, shallow_data=.TRUE.)
              CALL dbcsr_release (matrix_tmp)
-             CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist, error=error)
+             CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist)
           ENDIF
        ENDDO
     ENDDO
@@ -1260,18 +1244,17 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_init (dense_template)
        CALL dbcsr_create (dense_template, template=matrix,&
             dist=dense_rdist%i%main,&
-            row_blk_size=array_data(row_blk_size), col_blk_size=array_data(col_blk_size),&
-            error=error)
+            row_blk_size=array_data(row_blk_size), col_blk_size=array_data(col_blk_size))
        CALL dbcsr_make_images_dense (m2s, dense_rdist, &
             row_map = row_map, col_map = col_map,&
             join_cols = use_dense_mult, join_rows=ab_dense, &
-            new_template=dense_template, error=error)
-       CALL dbcsr_image_dist_release (rdist, error=error)
+            new_template=dense_template)
+       CALL dbcsr_image_dist_release (rdist)
        rdist = dense_rdist
-       CALL dbcsr_image_dist_hold (rdist, error=error)
+       CALL dbcsr_image_dist_hold (rdist)
        DO i = 1, im
           DO j = 1, jm
-             CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist, error=error)
+             CALL dbcsr_reset_vlocals (m2s%mats(i,j), rdist)
           ENDDO
        ENDDO
     ENDIF
@@ -1300,21 +1283,20 @@ MODULE dbcsr_mm_cannon
 
           ! Convert to local-row index
           IF (use_local_indexing.OR.use_mpi_rma) THEN
-             CALL dbcsr_make_index_local_row(m2s%mats(i,j), error=error)
+             CALL dbcsr_make_index_local_row(m2s%mats(i,j))
           ENDIF
           ! Convert to list index
           IF (use_list_indexing.OR.use_mpi_rma) THEN
-             CALL dbcsr_make_index_list(m2s%mats(i,j), thread_redist=thread_redist,&
-                  error=error)
+             CALL dbcsr_make_index_list(m2s%mats(i,j), thread_redist=thread_redist)
           ENDIF
           IF (use_local_indexing .AND. .NOT. use_list_indexing .AND. .NOT.use_mpi_rma) THEN
-             CALL dbcsr_index_compact(m2s%mats(i,j), error=error)
+             CALL dbcsr_index_compact(m2s%mats(i,j))
           ENDIF
        ENDDO
     ENDDO
 
     IF (ab_dense) THEN
-       CALL dbcsr_image_dist_release (dense_rdist, error=error)
+       CALL dbcsr_image_dist_release (dense_rdist)
        CALL dbcsr_release (dense_template)
     ENDIF
 
@@ -1329,10 +1311,9 @@ MODULE dbcsr_mm_cannon
 !> \param[in] predistribute   (optional) predistribute data for multiplication
 !> \param[in] no_copy_data    (optional) try to not merge data at the end
 !> \param[in] scale_value     (optional) scale with this value
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_images(source, normalized, target_image_dist,&
-       predistribute, no_copy_data, scale_value, error)
+       predistribute, no_copy_data, scale_value)
     TYPE(dbcsr_obj), INTENT(IN)              :: source
     TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: normalized
     TYPE(dbcsr_imagedistribution_obj), &
@@ -1341,7 +1322,6 @@ MODULE dbcsr_mm_cannon
     LOGICAL, INTENT(IN), OPTIONAL            :: no_copy_data
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: scale_value
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_images', &
       routineP = moduleN//':'//routineN
@@ -1350,19 +1330,18 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index (source),&
          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Matrix not initialized.",__LINE__,error)
+         "Matrix not initialized.",__LINE__)
     CALL make_images(source, normalized,&
          target_image_dist, desymmetrize=dbcsr_has_symmetry(source),&
          predistribute=predistribute,&
          no_copy_data=no_copy_data,&
-         scale_value=scale_value,&
-         error=error)
+         scale_value=scale_value)
     normalized%image_dist = target_image_dist
-    CALL dbcsr_image_dist_hold (normalized%image_dist, error=error)
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_image_dist_hold (normalized%image_dist)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_make_images
 
 ! *****************************************************************************
@@ -1374,10 +1353,9 @@ MODULE dbcsr_mm_cannon
 !> \param[in] predistribute   (optional) predistribute data for multiplication
 !> \param[in] no_copy_data    (optional) try to not merge data at the end
 !> \param[in] scale_value     (optional) scale with this value
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
   SUBROUTINE make_images(ism, ums, target_imgdist, desymmetrize, predistribute,&
-       no_copy_data, scale_value, error)
+       no_copy_data, scale_value)
     TYPE(dbcsr_obj), INTENT(IN)              :: ism
     TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: ums
     TYPE(dbcsr_imagedistribution_obj), &
@@ -1387,7 +1365,6 @@ MODULE dbcsr_mm_cannon
     LOGICAL, INTENT(IN), OPTIONAL            :: no_copy_data
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: scale_value
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_images', &
       routineP = moduleN//':'//routineN
@@ -1417,7 +1394,6 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_data_obj)                     :: received_data_area, &
                                                 recv_data_area, send_data_area
     TYPE(dbcsr_distribution_obj)             :: old_dist, target_dist
-    TYPE(dbcsr_error_type)                   :: dbcsr_error, t_error
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_memtype_type)                 :: data_memory_type
     TYPE(dbcsr_mp_obj)                       :: mp_obj
@@ -1429,7 +1405,7 @@ MODULE dbcsr_mm_cannon
 ! Set convenient variables to access input matrix info
 !
 
-    CALL dbcsr_error_set(routineN, error_handler, dbcsr_error)
+    CALL dbcsr_error_set(routineN, error_handler)
     nocopy = .FALSE.
     IF (PRESENT (no_copy_data)) nocopy = no_copy_data
     sm = ism%m
@@ -1449,14 +1425,14 @@ MODULE dbcsr_mm_cannon
     CASE default
        CALL dbcsr_assert (.FALSE.,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Incorrect pre-shift specifier.", __LINE__, error=error)
+            "Incorrect pre-shift specifier.", __LINE__)
     END SELECT
     data_type = sm%data_type
     CALL dbcsr_assert (data_type .EQ. dbcsr_type_real_8&
          .or.data_type .EQ. dbcsr_type_real_4&
          .or.data_type .EQ. dbcsr_type_complex_8&
          .or.data_type .EQ. dbcsr_type_complex_4, dbcsr_fatal_level,&
-         dbcsr_internal_error, routineN, "Invalid data type.",__LINE__,error)
+         dbcsr_internal_error, routineN, "Invalid data type.",__LINE__)
     scale_neg_one = dbcsr_scalar_negative (dbcsr_scalar_one (data_type))
     row_blk_size => array_data (sm%row_blk_size)
     col_blk_size => array_data (sm%col_blk_size)
@@ -1467,7 +1443,7 @@ MODULE dbcsr_mm_cannon
     IF (sm%symmetry) THEN
        CALL dbcsr_assert(SIZE(row_dist),'EQ', SIZE(col_dist), dbcsr_warning_level,&
             dbcsr_wrong_args_error, routineN,&
-            'Unequal row and column distributions for symmetric matrix.',__LINE__,error)
+            'Unequal row and column distributions for symmetric matrix.',__LINE__)
     ENDIF
     nrow_images = target_imgdist%i%row_decimation
     IF (nrow_images .GT. 1) THEN
@@ -1487,23 +1463,23 @@ MODULE dbcsr_mm_cannon
     mp_group = dbcsr_mp_group (mp_obj)
     CALL dbcsr_assert(MAXVAL(row_dist),'LE',UBOUND(blacs2mpi,1), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows',__LINE__,error)
+         'Row distribution references unexistent processor rows',__LINE__)
     IF (dbg) &
          CALL dbcsr_assert(MAXVAL(row_dist),'EQ',UBOUND(blacs2mpi,1), dbcsr_warning_level,&
          dbcsr_wrong_args_error, routineN,&
-         'Range of row distribution not equal to processor rows',__LINE__,error)
+         'Range of row distribution not equal to processor rows',__LINE__)
     CALL dbcsr_assert(MAXVAL(col_dist),'LE',UBOUND(blacs2mpi,2), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols',__LINE__,error)
+         'Col distribution references unexistent processor cols',__LINE__)
     IF (dbg) &
          CALL dbcsr_assert(MAXVAL(col_dist),'EQ',UBOUND(blacs2mpi,2), dbcsr_warning_level,&
          dbcsr_wrong_args_error, routineN,&
-         'Range of col distribution not equal to processor cols',__LINE__,error)
+         'Range of col distribution not equal to processor cols',__LINE__)
 
     ! Check threads configuration
 !$  CALL dbcsr_assert (dbcsr_distribution_has_threads (old_dist),&
 !$       dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-!$       "Thread distribution not defined", __LINE__, error=error)
+!$       "Thread distribution not defined", __LINE__)
 
     ! Allocate shared temporary buffers
     !
@@ -1546,8 +1522,7 @@ MODULE dbcsr_mm_cannon
                thread_dist=sm%dist,&
                data_memory_type=data_memory_type,&
                index_memory_type=memtype_mpi_buffer,&
-               make_index=.FALSE.,&
-               error=dbcsr_error)
+               make_index=.FALSE.)
           ums%mats(row_img, col_img)%m%negate_real = sm%negate_real
           ums%mats(row_img, col_img)%m%negate_imaginary = sm%negate_imaginary
        ENDDO
@@ -1559,13 +1534,13 @@ MODULE dbcsr_mm_cannon
 !$omp          myt_send_count, myt_total_send_count, &
 !$omp          iter, row, col, blk, row_size, col_size, stored_row, stored_col, &
 !$omp          prow, pcol, rowi, coli, vrow, vcol, dst_p, nze, myt_smp, myt_sdp, &
-!$omp          blk_p, bp, sd_pos, sm_pos, t_error, tr, &
+!$omp          blk_p, bp, sd_pos, sm_pos,tr, &
 !$omp          tr_row_size, tr_col_size) &
 !$omp shared (nthreads, nsymmetries, row_img_dist, col_img_dist, &
 !$omp         nrow_images, ncol_images, numproc, scale_value, &
-!$omp         ums, sm, ism, target_imgdist, row_dist, col_dist, error, &
+!$omp         ums, sm, ism, target_imgdist, row_dist, col_dist,&
 !$omp         predist_type_fwd, blacs2mpi, row_blk_size, col_blk_size, &
-!$omp         send_count, recv_count, error_handler2, dbcsr_error, mp_group, &
+!$omp         send_count, recv_count, error_handler2,mp_group, &
 !$omp         total_send_count, total_recv_count, recv_data_area, nocopy, &
 !$omp         data_type, recv_meta, send_data_area, send_meta, &
 !$omp         sd_disp, sm_disp, rd_disp, rm_disp, all_total_send_offset, blk_ps, blks, &
@@ -1609,7 +1584,7 @@ MODULE dbcsr_mm_cannon
                vprow = vrow, vpcol = vcol,&
                myprow = row_dist(stored_row), myrowi = row_img,&
                mypcol = col_dist(stored_col), mycoli = col_img,&
-               shifting = predist_type_fwd, error=error)
+               shifting = predist_type_fwd)
           dst_p = blacs2mpi(prow, pcol)
           ! These counts are meant for the thread that processes this row.
           myt_send_count(1, rowi, coli, dst_p) =&
@@ -1630,10 +1605,10 @@ MODULE dbcsr_mm_cannon
 !$omp end critical
 !$omp barrier
 !$omp master
-    CALL dbcsr_error_set(routineN//"_sizes", error_handler2, dbcsr_error)
+    CALL dbcsr_error_set(routineN//"_sizes", error_handler2)
     CALL mp_alltoall(send_count, recv_count, 2*nrow_images*ncol_images,&
          mp_group)
-    CALL dbcsr_error_stop(error_handler2, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler2)
 !$omp end master
 !$omp barrier
     ! Fill in the meta data structures and copy the data.
@@ -1689,11 +1664,10 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_data_init (received_data_area)
        received_data_area = recv_data_area
        CALL dbcsr_data_hold(received_data_area)       
-       t_error = dbcsr_error
        DO row_img = 1, nrow_images
           DO col_img = 1, ncol_images
              CALL dbcsr_work_create(ums%mats(row_img, col_img),&
-                  SUM(recv_count(1,row_img,col_img,:)), n=1, error=t_error)
+                  SUM(recv_count(1,row_img,col_img,:)), n=1)
              CALL dbcsr_data_hold (received_data_area)
              CALL dbcsr_data_release (ums%mats(row_img,col_img)%m%wms(1)%data_area)
              ums%mats(row_img,col_img)%m%wms(1)%data_area = received_data_area
@@ -1704,7 +1678,7 @@ MODULE dbcsr_mm_cannon
 
     ! Add timing call to the packing of the send buffers 
     !
-    CALL dbcsr_error_set(routineN//"_pack", error_handler2, dbcsr_error)
+    CALL dbcsr_error_set(routineN//"_pack", error_handler2)
     ! Copies metadata and actual data to be sent into the send buffers.
     CALL dbcsr_iterator_start(iter, ism, shared=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
@@ -1733,7 +1707,7 @@ MODULE dbcsr_mm_cannon
                vprow = vrow, vpcol = vcol,&
                myprow = row_dist(stored_row), myrowi = row_img,&
                mypcol = col_dist(stored_col), mycoli = col_img,&
-               shifting = predist_type_fwd, error=error)
+               shifting = predist_type_fwd)
           dst_p = blacs2mpi(prow, pcol)
           sm_pos = myt_smp(dst_p)
           myt_smp(dst_p) = myt_smp(dst_p) + metalen
@@ -1741,20 +1715,20 @@ MODULE dbcsr_mm_cannon
           myt_sdp(dst_p) = myt_sdp(dst_p) + nze
           IF (tr) THEN
              CALL dbcsr_block_transpose_aa(send_data_area,sm%data_area,tr_row_size,tr_col_size,&
-                                           sd_pos,bp,scale_value,error=dbcsr_error)
+                                           sd_pos,bp,scale_value)
              IF (sm%negate_real .AND. sm%negate_imaginary) THEN
                 CALL dbcsr_block_scale (send_data_area, scale=scale_neg_one,&
-                                        row_size=nze, col_size=1, lb=sd_pos, error=error)
+                                        row_size=nze, col_size=1, lb=sd_pos)
              ELSEIF (sm%negate_real) THEN
                 CALL dbcsr_block_real_neg (send_data_area,&
-                                           row_size=nze, col_size=1, lb=sd_pos, error=error)
+                                           row_size=nze, col_size=1, lb=sd_pos)
              ELSEIF (sm%negate_imaginary) THEN
                 CALL dbcsr_block_conjg (send_data_area,&
-                                        row_size=nze, col_size=1, lb=sd_pos, error=error)
+                                        row_size=nze, col_size=1, lb=sd_pos)
              ENDIF
           ELSE
              CALL dbcsr_block_copy_aa(send_data_area,sm%data_area,row_size,col_size,&
-                                      sd_pos,bp,scale_value,error=dbcsr_error)
+                                      sd_pos,bp,scale_value)
           END IF
 
           send_meta(sm_pos) = stored_row
@@ -1772,24 +1746,23 @@ MODULE dbcsr_mm_cannon
     DEALLOCATE (myt_total_send_count)
     DEALLOCATE (myt_smp, myt_sdp)
 
-    CALL dbcsr_error_stop(error_handler2, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler2)
 !$omp end parallel
 
     ! Exchange the data and metadata structures. In the interesting cases (square grids, row col distribution same),
     ! there are only very few processors that need to exchange data.
     ! The hybrid_alltoall deals with this by doing point to point communication
-    CALL dbcsr_error_set(routineN//"_data", error_handler2, dbcsr_error)
+    CALL dbcsr_error_set(routineN//"_data", error_handler2)
     CALL hybrid_alltoall_any(send_data_area,total_send_count(2,:),sd_disp(:)-1,&
                              recv_data_area,total_recv_count(2,:),rd_disp(:)-1,&
                              mp_obj,&
-                             most_ptp=.TRUE.,remainder_ptp=.TRUE.,no_hybrid=.FALSE.,&
-                             error=dbcsr_error)
+                             most_ptp=.TRUE.,remainder_ptp=.TRUE.,no_hybrid=.FALSE.)
     CALL hybrid_alltoall_i1(&
          send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1,&
          most_ptp=.TRUE., remainder_ptp=.TRUE., no_hybrid=.FALSE.,&
          mp_env = mp_obj)
-    CALL dbcsr_error_stop(error_handler2, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler2)
 
     ! Now create the work index and/or copy the relevant data from the
     ! receive buffer into the local indices.
@@ -1843,9 +1816,9 @@ MODULE dbcsr_mm_cannon
                   ums%mats(row_img,col_img)%m%wms(1)%data_area,&
                   ums%mats(row_img,col_img)%m%wms(1)%datasize)
              IF (nrow_images.EQ.1 .AND. ncol_images.eq.1 .OR. nocopy) THEN
-                CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.FALSE.,error=dbcsr_error)
+                CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.FALSE.)
              ELSE
-                CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.TRUE.,error=dbcsr_error)
+                CALL dbcsr_special_finalize(ums%mats(row_img,col_img),reshuffle=.TRUE.)
              ENDIF
           ENDIF
 
@@ -1858,7 +1831,7 @@ MODULE dbcsr_mm_cannon
                vprow = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vprow),&
                vpcol = ums%mats(row_img,col_img)%m%index(dbcsr_slot_home_vpcol),&
                myrowi=row_img, mycoli=col_img,&
-               shifting=predist_type, error=error)
+               shifting=predist_type)
        ENDDO
     ENDDO
 
@@ -1876,7 +1849,7 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_release (received_data_area)
     CALL dbcsr_data_release (recv_data_area)
 
-    CALL dbcsr_error_stop(error_handler, dbcsr_error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE make_images
 
 ! *****************************************************************************
@@ -1892,18 +1865,16 @@ MODULE dbcsr_mm_cannon
 !> \param[in] join_rows           (optional) make rows dense, default is yes
 !> \param[in] new_template        template dense matrix for creating image
 !>                                matrices
-!> \param[in,out] error           error
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_images_dense (images, new_rdist, &
-       row_map, col_map, join_cols, join_rows, new_template, error)
+       row_map, col_map, join_cols, join_rows, new_template)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: images
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: new_rdist
     TYPE(array_i1d_obj), INTENT(IN)          :: row_map, col_map
     LOGICAL, INTENT(IN)                      :: join_cols, join_rows
     TYPE(dbcsr_obj), INTENT(IN)              :: new_template
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_images_dense', &
       routineP = moduleN//':'//routineN
@@ -1924,32 +1895,31 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     old_rdist = images%image_dist
     !
     DO mat_row = 1, images%image_dist%i%row_decimation
        DO mat_col = 1, images%image_dist%i%col_decimation
           IF (dbg) THEN
-             cs = dbcsr_checksum (images%mats(mat_row,mat_col), error=error)
+             cs = dbcsr_checksum (images%mats(mat_row,mat_col))
              WRITE(*,*)routineN//" cs pre", cs
           ENDIF
           mat_vprow = images%mats(mat_row, mat_col)%m%index(dbcsr_slot_home_vprow)
           mat_vpcol = images%mats(mat_row, mat_col)%m%index(dbcsr_slot_home_vpcol)
           und_row_blk_offsets => array_data (images%mats(mat_row, mat_col)%m%row_blk_offset)
           und_col_blk_offsets => array_data (images%mats(mat_row, mat_col)%m%col_blk_offset)
-          CALL dbcsr_get_local_vrows (old_rdist, und_local_vrows, mat_vprow, error=error)
-          CALL dbcsr_get_local_vcols (old_rdist, und_local_vcols, mat_vpcol, error=error)
+          CALL dbcsr_get_local_vrows (old_rdist, und_local_vrows, mat_vprow)
+          CALL dbcsr_get_local_vcols (old_rdist, und_local_vcols, mat_vpcol)
 
-          CALL dbcsr_get_local_vrows (new_rdist, dense_local_vrows, mat_vprow, error=error)
-          CALL dbcsr_get_local_vcols (new_rdist, dense_local_vcols, mat_vpcol, error=error)
+          CALL dbcsr_get_local_vrows (new_rdist, dense_local_vrows, mat_vprow)
+          CALL dbcsr_get_local_vcols (new_rdist, dense_local_vcols, mat_vpcol)
           ! The old matrix has to be remembered so it is copied to
           ! tmp_mat.
           old_meta(:) = images%mats(mat_row,mat_col)%m%index(1:dbcsr_meta_size)
           CALL dbcsr_init (tmp_mat)
           tmp_mat = images%mats(mat_row,mat_col)
           CALL dbcsr_init (images%mats(mat_row,mat_col))
-          CALL dbcsr_create (images%mats(mat_row,mat_col), template=new_template,&
-               error=error)
+          CALL dbcsr_create (images%mats(mat_row,mat_col), template=new_template)
           images%mats(mat_row,mat_col)%m%index(dbcsr_slot_home_prow&
                                               :dbcsr_slot_home_vpcol) =&
                old_meta(dbcsr_slot_home_prow:dbcsr_slot_home_vpcol)
@@ -1960,22 +1930,21 @@ MODULE dbcsr_mm_cannon
                array_data (dense_local_vcols),&
                array_data (new_template%m%row_blk_offset),&
                array_data (new_template%m%col_blk_offset),&
-               array_data(row_map), array_data(col_map), join_rows, join_cols,&
-               error)
+               array_data(row_map), array_data(col_map), join_rows, join_cols)
           !
-          CALL dbcsr_index_prune_deleted (images%mats(mat_row, mat_col), error=error)
+          CALL dbcsr_index_prune_deleted (images%mats(mat_row, mat_col))
           !
           CALL dbcsr_release (tmp_mat)
           IF (dbg) THEN
-             cs = dbcsr_checksum (images%mats(mat_row,mat_col), error=error)
+             cs = dbcsr_checksum (images%mats(mat_row,mat_col))
              WRITE(*,*)routineN//" cs pst", cs
           ENDIF
        ENDDO
     ENDDO
-    CALL dbcsr_image_dist_release (images%image_dist, error=error)
+    CALL dbcsr_image_dist_release (images%image_dist)
     images%image_dist = new_rdist
-    CALL dbcsr_image_dist_hold (images%image_dist, error=error)
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_image_dist_hold (images%image_dist)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_make_images_dense
 
 ! *****************************************************************************
@@ -1984,18 +1953,16 @@ MODULE dbcsr_mm_cannon
 !> \param[in] left_set             set of imaged left matrices
 !> \param[in] right_set            set of imaged right matrices
 !> \param[out] product_matrix      DBCSR product matrix 
-!> \param[in,out] error            cp2k error
 !> \param[in] retain_sparsity      (optional) retain the sparsity of the
 !>                                 existing product matrix; default is no
 !> \param filter_eps ...
 !> \param[out] flop                (optional) effective flop
 ! *****************************************************************************
   SUBROUTINE cannon_multiply_low(left_set, right_set, product_matrix,&
-       error, retain_sparsity, &
+       retain_sparsity, &
        filter_eps, flop)
     TYPE(dbcsr_2d_array_type), POINTER       :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT)           :: product_matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: filter_eps
     INTEGER(KIND=int_8), INTENT(OUT)         :: flop
@@ -2059,14 +2026,13 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_data_obj), POINTER            :: trs_stackbuf_calc, &
                                                 trs_stackbuf_comm
     TYPE(dbcsr_data_obj), TARGET             :: trs_stackbuf_1, trs_stackbuf_2
-    TYPE(dbcsr_error_type)                   :: t_error
     TYPE(dbcsr_mm_multrec_type_p), DIMENSION(:), ALLOCATABLE :: multrec
     TYPE(dbcsr_mp_obj)                       :: left_mp_obj, product_mp_obj, &
                                                 right_mp_obj
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     NULLIFY(trs_stackbuf_calc, trs_stackbuf_comm)
     !
     ALLOCATE (left_buffer_2, right_buffer_2)
@@ -2080,16 +2046,16 @@ MODULE dbcsr_mm_cannon
     otf_filtering = PRESENT (filter_eps)
 
 !$omp parallel default (none) &
-!$omp shared (multrec, nthreads, product_matrix, error)
+!$omp shared (multrec, nthreads, product_matrix)
 !$omp master
     nthreads = 1
     !$  nthreads = OMP_GET_NUM_THREADS ()
     CALL dbcsr_assert (ASSOCIATED (product_matrix%m%wms),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Work matrices do not exist",__LINE__,error)
+         "Work matrices do not exist",__LINE__)
     CALL dbcsr_assert (SIZE (product_matrix%m%wms), "EQ", nthreads,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Work matrices not correctly sized.",__LINE__,error)
+         "Work matrices not correctly sized.",__LINE__)
     ALLOCATE(multrec(0:nthreads-1))
 !$omp end master
 !$omp end parallel
@@ -2098,7 +2064,7 @@ MODULE dbcsr_mm_cannon
     flop_total = 0
     ! Set up variables
     data_type = dbcsr_get_data_type (product_matrix)
-    data_type_byte = dbcsr_datatype_sizeof(data_type,error)
+    data_type_byte = dbcsr_datatype_sizeof(data_type)
     left_row_nimages =  left_set%image_dist%i%row_decimation
     left_row_mult =     left_set%image_dist%i%row_multiplicity
     left_col_nimages =  left_set%image_dist%i%col_decimation
@@ -2148,37 +2114,37 @@ MODULE dbcsr_mm_cannon
     ! left/right matching
     CALL dbcsr_assert (left_col_nimages, "EQ", right_row_mult,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Left/Right image mismatch",__LINE__,error)
+         "Left/Right image mismatch",__LINE__)
     CALL dbcsr_assert (left_col_mult, "EQ", right_row_nimages,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Left/Right image mismatch",__LINE__,error)
+         "Left/Right image mismatch",__LINE__)
     CALL dbcsr_assert (left_col_nimages * left_npcols,&
          "EQ", right_row_nimages * right_nprows, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Left/Right total mismatch",__LINE__,error)
+         "Left/Right total mismatch",__LINE__)
     ! product/left matching
     CALL dbcsr_assert (left_row_mult * dbcsr_mp_nprows (product_mp_obj), &
          "EQ", left_row_nimages * left_nprows, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Product/Left total mismatch",__LINE__,error)
+         "Product/Left total mismatch",__LINE__)
     ! product/left matching
     CALL dbcsr_assert (right_col_mult * dbcsr_mp_npcols (product_mp_obj), &
          "EQ", right_col_nimages * right_npcols, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Product/Right total mismatch",__LINE__,error)
+         "Product/Right total mismatch",__LINE__)
     ! Limitations
     CALL dbcsr_assert (left_row_nimages, "EQ", 1,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Product/Left matrix process grid mismatch",__LINE__,error)
+         "Product/Left matrix process grid mismatch",__LINE__)
     CALL dbcsr_assert (left_row_mult, "EQ", 1,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Product/Left matrix process grid mismatch",__LINE__,error)
+         "Product/Left matrix process grid mismatch",__LINE__)
     CALL dbcsr_assert (right_col_nimages, "EQ", 1,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Product/Right matrix process grid mismatch",__LINE__,error)
+         "Product/Right matrix process grid mismatch",__LINE__)
     CALL dbcsr_assert (right_col_mult, "EQ", 1,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Product/Right matrix process grid mismatch",__LINE__,error)
+         "Product/Right matrix process grid mismatch",__LINE__)
     
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,left_row_nimages*left_col_nimages)
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,right_row_nimages*right_col_nimages)
@@ -2221,13 +2187,13 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_assert (stat, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory",&
-            __LINE__, error=error)
+            __LINE__)
     ELSE
        IF (careful_mod) THEN
           CALL dbcsr_assert ("NOT", left_set%mats(1, 1)%m%bcsc,&
                dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
                "Can not do on-the-fly filtering with CSC-indexed matrices.",&
-               __LINE__, error=error)
+               __LINE__)
        ENDIF
        IF (dbcsr_has_local_row_index (left_set%mats(1, 1))) THEN
           nblkrows_used = dbcsr_nblkrows_local (left_set%mats(1, 1))
@@ -2239,19 +2205,19 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_assert (stat, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory for left epsilons",&
-            __LINE__, error=error)
+            __LINE__)
        ALLOCATE (row_counts (nblkrows_used), stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory for left row counts",&
-            __LINE__, error=error)
+            __LINE__)
        ! The summation could be done prow-locally but it would
        ! complicate the pre-row eps calculation.
        ALLOCATE (total_row_counts (nblkrows_total), stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error,&
             routineN, "Could not allocate memory for left row counts",&
-            __LINE__, error=error)
+            __LINE__)
        ! Each prow member matrix (npcols * row_images) counts the
        ! blocks present in each of its rows.
        total_row_counts(:) = 0
@@ -2264,12 +2230,12 @@ MODULE dbcsr_mm_cannon
                    CALL dbcsr_assert ((left_set%mats(left_row_image, left_col_image)%m%nblks)*3, "EQ",&
                         SIZE(left_set%mats(left_row_image, left_col_image)%m%coo_l),&
                         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                        "Row count mismatch", __LINE__, error=error)
+                        "Row count mismatch", __LINE__)
                 ELSE
                    CALL dbcsr_assert (nblkrows_used+1, "EQ",&
                         SIZE(left_set%mats(left_row_image, left_col_image)%m%row_p),&
                         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                        "Row count mismatch", __LINE__, error=error)
+                        "Row count mismatch", __LINE__)
                 ENDIF
              ENDIF
              IF (list_indexing) THEN
@@ -2286,7 +2252,7 @@ MODULE dbcsr_mm_cannon
                 local_rows => array_data (left_set%mats(left_row_image, left_col_image)%m%local_rows)
                 CALL dbcsr_assert (SIZE(local_rows), "EQ", SIZE(row_counts),&
                      dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                     "Mismatch in number of local rows.", __LINE__, error=error)
+                     "Mismatch in number of local rows.", __LINE__)
                 total_row_counts(local_rows) = total_row_counts(local_rows)&
                      + row_counts(1:nblkrows_used)
              ELSE
@@ -2330,7 +2296,7 @@ MODULE dbcsr_mm_cannon
                prow = left_dst_prow, pcol = left_dst_pcol,&
                rowi = left_dst_irow, coli = left_dst_icol,&
                myvprow = left_src_vrow, myvpcol = left_src_vcol,&
-               shifting = 'l', error=error)
+               shifting = 'l')
           left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
           left_sizes(idata, left_src_vrow, left_src_vcol) =&
                all_sizes(&
@@ -2352,7 +2318,7 @@ MODULE dbcsr_mm_cannon
                prow = right_dst_prow, pcol = right_dst_pcol,&
                rowi = right_dst_irow, coli = right_dst_icol,&
                myvprow = right_src_vrow, myvpcol = right_src_vcol,&
-               shifting = 'r', error=error)
+               shifting = 'r')
           right_dst_p = right_pgrid (right_dst_prow, right_dst_pcol)
           right_sizes(idata, right_src_vrow, right_src_vcol) =&
                all_sizes(&
@@ -2376,46 +2342,45 @@ MODULE dbcsr_mm_cannon
 !$omp          shared (product_matrix, left_max_nze, right_max_nze) &
 !$omp          shared (left_set, right_set, &
 !$omp                 left_col_nimages, right_row_nimages) &
-!$omp          shared (error, nthreads, keep_sparsity, mynode)
+!$omp          shared (nthreads, keep_sparsity, mynode)
     !
     !$ ithread = OMP_GET_THREAD_NUM()
     ! The work arrays have to be setup (actually, not quite sure).
     i = ithread + 1
     size_guess = product_matrix%m%wms(i)%datasize ! Should be minimal
     CALL dbcsr_data_ensure_size(product_matrix%m%wms(i)%data_area,&
-         size_guess,error=error)
+         size_guess)
     CALL dbcsr_data_set_size_referenced (product_matrix%m%wms(i)%data_area,&
          product_matrix%m%wms(i)%datasize)
     ! XXXXXXX a quick fix right now, allocation with size 1 might actually not be needed at all,
     !         but something expects this to be associated
-    CALL ensure_array_size(product_matrix%m%wms(i)%row_i, ub=1, error=error)
-    CALL ensure_array_size(product_matrix%m%wms(i)%col_i, ub=1, error=error)
-    CALL ensure_array_size(product_matrix%m%wms(i)%blk_p, ub=1, error=error)
+    CALL ensure_array_size(product_matrix%m%wms(i)%row_i, ub=1)
+    CALL ensure_array_size(product_matrix%m%wms(i)%col_i, ub=1)
+    CALL ensure_array_size(product_matrix%m%wms(i)%blk_p, ub=1)
 !$omp end parallel
 
     ! update capacity of memory-pools
     IF (mm_driver == mm_driver_acc) THEN
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
-      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult, error=error)
+      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
-      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult, error=error)
+      capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
     ENDIF
 
     !
     ! Setup the left buffer matrices
     !
     CALL buffer_matrices_ensure_size(left_set, index_size=left_max_nblks,&
-         data_size=left_max_nze, error=error)
+         data_size=left_max_nze)
 
     CALL setup_buffer_matrices (left_buffer_2, left_row_mult, left_col_nimages,&
          left_set%mats(1,1), index_size=left_max_nblks,&
-         data_size=left_max_nze, error=error)
+         data_size=left_max_nze)
     IF (otf_filtering) THEN
        ALLOCATE (left_norms (left_max_nblks), stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error,&
-            routineN, "Could not allocate memory for left norms", __LINE__,&
-            error=error)
+            routineN, "Could not allocate memory for left norms", __LINE__)
        IF (stat .NE. 0) otf_filtering = .FALSE.
     ENDIF
     left_buffer_calc => left_set
@@ -2431,17 +2396,15 @@ MODULE dbcsr_mm_cannon
 
     ! Setup buffers for right matrix
     CALL buffer_matrices_ensure_size(right_set, index_size=right_max_nblks, &
-         data_size=right_max_nze, error=error)
+         data_size=right_max_nze)
     
     CALL setup_buffer_matrices (right_buffer_2, right_row_nimages, right_col_mult,&
-         right_set%mats(1,1), index_size=right_max_nblks, data_size=right_max_nze,&
-         error=error)
+         right_set%mats(1,1), index_size=right_max_nblks, data_size=right_max_nze)
     IF (otf_filtering) THEN
        ALLOCATE (right_norms (right_max_nblks), stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
             dbcsr_internal_error,&
-            routineN, "Could not allocate memory for right norms", __LINE__,&
-            error=error)
+            routineN, "Could not allocate memory for right norms", __LINE__)
        IF (stat .NE. 0) otf_filtering = .FALSE.
     ENDIF
     right_buffer_calc => right_set
@@ -2461,8 +2424,7 @@ MODULE dbcsr_mm_cannon
 !$omp         keep_sparsity, filter_eps, row_max_epss, multrec, &
 !$omp         right_data_sr, right_data_rr, left_data_sr, left_data_rr,&
 !$omp         right_index_sr, right_index_rr, left_index_sr, left_index_rr), &
-!$omp private(ithread),&
-!$omp firstprivate (error)
+!$omp private(ithread)
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
     ALLOCATE(multrec(ithread)%p)
@@ -2472,13 +2434,12 @@ MODULE dbcsr_mm_cannon
          product_matrix%m,&
          keep_sparsity=keep_sparsity,&
          eps=filter_eps,&
-         row_max_epss = row_max_epss,&
-         error=error)
+         row_max_epss = row_max_epss)
 !$omp end parallel
     !
     ! Setup indexing
-    CALL setup_rec_index (left_set, left_row_nimages, left_col_nimages, error)
-    CALL setup_rec_index (right_set, right_row_nimages, right_col_nimages, error)
+    CALL setup_rec_index (left_set, left_row_nimages, left_col_nimages)
+    CALL setup_rec_index (right_set, right_row_nimages, right_col_nimages)
     !
     ! Setup the send/receive data pointers
     CALL dbcsr_data_init(left_data_sp)
@@ -2514,7 +2475,7 @@ MODULE dbcsr_mm_cannon
             "last k",(metronome+1)*min_nimages-1
        ! Wait for right matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm1", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_metrocomm1", error_handler2)
        wait_right: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           !
@@ -2523,7 +2484,7 @@ MODULE dbcsr_mm_cannon
           CALL mp_waitall (right_index_sr)
           CALL mp_waitall (right_index_rr)
        ENDIF wait_right
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
        ! Right matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_right: IF (metronome .LT. nsteps_k) THEN
@@ -2541,7 +2502,7 @@ MODULE dbcsr_mm_cannon
                   myvpcol=right_myfirstvcol,& ! nothing happens in the columns
                   ! send to process min_nimages up in the grid
                   vprow_shift=-min_nimages,&
-                  shifting='0', error=error)
+                  shifting='0')
              ! Calculate which data I send.
              CALL image_calculator (right_set%image_dist,&
                   prow=right_dst_prow, rowi=right_dst_irow,&
@@ -2554,7 +2515,7 @@ MODULE dbcsr_mm_cannon
                   ! to the metronome tick
                   vprow_shift=-min_nimages + metronome*min_nimages,&
                   ! This is with relative shifting.
-                  shifting='R', error=error)
+                  shifting='R')
              right_dst_p = right_pgrid(right_dst_prow, right_dst_pcol)
              CALL dbcsr_data_set_pointer(&
                   area=right_data_sp,&
@@ -2574,7 +2535,7 @@ MODULE dbcsr_mm_cannon
                   myvprow=v_ki+right_myfirstvrow,&
                   myvpcol=right_myfirstvcol,&
                   vprow_shift=+min_nimages,& ! just the opposite as "send to"
-                  shifting='0', error=error)
+                  shifting='0')
              ! Calculate which data I receive
              CALL image_calculator (right_set%image_dist,&
                   prow=right_src_prow, rowi=right_src_irow,&
@@ -2584,12 +2545,12 @@ MODULE dbcsr_mm_cannon
                   myvpcol=right_myfirstvcol,&
                   ! receive window moves with the metronome
                   vprow_shift=metronome*min_nimages,&
-                  shifting='R', error=error)
+                  shifting='R')
              !
              IF (mm_driver == mm_driver_acc) THEN
-                CALL dbcsr_error_set(routineN//"_acc_sync_right", error_handler3, error)
+                CALL dbcsr_error_set(routineN//"_acc_sync_right", error_handler3)
                 CALL acc_event_synchronize(right_buffer_comm%mats(v_ki+1, 1)%m%data_area%d%acc_ready)
-                CALL dbcsr_error_stop(error_handler3, error)
+                CALL dbcsr_error_stop(error_handler3)
              ENDIF
 
              right_src_p = right_pgrid(right_src_prow, right_src_pcol)
@@ -2614,22 +2575,20 @@ MODULE dbcsr_mm_cannon
                 grp = dbcsr_mp_group (right_mp_obj)
              ENDIF
              !
-             CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2, error)
+             CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2)
              CALL dbcsr_irecv_any (right_data_rp, right_recv_p,&
-                  grp, right_data_rr(v_ki+1), tag=right_src_vrow,&
-                  error=error)
+                  grp, right_data_rr(v_ki+1), tag=right_src_vrow)
              CALL mp_irecv (right_index_rp, right_recv_p,&
                   grp, right_index_rr(v_ki+1), tag=right_src_vrow)
              CALL dbcsr_isend_any (right_data_sp, right_send_p,&
-                  grp, right_data_sr(v_ki+1), tag=right_dst_vrow,&
-                  error=error)
+                  grp, right_data_sr(v_ki+1), tag=right_dst_vrow)
              CALL mp_isend (right_index_sp, right_send_p,&
                   grp, right_index_sr(v_ki+1), tag=right_dst_vrow)
              dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
                   dbcsr_data_get_size(right_data_rp),&
                   dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
-             CALL dbcsr_error_stop(error_handler2, error)
+             CALL dbcsr_error_stop(error_handler2)
           ENDDO
        ENDIF xfer_right
        !
@@ -2643,7 +2602,7 @@ MODULE dbcsr_mm_cannon
        !
        ! Wait for left matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm3", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_metrocomm3", error_handler2)
        wait_left: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_data_sr)
@@ -2651,7 +2610,7 @@ MODULE dbcsr_mm_cannon
           CALL mp_waitall (left_index_sr)
           CALL mp_waitall (left_index_rr)
        ENDIF wait_left
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
        ! Left matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_left: IF (metronome .LT. nsteps_k) THEN
@@ -2667,7 +2626,7 @@ MODULE dbcsr_mm_cannon
                   myvpcol=v_ki+left_myfirstvcol,&
                   ! send to process min_nimages left in the grid
                   vpcol_shift=-min_nimages,&
-                  shifting='0', error=error)
+                  shifting='0')
              ! Calculate which data I send.
              CALL image_calculator (left_set%image_dist,&
                   prow=left_dst_prow, rowi=left_dst_irow,&
@@ -2680,7 +2639,7 @@ MODULE dbcsr_mm_cannon
                   ! to the metronome tick
                   vpcol_shift=-min_nimages + metronome*min_nimages,&
                   ! This is with relative shifting.
-                  shifting='L', error=error)
+                  shifting='L')
              !
              left_dst_p = left_pgrid (left_dst_prow, left_dst_pcol)
              CALL dbcsr_data_set_pointer(&
@@ -2701,7 +2660,7 @@ MODULE dbcsr_mm_cannon
                   myvprow=left_myfirstvrow,&
                   myvpcol=v_ki+left_myfirstvcol,&
                   vpcol_shift=+min_nimages,& ! just the opposite as "send to"
-                  shifting='0', error=error)
+                  shifting='0')
              ! Calculate which data I receive
              CALL image_calculator (left_set%image_dist,&
                   prow=left_src_prow, rowi=left_src_irow,&
@@ -2711,12 +2670,12 @@ MODULE dbcsr_mm_cannon
                   myvpcol=v_ki+left_myfirstvcol,&
                   ! receive window moves with the metronome
                   vpcol_shift=metronome*min_nimages,&
-                  shifting='L', error=error)
+                  shifting='L')
              !
              IF (mm_driver == mm_driver_acc) THEN
-                CALL dbcsr_error_set(routineN//"_acc_sync_left", error_handler3, error)
+                CALL dbcsr_error_set(routineN//"_acc_sync_left", error_handler3)
                 CALL acc_event_synchronize(left_buffer_comm%mats(1, v_ki+1)%m%data_area%d%acc_ready)
-                CALL dbcsr_error_stop(error_handler3, error)
+                CALL dbcsr_error_stop(error_handler3)
              ENDIF
 
              left_src_p = left_pgrid (left_src_prow, left_src_pcol)
@@ -2741,22 +2700,20 @@ MODULE dbcsr_mm_cannon
                 grp = dbcsr_mp_group (left_mp_obj)
              ENDIF
              !
-             CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2, error)
+             CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2)
              CALL dbcsr_irecv_any (left_data_rp, left_recv_p,&
-                  grp, left_data_rr(v_ki+1), tag=left_src_vcol,&
-                  error=error)
+                  grp, left_data_rr(v_ki+1), tag=left_src_vcol)
              CALL mp_irecv (left_index_rp, left_recv_p,&
                   grp, left_index_rr(v_ki+1), tag=left_src_vcol)
              CALL dbcsr_isend_any (left_data_sp, left_send_p,&
-                  grp, left_data_sr(v_ki+1), tag=left_dst_vcol,&
-                  error=error)
+                  grp, left_data_sr(v_ki+1), tag=left_dst_vcol)
              CALL mp_isend (left_index_sp, left_send_p,&
                   grp, left_index_sr(v_ki+1), tag=left_dst_vcol)
              dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
              CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
                   dbcsr_data_get_size(left_data_rp),&
                   dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
-             CALL dbcsr_error_stop(error_handler2, error)
+             CALL dbcsr_error_stop(error_handler2)
           ENDDO
        ENDIF xfer_left
        !
@@ -2768,11 +2725,11 @@ MODULE dbcsr_mm_cannon
           ENDDO
        ENDIF calc_case_left
 
-       CALL dbcsr_error_set(routineN//"_multrec", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_multrec", error_handler2)
        DO v_ki = 0, min_nimages-1
           IF (debug_mod) THEN
-             CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE., error=error)
-             CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE., error=error)
+             CALL dbcsr_print(left_buffer_calc%mats(1, v_ki+1), nodata=.TRUE.)
+             CALL dbcsr_print(right_buffer_calc%mats(v_ki+1, 1), nodata=.TRUE.)
           ENDIF
           !
           ! form here the code for dbcsr_mm_driver_inner_init was taken 
@@ -2784,7 +2741,7 @@ MODULE dbcsr_mm_cannon
              ! rows".  Thus the local_rows and global_rows must be
              ! recalculated.
              CALL dbcsr_reset_vlocals (right_buffer_calc%mats(v_ki+1, 1),&
-                  right_set%image_dist, error=error)
+                  right_set%image_dist)
           ENDIF
           IF (.TRUE. .OR. left_buffer_calc%mats(1, v_ki+1)%m%local_indexing) THEN
              ! Since the right matrix is shifted vertically, the
@@ -2792,13 +2749,13 @@ MODULE dbcsr_mm_cannon
              ! rows".  Thus the local_rows and global_rows must be
              ! recalculated.
              CALL dbcsr_reset_vlocals (left_buffer_calc%mats(1, v_ki+1),&
-                  left_set%image_dist, error=error)
+                  left_set%image_dist)
           ENDIF
 
           IF (mm_driver==mm_driver_acc) THEN
-             CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area, error)
-             CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area, error)
-             CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc, error)
+             CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area)
+             CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area)
+             CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc)
           END IF
           
           ! Sets the local right-matrix columns
@@ -2806,9 +2763,9 @@ MODULE dbcsr_mm_cannon
              left_norms(:) = huge_norm
              right_norms(:) = huge_norm
              CALL calculate_norms(right_buffer_calc%mats(v_ki+1, 1),&
-                  right_norms, error=error)
+                  right_norms)
              CALL calculate_norms(left_buffer_calc%mats(1, v_ki+1),&
-                  left_norms, error=error)
+                  left_norms)
           ENDIF
           !
           flop_single = 0
@@ -2819,29 +2776,27 @@ MODULE dbcsr_mm_cannon
 !$omp         v_ki, &
 !$omp         product_matrix, multrec,&
 !$omp         filter_eps, right_norms, left_norms, row_max_epss, &
-!$omp         keep_sparsity, error, threads_finished, &
+!$omp         keep_sparsity,threads_finished, &
 !$omp         right_data_sr, right_data_rr, right_index_sr, right_index_rr, &
 !$omp         left_data_sr, left_data_rr, left_index_sr, left_index_rr, &
 !$omp         use_comm_thread) &
-!$omp private (ithread,nthreads, t_error, threads_finished_read) &
+!$omp private (ithread,nthreads,threads_finished_read) &
 !$omp firstprivate (metronome, nsteps_k, min_nimages) &
 !$omp reduction (+: flop_single)
           ithread = 0; nthreads = 1
 !$        ithread = omp_get_thread_num(); nthreads = omp_get_num_threads()
 
-          t_error=error
           IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) &
-               CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p, t_error)
+               CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p)
 
           CALL dbcsr_mm_multrec_multiply(multrec(ithread)%p,&
                left=left_buffer_calc%mats(1, v_ki+1)%m,&
                right=right_buffer_calc%mats(v_ki+1, 1)%m,&
                flop=flop_single,&
-               a_norms=left_norms, b_norms=right_norms,&
-               error=t_error)
+               a_norms=left_norms, b_norms=right_norms)
 
           IF(metronome==nsteps_k .AND. v_ki==min_nimages-1) THEN
-             CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p, t_error)
+             CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p)
              DEALLOCATE(multrec(ithread)%p)
           ENDIF
 
@@ -2869,7 +2824,7 @@ MODULE dbcsr_mm_cannon
           flop_total = flop_total + flop_single
        ENDDO
 
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
 
        CALL dbcsr_switch (left_buffer_calc, left_buffer_comm)
        CALL dbcsr_switch (right_buffer_calc, right_buffer_comm)
@@ -2894,8 +2849,8 @@ MODULE dbcsr_mm_cannon
        DEALLOCATE (row_max_epss)
     ENDIF
     !
-    CALL dbcsr_destroy_array (right_buffer_2, error=error)
-    CALL dbcsr_destroy_array (left_buffer_2, error=error)
+    CALL dbcsr_destroy_array (right_buffer_2)
+    CALL dbcsr_destroy_array (left_buffer_2)
     DEALLOCATE (my_sizes)
     !
     CALL dbcsr_data_clear_pointer(left_data_sp)
@@ -2910,7 +2865,6 @@ MODULE dbcsr_mm_cannon
     DEALLOCATE(left_data_rr, left_data_sr, left_index_rr, left_index_sr, &
                right_data_rr, right_data_sr, right_index_rr, right_index_sr)
     !
-    t_error = error
     !
     IF (debug_mod) THEN
        v_ki = 0
@@ -2925,7 +2879,7 @@ MODULE dbcsr_mm_cannon
     flop = flop_total
     DEALLOCATE (left_buffer_2, right_buffer_2)
     !
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE cannon_multiply_low
 
 
@@ -2935,7 +2889,6 @@ MODULE dbcsr_mm_cannon
 !> \param[in] left_set             set of imaged left matrices
 !> \param[in] right_set            set of imaged right matrices
 !> \param[out] product_matrix      DBCSR product matrix 
-!> \param[in,out] error            cp2k error
 !> \param[in] retain_sparsity      (optional) retain the sparsity of the
 !>                                 existing product matrix; default is no
 !> \param filter_eps ...
@@ -2943,11 +2896,10 @@ MODULE dbcsr_mm_cannon
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE cannon_multiply_low_rma(left_set, right_set, product_matrix,&
-       error, retain_sparsity, &
+       retain_sparsity, &
        filter_eps, flop)
     TYPE(dbcsr_2d_array_type), POINTER       :: left_set, right_set
     TYPE(dbcsr_obj), INTENT(INOUT)           :: product_matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: filter_eps
     INTEGER(KIND=int_8), INTENT(OUT)         :: flop
@@ -3013,7 +2965,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     NULLIFY(meta_get, local_rows)
     NULLIFY(rma_buffers_calc, rma_buffers_comm, rma_buffers)
     !
@@ -3038,27 +2990,27 @@ MODULE dbcsr_mm_cannon
     ! Dummy checks
     CALL dbcsr_assert (ASSOCIATED (product_matrix%m%wms),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Work matrices do not exist",__LINE__,error)
+         "Work matrices do not exist",__LINE__)
     CALL dbcsr_assert (SIZE (product_matrix%m%wms), "EQ", nthreads,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Work matrices not correctly sized.",__LINE__,error)
+         "Work matrices not correctly sized.",__LINE__)
     CALL dbcsr_assert (left_set%mats(1,1)%m%list_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires list indexing for left matrix!",__LINE__,error)
+         "RMA requires list indexing for left matrix!",__LINE__)
     CALL dbcsr_assert (right_set%mats(1,1)%m%list_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires list indexing for right matrix!",__LINE__,error)
+         "RMA requires list indexing for right matrix!",__LINE__)
     CALL dbcsr_assert (left_set%mats(1,1)%m%local_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires local indexing for left matrix!",__LINE__,error)
+         "RMA requires local indexing for left matrix!",__LINE__)
     CALL dbcsr_assert (right_set%mats(1,1)%m%local_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires local indexing for right matrix!",__LINE__,error)
+         "RMA requires local indexing for right matrix!",__LINE__)
     !
     ! Set up variables
     flop = 0
     data_type = dbcsr_get_data_type (product_matrix)
-    data_type_byte = dbcsr_datatype_sizeof(data_type,error)
+    data_type_byte = dbcsr_datatype_sizeof(data_type)
     left_row_nimages =  left_set%image_dist%i%row_decimation
     left_row_mult =     left_set%image_dist%i%row_multiplicity
     left_col_nimages =  left_set%image_dist%i%col_decimation
@@ -3094,31 +3046,31 @@ MODULE dbcsr_mm_cannon
     ! subcommunicators
     CALL dbcsr_assert (dbcsr_mp_has_subgroups (right_mp_obj),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires rows subcommunicators for right matrix!",__LINE__,error)
+         "RMA requires rows subcommunicators for right matrix!",__LINE__)
     CALL dbcsr_assert (dbcsr_mp_has_subgroups (left_mp_obj),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "RMA requires columns subcommunicators for left matrix!",__LINE__,error)
+         "RMA requires columns subcommunicators for left matrix!",__LINE__)
     ! left/right matching
     CALL dbcsr_assert (left_col_nimages, "EQ", right_row_mult,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Left/Right image mismatch",__LINE__,error)
+         "Left/Right image mismatch",__LINE__)
     CALL dbcsr_assert (left_col_mult, "EQ", right_row_nimages,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Left/Right image mismatch",__LINE__,error)
+         "Left/Right image mismatch",__LINE__)
     CALL dbcsr_assert (left_col_nimages * left_npcols,&
          "EQ", right_row_nimages * right_nprows, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Left/Right total mismatch",__LINE__,error)
+         "Left/Right total mismatch",__LINE__)
     ! product/left matching
     CALL dbcsr_assert (left_row_mult * dbcsr_mp_nprows (product_mp_obj), &
          "EQ", left_row_nimages * left_nprows, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Product/Left total mismatch",__LINE__,error)
+         "Product/Left total mismatch",__LINE__)
     ! product/left matching
     CALL dbcsr_assert (right_col_mult * dbcsr_mp_npcols (product_mp_obj), &
          "EQ", right_col_nimages * right_npcols, &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Product/Right total mismatch",__LINE__,error)
+         "Product/Right total mismatch",__LINE__)
     !
     dbcsr_mpi_statistics%nimages = MAX(dbcsr_mpi_statistics%nimages,&
                                        left_row_nimages*left_col_nimages)
@@ -3170,8 +3122,7 @@ MODULE dbcsr_mm_cannon
              ENDIF
              IF (nsteps_k.GT.1.AND.otf_filtering.AND.use_mpi_filtering) THEN
                 CALL calculate_norms(right_set%mats(v_ri, v_ci),&
-                                     max_val=right_max_norms(v_ri,v_ci),&
-                                     error=error)
+                                     max_val=right_max_norms(v_ri,v_ci))
              ENDIF
           ENDIF
           IF (v_ri.LE.min_nimages) THEN
@@ -3218,8 +3169,7 @@ MODULE dbcsr_mm_cannon
              ENDIF
              IF (nsteps_k.GT.1.AND.otf_filtering.AND.use_mpi_filtering) THEN
                 CALL calculate_norms(left_set%mats(v_ri, v_ci),&
-                                     max_val=left_max_norms(v_ri,v_ci),&
-                                     error=error)
+                                     max_val=left_max_norms(v_ri,v_ci))
              ENDIF
           ENDIF
           IF (v_ci.LE.min_nimages) THEN
@@ -3266,7 +3216,7 @@ MODULE dbcsr_mm_cannon
                prow = dst_p,&
                rowi = dst_irow, coli = dst_icol,&
                myvprow = src_vrow, myvpcol = src_vcol,&
-               shifting = 'r', error=error)
+               shifting = 'r')
           right_refs(:, src_vrow, src_vcol) =&
                all_right_refs(:, dst_irow, dst_icol, dst_p)
           IF (nsteps_k.GT.1.AND.otf_filtering.AND.use_mpi_filtering) THEN
@@ -3284,7 +3234,7 @@ MODULE dbcsr_mm_cannon
                pcol = dst_p,&
                rowi = dst_irow, coli = dst_icol,&
                myvprow = src_vrow, myvpcol = src_vcol,&
-               shifting = 'l', error=error)
+               shifting = 'l')
           left_refs(:, src_vrow, src_vcol) =&
                all_left_refs(:, dst_irow, dst_icol, dst_p)
           IF (nsteps_k.GT.1.AND.otf_filtering.AND.use_mpi_filtering) THEN
@@ -3299,7 +3249,6 @@ MODULE dbcsr_mm_cannon
     !
 !$omp parallel default(none) &
 !$omp          private (size_guess, ithread) &
-!$omp          firstprivate (error) &
 !$omp          shared (product_matrix)
     !
     ! Setup product work areas
@@ -3310,22 +3259,22 @@ MODULE dbcsr_mm_cannon
     ithread = ithread + 1
     size_guess = product_matrix%m%wms(ithread)%datasize ! Should be minimal
     CALL dbcsr_data_ensure_size(product_matrix%m%wms(ithread)%data_area,&
-         size_guess,error=error)
+         size_guess)
     CALL dbcsr_data_set_size_referenced (product_matrix%m%wms(ithread)%data_area,&
          product_matrix%m%wms(ithread)%datasize)
     ! XXXXXXX a quick fix right now, allocation with size 1 might actually not be needed at all,
     !         but something expects this to be associated
-    CALL ensure_array_size(product_matrix%m%wms(ithread)%row_i, ub=1, error=error)
-    CALL ensure_array_size(product_matrix%m%wms(ithread)%col_i, ub=1, error=error)
-    CALL ensure_array_size(product_matrix%m%wms(ithread)%blk_p, ub=1, error=error)
+    CALL ensure_array_size(product_matrix%m%wms(ithread)%row_i, ub=1)
+    CALL ensure_array_size(product_matrix%m%wms(ithread)%col_i, ub=1)
+    CALL ensure_array_size(product_matrix%m%wms(ithread)%blk_p, ub=1)
 !$omp end parallel
     !
     ! update capacity of memory-pools
     IF (mm_driver == mm_driver_acc) THEN
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
-            capacity=left_col_nimages + right_row_nimages, error=error)
+            capacity=left_col_nimages + right_row_nimages)
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
-            capacity=left_col_nimages + right_row_nimages, error=error)
+            capacity=left_col_nimages + right_row_nimages)
     ENDIF
     !
     ! Count the maximum possible multiplies per row for on-the-fly filtering.
@@ -3334,15 +3283,14 @@ MODULE dbcsr_mm_cannon
           CALL dbcsr_assert ("NOT", left_set%mats(1, 1)%m%bcsc,&
                dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
                "Can not do on-the-fly filtering with CSC-indexed matrices.",&
-               __LINE__, error=error)
+               __LINE__)
        ENDIF
        !
        nblkrows_total = dbcsr_nblkrows_total (left_set%mats(1, 1))
        ALLOCATE(row_max_epss(nblkrows_total),stat=stat)
        CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level,&
             dbcsr_internal_error,&
-            routineN, "Could not allocate memory for left/right norms", __LINE__,&
-            error=error)
+            routineN, "Could not allocate memory for left/right norms", __LINE__)
        IF (dbcsr_has_local_row_index (left_set%mats(1, 1))) THEN
           nblkrows_used = 0
           DO v_ri = 1, left_row_nimages
@@ -3357,7 +3305,7 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_assert (stat, "EQ", 0,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Could not allocate memory for left row counts",&
-            __LINE__, error=error)
+            __LINE__)
        ! Each prow member matrix (npcols * row_images) counts the
        ! blocks present in each of its rows.
        total_row_counts = 0
@@ -3368,7 +3316,7 @@ MODULE dbcsr_mm_cannon
                 CALL dbcsr_assert ((left_set%mats(v_ri,v_ci)%m%nblks)*3, "EQ",&
                      SIZE(left_set%mats(v_ri,v_ci)%m%coo_l),&
                      dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                     "Row count mismatch", __LINE__, error=error)
+                     "Row count mismatch", __LINE__)
              ENDIF
              CALL count_bins (&
                   left_set%mats(v_ri,v_ci)%m%nblks,&
@@ -3378,7 +3326,7 @@ MODULE dbcsr_mm_cannon
                 local_rows => array_data (left_set%mats(v_ri,v_ci)%m%local_rows)
                 CALL dbcsr_assert (SIZE(local_rows), "LE", nblkrows_used,&
                      dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                     "Mismatch in number of local rows.", __LINE__, error=error)
+                     "Mismatch in number of local rows.", __LINE__)
                 total_row_counts(local_rows) = total_row_counts(local_rows)&
                      + row_counts(1:SIZE(local_rows))
              ELSE
@@ -3419,8 +3367,7 @@ MODULE dbcsr_mm_cannon
 !$omp shared (left_set, right_set,&
 !$omp         product_matrix,&
 !$omp         keep_sparsity, filter_eps, row_max_epss, multrec) &
-!$omp private(ithread),&
-!$omp firstprivate (error)
+!$omp private(ithread)
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
     ALLOCATE(multrec(ithread)%p)
@@ -3430,8 +3377,7 @@ MODULE dbcsr_mm_cannon
          product_matrix%m,&
          keep_sparsity=keep_sparsity,&
          eps=filter_eps,&
-         row_max_epss = row_max_epss,&
-         error=error)
+         row_max_epss = row_max_epss)
 !$omp end parallel
     !
     ! Setup transpose stackbuffers
@@ -3451,8 +3397,7 @@ MODULE dbcsr_mm_cannon
        CALL rma_buffers_init(rma_buffers_orig,data_type,&
                              left_data_size,right_data_size,&
                              left_meta_size,right_meta_size,&
-                             memtype_mpi_buffer,&
-                             error=error)
+                             memtype_mpi_buffer)
        !
        DO v_ri = 1, right_row_nimages
           DO v_ci = 1, right_col_nimages
@@ -3482,17 +3427,17 @@ MODULE dbcsr_mm_cannon
        !
        ! RMA windows
        ! Right:
-       CALL dbcsr_win_create_any(rma_buffers_orig%right_data,grp_right,right_data_win,error)
+       CALL dbcsr_win_create_any(rma_buffers_orig%right_data,grp_right,right_data_win)
        CALL mp_win_create(rma_buffers_orig%right_meta,grp_right,right_meta_win)
        CALL mp_win_lock_all(right_data_win)
        CALL mp_win_lock_all(right_meta_win)
        ! Left:
-       CALL dbcsr_win_create_any(rma_buffers_orig%left_data,grp_left,left_data_win,error)
+       CALL dbcsr_win_create_any(rma_buffers_orig%left_data,grp_left,left_data_win)
        CALL mp_win_create(rma_buffers_orig%left_meta,grp_left,left_meta_win)
        CALL mp_win_lock_all(left_data_win)
        CALL mp_win_lock_all(left_meta_win)
        !
-       CALL dbcsr_error_set(routineN//"_precannon", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_precannon", error_handler2)
        !
        ! Pre-CANNON execution: filtering and resize buffers for communications
        IF (otf_filtering.AND.use_mpi_filtering) THEN
@@ -3516,8 +3461,7 @@ MODULE dbcsr_mm_cannon
 !$omp         right_max_meta_size,left_max_meta_size,&
 !$omp         right_data_size,left_data_size,right_meta_size,left_meta_size,&
 !$omp         size_threads_index,left_max_meta_size_merged,right_max_meta_size_merged) &
-!$omp private (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol) &
-!$omp firstprivate (error)
+!$omp private (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol)
        DO metronome = 1, nsteps_k-1
           !
 !$omp master
@@ -3539,7 +3483,7 @@ MODULE dbcsr_mm_cannon
                         myvprow=v_ki+right_myfirstvrow,&
                         myvpcol=v_ci+right_myfirstvcol,&
                         vprow_shift=metronome*min_nimages,&
-                        shifting='R', error=error)
+                        shifting='R')
                    right_max_norms_recv(v_ki,v_ci) = right_max_norms(recv_vrow,recv_vcol)
                 ENDDO
                 !
@@ -3550,7 +3494,7 @@ MODULE dbcsr_mm_cannon
                         myvprow=v_ri+left_myfirstvrow,&
                         myvpcol=v_ki+left_myfirstvcol,&
                         vpcol_shift=metronome*min_nimages,&
-                        shifting='L', error=error)
+                        shifting='L')
                    left_max_norms_recv(v_ri,v_ki) = left_max_norms(recv_vrow,recv_vcol)
                 ENDDO
                 !
@@ -3574,7 +3518,7 @@ MODULE dbcsr_mm_cannon
                      myvprow=v_ki+right_myfirstvrow,&
                      myvpcol=v_ci+right_myfirstvcol,&
                      vprow_shift=metronome*min_nimages,&
-                     shifting='R', error=error)
+                     shifting='R')
                 IF (right_recv_filtered(v_ki,v_ci,metronome).GE.left_row_nimages.OR.&
                     right_refs(imeta_size,recv_vrow,recv_vcol).EQ.0) THEN
                    right_meta_size = right_meta_size + dbcsr_num_slots
@@ -3590,7 +3534,7 @@ MODULE dbcsr_mm_cannon
                      myvprow=v_ri+left_myfirstvrow,&
                      myvpcol=v_ki+left_myfirstvcol,&
                      vpcol_shift=metronome*min_nimages,&
-                     shifting='L', error=error)
+                     shifting='L')
                 IF (left_recv_filtered(v_ri,v_ki,metronome).GE.right_col_nimages.OR.&
                     left_refs(imeta_size,recv_vrow,recv_vcol).EQ.0) THEN
                    left_meta_size = left_meta_size + dbcsr_num_slots+size_threads_index
@@ -3616,7 +3560,7 @@ MODULE dbcsr_mm_cannon
           DEALLOCATE(right_max_norms,left_max_norms)
        ENDIF
        !
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
        !
        ! Setup the receive data pointers
        CALL dbcsr_data_init(data_get)
@@ -3635,17 +3579,16 @@ MODULE dbcsr_mm_cannon
                              memtype_abpanel_2, &
                              left_offset_data_2,right_offset_data_2,&
                              left_buffer,right_buffer,&
-                             trs_stackbuf_2,&
-                             error=error)
+                             trs_stackbuf_2)
        rma_buffers_comm => rma_buffers_2
        ! Left:
        CALL setup_buffer_matrices_images (left_buffer, min_nimages,&
             left_set%mats(1,1), left_max_meta_size_merged,&
-            rma_buffers_comm%left_data, is_left=.TRUE., error=error)
+            rma_buffers_comm%left_data, is_left=.TRUE.)
        ! Right:
        CALL setup_buffer_matrices_images (right_buffer, min_nimages,&
             right_set%mats(1,1), right_max_meta_size_merged,&
-            rma_buffers_comm%right_data, is_left=.FALSE., error=error)
+            rma_buffers_comm%right_data, is_left=.FALSE.)
        !
        ALLOCATE (right_get_requests(2,0:min_nimages*right_col_nimages-1))
        right_get_requests = mp_request_null
@@ -3657,11 +3600,11 @@ MODULE dbcsr_mm_cannon
     CALL remap_images_map(left_set%mats(:,1),left_row_nimages,&
          array_data(left_set%image_dist%i%vrow_dist),&
          dbcsr_distribution_local_rows(left_set%image_dist%i%main),&
-         dbcsr_slot_nblkrows_local,vmap_indices_left,error)
+         dbcsr_slot_nblkrows_local,vmap_indices_left)
     CALL remap_images_map(right_set%mats(1,:),right_col_nimages,&
          array_data(right_set%image_dist%i%vcol_dist),&
          dbcsr_distribution_local_cols(right_set%image_dist%i%main),&
-         dbcsr_slot_nblkcols_local,vmap_indices_right,error)
+         dbcsr_slot_nblkcols_local,vmap_indices_right)
     !
     ! Preallocate norms arrays
     IF (otf_filtering) THEN
@@ -3676,8 +3619,7 @@ MODULE dbcsr_mm_cannon
                           memtype_abpanel_1, &
                           left_offset_data_1,right_offset_data_1,&
                           left_set,right_set,&
-                          trs_stackbuf_1,&
-                          error=error)
+                          trs_stackbuf_1)
     rma_buffers_calc => rma_buffers_1
     ! Left:
     ALLOCATE(left_first_indices(dbcsr_slot_nblkrows_total:dbcsr_slot_nfullcols_local,&
@@ -3685,7 +3627,7 @@ MODULE dbcsr_mm_cannon
     CALL buffer_matrices_ensure_size_images(left_set, left_row_nimages, min_nimages,&
          left_max_meta_size_merged,rma_buffers_calc%left_data,&
          rma_buffers_calc%left_meta,rma_buffers_calc%left_offset_data,&
-         left_first_indices,is_left=.TRUE., error=error)
+         left_first_indices,is_left=.TRUE.)
     DEALLOCATE(left_max_meta_size_merged)
     ! Right:
     ALLOCATE(right_first_indices(dbcsr_slot_nblkrows_total:dbcsr_slot_nfullcols_local,&
@@ -3693,7 +3635,7 @@ MODULE dbcsr_mm_cannon
     CALL buffer_matrices_ensure_size_images(right_set, min_nimages, right_col_nimages,&
          right_max_meta_size_merged,rma_buffers_calc%right_data,&
          rma_buffers_calc%right_meta,rma_buffers_calc%right_offset_data,&
-         right_first_indices,is_left=.FALSE., error=error)
+         right_first_indices,is_left=.FALSE.)
     DEALLOCATE(right_max_meta_size_merged)
     !
     ! Here is the main loop.
@@ -3708,7 +3650,7 @@ MODULE dbcsr_mm_cannon
             "last k",(metronome+1)*min_nimages-1
        ! Wait for right matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm1", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_metrocomm1", error_handler2)
        wait_right: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           !
@@ -3722,15 +3664,15 @@ MODULE dbcsr_mm_cannon
              CALL mp_win_free(right_meta_win)
           ENDIF
        ENDIF wait_right
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
        ! Right matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_right: IF (metronome .LT. nsteps_k) THEN
           !
           IF (mm_driver == mm_driver_acc) THEN
-             CALL dbcsr_error_set(routineN//"_acc_sync_right", error_handler3, error)
+             CALL dbcsr_error_set(routineN//"_acc_sync_right", error_handler3)
              CALL acc_event_synchronize(rma_buffers_comm%right_data%d%acc_ready)
-             CALL dbcsr_error_stop(error_handler3, error)
+             CALL dbcsr_error_stop(error_handler3)
           ENDIF
           !
           right_meta_offset = 0
@@ -3745,11 +3687,11 @@ MODULE dbcsr_mm_cannon
                      myvprow=v_ki+right_myfirstvrow,&
                      myvpcol=v_ci+right_myfirstvcol,&
                      vprow_shift=metronome*min_nimages,&
-                     shifting='R', error=error)
+                     shifting='R')
                 !
                 IF (right_refs(imeta_size,recv_vrow,recv_vcol).GT.0.AND.&
                     right_recv_filtered(v_ki,v_ci,metronome).LT.left_row_nimages) THEN
-                   CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2, error)
+                   CALL dbcsr_error_set(routineN//"_metrocomm2", error_handler2)
                    !
                    rma_buffers_comm%right_offset_data(v_ci+2+v_i) = &
                         rma_buffers_comm%right_offset_data(v_ci+1+v_i) + &
@@ -3772,10 +3714,10 @@ MODULE dbcsr_mm_cannon
                         myvprow=v_ki+right_myfirstvrow,&
                         myvpcol=v_ci+right_myfirstvcol,&
                         vprow_shift=metronome*min_nimages,&
-                        shifting='0', error=error)
+                        shifting='0')
                    CALL dbcsr_rget_any(data_get,recv_p,&
                         right_data_win,right_refs(idata_displ,recv_vrow,recv_vcol),&
-                        right_get_requests(1,v_ci+v_i),error=error)
+                        right_get_requests(1,v_ci+v_i))
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
                         right_refs(idata_size,recv_vrow,recv_vcol),&
                         dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
@@ -3783,7 +3725,7 @@ MODULE dbcsr_mm_cannon
                         right_meta_win,right_refs(imeta_displ,recv_vrow,recv_vcol),&
                         right_get_requests(2,v_ci+v_i))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
-                   CALL dbcsr_error_stop(error_handler2, error)
+                   CALL dbcsr_error_stop(error_handler2)
                 ELSE
                    rma_buffers_comm%right_offset_data(v_ci+2+v_i) = &
                         rma_buffers_comm%right_offset_data(v_ci+1+v_i)
@@ -3804,11 +3746,11 @@ MODULE dbcsr_mm_cannon
        CALL merge_images(rma_buffers_calc%right_buffer,min_nimages,right_col_nimages,&
             rma_buffers_calc%right_offset_data,rma_buffers_calc%right_meta,&
             imgdist=right_set%image_dist,do_merge_rows=.FALSE.,&
-            vmap_indices=vmap_indices_right,error=error)
+            vmap_indices=vmap_indices_right)
        !
        ! Wait for left matrix transfer completion. Wait in all but
        ! the first loop iteration.
-       CALL dbcsr_error_set(routineN//"_metrocomm3", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_metrocomm3", error_handler2)
        wait_left: IF (metronome .GT. 1) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
           CALL mp_waitall (left_get_requests)
@@ -3821,15 +3763,15 @@ MODULE dbcsr_mm_cannon
              CALL mp_win_free(left_meta_win)
           ENDIF
        ENDIF wait_left
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
        ! Left matrix transfer. Transfer in all but the last loop
        ! iteration.
        xfer_left: IF (metronome .LT. nsteps_k) THEN
           !
           IF (mm_driver == mm_driver_acc) THEN
-             CALL dbcsr_error_set(routineN//"_acc_sync_left", error_handler3, error)
+             CALL dbcsr_error_set(routineN//"_acc_sync_left", error_handler3)
              CALL acc_event_synchronize(rma_buffers_comm%left_data%d%acc_ready)
-             CALL dbcsr_error_stop(error_handler3, error)
+             CALL dbcsr_error_stop(error_handler3)
           ENDIF
           !
           left_meta_offset = 0
@@ -3844,11 +3786,11 @@ MODULE dbcsr_mm_cannon
                      myvprow=v_ri+left_myfirstvrow,&
                      myvpcol=v_ki+left_myfirstvcol,&
                      vpcol_shift=metronome*min_nimages,&
-                     shifting='L', error=error)
+                     shifting='L')
                 !
                 IF (left_refs(idata_size,recv_vrow,recv_vcol).GT.0.AND.&
                     left_recv_filtered(v_ri,v_ki,metronome).LT.right_col_nimages) THEN
-                   CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2, error)
+                   CALL dbcsr_error_set(routineN//"_metrocomm4", error_handler2)
                    !
                    rma_buffers_comm%left_offset_data(v_ri+2+v_i) = &
                         rma_buffers_comm%left_offset_data(v_ri+1+v_i) + &
@@ -3870,10 +3812,10 @@ MODULE dbcsr_mm_cannon
                         myvprow=v_ri+left_myfirstvrow,&
                         myvpcol=v_ki+left_myfirstvcol,&
                         vpcol_shift=metronome*min_nimages,&
-                        shifting='0', error=error)
+                        shifting='0')
                    CALL dbcsr_rget_any(data_get,recv_p,&
                         left_data_win,left_refs(idata_displ,recv_vrow,recv_vcol),&
-                        left_get_requests(1,v_ri+v_i),error=error)
+                        left_get_requests(1,v_ri+v_i))
                    CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
                         left_refs(idata_size,recv_vrow,recv_vcol),&
                         dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
@@ -3881,7 +3823,7 @@ MODULE dbcsr_mm_cannon
                         left_meta_win,left_refs(imeta_displ,recv_vrow,recv_vcol),&
                         left_get_requests(2,v_ri+v_i))
                    dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
-                   CALL dbcsr_error_stop(error_handler2, error)
+                   CALL dbcsr_error_stop(error_handler2)
                 ELSE
                    rma_buffers_comm%left_offset_data(v_ri+2+v_i) = &
                         rma_buffers_comm%left_offset_data(v_ri+1+v_i)
@@ -3902,15 +3844,15 @@ MODULE dbcsr_mm_cannon
        CALL merge_images(rma_buffers_calc%left_buffer,left_row_nimages,min_nimages,&
             rma_buffers_calc%left_offset_data,rma_buffers_calc%left_meta,&
             imgdist=left_set%image_dist,do_merge_rows=.TRUE.,&
-            vmap_indices=vmap_indices_left,nthreads=nthreads,error=error)
+            vmap_indices=vmap_indices_left,nthreads=nthreads)
        !
        ! Do the multiplications.
        !
-       CALL dbcsr_error_set(routineN//"_multrec", error_handler2, error)
+       CALL dbcsr_error_set(routineN//"_multrec", error_handler2)
        !
        IF (mm_driver==mm_driver_acc) THEN
-          CALL dbcsr_data_host2dev(rma_buffers_calc%right_data, error)
-          CALL dbcsr_data_host2dev(rma_buffers_calc%left_data, error)
+          CALL dbcsr_data_host2dev(rma_buffers_calc%right_data)
+          CALL dbcsr_data_host2dev(rma_buffers_calc%left_data)
        ENDIF
        !
        DO v_ki = 1, min_nimages
@@ -3918,21 +3860,21 @@ MODULE dbcsr_mm_cannon
               rma_buffers_calc%left_buffer%mats(1, v_ki)%m%nblks.EQ.0) CYCLE
           IF (debug_mod) THEN
              CALL dbcsr_print(rma_buffers_calc%right_buffer%mats(v_ki, 1),&
-                  nodata=.TRUE., error=error)
+                  nodata=.TRUE.)
              CALL dbcsr_print(rma_buffers_calc%left_buffer%mats(1, v_ki),&
-                  nodata=.TRUE., error=error)
+                  nodata=.TRUE.)
           ENDIF
           !
           IF (mm_driver==mm_driver_acc) THEN
              CALL acc_transpose_blocks(rma_buffers_calc%right_buffer%mats(v_ki, 1), &
-                  rma_buffers_calc%trs_stackbuf, error)
+                  rma_buffers_calc%trs_stackbuf)
           ENDIF
           !
           IF (otf_filtering) THEN
              CALL calculate_norms(rma_buffers_calc%left_buffer%mats(1,v_ki),&
-                  left_norms(:,v_ki), error=error)
+                  left_norms(:,v_ki))
              CALL calculate_norms(rma_buffers_calc%right_buffer%mats(v_ki,1),&
-                  right_norms(:,v_ki), error=error)
+                  right_norms(:,v_ki))
           ENDIF
        ENDDO
        !
@@ -3944,13 +3886,12 @@ MODULE dbcsr_mm_cannon
 !$omp         metronome,nsteps_k,multrec,nthreads,threads_finished, &
 !$omp         right_get_requests,left_get_requests) &
 !$omp private (ithread,v_ki,threads_finished_read) &
-!$omp firstprivate (error) &
 !$omp reduction (+: flop)
        ithread = 0
 !$     ithread = omp_get_thread_num()
        !
        IF(metronome==nsteps_k) &
-            CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p, error)
+            CALL dbcsr_mm_multrec_phaseout(multrec(ithread)%p)
        !
        DO v_ki = 1, min_nimages
           IF (rma_buffers_calc%right_buffer%mats(v_ki, 1)%m%nblks.EQ.0 .OR. &
@@ -3960,12 +3901,11 @@ MODULE dbcsr_mm_cannon
                right=rma_buffers_calc%right_buffer%mats(v_ki, 1)%m,&
                flop=flop,&
                a_norms=left_norms(:,v_ki),&
-               b_norms=right_norms(:,v_ki),&
-               error=error)
+               b_norms=right_norms(:,v_ki))
        ENDDO
        !
        IF(metronome==nsteps_k) THEN
-          CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p, error)
+          CALL dbcsr_mm_multrec_finalize(multrec(ithread)%p)
           DEALLOCATE(multrec(ithread)%p)
        ENDIF
        !
@@ -3985,7 +3925,7 @@ MODULE dbcsr_mm_cannon
        ENDIF
 !$omp end parallel
        !
-       CALL dbcsr_error_stop(error_handler2, error)
+       CALL dbcsr_error_stop(error_handler2)
        !
        IF (metronome.LT.nsteps_k) THEN
           rma_buffers => rma_buffers_comm
@@ -4016,8 +3956,8 @@ MODULE dbcsr_mm_cannon
     !
     ! clean-up of communication buffers
     IF (nsteps_k.GT.1) THEN
-       CALL dbcsr_destroy_array (right_buffer, error=error)
-       CALL dbcsr_destroy_array (left_buffer, error=error)
+       CALL dbcsr_destroy_array (right_buffer)
+       CALL dbcsr_destroy_array (left_buffer)
        !
        CALL dbcsr_data_clear_pointer(data_get)
        CALL dbcsr_data_release(data_get)
@@ -4034,7 +3974,7 @@ MODULE dbcsr_mm_cannon
     DEALLOCATE(multrec)
     DEALLOCATE(left_offset_data_1, right_offset_data_1)
     !
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE cannon_multiply_low_rma
 
 ! *****************************************************************************
@@ -4140,11 +4080,9 @@ MODULE dbcsr_mm_cannon
 !> \param data_size ...
 !> \param data_buffer ...
 !> \param data_memory_type ...
-!> \param error ...
-!>
 ! *****************************************************************************
   SUBROUTINE setup_buffer_matrix (matrix, source_matrix, &
-       index_size, data_size, data_buffer, data_memory_type, error)
+       index_size, data_size, data_buffer, data_memory_type)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_obj), INTENT(IN)              :: source_matrix
     INTEGER, INTENT(IN)                      :: index_size
@@ -4153,7 +4091,6 @@ MODULE dbcsr_mm_cannon
       OPTIONAL                               :: data_buffer
     TYPE(dbcsr_memtype_type), INTENT(IN), &
       OPTIONAL                               :: data_memory_type
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CALL dbcsr_init(matrix)
     CALL dbcsr_create(matrix,&
@@ -4163,18 +4100,16 @@ MODULE dbcsr_mm_cannon
          data_buffer = data_buffer, &
          data_memory_type = data_memory_type,&
          index_memory_type = memtype_mpi_buffer,&
-         make_index=.FALSE.,&
-         error = error)
+         make_index=.FALSE.)
     IF (PRESENT(data_size)) THEN
        CALL dbcsr_data_ensure_size (&
             matrix%m%data_area,&
-            data_size, nocopy=.TRUE.,error=error)
+            data_size, nocopy=.TRUE.)
     ENDIF
     CALL ensure_array_size (&
          matrix%m%index,&
          ub=index_size, nocopy=.TRUE.,&
-         memory_type=dbcsr_get_index_memory_type(matrix),&
-         error=error)
+         memory_type=dbcsr_get_index_memory_type(matrix))
     matrix%m%negate_real = source_matrix%m%negate_real
     matrix%m%negate_imaginary = source_matrix%m%negate_imaginary
     matrix%m%local_indexing = source_matrix%m%local_indexing
@@ -4211,25 +4146,23 @@ MODULE dbcsr_mm_cannon
 !> \param index_size_merged ...
 !> \param data_buffer ...
 !> \param is_left ...
-!> \param error ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE setup_buffer_matrices_images (buffer_set, nimages, source_matrix, &
-       index_size_merged, data_buffer, is_left, error)
+       index_size_merged, data_buffer, is_left)
     TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: buffer_set
     INTEGER, INTENT(IN)                      :: nimages
     TYPE(dbcsr_obj), INTENT(IN)              :: source_matrix
     INTEGER, DIMENSION(:), INTENT(IN)        :: index_size_merged
     TYPE(dbcsr_data_obj), INTENT(IN)         :: data_buffer
     LOGICAL, INTENT(IN)                      :: is_left
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: v_ki
     TYPE(dbcsr_obj), DIMENSION(:), POINTER   :: images
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_image_dist_init (buffer_set%image_dist, error=error)
+    CALL dbcsr_image_dist_init (buffer_set%image_dist)
     IF (is_left) THEN
        ALLOCATE (buffer_set%mats(1, nimages))
        images => buffer_set%mats(1, :)
@@ -4240,8 +4173,7 @@ MODULE dbcsr_mm_cannon
     DO v_ki = 1, nimages
        CALL setup_buffer_matrix(images(v_ki),&
             source_matrix, index_size_merged(v_ki), &
-            data_buffer=data_buffer, &
-            error=error)
+            data_buffer=data_buffer)
     ENDDO
   END SUBROUTINE setup_buffer_matrices_images
 
@@ -4253,16 +4185,13 @@ MODULE dbcsr_mm_cannon
 !> \param source_matrix ...
 !> \param index_size ...
 !> \param data_size ...
-!> \param error ...
-!>
 ! *****************************************************************************
   SUBROUTINE setup_buffer_matrices (buffer_set, buff_nrows, buff_ncols,&
-       source_matrix, index_size, data_size, error)
+       source_matrix, index_size, data_size)
     TYPE(dbcsr_2d_array_type), INTENT(OUT)   :: buffer_set
     INTEGER, INTENT(IN)                      :: buff_nrows, buff_ncols
     TYPE(dbcsr_obj), INTENT(IN)              :: source_matrix
     INTEGER, INTENT(IN)                      :: index_size, data_size
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_buffer_matrices', &
       routineP = moduleN//':'//routineN
@@ -4272,33 +4201,33 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
-    CALL dbcsr_image_dist_init (buffer_set%image_dist, error=error)
+    CALL dbcsr_image_dist_init (buffer_set%image_dist)
     ALLOCATE (buffer_set%mats(buff_nrows, buff_ncols))
     DO row_image = 1, buff_nrows
        DO col_image = 1, buff_ncols
           CALL setup_buffer_matrix(buffer_set%mats(row_image, col_image),&
                source_matrix, index_size, data_size=data_size,&
-               data_memory_type=memtype_abpanel_2, error=error)
+               data_memory_type=memtype_abpanel_2)
        ENDDO
     ENDDO
     IF (source_matrix%m%local_indexing .AND. careful_mod) THEN
        CALL dbcsr_assert (array_exists (source_matrix%m%local_rows),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Local rows should exist.", __LINE__, error=error)
+            "Local rows should exist.", __LINE__)
        CALL dbcsr_assert (array_exists (source_matrix%m%global_rows),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Global rows should exist.", __LINE__, error=error)
+            "Global rows should exist.", __LINE__)
        !
        CALL dbcsr_assert (array_exists (source_matrix%m%local_cols),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Local cols should exist.", __LINE__, error=error)
+            "Local cols should exist.", __LINE__)
        CALL dbcsr_assert (array_exists (source_matrix%m%global_cols),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Global cols should exist.", __LINE__, error=error)
+            "Global cols should exist.", __LINE__)
     ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE setup_buffer_matrices
 
 ! *****************************************************************************
@@ -4306,19 +4235,16 @@ MODULE dbcsr_mm_cannon
 !> \param matrix ...
 !> \param index_size ...
 !> \param data_size ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE buffer_matrix_ensure_size(matrix, index_size, data_size, error)
+  SUBROUTINE buffer_matrix_ensure_size(matrix, index_size, data_size)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: index_size, data_size
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CALL dbcsr_data_ensure_size (matrix%m%data_area,&
-         data_size, error=error)
+         data_size)
     CALL ensure_array_size (matrix%m%index,&
          ub=index_size,&
-         memory_type=dbcsr_get_index_memory_type(matrix),&
-         error=error)
+         memory_type=dbcsr_get_index_memory_type(matrix))
     CALL dbcsr_repoint_index(matrix%m)    
 
   END SUBROUTINE buffer_matrix_ensure_size
@@ -4331,11 +4257,10 @@ MODULE dbcsr_mm_cannon
 !> \param local_dist ...
 !> \param slot_nblk_local ...
 !> \param vmap_indices ...
-!> \param error ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE remap_images_map(uimages,nimages_merged,vdist,local_dist,&
-       slot_nblk_local,vmap_indices,error)
+       slot_nblk_local,vmap_indices)
     TYPE(dbcsr_obj), DIMENSION(:), &
       INTENT(IN)                             :: uimages
     INTEGER, INTENT(IN)                      :: nimages_merged
@@ -4343,7 +4268,6 @@ MODULE dbcsr_mm_cannon
     INTEGER, INTENT(IN)                      :: slot_nblk_local
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       INTENT(INOUT)                          :: vmap_indices
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'remap_images_map', &
       routineP = moduleN//':'//routineN
@@ -4358,7 +4282,7 @@ MODULE dbcsr_mm_cannon
           CALL dbcsr_assert (uimages(mi)%m%valid, dbcsr_fatal_level,&
                dbcsr_internal_error, routineN,&
                "Matrix must be valid for remapping",&
-               __LINE__, error=error)
+               __LINE__)
           vmap_images(mi) = vmap_images(mi-1)+&
                uimages(mi)%m%index(slot_nblk_local)
        ENDDO
@@ -4385,11 +4309,10 @@ MODULE dbcsr_mm_cannon
 !> \param data_offset ...
 !> \param first_indices ...
 !> \param is_left ...
-!> \param error ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE buffer_matrices_ensure_size_images(buffer_set, nrows_images, ncols_images,&
-       index_size_merged, data_buffer, meta_buffer, data_offset, first_indices, is_left, error)
+       index_size_merged, data_buffer, meta_buffer, data_offset, first_indices, is_left)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: buffer_set
     INTEGER, INTENT(IN)                      :: nrows_images, ncols_images
     INTEGER, DIMENSION(:), INTENT(IN)        :: index_size_merged
@@ -4398,7 +4321,6 @@ MODULE dbcsr_mm_cannon
     INTEGER, DIMENSION(:), INTENT(IN)        :: data_offset
     INTEGER, DIMENSION(:, :), INTENT(INOUT)  :: first_indices
     LOGICAL, INTENT(IN)                      :: is_left
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'buffer_matrices_ensure_size_images', &
@@ -4412,7 +4334,7 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     !
     IF (is_left) THEN
        nimages_unmerged = ncols_images
@@ -4460,13 +4382,12 @@ MODULE dbcsr_mm_cannon
           CALL ensure_array_size (images(1)%m%index,&
                ub=index_size_merged(ui),&
                nocopy=.TRUE.,&
-               memory_type=dbcsr_get_index_memory_type(images(1)),&
-               error=error)
+               memory_type=dbcsr_get_index_memory_type(images(1)))
           images(1)%m%valid = .FALSE.
        ENDDO images_merge
     ENDDO images_unmerge
     !
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE buffer_matrices_ensure_size_images
 
 ! ******************************************************************************
@@ -4481,13 +4402,11 @@ MODULE dbcsr_mm_cannon
 !> \param buffer_set ...
 !> \param index_size ...
 !> \param data_size ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE buffer_matrices_ensure_size(buffer_set, index_size, data_size, error)
+  SUBROUTINE buffer_matrices_ensure_size(buffer_set, index_size, data_size)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: buffer_set
     INTEGER, INTENT(IN)                      :: index_size, data_size
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'buffer_matrices_ensure_size', &
       routineP = moduleN//':'//routineN
@@ -4497,15 +4416,15 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     DO row_image = 1, SIZE(buffer_set%mats, 1)
        DO col_image = 1, SIZE(buffer_set%mats, 2)
           CALL buffer_matrix_ensure_size(buffer_set%mats(row_image, col_image),&
-               index_size, data_size, error)
+               index_size, data_size)
        ENDDO
     ENDDO
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE buffer_matrices_ensure_size
 
 
@@ -4514,13 +4433,10 @@ MODULE dbcsr_mm_cannon
 !> \param matrix_set ...
 !> \param n_rows ...
 !> \param n_cols ...
-!> \param error ...
-!>
 ! *****************************************************************************
-  SUBROUTINE setup_rec_index (matrix_set, n_rows, n_cols, error)
+  SUBROUTINE setup_rec_index (matrix_set, n_rows, n_cols)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: matrix_set
     INTEGER, INTENT(IN)                      :: n_rows, n_cols
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_rec_index', &
       routineP = moduleN//':'//routineN
@@ -4534,12 +4450,12 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     DO i_row = 1, n_rows
        DO i_col = 1, n_cols
           IF (.FALSE.) &
                CALL dbcsr_reset_vlocals (matrix_set%mats(i_row, i_col),&
-               matrix_set%image_dist, error=error)
+               matrix_set%image_dist)
           IF (dbg) THEN
              WRITE(*,*)routineN//" m, n, size",&
                   SIZE(matrix_set%mats(i_row, i_col)%m%coo_l),&
@@ -4551,7 +4467,7 @@ MODULE dbcsr_mm_cannon
              CALL dbcsr_assert (SIZE(matrix_set%mats(i_row, i_col)%m%coo_l),&
                   "EQ", matrix_set%mats(i_row, i_col)%m%nblks*3,&
                   dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Block count mismatch.", __LINE__, error=error)
+                  "Block count mismatch.", __LINE__)
           ENDIF
           thread_redist = ASSOCIATED (matrix_set%mats(i_row, i_col)%m%thr_c)
           t_size = SIZE(matrix_set%mats(i_row, i_col)%m%coo_l)/3
@@ -4560,7 +4476,7 @@ MODULE dbcsr_mm_cannon
           !$OMP PARALLEL IF (thread_redist) DEFAULT (none) &
           !$OMP PRIVATE (ithread) &
           !$OMP FIRSTPRIVATE (t_f, t_l, t_size) &
-          !$OMP SHARED (matrix_set, i_row, i_col, thread_redist, error)
+          !$OMP SHARED (matrix_set, i_row, i_col, thread_redist)
           !$ ithread = OMP_GET_THREAD_NUM()
           !$ IF (thread_redist) THEN
           !$    t_f = matrix_set%mats(i_row, i_col)%m%thr_c(ithread+1)+1
@@ -4574,19 +4490,19 @@ MODULE dbcsr_mm_cannon
                      dbcsr_nblkrows_local(matrix_set%mats(i_row, i_col)),&
                      dbcsr_nblkcols_local(matrix_set%mats(i_row, i_col)),&
                      t_size,&
-                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)), error=error)
+                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)))
              ELSE
                 CALL call_rec_sort_index (&
                      dbcsr_nblkrows_total(matrix_set%mats(i_row, i_col)),&
                      dbcsr_nblkcols_total(matrix_set%mats(i_row, i_col)),&
                      t_size,&
-                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)), error=error)
+                     matrix_set%mats(i_row, i_col)%m%coo_l((t_f*3-2):(t_l*3)))
              ENDIF
           ENDIF
           !$OMP END PARALLEL
        ENDDO
     ENDDO
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE setup_rec_index
 
 
@@ -4597,13 +4513,11 @@ MODULE dbcsr_mm_cannon
 !> \param n ...
 !> \param nblks ...
 !> \param idx ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE call_rec_sort_index (m,n,nblks,idx, error)
+  SUBROUTINE call_rec_sort_index (m,n,nblks,idx)
     INTEGER, INTENT(IN)                      :: m, n, nblks
     INTEGER, DIMENSION(3, 1:nblks), &
       INTENT(INOUT)                          :: idx
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'call_rec_sort_index', &
       routineP = moduleN//':'//routineN
@@ -4612,10 +4526,10 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_error_set (routineN, error_handle)
     IF (.FALSE.) WRITE(*,*)" Calling rec_sort_index, size", nblks
-    CALL rec_sort_index(1, m, 1, n, nblks, idx, 0, error)
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL rec_sort_index(1, m, 1, n, nblks, idx, 0)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE call_rec_sort_index
 
 
@@ -4628,18 +4542,16 @@ MODULE dbcsr_mm_cannon
 !> \param nele ...
 !> \param a ...
 !> \param d ...
-!> \param error ...
 !> \par History
 !> - 2011-02-17 [UB] modified for use in DBCSR; reduced memory usage.
 !> \author JV
 !> \note Always cut longest first. On a tie cut N
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE rec_sort_index(mi,mf,ni,nf,nele,a,d,error)
+  RECURSIVE SUBROUTINE rec_sort_index(mi,mf,ni,nf,nele,a,d)
     INTEGER, INTENT(IN)                      :: mi, mf, ni, nf, nele
     INTEGER, DIMENSION(3, 1:nele), &
       INTENT(inout)                          :: a
     INTEGER, INTENT(IN)                      :: d
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
@@ -4662,25 +4574,25 @@ MODULE dbcsr_mm_cannon
     N = nf-ni+1
     IF (M > N) THEN
        half = M/2
-       CALL rec_split (nele, a, tmp, 1, nlow, mi, half, error)
+       CALL rec_split (nele, a, tmp, 1, nlow, mi, half)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
-          CALL rec_sort_index(mi,mi+half-1,ni,nf, nlow, a(:,1:nlow), d+1, error)
+          CALL rec_sort_index(mi,mi+half-1,ni,nf, nlow, a(:,1:nlow), d+1)
        ENDIF
        IF (nele-nlow .GT. 1) THEN
-          CALL rec_sort_index(mi+half,mf,ni,nf, nele-nlow, a(:,nlow+1:nele), d+1, error)
+          CALL rec_sort_index(mi+half,mf,ni,nf, nele-nlow, a(:,nlow+1:nele), d+1)
        ENDIF
     ELSE
        half = N/2
-       CALL rec_split (nele, a, tmp, 2, nlow, ni, half, error)
+       CALL rec_split (nele, a, tmp, 2, nlow, ni, half)
        a = tmp
        DEALLOCATE (tmp)
        IF (nlow .GT. 1) THEN
-         CALL rec_sort_index(mi,mf,ni,ni+half-1, nlow, a(:,1:nlow), d+1, error)
+         CALL rec_sort_index(mi,mf,ni,ni+half-1, nlow, a(:,1:nlow), d+1)
        ENDIF
        IF (nele-nlow .GT. 1) THEN
-         CALL rec_sort_index(mi,mf,ni+half,nf, nele-nlow, a(:,nlow+1:nele), d+1, error)
+         CALL rec_sort_index(mi,mf,ni+half,nf, nele-nlow, a(:,nlow+1:nele), d+1)
        ENDIF
     ENDIF
   END SUBROUTINE rec_sort_index
@@ -4695,16 +4607,14 @@ MODULE dbcsr_mm_cannon
 !> \param nlow ...
 !> \param mi ...
 !> \param half ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, half, error)
+  SUBROUTINE rec_split (nele, a, split, row_or_col, nlow, mi, half)
     INTEGER, INTENT(IN)                      :: nele
     INTEGER, DIMENSION(3, nele), INTENT(IN)  :: a
     INTEGER, DIMENSION(3, nele), INTENT(OUT) :: split
     INTEGER, INTENT(IN)                      :: row_or_col
     INTEGER, INTENT(OUT)                     :: nlow
     INTEGER, INTENT(IN)                      :: mi, half
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rec_split', &
       routineP = moduleN//':'//routineN
@@ -4724,7 +4634,7 @@ MODULE dbcsr_mm_cannon
        ENDIF
     ENDDO
     nlow = p_low - 1
-    IF (p_high .NE. nlow) CALL dbcsr_abort(routineP,__LINE__,"",error)
+    IF (p_high .NE. nlow) CALL dbcsr_abort(routineP,__LINE__,"")
 
   END SUBROUTINE rec_split
 
@@ -4808,14 +4718,12 @@ MODULE dbcsr_mm_cannon
 !> \param[in,out] matrix     DBCSR matrix for which to calculate norms
 !> \param[out] norms         Block norms
 !> \param[out] max_val       Max norm value
-!> \param[in,out] error      error
 ! *****************************************************************************
-  SUBROUTINE calculate_norms(matrix, norms, max_val, error)
+  SUBROUTINE calculate_norms(matrix, norms, max_val)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     REAL(kind=sp), DIMENSION(:), &
       INTENT(OUT), OPTIONAL                  :: norms
     REAL(kind=sp), INTENT(OUT), OPTIONAL     :: max_val
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_norms', &
       routineP = moduleN//':'//routineN
@@ -4828,17 +4736,17 @@ MODULE dbcsr_mm_cannon
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     ! Checks for validity
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "The matrix must be valid.", __LINE__, error)
+         "The matrix must be valid.", __LINE__)
     data_type = dbcsr_get_data_type (matrix)
     IF (matrix%m%local_indexing) THEN
        IF (careful_mod) &
             CALL dbcsr_assert (array_exists (matrix%m%local_rows),&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Global row mapping should exist", __LINE__, error=error)
+            "Global row mapping should exist", __LINE__)
        local_rows => array_data (matrix%m%local_rows)
        nrows = SIZE(local_rows)
        local_cols => array_data (matrix%m%local_cols)
@@ -4892,7 +4800,7 @@ MODULE dbcsr_mm_cannon
                max_val=my_max_val)
        CASE DEFAULT
           CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+               routineN, "Invalid data type.",__LINE__)
        END SELECT
     ELSE
        SELECT CASE (data_type)
@@ -4934,13 +4842,13 @@ MODULE dbcsr_mm_cannon
                max_val=my_max_val)
        CASE DEFAULT
           CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+               routineN, "Invalid data type.",__LINE__)
        END SELECT
     ENDIF
     !
     IF (PRESENT(max_val)) max_val = my_max_val
     !
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE calculate_norms
 
 
@@ -4948,13 +4856,11 @@ MODULE dbcsr_mm_cannon
 !> \brief write out a stack for transposing the blocks
 !> \param matrix ...
 !> \param trs_stackbuf ...
-!> \param error ...
-!>  \author Ole Schuett
+!> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE acc_transpose_blocks(matrix, trs_stackbuf, error)
+  SUBROUTINE acc_transpose_blocks(matrix, trs_stackbuf)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: trs_stackbuf
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'acc_transpose_blocks', &
       routineP = moduleN//':'//routineN
@@ -4970,16 +4876,16 @@ MODULE dbcsr_mm_cannon
       row_blk_sizes2enum, trs_stack
     INTEGER, DIMENSION(3, matrix%m%nblks)    :: tmp_stack
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
 
     NULLIFY(row_blk_sizes2enum, enum2row_blk_sizes)
     NULLIFY(col_blk_sizes2enum, enum2col_blk_sizes)
     NULLIFY(local2global_rows, local2global_cols, trs_stack)
 
     IF (.NOT. matrix%m%list_indexing) CALL dbcsr_abort(routineP,__LINE__,&
-       "build_trs_stack: only list_indexing supported.",error)
+       "build_trs_stack: only list_indexing supported.")
     IF (trs_stackbuf%d%data_type /= dbcsr_type_int_4)&
-       CALL dbcsr_abort(routineP,__LINE__,"build_trs_stack: stac_buf has wrong datatype",error)
+       CALL dbcsr_abort(routineP,__LINE__,"build_trs_stack: stac_buf has wrong datatype")
     blk_index => matrix%m%coo_l
     row_blk_sizes => array_data (matrix%m%row_blk_size)
     col_blk_sizes => array_data (matrix%m%col_blk_size)
@@ -4998,7 +4904,7 @@ MODULE dbcsr_mm_cannon
     ! make sure buffer from previous cannon-tick was uploaded
     CALL acc_event_synchronize(trs_stackbuf%d%acc_ready)
 
-    CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE., error=error)
+    CALL dbcsr_data_ensure_size(trs_stackbuf, data_size=nblks, nocopy=.TRUE.)
     trs_stack => trs_stackbuf%d%i4
 
     ! collect block addresses and dimensions in a temporary stack
@@ -5044,12 +4950,12 @@ MODULE dbcsr_mm_cannon
     !sanity check
     DO mi=1, mi_max
       DO ni=1, ni_max
-         IF(filled(mi,ni) /= counters(mi,ni)) CALL dbcsr_abort(routineP,__LINE__,"acc_transpose_blocks: bug",error)
+         IF(filled(mi,ni) /= counters(mi,ni)) CALL dbcsr_abort(routineP,__LINE__,"acc_transpose_blocks: bug")
       END DO
     END DO
 
     !transfer all stacks
-    CALL dbcsr_data_host2dev(trs_stackbuf, error)
+    CALL dbcsr_data_host2dev(trs_stackbuf)
 
     ! make sure block-buffer is uploaded befor running the kernels
     CALL acc_stream_wait_event(trs_stackbuf%d%memory_type%acc_stream, matrix%m%data_area%d%acc_ready)
@@ -5067,7 +4973,7 @@ MODULE dbcsr_mm_cannon
             datatype=matrix%m%data_type,&
             buffer=matrix%m%data_area%d%acc_devmem,&
             m=m, n=n,&
-            stream=trs_stackbuf%d%memory_type%acc_stream, error=error)
+            stream=trs_stackbuf%d%memory_type%acc_stream)
         END IF
       ENDDO
     ENDDO
@@ -5079,7 +4985,7 @@ MODULE dbcsr_mm_cannon
 
     DEALLOCATE(row_blk_sizes2enum, enum2row_blk_sizes)
     DEALLOCATE(col_blk_sizes2enum, enum2col_blk_sizes)
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE acc_transpose_blocks
 
 
@@ -5131,7 +5037,6 @@ MODULE dbcsr_mm_cannon
 !> \param left_buffer ...
 !> \param right_buffer ...
 !> \param trs_stackbuf ...
-!> \param error ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE rma_buffers_init(buffer, data_type, &
@@ -5140,8 +5045,7 @@ MODULE dbcsr_mm_cannon
                               data_memory_type, &                              
                               left_offset_data, right_offset_data, &
                               left_buffer,right_buffer, &
-                              trs_stackbuf, &
-                              error)
+                              trs_stackbuf)
     TYPE(dbcsr_rma_buffers), INTENT(INOUT)   :: buffer
     INTEGER, INTENT(IN)                      :: data_type, left_data_size, &
                                                 right_data_size, &
@@ -5155,7 +5059,6 @@ MODULE dbcsr_mm_cannon
       OPTIONAL, TARGET                       :: left_buffer, right_buffer
     TYPE(dbcsr_data_obj), INTENT(IN), &
       OPTIONAL, TARGET                       :: trs_stackbuf
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     IF (.NOT.buffer%is_valid) THEN
        ! First initialization
@@ -5167,14 +5070,14 @@ MODULE dbcsr_mm_cannon
                            data_size=right_data_size,memory_type=data_memory_type)
        buffer%is_valid = .TRUE.
     ELSE
-       CALL dbcsr_data_ensure_size(buffer%left_data,left_data_size,nocopy=.TRUE.,error=error)
-       CALL dbcsr_data_ensure_size(buffer%right_data,right_data_size,nocopy=.TRUE.,error=error)
+       CALL dbcsr_data_ensure_size(buffer%left_data,left_data_size,nocopy=.TRUE.)
+       CALL dbcsr_data_ensure_size(buffer%right_data,right_data_size,nocopy=.TRUE.)
     ENDIF
     
     CALL ensure_array_size(buffer%left_meta,ub=left_meta_size,nocopy=.TRUE.,&
-                           memory_type=memtype_mpi_buffer,error=error)
+                           memory_type=memtype_mpi_buffer)
     CALL ensure_array_size(buffer%right_meta,ub=right_meta_size,nocopy=.TRUE.,&
-                           memory_type=memtype_mpi_buffer,error=error)
+                           memory_type=memtype_mpi_buffer)
 
     IF (PRESENT(left_offset_data)) THEN
        buffer%left_offset_data => left_offset_data
@@ -5240,12 +5143,11 @@ MODULE dbcsr_mm_cannon
 !> \param do_merge_rows ...
 !> \param vmap_indices ...
 !> \param nthreads ...
-!> \param error ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE merge_images(images, nrows_images, ncols_images, offset_images,&
                           meta_buffer, imgdist, do_merge_rows,&
-                          vmap_indices, nthreads, error)
+                          vmap_indices, nthreads)
     TYPE(dbcsr_2d_array_type), INTENT(INOUT) :: images
     INTEGER, INTENT(IN)                      :: nrows_images, ncols_images
     INTEGER, DIMENSION(:), INTENT(IN)        :: offset_images
@@ -5257,7 +5159,6 @@ MODULE dbcsr_mm_cannon
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       INTENT(IN)                             :: vmap_indices
     INTEGER, INTENT(IN), OPTIONAL            :: nthreads
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'merge_images', &
       routineP = moduleN//':'//routineN
@@ -5270,7 +5171,7 @@ MODULE dbcsr_mm_cannon
     TYPE(dbcsr_obj), POINTER                 :: image_obj
     TYPE(dbcsr_type), POINTER                :: image
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     !
     IF (do_merge_rows) THEN
        ! merge over rows (left)
@@ -5465,17 +5366,17 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_repoint_index (image_obj%m)
        image_obj%m%valid = .TRUE.
        CALL dbcsr_reset_vlocals (image_obj,imgdist,&
-            do_rows=.NOT.do_merge_rows,error=error)
+            do_rows=.NOT.do_merge_rows)
     ENDDO
     !
     ! setup indexing
     IF (do_merge_rows) THEN
-       CALL setup_rec_index (images, 1, nimages_unmerged, error)
+       CALL setup_rec_index (images, 1, nimages_unmerged)
     ELSE
-       CALL setup_rec_index (images, nimages_unmerged, 1, error)
+       CALL setup_rec_index (images, nimages_unmerged, 1)
     ENDIF
     !
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE merge_images
 
 #include "dbcsr_mm_cannon_d.f90"

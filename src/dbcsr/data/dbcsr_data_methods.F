@@ -41,9 +41,8 @@ MODULE dbcsr_data_methods
        dbcsr_type_real_8
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
-       dbcsr_wrong_args_error
+       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
@@ -87,12 +86,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Transfers data from host- to device-buffer, asynchronously.
 !> \param area ...
-!> \param error ...
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_host2dev(area, error)
+  SUBROUTINE dbcsr_data_host2dev(area)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_host2dev', &
       routineP = moduleN//':'//routineN
@@ -132,7 +129,7 @@ CONTAINS
          CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=c_dp, stream=area%d%memory_type%acc_stream)
        CASE default
          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+               routineN, "Invalid data type.",__LINE__)
     END SELECT
 
     CALL acc_event_record(area%d%acc_ready, area%d%memory_type%acc_stream)
@@ -142,12 +139,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Transfers data from device- to host-buffer, asynchronously.
 !> \param area ...
-!> \param error ...
 !> \author  Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_dev2host(area, error)
+  SUBROUTINE dbcsr_data_dev2host(area)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_dev2host', &
       routineP = moduleN//':'//routineN
@@ -176,7 +171,7 @@ CONTAINS
          CALL acc_devmem_dev2host(area%d%acc_devmem, hostmem=c_dp, stream=area%d%memory_type%acc_stream)
        CASE default
          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+               routineN, "Invalid data type.",__LINE__)
     END SELECT
 
   END SUBROUTINE dbcsr_data_dev2host
@@ -206,16 +201,15 @@ CONTAINS
                                                 total_size_requested
     INTEGER, DIMENSION(2)                    :: sizes_oversized, &
                                                 sizes_requested
-    TYPE(dbcsr_error_type)                   :: error
     TYPE(dbcsr_memtype_type)                 :: my_memory_type
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(.NOT.ASSOCIATED(area%d), dbcsr_fatal_level,&
                dbcsr_wrong_args_error, routineN,&
-               "area already associcated", __LINE__, error=error)
+               "area already associcated", __LINE__)
 
     my_memory_type = dbcsr_memtype_default
     IF (PRESENT (memory_type)) my_memory_type = memory_type
@@ -229,7 +223,7 @@ CONTAINS
 
        CALL dbcsr_assert(PRESENT(data_size).EQV.PRESENT(data_size2), &
                dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Must specify 2 sizes for 2-D data", __LINE__, error=error)
+               "Must specify 2 sizes for 2-D data", __LINE__)
     ENDIF
 
     sizes_oversized = INT(sizes_requested * my_memory_type%oversize_factor)
@@ -237,7 +231,7 @@ CONTAINS
     total_size_oversized = PRODUCT(sizes_oversized(1:d))
 
     IF(total_size_requested>1 .AND. ASSOCIATED(my_memory_type%pool)) THEN
-        area = dbcsr_mempool_get(my_memory_type, data_type, total_size_requested, error)
+        area = dbcsr_mempool_get(my_memory_type, data_type, total_size_requested)
     ENDIF
 
     IF(.NOT. ASSOCIATED(area%d)) THEN
@@ -252,11 +246,11 @@ CONTAINS
        area%d%ref_size = 0
        IF(PRESENT(data_size)) THEN
           area%d%ref_size = total_size_oversized
-          CALL internal_data_allocate (area%d, sizes_oversized(1:d), error=error)
+          CALL internal_data_allocate (area%d, sizes_oversized(1:d))
        END IF
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_data_new
 
 ! *****************************************************************************
@@ -269,14 +263,12 @@ CONTAINS
 !>                            default is to keep it
 !> \param[in] zero_pad        (optional) pad new data with zeros
 !> \param[in] factor          (optional) increase size by this factor
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor, error)
+  SUBROUTINE dbcsr_data_ensure_size (area, data_size, nocopy, zero_pad, factor)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     INTEGER, INTENT(IN)                      :: data_size
     LOGICAL, INTENT(IN), OPTIONAL            :: nocopy, zero_pad
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: factor
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_data_ensure_size', &
       routineP = moduleN//':'//routineN
@@ -288,9 +280,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handler)
     CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Data area must be setup.",__LINE__,error)
+         routineN, "Data area must be setup.",__LINE__)
     current_size = dbcsr_data_get_size (area)
 
     ! allocate some more as padding for libsmm kernels which read over the end.
@@ -306,11 +298,11 @@ CONTAINS
     !END IF
     !   CALL dbcsr_assert(current_size==acc_devmem_size(area%d%acc_devmem),&
     !          dbcsr_fatal_level, dbcsr_caller_error,&
-    !          routineN, "Host and device buffer differ in size.",__LINE__,error)
+    !          routineN, "Host and device buffer differ in size.",__LINE__)
 
     CALL dbcsr_data_set_size_referenced (area, data_size)
     IF (current_size .GT. 1 .AND. current_size .GE. wanted_size) THEN
-       IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+       IF (careful_mod) CALL dbcsr_error_stop(error_handler)
        RETURN
     ENDIF
     !
@@ -319,14 +311,14 @@ CONTAINS
     pad = .FALSE.
     IF (PRESENT (zero_pad)) pad = zero_pad
 
-    IF(dbcsr_data_exists(area, error=error)) THEN
+    IF(dbcsr_data_exists(area)) THEN
       IF(nocp .AND. dbcsr_data_get_size(area) <= 1) &
-         CALL internal_data_deallocate(area%d, error)
+         CALL internal_data_deallocate(area%d)
     END IF
 
-    IF (.NOT. dbcsr_data_exists (area, error=error)) THEN
+    IF (.NOT. dbcsr_data_exists (area)) THEN
         IF(ASSOCIATED(area%d%memory_type%pool)) THEN
-           area_tmp = dbcsr_mempool_get(area%d%memory_type, area%d%data_type, wanted_size, error)
+           area_tmp = dbcsr_mempool_get(area%d%memory_type, area%d%data_type, wanted_size)
            IF(ASSOCIATED(area_tmp%d)) THEN
               area_tmp%d%ref_size = wanted_size
               area_tmp%d%refcount = area%d%refcount
@@ -335,70 +327,70 @@ CONTAINS
            END IF
         END IF
 
-        IF (.NOT. dbcsr_data_exists (area, error=error)) &
-           CALL internal_data_allocate (area%d, (/ wanted_size /), error=error)
+        IF (.NOT. dbcsr_data_exists (area)) &
+           CALL internal_data_allocate (area%d, (/ wanted_size /))
 
-        IF(pad) CALL dbcsr_data_zero (area, (/ 1 /), (/ wanted_size /), error=error)
+        IF(pad) CALL dbcsr_data_zero (area, (/ 1 /), (/ wanted_size /))
     ELSE
        SELECT CASE (area%d%data_type)
           CASE (dbcsr_type_int_8)
              CALL ensure_array_size(area%d%i8, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
+                  factor=factor)
           CASE (dbcsr_type_int_4)
              CALL ensure_array_size(area%d%i4, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
+                  factor=factor)
           CASE (dbcsr_type_real_8)
              CALL ensure_array_size(area%d%r_dp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
+                  factor=factor)
           CASE (dbcsr_type_real_4)
              CALL ensure_array_size (area%d%r_sp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
+                  factor=factor)
           CASE (dbcsr_type_complex_8)
              CALL ensure_array_size (area%d%c_dp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
+                  factor=factor)
           CASE (dbcsr_type_complex_4)
              CALL ensure_array_size (area%d%c_sp, ub=wanted_size,&
                   memory_type=area%d%memory_type,&
                   nocopy=nocp, zero_pad=zero_pad,&
-                  factor=factor,error=error)
+                  factor=factor)
           CASE default
              CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
                   dbcsr_unimplemented_error_nr, routineN,&
-                  "Invalid data type are supported",__LINE__,error)
+                  "Invalid data type are supported",__LINE__)
        END SELECT
 
 
        IF(area%d%memory_type%acc_devalloc) THEN
           IF(.NOT.acc_devmem_allocated(area%d%acc_devmem)) THEN
              CALL acc_devmem_allocate_bytes(area%d%acc_devmem, &
-                dbcsr_datatype_sizeof(area%d%data_type,error)*dbcsr_data_get_size(area))
+                dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area))
              IF(pad) CALL acc_devmem_setzero_bytes(area%d%acc_devmem, stream=area%d%memory_type%acc_stream)
           ELSE
              CALL acc_devmem_ensure_size_bytes(area%d%acc_devmem, &
                    area%d%memory_type%acc_stream, &
-                   dbcsr_datatype_sizeof(area%d%data_type,error)*dbcsr_data_get_size(area), &
+                   dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area), &
                    nocopy, zero_pad)
           END IF
           CALL acc_event_record(area%d%acc_ready, area%d%memory_type%acc_stream)
           CALL dbcsr_assert(&
-                 dbcsr_datatype_sizeof(area%d%data_type,error)*dbcsr_data_get_size(area)&
+                 dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area)&
                   == acc_devmem_size_in_bytes(area%d%acc_devmem),&
                  dbcsr_fatal_level, dbcsr_caller_error,&
-                 routineN, "Host and device buffer differ in size.",__LINE__,error)
+                 routineN, "Host and device buffer differ in size.",__LINE__)
        ENDIF
 
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop(error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_data_ensure_size
 
 
@@ -414,39 +406,38 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert (ASSOCIATED (area%d), &
          dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Data seems to be unreferenced.",__LINE__,error)
+         routineN, "Data seems to be unreferenced.",__LINE__)
     IF (ASSOCIATED (area%d)) THEN
        !
        IF (careful_mod) &
             CALL dbcsr_assert (area%d%refcount, "GT", 0,&
             dbcsr_warning_level, dbcsr_caller_error,&
-            routineN, "Data seems to be unreferenced.",__LINE__,error)
+            routineN, "Data seems to be unreferenced.",__LINE__)
        !
        area%d%refcount = area%d%refcount - 1
        ! If we're releasing the last reference, then free the memory.
        IF (area%d%refcount .EQ. 0) THEN
-          IF(.NOT.dbcsr_data_exists(area,error))THEN
+          IF(.NOT.dbcsr_data_exists(area))THEN
               DEALLOCATE (area%d)
           ELSE IF(dbcsr_data_get_size(area)>1 .AND. ASSOCIATED(area%d%memory_type%pool)) THEN
               area%d%ref_size = 0
-              CALL dbcsr_mempool_add(area, error)
+              CALL dbcsr_mempool_add(area)
           ELSE
-              CALL internal_data_deallocate(area%d, error)
+              CALL internal_data_deallocate(area%d)
               DEALLOCATE (area%d)
           ENDIF
           NULLIFY (area%d)
        ENDIF
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE dbcsr_data_release
 

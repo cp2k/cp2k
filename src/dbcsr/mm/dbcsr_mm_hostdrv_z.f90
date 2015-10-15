@@ -11,18 +11,16 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
-!> \param[in,out] error        error
 ! *****************************************************************************
   SUBROUTINE blas_process_mm_stack_z(params,&
        stack_size,&
-       a_data, b_data, c_data, error)
+       a_data, b_data, c_data)
     INTEGER, INTENT(IN)                       :: stack_size
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
       INTENT(IN)                              :: params
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(INOUT)      :: c_data
-    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'blas_process_mm_stack_z', &
       routineP = moduleN//':'//routineN
@@ -54,17 +52,15 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
-!> \param[in,out] error        error
 ! *****************************************************************************
   SUBROUTINE internal_process_mm_stack_z(params, stack_size,&
-       a_data, b_data, c_data, error)
+       a_data, b_data, c_data)
     INTEGER, INTENT(IN)                       :: stack_size
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
       INTENT(IN)                              :: params
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(INOUT)      :: c_data
-    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'internal_process_mm_stack_z', &
       routineP = moduleN//':'//routineN
@@ -94,11 +90,10 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
-!> \param[in,out] error        error
 ! *****************************************************************************
   SUBROUTINE smm_process_mm_stack_z(stack_descr, params,&
        stack_size,&
-       a_data, b_data, c_data, error)
+       a_data, b_data, c_data)
     INTEGER, INTENT(IN)                       :: stack_size
     TYPE(stack_descriptor_type), INTENT(IN)   :: stack_descr
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
@@ -106,7 +101,6 @@
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     COMPLEX(kind=real_8), DIMENSION(*), INTENT(INOUT)      :: c_data
-    TYPE(dbcsr_error_type), INTENT(inout)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'smm_process_mm_stack_z', &
       routineP = moduleN//':'//routineN

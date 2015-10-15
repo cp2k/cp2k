@@ -97,12 +97,11 @@
                                                 block_row_size, block_col_size
     [type1], DIMENSION(:), POINTER           :: lin_blk_p
     INTEGER                                  :: error_handle
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 ! If we're pointing to a valid block, return that block.
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
     IF (iterator%pos .LE. iterator%nblks&
          .AND. iterator%pos .NE. 0) THEN
        row = iterator%row
@@ -134,5 +133,5 @@
        NULLIFY (block)
        IF (PRESENT (block_number)) block_number = 0
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE iterator_next_2d_block_[nametype1]

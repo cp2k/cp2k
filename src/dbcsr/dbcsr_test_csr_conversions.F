@@ -13,9 +13,9 @@ PROGRAM dbcsr_test_csr_conversions
   USE dbcsr_api,                       ONLY: &
        csr_destroy, csr_type, dbcsr_col_block_sizes, dbcsr_create, &
        dbcsr_distribution, dbcsr_distribution_mp, dbcsr_distribution_new, &
-       dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_error_type, &
-       dbcsr_finalize, dbcsr_finalize_lib, dbcsr_get_stored_coordinates, &
-       dbcsr_init, dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
+       dbcsr_distribution_obj, dbcsr_distribution_release, dbcsr_finalize, &
+       dbcsr_finalize_lib, dbcsr_get_stored_coordinates, dbcsr_init, &
+       dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
        dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, &
        dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
@@ -36,7 +36,6 @@ PROGRAM dbcsr_test_csr_conversions
 
   TYPE(dbcsr_obj)              :: matrix_a
   TYPE(csr_type)               :: matrix_b
-  TYPE(dbcsr_error_type)       :: error
 
   INTEGER, DIMENSION(:), POINTER :: col_blk_sizes, row_blk_sizes
   INTEGER                        :: nblkrows_total, nblkcols_total
@@ -76,8 +75,8 @@ PROGRAM dbcsr_test_csr_conversions
        myprow=myploc(1), mypcol=myploc(2))
   DEALLOCATE(pgrid)
 
-  CALL dbcsr_init_lib (error=error)
-  CALL dbcsr_set_default_config (error=error)
+  CALL dbcsr_init_lib ()
+  CALL dbcsr_set_default_config ()
 
   io_unit = 0
   IF (mynode.EQ.0) io_unit = default_output_unit
@@ -126,15 +125,15 @@ PROGRAM dbcsr_test_csr_conversions
     col_dist = FLOOR(rn_array(1:nblkcols_total) * npdims(2))
 
     CALL make_random_dbcsr_matrix(matrix_a, mp_env,&
-      col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity, error)
+      col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity)
 
     WRITE (UNIT=k_str,FMT='(I0)') k
     WRITE (UNIT=mynode_str, FMT='(I0)') mynode
 
-    CALL csr_conversion_test(matrix_a, matrix_b, norm, 0.0_dp, error=error)
-    CALL csr_destroy(matrix_b, error)
-    CALL csr_conversion_test(matrix_a, matrix_b, norm_eps, eps, error=error)
-    CALL csr_destroy(matrix_b, error)
+    CALL csr_conversion_test(matrix_a, matrix_b, norm, 0.0_dp)
+    CALL csr_destroy(matrix_b)
+    CALL csr_conversion_test(matrix_a, matrix_b, norm_eps, eps)
+    CALL csr_destroy(matrix_b)
 
     IF ((norm > EPSILON(norm)) .OR. (norm_eps > eps)) THEN
       IF(io_unit > 0) WRITE(io_unit,*) "Conversion error > 0 for matrix no.", k_str
@@ -150,7 +149,7 @@ PROGRAM dbcsr_test_csr_conversions
   DEALLOCATE(seed)
 
   CALL dbcsr_mp_release (mp_env)
-  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
+  CALL dbcsr_finalize_lib (mp_comm, io_unit)
   CALL mp_comm_free(group)
   CALL mp_world_finalize()
 
@@ -165,16 +164,14 @@ CONTAINS
 !> \param col_dist ...
 !> \param row_dist ...
 !> \param sparsity ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE make_random_dbcsr_matrix(matrix_a, mp_env,&
-                        col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity, error) 
+                        col_blk_sizes, row_blk_sizes, col_dist, row_dist, sparsity) 
     TYPE(dbcsr_obj), INTENT(OUT)             :: matrix_a
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes, &
                                                 col_dist, row_dist
     REAL(real_8), INTENT(IN)                 :: sparsity
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: col, col_s, max_nze, &
                                                 node_holds_blk, nze, row, &
@@ -196,8 +193,7 @@ CONTAINS
          row_blk_size=row_blk_sizes,&
          col_blk_size=col_blk_sizes,&
          data_type=dbcsr_type_real_8,&
-         reuse_arrays=.TRUE.,&
-         error=error)
+         reuse_arrays=.TRUE.)
   
     rbs => dbcsr_row_block_sizes (matrix_a)
     cbs => dbcsr_col_block_sizes (matrix_a)
@@ -223,7 +219,7 @@ CONTAINS
     ENDDO
     DEALLOCATE (values)
   
-    CALL dbcsr_finalize(matrix_a, error=error)
+    CALL dbcsr_finalize(matrix_a)
     CALL dbcsr_distribution_release (dist)
 
   END SUBROUTINE make_random_dbcsr_matrix

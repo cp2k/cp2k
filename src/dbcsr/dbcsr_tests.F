@@ -26,7 +26,6 @@ MODULE dbcsr_tests
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_binary_read,&
@@ -132,13 +131,12 @@ CONTAINS
       row_dist_a, row_dist_b, row_dist_c, sizes_k, sizes_m, sizes_n
     LOGICAL                                  :: pgiven
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
     TYPE(dbcsr_obj), TARGET                  :: matrix_a, matrix_b, matrix_c
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_error_set (routineN, error_handle)
     ! Create the row/column block sizes.
     IF (ASSOCIATED (bs_m)) THEN
        bmin = MINVAL (bs_m(2::2))
@@ -168,60 +166,55 @@ CONTAINS
     ! Create dist
 
     ! Create the random matrices.
-    CALL dbcsr_mp_make_env (mp_env, cart_group, mp_group, error=dbcsr_error)
+    CALL dbcsr_mp_make_env (mp_env, cart_group, mp_group)
     npdims(1) = dbcsr_mp_nprows (mp_env)
     npdims(2) = dbcsr_mp_npcols (mp_env)
     CALL dbcsr_dist_bin (row_dist_c, SIZE(sizes_m), npdims(1),&
-         sizes_m, error=dbcsr_error)
+         sizes_m)
     CALL dbcsr_dist_bin (col_dist_c, SIZE(sizes_n), npdims(2),&
-         sizes_n, error=dbcsr_error)
+         sizes_n)
     CALL dbcsr_distribution_new (dist_c, mp_env, row_dist_c, col_dist_c)
     CALL dbcsr_make_random_matrix (matrix_c, sizes_m, sizes_n, "Matrix C",&
          REAL(sparsities(3), real_8),&
-         mp_group, data_type=data_type, dist=dist_c, &
-         error=dbcsr_error)
+         mp_group, data_type=data_type, dist=dist_c)
     CALL dbcsr_distribution_release (dist_c)
     IF (trs(1)) THEN
        CALL dbcsr_dist_bin (row_dist_a, SIZE(sizes_k), npdims(1),&
-            sizes_k, error=dbcsr_error)
+            sizes_k)
        CALL dbcsr_dist_bin (col_dist_a, SIZE(sizes_m), npdims(2),&
-            sizes_m, error=dbcsr_error)
+            sizes_m)
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_a, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_k, sizes_m, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, &
-            error=dbcsr_error)
+            mp_group, data_type=data_type, dist=dist_a)
        DEALLOCATE(row_dist_a,col_dist_a)
     ELSE
        CALL dbcsr_dist_bin (col_dist_a, SIZE(sizes_k), npdims(2),&
-            sizes_k, error=dbcsr_error)
+            sizes_k)
        CALL dbcsr_distribution_new (dist_a, mp_env, row_dist_c, col_dist_a)
        CALL dbcsr_make_random_matrix (matrix_a, sizes_m, sizes_k, "Matrix A",&
             REAL(sparsities(1), real_8),&
-            mp_group, data_type=data_type, dist=dist_a, &
-            error=dbcsr_error)
+            mp_group, data_type=data_type, dist=dist_a)
        DEALLOCATE(col_dist_a)
     ENDIF
     CALL dbcsr_distribution_release (dist_a)
     IF (trs(2)) THEN
        CALL dbcsr_dist_bin (row_dist_b, SIZE(sizes_n), npdims(1),&
-            sizes_n, error=dbcsr_error)
+            sizes_n)
        CALL dbcsr_dist_bin (col_dist_b, SIZE(sizes_k), npdims(2),&
-            sizes_k, error=dbcsr_error)
+            sizes_k)
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_b)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_n, sizes_k, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, &
-            error=dbcsr_error)
+            mp_group, data_type=data_type, dist=dist_b)
        DEALLOCATE(row_dist_b,col_dist_b)
     ELSE
        CALL dbcsr_dist_bin (row_dist_b, SIZE(sizes_k), npdims(1),&
-            sizes_k, error=dbcsr_error)
+            sizes_k)
        CALL dbcsr_distribution_new (dist_b, mp_env, row_dist_b, col_dist_c)
        CALL dbcsr_make_random_matrix (matrix_b, sizes_k, sizes_n, "Matrix B",&
             REAL(sparsities(2), real_8),&
-            mp_group, data_type=data_type, dist=dist_b, &
-            error=dbcsr_error)
+            mp_group, data_type=data_type, dist=dist_b)
        DEALLOCATE(row_dist_b)
     ENDIF
     CALL dbcsr_mp_release (mp_env)
@@ -260,28 +253,26 @@ CONTAINS
             io_unit = io_unit, always_checksum=always_checksum,&
             retain_sparsity=retain_sparsity)
     CASE(dbcsr_test_arnoldi)
-       CALL test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, dbcsr_error)
+       CALL test_arnoldi(matrix_a,matrix_b, io_unit, n_loops)
     CASE(dbcsr_test_binary_io)
-       CALL test_binary_io(matrix_a,io_unit,dbcsr_error)
+       CALL test_binary_io(matrix_a,io_unit)
     END SELECT
 
     CALL dbcsr_release (matrix_a)
     CALL dbcsr_release (matrix_b)
     CALL dbcsr_release (matrix_c)
     CALL mp_comm_free(cart_group)
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_run_tests
 
 ! *****************************************************************************
 !> \brief dumps and retrieves a dbcsr matrix, and checks a checksum
 !> \param matrix_a matrix to be written
 !> \param io_unit unit for status updates
-!> \param dbcsr_error ...
 ! *****************************************************************************
-  SUBROUTINE test_binary_io(matrix_a, io_unit,dbcsr_error)
+  SUBROUTINE test_binary_io(matrix_a, io_unit)
     TYPE(dbcsr_obj)                          :: matrix_a
     INTEGER                                  :: io_unit
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_binary_io', &
       routineP = moduleN//':'//routineN
@@ -292,17 +283,17 @@ CONTAINS
 
     file_name="test_dbcsr_binary_io.dat"
 
-    pre=dbcsr_checksum (matrix_a, pos=.TRUE., error=dbcsr_error)
+    pre=dbcsr_checksum (matrix_a, pos=.TRUE.)
 
-    CALL dbcsr_binary_write(matrix_a, file_name, dbcsr_error)
+    CALL dbcsr_binary_write(matrix_a, file_name)
 
     ! needs a new matrix, reading into matrix_a does not work
     CALL dbcsr_init(matrix_a_read)
     CALL dbcsr_binary_read(file_name, distribution=dbcsr_distribution(matrix_a),&
-                                      matrix_new=matrix_a_read, error=dbcsr_error)
+                                      matrix_new=matrix_a_read)
 
-    post=dbcsr_checksum (matrix_a_read, pos=.TRUE., error=dbcsr_error)
-    CALL dbcsr_add(matrix_a_read,matrix_a,-1.0_dp,1.0_dp,error=dbcsr_error)
+    post=dbcsr_checksum (matrix_a_read, pos=.TRUE.)
+    CALL dbcsr_add(matrix_a_read,matrix_a,-1.0_dp,1.0_dp)
     norm=dbcsr_frobenius_norm(matrix_a_read)
     IF (io_unit>0) THEN
       WRITE(io_unit,*) "checksums",pre,post
@@ -311,7 +302,7 @@ CONTAINS
 
     CALL dbcsr_assert (norm==0.0_dp, dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
-         "bug in binary io",__LINE__,dbcsr_error)
+         "bug in binary io",__LINE__)
 
     CALL dbcsr_release(matrix_a_read)
 
@@ -324,12 +315,10 @@ CONTAINS
 !> \param matrix_b ...
 !> \param io_unit ...
 !> \param n_loops ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops, error)
+  SUBROUTINE test_arnoldi(matrix_a,matrix_b, io_unit, n_loops)
     TYPE(dbcsr_obj), TARGET                  :: matrix_a, matrix_b
     INTEGER                                  :: io_unit, n_loops
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_arnoldi', &
       routineP = moduleN//':'//routineN
@@ -338,7 +327,6 @@ CONTAINS
     INTEGER                                  :: i
     REAL(kind=real_8)                        :: t1, t2
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
       DIMENSION(:)                           :: matrix_p
 
@@ -347,8 +335,8 @@ CONTAINS
        ALLOCATE(matrix_p(2))
        matrix_p(1)%matrix=>matrix_a
        matrix_p(2)%matrix=>matrix_b
-       CALL setup_arnoldi_data(arnoldi_data,matrix_p,30,1.0E-14_dp,1,2,0,.FALSE.,.FALSE.,error)
-       CALL dbcsr_arnoldi_ev(matrix_p, arnoldi_data, dbcsr_error)
+       CALL setup_arnoldi_data(arnoldi_data,matrix_p,30,1.0E-14_dp,1,2,0,.FALSE.,.FALSE.)
+       CALL dbcsr_arnoldi_ev(matrix_p, arnoldi_data)
        max_eV=get_selected_ritz_val(arnoldi_data,2)
        min_eV=get_selected_ritz_val(arnoldi_data,1)
        CALL deallocate_arnoldi_data(arnoldi_data)
@@ -416,16 +404,15 @@ CONTAINS
     LOGICAL                                  :: i_am_alive
     REAL(kind=real_8)                        :: cs, cs_pos, flops_all, t1, t2
     TYPE(dbcsr_distribution_obj)             :: dist_a, dist_b, dist_c
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_mp_obj)                       :: mp_env
     TYPE(dbcsr_obj)                          :: m_a, m_b, m_c, m_c_reserve
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=dbcsr_error)
+    CALL dbcsr_error_set (routineN, error_handle)
     CALL dbcsr_assert (SIZE(group_sizes, 2), "EQ", 2, dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
-         "second dimension of group_sizes must be 2",__LINE__,dbcsr_error)
+         "second dimension of group_sizes must be 2",__LINE__)
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)
     CALL dbcsr_init (m_c)
@@ -437,15 +424,13 @@ CONTAINS
        group = dbcsr_mp_group (dbcsr_distribution_mp (&
                    dbcsr_distribution (matrix_c)))
        IF (numnodes .EQ. 0) THEN
-          CALL dbcsr_mp_make_env (mp_env, cart_group, group, nprocs=MAXVAL(npdims),&
-               error=dbcsr_error)
+          CALL dbcsr_mp_make_env (mp_env, cart_group, group, nprocs=MAXVAL(npdims))
        ELSE
-          CALL dbcsr_mp_make_env (mp_env, cart_group, group, pgrid_dims=npdims,&
-               error=dbcsr_error)
+          CALL dbcsr_mp_make_env (mp_env, cart_group, group, pgrid_dims=npdims)
        ENDIF
        CALL dbcsr_assert (numnodes, "GE", 0, dbcsr_fatal_level,&
             dbcsr_wrong_args_error, routineN,&
-            "Cartesian sides must be greater or equal to 0",__LINE__,dbcsr_error)
+            "Cartesian sides must be greater or equal to 0",__LINE__)
        i_am_alive = dbcsr_mp_active (mp_env)
        alive: IF (i_am_alive) THEN
           npdims(1) = dbcsr_mp_nprows (mp_env)
@@ -455,22 +440,22 @@ CONTAINS
           ! Row & column distributions
           CALL dbcsr_dist_bin (row_dist_a,&
                dbcsr_nblkrows_total (matrix_a), npdims(1),&
-               dbcsr_row_block_sizes(matrix_a), error=dbcsr_error)
+               dbcsr_row_block_sizes(matrix_a))
           CALL dbcsr_dist_bin (col_dist_a,&
                dbcsr_nblkcols_total (matrix_a), npdims(2),&
-               dbcsr_col_block_sizes(matrix_a), error=dbcsr_error)
+               dbcsr_col_block_sizes(matrix_a))
           CALL dbcsr_dist_bin (row_dist_b,&
                dbcsr_nblkrows_total (matrix_b), npdims(1),&
-               dbcsr_row_block_sizes(matrix_b), error=dbcsr_error)
+               dbcsr_row_block_sizes(matrix_b))
           CALL dbcsr_dist_bin (col_dist_b,&
                dbcsr_nblkcols_total (matrix_b), npdims(2),&
-               dbcsr_col_block_sizes(matrix_b), error=dbcsr_error)
+               dbcsr_col_block_sizes(matrix_b))
           CALL dbcsr_dist_bin (row_dist_c,&
                dbcsr_nblkrows_total (matrix_c), npdims(1),&
-               dbcsr_row_block_sizes(matrix_c), error=dbcsr_error)
+               dbcsr_row_block_sizes(matrix_c))
           CALL dbcsr_dist_bin (col_dist_c,&
                dbcsr_nblkcols_total (matrix_c), npdims(2),&
-               dbcsr_col_block_sizes(matrix_c), error=dbcsr_error)
+               dbcsr_col_block_sizes(matrix_c))
           CALL dbcsr_distribution_new (dist_a,&
                mp_env, row_dist_a, col_dist_a, reuse_arrays=.TRUE.)
           CALL dbcsr_distribution_new (dist_b,&
@@ -483,35 +468,32 @@ CONTAINS
                dist_a, dbcsr_type_no_symmetry,&
                dbcsr_row_block_sizes (matrix_a),&
                dbcsr_col_block_sizes (matrix_a),&
-               data_type=dbcsr_get_data_type (matrix_a),&
-               error=dbcsr_error)
+               data_type=dbcsr_get_data_type (matrix_a))
           CALL dbcsr_distribution_release (dist_a)
-          CALL dbcsr_redistribute (matrix_a, m_a, error=dbcsr_error)
+          CALL dbcsr_redistribute (matrix_a, m_a)
           ! B
           CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
                dist_b, dbcsr_type_no_symmetry,&
                dbcsr_row_block_sizes (matrix_b),&
                dbcsr_col_block_sizes (matrix_b),&
-               data_type=dbcsr_get_data_type (matrix_b),&
-               error=dbcsr_error)
+               data_type=dbcsr_get_data_type (matrix_b))
           CALL dbcsr_distribution_release (dist_b)
-          CALL dbcsr_redistribute (matrix_b, m_b, error=dbcsr_error)
+          CALL dbcsr_redistribute (matrix_b, m_b)
           ! C
           CALL dbcsr_create (m_c, "Test for "//TRIM(dbcsr_name (matrix_c)),&
                dist_c, dbcsr_type_no_symmetry,&
                dbcsr_row_block_sizes (matrix_c),&
                dbcsr_col_block_sizes (matrix_c),&
-               data_type=dbcsr_get_data_type (matrix_c),&
-               error=dbcsr_error)
+               data_type=dbcsr_get_data_type (matrix_c))
           CALL dbcsr_distribution_release (dist_c)
-          CALL dbcsr_redistribute (matrix_c, m_c, error=dbcsr_error)
+          CALL dbcsr_redistribute (matrix_c, m_c)
           CALL dbcsr_init(m_c_reserve)
-          CALL dbcsr_copy(m_c_reserve,m_c,error=dbcsr_error)
+          CALL dbcsr_copy(m_c_reserve,m_c)
           ! Perform multiply
        loops: DO loop_iter = 1, n_loops
              CALL dbcsr_release (m_c)
              CALL dbcsr_init(m_c)
-             CALL dbcsr_copy(m_c,m_c_reserve,error=dbcsr_error)
+             CALL dbcsr_copy(m_c,m_c_reserve)
              CALL mp_sync (group)
              t1 = -m_walltime()
              IF (PRESENT (limits)) THEN
@@ -524,8 +506,7 @@ CONTAINS
                         last_column = limits(4),&
                         first_k = limits(5),&
                         last_k = limits(6),&
-                        retain_sparsity=retain_sparsity, flop=flop,&
-                        error=dbcsr_error)
+                        retain_sparsity=retain_sparsity, flop=flop)
                 ELSE
                    CALL dbcsr_multiply (transa, transb, alpha,&
                         m_a, m_b, beta, m_c,&
@@ -536,21 +517,18 @@ CONTAINS
                         first_k = limits(5),&
                         last_k = limits(6),&
                         retain_sparsity=retain_sparsity, flop=flop,&
-                        filter_eps = eps,&
-                        error=dbcsr_error)
+                        filter_eps = eps)
                 ENDIF
              ELSE
                 IF (eps .LE. -0.0_dp) THEN
                    CALL dbcsr_multiply (transa, transb, alpha,&
                         m_a, m_b, beta, m_c,&
-                        retain_sparsity=retain_sparsity, flop=flop,&
-                        error=dbcsr_error)
+                        retain_sparsity=retain_sparsity, flop=flop)
                 ELSE
                    CALL dbcsr_multiply (transa, transb, alpha,&
                         m_a, m_b, beta, m_c,&
                         retain_sparsity=retain_sparsity, flop=flop,&
-                        filter_eps = eps,&
-                        error=dbcsr_error)
+                        filter_eps = eps)
                 ENDIF
              ENDIF
              t1 = t1 + m_walltime()
@@ -567,8 +545,8 @@ CONTAINS
                 CALL m_flush(io_unit)
              ENDIF
              IF (loop_iter .EQ. n_loops .OR. always_checksum) THEN
-                cs = dbcsr_checksum (m_c, error=dbcsr_error)
-                cs_pos = dbcsr_checksum (m_c, pos=.TRUE., error=dbcsr_error)
+                cs = dbcsr_checksum (m_c)
+                cs_pos = dbcsr_checksum (m_c, pos=.TRUE.)
                 IF (io_unit>0) THEN
                    WRITE(io_unit,*) "Final checksums",cs ,cs_pos
                 ENDIF
@@ -583,7 +561,7 @@ CONTAINS
        ENDIF alive
        CALL mp_comm_free(cart_group)
     ENDDO p_sizes
-    CALL dbcsr_error_stop (error_handle, error=dbcsr_error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE test_multiplies_multiproc
 
 ! *****************************************************************************
@@ -593,17 +571,15 @@ CONTAINS
 !> \param[in] mp_group     MPI group
 !> \param[in] nprocs       (optional) Number of processes
 !> \param[in] pgrid_dims   (optional) Dimensions of MPI group
-!> \param[in,out] error    error
 ! *****************************************************************************
   SUBROUTINE dbcsr_mp_make_env (mp_env, cart_group, mp_group, &
-       nprocs, pgrid_dims, error)
+       nprocs, pgrid_dims)
     TYPE(dbcsr_mp_obj), INTENT(OUT)          :: mp_env
     INTEGER, INTENT(OUT)                     :: cart_group
     INTEGER, INTENT(IN)                      :: mp_group
     INTEGER, INTENT(IN), OPTIONAL            :: nprocs
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: pgrid_dims
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mp_make_env', &
       routineP = moduleN//':'//routineN
@@ -616,12 +592,12 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_error_set (routineN, error_handle)
     CALL mp_environ (numnodes, mynode, mp_group)
     IF (PRESENT (nprocs)) THEN
        CALL dbcsr_assert (nprocs, "LE", numnodes,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Can not grow processes.", __LINE__, error=error)
+            "Can not grow processes.", __LINE__)
        numnodes = nprocs
     ENDIF
     !
@@ -647,7 +623,7 @@ CONTAINS
     ELSE
        CALL dbcsr_mp_init (mp_env)
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_mp_make_env
 
 

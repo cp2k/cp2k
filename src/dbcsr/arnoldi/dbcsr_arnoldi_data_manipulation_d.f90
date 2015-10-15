@@ -58,14 +58,12 @@
 !> \param ind ...
 !> \param matrix ...
 !> \param vector ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE get_selected_ritz_vector_d(arnoldi_data,ind,matrix,vector,error)
+  SUBROUTINE get_selected_ritz_vector_d(arnoldi_data,ind,matrix,vector)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
     INTEGER                                  :: ind
     TYPE(dbcsr_obj)                          :: matrix
     TYPE(dbcsr_obj)                          :: vector
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_selected_ritz_vector_d', &
       routineP = moduleN//':'//routineN
@@ -87,7 +85,7 @@
     ritz_v=CMPLX(0.0,0.0,real_8)
 
     IF(dbcsr_is_initialized (vector))CALL dbcsr_release(vector)
-    CALL create_col_vec_from_matrix(vector,matrix,1,error)
+    CALL create_col_vec_from_matrix(vector,matrix,1)
     IF(control%local_comp)THEN
        DO i=1,sspace_size
           ritz_v(:)=ritz_v(:)+ar_data%local_history(:,i)*ar_data%revec(i,myind)

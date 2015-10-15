@@ -24,7 +24,6 @@ MODULE dbcsr_test_add
                                              dbcsr_caller_error,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_io,                        ONLY: dbcsr_print
@@ -84,11 +83,10 @@ CONTAINS
 !> \param beta ...
 !> \param limits ...
 !> \param retain_sparsity ...
-!> \param[in,out] error         cp2k error
 ! *****************************************************************************
   SUBROUTINE dbcsr_test_adds(test_name, mp_group, mp_env, npdims, io_unit, &
        matrix_sizes, bs_m, bs_n, sparsities, &
-       alpha, beta, limits, retain_sparsity, error)
+       alpha, beta, limits, retain_sparsity)
     CHARACTER(len=*), INTENT(IN)             :: test_name
     INTEGER, INTENT(IN)                      :: mp_group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -99,7 +97,6 @@ CONTAINS
     COMPLEX(real_8)                          :: alpha, beta
     INTEGER, DIMENSION(4), INTENT(in)        :: limits
     LOGICAL, INTENT(in)                      :: retain_sparsity
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_test_adds', &
       routineP = moduleN//':'//routineN
@@ -124,7 +121,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     NULLIFY(my_sizes_m, my_sizes_n, sizes_m, sizes_n)
 
     !
@@ -194,11 +191,11 @@ CONTAINS
           ! Create the undistributed matrices.
           CALL dbcsr_make_random_matrix (matrix_a, my_sizes_m, my_sizes_n, "Matrix A",&
                sparsities(1),&
-               mp_group, data_type=TYPE, symmetry=a_symm, error=error)
+               mp_group, data_type=TYPE, symmetry=a_symm)
 
           CALL dbcsr_make_random_matrix (matrix_b, my_sizes_m, my_sizes_n, "Matrix B",&
                sparsities(2),&
-               mp_group, data_type=TYPE, symmetry=b_symm, error=error)
+               mp_group, data_type=TYPE, symmetry=b_symm)
 
           DEALLOCATE (sizes_m, sizes_n)
 
@@ -212,12 +209,12 @@ CONTAINS
           CALL dbcsr_data_new ( data_a, dbcsr_type_1d_to_2d(TYPE), data_size=a_r, data_size2=a_c )
           CALL dbcsr_data_new ( data_b, dbcsr_type_1d_to_2d(TYPE), data_size=b_r, data_size2=b_c )
           CALL dbcsr_data_new ( data_a_dbcsr, dbcsr_type_1d_to_2d(TYPE), data_size=a_r, data_size2=a_c )
-          CALL dbcsr_to_dense_local ( matrix_a, data_a, error=error )
-          CALL dbcsr_to_dense_local ( matrix_b, data_b, error=error )
+          CALL dbcsr_to_dense_local ( matrix_a, data_a)
+          CALL dbcsr_to_dense_local ( matrix_b, data_b)
 
           IF(.FALSE.) THEN
-             CALL dbcsr_print(matrix_a, matlab_format=.TRUE., variable_name='a0', error=error)
-             CALL dbcsr_print(matrix_b, matlab_format=.TRUE., variable_name='b0', error=error)
+             CALL dbcsr_print(matrix_a, matlab_format=.TRUE., variable_name='a0')
+             CALL dbcsr_print(matrix_b, matlab_format=.TRUE., variable_name='b0')
           ENDIF
 
           !
@@ -226,8 +223,7 @@ CONTAINS
                matrix_a, matrix_b, &
                data_a, data_b, data_a_dbcsr, &
                alpha_obj, beta_obj,&
-               limits, retain_sparsity, &
-               error=error)
+               limits, retain_sparsity)
           !
           ! cleanup
           CALL dbcsr_release (matrix_a)
@@ -240,7 +236,7 @@ CONTAINS
 
     ENDDO !isymm
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE dbcsr_test_adds
 
@@ -260,13 +256,11 @@ CONTAINS
 !> \param beta ...
 !> \param limits ...
 !> \param retain_sparsity ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE test_add (test_name, mp_group, mp_env, npdims, io_unit,&
        matrix_a, matrix_b, &
        data_a, data_b, data_a_dbcsr, &
-       alpha, beta, limits, retain_sparsity,&
-       error)
+       alpha, beta, limits, retain_sparsity)
     CHARACTER(len=*), INTENT(IN)             :: test_name
     INTEGER, INTENT(IN)                      :: mp_group
     TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
@@ -277,7 +271,6 @@ CONTAINS
     TYPE(dbcsr_scalar_type), INTENT(in)      :: alpha, beta
     INTEGER, DIMENSION(4), INTENT(in)        :: limits
     LOGICAL, INTENT(in)                      :: retain_sparsity
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'test_add', &
       routineP = moduleN//':'//routineN
@@ -292,7 +285,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_init (m_a)
     CALL dbcsr_init (m_b)
@@ -312,23 +305,21 @@ CONTAINS
          dist_a, dbcsr_get_matrix_type(matrix_a),&
          dbcsr_row_block_sizes (matrix_a),&
          dbcsr_col_block_sizes (matrix_a),&
-         data_type=dbcsr_get_data_type (matrix_a),&
-         error=error)
+         data_type=dbcsr_get_data_type (matrix_a))
     CALL dbcsr_distribution_release (dist_a)
-    CALL dbcsr_redistribute (matrix_a, m_a, error=error)
+    CALL dbcsr_redistribute (matrix_a, m_a)
     ! B
     CALL dbcsr_create (m_b, "Test for "//TRIM(dbcsr_name (matrix_b)),&
          dist_b, dbcsr_get_matrix_type(matrix_b),&
          dbcsr_row_block_sizes (matrix_b),&
          dbcsr_col_block_sizes (matrix_b),&
-         data_type=dbcsr_get_data_type (matrix_b),&
-         error=error)
+         data_type=dbcsr_get_data_type (matrix_b))
     CALL dbcsr_distribution_release (dist_b)
-    CALL dbcsr_redistribute (matrix_b, m_b, error=error)
+    CALL dbcsr_redistribute (matrix_b, m_b)
 
     IF(.FALSE.) THEN
-       CALL dbcsr_print(m_a, matlab_format=.FALSE., variable_name='a_in_', error=error)
-       CALL dbcsr_print(m_b, matlab_format=.FALSE., variable_name='b_', error=error)
+       CALL dbcsr_print(m_a, matlab_format=.FALSE., variable_name='a_in_')
+       CALL dbcsr_print(m_b, matlab_format=.FALSE., variable_name='b_')
     ENDIF
 
     occ_a_in = dbcsr_get_occupation(m_a)
@@ -338,23 +329,23 @@ CONTAINS
     ! Perform add
     IF (ALL (limits==0)) THEN
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, " limits shouldnt be 0 ",__LINE__,error)
+            routineN, " limits shouldnt be 0 ",__LINE__)
     ELSE
-       CALL  dbcsr_add(m_a, m_b, alpha, beta, error=error)
+       CALL  dbcsr_add(m_a, m_b, alpha, beta)
     ENDIF
 
     occ_a_out = dbcsr_get_occupation(m_a)
 
     IF(.FALSE.) THEN
        PRINT*,'retain_sparsity',retain_sparsity,occ_a_in,occ_b,occ_a_out
-       CALL dbcsr_print(m_a, matlab_format=.TRUE., variable_name='a_out_', error=error)
+       CALL dbcsr_print(m_a, matlab_format=.TRUE., variable_name='a_out_')
     ENDIF
 
-    CALL dbcsr_replicate_all( m_a, error=error )
-    CALL dbcsr_to_dense_local( m_a, data_a_dbcsr, error=error)
+    CALL dbcsr_replicate_all( m_a)
+    CALL dbcsr_to_dense_local( m_a, data_a_dbcsr)
     CALL dbcsr_check_add(test_name, m_a, data_a_dbcsr, data_a, data_b, &
          alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
-         success, error=error )
+         success)
 
     r = dbcsr_nfullrows_total( m_a )
     c = dbcsr_nfullcols_total( m_a )
@@ -377,14 +368,14 @@ CONTAINS
                 ") ................. FAILED !"
           WRITE(io_unit, *) REPEAT("*",70)
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-               routineN, 'Test failed', __LINE__, error)
+               routineN, 'Test failed', __LINE__)
        ENDIF
     ENDIF
 
     CALL dbcsr_release (m_a)
     CALL dbcsr_release (m_b)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE test_add
 
@@ -403,12 +394,10 @@ CONTAINS
 !> \param[in] io_unit                   io unit for printing
 !> \param mp_group ...
 !> \param[out] success                  if passed the check success=T
-!> \param[inout] error                  dbcsr error
-!>
 ! *****************************************************************************
   SUBROUTINE dbcsr_check_add(test_name, matrix_a, dense_a_dbcsr, dense_a, dense_b,&
        alpha, beta, limits, retain_sparsity, io_unit, mp_group, &
-       success, error)
+       success)
     CHARACTER(len=*), INTENT(IN)             :: test_name
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a
     TYPE(dbcsr_data_obj), INTENT(inout)      :: dense_a_dbcsr, dense_a, &
@@ -418,7 +407,6 @@ CONTAINS
     LOGICAL, INTENT(in)                      :: retain_sparsity
     INTEGER, INTENT(IN)                      :: io_unit, mp_group
     LOGICAL, INTENT(out)                     :: success
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_add', &
       routineP = moduleN//':'//routineN
@@ -437,13 +425,13 @@ CONTAINS
     REAL(real_8), ALLOCATABLE, DIMENSION(:)  :: work
     REAL(real_8), EXTERNAL                   :: dlamch, dlange, zlange
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL mp_environ (numnodes, mynode, mp_group)
 
-    CALL dbcsr_data_get_sizes (dense_a, row_size, col_size, valid, error)
+    CALL dbcsr_data_get_sizes (dense_a, row_size, col_size, valid)
     CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__,error)
+         routineN, "dense matrix not valid",__LINE__)
     !
     !
     m = limits(2) - limits(1) + 1
@@ -460,7 +448,7 @@ CONTAINS
     CASE (dbcsr_type_real_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
+            routineN, "allocattion problem",__LINE__)
        eps          = dlamch('eps')
        a_norm_in    = dlange(norm, row_size, col_size, dense_a%d%r2_dp(1,1), ld, work)
        b_norm       = dlange(norm, row_size, col_size, dense_b%d%r2_dp(1,1), ld, work)
@@ -470,7 +458,7 @@ CONTAINS
                                                    beta%r_dp * dense_b%d%r2_dp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)
+       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a)
        !
        a_norm_out   = dlange(norm, row_size, col_size, dense_a%d%r2_dp(1,1), ld, work)
        !
@@ -483,7 +471,7 @@ CONTAINS
     CASE (dbcsr_type_real_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
+            routineN, "allocattion problem",__LINE__)
        eps          = slamch('eps')
        a_norm_in    = slange(norm, row_size, col_size, dense_a%d%r2_sp(1,1), ld, work_sp)
        b_norm       = slange(norm, row_size, col_size, dense_b%d%r2_sp(1,1), ld, work_sp)
@@ -493,7 +481,7 @@ CONTAINS
                                                    beta%r_sp * dense_b%d%r2_sp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)
+       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a)
        !
        a_norm_out   = slange(norm, row_size, col_size, dense_a%d%r2_sp(1,1), ld, work_sp)
        !
@@ -506,7 +494,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
+            routineN, "allocattion problem",__LINE__)
        eps          = dlamch('eps')
        a_norm_in    = zlange(norm, row_size, col_size, dense_a%d%c2_dp(1,1), ld, work)
        b_norm       = zlange(norm, row_size, col_size, dense_b%d%c2_dp(1,1), ld, work)
@@ -516,7 +504,7 @@ CONTAINS
                                                    beta%c_dp * dense_b%d%c2_dp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)
+       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a)
        !
        a_norm_out   = zlange(norm, row_size, col_size, dense_a%d%c2_dp(1,1), ld, work)
        !
@@ -529,7 +517,7 @@ CONTAINS
     CASE (dbcsr_type_complex_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
        CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__,error)
+            routineN, "allocattion problem",__LINE__)
        eps          = REAL(slamch('eps'),real_8)
        a_norm_in    = clange(norm, row_size, col_size, dense_a%d%c2_sp(1,1), ld, work_sp)
        b_norm       = clange(norm, row_size, col_size, dense_b%d%c2_sp(1,1), ld, work_sp)
@@ -555,7 +543,7 @@ CONTAINS
                                                    beta%c_sp * dense_b%d%c2_sp(row:row+m-1,col:col+n-1)
        !
        ! impose the sparsity if needed
-       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a, error=error)
+       IF(retain_sparsity) CALL dbcsr_impose_sparsity(matrix_a, dense_a)
        !
 
        IF(.FALSE.) THEN
@@ -584,7 +572,7 @@ CONTAINS
        DEALLOCATE(work_sp)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect or 1-D data type", __LINE__, error )
+            routineN, "Incorrect or 1-D data type", __LINE__)
     END SELECT
 
     IF(mynode.EQ.0) THEN
@@ -617,7 +605,7 @@ CONTAINS
 
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE dbcsr_check_add
 

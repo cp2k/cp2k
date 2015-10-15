@@ -24,7 +24,6 @@ MODULE dbcsr_io
                                              dbcsr_caller_error,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
-                                             dbcsr_error_type,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_warning_level
@@ -97,14 +96,12 @@ CONTAINS
 !> \param matlab_format ...
 !> \param variable_name ...
 !> \param unit_nr ...
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_print(matrix, nodata, matlab_format, variable_name, unit_nr, error)
+  SUBROUTINE dbcsr_print(matrix, nodata, matlab_format, variable_name, unit_nr)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     LOGICAL, INTENT(IN), OPTIONAL            :: nodata, matlab_format
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: variable_name
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print', &
       routineP = moduleN//':'//routineN
@@ -127,10 +124,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Can not print invalid matrix.",__LINE__,error)
+         routineN, "Can not print invalid matrix.",__LINE__)
 
     iunit=default_output_unit
     IF (PRESENT(unit_nr)) iunit=unit_nr
@@ -169,7 +166,7 @@ CONTAINS
        IF (matrix%m%list_indexing) THEN
           CALL dbcsr_assert(SIZE(matrix%m%coo_l).EQ.3*matrix%m%nblks,&
                dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-               "Wrong list", __LINE__, error)
+               "Wrong list", __LINE__)
           IF (matrix%m%local_indexing) THEN
              local_rows => array_data (matrix%m%local_rows)
              local_cols => array_data (matrix%m%local_cols)
@@ -287,7 +284,7 @@ CONTAINS
           ENDDO
        ENDDO
     ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_print
 
 
@@ -707,19 +704,17 @@ CONTAINS
 !> \param[in] matrix    DBCSR matrix
 !> \param[in] filepath  path to the file
 !>
-!> \param error ...
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
 !> \author Hossein Bani-Hashemian
 !> \version DBCSRv_1.0
 ! *****************************************************************************
-  SUBROUTINE dbcsr_binary_write(matrix, filepath, error)
+  SUBROUTINE dbcsr_binary_write(matrix, filepath)
 
     IMPLICIT NONE
    
     TYPE(dbcsr_obj), INTENT(IN)           :: matrix
     CHARACTER (len=*), INTENT(IN)         :: filepath
-    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_binary_write', &
                                    routineP = moduleN//':'//routineN
@@ -753,12 +748,12 @@ CONTAINS
     INTEGER(kind=file_offset), PARAMETER                 :: BOF = 0
     INTEGER, PARAMETER          :: char_count = version_len+default_string_length+1 !version, matrix_name, matrix_type
 
-   CALL dbcsr_error_set(routineN, error_handler, error)
+   CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert (default_string_length==80,&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Changing the default string length affects the format of the writen matrix. Version needs to be adjusted",&
-         __LINE__,error)
+         __LINE__)
 
     nblkrows_total = dbcsr_nblkrows_total(matrix)
     nblkcols_total = dbcsr_nblkcols_total(matrix)
@@ -857,7 +852,7 @@ CONTAINS
     DEALLOCATE(subh2_disps,subh2_offsets,subh3_disps,subh3_offsets)
     DEALLOCATE(bdata_disps,bdata_offsets)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
     
     CONTAINS
 ! *****************************************************************************
@@ -887,14 +882,13 @@ CONTAINS
 !> \param groupid ...
 !> \param[out] matrix_new          DBCSR matrix
 !>
-!> \param error ...
 !> \param[in](optional) groupid    message passing environment identifier
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
 !> \author Hossein Bani-Hashemian
 !> \version DBCSRv_1.0
 ! *****************************************************************************
-  SUBROUTINE dbcsr_binary_read(filepath, distribution, groupid, matrix_new, error)
+  SUBROUTINE dbcsr_binary_read(filepath, distribution, groupid, matrix_new)
 
     IMPLICIT NONE
 
@@ -902,7 +896,6 @@ CONTAINS
     TYPE(dbcsr_distribution_obj), INTENT(IN)     :: distribution
     INTEGER, INTENT(IN), OPTIONAL                :: groupid
     TYPE(dbcsr_obj), INTENT(INOUT)               :: matrix_new
-    TYPE(dbcsr_error_type), INTENT(INOUT)        :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_binary_read', &
                                    routineP = moduleN//':'//routineN
@@ -950,7 +943,7 @@ CONTAINS
                                                localinfo_offset, blockdata_offset, sum_nblks, subh3_length, data_area_size
     INTEGER, PARAMETER                      :: char_count = 1+version_len+default_string_length
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
 
     IF (PRESENT(groupid)) THEN
@@ -969,7 +962,7 @@ CONTAINS
     CALL dbcsr_assert (version==version_v_1_0,&
          dbcsr_warning_level, dbcsr_caller_error,&
          routineN, "Trying to read an unknown version of the matrix data file. Good luck!",&
-         __LINE__,error)
+         __LINE__)
 
     CALL mp_file_read_at_all(thefile, BOF+version_len*mpi_character_size, matrix_name_v_1_0) 
     matrix_name=matrix_name_v_1_0
@@ -1015,7 +1008,7 @@ CONTAINS
        val_data(1,i) = nblocks  
        CALL dbcsr_assert (data_area_size < HUGE(val_data(2,i)),&
             dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Data area too large, fix code.",__LINE__,error)
+            routineN, "Data area too large, fix code.",__LINE__)
        val_data(2,i) = INT(data_area_size)
        val_data(3,i) = worker_id+(i-1)*group_list_size+1   ! order 
        ! order = indices of an array of length size_of_pgrid to be accessed by the current node 
@@ -1190,8 +1183,8 @@ CONTAINS
 
     CALL dbcsr_create (matrix_new, matrix_name, distribution, matrix_type, &
                        row_blk_size, col_blk_size, nze=darea_size, & 
-                       data_type=data_type, error=error)
-    CALL dbcsr_datablock_redistribute (dblk, row_p, col_i, blk_p, proc_nblks, proc_darea_sizes, matrix_new, error)
+                       data_type=data_type)
+    CALL dbcsr_datablock_redistribute (dblk, row_p, col_i, blk_p, proc_nblks, proc_darea_sizes, matrix_new)
 
     DEALLOCATE(subh2_offsets, subh3_offsets, bdata_offsets)
     DEALLOCATE(subh3_disps, bdata_disps)
@@ -1205,7 +1198,7 @@ CONTAINS
     CALL dbcsr_data_clear_pointer (dblk) 
     DEALLOCATE (dblk%d)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
     CONTAINS
 ! *****************************************************************************
 !> \brief ...
@@ -1232,12 +1225,10 @@ CONTAINS
 !> \brief Prints the sum of the elements for each block
 !> \param[in] matrix          matrix
 !> \param unit_nr ...
-!> \param[in,out] error       cp2k error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_print_block_sum(matrix, unit_nr, error)
+  SUBROUTINE dbcsr_print_block_sum(matrix, unit_nr)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(IN), OPTIONAL            :: unit_nr
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_print_block_sum', &
       routineP = moduleN//':'//routineN
@@ -1259,10 +1250,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL dbcsr_assert (dbcsr_valid_index (matrix),&
          dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Can not print invalid matrix.",__LINE__,error)
+         routineN, "Can not print invalid matrix.",__LINE__)
 
     iunit=default_output_unit
     IF (PRESENT(unit_nr)) iunit=unit_nr
@@ -1320,7 +1311,7 @@ CONTAINS
        ENDDO
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   
   END SUBROUTINE dbcsr_print_block_sum
 

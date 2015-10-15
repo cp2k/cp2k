@@ -66,14 +66,13 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                        :: l, u
-    type(dbcsr_error_type)         :: error
 
 !   ---------------------------------------------------------------------------
 
     ! The select_data_type argument is needed to make this function unique
     ! enough to use in the interface.
     IF (KIND(select_data_type) .NE. KIND(DATA))&
-       CALL dbcsr_abort(routineP,__LINE__,"compiler borken",error)
+       CALL dbcsr_abort(routineP,__LINE__,"compiler borken")
 
     IF (ASSOCIATED (area%d)) THEN
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN
@@ -84,10 +83,10 @@
           IF (debug_mod) THEN
              CALL dbcsr_assert (l .GE. LBOUND (area%d%[base1]_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (u .LE. UBOUND (area%d%[base1]_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
           ENDIF
           DATA => area%d%[base1]_[prec1](l:u)
        ELSE
@@ -117,7 +116,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                        :: l, u
-    type(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -129,10 +127,10 @@
           IF (debug_mod) THEN
              CALL dbcsr_assert (l .GE. LBOUND (area%d%[base1]_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (u .LE. UBOUND (area%d%[base1]_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
           ENDIF
           DATA => area%d%[base1]_[prec1](l:u)
        ELSE
@@ -162,7 +160,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(2)          :: l, u
-    type(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -174,16 +171,16 @@
           IF (debug_mod) THEN
              CALL dbcsr_assert (l(1) .GE. LBOUND (area%d%[base1]2_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (l(2) .GE. LBOUND (area%d%[base1]2_[prec1], 2),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (u(1) .LE. UBOUND (area%d%[base1]2_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (u(2) .LE. UBOUND (area%d%[base1]2_[prec1], 2),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
           ENDIF
           DATA => area%d%[base1]2_[prec1](l(1):u(1), l(2):u(2))
        ELSE
@@ -212,7 +209,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER                        :: l, u
-    type(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -224,10 +220,10 @@
           IF (debug_mod) THEN
              CALL dbcsr_assert (l, "GE", LBOUND (area%d%[base1]_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (u, "LE", UBOUND (area%d%[base1]_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
           ENDIF
           DATA => area%d%[base1]_[prec1](l:u)
        ELSE
@@ -255,7 +251,6 @@
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(2)          :: l, u
-    type(dbcsr_error_type)         :: error
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (area%d)) THEN
@@ -267,16 +262,16 @@
           IF (debug_mod) THEN
              CALL dbcsr_assert (l(1), "GE", LBOUND (area%d%[base1]2_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (l(2), "GE", LBOUND (area%d%[base1]2_[prec1], 2),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (u(1), "LE", UBOUND (area%d%[base1]2_[prec1], 1),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
              CALL dbcsr_assert (u(2), "LE", UBOUND (area%d%[base1]2_[prec1], 2),&
                   dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__,error)
+                  "Out of bounds",__LINE__)
           ENDIF
           DATA => area%d%[base1]2_[prec1](l(1):u(1), l(2):u(2))
        ELSE

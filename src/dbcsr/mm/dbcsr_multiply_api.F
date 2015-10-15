@@ -11,7 +11,6 @@
 MODULE dbcsr_multiply_api
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_type,&
                                              dbcsr_failure_level,&
                                              dbcsr_internal_error
   USE dbcsr_methods,                   ONLY: dbcsr_get_data_type
@@ -63,14 +62,13 @@ MODULE dbcsr_multiply_api
 !> \param last_k ...
 !> \param retain_sparsity ...
 !> \param filter_eps ...
-!> \param error ...
 !> \param flop ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_s(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, filter_eps,&
-       error, flop)
+       flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(KIND=real_4), INTENT(IN)            :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -81,7 +79,6 @@ MODULE dbcsr_multiply_api
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
@@ -90,7 +87,7 @@ MODULE dbcsr_multiply_api
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, &
          filter_eps=filter_eps,&
-         error=error, flop=flop)
+         flop=flop)
   END SUBROUTINE dbcsr_multiply_s
 
 
@@ -111,14 +108,13 @@ MODULE dbcsr_multiply_api
 !> \param last_k ...
 !> \param retain_sparsity ...
 !> \param filter_eps ...
-!> \param error ...
 !> \param flop ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_d(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, filter_eps,&
-       error, flop)
+       flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     REAL(KIND=real_8), INTENT(IN)            :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -129,7 +125,6 @@ MODULE dbcsr_multiply_api
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
@@ -145,7 +140,7 @@ MODULE dbcsr_multiply_api
             first_row, last_row, first_column, last_column, first_k, last_k,&
             retain_sparsity, &
             filter_eps=filter_eps,&
-            error=error, flop=flop)
+            flop=flop)
     ELSEIF(dbcsr_get_data_type(matrix_a) .EQ. dbcsr_type_real_8 .AND.&
            dbcsr_get_data_type(matrix_b) .EQ. dbcsr_type_real_8 .AND.&
            dbcsr_get_data_type(matrix_c) .EQ. dbcsr_type_real_8) THEN
@@ -154,10 +149,10 @@ MODULE dbcsr_multiply_api
             first_row, last_row, first_column, last_column, first_k, last_k,&
             retain_sparsity, &
             filter_eps=filter_eps,&
-            error=error, flop=flop)
+            flop=flop)
     ELSE
        CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_internal_error,&
-            routineP, "This combination of data types NYI",__LINE__, error)
+            routineP, "This combination of data types NYI",__LINE__)
     ENDIF
   END SUBROUTINE dbcsr_multiply_d
 
@@ -178,14 +173,13 @@ MODULE dbcsr_multiply_api
 !> \param last_k ...
 !> \param retain_sparsity ...
 !> \param filter_eps ...
-!> \param error ...
 !> \param flop ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_c(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, filter_eps,&
-       error, flop)
+       flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(KIND=real_4), INTENT(IN)         :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -196,7 +190,6 @@ MODULE dbcsr_multiply_api
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
@@ -205,7 +198,7 @@ MODULE dbcsr_multiply_api
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, &
          filter_eps=filter_eps,&
-         error=error, flop=flop)
+         flop=flop)
   END SUBROUTINE dbcsr_multiply_c
 
 
@@ -226,14 +219,13 @@ MODULE dbcsr_multiply_api
 !> \param last_k ...
 !> \param retain_sparsity ...
 !> \param filter_eps ...
-!> \param error ...
 !> \param flop ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_multiply_z(transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
        retain_sparsity, filter_eps,&
-       error, flop)
+       flop)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     COMPLEX(KIND=real_8), INTENT(IN)         :: alpha
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix_a, matrix_b
@@ -244,7 +236,6 @@ MODULE dbcsr_multiply_api
                                                 first_k, last_k
     LOGICAL, INTENT(IN), OPTIONAL            :: retain_sparsity
     REAL(KIND=real_8), INTENT(IN), OPTIONAL  :: filter_eps
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER(KIND=int_8), INTENT(OUT), &
       OPTIONAL                               :: flop
 
@@ -253,7 +244,7 @@ MODULE dbcsr_multiply_api
          first_row, last_row, first_column, last_column, first_k, last_k,&
          retain_sparsity, &
          filter_eps=filter_eps,&
-         error=error, flop=flop)
+         flop=flop)
   END SUBROUTINE dbcsr_multiply_z
 
 END MODULE dbcsr_multiply_api

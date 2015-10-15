@@ -27,10 +27,14 @@ MODULE dbcsr_csr_conversions
                                              dbcsr_distribution_mp,&
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_release
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -195,47 +199,45 @@ CONTAINS
 !> \param[in] nrows_local    local number of rows
 !> \param mp_group ...
 !> \param[in] data_type      data type of the CSR matrix (default real double prec.)
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
   SUBROUTINE csr_create_new(csr_mat, nrows_total, ncols_total, nze_total,&
-                            nze_local, nrows_local, mp_group, data_type, error) 
+                            nze_local, nrows_local, mp_group, data_type) 
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER, INTENT(IN)                      :: nrows_total, ncols_total
     INTEGER(KIND=int_8)                      :: nze_total
     INTEGER, INTENT(IN)                      :: nze_local, nrows_local, &
                                                 mp_group
     INTEGER, INTENT(IN), OPTIONAL            :: data_type
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_new', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(nrows_total, "GE", nrows_local,& 
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
       "local number of rows must not exceed total number of rows",&
-      __LINE__, error=error)
+      __LINE__)
 
     CALL dbcsr_assert(nze_total .GE. nze_local,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
       "local number of non-zero elements must not exceed total number of non-zero elements",&
-      __LINE__, error=error)
+      __LINE__)
 
     CALL dbcsr_assert(INT(nrows_total,kind=int_8)*INT(ncols_total,kind=int_8) .GE. nze_total,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN, &
       "Total number of non-zero elements must not exceed total matrix size",&
-      __LINE__, error=error)
+      __LINE__)
 
     CALL dbcsr_assert(nrows_local*ncols_total, "GE", nze_local,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN, &
       "Local number of non-zero elements must not exceed local matrix size",&
-      __LINE__, error=error)
+      __LINE__)
 
     csr_mat%ncols_total = ncols_total
     csr_mat%nrows_total = nrows_total
@@ -263,7 +265,7 @@ CONTAINS
         ALLOCATE(csr_mat%nzval_local%c_dp(nze_local))
       CASE DEFAULT
         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                          routineN, "Invalid matrix type",__LINE__,error)
+                          routineN, "Invalid matrix type",__LINE__)
     END SELECT
 
     csr_mat%mp_group = mp_group
@@ -272,7 +274,7 @@ CONTAINS
     csr_mat%has_mapping = .FALSE.
     csr_mat%has_indices = .FALSE.
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE csr_create_new
 
@@ -281,15 +283,13 @@ CONTAINS
 !>        an existing CSR matrix. Copies the indices but no actual matrix data.
 !> \param[out] matrix_b Target CSR matrix
 !> \param[int] matrix_a Source CSR matrix
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_create_template(matrix_b, matrix_a, error)
+  SUBROUTINE csr_create_template(matrix_b, matrix_a)
     TYPE(csr_type), INTENT(OUT)              :: matrix_b
     TYPE(csr_type), INTENT(IN)               :: matrix_a
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_template', &
       routineP = moduleN//':'//routineN
@@ -297,14 +297,14 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(csr_mapping_data)                   :: map
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Source CSR matrix must be created.",__LINE__, error)
+      "Source CSR matrix must be created.",__LINE__)
 
     CALL csr_create_new(matrix_b, matrix_a%nrows_total, matrix_a%ncols_total,&
       matrix_a%nze_total, matrix_a%nze_local, matrix_a%nrows_local,&
-      matrix_a%mp_group, matrix_a%nzval_local%data_type, error)
+      matrix_a%mp_group, matrix_a%nzval_local%data_type)
 
     matrix_b%mp_group = matrix_a%mp_group
     matrix_b%has_mapping = matrix_a%has_mapping
@@ -338,56 +338,54 @@ CONTAINS
       ENDIF
 
       CALL dbcsr_init(matrix_b%dbcsr_mapping%brd_mat)
-      CALL dbcsr_copy(matrix_b%dbcsr_mapping%brd_mat, map%brd_mat, error=error)
+      CALL dbcsr_copy(matrix_b%dbcsr_mapping%brd_mat, map%brd_mat)
 
     matrix_b%valid = .TRUE.
       
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_create_template
 
 ! *****************************************************************************
 !> \brief Copy a CSR matrix.
 !> \param[out] matrix_b Target CSR matrix
 !> \param[in] matrix_a Source CSR matrix
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_copy(matrix_b, matrix_a, error)
+  SUBROUTINE csr_copy(matrix_b, matrix_a)
     TYPE(csr_type), INTENT(OUT)              :: matrix_b
     TYPE(csr_type), INTENT(IN)               :: matrix_a
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_copy', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Source CSR matrix must be created.",__LINE__, error)
+      "Source CSR matrix must be created.",__LINE__)
     CALL dbcsr_assert(matrix_a%has_indices,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Source CSR matrix must have indices.",__LINE__, error)
+      "Source CSR matrix must have indices.",__LINE__)
 
     IF (.NOT. matrix_b%valid) THEN
-      CALL csr_create(matrix_b, matrix_a, error)
+      CALL csr_create(matrix_b, matrix_a)
     ENDIF
 
     CALL dbcsr_assert(matrix_b%nzval_local%data_type, "EQ",&
       matrix_a%nzval_local%data_type,dbcsr_fatal_level,dbcsr_wrong_args_error,&
-      routineN,"Matrices don't have the same datatype.",__LINE__, error)
+      routineN,"Matrices don't have the same datatype.",__LINE__)
 
     CALL dbcsr_assert(matrix_b%nze_local, "EQ",&
       matrix_a%nze_local,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Matrices don't have the same number of local non-zero elements.",__LINE__, error)
+      "Matrices don't have the same number of local non-zero elements.",__LINE__)
 
     CALL dbcsr_assert(matrix_b%nrows_local, "EQ", matrix_a%nrows_local,&
       dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Matrices don't have the same number of local rows.",__LINE__, error)
+      "Matrices don't have the same number of local rows.",__LINE__)
 
     IF (.NOT. matrix_b%has_indices) THEN
       matrix_b%rowptr_local = matrix_a%rowptr_local
@@ -406,7 +404,7 @@ CONTAINS
          matrix_b%nzval_local%c_dp = matrix_a%nzval_local%c_dp
      END SELECT
 
-  CALL dbcsr_error_stop(error_handler, error)
+  CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE csr_copy
 
@@ -415,45 +413,41 @@ CONTAINS
 !> row of a CSR matrix
 !> \param[in] csr_mat   CSR matrix
 !> \param[out] nzerow  number of non-zero elements in each row
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_create_nzerow(csr_mat, nzerow, error)
+  SUBROUTINE csr_create_nzerow(csr_mat, nzerow)
     TYPE(csr_type), INTENT(IN)               :: csr_mat
     INTEGER, DIMENSION(:), INTENT(INOUT), &
       POINTER                                :: nzerow
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_nzerow', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler, k
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "CSR matrix must be created.",__LINE__, error)
+      "CSR matrix must be created.",__LINE__)
 
     DO k=1,csr_mat%nrows_local
       nzerow(k) = csr_mat%rowptr_local(k+1) - csr_mat%rowptr_local(k) 
     ENDDO
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_create_nzerow
    
 ! *****************************************************************************
 !> \brief destroy a CSR matrix
 !> \param[in,out] csr_mat ...
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_destroy(csr_mat, error)
+  SUBROUTINE csr_destroy(csr_mat)
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_destroy', &
       routineP = moduleN//':'//routineN
@@ -461,10 +455,10 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(csr_mapping_data)                   :: map
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,& 
-      "CSR matrix must be created before destroying it.",__LINE__, error)
+      "CSR matrix must be created before destroying it.",__LINE__)
 
     IF (ASSOCIATED(csr_mat%rowptr_local)) DEALLOCATE(csr_mat%rowptr_local)
     IF (ASSOCIATED(csr_mat%nzerow_local)) DEALLOCATE(csr_mat%nzerow_local)
@@ -504,7 +498,7 @@ CONTAINS
     csr_mat%has_indices = .FALSE.
     csr_mat%nzval_local%data_type = -1
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_destroy
  
 ! *****************************************************************************
@@ -513,16 +507,14 @@ CONTAINS
 !> \param[in] brd_mat block-row-distributed DBCSR matrix
 !> \param[out] csr_mat CSR matrix
 !> \param[in] csr_sparsity_brd BRD matrix representing sparsity pattern of CSR matrix
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_create_from_brd( brd_mat, csr_mat, csr_sparsity_brd, error) 
+  SUBROUTINE csr_create_from_brd( brd_mat, csr_mat, csr_sparsity_brd) 
     TYPE(dbcsr_obj), INTENT(IN)              :: brd_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     TYPE(dbcsr_obj), INTENT(IN)              :: csr_sparsity_brd
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_brd', &
       routineP = moduleN//':'//routineN
@@ -533,7 +525,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: cdist, csr_index, dbcsr_index
     TYPE(dbcsr_distribution_obj)             :: dist_current
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     NULLIFY(dbcsr_index, csr_index, cdist)
 
     dist_current = dbcsr_distribution(brd_mat)
@@ -542,11 +534,11 @@ CONTAINS
     cdist => dbcsr_distribution_col_dist(dist_current)
 
     CALL dbcsr_assert(ALL(cdist .EQ. 0), dbcsr_fatal_level,dbcsr_wrong_args_error,&
-      routineN, "DBCSR matrix not block-row distributed.",__LINE__, error)
+      routineN, "DBCSR matrix not block-row distributed.",__LINE__)
  
     ! Calculate mapping between BRD and CSR indices
     CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, nze_local, &
-                                csr_sparsity_brd, error=error)
+                                csr_sparsity_brd)
 
     CALL dbcsr_get_info(brd_mat, nfullrows_total = nfullrows_total,&
                         nfullcols_total = nfullcols_total)
@@ -560,7 +552,7 @@ CONTAINS
 
     ! Allocate CSR matrix
     CALL csr_create_new(csr_mat, nfullrows_total, nfullcols_total, nze_total,&
-                        nze_local, nfullrows, mp_group, data_type, error)
+                        nze_local, nfullrows, mp_group, data_type)
 
     csr_mat%dbcsr_mapping%brd_to_csr_ind => csr_index
     csr_mat%dbcsr_mapping%csr_to_brd_ind => dbcsr_index
@@ -568,7 +560,7 @@ CONTAINS
     csr_mat%has_mapping = .TRUE.
     csr_mat%dbcsr_mapping%brd_mat = brd_mat
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_create_from_brd
 
 ! *****************************************************************************
@@ -579,19 +571,17 @@ CONTAINS
 !> \param[out] csr_index       dbcsr to csr index mapping
 !> \param[out] csr_nze_local   number of local non-zero elements
 !> \param[in] csr_sparsity_brd     sparsity of CSR matrix represented in BRD format
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
   SUBROUTINE csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, csr_nze_local, &
-                                    csr_sparsity_brd, error)
+                                    csr_sparsity_brd)
     TYPE(dbcsr_obj), INTENT(IN)              :: brd_mat
     INTEGER, DIMENSION(:), INTENT(OUT), &
       POINTER                                :: dbcsr_index, csr_index
     INTEGER, INTENT(OUT)                     :: csr_nze_local
     TYPE(dbcsr_obj), INTENT(IN)              :: csr_sparsity_brd
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_get_dbcsr_mapping', &
       routineP = moduleN//':'//routineN
@@ -605,7 +595,7 @@ CONTAINS
     LOGICAL                                  :: tr
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     NULLIFY(dbcsr_index, csr_index) 
 
@@ -627,13 +617,13 @@ CONTAINS
       CALL dbcsr_assert(blk, "EQ", prev_blk + 1,&
         dbcsr_fatal_level, dbcsr_internal_error,routineN,&
         "iterator is required to traverse the blocks in a row-wise fashion",&
-        __LINE__, error=error)
+        __LINE__)
 
       prev_blk = blk
 
       nfullcol_blkrow(blkrow) = nfullcol_blkrow(blkrow) + col_blk_size
       CALL dbcsr_assert(.NOT. tr,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "DBCSR block data must not be transposed",__LINE__, error=error)
+        "DBCSR block data must not be transposed",__LINE__)
     ENDDO
     CALL dbcsr_iterator_stop(iter)
 
@@ -685,7 +675,7 @@ CONTAINS
       CASE DEFAULT
         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,routineN, &
                            "CSR sparsity matrix must have a real datatype",&
-                           __LINE__,error)
+                           __LINE__)
     END SELECT
 
     IF (ANY(csr_nze .EQ. 0)) THEN
@@ -710,7 +700,7 @@ CONTAINS
       csr_nze_local = nze
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_get_dbcsr_mapping
 
 
@@ -719,15 +709,13 @@ CONTAINS
 !>        The DBCSR matrix must have a block structure consistent with the CSR matrix.
 !> \param[in,out] brd_mat    block-row distributed DBCSR matrix
 !> \param[in] csr_mat        CSR matrix
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE convert_csr_to_brd (brd_mat, csr_mat, error)
+  SUBROUTINE convert_csr_to_brd (brd_mat, csr_mat)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: brd_mat
     TYPE(csr_type), INTENT(IN)               :: csr_mat
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_to_brd', &
       routineP = moduleN//':'//routineN
@@ -735,7 +723,7 @@ CONTAINS
     INTEGER                                  :: data_type, error_handler, &
                                                 ind, k, nze
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     data_type = dbcsr_get_data_type(brd_mat) 
     nze = dbcsr_get_nze(brd_mat)
@@ -767,7 +755,7 @@ CONTAINS
       END SELECT
     ENDDO
 
-   CALL dbcsr_error_stop(error_handler, error)
+   CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE convert_csr_to_brd
 
 ! *****************************************************************************
@@ -775,15 +763,13 @@ CONTAINS
 !>        The DBCSR matrix must have a block structure consistent with the CSR matrix.
 !> \param[in] brd_mat        block-row distributed DBCSR matrix 
 !> \param[in,out] csr_mat    CSR matrix 
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE convert_brd_to_csr (brd_mat, csr_mat, error)
+  SUBROUTINE convert_brd_to_csr (brd_mat, csr_mat)
     TYPE(dbcsr_obj), INTENT(IN)              :: brd_mat
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_brd_to_csr', &
       routineP = moduleN//':'//routineN
@@ -799,7 +785,7 @@ CONTAINS
     TYPE(dbcsr_data_obj)                     :: block
     TYPE(dbcsr_iterator)                     :: iter
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     NULLIFY(rowptr, colind, dbcsr_index, csr_index)
 
     dbcsr_index => csr_mat%dbcsr_mapping%csr_to_brd_ind
@@ -809,11 +795,11 @@ CONTAINS
     new_ind = .NOT. (csr_mat%has_indices)
 
     CALL  dbcsr_assert(csr_mat%has_mapping,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "DBCSR mapping of CSR matrix must be defined",__LINE__, error=error)
+        "DBCSR mapping of CSR matrix must be defined",__LINE__)
 
     ! Calculate mapping between CSR matrix and DBCSR matrix if not yet defined
     !IF (.NOT. csr_mat%has_mapping ) THEN 
-    !  CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, nze, error=error)
+    !  CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, nze)
     !ENDIF
    
     CALL dbcsr_get_info(brd_mat, nblkrows_total = nblkrows_total)
@@ -856,7 +842,7 @@ CONTAINS
         col_offset = col_blk_offset)
 
       CALL dbcsr_assert(.NOT. tr,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "DBCSR block data must not be transposed",__LINE__, error=error)
+        "DBCSR block data must not be transposed",__LINE__)
 
       IF(blkrow > prev_blkrow) THEN ! new block row
         local_row_ind = row_blk_offset-node_row_offset ! actually: local row index - 1
@@ -910,7 +896,7 @@ CONTAINS
       rowptr(csr_mat%nrows_local+1) = csr_mat%nze_local + 1
     ENDIF
 
-    CALL csr_create_nzerow(csr_mat, nzerow, error)
+    CALL csr_create_nzerow(csr_mat, nzerow)
 
     CALL dbcsr_iterator_stop(iter)
     CALL dbcsr_data_clear_pointer (block)
@@ -918,7 +904,7 @@ CONTAINS
 
     IF (new_ind) csr_mat%has_indices = .TRUE.
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE convert_brd_to_csr
 
 ! *****************************************************************************
@@ -940,19 +926,17 @@ CONTAINS
 !> \param[in] numnodes        number of nodes to use for distributing CSR matrix
 !>                            (optional, default is number of nodes used for 
 !>                            DBCSR matrix)
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
   SUBROUTINE csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, csr_sparsity, &
-                                   numnodes, error)
+                                   numnodes)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER, INTENT(IN)                      :: dist_format
     TYPE(dbcsr_obj), INTENT(IN), OPTIONAL    :: csr_sparsity
     INTEGER, INTENT(IN), OPTIONAL            :: numnodes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_dbcsr', &
       routineP = moduleN//':'//routineN
@@ -967,10 +951,10 @@ CONTAINS
                                                 csr_sparsity_nosym, &
                                                 dbcsr_mat_nosym
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
-    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__, error=error)
+    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
 
     SELECT CASE (dist_format)
     CASE (csr_dbcsr_blkrow_dist)
@@ -987,39 +971,39 @@ CONTAINS
     CALL dbcsr_init(dbcsr_mat_nosym)
     ! Conversion does not support matrices in symmetric format, therefore desymmetrize
     IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
-      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE., error=error)
+      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE.)
     ELSE
-      CALL dbcsr_copy(dbcsr_mat_nosym, dbcsr_mat, error=error)
+      CALL dbcsr_copy(dbcsr_mat_nosym, dbcsr_mat)
     ENDIF
 
     CALL dbcsr_init(csr_sparsity_nosym)
     IF(PRESENT(csr_sparsity)) THEN
       IF(dbcsr_has_symmetry(csr_sparsity)) THEN
         CALL dbcsr_desymmetrize_deep(csr_sparsity,csr_sparsity_nosym,&
-                                     untransposed_data = .TRUE., error=error)
+                                     untransposed_data = .TRUE.)
       ELSE
-        CALL dbcsr_copy(csr_sparsity_nosym, csr_sparsity, error=error)
+        CALL dbcsr_copy(csr_sparsity_nosym, csr_sparsity)
       ENDIF
     ELSE
       CALL dbcsr_create(csr_sparsity_nosym, &
                         template=dbcsr_mat_nosym, &
                         name="CSR sparsity matrix",&
-                        data_type=dbcsr_type_real_4, error=error)
-      CALL dbcsr_copy(csr_sparsity_nosym, dbcsr_mat_nosym, error=error)
-      CALL dbcsr_set(csr_sparsity_nosym, 1.0_sp, error)
+                        data_type=dbcsr_type_real_4)
+      CALL dbcsr_copy(csr_sparsity_nosym, dbcsr_mat_nosym)
+      CALL dbcsr_set(csr_sparsity_nosym, 1.0_sp)
     ENDIF
 
     CALL dbcsr_assert(dbcsr_has_same_block_structure(dbcsr_mat_nosym, csr_sparsity_nosym), &
                       dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
                       "csr_sparsity and dbcsr_mat have different sparsity pattern", &
-                      __LINE__, error=error)
+                      __LINE__)
 
     dbcsr_numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(dbcsr_distribution(dbcsr_mat)))
     IF (PRESENT(numnodes)) THEN
       CALL dbcsr_assert(numnodes .LE. dbcsr_numnodes, dbcsr_fatal_level, &
         dbcsr_wrong_args_error, routineN, &
         "Number of nodes used for CSR matrix must not exceed total number of nodes", &
-        __LINE__, error=error)
+        __LINE__)
 
       num_p = numnodes
     ELSE
@@ -1027,12 +1011,12 @@ CONTAINS
     ENDIF
 
     CALL dbcsr_create_brd (dbcsr_mat_nosym, brd_mat, equal_dist, floor_dist,&
-                           num_p, error=error)
+                           num_p)
     CALL dbcsr_create_brd (csr_sparsity_nosym, csr_sparsity_brd, equal_dist, floor_dist,&
-                           num_p, error=error)
+                           num_p)
 
     ! Create CSR matrix from BRD matrix
-    CALL csr_create_from_brd(brd_mat, csr_mat, csr_sparsity_brd, error=error)
+    CALL csr_create_from_brd(brd_mat, csr_mat, csr_sparsity_brd)
 
     ! Store DBCSR block data inside CSR matrix 
     ! (otherwise, this data is lost when converting from DBCSR to CSR)
@@ -1060,7 +1044,7 @@ CONTAINS
     CALL dbcsr_release(csr_sparsity_nosym)
     CALL dbcsr_release(csr_sparsity_brd)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_create_from_dbcsr
 
 ! *****************************************************************************
@@ -1096,15 +1080,13 @@ CONTAINS
 !>        matrix are consistent before doing the conversion
 !> \param[in] csr_mat ...
 !> \param[in] dbcsr_mat ...
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat, error)
+  SUBROUTINE csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat)
     TYPE(csr_type), INTENT(IN)               :: csr_mat
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'csr_assert_consistency_with_dbcsr', &
@@ -1113,62 +1095,60 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(csr_mapping_data)                   :: map
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     map = csr_mat%dbcsr_mapping
     IF (map%has_dbcsr_block_data) THEN
       CALL dbcsr_assert(map%dbcsr_nblkcols_total .EQ.&
         dbcsr_nblkcols_total(dbcsr_mat), dbcsr_fatal_level,&
         dbcsr_wrong_args_error,routineN,&
         "field nblkcols_total of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
       CALL dbcsr_assert(map%dbcsr_nblkrows_total .EQ.&
         dbcsr_nblkrows_total(dbcsr_mat),dbcsr_fatal_level,&
         dbcsr_wrong_args_error,routineN,&
         "field nblkrows_total of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
       CALL dbcsr_assert(map%dbcsr_nblks_local .EQ. dbcsr_mat%m%nblks,&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field nblks of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
       CALL dbcsr_assert(ALL(map%dbcsr_row_p .EQ. dbcsr_mat%m%row_p),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field row_p of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
       CALL dbcsr_assert(ALL(map%dbcsr_col_i .EQ. dbcsr_mat%m%col_i),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field dbcsr_col_i of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
       CALL dbcsr_assert((ALL(map%dbcsr_row_blk_size .EQ.&
         dbcsr_row_block_sizes(dbcsr_mat))),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field row_blk_size of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
       CALL dbcsr_assert((ALL(map%dbcsr_col_blk_size .EQ. &
         dbcsr_col_block_sizes(dbcsr_mat))),&
         dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
         "field col_blk_size of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
     ELSE
       CALL dbcsr_assert(.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
         "Can not assert consistency of the matrices as no block data stored in CSR matrix.",&
-        __LINE__, error=error)
+        __LINE__)
     ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_assert_consistency_with_dbcsr
 
 ! *****************************************************************************
 !> \brief Convert a DBCSR matrix to a CSR matrix.
 !> \param[in] dbcsr_mat DBCSR matrix to convert
 !> \param[in,out] csr_mat correctly allocated CSR matrix
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error)
+  SUBROUTINE convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_dbcsr_to_csr', &
       routineP = moduleN//':'//routineN
@@ -1176,52 +1156,50 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
-    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__, error=error)
+    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
     CALL dbcsr_assert(dbcsr_get_data_type(dbcsr_mat),"EQ",&
       csr_mat%nzval_local%data_type, dbcsr_fatal_level, dbcsr_wrong_args_error,&
-      routineN, "DBCSR and CSR matrix must have same type", __LINE__, error=error)
+      routineN, "DBCSR and CSR matrix must have same type", __LINE__)
 
     CALL dbcsr_assert(csr_mat%has_mapping,dbcsr_fatal_level,&
         dbcsr_wrong_args_error,routineN,&
         "CSR_mat must contain mapping to DBCSR format",&
-        __LINE__, error=error)
+        __LINE__)
 
     IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
       CALL dbcsr_init(dbcsr_mat_nosym)
-      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE., error=error)
+      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE.)
     ELSE
       dbcsr_mat_nosym = dbcsr_mat
     ENDIF
 
-    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat_nosym, error)
+    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat_nosym)
 
     ! 1) DBCSR -> BRD
-    CALL dbcsr_complete_redistribute(dbcsr_mat_nosym,csr_mat%dbcsr_mapping%brd_mat,error=error)
+    CALL dbcsr_complete_redistribute(dbcsr_mat_nosym,csr_mat%dbcsr_mapping%brd_mat)
     ! 2) BRD -> CSR
-    CALL convert_brd_to_csr(csr_mat%dbcsr_mapping%brd_mat, csr_mat, error=error)
+    CALL convert_brd_to_csr(csr_mat%dbcsr_mapping%brd_mat, csr_mat)
 
     IF(dbcsr_has_symmetry(dbcsr_mat)) CALL dbcsr_release(dbcsr_mat_nosym)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE convert_dbcsr_to_csr
 
 ! *****************************************************************************
 !> \brief convert a CSR matrix to a DBCSR matrix
 !> \param[in,out] dbcsr_mat correctly allocated DBCSR matrix
 !> \param[in,out] csr_mat CSR matrix to convert
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE convert_csr_to_dbcsr(dbcsr_mat, csr_mat, error)
+  SUBROUTINE convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
 
     TYPE(dbcsr_obj), INTENT(INOUT)           :: dbcsr_mat
     TYPE(csr_type), INTENT(INOUT)            :: csr_mat
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'convert_csr_to_dbcsr', &
       routineP = moduleN//':'//routineN
@@ -1229,40 +1207,40 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(dbcsr_obj)                          :: dbcsr_mat_nosym
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
-    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__, error=error)
+    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
 
     CALL dbcsr_assert(dbcsr_get_data_type(dbcsr_mat),"EQ",&
       csr_mat%nzval_local%data_type, dbcsr_fatal_level,&
       dbcsr_wrong_args_error, routineN, "DBCSR and CSR matrix must have same type",&
-      __LINE__, error=error)
+      __LINE__)
 
     CALL dbcsr_assert(csr_mat%has_mapping,dbcsr_fatal_level,&
         dbcsr_wrong_args_error,routineN,&
         "CSR_mat must contain mapping to DBCSR format",&
-        __LINE__, error=error)
+        __LINE__)
 
     ! Desymmetrize to assert that DBCSR matrix has sparsity pattern consistent with CSR matrix
     IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
       CALL dbcsr_init(dbcsr_mat_nosym)
-      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE., error=error)
+      CALL dbcsr_desymmetrize_deep(dbcsr_mat,dbcsr_mat_nosym,untransposed_data = .TRUE.)
     ELSE
       dbcsr_mat_nosym = dbcsr_mat
     ENDIF
 
-    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat_nosym, error)
+    CALL csr_assert_consistency_with_dbcsr(csr_mat, dbcsr_mat_nosym)
     
     IF(dbcsr_has_symmetry(dbcsr_mat)) CALL dbcsr_release(dbcsr_mat_nosym)
 
     ! 1) CSR -> BRD
-    CALL convert_csr_to_brd(csr_mat%dbcsr_mapping%brd_mat, csr_mat, error)
+    CALL convert_csr_to_brd(csr_mat%dbcsr_mapping%brd_mat, csr_mat)
 
     ! 2) BRD -> DBCSR
-    CALL dbcsr_complete_redistribute(csr_mat%dbcsr_mapping%brd_mat, dbcsr_mat, error=error )
+    CALL dbcsr_complete_redistribute(csr_mat%dbcsr_mapping%brd_mat, dbcsr_mat)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE convert_csr_to_dbcsr
 
 ! *****************************************************************************
@@ -1271,13 +1249,11 @@ CONTAINS
 !> \param dbcsr_mat ...
 !> \param csr_sparsity ...
 !> \param eps ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_to_csr_filter( dbcsr_mat, csr_sparsity, eps, error )
+  SUBROUTINE dbcsr_to_csr_filter( dbcsr_mat, csr_sparsity, eps)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(dbcsr_obj), INTENT(OUT)             :: csr_sparsity
     REAL(kind=real_8), INTENT(IN)            :: eps
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: blkcol, blkrow, col_blk_size, &
                                                 data_type, row_blk_size
@@ -1295,9 +1271,9 @@ CONTAINS
     CALL dbcsr_create(csr_sparsity, &
                       template=dbcsr_mat, &
                       name="CSR sparsity",&
-                      data_type=dbcsr_type_real_4, error=error)
-    CALL dbcsr_copy(csr_sparsity, dbcsr_mat, error=error)
-    CALL dbcsr_set(csr_sparsity, 1.0_sp, error=error)
+                      data_type=dbcsr_type_real_4)
+    CALL dbcsr_copy(csr_sparsity, dbcsr_mat)
+    CALL dbcsr_set(csr_sparsity, 1.0_sp)
 
     IF (eps .GT. 0.0_dp) THEN
       data_type = dbcsr_get_data_type(dbcsr_mat)
@@ -1342,17 +1318,15 @@ CONTAINS
 !> \param[out] csr_mat ...
 !> \param[out] norm ...
 !> \param eps ...
-!> \param error ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_conversion_test( dbcsr_mat, csr_mat, norm, eps, error )
+  SUBROUTINE csr_conversion_test( dbcsr_mat, csr_mat, norm, eps)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     REAL(KIND=real_8), INTENT(OUT)           :: norm
     REAL(KIND=real_8), INTENT(IN)            :: eps
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_conversion_test', &
       routineP = moduleN//':'//routineN
@@ -1360,24 +1334,24 @@ CONTAINS
     INTEGER                                  :: error_handler
     TYPE(dbcsr_obj)                          :: csr_sparsity, dbcsr_mat_conv
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
-    CALL dbcsr_to_csr_filter(dbcsr_mat, csr_sparsity, eps, error)
+    CALL dbcsr_to_csr_filter(dbcsr_mat, csr_sparsity, eps)
 
-    CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, csr_eqrow_ceil_dist, csr_sparsity, error=error)
-    CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat, error=error)
+    CALL csr_create_from_dbcsr(dbcsr_mat, csr_mat, csr_eqrow_ceil_dist, csr_sparsity)
+    CALL convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
 
     CALL dbcsr_init(dbcsr_mat_conv)
-    CALL dbcsr_copy(dbcsr_mat_conv, dbcsr_mat, error=error)
+    CALL dbcsr_copy(dbcsr_mat_conv, dbcsr_mat)
 
-    CALL convert_csr_to_dbcsr(dbcsr_mat_conv, csr_mat, error)
+    CALL convert_csr_to_dbcsr(dbcsr_mat_conv, csr_mat)
 
-    CALL dbcsr_add(dbcsr_mat_conv, dbcsr_mat, 1.0_dp, -1.0_dp, error)
-    CALL dbcsr_norm(dbcsr_mat_conv, dbcsr_norm_maxabsnorm, norm_scalar=norm, error=error)
+    CALL dbcsr_add(dbcsr_mat_conv, dbcsr_mat, 1.0_dp, -1.0_dp)
+    CALL dbcsr_norm(dbcsr_mat_conv, dbcsr_norm_maxabsnorm, norm_scalar=norm)
 
     CALL dbcsr_release(dbcsr_mat_conv)
     CALL dbcsr_release(csr_sparsity)
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_conversion_test
  
 ! *****************************************************************************
@@ -1386,16 +1360,14 @@ CONTAINS
 !> \param[in] unit_nr           unit number to which output is written
 !> \param[in] upper_triangle    If true (default: false), write only upper 
 !>                              triangular part of matrix
-!> \param error ...
 !> \par History
 !>      11.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_write(csr_mat, unit_nr, upper_triangle, error)
+  SUBROUTINE csr_write(csr_mat, unit_nr, upper_triangle)
     TYPE(csr_type), INTENT(IN)               :: csr_mat
     INTEGER, INTENT(IN)                      :: unit_nr
     LOGICAL, INTENT(IN), OPTIONAL            :: upper_triangle
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_write', &
       routineP = moduleN//':'//routineN
@@ -1418,7 +1390,7 @@ CONTAINS
     REAL(KIND=real_8), ALLOCATABLE, &
       DIMENSION(:)                           :: nzval_to_master_r_dp
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     IF (PRESENT(upper_triangle)) THEN
       ut = upper_triangle
@@ -1429,7 +1401,7 @@ CONTAINS
     CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,&
         dbcsr_wrong_args_error,routineN,&
         "can not write invalid CSR matrix",&
-        __LINE__, error=error)
+        __LINE__)
 
     tag1 = 0
     tag2 = 1
@@ -1553,7 +1525,7 @@ CONTAINS
       ENDIF
     ENDDO
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE csr_write
  
@@ -1561,15 +1533,13 @@ CONTAINS
 !> \brief Print CSR sparsity
 !> \param csr_mat ...
 !> \param unit_nr ...
-!> \param error ...
 !> \par History
 !>      02.2015 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
-  SUBROUTINE csr_print_sparsity(csr_mat, unit_nr, error)
+  SUBROUTINE csr_print_sparsity(csr_mat, unit_nr)
     TYPE(csr_type), INTENT(IN)               :: csr_mat
     INTEGER, INTENT(IN)                      :: unit_nr
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_print_sparsity', &
       routineP = moduleN//':'//routineN
@@ -1580,12 +1550,12 @@ CONTAINS
     REAL(KIND=real_8)                        :: dbcsr_nze_percentage, &
                                                 nze_percentage
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     CALL dbcsr_assert(csr_mat%valid,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
       "CSR matrix must be created first",&
-      __LINE__, error=error)
+      __LINE__)
 
     nze_percentage = 100.0_dp*(REAL(csr_mat%nze_total,KIND=real_8) &
                      /REAL(csr_mat%nrows_total,KIND=real_8)) &
@@ -1609,7 +1579,7 @@ CONTAINS
       !ENDIF
     ENDIF
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE csr_print_sparsity
 
 ! *****************************************************************************
@@ -1619,20 +1589,17 @@ CONTAINS
 !> \param[in] equal_dist       see documentation of csr_create_from_dbcsr
 !> \param[in] floor_dist       see documentation of csr_create_from_dbcsr
 !> \param[in] numnodes         number of nodes to use for block row distribution
-!> \param[in,out] error        error
-!>
 !> \par History
 !>      04.2013 created [Hossein Bani-Hashemian]
 !>      11.2014 modified [Patrick Seewald]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dbcsr_create_brd (dbcsr_mat, brd_mat, equal_dist, floor_dist, numnodes, error)
+  SUBROUTINE dbcsr_create_brd (dbcsr_mat, brd_mat, equal_dist, floor_dist, numnodes)
 
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(dbcsr_obj), INTENT(OUT)             :: brd_mat
     LOGICAL, INTENT(IN)                      :: equal_dist, floor_dist
     INTEGER, INTENT(IN)                      :: numnodes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_create_brd', &
       routineP = moduleN//':'//routineN
@@ -1651,7 +1618,7 @@ CONTAINS
     TYPE(dbcsr_distribution_obj)             :: dist_current, dist_new
     TYPE(dbcsr_mp_obj)                       :: mp_obj_current, mp_obj_new
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
  
     NULLIFY(row_blk_size, rdist, row_blk_size_new)
     CALL dbcsr_get_info(dbcsr_mat,&
@@ -1750,8 +1717,8 @@ CONTAINS
 
     CALL dbcsr_init(brd_mat)
     CALL dbcsr_create (brd_mat, TRIM(matrix_name)//" row-block distributed",& 
-      dist_new, matrix_type, row_blk_size_new, col_blk_size, data_type=data_type, error=error) 
-    CALL dbcsr_complete_redistribute(dbcsr_mat,brd_mat,error=error)
+      dist_new, matrix_type, row_blk_size_new, col_blk_size, data_type=data_type) 
+    CALL dbcsr_complete_redistribute(dbcsr_mat,brd_mat)
  
     DEALLOCATE (pgrid)
 
@@ -1760,7 +1727,7 @@ CONTAINS
     CALL dbcsr_distribution_release(dist_new)
     CALL dbcsr_mp_release(mp_obj_new)
     
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE dbcsr_create_brd
 

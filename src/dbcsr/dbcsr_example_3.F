@@ -17,13 +17,13 @@ PROGRAM dbcsr_example_3
   USE dbcsr_api,                       ONLY: &
        dbcsr_col_block_sizes, dbcsr_create, dbcsr_distribution, &
        dbcsr_distribution_mp, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_error_type, dbcsr_finalize, &
-       dbcsr_finalize_lib, dbcsr_get_stored_coordinates, dbcsr_init, &
-       dbcsr_init_lib, dbcsr_max_col_size, dbcsr_max_row_size, &
-       dbcsr_mp_mynode, dbcsr_mp_new, dbcsr_mp_obj, dbcsr_mp_release, &
-       dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_obj, &
-       dbcsr_print, dbcsr_put_block, dbcsr_release, dbcsr_row_block_sizes, &
-       dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
+       dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
+       dbcsr_get_stored_coordinates, dbcsr_init, dbcsr_init_lib, &
+       dbcsr_max_col_size, dbcsr_max_row_size, dbcsr_mp_mynode, dbcsr_mp_new, &
+       dbcsr_mp_obj, dbcsr_mp_release, dbcsr_multiply, dbcsr_nblkcols_total, &
+       dbcsr_nblkrows_total, dbcsr_obj, dbcsr_print, dbcsr_put_block, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_set_default_config, &
+       dbcsr_type_no_symmetry, dbcsr_type_real_8
   USE kinds,                           ONLY: real_8
   USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: mp_cart_create,&
@@ -38,7 +38,6 @@ PROGRAM dbcsr_example_3
   IMPLICIT NONE
 
   TYPE(dbcsr_obj)                          :: matrix_a, matrix_b, matrix_c
-  TYPE(dbcsr_error_type)                   :: error
 
   INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
   INTEGER, DIMENSION(:), POINTER           :: rbs, cbs
@@ -74,8 +73,8 @@ PROGRAM dbcsr_example_3
   !***************************************************************************************
   !
   ! initialize libdbcsr
-  CALL dbcsr_init_lib (error=error)
-  CALL dbcsr_set_default_config (error=error)
+  CALL dbcsr_init_lib ()
+  CALL dbcsr_set_default_config ()
 
   !
   ! set standard output parameters
@@ -119,8 +118,7 @@ PROGRAM dbcsr_example_3
        matrix_type=dbcsr_type_no_symmetry,&
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
-       data_type=dbcsr_type_real_8,&
-       error=error)
+       data_type=dbcsr_type_real_8)
 
   CALL dbcsr_create (matrix=matrix_b,&
        name="this is my matrix b",&
@@ -128,8 +126,7 @@ PROGRAM dbcsr_example_3
        matrix_type=dbcsr_type_no_symmetry,&
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
-       data_type=dbcsr_type_real_8,&
-       error=error)
+       data_type=dbcsr_type_real_8)
 
   CALL dbcsr_create (matrix=matrix_c,&
        name="this is my matrix c",&
@@ -137,8 +134,7 @@ PROGRAM dbcsr_example_3
        matrix_type=dbcsr_type_no_symmetry,&
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
-       data_type=dbcsr_type_real_8,&
-       error=error)
+       data_type=dbcsr_type_real_8)
 
   !
   ! set up the a matrix
@@ -184,19 +180,19 @@ PROGRAM dbcsr_example_3
 
   !
   ! finalize the dbcsr matrices
-  CALL dbcsr_finalize (matrix_a, error=error)
-  CALL dbcsr_finalize (matrix_b, error=error)
-  CALL dbcsr_finalize (matrix_c, error=error)
+  CALL dbcsr_finalize (matrix_a)
+  CALL dbcsr_finalize (matrix_b)
+  CALL dbcsr_finalize (matrix_c)
 
   !
   ! multiply the matrices
-  CALL dbcsr_multiply ('N', 'N', 1.0_real_8, matrix_a, matrix_b, 0.0_real_8, matrix_c, error=error)
+  CALL dbcsr_multiply ('N', 'N', 1.0_real_8, matrix_a, matrix_b, 0.0_real_8, matrix_c)
 
   !
   ! print the matrices
-  CALL dbcsr_print (matrix_a, error=error)
-  CALL dbcsr_print (matrix_b, error=error)
-  CALL dbcsr_print (matrix_c, error=error)
+  CALL dbcsr_print (matrix_a)
+  CALL dbcsr_print (matrix_b)
+  CALL dbcsr_print (matrix_c)
 
   !
   ! release the matrices
@@ -211,7 +207,7 @@ PROGRAM dbcsr_example_3
   !***************************************************************************************
   !
   ! finalize libdbcsr
-  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
+  CALL dbcsr_finalize_lib (mp_comm, io_unit)
 
   !
   ! finalize mpi

@@ -16,9 +16,9 @@
 PROGRAM dbcsr_example_1
   USE dbcsr_api,                       ONLY: &
        dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_obj, &
-       dbcsr_distribution_release, dbcsr_error_type, dbcsr_finalize, &
-       dbcsr_finalize_lib, dbcsr_init, dbcsr_init_lib, dbcsr_mp_new, &
-       dbcsr_mp_obj, dbcsr_mp_release, dbcsr_obj, dbcsr_print, dbcsr_release, &
+       dbcsr_distribution_release, dbcsr_finalize, dbcsr_finalize_lib, &
+       dbcsr_init, dbcsr_init_lib, dbcsr_mp_new, dbcsr_mp_obj, &
+       dbcsr_mp_release, dbcsr_obj, dbcsr_print, dbcsr_release, &
        dbcsr_set_default_config, dbcsr_type_no_symmetry, dbcsr_type_real_8
   USE machine,                         ONLY: default_output_unit
   USE message_passing,                 ONLY: mp_cart_create,&
@@ -33,7 +33,6 @@ PROGRAM dbcsr_example_1
   IMPLICIT NONE
 
   TYPE(dbcsr_obj)                          :: matrix_a
-  TYPE(dbcsr_error_type)                   :: error
 
   INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
@@ -82,8 +81,8 @@ PROGRAM dbcsr_example_1
   !***************************************************************************************
   !
   ! initialize libdbcsr
-  CALL dbcsr_init_lib (error=error)
-  CALL dbcsr_set_default_config (error=error)
+  CALL dbcsr_init_lib ()
+  CALL dbcsr_set_default_config ()
 
   !
   ! set standard output parameters
@@ -127,16 +126,15 @@ PROGRAM dbcsr_example_1
        row_blk_size=row_blk_sizes,&
        col_blk_size=col_blk_sizes,&
        data_type=dbcsr_type_real_8,&
-       reuse_arrays=.TRUE.,&
-       error=error)
+       reuse_arrays=.TRUE.)
 
   !
   ! finalize the dbcsr matrix
-  CALL dbcsr_finalize(matrix_a, error=error)
+  CALL dbcsr_finalize(matrix_a)
 
   !
   ! print the *empty* matrix
-  CALL dbcsr_print(matrix_a, error=error)
+  CALL dbcsr_print(matrix_a)
 
   !
   ! release the matrix
@@ -153,7 +151,7 @@ PROGRAM dbcsr_example_1
   !***************************************************************************************
   !
   ! finalize libdbcsr
-  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
+  CALL dbcsr_finalize_lib (mp_comm, io_unit)
 
   ! free comm
   CALL mp_comm_free(group)

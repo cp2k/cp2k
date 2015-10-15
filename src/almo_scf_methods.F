@@ -24,8 +24,8 @@ MODULE almo_scf_methods
        cp_dbcsr_release, cp_dbcsr_reserve_block2d, cp_dbcsr_row_block_sizes, &
        cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_set_diag, cp_dbcsr_transposed, &
        cp_dbcsr_type, cp_dbcsr_work_create, dbcsr_distribution_mp, &
-       dbcsr_error_type, dbcsr_mp_group, dbcsr_mp_numnodes, &
-       dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+       dbcsr_mp_group, dbcsr_mp_numnodes, dbcsr_norm_maxabsnorm, &
+       dbcsr_type_no_symmetry, dbcsr_type_symmetric
   USE domain_submatrix_methods,        ONLY: &
        add_submatrices, construct_dbcsr_from_submatrices, &
        construct_submatrices, copy_submatrices, copy_submatrix_data, &
@@ -1135,7 +1135,6 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     TYPE(cp_dbcsr_type)                      :: matrix_t_blk_tmp
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     CALL timeset(routineN,handle)
 
@@ -1216,7 +1215,7 @@ CONTAINS
        !! generate a random set of ALMOs 
        !! matrix_t_blk should already be initiated to the proper domain structure
        CALL cp_dbcsr_init_random(almo_scf_env%matrix_t_blk(ispin),&
-                                 keep_sparsity=.TRUE.,error=dbcsr_error)
+                                 keep_sparsity=.TRUE.)
 
        CALL cp_dbcsr_init(matrix_t_blk_tmp)
        CALL cp_dbcsr_create(matrix_t_blk_tmp,&

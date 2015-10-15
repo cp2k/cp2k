@@ -44,8 +44,8 @@ MODULE dbcsr_block_access
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_warning_level, dbcsr_wrong_args_error
+       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
+       dbcsr_warning_level, dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
                                              dbcsr_expand_row_index,&
@@ -168,15 +168,14 @@ CONTAINS
 
     INTEGER                                  :: b, c, error_handle, r
     LOGICAL                                  :: found, tr
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
     IF (PRESENT (block_number)) THEN
        b = block_number
        CALL dbcsr_assert (block_number .LE. matrix%m%nblks, dbcsr_failure_level,&
-            dbcsr_caller_error, routineN, "Block number too big.",__LINE__,error)
+            dbcsr_caller_error, routineN, "Block number too big.",__LINE__)
        found = .TRUE.
     ELSE
        CALL dbcsr_get_block_index (matrix, row, col, r, c, tr, found, b)
@@ -190,16 +189,16 @@ CONTAINS
        matrix%m%nze = matrix%m%nze - block_nze
        IF (debug_mod) THEN
           CALL dbcsr_assert (matrix%m%nze, "GE", 0, dbcsr_failure_level,&
-             dbcsr_caller_error, routineN, "nze < 0!",__LINE__,error)
+             dbcsr_caller_error, routineN, "nze < 0!",__LINE__)
        ENDIF
     ELSE
        IF (debug_mod) THEN
           CALL dbcsr_assert (b, "NE", 0,&
                dbcsr_warning_level, dbcsr_caller_error, routineN,&
-               "Block does not exist or is already deleted.",__LINE__,error)
+               "Block does not exist or is already deleted.",__LINE__)
        ENDIF
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_remove_block
 
 ! *****************************************************************************
@@ -235,11 +234,10 @@ CONTAINS
     TYPE(btree_2d_data_d)                    :: data_block_d
     TYPE(btree_2d_data_s)                    :: data_block_s
     TYPE(btree_2d_data_z)                    :: data_block_z
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
          stored_tr, found, blk, offset)
 
@@ -252,13 +250,13 @@ CONTAINS
 
     CALL dbcsr_data_clear_pointer (block)
     IF(found) THEN
-       CALL dbcsr_set_block_pointer (matrix, block,rsize, csize, stored_tr, offset,error=error)
+       CALL dbcsr_set_block_pointer (matrix, block,rsize, csize, stored_tr, offset)
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        iw = 1
 !$     iw = omp_get_thread_num()+1
        CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
             dbcsr_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__)
        IF (dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
           SELECT CASE (block%d%data_type)
           CASE (dbcsr_type_real_4_2d)
@@ -295,11 +293,11 @@ CONTAINS
              ENDIF
           CASE default
              CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
-                  routineN, "Only 2-D data for block pointers!",__LINE__,error)
+                  routineN, "Only 2-D data for block pointers!",__LINE__)
           END SELECT
        ENDIF
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_get_block_p_area
 
 
@@ -334,11 +332,10 @@ CONTAINS
 
     INTEGER                                  :: data_type_m, error_handle
     LOGICAL                                  :: do_scale
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
     data_type_m = dbcsr_get_data_type (matrix)
     do_scale = PRESENT (scale)
     IF (do_scale) THEN
@@ -347,7 +344,7 @@ CONTAINS
        !     data_type_m//" scale="//scale%data_type)
     ENDIF
     CALL dbcsr_assert (ASSOCIATED (block%d), dbcsr_fatal_level, dbcsr_wrong_args_error,&
-         routineN, "Can only add valid data block!",__LINE__,error)
+         routineN, "Can only add valid data block!",__LINE__)
     SELECT CASE(block%d%data_type)
     CASE (dbcsr_type_real_4)
        IF (do_scale) THEN
@@ -425,20 +422,18 @@ CONTAINS
        ENDIF
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type",__LINE__,error)
+            "Invalid data type",__LINE__)
     END SELECT
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_put_block_area
 
 ! *****************************************************************************
 !> \brief Inserts all blocks of a dbcsr matrix to make it a full matrix.
 !>        Thus obviously not linear scaling.
 !> \param[in,out] matrix      Matrix into which blocks should be added.
-!> \param[in,out] error       Error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_reserve_all_blocks(matrix, error)
+  SUBROUTINE dbcsr_reserve_all_blocks(matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_all_blocks', &
       routineP = moduleN//':'//routineN
@@ -450,7 +445,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows
     LOGICAL                                  :: tr
 
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    CALL dbcsr_error_set (routineN, error_handle)
 
     myrank = dbcsr_mp_mynode (dbcsr_distribution_mp (dbcsr_distribution (matrix)))
     local_rows => dbcsr_distribution_local_rows (dbcsr_distribution (matrix))
@@ -488,20 +483,18 @@ CONTAINS
      ENDDO
     ENDDO
 
-    CALL dbcsr_reserve_blocks(matrix,rows,columns,error=error)
+    CALL dbcsr_reserve_blocks(matrix,rows,columns)
 
-    CALL dbcsr_error_stop (error_handle, error=error)
+    CALL dbcsr_error_stop (error_handle)
 
   END SUBROUTINE dbcsr_reserve_all_blocks
 
 ! *****************************************************************************
 !> \brief Inserts diagonal blocks of a dbcsr matrix to make it a matrix with at least all diagonal blocks present
 !> \param[in,out] matrix      Matrix into which blocks should be added.
-!> \param[in,out] error       Error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_reserve_diag_blocks(matrix, error)
+  SUBROUTINE dbcsr_reserve_diag_blocks(matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_diag_blocks', &
       routineP = moduleN//':'//routineN
@@ -538,7 +531,7 @@ CONTAINS
        ENDIF
     ENDDO
 
-    CALL dbcsr_reserve_blocks(matrix,rows,columns,error=error)
+    CALL dbcsr_reserve_blocks(matrix,rows,columns)
 
   END SUBROUTINE dbcsr_reserve_diag_blocks
 
@@ -548,7 +541,6 @@ CONTAINS
 !> \param[in] rows            Rows of the blocks to add
 !> \param[in] columns         Columns of the blocks to add
 !> \param[in] blk_pointers    (optional) block pointers to use for new blocks
-!> \param[in,out] error       Error
 !> \par Data
 !>      No data can be specified; instead, space is reserved and zeroed. To
 !>      add data, call dbcsr_put_block afterwards.
@@ -559,12 +551,11 @@ CONTAINS
 !>      When blk_pointers is passed, the newly added blocks use these pointers.
 !>      No data is cleared in this case
 ! *****************************************************************************
-  SUBROUTINE dbcsr_reserve_blocks(matrix, rows, columns, blk_pointers, error)
+  SUBROUTINE dbcsr_reserve_blocks(matrix, rows, columns, blk_pointers)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, DIMENSION(:), INTENT(IN)        :: rows, columns
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: blk_pointers
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_blocks', &
       routineP = moduleN//':'//routineN
@@ -580,15 +571,15 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handler, error)
+    CALL dbcsr_error_set (routineN, error_handler)
     CALL dbcsr_assert (SIZE(rows), "EQ", SIZE(columns), dbcsr_fatal_level,&
          dbcsr_wrong_args_error, routineN,&
-         "Size of rows and columns array must match.", __LINE__, error=error)
+         "Size of rows and columns array must match.", __LINE__)
     IF (PRESENT (blk_pointers)) THEN
        CALL dbcsr_assert (SIZE(rows), "EQ", SIZE(blk_pointers),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Size of rows and block pointecs arrays must match.",&
-            __LINE__, error=error)
+            __LINE__)
        data_size_old = 0
     ELSE
        ! Get current data size
@@ -613,7 +604,7 @@ CONTAINS
     CALL dbcsr_assert (SIZE(rows) .GT. 0, "IMP",&
          nblkrows .GT. 0, dbcsr_fatal_level,&
          dbcsr_internal_error, routineN,&
-         "Can not add blocks to matrix with no rows.", __LINE__, error=error)
+         "Can not add blocks to matrix with no rows.", __LINE__)
     ! Adjust the index.
     ! Get the old row indices
     ALLOCATE (old_row_i (nblks_old))
@@ -646,16 +637,14 @@ CONTAINS
     IF (PRESENT (blk_pointers)) THEN
        CALL merge_index_arrays (new_row_i, new_col_i, new_blk_p, nblks_new,&
             old_row_i, matrix%m%col_i, matrix%m%blk_p, nblks_old,&
-            added_blk_info, nblks_added, added_nblks=nblks_actual_added,&
-            error=error)
+            added_blk_info, nblks_added, added_nblks=nblks_actual_added)
        data_size_new = 0
     ELSE
        CALL merge_index_arrays (new_row_i, new_col_i, new_blk_p, nblks_new,&
             old_row_i, matrix%m%col_i, matrix%m%blk_p, nblks_old,&
             added_blk_info, nblks_added, added_nblks=nblks_actual_added,&
             added_sizes=added_sizes, added_size_offset=data_size_old+1,&
-            added_size=data_size_new,&
-            error=error)
+            added_size=data_size_new)
     ENDIF
     nblks_new = nblks_actual_added + nblks_old
     ! Free some memory
@@ -673,22 +662,21 @@ CONTAINS
        CALL dbcsr_clearfrom_index_array (matrix%m, dbcsr_slot_blk_p)
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_col_i,&
             new_col_i(1:nblks_new),&
-            extra=nblks_new, error=error)
+            extra=nblks_new)
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_blk_p,&
-            new_blk_p(1:nblks_new),&
-            error=error)
+            new_blk_p(1:nblks_new))
        CALL dbcsr_make_dbcsr_index (matrix%m%row_p, new_row_i(1:nblks_new),&
             nblkrows, nblks_new)
        IF (.NOT. PRESENT (blk_pointers)) THEN
           ! Resize data area to fit the new blocks.
           CALL dbcsr_data_ensure_size (matrix%m%data_area,&
-               data_size = matrix%m%nze, error=error)
+               data_size = matrix%m%nze)
           ! Zero the new data blocks.
           CALL dbcsr_data_clear (matrix%m%data_area,&
                lb=data_size_old+1, ub=matrix%m%nze)
        ENDIF
     ENDIF
-    CALL dbcsr_error_stop (error_handler, error)
+    CALL dbcsr_error_stop (error_handler)
   END SUBROUTINE dbcsr_reserve_blocks
 
 
@@ -700,17 +688,14 @@ CONTAINS
 !> \param[in] csize Column sizes of block to point to
 !> \param[in] main_tr          Whether block is transposed in the matrix
 !> \param[in] base_offset      The block pointer
-!> \param[in,out] error        error
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_any (matrix, pointer_any,&
-       rsize, csize, main_tr, base_offset, &
-       error)
+       rsize, csize, main_tr, base_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: pointer_any
     INTEGER, INTENT(IN)                      :: rsize, csize
     LOGICAL, INTENT(IN)                      :: main_tr
     INTEGER, INTENT(IN)                      :: base_offset
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_block_pointer_any', &
       routineP = moduleN//':'//routineN

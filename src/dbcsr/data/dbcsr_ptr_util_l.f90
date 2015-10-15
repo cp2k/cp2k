@@ -29,17 +29,15 @@
 !> \param[in] memory_type     (optional) use special memory
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE ensure_array_size_l(array, lb, ub, factor,&
-       nocopy, memory_type, zero_pad, error)
+       nocopy, memory_type, zero_pad)
     INTEGER(kind=int_8), DIMENSION(:), POINTER                 :: array
     INTEGER, INTENT(IN), OPTIONAL                  :: lb
     INTEGER, INTENT(IN)                            :: ub
     REAL(KIND=dp), INTENT(IN), OPTIONAL            :: factor
     LOGICAL, INTENT(IN), OPTIONAL                  :: nocopy, zero_pad
     TYPE(dbcsr_memtype_type), INTENT(IN), OPTIONAL :: memory_type
-    TYPE(dbcsr_error_type), INTENT(inout)          :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ensure_array_size_l', &
       routineP = moduleN//':'//routineN
@@ -53,7 +51,7 @@
     INTEGER(kind=int_8), DIMENSION(:), POINTER           :: newarray
 
 !   ---------------------------------------------------------------------------
-    !CALL dbcsr_error_set(routineN, error_handler, error)
+    !CALL dbcsr_error_set(routineN, error_handler)
     dbg = .FALSE.
 
     IF (PRESENT (nocopy)) THEN
@@ -74,10 +72,10 @@
     IF (.NOT.ASSOCIATED(array)) THEN
        CALL dbcsr_assert (lb_new, "EQ", 1, &
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Arrays must start at 1", __LINE__, error=error)
-       CALL mem_alloc_l (array, ub, mem_type=mem_type, error=error)
+            "Arrays must start at 1", __LINE__)
+       CALL mem_alloc_l (array, ub, mem_type=mem_type)
        IF (pad .AND. ub .GT. 0) CALL mem_zero_l (array, ub)
-       !CALL dbcsr_error_stop(error_handler, error)
+       !CALL dbcsr_error_stop(error_handler)
        RETURN
     ENDIF
     lb_orig = LBOUND(array,1)
@@ -85,7 +83,7 @@
     old_size = ub_orig - lb_orig + 1
     ! The existing array is big enough.
     IF (lb_orig.LE.lb_new .AND. ub_orig.GE.ub) THEN
-       !CALL dbcsr_error_stop(error_handler, error)
+       !CALL dbcsr_error_stop(error_handler)
        RETURN
     ENDIF
     ! A reallocation must be performed
@@ -118,20 +116,20 @@
     !
     ! Deallocates the old array if it's not needed to copy the old data.
     IF(.NOT.docopy) THEN
-       CALL mem_dealloc_l (array, mem_type=mem_type, error=error)
+       CALL mem_dealloc_l (array, mem_type=mem_type)
     ENDIF
     !
     ! Allocates the new array
     CALL dbcsr_assert (lb_new, "EQ", 1, &
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Arrays must start at 1", __LINE__, error=error)
-    CALL mem_alloc_l (newarray, ub_new-lb_new+1, mem_type, error=error)
+         "Arrays must start at 1", __LINE__)
+    CALL mem_alloc_l (newarray, ub_new-lb_new+1, mem_type)
     !
     ! Now copy and/or zero pad.
     IF(docopy) THEN
        IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
             dbcsr_failure_level, dbcsr_internal_error, routineP,&
-            "Old extent exceeds the new one.",__LINE__,error)
+            "Old extent exceeds the new one.",__LINE__)
        IF (ub_orig-lb_orig+1 .GT. 0) THEN
           !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
           CALL mem_copy_l (newarray(lb_orig:ub_orig),&
@@ -143,14 +141,14 @@
           !newarray(ub_orig+1:ub_new) = 0
           CALL mem_zero_l (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
        ENDIF
-       CALL mem_dealloc_l (array, mem_type=mem_type, error=error)
+       CALL mem_dealloc_l (array, mem_type=mem_type)
     ELSEIF (pad) THEN
        !newarray(:) = 0
        CALL mem_zero_l (newarray, SIZE(newarray))
     ENDIF
     array => newarray
     IF (dbg) WRITE(*,*)routineP//' New array size', SIZE(array)
-    !CALL dbcsr_error_stop(error_handler, error)
+    !CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE ensure_array_size_l
 
 ! *****************************************************************************
@@ -183,20 +181,18 @@
 !> \param[out] mem        memory to allocate
 !> \param[in] n           length of elements to allocate
 !> \param[in] mem_type    memory type
-!> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_alloc_l (mem, n, mem_type, error)
+  SUBROUTINE mem_alloc_l (mem, n, mem_type)
     INTEGER(kind=int_8), DIMENSION(:), POINTER        :: mem
     INTEGER, INTENT(IN)                   :: n
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
-    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'mem_alloc_l', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle, error=error)
+       CALL dbcsr_error_set (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc .AND. n>1) THEN
        CALL acc_hostmem_allocate(mem, n, mem_type%acc_stream)
@@ -207,7 +203,7 @@
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle, error=error)
+       CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE mem_alloc_l
 
 
@@ -216,35 +212,33 @@
 !> \param[out] mem        memory to allocate
 !> \param[in] sizes length of elements to allocate
 !> \param[in] mem_type    memory type
-!> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_alloc_l_2d (mem, sizes, mem_type, error)
+  SUBROUTINE mem_alloc_l_2d (mem, sizes, mem_type)
     INTEGER(kind=int_8), DIMENSION(:,:), POINTER      :: mem
     INTEGER, DIMENSION(2), INTENT(IN)     :: sizes
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
-    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'mem_alloc_l_2d', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle, error=error)
+       CALL dbcsr_error_set (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Accelerator hostalloc not supported for 2D arrays.",__LINE__,error)
+               routineN, "Accelerator hostalloc not supported for 2D arrays.",__LINE__)
        !CALL acc_hostmem_allocate(mem, n, mem_type%acc_stream)
     ELSE IF(mem_type%mpi) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "MPI allocate not supported for 2D arrays.",__LINE__,error)
+          routineN, "MPI allocate not supported for 2D arrays.",__LINE__)
        !CALL mp_allocate(mem, n)
     ELSE
        ALLOCATE(mem(sizes(1), sizes(2)))
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle, error=error)
+       CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE mem_alloc_l_2d
 
 
@@ -252,19 +246,17 @@
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
-!> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_dealloc_l (mem, mem_type, error)
+  SUBROUTINE mem_dealloc_l (mem, mem_type)
     INTEGER(kind=int_8), DIMENSION(:), POINTER        :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
-    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_l', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle, error=error)
+       CALL dbcsr_error_set (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc .AND. SIZE(mem)>1) THEN
        CALL acc_hostmem_deallocate(mem, mem_type%acc_stream)
@@ -275,7 +267,7 @@
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle, error=error)
+       CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE mem_dealloc_l
 
 
@@ -283,34 +275,32 @@
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
-!> \param[in,out] error   error
 ! *****************************************************************************
-  SUBROUTINE mem_dealloc_l_2d (mem, mem_type, error)
+  SUBROUTINE mem_dealloc_l_2d (mem, mem_type)
     INTEGER(kind=int_8), DIMENSION(:,:), POINTER      :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
-    TYPE(dbcsr_error_type), INTENT(INOUT) :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'mem_dealloc_l', &
       routineP = moduleN//':'//routineN
     INTEGER                               :: error_handle
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) &
-       CALL dbcsr_error_set (routineN, error_handle, error=error)
+       CALL dbcsr_error_set (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "Accelerator host deallocate not supported for 2D arrays.",__LINE__,error)
+          routineN, "Accelerator host deallocate not supported for 2D arrays.",__LINE__)
        !CALL acc_hostmem_deallocate(mem, mem_type%acc_stream)
     ELSE IF(mem_type%mpi) THEN
        CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "MPI deallocate not supported for 2D arrays.",__LINE__,error)
+          routineN, "MPI deallocate not supported for 2D arrays.",__LINE__)
        !CALL mp_deallocate(mem)
     ELSE
        DEALLOCATE(mem)
     ENDIF
 
     IF (careful_mod) &
-       CALL dbcsr_error_stop (error_handle, error=error)
+       CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE mem_dealloc_l_2d
 
 

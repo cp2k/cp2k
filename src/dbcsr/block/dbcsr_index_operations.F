@@ -27,9 +27,9 @@ MODULE dbcsr_index_operations
   USE dbcsr_dist_operations,           ONLY: get_stored_canonical
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
+       dbcsr_unimplemented_error_nr, dbcsr_warning_level, &
+       dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_get_index_memory_type
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
@@ -263,9 +263,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: blk, error_handle, row
-    TYPE(dbcsr_error_type)                   :: error
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
 
     row_p(1) = 0
     row_p(nrows+1) = nblks
@@ -285,7 +284,7 @@ CONTAINS
        row = row+1
     ENDDO
 
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
 
   END SUBROUTINE dbcsr_make_dbcsr_index
 
@@ -406,15 +405,13 @@ CONTAINS
 !> \param[in] reservation     (optional) only reserve space for subsequent
 !>                            array
 !> \param[in] extra (optional) reserve extra space for later additions
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_addto_index_array(matrix, slot, DATA, reservation, extra, error)
+  SUBROUTINE dbcsr_addto_index_array(matrix, slot, DATA, reservation, extra)
     TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
     INTEGER, INTENT(IN)                      :: slot
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: DATA
     INTEGER, INTENT(IN), OPTIONAL            :: reservation, extra
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_addto_index_array', &
       routineP = moduleN//':'//routineN
@@ -426,13 +423,13 @@ CONTAINS
     IF (debug_mod) THEN
         CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
              dbcsr_internal_error, routineP,&
-             "Index must be preallocated.",__LINE__,error)
+             "Index must be preallocated.",__LINE__)
         CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
              dbcsr_failure_level, dbcsr_internal_error, routineP,&
-             "Actual index size less than declared size",__LINE__,error)
+             "Actual index size less than declared size",__LINE__)
         CALL dbcsr_assert(PRESENT(DATA), 'OR', PRESENT(reservation), dbcsr_fatal_level,&
              dbcsr_caller_error, routineP,&
-             'Either an array or its size must be specified.',__LINE__,error)
+             'Either an array or its size must be specified.',__LINE__)
         WRITE(*,*)routineP//' index', matrix%index(:dbcsr_num_slots)
     ENDIF
     IF (PRESENT (reservation)) THEN
@@ -470,7 +467,7 @@ CONTAINS
        CALL ensure_array_size(matrix%index, lb=1, ub=ub_new,&
             factor=default_resize_factor,&
             nocopy=.FALSE.,&
-            memory_type=matrix%index_memory_type, error=error)
+            memory_type=matrix%index_memory_type)
        CALL dbcsr_repoint_index(matrix)
     ENDIF
     IF(debug_mod) WRITE(*,*)routineP//' Adding slot',slot,'at',&
@@ -494,16 +491,15 @@ CONTAINS
 
     INTEGER                                  :: space
     INTEGER, DIMENSION(5)                    :: max_extents
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
          dbcsr_internal_error, routineP,&
-         "Index must be preallocated.",__LINE__,error)
+         "Index must be preallocated.",__LINE__)
     CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
          dbcsr_failure_level, dbcsr_internal_error, routineP,&
-         "Actual index size less than declared size",__LINE__,error)
+         "Actual index size less than declared size",__LINE__)
     IF(debug_mod) WRITE(*,*)routineP//' index',&
          matrix%index(:dbcsr_num_slots)
     ! Clear index entry pointer
@@ -607,12 +603,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param[in,out] m           Create index for this matrix
-!> \param[in,out] error       error
 ! *****************************************************************************
 
-  SUBROUTINE dbcsr_make_index_exist(m, error)
+  SUBROUTINE dbcsr_make_index_exist(m)
     TYPE(dbcsr_type), INTENT(INOUT)          :: m
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_index_exist', &
       routineP = moduleN//':'//routineN
@@ -621,25 +615,25 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_error_set (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (m%index),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Index array does not yet exist.", __LINE__, error=error)
+         "Index array does not yet exist.", __LINE__)
     IF (.NOT. ASSOCIATED (m%row_p)) THEN
        CALL dbcsr_addto_index_array (m, dbcsr_slot_row_p,&
-            reservation=m%nblkrows_total+1, error=error)
+            reservation=m%nblkrows_total+1)
        m%row_p(:) = 0
     ENDIF
     IF (.NOT. ASSOCIATED (m%col_i)) THEN
        CALL dbcsr_addto_index_array (m, dbcsr_slot_col_i,&
-            reservation=0, error=error)
+            reservation=0)
     ENDIF
     IF (.NOT. ASSOCIATED (m%blk_p)) THEN
        CALL dbcsr_addto_index_array (m, dbcsr_slot_blk_p,&
-            reservation=0, error=error)
+            reservation=0)
     ENDIF
     CALL dbcsr_repoint_index (m)
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_make_index_exist
 
 
@@ -672,30 +666,29 @@ CONTAINS
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: sort_keys
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: buf, buf_d
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     IF (SIZE (row_i) .EQ. 0) RETURN
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
 
     CALL dbcsr_assert(SIZE(row_i),'GE',n, dbcsr_failure_level,&
-         dbcsr_caller_error, routineP, 'row_i too small',__LINE__,error)
+         dbcsr_caller_error, routineP, 'row_i too small',__LINE__)
     CALL dbcsr_assert(SIZE(col_i),'GE',n, dbcsr_failure_level,&
-         dbcsr_caller_error, routineP, 'col_i too small',__LINE__,error)
+         dbcsr_caller_error, routineP, 'col_i too small',__LINE__)
     IF (PRESENT (blk_p)) CALL dbcsr_assert(SIZE(blk_p),'GE',n, dbcsr_failure_level,&
-         dbcsr_caller_error, routineP, 'blk_p too small',__LINE__,error)
+         dbcsr_caller_error, routineP, 'blk_p too small',__LINE__)
     IF (PRESENT (blk_p)) THEN
        ALLOCATE(buf(n), stat=stat)
        CALL dbcsr_assert(stat == 0, dbcsr_failure_level,&
-            dbcsr_caller_error, routineP, 'buf',__LINE__,error)
+            dbcsr_caller_error, routineP, 'buf',__LINE__)
        buf(1:n) = blk_p(1:n)
     ENDIF
     IF (PRESENT (blk_d)) THEN
        ALLOCATE(buf_d(n), stat=stat)
        CALL dbcsr_assert(stat == 0, dbcsr_failure_level,&
-            dbcsr_caller_error, routineP, 'buf_d',__LINE__,error)
+            dbcsr_caller_error, routineP, 'buf_d',__LINE__)
        buf_d(1:n) = blk_d(1:n)
     ENDIF
     !> Create an ordering for both rows and columns. If the blk_p must
@@ -703,8 +696,7 @@ CONTAINS
     !> permutation vector.
     ALLOCATE (sort_keys(n), stat=stat)
     CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Could not allocate memory for sorting buffer.", __LINE__,&
-         error=error)
+         routineN, "Could not allocate memory for sorting buffer.", __LINE__)
     sort_keys(:) = IOR (ISHFT(INT(row_i(1:n),int_8), 32), INT(col_i(1:n),int_8))
     IF (PRESENT (blk_p)) col_i(1:n) = (/ (i, i=1,n) /)
     !> Now do a nice quicksort.
@@ -730,19 +722,17 @@ CONTAINS
     DEALLOCATE (sort_keys)
     IF(debug_mod.AND.PRESENT(blk_p))&
          WRITE(*,*)routineP//' sort, blk_p =',blk_p
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
 
   END SUBROUTINE dbcsr_sort_indices
 
 ! *****************************************************************************
 !> \brief Removes the deleted blocks from the index.
 !> \param[in,out] matrix      Prune the index of this matrix.
-!> \param[in,out] error       error
 !> \par Description
 ! *****************************************************************************
-  SUBROUTINE dbcsr_index_prune_deleted(matrix, error)
+  SUBROUTINE dbcsr_index_prune_deleted(matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_index_prune_deleted', &
       routineP = moduleN//':'//routineN
@@ -757,7 +747,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     !
     old_row_p => matrix%m%row_p
     old_col_i => matrix%m%col_i
@@ -767,13 +757,13 @@ CONTAINS
     nblks_max = old_row_p(nrows+1)
     ALLOCATE (new_row_count(nrows), stat=stat)
     CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Can not allocate memory.", __LINE__, error=error)
+         routineN, "Can not allocate memory.", __LINE__)
     ALLOCATE (new_col_i(nblks_max), stat=stat)
     CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Can not allocate memory.", __LINE__, error=error)
+         routineN, "Can not allocate memory.", __LINE__)
     ALLOCATE (new_blk_p(nblks_max), stat=stat)
     CALL dbcsr_assert (stat, "EQ", 0, dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Can not allocate memory.", __LINE__, error=error)
+         routineN, "Can not allocate memory.", __LINE__)
     !
     ! Build up the new index from all non-deleted blocks in the
     ! existing index.
@@ -794,20 +784,18 @@ CONTAINS
     CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_col_i)
     CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_blk_p)
     CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p,&
-         reservation=nrows+1, extra=2*new_blk, error=error)
+         reservation=nrows+1, extra=2*new_blk)
     old_row_p => matrix%m%row_p
     CALL dbcsr_build_row_index(counts=new_row_count, rows=old_row_p,&
          nrows=nrows)
-    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, DATA=new_col_i(1:new_blk),&
-         error=error)
-    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, DATA=new_blk_p(1:new_blk),&
-         error=error)
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, DATA=new_col_i(1:new_blk))
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, DATA=new_blk_p(1:new_blk))
     matrix%m%nblks = new_blk
     matrix%m%index(dbcsr_slot_nblks) = new_blk
     !
     DEALLOCATE (new_col_i, new_blk_p, new_row_count)
     !
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_index_prune_deleted
 
 
@@ -837,11 +825,10 @@ CONTAINS
                                                 ncols_new, nrows_old
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: new_col_i
     LOGICAL                                  :: blks
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_error_set (routineN, error_handle)
     blks = PRESENT (new_blk_p) .AND. PRESENT (old_blk_p)
     nblks = SIZE (old_col_i)
     nrows_old = SIZE (old_row_p)-1
@@ -853,7 +840,7 @@ CONTAINS
     CALL dbcsr_sort_indices (nblks, new_col_i, new_row_i, new_blk_p)
     CALL dbcsr_make_dbcsr_index (new_col_p, new_col_i, ncols_new, nblks)
     DEALLOCATE(new_col_i)
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE transpose_index_local
 
 
@@ -911,12 +898,11 @@ CONTAINS
 !> \param col_blk_offsets ...
 !> \param[in,out] meta                        Metadata updates for new index
 !> \param[in] make_tr                         Dense blocks are transposed
-!> \param error ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_dense_index (row_p, col_i, blk_p,&
        nblkrows_total, nblkcols_total, myblkrows, myblkcols,&
-       row_blk_offsets, col_blk_offsets, meta, make_tr, error)
+       row_blk_offsets, col_blk_offsets, meta, make_tr)
 
     !INTEGER, DIMENSION(:), INTENT(OUT)       :: row_p, col_i, blk_p
     INTEGER, INTENT(IN)                      :: nblkrows_total
@@ -930,7 +916,6 @@ CONTAINS
     INTEGER, DIMENSION(dbcsr_meta_size), &
       INTENT(INOUT)                          :: meta
     LOGICAL, INTENT(IN), OPTIONAL            :: make_tr
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_index', &
       routineP = moduleN//':'//routineN
@@ -978,8 +963,7 @@ CONTAINS
           blk = blk + mynblkcols
        END DO
        CALL dbcsr_assert (blk, "EQ", nblks, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN, "Block mismatch", __LINE__,&
-            error=error)
+            dbcsr_internal_error, routineN, "Block mismatch", __LINE__)
        row_p(prev_row+1:nblkrows_total+1) = nblks
     ENDIF
     IF (debug_mod) THEN
@@ -1081,7 +1065,6 @@ CONTAINS
 !>                                      added blocks
 !> \param[out] added_nblks              (optional) actual number of new
 !>                                      elements
-!> \param[in,out] error                 error
 !> \par Added sizes
 !>      added_size_offset and added_sizes can be optionally
 !>      specified. This is meant for cases where the added blocks may
@@ -1094,7 +1077,7 @@ CONTAINS
   SUBROUTINE merge_index_arrays (new_row_i, new_col_i, new_blk_p, new_size,&
        old_row_i, old_col_i, old_blk_p, old_size,&
        add_ip, add_size, new_blk_d, old_blk_d,&
-       added_size_offset, added_sizes, added_size, added_nblks, error)
+       added_size_offset, added_sizes, added_size, added_nblks)
     INTEGER, INTENT(IN)                      :: new_size
     INTEGER, DIMENSION(new_size), &
       INTENT(OUT)                            :: new_blk_p, new_col_i, &
@@ -1113,7 +1096,6 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: added_sizes
     INTEGER, INTENT(OUT), OPTIONAL           :: added_size, added_nblks
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'merge_index_arrays', &
       routineP = moduleN//':'//routineN
@@ -1128,13 +1110,13 @@ CONTAINS
     multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
     CALL dbcsr_assert(old_size+add_size .EQ. new_size, &
          dbcsr_warning_level, dbcsr_internal_error ,"merge_arrays",&
-         "Mismatch of new and old size",__LINE__,error)
+         "Mismatch of new and old size",__LINE__)
     CALL dbcsr_assert (PRESENT (added_size_offset), "EQV",&
          PRESENT (added_sizes), dbcsr_fatal_level, dbcsr_wrong_args_error,&
-         routineN, "Must specify a set of arguments", __LINE__, error=error)
+         routineN, "Must specify a set of arguments", __LINE__)
     CALL dbcsr_assert (PRESENT (added_sizes), "EQV", PRESENT (added_size),&
          dbcsr_fatal_level, dbcsr_wrong_args_error,&
-         routineN, "Must specify a set of arguments", __LINE__, error=error)
+         routineN, "Must specify a set of arguments", __LINE__)
     IF (debug_mod) THEN
        WRITE (*,*) " Old array", old_size
        DO i = 1, old_size
@@ -1252,11 +1234,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Converts BCSR global row index to local row index.
 !> \param[in,out] matrix       matrix for which to make canonical index
-!> \param[in,out] error        error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_make_index_local_row (matrix, error)
+  SUBROUTINE dbcsr_make_index_local_row (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_index_local_row', &
       routineP = moduleN//':'//routineN
@@ -1269,13 +1249,13 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    CALL dbcsr_error_set (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (matrix%m%row_p),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "The row index must be initialized.", __LINE__, error=error)
+         "The row index must be initialized.", __LINE__)
     CALL dbcsr_assert ("NOT", matrix%m%bcsc,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Not support for BCSC yet.", __LINE__, error=error)
+         "Not support for BCSC yet.", __LINE__)
     !
     prow = matrix%m%index(dbcsr_slot_home_vprow)
     IF (prow .LT. 0) THEN
@@ -1285,7 +1265,7 @@ CONTAINS
     ALLOCATE (local_row_p(nlocal_rows+1), stat=stat)
     CALL dbcsr_assert (stat, "EQ", 0,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Could not allocate memory.", __LINE__, error=error)
+         "Could not allocate memory.", __LINE__)
     !> The existing row_p is converted from an indexing array into a
     !> counting array.  Because it is later discarded, the counting is
     !> done in-place.
@@ -1295,7 +1275,7 @@ CONTAINS
     local_rows => array_data (matrix%m%local_rows)
     CALL dbcsr_assert (SIZE(local_rows), "EQ", nlocal_rows,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Mismatch in the number of local rows.", __LINE__, error=error)
+         "Mismatch in the number of local rows.", __LINE__)
     !> The counts are mapped to local rows,
     DO lrow = 1,nlocal_rows
        local_row_p(lrow) = matrix%m%row_p(local_rows(lrow))
@@ -1304,34 +1284,33 @@ CONTAINS
          SUM(local_row_p(1:nlocal_rows)),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "Inconsistent row counts. Perhaps non-local rows contain data?.",&
-         __LINE__, error=error)
+         __LINE__)
     !> then converted into an index.
     CALL dbcsr_build_row_index (local_row_p, nlocal_rows)
     !> The local row index replaces the global one.
     CALL dbcsr_clearfrom_index_array(matrix%m, dbcsr_slot_row_p)
-    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, DATA=local_row_p,&
-         error=error)
+    CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, DATA=local_row_p)
     !> Finally the matrix is designated as having a local-based index.
     matrix%m%local_indexing = .TRUE.
     IF (careful_mod) THEN
        CALL dbcsr_assert (array_size(matrix%m%local_rows), "EQ", nlocal_rows,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Inconsistent local row counts.",&
-            __LINE__, error=error)
+            __LINE__)
        CALL dbcsr_assert (array_size(matrix%m%global_rows), "EQ", ntotal_rows,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
             "Inconsistent global row counts.",&
-            __LINE__, error=error)
+            __LINE__)
        IF (array_size (matrix%m%global_rows) .EQ. 0) THEN
           CALL dbcsr_assert (nlocal_rows, "EQ", 0,&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
                "Invalid number of local or global rows.",&
-               __LINE__, error=error)
+               __LINE__)
        ENDIF
     ENDIF
     DEALLOCATE (local_row_p)
     !
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_make_index_local_row
 
 
@@ -1339,12 +1318,10 @@ CONTAINS
 !> \brief Converts BCSR index into list indices (similar to work matrices)
 !> \param[in,out] matrix       matrix for which to make canonical index
 !> \param[in] thread_redist    make a thread subdistribution
-!> \param[in,out] error        error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_make_index_list (matrix, thread_redist, error)
+  SUBROUTINE dbcsr_make_index_list (matrix, thread_redist)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     LOGICAL, INTENT(IN)                      :: thread_redist
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_index_list', &
       routineP = moduleN//':'//routineN
@@ -1359,31 +1336,31 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    CALL dbcsr_error_set (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (matrix%m%row_p),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "The row index must be initialized.", __LINE__, error=error)
+         "The row index must be initialized.", __LINE__)
     CALL dbcsr_assert ("NOT", matrix%m%list_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "List index already exists?", __LINE__, error=error)
+         "List index already exists?", __LINE__)
     CALL dbcsr_assert ("NOT", matrix%m%bcsc,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
-         "Not support for BCSC yet.", __LINE__, error=error)
+         "Not support for BCSC yet.", __LINE__)
     CALL dbcsr_assert (matrix%m%nblks, "EQ", SIZE(matrix%m%col_i),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Block count mismatch.", __LINE__, error=error)
+         "Block count mismatch.", __LINE__)
     CALL dbcsr_assert (matrix%m%nblks, "EQ", SIZE(matrix%m%blk_p),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Block count mismatch", __LINE__, error=error)
+         "Block count mismatch", __LINE__)
     !
     IF (matrix%m%local_indexing) THEN
        CALL dbcsr_assert (SIZE(matrix%m%row_p)-1, "EQ", matrix%m%nblkrows_local,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Local row index incorrectly sized.", __LINE__, error=error)
+            "Local row index incorrectly sized.", __LINE__)
     ELSE
        CALL dbcsr_assert (SIZE(matrix%m%row_p)-1, "EQ", matrix%m%nblkrows_total,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Global row index incorrectly sized", __LINE__, error=error)
+            "Global row index incorrectly sized", __LINE__)
     ENDIF
     !
     matrix%m%list_indexing = .TRUE.
@@ -1432,17 +1409,17 @@ CONTAINS
        ENDIF
        !$OMP PARALLEL DEFAULT (none) &
        !$OMP PRIVATE (my_cnt, ithread, blk) &
-       !$OMP SHARED (td, blki, nthreads, thr_c, nblks, matrix, error, local_rows)
+       !$OMP SHARED (td, blki, nthreads, thr_c, nblks, matrix,local_rows)
        !
        ithread = 0
        !$ ithread = OMP_GET_THREAD_NUM ()
        !$OMP MASTER
        !$ nthreads = OMP_GET_NUM_THREADS ()
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_thr_c,&
-            reservation=nthreads+1, extra=3*nblks, error=error)
+            reservation=nthreads+1, extra=3*nblks)
        thr_c => matrix%m%thr_c
        CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
-            reservation=3*nblks, error=error)
+            reservation=3*nblks)
        !$OMP END MASTER
        !$OMP BARRIER
        my_cnt = 0
@@ -1486,21 +1463,21 @@ CONTAINS
                CALL dbcsr_assert (-blki(1,blk), "EQ", blki(2,blk),&
                dbcsr_fatal_level, dbcsr_caller_error, routineN,&
       "Should not have duplicate matrix blocks. (-row, col) is duplicated.",&
-               __LINE__, error=error)
+               __LINE__)
        ENDDO
        !
        IF (nblks>0) THEN
           CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
-               DATA=RESHAPE(blki, (/3*nblks/)), error=error)
+               DATA=RESHAPE(blki, (/3*nblks/)))
        ELSE
           CALL dbcsr_addto_index_array (matrix%m, dbcsr_slot_coo_l,&
-               DATA=zero_len_array, error=error)
+               DATA=zero_len_array)
        ENDIF
     ENDIF
 
     DEALLOCATE (blki)
     !
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_make_index_list
 
 
@@ -1508,11 +1485,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Compacts an index.
 !> \param[in,out] matrix       matrix for which to make canonical index
-!> \param[in,out] error        error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_index_compact(matrix, error)
+  SUBROUTINE dbcsr_index_compact(matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_index_compact', &
       routineP = moduleN//':'//routineN
@@ -1529,7 +1504,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    CALL dbcsr_error_set (routineN, error_handle)
     !> Ensures the index pointers are set.
     CALL dbcsr_repoint_index (matrix%m)
     ! Check that compaction is even needed.
@@ -1593,10 +1568,10 @@ CONTAINS
        meta(:) = matrix%m%index(1:dbcsr_num_slots)
        ! Clear the index.
        CALL memory_deallocate (matrix%m%index,&
-            dbcsr_get_index_memory_type (matrix), error=error)
+            dbcsr_get_index_memory_type (matrix))
        NULLIFY (matrix%m%index)
        CALL memory_allocate (matrix%m%index, new_size,&
-            dbcsr_get_index_memory_type (matrix), error=error)
+            dbcsr_get_index_memory_type (matrix))
        !
        ! Now copy the old index arrays into the index. We must not
        ! copy the positions of the old pointers.
@@ -1604,28 +1579,23 @@ CONTAINS
        matrix%m%index(dbcsr_meta_size+1:) = 0
        matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
        IF (has_thr_c) THEN
-          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_thr_c, thr_c,&
-               error=error)
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_thr_c, thr_c)
           DEALLOCATE (thr_c)
        ENDIF
        IF (has_row_p) THEN
-          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, row_p,&
-               error=error)
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_row_p, row_p)
           DEALLOCATE (row_p)
        ENDIF
        IF (has_col_i) THEN
-          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, col_i,&
-               error=error)
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_col_i, col_i)
           DEALLOCATE (col_i)
        ENDIF
        IF (has_blk_p) THEN
-          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, blk_p,&
-               error=error)
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_blk_p, blk_p)
           DEALLOCATE (blk_p)
        ENDIF
        IF (has_coo_l) THEN
-          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_coo_l, coo_l,&
-               error=error)
+          CALL dbcsr_addto_index_array(matrix%m, dbcsr_slot_coo_l, coo_l)
           DEALLOCATE (coo_l)
        ENDIF
        DEALLOCATE (meta)
@@ -1633,26 +1603,24 @@ CONTAINS
           ! This is pretty strong but it should be true.
           CALL dbcsr_assert (matrix%m%index(dbcsr_slot_size), "EQ", new_size,&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Unexpected index size.", __LINE__, error=error)
+               "Unexpected index size.", __LINE__)
           CALL dbcsr_assert (SIZE(matrix%m%index), "EQ", new_size,&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Unexpected index size.", __LINE__, error=error)
+               "Unexpected index size.", __LINE__)
        ENDIF
        CALL dbcsr_repoint_index (matrix%m)
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_index_compact
 
 ! *****************************************************************************
 !> \brief Calculates the checksum of an index.
 !> \param[in] matrix           matrix for which to make canonical index
 !> \param checksum ...
-!> \param[in,out] error        error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_index_checksum(matrix, checksum, error)
+  SUBROUTINE dbcsr_index_checksum(matrix, checksum)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(OUT)                     :: checksum
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_index_checksum', &
       routineP = moduleN//':'//routineN
@@ -1661,13 +1629,13 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error=error)
+    CALL dbcsr_error_set (routineN, error_handle)
     !
     checksum = joaat_hash ( (/ joaat_hash (matrix%m%row_p),&
                                joaat_hash (matrix%m%col_i),&
                                joaat_hash (matrix%m%blk_p) /) )
     !
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_index_checksum
 
 ! *****************************************************************************

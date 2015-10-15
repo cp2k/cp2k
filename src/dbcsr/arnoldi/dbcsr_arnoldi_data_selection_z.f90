@@ -7,9 +7,8 @@
 !> \brief ...
 !> \param arnoldi_data ...
 ! *****************************************************************************
-  SUBROUTINE select_evals_z(arnoldi_data,error)
+  SUBROUTINE select_evals_z(arnoldi_data)
     TYPE(dbcsr_arnoldi_data)                :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'select_evals_z', &
       routineP = moduleN//':'//routineN 
@@ -37,7 +36,7 @@
     CASE(3)
        CALL index_nmin_real_eval_z(ar_data%evals, control%current_step, control%selected_ind, control%nval_out)
     CASE DEFAULT
-       CALL dbcsr_abort(routineP,__LINE__,"unknown selection index",error)
+       CALL dbcsr_abort(routineP,__LINE__,"unknown selection index")
     END SELECT
     ! test whether we are converged
     DO i=1, control%nval_out

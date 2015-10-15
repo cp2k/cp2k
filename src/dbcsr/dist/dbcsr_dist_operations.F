@@ -30,10 +30,14 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_processor, dbcsr_distribution_release, &
        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
        dbcsr_distribution_thread_dist
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_fatal_level, dbcsr_internal_error, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_error_set,&
+                                             dbcsr_error_stop,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_warning_level,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_is_initialized,&
                                              dbcsr_release_locals
@@ -252,14 +256,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: error
-
 !   ---------------------------------------------------------------------------
 
     IF (debug_mod) THEN
        CALL dbcsr_assert (dbcsr_is_initialized(matrix),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "matrix%m not associated",__LINE__,error)
+            "matrix%m not associated",__LINE__)
     ENDIF
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose, processor)
@@ -598,13 +600,12 @@ CONTAINS
 
     INTEGER                                  :: bin, i, old_nbins, virtual_bin
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
     CALL dbcsr_assert (MOD(nbins*nimages,multiplicity), "EQ", 0,&
          dbcsr_warning_level, dbcsr_internal_error,&
-         routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__,error)
+         routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__)
     old_nbins = (nbins * nimages) / multiplicity
     ALLOCATE (bin_multiplier(0:old_nbins-1))
     bin_multiplier(:) = 0
@@ -756,7 +757,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, virtual_bin
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -770,9 +770,9 @@ CONTAINS
        new_bins(i) = virtual_bin / nimages
        images(i) = 1 + MOD (virtual_bin, nimages)
        CALL dbcsr_assert (new_bins(i).lt.nbins, dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Wrong bin calculation",__LINE__,error)
+            routineN, "Wrong bin calculation",__LINE__)
        CALL dbcsr_assert (images(i).le.nimages, dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Wrong image calculation",__LINE__,error)
+            routineN, "Wrong image calculation",__LINE__)
     ENDDO
   END SUBROUTINE rebin_imaged_distribution
 
@@ -782,16 +782,14 @@ CONTAINS
 !> \param imgdist ...
 !> \param dist ...
 !> \param template ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_new_image_dist (imgdist, dist,&
-       template, error)
+       template)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(OUT)                            :: imgdist
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: template
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_image_dist', &
       routineP = moduleN//':'//routineN
@@ -1041,7 +1039,6 @@ CONTAINS
 !>                            to source blocks
 !> \param[in] src_sizes       sizes of source blocks
 !> \param[in] dst_sizes       sizes of target blocks
-!> \param[in,out] error       error
 !> \par ints output format
 !>      The ints array should be up to twice as large as the number of
 !>      intersecting blocks. Each entry is comprised of the target
@@ -1070,13 +1067,12 @@ CONTAINS
 !>       dbcsr_complete_redistribute
 ! *****************************************************************************
   SUBROUTINE dbcsr_reblocking_targets (ints, numints, n_src_dsts,&
-       src_sizes, dst_sizes, error)
+       src_sizes, dst_sizes)
     INTEGER, INTENT(INOUT)                   :: numints
     INTEGER, DIMENSION(4, numints), &
       INTENT(OUT)                            :: ints
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: n_src_dsts
     INTEGER, DIMENSION(:), INTENT(IN)        :: src_sizes, dst_sizes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reblocking_targets', &
       routineP = moduleN//':'//routineN
@@ -1110,7 +1106,7 @@ CONTAINS
     DO WHILE (current_src .LE. n_src .AND. current_dst .LE. n_dst)
        CALL dbcsr_assert (current_int, "LE", numints, &
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Ran out of space.", __LINE__, error=error)
+            "Ran out of space.", __LINE__)
        ! Calculate how many elements do the current blocks have in
        ! common and record these as going to the current target block.
        common_extent = MIN (s_src, s_dst)
@@ -1170,7 +1166,6 @@ CONTAINS
     INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
       max_blocks_per_bin, nblks, nblocks, stat
     INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -1197,11 +1192,11 @@ CONTAINS
        ALLOCATE (blk_dist (estimated_blocks), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, &
             dbcsr_caller_error, routineN,&
-            "blk_dist",__LINE__,error)
+            "blk_dist",__LINE__)
        ALLOCATE (blk_sizes (estimated_blocks), stat=stat)
        CALL dbcsr_assert (stat == 0,dbcsr_fatal_level, &
             dbcsr_caller_error, routineN,&
-            "blk_sizes",__LINE__,error)
+            "blk_sizes",__LINE__)
        element_stack = 0
        nblks = 0
        DO blk_layer = 1, max_blocks_per_bin
@@ -1225,13 +1220,13 @@ CONTAINS
           ALLOCATE (block_distribution (nblks), stat=stat)
           CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, &
                dbcsr_caller_error, routineN,&
-               "blk_dist",__LINE__,error)
+               "blk_dist",__LINE__)
           block_distribution(:)=blk_dist(1:nblks)
           DEALLOCATE (blk_dist)
           ALLOCATE (block_size (nblks), stat=stat)
           CALL dbcsr_assert (stat == 0,dbcsr_fatal_level, &
                dbcsr_caller_error, routineN,&
-               "blk_sizes",__LINE__,error)
+               "blk_sizes",__LINE__)
           block_size(:)=blk_sizes(1:nblks)
           DEALLOCATE(blk_sizes)
        ENDIF
@@ -1239,11 +1234,11 @@ CONTAINS
        ALLOCATE (block_distribution (0), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN,&
-            "blk_dist",__LINE__,error)
+            "blk_dist",__LINE__)
        ALLOCATE (block_size (0), stat=stat)
        CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN,&
-            "blk_sizes",__LINE__,error)
+            "blk_sizes",__LINE__)
     ENDIF
 1579 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
     IF (debug_mod) THEN
@@ -1400,14 +1395,12 @@ CONTAINS
 !> \param mapping ...
 !> \param nel_new ...
 !> \param new_sizes ...
-!> \param error ...
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
-  SUBROUTINE make_sizes_dense (old_sizes, mapping, nel_new, new_sizes, error)
+  SUBROUTINE make_sizes_dense (old_sizes, mapping, nel_new, new_sizes)
     TYPE(array_i1d_obj), INTENT(IN)          :: old_sizes, mapping
     INTEGER, INTENT(IN)                      :: nel_new
     TYPE(array_i1d_obj), INTENT(OUT)         :: new_sizes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense', &
       routineP = moduleN//':'//routineN
@@ -1491,14 +1484,12 @@ CONTAINS
 !> \param k_vmap ...
 !> \param n_map ...
 !> \param old_m_sizes ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_dists_dense (product_dist, left_rdist, right_rdist,&
        dense_product_dist, dense_left_rdist, dense_right_rdist,&
        partial,&
        m_map, k_vmap, n_map,&
-       old_m_sizes,&
-       error)
+       old_m_sizes)
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: product_dist
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: left_rdist, right_rdist
@@ -1510,7 +1501,6 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: partial
     TYPE(array_i1d_obj), INTENT(OUT)         :: m_map, k_vmap, n_map
     TYPE(array_i1d_obj), INTENT(IN)          :: old_m_sizes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dists_dense', &
       routineP = moduleN//':'//routineN
@@ -1525,11 +1515,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     !
     CALL dbcsr_assert (dbcsr_distribution_has_threads (product_dist), &
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Product distribution must have threads.", __LINE__, error=error)
+         "Product distribution must have threads.", __LINE__)
     tdist => array_data (dbcsr_distribution_thread_dist (product_dist))
     old_m_dist = product_dist%d%row_dist_block
     old_n_dist = product_dist%d%col_dist_block
@@ -1539,7 +1529,7 @@ CONTAINS
     k_nbins = dbcsr_mp_nprows (right_rdist%i%main%d%mp_env) * right_rdist%i%row_decimation
     CALL dbcsr_assert (array_equality (old_k_vdist, left_rdist%i%vcol_dist),&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "k distribution mismtach", __LINE__, error=error)
+         "k distribution mismtach", __LINE__)
     nthreads = product_dist%d%num_threads
     !
     IF (partial) THEN
@@ -1557,7 +1547,7 @@ CONTAINS
        CALL dbcsr_make_1dist_dense (n_nbins, old_n_dist, new_n_dist, n_map, 0)
        CALL dbcsr_distribution_new (dense_product_dist, product_dist%d%mp_env,&
             array_data(new_m_dist), array_data(new_n_dist))
-       CALL make_sizes_dense (old_m_sizes, m_map, array_size(new_m_dist), new_m_sizes, error=error)
+       CALL make_sizes_dense (old_m_sizes, m_map, array_size(new_m_dist), new_m_sizes)
        CALL dbcsr_distribution_make_threads (dense_product_dist,&
             array_data(new_m_sizes))
        CALL array_release (new_m_sizes)
@@ -1578,7 +1568,7 @@ CONTAINS
     dense_left_dist%d%thread_dist = dbcsr_distribution_thread_dist (dense_product_dist)
     CALL array_hold (dense_left_dist%d%thread_dist)
     dense_left_dist%d%has_thread_dist = .TRUE.
-    CALL dbcsr_new_image_dist (dense_left_rdist, dense_left_dist, left_rdist, error)
+    CALL dbcsr_new_image_dist (dense_left_rdist, dense_left_dist, left_rdist)
     CALL dbcsr_distribution_release (dense_left_dist)
     CALL array_new (dense_left_rdist%i%row_image,&
          (/ (1, i=1, array_size (new_m_dist)) /), lb=1)
@@ -1596,7 +1586,7 @@ CONTAINS
          right_rdist%i%row_decimation, new_k_pdist, new_k_idist)
     CALL dbcsr_distribution_new (dense_right_dist, right_rdist%i%main%d%mp_env,&
          array_data(new_k_pdist), array_data(new_n_dist))
-    CALL dbcsr_new_image_dist (dense_right_rdist, dense_right_dist, right_rdist, error)
+    CALL dbcsr_new_image_dist (dense_right_rdist, dense_right_dist, right_rdist)
     CALL dbcsr_distribution_release (dense_right_dist)
     CALL array_new (dense_right_rdist%i%col_image,&
          (/ (1, i=1, array_size (new_n_dist)) /), lb=1)
@@ -1613,7 +1603,7 @@ CONTAINS
     CALL array_release (new_n_dist)
     CALL array_release (new_k_vdist)
     !
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_make_dists_dense
 
 
@@ -1725,14 +1715,12 @@ CONTAINS
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_rows        local elements for specified row
 !> \param[in] local_prow find local elemnts for this local row
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_prow, error)
+  SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_prow)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: local_rows
     INTEGER, INTENT(IN)                      :: local_prow
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_rows', &
       routineP = moduleN//':'//routineN
@@ -1741,7 +1729,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
     INTEGER, DIMENSION(:), POINTER           :: itmp, row_dist
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. dist%d%has_other_l_rows) THEN
        dist%d%has_other_l_rows = .TRUE.
@@ -1768,11 +1756,11 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (ASSOCIATED (dist%d%other_l_rows),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local rows mapping does not exist.", __LINE__, error=error)
+               "Local rows mapping does not exist.", __LINE__)
        ENDIF
     ENDIF
     local_rows = dist%d%other_l_rows(local_prow)
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_local_rows
 
 ! *****************************************************************************
@@ -1780,14 +1768,12 @@ CONTAINS
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_cols        local elements for specified column
 !> \param[in] local_pcol         find local elemnts for this local column 
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_pcol, error)
+  SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_pcol)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: local_cols
     INTEGER, INTENT(IN)                      :: local_pcol
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_cols', &
       routineP = moduleN//':'//routineN
@@ -1796,7 +1782,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
     INTEGER, DIMENSION(:), POINTER           :: col_dist, itmp
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. dist%d%has_other_l_cols) THEN
        dist%d%has_other_l_cols = .TRUE.
@@ -1823,11 +1809,11 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (ASSOCIATED (dist%d%other_l_cols),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local columns mapping does not exist.", __LINE__, error=error)
+               "Local columns mapping does not exist.", __LINE__)
        ENDIF
     ENDIF
     local_cols = dist%d%other_l_cols(local_pcol)
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_local_cols
 
 
@@ -1835,13 +1821,11 @@ CONTAINS
 !> \brief Determines mapping from global to local rows
 !> \param[in] dist              mapping for this distribution
 !> \param[in] row_map           mapping to local rows
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_global_row_map (dist, row_map, error)
+  SUBROUTINE dbcsr_get_global_row_map (dist, row_map)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: row_map
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_row_map', &
       routineP = moduleN//':'//routineN
@@ -1849,7 +1833,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nprows
     INTEGER, DIMENSION(:), POINTER           :: rmap, row_dist
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. dist%d%has_global_row_map) THEN
        row_dist => dbcsr_distribution_row_dist (dist)
@@ -1862,11 +1846,11 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (array_exists (dist%d%global_row_map),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Row map does not exist.", __LINE__, error=error)
+               "Row map does not exist.", __LINE__)
        ENDIF
     ENDIF
     row_map = dist%d%global_row_map
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_global_row_map
 
 
@@ -1874,13 +1858,11 @@ CONTAINS
 !> \brief Determines mapping from global to local columns
 !> \param[in] dist              mapping for this distribution
 !> \param[in] col_map           mapping to local columns
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_global_col_map (dist, col_map, error)
+  SUBROUTINE dbcsr_get_global_col_map (dist, col_map)
     TYPE(dbcsr_distribution_obj), &
       INTENT(INOUT)                          :: dist
     TYPE(array_i1d_obj), INTENT(OUT)         :: col_map
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_col_map', &
       routineP = moduleN//':'//routineN
@@ -1888,7 +1870,7 @@ CONTAINS
     INTEGER                                  :: error_handle, npcols
     INTEGER, DIMENSION(:), POINTER           :: cmap, col_dist
 
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. dist%d%has_global_col_map) THEN
        col_dist => dbcsr_distribution_col_dist (dist)
@@ -1901,22 +1883,20 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (array_exists (dist%d%global_col_map),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Column map does not exist.", __LINE__, error=error)
+               "Column map does not exist.", __LINE__)
        ENDIF
     ENDIF
     col_map = dist%d%global_col_map
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_global_col_map
 
 
 ! *****************************************************************************
 !> \brief Resets local rows, columns to the correct arrays and values.
 !> \param matrix ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_reset_locals (matrix, error)
+  SUBROUTINE dbcsr_reset_locals (matrix)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
@@ -1925,18 +1905,18 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     dist = dbcsr_distribution (matrix)
-    CALL dbcsr_release_locals (matrix, error=error)
+    CALL dbcsr_release_locals (matrix)
     ! Rows
     IF (dbg) &
          WRITE(*,*)"reset local rows for ", TRIM(matrix%m%name),&
          matrix%m%nblkrows_local, "prow", matrix%m%index(dbcsr_slot_home_prow),&
          dbcsr_mp_myprow (dbcsr_distribution_mp (matrix%m%dist))
     CALL dbcsr_get_local_rows (dist, matrix%m%local_rows,&
-         matrix%m%index(dbcsr_slot_home_prow), error=error)
+         matrix%m%index(dbcsr_slot_home_prow))
     CALL array_hold (matrix%m%local_rows)
     IF (dbg) WRITE(*,*)"local rows", matrix%m%local_rows%low%data
     matrix%m%nblkrows_local = array_size (matrix%m%local_rows)
-    CALL dbcsr_get_global_row_map (dist, matrix%m%global_rows, error=error)
+    CALL dbcsr_get_global_row_map (dist, matrix%m%global_rows)
     CALL array_hold (matrix%m%global_rows)
     matrix%m%has_local_rows = .TRUE.
     matrix%m%has_global_rows = .TRUE.
@@ -1946,11 +1926,11 @@ CONTAINS
          matrix%m%nblkcols_local, "pcol", matrix%m%index(dbcsr_slot_home_pcol),&
          dbcsr_mp_mypcol (dbcsr_distribution_mp (matrix%m%dist))
     CALL dbcsr_get_local_cols (dist, matrix%m%local_cols,&
-         matrix%m%index(dbcsr_slot_home_pcol), error=error)
+         matrix%m%index(dbcsr_slot_home_pcol))
     CALL array_hold (matrix%m%local_cols)
     IF (dbg) WRITE(*,*)"local cols", matrix%m%local_cols%low%data
     matrix%m%nblkcols_local = array_size (matrix%m%local_cols)
-    CALL dbcsr_get_global_col_map (dist, matrix%m%global_cols, error=error)
+    CALL dbcsr_get_global_col_map (dist, matrix%m%global_cols)
     CALL array_hold (matrix%m%global_cols)
     matrix%m%has_local_cols = .TRUE.
     matrix%m%has_global_cols = .TRUE.
@@ -1962,14 +1942,12 @@ CONTAINS
 !> \param[in] imgdist           image distribution
 !> \param[out] local_vrows       local rows 
 !> \param[in] local_vprow       the local virtual process row
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_local_vrows (imgdist, local_vrows, local_vprow, error)
+  SUBROUTINE dbcsr_get_local_vrows (imgdist, local_vrows, local_vprow)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: imgdist
     TYPE(array_i1d_obj), INTENT(OUT)         :: local_vrows
     INTEGER, INTENT(IN)                      :: local_vprow
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vrows', &
       routineP = moduleN//':'//routineN
@@ -1979,7 +1957,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
     INTEGER, DIMENSION(:), POINTER           :: vrow_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_other_vl_rows) THEN
        imgdist%i%has_other_vl_rows = .TRUE.
@@ -2007,11 +1985,11 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (ASSOCIATED (imgdist%i%other_vl_rows),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local rows mapping does not exist.", __LINE__, error=error)
+               "Local rows mapping does not exist.", __LINE__)
        ENDIF
     ENDIF
     local_vrows = imgdist%i%other_vl_rows(local_vprow)
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_local_vrows
 
 ! *****************************************************************************
@@ -2019,14 +1997,12 @@ CONTAINS
 !> \param[in] imgdist           image distribution
 !> \param[out] local_vcols       local columnss 
 !> \param[in] local_vpcol       the local virtual process column
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_local_vcols (imgdist, local_vcols, local_vpcol, error)
+  SUBROUTINE dbcsr_get_local_vcols (imgdist, local_vcols, local_vpcol)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: imgdist
     TYPE(array_i1d_obj), INTENT(OUT)         :: local_vcols
     INTEGER, INTENT(IN)                      :: local_vpcol
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vcols', &
       routineP = moduleN//':'//routineN
@@ -2036,7 +2012,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
     INTEGER, DIMENSION(:), POINTER           :: itmp, vcol_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_other_vl_cols) THEN
        imgdist%i%has_other_vl_cols = .TRUE.
@@ -2064,24 +2040,22 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (ASSOCIATED (imgdist%i%other_vl_cols),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local cols mapping does not exist.", __LINE__, error=error)
+               "Local cols mapping does not exist.", __LINE__)
        ENDIF
     ENDIF
     local_vcols = imgdist%i%other_vl_cols(local_vpcol)
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_local_vcols
 
 ! *****************************************************************************
 !> \brief Determines mapping from global to virtual local rows
 !> \param[in] imgdist           mapping for this image distribution
 !> \param[in] vrow_map           mapping to local rows
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_global_vrow_map (imgdist, vrow_map, error)
+  SUBROUTINE dbcsr_get_global_vrow_map (imgdist, vrow_map)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: imgdist
     TYPE(array_i1d_obj), INTENT(OUT)         :: vrow_map
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vrow_map', &
       routineP = moduleN//':'//routineN
@@ -2089,7 +2063,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nvprows
     INTEGER, DIMENSION(:), POINTER           :: rmap, vrow_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_global_vrow_map) THEN
        vrow_dist => array_data (imgdist%i%vrow_dist)
@@ -2103,24 +2077,22 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (array_exists (imgdist%i%global_vrow_map),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Row map does not exist.", __LINE__, error=error)
+               "Row map does not exist.", __LINE__)
        ENDIF
     ENDIF
     vrow_map = imgdist%i%global_vrow_map
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_global_vrow_map
 
 ! *****************************************************************************
 !> \brief Determines mapping from global to virtual local columnss
 !> \param[in] imgdist           mapping for this image distribution
 !> \param[in] vcol_map           mapping to local columnss 
-!> \param[in,out] error         error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_global_vcol_map (imgdist, vcol_map, error)
+  SUBROUTINE dbcsr_get_global_vcol_map (imgdist, vcol_map)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: imgdist
     TYPE(array_i1d_obj), INTENT(OUT)         :: vcol_map
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vcol_map', &
       routineP = moduleN//':'//routineN
@@ -2128,7 +2100,7 @@ CONTAINS
     INTEGER                                  :: error_handle, nvpcols
     INTEGER, DIMENSION(:), POINTER           :: rmap, vcol_dist
 
-    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_set(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
     IF (.NOT. imgdist%i%has_global_vcol_map) THEN
        vcol_dist => array_data (imgdist%i%vcol_dist)
@@ -2142,11 +2114,11 @@ CONTAINS
        IF (careful_mod) THEN
           CALL dbcsr_assert (array_exists (imgdist%i%global_vcol_map),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Col map does not exist.", __LINE__, error=error)
+               "Col map does not exist.", __LINE__)
        ENDIF
     ENDIF
     vcol_map = imgdist%i%global_vcol_map
-    IF (careful_mod) CALL dbcsr_error_stop(error_handle, error)
+    IF (careful_mod) CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_get_global_vcol_map
 
 
@@ -2157,26 +2129,24 @@ CONTAINS
 !> \param matrix ...
 !> \param imgdist ...
 !> \param do_rows ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_reset_vlocals (matrix, imgdist, do_rows, error)
+  SUBROUTINE dbcsr_reset_vlocals (matrix, imgdist, do_rows)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(INOUT)                          :: imgdist
     LOGICAL, INTENT(IN), OPTIONAL            :: do_rows
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     LOGICAL                                  :: my_do_rows
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_release_locals (matrix, error=error)
+    CALL dbcsr_release_locals (matrix)
     my_do_rows = .TRUE.
     IF (PRESENT(do_rows)) my_do_rows = do_rows
     ! Rows
     IF (.NOT.PRESENT(do_rows) .OR. my_do_rows) THEN
        CALL dbcsr_get_local_vrows (imgdist, matrix%m%local_rows,&
-            matrix%m%index(dbcsr_slot_home_vprow), error=error)
+            matrix%m%index(dbcsr_slot_home_vprow))
     ELSE
        matrix%m%local_rows = imgdist%i%main%d%local_rows
     ENDIF
@@ -2184,13 +2154,13 @@ CONTAINS
     matrix%m%has_local_rows = .TRUE.
     matrix%m%nblkrows_local = array_size (matrix%m%local_rows)
     matrix%m%index(dbcsr_slot_nblkrows_local) = array_size (matrix%m%local_rows)
-    CALL dbcsr_get_global_vrow_map (imgdist, matrix%m%global_rows, error=error)
+    CALL dbcsr_get_global_vrow_map (imgdist, matrix%m%global_rows)
     CALL array_hold (matrix%m%global_rows)
     matrix%m%has_global_rows = .TRUE.
     ! Columns
     IF (.NOT.PRESENT(do_rows) .OR. .NOT.my_do_rows) THEN
        CALL dbcsr_get_local_vcols (imgdist, matrix%m%local_cols,&
-            matrix%m%index(dbcsr_slot_home_vpcol), error=error)
+            matrix%m%index(dbcsr_slot_home_vpcol))
     ELSE
        matrix%m%local_cols = imgdist%i%main%d%local_cols
     ENDIF
@@ -2198,7 +2168,7 @@ CONTAINS
     matrix%m%has_local_cols = .TRUE.
     matrix%m%nblkcols_local = array_size (matrix%m%local_cols)
     matrix%m%index(dbcsr_slot_nblkcols_local) = array_size (matrix%m%local_cols)
-    CALL dbcsr_get_global_vcol_map (imgdist, matrix%m%global_cols, error=error)
+    CALL dbcsr_get_global_vcol_map (imgdist, matrix%m%global_cols)
     CALL array_hold (matrix%m%global_cols)
     matrix%m%has_global_cols = .TRUE.
   END SUBROUTINE dbcsr_reset_vlocals
@@ -2323,7 +2293,6 @@ CONTAINS
 !> \param vprow_shift ...
 !> \param vpcol_shift ...
 !> \param shifting ...
-!> \param error ...
 !> \par Shifting
 !>  (L)eft and (R)ight shifting are "shifts from", (l)eft and (r)ight
 !>  are "shifts to".  A caller (or the my* specifications) would use
@@ -2334,7 +2303,7 @@ CONTAINS
        prow, rowi, pcol, coli, vprow, vpcol,&
        myprow, mypcol, myrowi, mycoli, myvprow, myvpcol,&
        vprow_shift, vpcol_shift,&
-       shifting, error)
+       shifting)
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: image_dist
     INTEGER, INTENT(OUT), OPTIONAL           :: prow, rowi, pcol, coli, &
@@ -2343,7 +2312,6 @@ CONTAINS
                                                 mycoli, myvprow, myvpcol, &
                                                 vprow_shift, vpcol_shift
     CHARACTER, INTENT(IN), OPTIONAL          :: shifting
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'image_calculator', &
       routineP = moduleN//':'//routineN
@@ -2359,12 +2327,12 @@ CONTAINS
             PRESENT(mycoli),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Must specify either (process row and row image) or (virtual process row)",&
-            __LINE__, error=error)
+            __LINE__)
        CALL dbcsr_assert (.not.PRESENT (myvpcol), "IMP",&
             PRESENT(mycoli),&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Must specify either (process col and col image) or (virtual process col)",&
-            __LINE__, error=error)
+            __LINE__)
     ENDIF
     !
     mp = image_dist%i%main%d%mp_env
@@ -2429,16 +2397,13 @@ CONTAINS
 !> \param[in] nelements    Number of elements
 !> \param[in] nbins        Number of bins
 !> \param[in] element_sizes  (optional) sizes of elements
-!> \param[in,out] error    error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_dist_bin (bin_dist, nelements, nbins, element_sizes,&
-       error)
+  SUBROUTINE dbcsr_dist_bin (bin_dist, nelements, nbins, element_sizes)
     INTEGER, DIMENSION(:), INTENT(OUT), &
       POINTER                                :: bin_dist
     INTEGER, INTENT(IN)                      :: nelements, nbins
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: element_sizes
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_dist_bin', &
       routineP = moduleN//':'//routineN
@@ -2450,13 +2415,13 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_error_set (routineN, error_handle)
     ALLOCATE (bin_dist (nelements))
     IF (PRESENT (element_sizes)) THEN
        CALL dbcsr_assert (SIZE(element_sizes), "EQ", nelements,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Array of element sizes does not match the number of elements.",&
-            __LINE__, error=error)
+            __LINE__)
        CALL heap_new (bin_heap, nbins)
        CALL heap_fill (bin_heap, (/ (bin, bin = 0, nbins-1) /),&
                                  (/ (0,   bin = 0, nbins-1) /), heap_error)
@@ -2473,7 +2438,7 @@ CONTAINS
           bin_dist(i) = MOD (INT (rn*REAL (nbins, kind=sp)), nbins)
        ENDDO
     ENDIF
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_dist_bin
 
 END MODULE dbcsr_dist_operations

@@ -19,8 +19,7 @@ PROGRAM dbcsr_unittest
                                              acc_set_active_device
   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
+                                             dbcsr_error_stop
   USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_new,&
@@ -47,7 +46,6 @@ PROGRAM dbcsr_unittest
   INTEGER, DIMENSION(2)                    :: npdims, myploc
   INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(dbcsr_mp_obj)                       :: mp_env
-  TYPE(dbcsr_error_type)                   :: error
 
 
   CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_check_multiply'
@@ -57,7 +55,7 @@ PROGRAM dbcsr_unittest
 
   !
   ! initialize libdbcsr errors
-  CALL dbcsr_error_set (routineN, error_handler, error)
+  CALL dbcsr_error_set (routineN, error_handler)
 
   !
   ! initialize mpi
@@ -86,8 +84,8 @@ PROGRAM dbcsr_unittest
   ! initialize libdbcsr
   IF (acc_get_ndevices() > 0) &
      CALL acc_set_active_device(MOD(mynode, acc_get_ndevices()))
-  CALL dbcsr_init_lib (error=error)
-  CALL dbcsr_set_default_config (error=error)
+  CALL dbcsr_init_lib()
+  CALL dbcsr_set_default_config()
 
 
   ! run tests
@@ -99,14 +97,14 @@ PROGRAM dbcsr_unittest
        sparsities=(/0.7_dp, 0.5_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 1.0_dp, dp), beta=CMPLX(2.0_dp, 2.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2, 1, 3/),&
-       limits=(/1, 50, 1, 25/), error=error)
+       limits=(/1, 50, 1, 25/))
 
   CALL dbcsr_test_adds("add_1",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50/),&
        sparsities=(/0.4_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(3.0_dp, 2.0_dp, dp), beta=CMPLX(4.0_dp, 0.5_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/),&
-       limits=(/1, 50, 1, 50/), error=error)
+       limits=(/1, 50, 1, 50/))
 
   ! multiply ------------------------------------------------------------------
 
@@ -115,161 +113,161 @@ PROGRAM dbcsr_unittest
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(-3.0_dp, -4.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 4/), bs_n=(/1, 4/), bs_k=(/1, 4/),&
-       limits=(/2, 6, 3, 7, 6, 7/), error=error)
+       limits=(/2, 6, 3, 7, 6, 7/))
 
   CALL dbcsr_test_multiplies("multiply_BETA",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(3.0_dp, -2.0_dp, dp),&
        bs_m=(/1, 4/), bs_n=(/1, 4/), bs_k=(/1, 4/),&
-       limits=(/2, 6, 3, 7, 6, 7/), error=error)
+       limits=(/2, 6, 3, 7, 6, 7/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_COL_1",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 1, 20, 1, 50/), error=error)
+       limits=(/1, 50, 1, 20, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_COL_2",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 9, 18, 1, 50/), error=error)
+       limits=(/1, 50, 9, 18, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_COL_3",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 9, 18, 1, 50/), error=error)
+       limits=(/1, 50, 9, 18, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_COL_4",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/25, 50, 75/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 25, 9, 18, 1, 75/), error=error)
+       limits=(/1, 25, 9, 18, 1, 75/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_K_1",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 1, 50, 1, 20/), error=error)
+       limits=(/1, 50, 1, 50, 1, 20/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_K_2",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 1, 50, 9, 18/), error=error)
+       limits=(/1, 50, 1, 50, 9, 18/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_K_3",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 1, 50, 9, 18/), error=error)
+       limits=(/1, 50, 1, 50, 9, 18/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_K_4",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/25, 50, 75/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 25, 1, 50, 9, 18/), error=error)
+       limits=(/1, 25, 1, 50, 9, 18/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_MIX_1",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/9, 18, 11, 20, 1, 50/), error=error)
+       limits=(/9, 18, 11, 20, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_MIX_2",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 9, 10, 11, 20/), error=error)
+       limits=(/1, 50, 9, 10, 11, 20/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_MIX_3",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/9, 20, 1, 50, 11, 18/), error=error)
+       limits=(/9, 20, 1, 50, 11, 18/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_MIX_4",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/11, 20, 11, 20, 13, 18/), error=error)
+       limits=(/11, 20, 11, 20, 13, 18/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_MIX_5",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/11, 20, 11, 20, 13, 18/), error=error)
+       limits=(/11, 20, 11, 20, 13, 18/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_MIX_6",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/25, 50, 75/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/11, 20, 11, 20, 13, 18/), error=error)
+       limits=(/11, 20, 11, 20, 13, 18/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_MIX_7",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/25, 50, 75/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 1.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2, 1, 3/), bs_k=(/1, 3, 1, 2, 1, 0/),&
-       limits=(/11, 20, 11, 20, 6, 10/), error=error)
+       limits=(/11, 20, 11, 20, 6, 10/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_ROW_1",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 20, 1, 50, 1, 50/), error=error)
+       limits=(/1, 20, 1, 50, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_ROW_2",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/9, 18, 1, 50, 1, 50/), error=error)
+       limits=(/9, 18, 1, 50, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_ROW_3",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/9, 18, 1, 50, 1, 50/), error=error)
+       limits=(/9, 18, 1, 50, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_LIMITS_ROW_4",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/25, 50, 75/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/9, 18, 1, 50, 1, 75/), error=error)
+       limits=(/9, 18, 1, 50, 1, 75/))
 
   CALL dbcsr_test_multiplies("multiply_RT",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 1, 50, 1, 50/), error=error)
+       limits=(/1, 50, 1, 50, 1, 50/))
 
   CALL dbcsr_test_multiplies("multiply_SQ",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/50, 50, 50/),&
        sparsities=(/0.0_dp, 0.0_dp, 0.0_dp/), retain_sparsity=.FALSE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 50, 1, 50, 1, 50/), error=error)
+       limits=(/1, 50, 1, 50, 1, 50/))
 
 
   ! multiply-ghost ------------------------------------------------------------
@@ -279,47 +277,47 @@ PROGRAM dbcsr_unittest
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 4/), bs_n=(/1, 4/), bs_k=(/1, 4/),&
-       limits=(/2, 6, 3, 7, 6, 7/), error=error)
+       limits=(/2, 6, 3, 7, 6, 7/))
 
   CALL dbcsr_test_multiplies("ub-k-ghost",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 4/), bs_n=(/1, 4/), bs_k=(/1, 4, 1, 0/),&
-       limits=(/2, 6, 3, 7, 2, 7/), error=error)
+       limits=(/2, 6, 3, 7, 2, 7/))
 
   CALL dbcsr_test_multiplies("ub-m-ghost",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 4, 1, 0/), bs_n=(/1, 4/), bs_k=(/1, 4/),&
-       limits=(/2, 6, 3, 7, 2, 7/), error=error)
+       limits=(/2, 6, 3, 7, 2, 7/))
 
   CALL dbcsr_test_multiplies("ub-mnk-ghost",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 4, 1, 0/), bs_n=(/1, 4, 1, 0/), bs_k=(/1, 4, 1, 0/),&
-       limits=(/2, 6, 3, 7, 2, 7/), error=error)
+       limits=(/2, 6, 3, 7, 2, 7/))
 
   CALL dbcsr_test_multiplies("ub-n-ghost",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 4/), bs_n=(/1, 4, 1, 0/), bs_k=(/1, 4/),&
-       limits=(/2, 6, 3, 7, 2, 7/), error=error)
+       limits=(/2, 6, 3, 7, 2, 7/))
 
   CALL dbcsr_test_multiplies("ub",&
        group, mp_env, npdims, io_unit, matrix_sizes=(/20, 20, 20/),&
        sparsities=(/0.5_dp, 0.5_dp, 0.5_dp/), retain_sparsity=.TRUE.,&
        alpha=CMPLX(1.0_dp, 0.0_dp, dp), beta=CMPLX(0.0_dp, 0.0_dp, dp),&
        bs_m=(/1, 2/), bs_n=(/1, 2/), bs_k=(/1, 2/),&
-       limits=(/1, 20, 1, 20, 9, 18/), error=error)
+       limits=(/1, 20, 1, 20, 9, 18/))
 
   ! end of test cases ---------------------------------------------------------
 
   ! finalize libdbcsr
-  CALL dbcsr_finalize_lib (mp_comm, io_unit, error)
+  CALL dbcsr_finalize_lib (mp_comm, io_unit)
 
   !
   ! clean mp enviroment
@@ -332,6 +330,6 @@ PROGRAM dbcsr_unittest
 
   !
   ! finalize libdbcsr errors
-  CALL dbcsr_error_stop (error_handler, error)
+  CALL dbcsr_error_stop (error_handler)
 
 END PROGRAM dbcsr_unittest

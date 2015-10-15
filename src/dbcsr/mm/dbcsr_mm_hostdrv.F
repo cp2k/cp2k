@@ -24,7 +24,6 @@ MODULE dbcsr_mm_hostdrv
                                              dbcsr_caller_error,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
@@ -80,24 +79,22 @@ CONTAINS
 !> \brief Initialize the library
 !> \param this ...
 !> \param product_wm ...
-!> \param error ...
 ! *****************************************************************************
- SUBROUTINE dbcsr_mm_hostdrv_init(this, product_wm, error)
+ SUBROUTINE dbcsr_mm_hostdrv_init(this, product_wm)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_work_type), POINTER           :: product_wm
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_hostdrv_init', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: error_handler
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     this%data_area = product_wm%data_area
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
 
   END SUBROUTINE dbcsr_mm_hostdrv_init
 
@@ -105,13 +102,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Signal approaching end of multiplication
 !> \param this ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_hostdrv_phaseout(this, error)
+  SUBROUTINE dbcsr_mm_hostdrv_phaseout(this)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
 ! nothing to do
 
@@ -121,13 +116,11 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Signal that previous stacks should be processed first
 !> \param this ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_hostdrv_barrier(this, error)
+  SUBROUTINE dbcsr_mm_hostdrv_barrier(this)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
 ! nothing to do here
 
@@ -137,12 +130,10 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Finalize the library
 !> \param this ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_hostdrv_finalize(this, error)
+  SUBROUTINE dbcsr_mm_hostdrv_finalize(this)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
 ! nothing to do here
 
@@ -158,10 +149,9 @@ CONTAINS
 !> \param stack_size ...
 !> \param stack_descr ...
 !> \param success ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_process(this, left, right, params, stack_size, &
-       stack_descr, success, error)
+       stack_descr, success)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
@@ -170,7 +160,6 @@ CONTAINS
       stack_size), INTENT(INOUT)             :: params
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
     LOGICAL, INTENT(OUT)                     :: success
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_hostdrv_process', &
       routineP = moduleN//':'//routineN
@@ -181,7 +170,7 @@ CONTAINS
     REAL(KIND=dp)                            :: rnd
 
     IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
-       CALL dbcsr_error_set (routineN, error_handle, error)
+       CALL dbcsr_error_set (routineN, error_handle)
 
     success = .TRUE. !host driver never failes...hopefully
 
@@ -200,17 +189,17 @@ CONTAINS
                + params(p_m,sp) * params(p_k,sp) - 1,&
                "LE", dbcsr_data_get_size (left%data_area),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "A data out of bounds.", __LINE__, error=error)
+               "A data out of bounds.", __LINE__)
           CALL dbcsr_assert (params(p_b_first,sp)&
                + params(p_k,sp) * params(p_n,sp) - 1,&
                "LE", dbcsr_data_get_size (right%data_area),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "B data out of bounds.", __LINE__, error=error)
+               "B data out of bounds.", __LINE__)
           CALL dbcsr_assert (params(p_c_first,sp)&
                + params(p_m,sp) * params(p_n,sp) - 1,&
                "LE", dbcsr_data_get_size (this%data_area),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "C data out of bounds.", __LINE__, error=error)
+               "C data out of bounds.", __LINE__)
        ENDDO
     ENDIF
 
@@ -220,87 +209,75 @@ CONTAINS
        CASE (dbcsr_type_real_4)
           CALL internal_process_mm_stack_s (params, &
                stack_size, &
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp,&
-               error=error)
+               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp)
        CASE (dbcsr_type_real_8)
           CALL internal_process_mm_stack_d (params,&
                stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp,&
-               error=error)
+               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
        CASE (dbcsr_type_complex_4)
           CALL internal_process_mm_stack_c (params,&
                stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp,&
-               error=error)
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
        CASE (dbcsr_type_complex_8)
           CALL internal_process_mm_stack_z (params,&
                stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp,&
-               error=error)
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
        CASE default
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
+               routineN, "Invalid data type",__LINE__)
        END SELECT
     CASE (mm_driver_smm)
        SELECT CASE (this%data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL smm_process_mm_stack_s (stack_descr, params, &
                stack_size, &
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp,&
-               error=error)
+               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp)
        CASE (dbcsr_type_real_8)
           CALL smm_process_mm_stack_d (stack_descr, params,&
                stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp,&
-               error=error)
+               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
        CASE (dbcsr_type_complex_4)
           CALL smm_process_mm_stack_c (stack_descr, params,&
                stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp,&
-               error=error)
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
        CASE (dbcsr_type_complex_8)
           CALL smm_process_mm_stack_z (stack_descr, params,&
                stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp,&
-               error=error)
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
        CASE default
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
+               routineN, "Invalid data type",__LINE__)
        END SELECT
     CASE (mm_driver_blas)
        SELECT CASE (this%data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL blas_process_mm_stack_s (params,&
                stack_size,&
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp,&
-               error=error)
+               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp)
        CASE (dbcsr_type_real_8)
           CALL blas_process_mm_stack_d (params,&
                stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp,&
-               error=error)
+               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
        CASE (dbcsr_type_complex_4)
           CALL blas_process_mm_stack_c (params,&
                stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp,&
-               error=error)
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
        CASE (dbcsr_type_complex_8)
           CALL blas_process_mm_stack_z (params,&
                stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp,&
-               error=error)
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
        CASE default
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__,error)
+               routineN, "Invalid data type",__LINE__)
        END SELECT
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Invalid multiplication driver",__LINE__,error)
+            routineN, "Invalid multiplication driver",__LINE__)
     END SELECT
 
 
     IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
-       CALL dbcsr_error_stop(error_handle, error)
+       CALL dbcsr_error_stop(error_handle)
 
 
   END SUBROUTINE dbcsr_mm_hostdrv_process

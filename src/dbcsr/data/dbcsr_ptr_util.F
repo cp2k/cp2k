@@ -25,9 +25,8 @@ MODULE dbcsr_ptr_util
                                              dbcsr_type_real_8
   USE dbcsr_error_handling,            ONLY: &
        dbcsr_assert, dbcsr_caller_error, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_failure_level, dbcsr_fatal_level, &
-       dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
-       dbcsr_wrong_args_error
+       dbcsr_failure_level, dbcsr_fatal_level, dbcsr_internal_error, &
+       dbcsr_unimplemented_error_nr, dbcsr_wrong_args_error
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8,&
@@ -113,11 +112,9 @@ MODULE dbcsr_ptr_util
     CHARACTER(len=*), PARAMETER :: routineN = 'pointer_view_a', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: error
-
     CALL dbcsr_assert (area%d%data_type, "EQ", new_area%d%data_type,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Incompatible data types.",__LINE__,error)
+         "Incompatible data types.",__LINE__)
     IF (PRESENT (len)) THEN
        SELECT CASE (area%d%data_type)
        CASE (dbcsr_type_real_4)
@@ -130,7 +127,7 @@ MODULE dbcsr_ptr_util
           new_area%d%c_dp => area%d%c_dp(offset:offset+len-1)
        CASE default
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+               routineN, "Invalid data type.",__LINE__)
        END SELECT
     ELSE
        SELECT CASE (area%d%data_type)
@@ -144,7 +141,7 @@ MODULE dbcsr_ptr_util
           new_area%d%c_dp => area%d%c_dp(offset:)
        CASE default
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-               routineN, "Invalid data type.",__LINE__,error)
+               routineN, "Invalid data type.",__LINE__)
        END SELECT
     ENDIF
     narea2 = new_area

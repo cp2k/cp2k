@@ -45,7 +45,7 @@ MODULE cp_dbcsr_interface
        dbcsr_distribution_nrows, dbcsr_distribution_obj, &
        dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
        dbcsr_distribution_row_dist, dbcsr_error_set, dbcsr_error_stop, &
-       dbcsr_error_type, dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
+       dbcsr_filter, dbcsr_finalize, dbcsr_finalize_lib, &
        dbcsr_frobenius_norm, dbcsr_func_artanh, dbcsr_func_dtanh, &
        dbcsr_func_inverse, dbcsr_func_tanh, dbcsr_function_of_elements, &
        dbcsr_gershgorin_norm, dbcsr_get_block_diag, dbcsr_get_block_p, &
@@ -133,7 +133,7 @@ MODULE cp_dbcsr_interface
             dbcsr_mp_get_process
   PUBLIC :: dbcsr_iterator_stop, dbcsr_data_obj, dbcsr_iterator, dbcsr_data_release
   PUBLIC :: dbcsr_iterator_blocks_left, dbcsr_iterator_next_block
-  PUBLIC :: dbcsr_error_type, dbcsr_mp_obj, dbcsr_norm_frobenius
+  PUBLIC :: dbcsr_mp_obj, dbcsr_norm_frobenius
   PUBLIC :: dbcsr_run_tests, dbcsr_test_mm, dbcsr_test_arnoldi, dbcsr_norm_maxabsnorm,&
             dbcsr_norm_column, dbcsr_distribution_has_threads, dbcsr_test_binary_io
   PUBLIC :: dbcsr_distribution_col_dist, dbcsr_distribution_init, dbcsr_distribution_release
@@ -392,11 +392,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_lib', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL cite_reference(Borstnik2014)
 
-    CALL dbcsr_init_lib (dbcsr_error)
+    CALL dbcsr_init_lib ()
   END SUBROUTINE cp_dbcsr_init_lib
 
 ! *****************************************************************************
@@ -410,9 +408,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize_lib', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_finalize_lib (group, output_unit, dbcsr_error)
+    CALL dbcsr_finalize_lib (group, output_unit)
   END SUBROUTINE cp_dbcsr_finalize_lib
 
 ! *****************************************************************************
@@ -420,9 +416,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_dbcsr_clear_mempools()
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
-    CALL dbcsr_clear_mempools(dbcsr_error)
+    CALL dbcsr_clear_mempools()
   END SUBROUTINE cp_dbcsr_clear_mempools
 
 ! *****************************************************************************
@@ -522,9 +517,7 @@ CONTAINS
       routineN = 'cp_dbcsr_complete_redistribute', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_complete_redistribute(matrix%matrix, redist%matrix, keep_sparsity, dbcsr_error)
+    CALL dbcsr_complete_redistribute(matrix%matrix, redist%matrix, keep_sparsity)
 
   END SUBROUTINE cp_dbcsr_complete_redistribute
 
@@ -544,10 +537,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_blocks', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_reserve_blocks(matrix%matrix, rows, cols, blk_pointers,&
-         dbcsr_error)
+    CALL dbcsr_reserve_blocks(matrix%matrix, rows, cols, blk_pointers)
   END SUBROUTINE cp_dbcsr_reserve_blocks
 
 ! *****************************************************************************
@@ -560,9 +550,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_all_blocks', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_reserve_all_blocks(matrix%matrix, dbcsr_error)
+    CALL dbcsr_reserve_all_blocks(matrix%matrix)
   END SUBROUTINE cp_dbcsr_reserve_all_blocks
 
 ! *****************************************************************************
@@ -575,9 +563,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_reserve_diag_blocks', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_reserve_diag_blocks(matrix%matrix, dbcsr_error)
+    CALL dbcsr_reserve_diag_blocks(matrix%matrix)
   END SUBROUTINE cp_dbcsr_reserve_diag_blocks
 
 ! *****************************************************************************
@@ -588,19 +574,17 @@ CONTAINS
 !> \param col ...
 !> \param blk ...
 !> \param index ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_add_work_coordinate(matrix, index_matrix, row, col, blk, index, error)
+  SUBROUTINE cp_add_work_coordinate(matrix, index_matrix, row, col, blk, index)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     INTEGER, INTENT(IN)                      :: index_matrix, row, col
     INTEGER, INTENT(IN), OPTIONAL            :: blk
     INTEGER, INTENT(OUT), OPTIONAL           :: index
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_add_work_coordinate', &
       routineP = moduleN//':'//routineN
 
-    CALL add_work_coordinate(matrix%matrix%m%wms(index_matrix), row, col, blk, index, error)
+    CALL add_work_coordinate(matrix%matrix%m%wms(index_matrix), row, col, blk, index)
   END SUBROUTINE cp_add_work_coordinate
 
 ! *****************************************************************************
@@ -623,17 +607,15 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param keep_sparsity ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_init_random (matrix, keep_sparsity, error)
+  SUBROUTINE cp_dbcsr_init_random (matrix, keep_sparsity)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     LOGICAL, OPTIONAL                        :: keep_sparsity
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_init_random', &
       routineP = moduleN//':'//routineN
 
-    CALL dbcsr_init_random(matrix%matrix,keep_sparsity=keep_sparsity,error=error)
+    CALL dbcsr_init_random(matrix%matrix,keep_sparsity=keep_sparsity)
   END SUBROUTINE cp_dbcsr_init_random
 
 ! *****************************************************************************
@@ -1051,14 +1033,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_norm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     IF (PRESENT (norm_scalar)) THEN
-       CALL dbcsr_norm(matrix%matrix, which_norm, norm_scalar=norm_scalar,&
-            error=dbcsr_error)
+       CALL dbcsr_norm(matrix%matrix, which_norm, norm_scalar=norm_scalar)
     ELSEIF (PRESENT (norm_vector)) THEN
-       CALL dbcsr_norm (matrix%matrix, which_norm, norm_vector=norm_vector,&
-            error=dbcsr_error)
+       CALL dbcsr_norm (matrix%matrix, which_norm, norm_vector=norm_vector)
     ELSE
        CPABORT("Must pass either scalar or vector norm.")
     ENDIF
@@ -1075,9 +1053,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_replicate_all', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_replicate_all(matrix%matrix, dbcsr_error)
+    CALL dbcsr_replicate_all(matrix%matrix)
   END SUBROUTINE cp_dbcsr_replicate_all
 
 ! *****************************************************************************
@@ -1092,9 +1068,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_distribute', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_distribute(matrix%matrix, fast, dbcsr_error)
+    CALL dbcsr_distribute(matrix%matrix, fast)
 
   END SUBROUTINE cp_dbcsr_distribute
 
@@ -1182,9 +1156,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_print(matrix%matrix, nodata, matlab_format, variable_name, unit_nr, dbcsr_error)
+    CALL dbcsr_print(matrix%matrix, nodata, matlab_format, variable_name, unit_nr)
 
   END SUBROUTINE cp_dbcsr_print
 
@@ -1200,9 +1172,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_print_block_sum', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_print_block_sum(matrix%matrix, unit_nr, dbcsr_error)
+    CALL dbcsr_print_block_sum(matrix%matrix, unit_nr)
 
   END SUBROUTINE cp_dbcsr_print_block_sum
 
@@ -1221,10 +1191,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_checksum', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     checksum = dbcsr_checksum(matrix%matrix,&
-         local=local, pos=pos, error=dbcsr_error)
+         local=local, pos=pos)
   END FUNCTION cp_dbcsr_checksum
 
 ! *****************************************************************************
@@ -1237,9 +1205,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_sum_replicated', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_sum_replicated (matrix%matrix, dbcsr_error)
+    CALL dbcsr_sum_replicated (matrix%matrix)
   END SUBROUTINE cp_dbcsr_sum_replicated
 
 ! *****************************************************************************
@@ -1252,12 +1218,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_triu', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
 !CALL cluster_buffer_flush (matrix%buffers)
 
-    CALL dbcsr_triu(matrix%matrix, dbcsr_error)
-    !CALL dbcsr_index_compact(matrix%matrix, dbcsr_error)
+    CALL dbcsr_triu(matrix%matrix)
+    !CALL dbcsr_index_compact(matrix%matrix)
 
   END SUBROUTINE cp_dbcsr_triu
 
@@ -1275,9 +1239,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_verify_matrix', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_verify_matrix(m%matrix, verbosity, local, dbcsr_error)
+    CALL dbcsr_verify_matrix(m%matrix, verbosity, local)
 
   END SUBROUTINE cp_dbcsr_verify_matrix
 
@@ -1399,9 +1361,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_finalize', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_finalize(matrix%matrix, reshuffle, error=dbcsr_error)
+    CALL dbcsr_finalize(matrix%matrix, reshuffle)
   END SUBROUTINE cp_dbcsr_finalize
 
 ! *****************************************************************************
@@ -1421,10 +1381,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_work_create', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL dbcsr_work_create(matrix%matrix, nblks_guess, sizedata_guess, n,&
-         work_mutable, error=dbcsr_error)
+         work_mutable)
   END SUBROUTINE cp_dbcsr_work_create
 
 ! *****************************************************************************
@@ -1459,15 +1417,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_new', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL dbcsr_create(matrix%matrix, name, dist,&
          matrix_type,&
          row_blk_size, col_blk_size, nze=nze, &
          data_type=data_type, reuse=reuse,&
          reuse_arrays=reuse_arrays,&
-         mutable_work=mutable_work, replication_type=replication_type,&
-         error=dbcsr_error)
+         mutable_work=mutable_work, replication_type=replication_type)
 
     matrix%ref_count = 1
 
@@ -1507,15 +1462,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_create_template', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL dbcsr_create(matrix%matrix, template%matrix,&
          name=name, dist=dist, matrix_type=matrix_type,&
          row_blk_size=row_blk_size, col_blk_size=col_blk_size,&
          nze=nze, data_type=data_type,&
          reuse_arrays=reuse_arrays, mutable_work=mutable_work,&
-         replication_type=replication_type,&
-         error=dbcsr_error)
+         replication_type=replication_type)
     !
     matrix%ref_count = 1
   END SUBROUTINE cp_dbcsr_create_template
@@ -1541,7 +1493,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: quick
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
     IF (PRESENT (thorough)) THEN
        quick = .NOT. thorough
@@ -1550,7 +1501,7 @@ CONTAINS
     ENDIF
     CALL dbcsr_filter(matrix%matrix, cp_dbcsr_conform_scalar (eps, matrix),&
                       method, use_absolute, filter_diag,&
-         quick=quick, error=dbcsr_error)
+         quick=quick)
   END SUBROUTINE cp_dbcsr_filter
 
 ! *****************************************************************************
@@ -1565,9 +1516,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_set_diag', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_set_diag(matrix%matrix, diag, dbcsr_error)
+    CALL dbcsr_set_diag(matrix%matrix, diag)
   END SUBROUTINE cp_dbcsr_set_diag
 
 ! *****************************************************************************
@@ -1583,9 +1532,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_diag', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_get_diag(matrix%matrix, diag, dbcsr_error)
+    CALL dbcsr_get_diag(matrix%matrix, diag)
   END SUBROUTINE cp_dbcsr_get_diag
 
 ! *****************************************************************************
@@ -1601,11 +1548,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_get_block_diag', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL cp_dbcsr_create (diag, "Diagonal of "//TRIM(cp_dbcsr_name (matrix)),&
          template=matrix)
-    CALL dbcsr_get_block_diag(matrix%matrix, diag%matrix, dbcsr_error)
+    CALL dbcsr_get_block_diag(matrix%matrix, diag%matrix)
   END SUBROUTINE cp_dbcsr_get_block_diag
 
 ! *****************************************************************************
@@ -1623,11 +1568,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_add_on_diag', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL dbcsr_add_on_diag(matrix%matrix,&
          cp_dbcsr_conform_scalar (alpha_scalar, matrix),&
-         first_row, last_row, dbcsr_error)
+         first_row, last_row)
   END SUBROUTINE cp_dbcsr_add_on_diag
 
 ! *****************************************************************************
@@ -1642,9 +1585,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_binary_write', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_binary_write(matrix%matrix, filepath, dbcsr_error)
+    CALL dbcsr_binary_write(matrix%matrix, filepath)
 
   END SUBROUTINE cp_dbcsr_binary_write
 
@@ -1664,9 +1605,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_binary_read', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_binary_read(filepath, distribution, groupid, matrix_new%matrix, dbcsr_error)
+    CALL dbcsr_binary_read(filepath, distribution, groupid, matrix_new%matrix)
 
   END SUBROUTINE cp_dbcsr_binary_read
 
@@ -1692,8 +1631,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
 !     IF(matrix_b%ref_count .le. 0)&
 !        CPWARN("Matrix not created.")
 
@@ -1701,7 +1638,7 @@ CONTAINS
        CALL cp_dbcsr_create (matrix_b, template=matrix_a)
     ENDIF
     CALL dbcsr_copy(matrix_b%matrix, matrix_a%matrix, name, keep_sparsity,&
-         shallow_data, keep_imaginary, matrix_type, dbcsr_error)
+         shallow_data, keep_imaginary, matrix_type)
   END SUBROUTINE cp_dbcsr_copy
 
 ! *****************************************************************************
@@ -1716,12 +1653,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_copy_into_existing', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     IF (matrix_b%ref_count .EQ. 0) THEN
        CALL cp_dbcsr_create (matrix_b, template=matrix_a)
     ENDIF
-    CALL dbcsr_copy_into_existing(matrix_b%matrix, matrix_a%matrix, dbcsr_error)
+    CALL dbcsr_copy_into_existing(matrix_b%matrix, matrix_a%matrix)
   END SUBROUTINE cp_dbcsr_copy_into_existing
 
 
@@ -1737,8 +1672,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_desymmetrize', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
 !     IF(matrix_b%ref_count .le. 0)&
 !        CPWARN("Matrix not created.")
 
@@ -1746,7 +1679,7 @@ CONTAINS
        CALL cp_dbcsr_create (matrix_b, template=matrix_a)
     ENDIF
     CALL dbcsr_desymmetrize_deep(matrix_a%matrix, matrix_b%matrix,&
-         untransposed_data = .TRUE., error=dbcsr_error)
+         untransposed_data = .TRUE.)
   END SUBROUTINE cp_dbcsr_desymmetrize
 
 
@@ -1776,7 +1709,6 @@ CONTAINS
     LOGICAL                                  :: myshallow_data_copy, &
                                                 mytranspose_distribution
     TYPE(dbcsr_distribution_obj)             :: myuse_distribution
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
 
 !   set some defaults to make usage a bit less painful (fschiff)
 
@@ -1789,7 +1721,7 @@ CONTAINS
 
     CALL dbcsr_new_transposed(transposed%matrix, normal%matrix, myshallow_data_copy,&
          transpose_data, mytranspose_distribution,&
-         use_distribution=myuse_distribution, error=dbcsr_error)
+         use_distribution=myuse_distribution)
   END SUBROUTINE cp_dbcsr_transposed
 
 ! *****************************************************************************
@@ -1806,7 +1738,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
       DIMENSION(:)                           :: m_ptrs
 
@@ -1817,7 +1748,7 @@ CONTAINS
        m_ptrs(i)%matrix=>matrix(i)%matrix%matrix
     END DO
 
-    CALL dbcsr_arnoldi_ev(m_ptrs,arnoldi_data,dbcsr_error)    
+    CALL dbcsr_arnoldi_ev(m_ptrs,arnoldi_data)    
     
     DEALLOCATE(m_ptrs)
     
@@ -1842,9 +1773,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_arnoldi_extremal', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_arnoldi_extremal(matrix%matrix,max_ev, min_ev, converged, threshold, max_iter, dbcsr_error)
+    CALL dbcsr_arnoldi_extremal(matrix%matrix,max_ev, min_ev, converged, threshold, max_iter)
 
   END SUBROUTINE cp_dbcsr_arnoldi_extremal
 
@@ -1876,7 +1805,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
     TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
       DIMENSION(:)                           :: m_ptrs
 
@@ -1888,7 +1816,7 @@ CONTAINS
     END DO
 
     CALL setup_arnoldi_data(arnoldi_data,m_ptrs ,max_iter, threshold,selection_crit, & 
-                            nval_request, nrestarts, generalized_ev, iram, dbcsr_error)
+                            nval_request, nrestarts, generalized_ev, iram)
       
 
     DEALLOCATE(m_ptrs)
@@ -1926,9 +1854,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_selected_ritz_vec', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL get_selected_ritz_vector(arnoldi_data,ind,matrix%matrix,vector%matrix,dbcsr_error)
+    CALL get_selected_ritz_vector(arnoldi_data,ind,matrix%matrix,vector%matrix)
 
   END SUBROUTINE get_selected_ritz_vec
 
@@ -1949,9 +1875,7 @@ CONTAINS
       routineN = 'cp_dbcsr_function_of_elements', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL dbcsr_function_of_elements(matrix_a%matrix,func,a0,a1,a2,dbcsr_error) 
+    CALL dbcsr_function_of_elements(matrix_a%matrix,func,a0,a1,a2) 
   END SUBROUTINE cp_dbcsr_function_of_elements 
  
 ! *****************************************************************************
@@ -1969,10 +1893,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_hadamard_product', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL dbcsr_hadamard_product(matrix_a%matrix, matrix_b%matrix, matrix_c%matrix,&
-            b_assume_value, dbcsr_error)
+            b_assume_value)
   END SUBROUTINE cp_dbcsr_hadamard_product
 
 ! *****************************************************************************
@@ -2463,14 +2385,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_from_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     IF (PRESENT(csr_sparsity)) THEN
       CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
-                                 csr_sparsity%matrix, numnodes, dbcsr_error)
+                                 csr_sparsity%matrix, numnodes)
     ELSE
       CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
-                                 numnodes=numnodes, error=dbcsr_error)
+                                 numnodes=numnodes)
     ENDIF
   
   END SUBROUTINE cp_csr_create_from_dbcsr
@@ -2488,9 +2408,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_convert_csr_to_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL convert_csr_to_dbcsr(dbcsr_mat%matrix, csr_mat, dbcsr_error)
+    CALL convert_csr_to_dbcsr(dbcsr_mat%matrix, csr_mat)
 
   END SUBROUTINE cp_convert_csr_to_dbcsr
 
@@ -2506,9 +2424,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_convert_dbcsr_to_csr', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL convert_dbcsr_to_csr(dbcsr_mat%matrix, csr_mat, dbcsr_error)
+    CALL convert_dbcsr_to_csr(dbcsr_mat%matrix, csr_mat)
 
   END SUBROUTINE cp_convert_dbcsr_to_csr
 
@@ -2522,9 +2438,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_destroy', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL csr_destroy(csr_mat, dbcsr_error)
+    CALL csr_destroy(csr_mat)
 
   END SUBROUTINE cp_csr_destroy
 
@@ -2553,10 +2467,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_new', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
     CALL csr_create_new(csr_mat, nrows_total, ncols_total, nze_total,&
-                        nze_local, nrows_local, mp_group, data_type, dbcsr_error)
+                        nze_local, nrows_local, mp_group, data_type)
   END SUBROUTINE
 
 ! *****************************************************************************
@@ -2571,9 +2483,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_template', &
       routineP = moduleN//':'//routineN
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL csr_create_template(matrix_b, matrix_a, dbcsr_error)
+    CALL csr_create_template(matrix_b, matrix_a)
 
   END SUBROUTINE
 
@@ -2586,9 +2496,7 @@ CONTAINS
     TYPE(csr_type), INTENT(IN)               :: csr_mat
     INTEGER, INTENT(IN)                      :: unit_nr
 
-    TYPE(dbcsr_error_type)                   :: dbcsr_error
-
-    CALL csr_print_sparsity(csr_mat, unit_nr, dbcsr_error)
+    CALL csr_print_sparsity(csr_mat, unit_nr)
 
   END SUBROUTINE 
 

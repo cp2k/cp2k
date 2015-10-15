@@ -8,12 +8,10 @@
 !> \param[in] matrix_a       DBCSR matrix
 !> \param[out] trace         the trace of the matrix
 !>
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_trace_a_s(matrix_a, trace, error)
+  SUBROUTINE dbcsr_trace_a_s(matrix_a, trace)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     REAL(kind=real_4), INTENT(INOUT)                   :: trace
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_a_s', &
       routineP = moduleN//':'//routineN
@@ -28,13 +26,13 @@
     TYPE(dbcsr_distribution_obj)             :: dist
 
 !   ---------------------------------------------------------------------------
-    CALL dbcsr_error_set(routineN, error_handle, error)
+    CALL dbcsr_error_set(routineN, error_handle)
 
     row_blk_size => array_data (matrix_a%m%row_blk_size)
     col_blk_size => array_data (matrix_a%m%col_blk_size)
     CALL dbcsr_assert (dbcsr_get_data_type (matrix_a), "EQ", dbcsr_type_real_4,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Incompatible data types", __LINE__, error=error)
+         "Incompatible data types", __LINE__)
     CALL dbcsr_get_data (matrix_a%m%data_area, data_p)
     dist = dbcsr_distribution (matrix_a)
     mynode = dbcsr_mp_mynode (dbcsr_distribution_mp (dist))
@@ -57,7 +55,7 @@
           ENDIF
           a_col_size = col_blk_size(a_col)
           CALL dbcsr_assert (a_row_size.EQ.a_col_size, dbcsr_fatal_level,&
-               dbcsr_internal_error, routineN, "is that a square matrix?",__LINE__,error)
+               dbcsr_internal_error, routineN, "is that a square matrix?",__LINE__)
           a_nze = a_row_size**2
           a_data => pointer_view (data_p, ABS(matrix_a%m%blk_p(a_blk)),&
                ABS(matrix_a%m%blk_p(a_blk))+a_nze-1)
@@ -73,7 +71,7 @@
     ! summe
     CALL mp_sum(trace,dbcsr_mp_group(dbcsr_distribution_mp(matrix_a%m%dist)))
 
-    CALL dbcsr_error_stop(error_handle, error)
+    CALL dbcsr_error_stop(error_handle)
   END SUBROUTINE dbcsr_trace_a_s
 
 ! *****************************************************************************
@@ -84,14 +82,12 @@
 !> \param[in] trans_a            (optional) is matrix_a transposed or not?
 !> \param[in] trans_b            (optional) is matrix_b transposed or not?
 !> \param local_sum ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_trace_ab_s(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum, error)
+  SUBROUTINE dbcsr_trace_ab_s(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
     REAL(kind=real_4), INTENT(INOUT)                   :: trace
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: trans_a, trans_b
     LOGICAL, INTENT(IN), OPTIONAL            :: local_sum
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_trace_ab_s', &
       routineP = moduleN//':'//routineN
@@ -121,7 +117,7 @@
        CALL dbcsr_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
             .AND. matrix_b%m%replication_type .EQ. dbcsr_repl_none,&
             dbcsr_failure_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Trace of product of replicated matrices not yet possible.",__LINE__,error)
+            "Trace of product of replicated matrices not yet possible.",__LINE__)
     ENDIF
 
     sym_fac = REAL(1.0,real_4)
@@ -136,8 +132,7 @@
        (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
         dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) THEN
        CALL dbcsr_assert (.FALSE.,dbcsr_fatal_level,&
-            dbcsr_unimplemented_error_nr, routineN, "Tracing general with symmetric matrix NYI",&
-            __LINE__,error)
+            dbcsr_unimplemented_error_nr, routineN, "Tracing general with symmetric matrix NYI",__LINE__)
     ENDIF
 
     a_row_blk_size => array_data (matrix_a%m%row_blk_size)
@@ -158,14 +153,12 @@
     my_trans_b = 'N'
     IF(PRESENT(trans_b)) my_trans_b = trans_b
     CALL dbcsr_assert (my_trans_a.EQ.'T'.AND.my_trans_b.EQ.'N', dbcsr_fatal_level,&
-         dbcsr_unimplemented_error_nr, routineN, "this combination of transpose is NYI",&
-         __LINE__,error)
+         dbcsr_unimplemented_error_nr, routineN, "this combination of transpose is NYI",__LINE__)
     !
     ! let's go
     trace = REAL(0.0,real_4)
     CALL dbcsr_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN, "this combination of transpose is NYI",&
-         __LINE__,error)
+         dbcsr_fatal_level, dbcsr_internal_error, routineN, "this combination of transpose is NYI",__LINE__)
     DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
@@ -173,7 +166,7 @@
           WRITE(*,*) 'a_row_size',a_row_size
           WRITE(*,*) 'b_row_size',b_row_size
           CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-               routineN, "matrices not consistent",__LINE__,error)
+               routineN, "matrices not consistent",__LINE__)
        ENDIF
        b_blk = matrix_b%m%row_p(row)+1
        b_frst_blk = matrix_b%m%row_p(row)+1
@@ -192,7 +185,7 @@
                 WRITE(*,*) 'a_col_size',a_col_size
                 WRITE(*,*) 'b_col_size',b_col_size
                 CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-                     routineN, "matrices not consistent",__LINE__,error)
+                     routineN, "matrices not consistent",__LINE__)
              ENDIF
              !
              nze = a_row_size*a_col_size
@@ -237,7 +230,7 @@
                         b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1),kind=real_4)
                 ELSE
                    CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                        routineN, "combination of types NYI",__LINE__,error)
+                        routineN, "combination of types NYI",__LINE__)
                 ENDIF
              ENDIF
           ENDIF
@@ -256,13 +249,11 @@
 !> \param matrix_a ...
 !> \param alpha_scalar ...
 !> \param last_column ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_scale_s(matrix_a, alpha_scalar, last_column, error)
+  SUBROUTINE dbcsr_scale_s(matrix_a, alpha_scalar, last_column)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     REAL(kind=real_4), INTENT(IN)                      :: alpha_scalar
     INTEGER, INTENT(IN), OPTIONAL            :: last_column
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_s', &
       routineP = moduleN//':'//routineN
@@ -273,16 +264,15 @@
     sc = dbcsr_scalar (alpha_scalar)
     CALL dbcsr_scalar_fill_all (sc)
     sc%data_type = dbcsr_get_data_type (matrix_a)
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     IF (PRESENT (last_column)) THEN
        CALL dbcsr_scale_anytype(matrix_a,&
             alpha_scalar=sc,&
-            limits=(/0,0,0,last_column/), error=error)
+            limits=(/0,0,0,last_column/))
     ELSE
-       CALL dbcsr_scale_anytype(matrix_a,&
-            alpha_scalar=sc, error=error)
+       CALL dbcsr_scale_anytype(matrix_a, alpha_scalar=sc)
     ENDIF
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_scale_s
 
 ! *****************************************************************************
@@ -290,13 +280,11 @@
 !> \param matrix_a ...
 !> \param alpha ...
 !> \param side ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_scale_by_vector_s(matrix_a, alpha, side, error)
+  SUBROUTINE dbcsr_scale_by_vector_s(matrix_a, alpha, side)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
     REAL(kind=real_4), DIMENSION(:), INTENT(IN), TARGET :: alpha
     CHARACTER(LEN=*), INTENT(IN)              :: side
-    TYPE(dbcsr_error_type), INTENT(INOUT)     :: error
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scale_by_vector_s', &
       routineP = moduleN//':'//routineN
     REAL(kind=real_4), DIMENSION(:), POINTER            :: tmp_p
@@ -306,7 +294,7 @@
     CALL dbcsr_data_new (enc_alpha_vec, dbcsr_type_real_4)
     tmp_p => alpha
     CALL dbcsr_data_set_pointer (enc_alpha_vec, tmp_p)
-    CALL dbcsr_scale_by_vector_anytype(matrix_a, enc_alpha_vec, side, error)
+    CALL dbcsr_scale_by_vector_anytype(matrix_a, enc_alpha_vec, side)
     CALL dbcsr_data_clear_pointer (enc_alpha_vec)
     CALL dbcsr_data_release (enc_alpha_vec)
   END SUBROUTINE dbcsr_scale_by_vector_s
@@ -316,16 +304,14 @@
 !> \brief Interface for dbcsr_set
 !> \param matrix ...
 !> \param alpha ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_set_s(matrix, alpha, error)
+  SUBROUTINE dbcsr_set_s(matrix, alpha)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(kind=real_4), INTENT(IN)                      :: alpha
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     IF (alpha==0.0_real_4) THEN
-      CALL dbcsr_zero(matrix, error)
+      CALL dbcsr_zero(matrix)
     ELSE
-      CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha), error)
+      CALL dbcsr_set_anytype(matrix, dbcsr_scalar(alpha))
     ENDIF
   END SUBROUTINE dbcsr_set_s
 
@@ -337,29 +323,25 @@
 !> \param use_absolute ...
 !> \param filter_diag ...
 !> \param quick ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_filter_s (matrix, eps, method, use_absolute, &
-       filter_diag, quick, error)
+       filter_diag, quick)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(kind=real_4), INTENT(IN)                      :: eps
     INTEGER, INTENT(IN), OPTIONAL            :: method
     LOGICAL, INTENT(in), OPTIONAL            :: use_absolute, filter_diag, quick
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     CALL dbcsr_filter_anytype (matrix, dbcsr_scalar(eps), method, &
-         use_absolute, filter_diag, quick, error)
+         use_absolute, filter_diag, quick)
   END SUBROUTINE dbcsr_filter_s
 
 ! *****************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param diag ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_set_diag_s(matrix, diag, error)
+  SUBROUTINE dbcsr_set_diag_s(matrix, diag)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix
     REAL(kind=real_4), DIMENSION(:), INTENT(IN), TARGET :: diag
-    TYPE(dbcsr_error_type), INTENT(INOUT)     :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_set_diag_s', &
       routineP = moduleN//':'//routineN
@@ -371,7 +353,7 @@
     CALL dbcsr_data_init (diag_a)
     CALL dbcsr_data_new (diag_a, dbcsr_get_data_type(matrix))
     CALL dbcsr_data_set_pointer (diag_a, diag_p)
-    CALL dbcsr_set_diag(matrix, diag_a, error)
+    CALL dbcsr_set_diag(matrix, diag_a)
     CALL dbcsr_data_clear_pointer (diag_a)
     CALL dbcsr_data_release (diag_a)
   END SUBROUTINE dbcsr_set_diag_s
@@ -380,13 +362,11 @@
 !> \brief ...
 !> \param matrix ...
 !> \param diag ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_get_diag_s(matrix, diag, error)
+  SUBROUTINE dbcsr_get_diag_s(matrix, diag)
 
     TYPE(dbcsr_obj), INTENT(IN)                    :: matrix
     REAL(kind=real_4), DIMENSION(:), INTENT(INOUT), TARGET   :: diag
-    TYPE(dbcsr_error_type), INTENT(INOUT)          :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_diag_s', &
       routineP = moduleN//':'//routineN
@@ -398,7 +378,7 @@
     CALL dbcsr_data_init (diag_a)
     CALL dbcsr_data_new (diag_a, dbcsr_get_data_type(matrix))
     CALL dbcsr_data_set_pointer (diag_a, diag_p)
-    CALL dbcsr_get_diag(matrix, diag_a, error)
+    CALL dbcsr_get_diag(matrix, diag_a)
     CALL dbcsr_data_clear_pointer (diag_a)
     CALL dbcsr_data_release (diag_a)
   END SUBROUTINE dbcsr_get_diag_s
@@ -410,13 +390,11 @@
 !> \param[in]    alpha_scalar scalar
 !> \param first_row ...
 !> \param last_row ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_add_on_diag_s(matrix, alpha_scalar, first_row, last_row, error)
+  SUBROUTINE dbcsr_add_on_diag_s(matrix, alpha_scalar, first_row, last_row)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     REAL(kind=real_4), INTENT(IN)                      :: alpha_scalar
     INTEGER, INTENT(in), OPTIONAL            :: first_row, last_row
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CALL dbcsr_add_on_diag(matrix, dbcsr_scalar(alpha_scalar), first_row, last_row, error)
+    CALL dbcsr_add_on_diag(matrix, dbcsr_scalar(alpha_scalar), first_row, last_row)
   END SUBROUTINE dbcsr_add_on_diag_s

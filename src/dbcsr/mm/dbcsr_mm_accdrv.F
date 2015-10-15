@@ -54,8 +54,7 @@ MODULE dbcsr_mm_accdrv
                                              dbcsr_data_new,&
                                              dbcsr_data_release
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
+                                             dbcsr_error_stop
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_destruct,&
                                              dbcsr_mempool_ensure_capacity,&
                                              dbcsr_memtype_setup
@@ -132,11 +131,9 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Initialize the library
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_lib_init(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE dbcsr_mm_accdrv_lib_init()
 
     INTEGER                                  :: nthreads
 
@@ -152,11 +149,9 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Finalize the library
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_lib_finalize(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE dbcsr_mm_accdrv_lib_finalize()
 
     INTEGER                                  :: ithread
     TYPE(thread_private_type), POINTER       :: thread_privates
@@ -166,10 +161,10 @@ MODULE dbcsr_mm_accdrv
     thread_privates => all_thread_privates(ithread)
 
     IF(ASSOCIATED(thread_privates%stack_buffers)) &
-      CALL deallocate_stackbuffers(error)
+      CALL deallocate_stackbuffers()
 
     IF(ASSOCIATED(thread_privates%memtype_cbuffer%pool))&
-      CALL dbcsr_mempool_destruct(thread_privates%memtype_cbuffer%pool, error)
+      CALL dbcsr_mempool_destruct(thread_privates%memtype_cbuffer%pool)
 
     !$OMP BARRIER
     !$OMP MASTER
@@ -180,7 +175,7 @@ MODULE dbcsr_mm_accdrv
     !istat = dbcsr_acc_dev_mem_info(mem_free, mem_avail)
     !WRITE (*,*) "after finalize acc mem: ",mem_free, mem_avail, istat
 
-    CALL deallocate_streams(error)
+    CALL deallocate_streams()
 
   END SUBROUTINE dbcsr_mm_accdrv_lib_finalize
 
@@ -189,14 +184,12 @@ MODULE dbcsr_mm_accdrv
 !> \brief Initializes a multiplication cycle for new set of C-blocks.
 !> \param this ...
 !> \param product_wm ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_init(this, product_wm, error)
+  SUBROUTINE dbcsr_mm_accdrv_init(this, product_wm)
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_work_type), POINTER           :: product_wm
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_accdrv_init', &
       routineP = moduleN//':'//routineN
@@ -206,7 +199,7 @@ MODULE dbcsr_mm_accdrv
     TYPE(dbcsr_data_obj)                     :: c_area
     TYPE(thread_private_type), POINTER       :: thread_privates
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     nthreads = 1; ithread = 0
     !$ nthreads = OMP_GET_NUM_THREADS () ; ithread = OMP_GET_THREAD_NUM ()
@@ -214,14 +207,14 @@ MODULE dbcsr_mm_accdrv
 
     ! Setup global data which is reused in between multiplications
     !------------------------------------------------------------------------
-     CALL setup_streams(error)
-     CALL setup_stackbuffers(this, error)
+     CALL setup_streams()
+     CALL setup_stackbuffers(this)
 
     !Each thread has its own memtype with its own mempool
     i = MOD(ithread, SIZE(priority_streams)) + 1
     CALL dbcsr_memtype_setup(thread_privates%memtype_cbuffer,has_pool=.TRUE., acc_hostalloc=.TRUE.,&
-          acc_devalloc=.TRUE., acc_stream=priority_streams(i), error=error)
-    CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=1, error=error)
+          acc_devalloc=.TRUE., acc_stream=priority_streams(i))
+    CALL dbcsr_mempool_ensure_capacity(thread_privates%memtype_cbuffer%pool, capacity=1)
 
     ! Setup things for this particular multipcation
     !------------------------------------------------------------------------
@@ -237,18 +230,16 @@ MODULE dbcsr_mm_accdrv
     CALL acc_event_record(this%c_buffer%d%acc_ready,&
                  stream=this%c_buffer%d%memory_type%acc_stream)
 
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_mm_accdrv_init
 
 
 
 ! *****************************************************************************
 !> \brief Helper routine used by dbcsr_mm_accdrv_init()
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE setup_streams(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE setup_streams()
 
     INTEGER                                  :: greatest_priority, &
                                                 least_priority
@@ -256,9 +247,9 @@ MODULE dbcsr_mm_accdrv
 !$OMP MASTER
     CALL acc_stream_priority_range(least_priority, greatest_priority)
     CALL stream_array_force_size(priority_streams, "Calc (priority)", &
-        n=accdrv_priority_streams, priority=greatest_priority, error=error)
+        n=accdrv_priority_streams, priority=greatest_priority)
     CALL stream_array_force_size(posterior_streams, "Calc (posterior)", &
-        n=accdrv_posterior_streams, events=barrier_events, error=error)
+        n=accdrv_posterior_streams, events=barrier_events)
 
     !create upload stream
     IF(.NOT. acc_stream_associated(upload_stream)) &
@@ -272,18 +263,16 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Helper routine used by setup_streams() and dbcsr_mm_accdrv_lib_finalize()
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE deallocate_streams(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE deallocate_streams()
 
 !$OMP MASTER
     IF(acc_stream_associated(upload_stream)) &
        CALL acc_stream_destroy(upload_stream)
 
-    CALL stream_array_force_size(priority_streams, "Calc (priority)", n=0, error=error)
-    CALL stream_array_force_size(posterior_streams, "Calc (posterior)", n=0, events=barrier_events, error=error)
+    CALL stream_array_force_size(priority_streams, "Calc (priority)", n=0)
+    CALL stream_array_force_size(posterior_streams, "Calc (posterior)", n=0, events=barrier_events)
 !$OMP END MASTER
 
   END SUBROUTINE deallocate_streams
@@ -295,10 +284,9 @@ MODULE dbcsr_mm_accdrv
 !> \param n ...
 !> \param events ...
 !> \param priority ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE stream_array_force_size(streams, basename, n, events, priority, error)
+  SUBROUTINE stream_array_force_size(streams, basename, n, events, priority)
     TYPE(acc_stream_type), DIMENSION(:), &
       POINTER                                :: streams
     CHARACTER(len=*), INTENT(IN)             :: basename
@@ -306,7 +294,6 @@ MODULE dbcsr_mm_accdrv
     TYPE(acc_event_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: events
     INTEGER, INTENT(IN), OPTIONAL            :: priority
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=default_string_length)     :: name
     INTEGER                                  :: i
@@ -336,13 +323,11 @@ MODULE dbcsr_mm_accdrv
 ! *****************************************************************************
 !> \brief Helper routine used by dbcsr_mm_accdrv_init()
 !> \param this ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE setup_stackbuffers(this, error)
+  SUBROUTINE setup_stackbuffers(this)
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     INTEGER                                  :: i, ithread, &
                                                 my_posterior_buffers, &
@@ -366,7 +351,7 @@ MODULE dbcsr_mm_accdrv
 
     IF(ASSOCIATED(thread_privates%stack_buffers)) THEN
        IF(SIZE(thread_privates%stack_buffers)/=my_total_buffers) &
-          CALL deallocate_stackbuffers(error)
+          CALL deallocate_stackbuffers()
     ENDIF
 
     IF(.NOT.ASSOCIATED(thread_privates%stack_buffers)) THEN
@@ -395,11 +380,9 @@ MODULE dbcsr_mm_accdrv
 
 ! *****************************************************************************
 !> \brief Helper routine used by setup_stackbuffers() and dbcsr_mm_accdrv_lib_finalize()
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE deallocate_stackbuffers(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+ SUBROUTINE deallocate_stackbuffers()
 
     INTEGER                                  :: i, ithread
     TYPE(stack_buffer_type), DIMENSION(:), &
@@ -422,24 +405,22 @@ MODULE dbcsr_mm_accdrv
 ! *****************************************************************************
 !> \brief Finalizes a multiplication cycle for a set of C-blocks.
 !> \param this ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_finalize(this, error)
+  SUBROUTINE dbcsr_mm_accdrv_finalize(this)
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     TYPE(dbcsr_data_obj)                     :: c_area
 
 ! Transfer C-data from device to host and adding it to host's result
 
-    CALL dbcsr_data_dev2host(this%c_buffer, error)
+    CALL dbcsr_data_dev2host(this%c_buffer)
     !TODO: not async, yet
     CALL acc_stream_synchronize(this%c_buffer%d%memory_type%acc_stream)
 
     c_area = this%product_wm%data_area
-    CALL block_add(c_area, this%c_buffer, error=error)
+    CALL block_add(c_area, this%c_buffer)
     CALL dbcsr_data_release(this%c_buffer)
 
   END SUBROUTINE dbcsr_mm_accdrv_finalize
@@ -520,13 +501,11 @@ MODULE dbcsr_mm_accdrv
 ! *****************************************************************************
 !> \brief Signal approaching end of multiplication
 !> \param this ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_phaseout(this, error)
+  SUBROUTINE dbcsr_mm_accdrv_phaseout(this)
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     this%phase_out = .TRUE.
   END SUBROUTINE dbcsr_mm_accdrv_phaseout
@@ -535,11 +514,9 @@ MODULE dbcsr_mm_accdrv
 ! *****************************************************************************
 !> \brief After beeing called by ALL threads, it installs a special barrier that
 !>        forces the priority-streams to wait for the normal-streams.
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_accdrv_barrier(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE dbcsr_mm_accdrv_barrier()
 
     INTEGER                                  :: i, j, nthreads
 
@@ -568,11 +545,10 @@ MODULE dbcsr_mm_accdrv
 !> \param stack_size ...
 !> \param stack_descr ...
 !> \param success ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_accdrv_process(this, left, right, params, stack_size, &
-       stack_descr, success, error)
+       stack_descr, success)
     TYPE(dbcsr_mm_accdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
@@ -581,7 +557,6 @@ MODULE dbcsr_mm_accdrv
       stack_size), INTENT(INOUT)             :: params
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
     LOGICAL, INTENT(OUT)                     :: success
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_accdrv_process', &
       routineP = moduleN//':'//routineN
@@ -614,15 +589,15 @@ MODULE dbcsr_mm_accdrv
        RETURN
     END IF
 
-    CALL dbcsr_error_set (routineN, error_handle, error)
+    CALL dbcsr_error_set (routineN, error_handle)
     stacked_datasize   = this%product_wm%datasize
     CALL dbcsr_data_ensure_size(this%c_buffer, stacked_datasize, &
-                     factor=default_resize_factor, zero_pad=.TRUE., error=error)
+                     factor=default_resize_factor, zero_pad=.TRUE.)
 
     !===========================================================================
     ! sort the stack. Since this costs CPU time, only a good idea if the CPUs
     ! are not too busy, or device gain is very large
-    CALL dbcsr_error_set (routineN//"_sort", error_handle2, error)
+    CALL dbcsr_error_set (routineN//"_sort", error_handle2)
     flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
 
     IF(flop_per_entry > accdrv_min_flop_sort) THEN
@@ -631,7 +606,7 @@ MODULE dbcsr_mm_accdrv
        CALL stack_binning(params, stackbuf%hostmem, stack_size)
     ENDIF
 
-    CALL dbcsr_error_stop (error_handle2, error)
+    CALL dbcsr_error_stop (error_handle2)
 
     a_area => left%data_area%d
     b_area => right%data_area%d
@@ -668,7 +643,7 @@ MODULE dbcsr_mm_accdrv
          k_max=stack_descr%max_k,&
          def_mnk=stack_descr%defined_mnk,&
          stream=stackbuf%stream, &
-         success=success, error=error)
+         success=success)
 
     IF(success) THEN
       CALL acc_event_record(stackbuf%calculated, stream=stackbuf%stream)
@@ -677,7 +652,7 @@ MODULE dbcsr_mm_accdrv
       CALL acc_stream_wait_event(c_area%memory_type%acc_stream, stackbuf%calculated)
     ENDIF
 
-    CALL dbcsr_error_stop (error_handle, error)
+    CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_mm_accdrv_process
 
 

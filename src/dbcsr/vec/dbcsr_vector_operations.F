@@ -15,7 +15,6 @@ MODULE dbcsr_vector_operations
                                              dbcsr_scalar_fill_all
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_scalar_type,&
@@ -66,14 +65,12 @@ CONTAINS
 !> \param beta  as described in formula
 !> \param work_row a work row vector replicated on all proc_cols.
 !> \param work_col a work col vector replicated on all proc_rows.
-!> \param error ...
 ! *****************************************************************************
 
-  SUBROUTINE dbcsr_matrix_colvec_multiply_d(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
+  SUBROUTINE dbcsr_matrix_colvec_multiply_d(matrix,vec_in,vec_out,alpha,beta,work_row,work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     REAL(real_8)                             :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dbcsr_matrix_colvec_multiply_d', &
@@ -88,13 +85,13 @@ CONTAINS
         ! We can convert the prefactors if necessary
     CASE DEFAULT
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__,error)
+            routineN, "Unknown data type in matrix",__LINE__)
     END SELECT
 
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)
     CALL dbcsr_scalar_fill_all (a); CALL dbcsr_scalar_fill_all (b)
 
-    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col,error)
+    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col)
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_d
 
@@ -107,13 +104,11 @@ CONTAINS
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_matrix_colvec_multiply_s(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
+  SUBROUTINE dbcsr_matrix_colvec_multiply_s(matrix,vec_in,vec_out,alpha,beta,work_row,work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     REAL(real_4)                             :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dbcsr_matrix_colvec_multiply_s', &
@@ -128,13 +123,13 @@ CONTAINS
         ! We can convert the prefactors if necessary
     CASE DEFAULT
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__,error)
+            routineN, "Unknown data type in matrix",__LINE__)
     END SELECT
 
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)
     CALL dbcsr_scalar_fill_all (a); CALL dbcsr_scalar_fill_all (b)
 
-    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col,error)
+    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col)
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_s
 
@@ -147,13 +142,11 @@ CONTAINS
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_matrix_colvec_multiply_c(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
+  SUBROUTINE dbcsr_matrix_colvec_multiply_c(matrix,vec_in,vec_out,alpha,beta,work_row,work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(real_4)                          :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dbcsr_matrix_colvec_multiply_c', &
@@ -166,18 +159,18 @@ CONTAINS
     SELECT CASE (matrix_type)
     CASE (dbcsr_type_real_8,dbcsr_type_real_4)
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Complex prefactors dissallowed for real matrices",__LINE__,error)
+            routineN, "Complex prefactors dissallowed for real matrices",__LINE__)
     CASE (dbcsr_type_complex_4,dbcsr_type_complex_8)
         ! We can convert the prefactors if necessary
     CASE DEFAULT
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__,error)
+            routineN, "Unknown data type in matrix",__LINE__)
     END SELECT  
     
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)
     CALL dbcsr_scalar_fill_all (a); CALL dbcsr_scalar_fill_all (b)
 
-    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col,error)
+    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col)
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_c
 
@@ -190,13 +183,11 @@ CONTAINS
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_matrix_colvec_multiply_z(matrix,vec_in,vec_out,alpha,beta,work_row,work_col,error)
+  SUBROUTINE dbcsr_matrix_colvec_multiply_z(matrix,vec_in,vec_out,alpha,beta,work_row,work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     COMPLEX(real_8)                          :: alpha, beta
     TYPE(dbcsr_obj)                          :: work_row, work_col
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'dbcsr_matrix_colvec_multiply_z', &
@@ -209,18 +200,18 @@ CONTAINS
     SELECT CASE (matrix_type)
     CASE (dbcsr_type_real_8,dbcsr_type_real_4)
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Complex prefactors dissallowed for real matrices",__LINE__,error)
+            routineN, "Complex prefactors dissallowed for real matrices",__LINE__)
     CASE (dbcsr_type_complex_4,dbcsr_type_complex_8)
         ! We can convert the prefactors if necessary
     CASE DEFAULT
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__,error)
+            routineN, "Unknown data type in matrix",__LINE__)
     END SELECT
 
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)
     CALL dbcsr_scalar_fill_all (a); CALL dbcsr_scalar_fill_all (b)
 
-    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col,error)
+    CALL dbcsr_matrix_colvec_multiply_low(matrix,vec_in,vec_out,a,b,work_row,work_col)
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_z
 

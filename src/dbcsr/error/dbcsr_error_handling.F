@@ -19,8 +19,6 @@ MODULE dbcsr_error_handling
   ! procedures
   PUBLIC :: dbcsr_error_set, dbcsr_error_stop
   PUBLIC :: dbcsr_assert, dbcsr_abort
-  ! types
-  PUBLIC :: dbcsr_error_type
   ! parameters
   PUBLIC :: dbcsr_warning_level, dbcsr_failure_level, dbcsr_fatal_level
   PUBLIC :: dbcsr_caller_error, dbcsr_wrong_args_error,&
@@ -67,26 +65,16 @@ MODULE dbcsr_error_handling
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_error_handling'
 
-! *****************************************************************************
-!> \brief error type for the DBCSR library
-! *****************************************************************************
-  TYPE dbcsr_error_type
-     PRIVATE
-     INTEGER :: dummy = 42 ! empty types confuse some compilers
-  END TYPE dbcsr_error_type
-
 CONTAINS
 
 ! *****************************************************************************
 !> \brief set the error
 !> \param[in]    name    name of the routine
 !> \param handler ...
-!> \param[inout] error   dbcsr error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_error_set(name, handler, error)
+  SUBROUTINE dbcsr_error_set(name, handler)
     CHARACTER(len=*), INTENT(in)             :: name
     INTEGER, INTENT(out)                     :: handler
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CALL timeset(name, handler)
 
@@ -95,11 +83,9 @@ CONTAINS
 ! *****************************************************************************
 !> \brief stop the error
 !> \param handler ...
-!> \param[inout] error   dbcsr error
 ! *****************************************************************************
-  SUBROUTINE dbcsr_error_stop(handler, error)
+  SUBROUTINE dbcsr_error_stop(handler)
     INTEGER, INTENT(inout)                   :: handler
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CALL timestop(handler)
 
@@ -111,16 +97,14 @@ CONTAINS
 !> \param routine ...
 !> \param line ...
 !> \param msg ...
-!> \param error ...
 !> \param[inout]
 ! *****************************************************************************
-  SUBROUTINE dbcsr_abort(routine, line,  msg, error)
+  SUBROUTINE dbcsr_abort(routine, line,  msg)
     CHARACTER(*), INTENT(in)                 :: routine
     INTEGER, INTENT(in)                      :: line
     CHARACTER(*), INTENT(in)                 :: msg
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
-    CALL dbcsr_abort_low(dbcsr_fatal_level, dbcsr_internal_error, routine, msg, line, error)
+    CALL dbcsr_abort_low(dbcsr_fatal_level, dbcsr_internal_error, routine, msg, line)
 
   END SUBROUTINE dbcsr_abort
 
@@ -131,14 +115,12 @@ CONTAINS
 !> \param routine ...
 !> \param msg ...
 !> \param line ...
-!> \param error ...
 !> \param[inout]
 ! *****************************************************************************
-  SUBROUTINE dbcsr_abort_low (level, etype, routine, msg, line, error)
+  SUBROUTINE dbcsr_abort_low (level, etype, routine, msg, line)
     INTEGER, INTENT(in)                      :: level, etype
     CHARACTER(*), INTENT(in)                 :: routine, msg
     INTEGER, INTENT(in)                      :: line
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     IF(level==dbcsr_warning_level) THEN
        CALL cp_warn(cp__l(routine, line), msg)
@@ -158,15 +140,13 @@ CONTAINS
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
 !> \param line ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_int_assert(left, rel, right, level, etype, routine, msg, line, error)
+  SUBROUTINE dbcsr_int_assert(left, rel, right, level, etype, routine, msg, line)
     INTEGER, INTENT(IN)                      :: left
     CHARACTER(len=2), INTENT(IN)             :: rel
     INTEGER, INTENT(IN)                      :: right, level, etype
     CHARACTER(len=*), INTENT(IN)             :: routine, msg
     INTEGER, INTENT(IN)                      :: line
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     LOGICAL                                  :: l
 
@@ -187,13 +167,13 @@ CONTAINS
        l = left .NE. right
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__, error)
+            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__)
        l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,I9,A4,I9)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
-       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
   END SUBROUTINE dbcsr_int_assert
 
@@ -207,16 +187,14 @@ CONTAINS
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
 !> \param line ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_logical_assert(left, rel, right, level, etype, routine, msg, line, error)
+  SUBROUTINE dbcsr_logical_assert(left, rel, right, level, etype, routine, msg, line)
     LOGICAL, INTENT(IN)                      :: left
     CHARACTER(len=*), INTENT(IN)             :: rel
     LOGICAL, INTENT(IN)                      :: right
     INTEGER, INTENT(IN)                      :: level, etype
     CHARACTER(len=*), INTENT(IN)             :: routine, msg
     INTEGER, INTENT(IN)                      :: line
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     LOGICAL                                  :: l
 
@@ -235,13 +213,13 @@ CONTAINS
        l = .NOT. left .OR. right
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__, error)
+            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__)
        l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,L1,A,L1)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
-       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
   END SUBROUTINE dbcsr_logical_assert
 
@@ -255,16 +233,14 @@ CONTAINS
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
 !> \param line ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_char_assert(left, rel, right, level, etype, routine, msg, line, error)
+  SUBROUTINE dbcsr_char_assert(left, rel, right, level, etype, routine, msg, line)
     CHARACTER, INTENT(IN)                    :: left
     CHARACTER(len=2), INTENT(IN)             :: rel
     CHARACTER, INTENT(IN)                    :: right
     INTEGER, INTENT(IN)                      :: level, etype
     CHARACTER(len=*), INTENT(IN)             :: routine, msg
     INTEGER, INTENT(IN)                      :: line
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     LOGICAL                                  :: l
 
@@ -277,13 +253,13 @@ CONTAINS
        l = left .NE. right
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_char_assert", "Invalid relation specified: "//rel, __LINE__, error)
+            "dbcsr_char_assert", "Invalid relation specified: "//rel, __LINE__)
        l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,A1,1X,A4,1X,A1)')"ASSERTION FAILED:",&
             left, "."//rel//".", right
-       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
   END SUBROUTINE dbcsr_char_assert
 
@@ -296,14 +272,12 @@ CONTAINS
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
 !> \param line ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_true_assert(right, level, etype, routine, msg, line, error)
+  SUBROUTINE dbcsr_true_assert(right, level, etype, routine, msg, line)
     LOGICAL, INTENT(IN)                      :: right
     INTEGER, INTENT(IN)                      :: level, etype
     CHARACTER(len=*), INTENT(IN)             :: routine, msg
     INTEGER, INTENT(IN)                      :: line
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     LOGICAL                                  :: l
 
@@ -313,7 +287,7 @@ CONTAINS
     IF (.NOT.l) THEN
        WRITE(*,'(1X,A,1X,L1)')"ASSERTION FAILED:",&
             right
-       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
     !CALL cp_assert(l, level, etype, routine, msg)
   END SUBROUTINE dbcsr_true_assert
@@ -328,15 +302,13 @@ CONTAINS
 !> \param[in] routine         Routine name
 !> \param[in] msg   Message to display if the assertion fails
 !> \param line ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_not_assert(rel, right, level, etype, routine, msg, line, error)
+  SUBROUTINE dbcsr_not_assert(rel, right, level, etype, routine, msg, line)
     CHARACTER(len=3), INTENT(IN)             :: rel
     LOGICAL, INTENT(IN)                      :: right
     INTEGER, INTENT(IN)                      :: level, etype
     CHARACTER(len=*), INTENT(IN)             :: routine, msg
     INTEGER, INTENT(IN)                      :: line
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     LOGICAL                                  :: l
 
@@ -347,13 +319,13 @@ CONTAINS
        l = .NOT. right
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__, error)
+            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__)
        l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
        WRITE(*,'(1X,A,1X,A,L1)')"ASSERTION FAILED:",&
             "."//rel//".", right
-       CALL dbcsr_abort_low (level, etype, routine, msg, line, error)
+       CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
   END SUBROUTINE dbcsr_not_assert
 

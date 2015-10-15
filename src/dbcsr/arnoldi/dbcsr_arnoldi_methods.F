@@ -18,8 +18,7 @@ MODULE dbcsr_arnoldi_methods
        has_s_cmplx, has_s_real, m_x_v_vectors
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
   USE dbcsr_error_handling,            ONLY: dbcsr_error_set,&
-                                             dbcsr_error_stop,&
-                                             dbcsr_error_type
+                                             dbcsr_error_stop
   USE dbcsr_geev,                      ONLY: dbcsr_general_local_diag,&
                                              dbcsr_symm_local_diag,&
                                              dbcsr_tridiag_local_diag
@@ -61,25 +60,23 @@ CONTAINS
 !> \brief Interface for the routine calcualting the implicit restarts
 !>        Currently all based on lapack
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE arnoldi_iram(arnoldi_data, error)
+  SUBROUTINE arnoldi_iram(arnoldi_data)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_iram', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
-    IF(has_d_real(arnoldi_data))  CALL arnoldi_iram_d(arnoldi_data, error)
-    IF(has_s_real(arnoldi_data))  CALL arnoldi_iram_s(arnoldi_data, error)
-    IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_iram_z(arnoldi_data, error)
-    IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_iram_c(arnoldi_data, error)
+    IF(has_d_real(arnoldi_data))  CALL arnoldi_iram_d(arnoldi_data)
+    IF(has_s_real(arnoldi_data))  CALL arnoldi_iram_s(arnoldi_data)
+    IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_iram_z(arnoldi_data)
+    IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_iram_c(arnoldi_data)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE arnoldi_iram
 
@@ -87,25 +84,23 @@ CONTAINS
 !> \brief Interface to compute the eigenvalues of a nonsymmetric matrix
 !>        This is only the serial version
 !> \param arnoldi_data ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE compute_evals(arnoldi_data, error)
+  SUBROUTINE compute_evals(arnoldi_data)
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_evals', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
     IF(has_d_real(arnoldi_data))  CALL compute_evals_d(arnoldi_data)
     IF(has_s_real(arnoldi_data))  CALL compute_evals_s(arnoldi_data)
     IF(has_d_cmplx(arnoldi_data)) CALL compute_evals_z(arnoldi_data)
     IF(has_s_cmplx(arnoldi_data)) CALL compute_evals_c(arnoldi_data)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE compute_evals
 
@@ -116,27 +111,25 @@ CONTAINS
 !> \param matrix pointer to the matrices as described in main interface
 !> \param vectors work vectors for the matrix vector multiplications
 !> \param arnoldi_data all data concerning the subspace
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE arnoldi_init(matrix, vectors, arnoldi_data, error)
+  SUBROUTINE arnoldi_init(matrix, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_init', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
-    IF(has_d_real(arnoldi_data))  CALL arnoldi_init_d (matrix, vectors, arnoldi_data, error)
-    IF(has_s_real(arnoldi_data))  CALL arnoldi_init_s (matrix, vectors, arnoldi_data, error)
-    IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_init_z (matrix, vectors, arnoldi_data, error)
-    IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_init_c (matrix, vectors, arnoldi_data, error)
+    IF(has_d_real(arnoldi_data))  CALL arnoldi_init_d (matrix, vectors, arnoldi_data)
+    IF(has_s_real(arnoldi_data))  CALL arnoldi_init_s (matrix, vectors, arnoldi_data)
+    IF(has_d_cmplx(arnoldi_data)) CALL arnoldi_init_z (matrix, vectors, arnoldi_data)
+    IF(has_s_cmplx(arnoldi_data)) CALL arnoldi_init_c (matrix, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE arnoldi_init
 
@@ -147,27 +140,25 @@ CONTAINS
 !> \param matrix_arnoldi ...
 !> \param vectors work vectors for the matrix vector multiplications
 !> \param arnoldi_data all data concerning the subspace
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE gev_arnoldi_init(matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+  SUBROUTINE gev_arnoldi_init(matrix, matrix_arnoldi, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix, matrix_arnoldi
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_arnoldi_init', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
-    IF(has_d_real(arnoldi_data))  CALL gev_arnoldi_init_d (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
-    IF(has_s_real(arnoldi_data))  CALL gev_arnoldi_init_s (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
-    IF(has_d_cmplx(arnoldi_data)) CALL gev_arnoldi_init_z (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
-    IF(has_s_cmplx(arnoldi_data)) CALL gev_arnoldi_init_c (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_d_real(arnoldi_data))  CALL gev_arnoldi_init_d (matrix, matrix_arnoldi, vectors, arnoldi_data)
+    IF(has_s_real(arnoldi_data))  CALL gev_arnoldi_init_s (matrix, matrix_arnoldi, vectors, arnoldi_data)
+    IF(has_d_cmplx(arnoldi_data)) CALL gev_arnoldi_init_z (matrix, matrix_arnoldi, vectors, arnoldi_data)
+    IF(has_s_cmplx(arnoldi_data)) CALL gev_arnoldi_init_c (matrix, matrix_arnoldi, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE gev_arnoldi_init
 
@@ -176,27 +167,25 @@ CONTAINS
 !> \param matrix see above
 !> \param vectors see above
 !> \param arnoldi_data see above
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE build_subspace(matrix, vectors, arnoldi_data, error)
+  SUBROUTINE build_subspace(matrix, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_subspace', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
-    IF(has_d_real(arnoldi_data))  CALL build_subspace_d (matrix, vectors, arnoldi_data, error)
-    IF(has_s_real(arnoldi_data))  CALL build_subspace_s (matrix, vectors, arnoldi_data, error)
-    IF(has_d_cmplx(arnoldi_data)) CALL build_subspace_z (matrix, vectors, arnoldi_data, error)
-    IF(has_s_cmplx(arnoldi_data)) CALL build_subspace_c (matrix, vectors, arnoldi_data, error)
+    IF(has_d_real(arnoldi_data))  CALL build_subspace_d (matrix, vectors, arnoldi_data)
+    IF(has_s_real(arnoldi_data))  CALL build_subspace_s (matrix, vectors, arnoldi_data)
+    IF(has_d_cmplx(arnoldi_data)) CALL build_subspace_z (matrix, vectors, arnoldi_data)
+    IF(has_s_cmplx(arnoldi_data)) CALL build_subspace_c (matrix, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE build_subspace
 
@@ -206,27 +195,25 @@ CONTAINS
 !> \param matrix see above
 !> \param vectors see above
 !> \param arnoldi_data see above
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE gev_build_subspace(matrix, vectors, arnoldi_data, error)
+  SUBROUTINE gev_build_subspace(matrix, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_build_subspace', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
-    IF(has_d_real(arnoldi_data))  CALL gev_build_subspace_d (matrix, vectors, arnoldi_data, error)
-    IF(has_s_real(arnoldi_data))  CALL gev_build_subspace_s (matrix, vectors, arnoldi_data, error)
-    IF(has_d_cmplx(arnoldi_data)) CALL gev_build_subspace_z (matrix, vectors, arnoldi_data, error)
-    IF(has_s_cmplx(arnoldi_data)) CALL gev_build_subspace_c (matrix, vectors, arnoldi_data, error)
+    IF(has_d_real(arnoldi_data))  CALL gev_build_subspace_d (matrix, vectors, arnoldi_data)
+    IF(has_s_real(arnoldi_data))  CALL gev_build_subspace_s (matrix, vectors, arnoldi_data)
+    IF(has_d_cmplx(arnoldi_data)) CALL gev_build_subspace_z (matrix, vectors, arnoldi_data)
+    IF(has_s_cmplx(arnoldi_data)) CALL gev_build_subspace_c (matrix, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE gev_build_subspace
 
@@ -238,27 +225,25 @@ CONTAINS
 !> \param matrix_arnoldi ...
 !> \param vectors ...
 !> \param arnoldi_data see above
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+  SUBROUTINE gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_data)
     TYPE(dbcsr_obj_type_p), DIMENSION(:)     :: matrix, matrix_arnoldi
     TYPE(m_x_v_vectors)                      :: vectors
     TYPE(dbcsr_arnoldi_data)                 :: arnoldi_data
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'gev_update_data', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
 
-    CALL dbcsr_error_set(routineN, handle, error)
+    CALL dbcsr_error_set(routineN, handle)
 
-    IF(has_d_real(arnoldi_data))  CALL gev_update_data_d (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
-    IF(has_s_real(arnoldi_data))  CALL gev_update_data_s (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
-    IF(has_d_cmplx(arnoldi_data)) CALL gev_update_data_z (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
-    IF(has_s_cmplx(arnoldi_data)) CALL gev_update_data_c (matrix, matrix_arnoldi, vectors, arnoldi_data, error)
+    IF(has_d_real(arnoldi_data))  CALL gev_update_data_d (matrix, matrix_arnoldi, vectors, arnoldi_data)
+    IF(has_s_real(arnoldi_data))  CALL gev_update_data_s (matrix, matrix_arnoldi, vectors, arnoldi_data)
+    IF(has_d_cmplx(arnoldi_data)) CALL gev_update_data_z (matrix, matrix_arnoldi, vectors, arnoldi_data)
+    IF(has_s_cmplx(arnoldi_data)) CALL gev_update_data_c (matrix, matrix_arnoldi, vectors, arnoldi_data)
 
-    CALL dbcsr_error_stop(handle,error)
+    CALL dbcsr_error_stop(handle)
 
   END SUBROUTINE gev_update_data
 

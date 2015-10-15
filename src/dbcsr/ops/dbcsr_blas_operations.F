@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE dbcsr_blas_operations
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
@@ -67,14 +66,12 @@ CONTAINS
 !> \param iseed requires each int to be in the range 0..2**12, and the iseed(4) odd
 !> \param n ...
 !> \param x ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_lapack_larnv( idist, iseed, n, x, error )
+  SUBROUTINE dbcsr_lapack_larnv( idist, iseed, n, x)
     INTEGER, INTENT(IN)                      :: idist
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: iseed
     INTEGER, INTENT(IN)                      :: n
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: x
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_lapack_larnv', &
       routineP = moduleN//':'//routineN
@@ -90,7 +87,7 @@ CONTAINS
        CALL zlarnv( idist, iseed, n, x%d%c_dp)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid data type",__LINE__,error)
+            routineN, "Invalid data type",__LINE__)
     END SELECT
 
   END SUBROUTINE dbcsr_lapack_larnv

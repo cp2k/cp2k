@@ -32,7 +32,6 @@ MODULE dbcsr_mm_multrec
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_error_set,&
                                              dbcsr_error_stop,&
-                                             dbcsr_error_type,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -147,13 +146,11 @@ MODULE dbcsr_mm_multrec
 
 ! *****************************************************************************
 !> \brief Initialize the library
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_lib_init(error)
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
+  SUBROUTINE dbcsr_mm_multrec_lib_init()
 
-     CALL dbcsr_mm_csr_lib_init(error)
+     CALL dbcsr_mm_csr_lib_init()
   END SUBROUTINE
 
 
@@ -161,14 +158,12 @@ MODULE dbcsr_mm_multrec
 !> \brief Finalize the library
 !> \param group ...
 !> \param output_unit ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_lib_finalize(group, output_unit, error)
+  SUBROUTINE dbcsr_mm_multrec_lib_finalize(group, output_unit)
     INTEGER, INTENT(IN)                      :: group, output_unit
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-     CALL dbcsr_mm_csr_lib_finalize(group, output_unit, error)
+     CALL dbcsr_mm_csr_lib_finalize(group, output_unit)
   END SUBROUTINE
 
 
@@ -184,17 +179,15 @@ MODULE dbcsr_mm_multrec
 !>                                 existing product matrix, default is no
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 !> \param row_max_epss ...
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_init(this, left, right, product, &
-       keep_sparsity, eps, row_max_epss, error)
+       keep_sparsity, eps, row_max_epss)
     TYPE(dbcsr_mm_multrec_type), INTENT(out) :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
     REAL(kind=sp), DIMENSION(:), INTENT(IN)  :: row_max_epss
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_init', &
       routineP = moduleN//':'//routineN
@@ -209,44 +202,44 @@ MODULE dbcsr_mm_multrec
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
     !
     CALL dbcsr_assert(.NOT. this%initialized,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "multrec already initialized.", __LINE__, error=error)
+         "multrec already initialized.", __LINE__)
 
     ! Ensures that the index is correctly defined.
     CALL dbcsr_assert (left%list_indexing,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Must use list indexing for this routine.", __LINE__, error=error)
+         "Must use list indexing for this routine.", __LINE__)
 
     CALL dbcsr_assert ("NOT", left%bcsc,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Wrong routine for BCSC matrices.", __LINE__, error=error)
+         "Wrong routine for BCSC matrices.", __LINE__)
     CALL dbcsr_assert ("NOT", right%bcsc,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Wrong routine for BCSC matrices.", __LINE__, error=error)
+         "Wrong routine for BCSC matrices.", __LINE__)
     CALL dbcsr_assert (right%local_indexing, "EQV", left%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Local index useage must be consistent.", __LINE__, error=error)
+            "Local index useage must be consistent.", __LINE__)
 
     IF (right%local_indexing) THEN
        CALL dbcsr_assert (left%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong left format for local_cols.", __LINE__, error=error)
+            "Wrong left format for local_cols.", __LINE__)
        CALL dbcsr_assert (right%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong right format for local_cols.", __LINE__, error=error)
+            "Wrong right format for local_cols.", __LINE__)
     ELSE
        CALL dbcsr_assert ("NOT",left%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong left format for not local_cols.", __LINE__, error=error)
+            "Wrong left format for not local_cols.", __LINE__)
        CALL dbcsr_assert ("NOT",right%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong right format for not local_cols.", __LINE__, error=error)
+            "Wrong right format for not local_cols.", __LINE__)
     ENDIF
     !
     ! Fill result data structure.
@@ -268,7 +261,7 @@ MODULE dbcsr_mm_multrec
     !$ NULLIFY (product_thread_dist)
     !$ CALL dbcsr_assert (dbcsr_distribution_has_threads (product%dist),&
     !$      dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-    !$      "Missing thread distribution.", __LINE__, error=error)
+    !$      "Missing thread distribution.", __LINE__)
     !$ product_thread_dist => array_data (&
     !$      dbcsr_distribution_thread_dist (product%dist))
     !
@@ -299,7 +292,7 @@ MODULE dbcsr_mm_multrec
           WRITE(*,*)" mat local rows", array_data(product%local_rows)
           CALL dbcsr_assert (.FALSE., &
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Array mismatch.", __LINE__, error=error)
+            "Array mismatch.", __LINE__)
        ENDIF
        IF (.NOT. array_equality (dbcsr_distribution_local_cols_obj (product%dist),&
                                  product%local_cols)) THEN
@@ -308,14 +301,14 @@ MODULE dbcsr_mm_multrec
           WRITE(*,*)" mat local cols", array_data(product%local_cols)
           CALL dbcsr_assert (.FALSE., &
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Array mismatch.", __LINE__, error=error)
+            "Array mismatch.", __LINE__)
        ENDIF
        CALL dbcsr_assert (SIZE(c_local_rows), "EQ", c_nblkrows_local,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Row count mismatch.", __LINE__, error=error)
+            "Row count mismatch.", __LINE__)
        CALL dbcsr_assert (SIZE(c_local_cols), "EQ", c_nblkcols_local,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Column count mismatch.", __LINE__, error=error)
+            "Column count mismatch.", __LINE__)
     ENDIF
     !
     ! And the k epsilons
@@ -332,7 +325,7 @@ MODULE dbcsr_mm_multrec
           IF (careful_mod) &
                CALL dbcsr_assert (SIZE(row_max_epss) .EQ. SIZE(this%row_max_epss),&
                dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "max epss local/global mismatch.", __LINE__, error=error)
+               "max epss local/global mismatch.", __LINE__)
           this%row_max_epss(:) = row_max_epss(:)
        ENDIF
     ELSE
@@ -366,11 +359,10 @@ MODULE dbcsr_mm_multrec
     !TODO: should we move this up?
     CALL dbcsr_mm_csr_init(this%csr, &
        left=left, right=right, product=product, &
-       m_sizes=this%m_sizes, n_sizes=this%n_sizes,& 
-       error=error)
+       m_sizes=this%m_sizes, n_sizes=this%n_sizes) 
 
     this%initialized = .TRUE.
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_mm_multrec_init
 
 
@@ -389,17 +381,15 @@ MODULE dbcsr_mm_multrec
 !>                            floating point operations performed
 !> \param[in] a_norms         (optional) norms of left-matrix blocks
 !> \param[in] b_norms         (optional) norms of right-matrix blocks
-!> \param error ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_multiply(this, left, right, flop,&
-       a_norms, b_norms, error)
+       a_norms, b_norms)
     TYPE(dbcsr_mm_multrec_type), &
       INTENT(inout)                          :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
     INTEGER(KIND=int_8), INTENT(OUT)         :: flop
     REAL(kind=sp), DIMENSION(:), &
       INTENT(in), TARGET                     :: a_norms, b_norms
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_multiply', &
       routineP = moduleN//':'//routineN
@@ -412,7 +402,7 @@ MODULE dbcsr_mm_multrec
 
     CALL dbcsr_assert(this%initialized,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "multrec not initialized.", __LINE__, error=error)
+         "multrec not initialized.", __LINE__)
 
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
@@ -423,7 +413,7 @@ MODULE dbcsr_mm_multrec
     IF (this%local_indexing) THEN
        k_locals => array_data (right%local_rows)
        this%k_locals => k_locals
-       CALL ensure_array_size (this%k_sizes, ub=SIZE(k_locals), error=error)
+       CALL ensure_array_size (this%k_sizes, ub=SIZE(k_locals))
        CALL local_filter(array_data(right%row_blk_size), SIZE(k_locals),&
             k_locals, this%k_sizes)
     ELSE
@@ -449,7 +439,7 @@ MODULE dbcsr_mm_multrec
             1, SIZE(k_locals),&
             t_a_f, t_a_l, left%coo_l,&
             t_b_f, t_b_l, right%coo_l,&
-            error, 0)
+            0)
     ELSE
        CALL sparse_multrec(this,left, right,&
             1, left%nblkrows_total,&
@@ -457,10 +447,10 @@ MODULE dbcsr_mm_multrec
             1, SIZE(k_locals),&
             t_a_f, t_a_l, left%coo_l,&
             t_b_f, t_b_l, right%coo_l,&
-            error, 0)
+            0)
     ENDIF
 
-    CALL dbcsr_mm_csr_purge_stacks(this%csr, left, right, error=error)
+    CALL dbcsr_mm_csr_purge_stacks(this%csr, left, right)
 
     flop = this%flop
     !
@@ -473,15 +463,13 @@ MODULE dbcsr_mm_multrec
 ! *****************************************************************************
 !> \brief Signal approaching end of multiplication
 !> \param this ...
-!> \param error ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_phaseout(this, error)
+  SUBROUTINE dbcsr_mm_multrec_phaseout(this)
     TYPE(dbcsr_mm_multrec_type), &
       INTENT(INOUT)                          :: this
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
-    CALL dbcsr_mm_csr_phaseout(this%csr, error)
+    CALL dbcsr_mm_csr_phaseout(this%csr)
   END SUBROUTINE dbcsr_mm_multrec_phaseout
 
 
@@ -490,12 +478,10 @@ MODULE dbcsr_mm_multrec
 !>
 !>
 !> \param this ...
-!> \param error ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_multrec_finalize(this, error)
+  SUBROUTINE dbcsr_mm_multrec_finalize(this)
     TYPE(dbcsr_mm_multrec_type), &
       INTENT(inout)                          :: this
-    TYPE(dbcsr_error_type), INTENT(inout)    :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_finalize', &
       routineP = moduleN//':'//routineN
@@ -504,12 +490,12 @@ MODULE dbcsr_mm_multrec
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_error_set(routineN, error_handler, error)
+    CALL dbcsr_error_set(routineN, error_handler)
     CALL dbcsr_assert(this%initialized,&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "multrec not initialized.", __LINE__, error=error)
+         "multrec not initialized.", __LINE__)
 
-    CALL dbcsr_mm_csr_finalize(this%csr, error=error)
+    CALL dbcsr_mm_csr_finalize(this%csr)
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM()
@@ -535,7 +521,7 @@ MODULE dbcsr_mm_multrec
     ENDIF
 
     this%initialized = .FALSE.
-    CALL dbcsr_error_stop(error_handler, error)
+    CALL dbcsr_error_stop(error_handler)
   END SUBROUTINE dbcsr_mm_multrec_finalize
 
 
@@ -558,13 +544,12 @@ MODULE dbcsr_mm_multrec
 !> \param bi ...
 !> \param bf ...
 !> \param b_index ...
-!> \param error ...
 !> \param d ...
 !> \author Joost VandeVondele
 ! *****************************************************************************
   RECURSIVE SUBROUTINE sparse_multrec(this, left, right, mi, mf, ni, nf, ki, kf,&
        ai, af, a_index, bi, bf, b_index, &
-       error, d)
+       d)
     TYPE(dbcsr_mm_multrec_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
@@ -572,7 +557,6 @@ MODULE dbcsr_mm_multrec
     INTEGER, DIMENSION(3, 1:af), INTENT(IN)  :: a_index
     INTEGER, INTENT(IN)                      :: bi, bf
     INTEGER, DIMENSION(3, 1:bf), INTENT(IN)  :: b_index
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
     INTEGER, INTENT(IN)                      :: d
 
     CHARACTER(len=*), PARAMETER :: routineN = 'sparse_multrec', &
@@ -605,8 +589,7 @@ MODULE dbcsr_mm_multrec
            use_eps=this%use_eps, row_max_epss=this%row_max_epss,&
            flop=this%flop,&
            a_index=a_index, b_index=b_index,&
-           a_norms=this%a_norms, b_norms=this%b_norms,&
-           error=error)
+           a_norms=this%a_norms, b_norms=this%b_norms)
         RETURN
     ENDIF
 
@@ -624,9 +607,9 @@ MODULE dbcsr_mm_multrec
        s1=M/2
        acut = find_cut_row(ai,af,a_index,mi+s1-1)
        CALL sparse_multrec(this, left, right, mi,mi+s1-1, ni,nf, ki,kf,&
-            ai,acut-1,a_index, bi,bf,b_index, error,d+1)
+            ai,acut-1,a_index, bi,bf,b_index,d+1)
        CALL sparse_multrec(this, left, right, mi+s1,mf, ni,nf, ki,kf,&
-            acut,af,a_index, bi,bf,b_index, error,d+1)
+            acut,af,a_index, bi,bf,b_index,d+1)
     CASE(2)
        s1=K/2
        acut = find_cut_col(ai,af,a_index,ki+s1-1)
@@ -640,9 +623,9 @@ MODULE dbcsr_mm_multrec
           WRITE(*,'(3(I7))')b_index
        ENDIF
        CALL sparse_multrec(this, left, right, mi,mf, ni,nf, ki,ki+s1-1,&
-            ai,acut-1,a_index, bi,bcut-1,b_index, error,d+1)
+            ai,acut-1,a_index, bi,bcut-1,b_index,d+1)
        CALL sparse_multrec(this, left, right, mi,mf, ni,nf, ki+s1,kf,&
-            acut,af,a_index, bcut,bf,b_index, error,d+1)
+            acut,af,a_index, bcut,bf,b_index,d+1)
     CASE(3)
        s1=N/2
        bcut = find_cut_col(bi,bf,b_index,ni+s1-1)
@@ -651,9 +634,9 @@ MODULE dbcsr_mm_multrec
           WRITE(*,'(3(I7))')b_index
        ENDIF
        CALL sparse_multrec(this, left, right, mi,mf, ni,ni+s1-1, ki,kf,&
-            ai,af,a_index, bi,bcut-1,b_index, error,d+1)
+            ai,af,a_index, bi,bcut-1,b_index,d+1)
        CALL sparse_multrec(this, left, right, mi,mf, ni+s1,nf, ki,kf,&
-            ai,af,a_index, bcut,bf,b_index,  error,d+1)
+            ai,af,a_index, bcut,bf,b_index,d+1)
     END SELECT
   END SUBROUTINE sparse_multrec
 

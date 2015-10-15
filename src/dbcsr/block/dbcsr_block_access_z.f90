@@ -23,8 +23,6 @@
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
 
-    TYPE(dbcsr_error_type)                   :: error
-
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_2d_block_p_z', &
       routineP = moduleN//':'//routineN
 
@@ -38,11 +36,11 @@
     LOGICAL                                  :: stored_tr
     COMPLEX(kind=real_8), DIMENSION(1,1), TARGET, SAVE    :: block0
 !   ---------------------------------------------------------------------------
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handle)
     IF (debug_mod) THEN
        CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_8,&
             dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Data type mismatch for requested block.",__LINE__,error)
+            routineN, "Data type mismatch for requested block.",__LINE__)
     ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
@@ -63,20 +61,18 @@
        ELSE
           block_1d => pointer_view (dbcsr_get_data_p (&
                matrix%m%data_area, CMPLX(0.0, 0.0, real_8)), offset, offset+nze-1)
-          CALL dbcsr_set_block_pointer (matrix, block, rsize, csize, offset, &
-               error=error)
+          CALL dbcsr_set_block_pointer (matrix, block, rsize, csize, offset)
        ENDIF
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        nwms = SIZE(matrix%m%wms)
        iw = 1
 !$     CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
 !$        dbcsr_fatal_level, dbcsr_internal_error,&
-!$        routineN, "Number of work matrices not equal to number of threads", &
-!$        __LINE__, error=error)
+!$        routineN, "Number of work matrices not equal to number of threads", __LINE__)
 !$     iw = omp_get_thread_num () + 1
        CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
             dbcsr_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__)
        IF (dbcsr_use_mutable (matrix%m)) THEN
           IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
              CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
@@ -91,7 +87,7 @@
           ENDIF
        ENDIF
     ENDIF
-    IF (careful_mod) CALL dbcsr_error_stop (error_handle, error=error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handle)
   END SUBROUTINE dbcsr_get_2d_block_p_z
 
 
@@ -114,7 +110,6 @@
     LOGICAL, INTENT(OUT)                     :: tr
     LOGICAL, INTENT(OUT)                     :: found
     INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
-    TYPE(dbcsr_error_type)                   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_block_p_z', &
       routineP = moduleN//':'//routineN
@@ -130,7 +125,7 @@
     IF (debug_mod) THEN
        CALL dbcsr_assert (matrix%m%data_type, "EQ", dbcsr_type_complex_8,&
             dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Data type mismatch for requested block.",__LINE__,error)
+            routineN, "Data type mismatch for requested block.",__LINE__)
     ENDIF
 
     CALL dbcsr_get_block_index (matrix, row, col, stored_row, stored_col,&
@@ -152,10 +147,10 @@
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
             dbcsr_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.",__LINE__,error)
+            "Can not retrieve blocks from non-mutable work matrices.",__LINE__)
        CALL dbcsr_assert ("NOT", dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
             dbcsr_caller_error, routineN,&
-            "Can not retrieve rank-1 block pointers from mutable work matrices.",__LINE__,error)
+            "Can not retrieve rank-1 block pointers from mutable work matrices.",__LINE__)
     ENDIF
   END SUBROUTINE dbcsr_get_block_p_z
 
@@ -187,7 +182,6 @@
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found, gift, tr, sym_tr
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER         :: original_block
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
 
@@ -213,7 +207,7 @@
     !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
     !     cp_caller_error, routineN, "Work matrices not prepared")
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_work_create (matrix, work_mutable=.TRUE., error=error)
+       CALL dbcsr_work_create (matrix, work_mutable=.TRUE.)
        !$OMP MASTER
        matrix%m%valid = .FALSE.
        !$OMP END MASTER
@@ -234,7 +228,7 @@
 !$  CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
 !$     dbcsr_fatal_level, dbcsr_internal_error,&
 !$     routineN, "Number of work matrices not equal to number of threads", &
-!$     __LINE__, error=error)
+!$     __LINE__)
 !$  iw = omp_get_thread_num () + 1
     CALL btree_add_z (matrix%m%wms(iw)%mutable%m%btree_z,&
          make_coordinate_tuple(stored_row, stored_col),&
@@ -336,7 +330,6 @@
     LOGICAL                                  :: found, tr, do_sum, tr_diff,&
                                                 sym_tr
     COMPLEX(kind=real_8), DIMENSION(:), POINTER           :: block_1d
-    TYPE(dbcsr_error_type)                   :: error
 
 !   ---------------------------------------------------------------------------
     IF (PRESENT (transposed)) THEN
@@ -359,7 +352,7 @@
     !
     IF (debug_mod) THEN
        CALL dbcsr_assert (SIZE(block), "GE", nze, dbcsr_fatal_level,&
-            dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__,error)
+            dbcsr_caller_error, routineN, "Invalid block dimensions",__LINE__)
     ENDIF
     CALL dbcsr_get_stored_block_info (matrix%m, stored_row, stored_col,&
          found, blk, offset)
@@ -402,24 +395,23 @@
        !     cp_caller_error, routineN, "Work matrices not prepared")
        IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
           CALL dbcsr_work_create (matrix, nblks_guess=1,&
-               sizedata_guess=SIZE(block),error=error)
+               sizedata_guess=SIZE(block))
        ENDIF
        nwms = SIZE(matrix%m%wms)
        iw = 1
 !$     IF (debug_mod) THEN
 !$     CALL dbcsr_assert (nwms, "GE", omp_get_num_threads(),&
 !$        dbcsr_fatal_level, dbcsr_internal_error,&
-!$        routineN, "Number of work matrices not equal to number of threads", &
-!$        __LINE__, error=error)
+!$        routineN, "Number of work matrices not equal to number of threads", __LINE__)
 !$     ENDIF
 !$     iw = omp_get_thread_num () + 1
        blk_p = matrix%m%wms(iw)%datasize + 1
        IF (.NOT.dbcsr_wm_use_mutable (matrix%m%wms(iw))) THEN
           IF (tr) blk_p = -blk_p
-          CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p, error=error)
+          CALL add_work_coordinate (matrix%m%wms(iw), row, col, blk_p)
           CALL dbcsr_data_ensure_size (matrix%m%wms(iw)%data_area,&
                matrix%m%wms(iw)%datasize+SIZE(block),&
-               factor=default_resize_factor, error=error)
+               factor=default_resize_factor)
           IF (PRESENT (scale)) THEN
              CALL dbcsr_data_set (matrix%m%wms(iw)%data_area, ABS(blk_p),&
                   data_size=SIZE(block), src=scale*block, source_lb=1)
@@ -447,7 +439,7 @@
              IF (found) THEN
                 CALL dbcsr_assert (ASSOCIATED (data_block2%p), dbcsr_warning_level,&
                      dbcsr_internal_error, routineN,&
-                     "Data was not present in block",__LINE__,error)
+                     "Data was not present in block",__LINE__)
                 IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
              ENDIF
           ELSE
@@ -461,7 +453,7 @@
                         data_block2%p(1,1), 1)
                 CALL dbcsr_assert (ASSOCIATED (data_block%p), dbcsr_warning_level,&
                      dbcsr_internal_error, routineN,&
-                     "Data was not present in block",__LINE__,error)
+                     "Data was not present in block",__LINE__)
                 IF (ASSOCIATED (data_block%p)) DEALLOCATE (data_block%p)
              ENDIF
           ENDIF
@@ -487,16 +479,13 @@
 !> \param rsize Row size of block to point to
 !> \param csize Column size of block to point to
 !> \param[in] base_offset      The block pointer
-!> \param[in,out] error        error
 ! *****************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_2d_z (&
-       matrix, pointer_any, rsize, csize, base_offset, &
-       error)
+       matrix, pointer_any, rsize, csize, base_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER         :: pointer_any
     INTEGER, INTENT(IN)                      :: rsize, csize
     INTEGER, INTENT(IN)                      :: base_offset
-    TYPE(dbcsr_error_type), INTENT(INOUT)    :: error
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'dbcsr_set_block_pointer_2d_z', &
@@ -507,10 +496,10 @@
 
 !   ---------------------------------------------------------------------------
 
-    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_set (routineN, error_handler)
     CALL dbcsr_get_data (matrix%m%data_area, lin_blk_p,&
          lb=base_offset, ub=base_offset+rsize*csize-1)
     CALL pointer_rank_remap2 (pointer_any, rsize, csize,&
          lin_blk_p)
-    IF (careful_mod) CALL dbcsr_error_stop (error_handler, error)
+    IF (careful_mod) CALL dbcsr_error_stop (error_handler)
   END SUBROUTINE dbcsr_set_block_pointer_2d_z
