@@ -981,12 +981,14 @@ CONTAINS
     WRITE(default_output_unit,*) 
     CALL m_flush(default_output_unit)
 
+#if !defined(__NO_ABORT)
 #if defined(__parallel)
     CALL mpi_abort ( MPI_COMM_WORLD, 1, ierr )
 #else
     CALL m_abort() ! uncomment if you want nice core dumps
 #endif
-    ! this routine never returns
+#endif
+    ! this routine never returns and levels with non-zero exit code
     STOP 1
   END SUBROUTINE mp_abort
 

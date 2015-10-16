@@ -715,7 +715,7 @@ LIBS="${LIBS} -lstdc++ "
 BASEFLAGS="IF_OMP(-fopenmp,)"
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
 #BASEFLAGS="${BASEFLAGS} IF_VALGRIND(-mno-avx,)" #not supported by valgrind 3.10.1
-BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage, IF_DEBUG(-O1,-O3 -ffast-math))"
+BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -ffast-math))"
 BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
 BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
 
