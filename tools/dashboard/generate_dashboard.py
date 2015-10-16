@@ -257,8 +257,7 @@ def gen_plots(all_reports, log, outdir, full_archive):
     markers = itertools.cycle('os>^*')
     rev_end = log[0]['num']
     rev_start = min(all_reports.keys()) if(full_archive) else rev_end-100
-    for pname in sorted(plots.keys()):
-        p = plots[pname]
+    for pname, p in plots.items():
         print "Working on plot: "+pname
         fig = plt.figure(figsize=(12,4))
         fig.subplots_adjust(bottom=0.18, left=0.06, right=0.72)
@@ -287,8 +286,8 @@ def gen_plots(all_reports, log, outdir, full_archive):
 
     # write html output
     html_output = ""
-    for pname, p in plots.items():
-        html_output += '<p><a href="plot_data.txt"><img src="%s" alt="%s"></a></p>\n'%(pname+fig_ext, p['title'])
+    for pname in sorted(plots.keys()):
+        html_output += '<p><a href="plot_data.txt"><img src="%s" alt="%s"></a></p>\n'%(pname+fig_ext, plots[pname]['title'])
     return(html_output)
 
 #===============================================================================
