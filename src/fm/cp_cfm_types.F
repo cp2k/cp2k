@@ -426,26 +426,16 @@ CONTAINS
     IF(.NOT. cp2k_is_parallel .OR.&
          cp_fm_struct_equivalent(source%matrix_struct,&
          destination%matrix_struct)) THEN
-      CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
-         SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
-         cp_assertion_failed, routineP, &
-         "internal local_data has different sizes"//&
-__LOCATION__)
+      IF(SIZE(source%local_data,1)/=SIZE(destination%local_data,1).OR.&
+         SIZE(source%local_data,2)/=SIZE(destination%local_data,2))&
+         CPABORT("internal local_data has different sizes")
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2)*2,&
            source%local_data(1,1),1,destination%local_data(1,1),1)
    ELSE
-      CALL cp_assert(source%matrix_struct%nrow_global==&
-           destination%matrix_struct%nrow_global,&
-           cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy between full matrixes of differen sizes"//&
-__LOCATION__)
-      CALL cp_assert(source%matrix_struct%ncol_global==&
-           destination%matrix_struct%ncol_global,&
-           cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy between full matrixes of differen sizes"//&
-__LOCATION__)
+      IF(source%matrix_struct%nrow_global/=destination%matrix_struct%nrow_global)&
+         CPABORT("cannot copy between full matrixes of differen sizes")
+      IF(source%matrix_struct%ncol_global/=destination%matrix_struct%ncol_global)&
+         CPABORT("cannot copy between full matrixes of differen sizes")
 #ifdef __SCALAPACK
       CALL pzcopy(source%matrix_struct%nrow_global*&
            source%matrix_struct%ncol_global,&
@@ -537,21 +527,13 @@ __LOCATION__)
     bi => mtargeti%local_data
 
     ! This routine is only for equivalent structures
-    CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
-         mtargetr%matrix_struct),cp_failure_level,&
-         cp_assertion_failed, routineP, &
-         "internal local_data has different sizes"//&
-__LOCATION__)
-    CALL cp_assert(cp_fm_struct_equivalent(msource%matrix_struct,&
-         mtargeti%matrix_struct),cp_failure_level,&
-         cp_assertion_failed, routineP, &
-         "internal local_data has different sizes"//&
-__LOCATION__)
-    CALL cp_assert(SIZE(a,1)==SIZE(br,1).AND.SIZE(a,2)==SIZE(br,2)&
-         .AND.SIZE(a,1)==SIZE(bi,1).AND.SIZE(a,2)==SIZE(bi,2),cp_failure_level,&
-         cp_assertion_failed, routineP, &
-         "internal local_data has different sizes"//&
-__LOCATION__)
+    IF(.NOT.cp_fm_struct_equivalent(msource%matrix_struct,mtargetr%matrix_struct))&
+       CPABORT("internal local_data has different sizes")
+    IF(.NOT.cp_fm_struct_equivalent(msource%matrix_struct,mtargeti%matrix_struct))&
+       CPABORT("internal local_data has different sizes")
+    IF(SIZE(a,1)/=SIZE(br,1).OR.SIZE(a,2)/=SIZE(br,2)&
+       .OR.SIZE(a,1)/=SIZE(bi,1).OR.SIZE(a,2)/=SIZE(bi,2))&
+       CPABORT("internal local_data has different sizes")
 
     br = REAL(a)
     bi = AIMAG(a)

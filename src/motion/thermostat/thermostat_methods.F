@@ -221,10 +221,9 @@ CONTAINS
                  save_mem=save_mem)
          ENDIF
       ELSE
-         CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+         CALL cp_warn(__LOCATION__,&
               "Adiabatic Thermostat has been defined but the ensemble provided "//&
-              "does not support thermostat for Particles! Ignoring thermostat input."//&
-              __LOCATION__,only_ionode=.TRUE.)
+              "does not support thermostat for Particles! Ignoring thermostat input.")
       END IF
       CALL release_thermostat_info(thermostats%thermostat_info_fast)
       CALL release_thermostat_info(thermostats%thermostat_info_slow)
@@ -277,17 +276,15 @@ CONTAINS
           CALL thermostat_info(thermostats%thermostat_part, "PARTICLES", thermo_part_section, &
                                simpar, para_env)
        ELSE
-          CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+          CALL cp_warn(__LOCATION__,&
                "Thermostat for Particles has been defined but the ensemble provided "//&
-               "does not support thermostat for Particles! Ignoring thermostat input."//&
-               __LOCATION__,only_ionode=.TRUE.)
+               "does not support thermostat for Particles! Ignoring thermostat input.")
        END IF
     ELSE IF (apply_general_thermo) THEN
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       CALL cp_abort(__LOCATION__,&
             "One constant temperature ensemble has been required, but no thermostat for the "//&
             "particles has been defined. You may want to change your input and add a "//&
-            "THERMOSTAT section in the MD section."//&
-            __LOCATION__,only_ionode=.TRUE.)
+            "THERMOSTAT section in the MD section.")
     END IF
 
     ! Core-Shell Model
@@ -325,26 +322,23 @@ CONTAINS
                 CALL thermostat_info(thermostats%thermostat_shell, "CORE-SHELL", thermo_shell_section, &
                                      simpar, para_env)
              ELSE
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                CALL cp_warn(__LOCATION__,&
                      "Thermostat for Core-Shell motion only with adiabatic shell-model. "//&
                      "Continuing calculation ignoring the thermostat info! No Thermostat "//&
-                     "applied to Shells!"//__LOCATION__,&
-                     only_ionode=.TRUE.)
+                     "applied to Shells!")
                 CALL release_thermostat_type(thermostats%thermostat_shell)
                 CALL release_thermostat_info(thermostats%thermostat_info_shell)
              END IF
           ELSE
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             CALL cp_warn(__LOCATION__,&
              "Thermostat for Shells has been defined but for the selected ensemble the adiabatic  "//&
-             " shell model has not been implemented! Ignoring thermostat input."//&
-             __LOCATION__,only_ionode=.TRUE.)
+             " shell model has not been implemented! Ignoring thermostat input.")
           END IF
        END IF
     ELSE IF (explicit_shell) THEN
-       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+       CALL cp_warn(__LOCATION__,&
             "Thermostat for Shells has been defined but the system provided "//&
-            "does not contain any Shells! Ignoring thermostat input."//__LOCATION__,&
-            only_ionode=.TRUE.)
+            "does not contain any Shells! Ignoring thermostat input.")
     END IF
 
     ! Barostat Temperature (not necessarily to be controlled by a thermostat)
@@ -386,10 +380,9 @@ CONTAINS
           END IF
        ELSE
           IF (explicit_baro) THEN
-             CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+             CALL cp_warn(__LOCATION__,&
                   "Thermostat for Barostat has been defined but the ensemble provided "//&
-                  "does not support thermostat for Barostat! Ignoring thermostat input."//&
-                  __LOCATION__,only_ionode=.TRUE.)
+                  "does not support thermostat for Barostat! Ignoring thermostat input.")
           END IF
           ! Let's remove the section
           CALL section_vals_remove_values(thermo_baro_section)

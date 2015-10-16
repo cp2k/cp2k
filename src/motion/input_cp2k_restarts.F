@@ -1171,8 +1171,8 @@ CONTAINS
       WRITE(stmp,*) reqlen
       err_str = TRIM(ADJUSTL(err_str)) // &
                 TRIM(ADJUSTL(stmp)) // "'."
-      CALL cp_assert(msgLEN==reqlen,cp_failure_level,&
-           cp_assertion_failed, routineP, err_str)
+      IF(msgLEN/=reqlen)&
+         CPABORT(err_str)
 
       ! allocate the buffer to be saved and fill it with forces
       ! forces should be the same on all processors, but we don't check that here
@@ -1293,9 +1293,9 @@ CONTAINS
 
     ik = section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
 
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-                   "section "//TRIM(section%name)//" does not contain keyword "//&
-                   "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__LOCATION__,"section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
 
     DO
        IF (SIZE(work_section%values,2)==1) EXIT
@@ -1799,9 +1799,9 @@ CONTAINS
     CPASSERT(coord_section%ref_count>0)
     section => coord_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__LOCATION__,"section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(coord_section%values,2)==1) EXIT
        CALL section_vals_add_values(coord_section)
@@ -1930,9 +1930,9 @@ CONTAINS
     CPASSERT(ss_section%ref_count>0)
     section => ss_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__LOCATION__,"section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(ss_section%values,2)==1) EXIT
        CALL section_vals_add_values(ss_section)
@@ -2001,9 +2001,9 @@ CONTAINS
     CPASSERT(ds_section%ref_count>0)
     section => ds_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__LOCATION__,"section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(ds_section%values,2)==1) EXIT
        CALL section_vals_add_values(ds_section)
@@ -2071,9 +2071,9 @@ CONTAINS
     CPASSERT(ww_section%ref_count>0)
     section => ww_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__LOCATION__,"section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(ww_section%values,2)==1) EXIT
        CALL section_vals_add_values(ww_section)
@@ -2138,9 +2138,9 @@ CONTAINS
     CPASSERT(invdt_section%ref_count>0)
     section => invdt_section%section
     ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_")
-    CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_")
+    IF(ik==-2)&
+       CALL cp_abort(__LOCATION__,"section "//TRIM(section%name)//" does not contain keyword "//&
+            "_DEFAULT_KEYWORD_")
     DO
        IF (SIZE(invdt_section%values,2)==1) EXIT
        CALL section_vals_add_values(invdt_section)

@@ -310,9 +310,8 @@ CONTAINS
     my_ncol = matrix%matrix_struct%ncol_global
     IF (PRESENT(ncol)) my_ncol=ncol
 
-    CALL cp_assert(ncol_global>=(my_start_col+my_ncol-1),&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "ncol_global>=(my_start_col+my_ncol-1)")
+    IF(ncol_global<(my_start_col+my_ncol-1))&
+       CPABORT("ncol_global>=(my_start_col+my_ncol-1)")
 
     ALLOCATE(buff(nrow_global))
 
@@ -1122,41 +1121,37 @@ CONTAINS
          cp_fm_struct_equivalent(source%matrix_struct,&
          destination%matrix_struct)) THEN
        IF(source%use_sp.AND.destination%use_sp) THEN
-          CALL cp_assert(SIZE(source%local_data_sp,1)==SIZE(destination%local_data_sp,1).AND.&
-               SIZE(source%local_data_sp,2)==SIZE(destination%local_data_sp,2),cp_failure_level,&
-               cp_assertion_failed, routineP,&
-               "Cannot copy full matrix <"//TRIM(source%name)//&
-               "> to full matrix <"//TRIM(destination%name)//&
-               ">. The local_data blocks have different sizes."//&
-__LOCATION__)
+          IF(SIZE(source%local_data_sp,1)/=SIZE(destination%local_data_sp,1).OR.&
+             SIZE(source%local_data_sp,2)/=SIZE(destination%local_data_sp,2))&
+             CALL cp_abort(__LOCATION__,&
+                  "Cannot copy full matrix <"//TRIM(source%name)//&
+                  "> to full matrix <"//TRIM(destination%name)//&
+                  ">. The local_data blocks have different sizes.")
           CALL scopy(SIZE(source%local_data_sp,1)*SIZE(source%local_data_sp,2),&
                source%local_data_sp(1,1),1,destination%local_data_sp(1,1),1)
        ELSEIF(source%use_sp.AND..NOT.destination%use_sp) THEN
-          CALL cp_assert(SIZE(source%local_data_sp,1)==SIZE(destination%local_data,1).AND.&
-               SIZE(source%local_data_sp,2)==SIZE(destination%local_data,2),cp_failure_level,&
-               cp_assertion_failed, routineP,&
-               "Cannot copy full matrix <"//TRIM(source%name)//&
-               "> to full matrix <"//TRIM(destination%name)//&
-               ">. The local_data blocks have different sizes."//&
-__LOCATION__)
+          IF(SIZE(source%local_data_sp,1)/=SIZE(destination%local_data,1).OR.&
+             SIZE(source%local_data_sp,2)/=SIZE(destination%local_data,2))&
+             CALL cp_abort(__LOCATION__,&
+                  "Cannot copy full matrix <"//TRIM(source%name)//&
+                  "> to full matrix <"//TRIM(destination%name)//&
+                  ">. The local_data blocks have different sizes.")
           destination%local_data=REAL(source%local_data_sp,dp)
        ELSEIF(.NOT.source%use_sp.AND.destination%use_sp) THEN
-          CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data_sp,1).AND.&
-               SIZE(source%local_data,2)==SIZE(destination%local_data_sp,2),cp_failure_level,&
-               cp_assertion_failed, routineP,&
-               "Cannot copy full matrix <"//TRIM(source%name)//&
-               "> to full matrix <"//TRIM(destination%name)//&
-               ">. The local_data blocks have different sizes."//&
-__LOCATION__)
+          IF(SIZE(source%local_data,1)/=SIZE(destination%local_data_sp,1).OR.&
+             SIZE(source%local_data,2)/=SIZE(destination%local_data_sp,2))&
+             CALL cp_abort(__LOCATION__,&
+                  "Cannot copy full matrix <"//TRIM(source%name)//&
+                  "> to full matrix <"//TRIM(destination%name)//&
+                  ">. The local_data blocks have different sizes.")
           destination%local_data_sp=REAL(source%local_data,sp)
        ELSE
-          CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
-               SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
-               cp_assertion_failed, routineP,&
-               "Cannot copy full matrix <"//TRIM(source%name)//&
-               "> to full matrix <"//TRIM(destination%name)//&
-               ">. The local_data blocks have different sizes."//&
-__LOCATION__)
+          IF(SIZE(source%local_data,1)/=SIZE(destination%local_data,1).OR.&
+             SIZE(source%local_data,2)/=SIZE(destination%local_data,2))&
+             CALL cp_abort(__LOCATION__,&
+                  "Cannot copy full matrix <"//TRIM(source%name)//&
+                  "> to full matrix <"//TRIM(destination%name)//&
+                  ">. The local_data blocks have different sizes.")
           CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
                source%local_data(1,1),1,destination%local_data(1,1),1)
        ENDIF
@@ -1300,25 +1295,17 @@ __LOCATION__)
     na = msource%matrix_struct%nrow_global
     nb = mtarget%matrix_struct%nrow_global
 !    nrow must be <= na and nb
-    CALL cp_assert(nrow<=na, cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy because nrow > number of rows of source matrix"//&
-__LOCATION__)
-    CALL cp_assert(nrow<=nb, cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy because nrow > number of rows of target matrix"//&
-__LOCATION__)
+    IF(nrow>na)&
+       CPABORT("cannot copy because nrow > number of rows of source matrix")
+    IF(nrow>nb)&
+       CPABORT("cannot copy because nrow > number of rows of target matrix")
     na = msource%matrix_struct%ncol_global
     nb = mtarget%matrix_struct%ncol_global
 !    ncol must be <= na_col and nb_col
-    CALL cp_assert(ncol<=na, cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy because nrow > number of rows of source matrix"//&
-__LOCATION__)
-    CALL cp_assert(ncol<=nb, cp_failure_level,&
-           cp_assertion_failed, routineP, &
-           "cannot copy because nrow > number of rows of target matrix"//&
-__LOCATION__)
+    IF(ncol>na)&
+       CPABORT("cannot copy because nrow > number of rows of source matrix")
+    IF(ncol>nb)&
+       CPABORT("cannot copy because nrow > number of rows of target matrix")
 
 #if defined(__SCALAPACK)
     desca(:) = msource%matrix_struct%descriptor(:)
@@ -1396,10 +1383,8 @@ __LOCATION__)
        IF(ASSOCIATED(source)) THEN
           sdat = 1
           desca = source%matrix_struct%descriptor
-          CALL cp_assert(.NOT.source%use_sp,&
-               cp_failure_level, cp_assertion_failed, routineP, &
-               "only DP kind implemnted"//&
-__LOCATION__)
+          IF(source%use_sp)&
+             CPABORT("only DP kind implemnted")
           m = source%matrix_struct%nrow_global
           n = source%matrix_struct%ncol_global
           smat => source%local_data
@@ -1410,10 +1395,8 @@ __LOCATION__)
        IF(ASSOCIATED(destination)) THEN
           ddat = 1
           descb = destination%matrix_struct%descriptor
-          CALL cp_assert(.NOT.destination%use_sp,&
-               cp_failure_level, cp_assertion_failed, routineP, &
-               "only DP kind implemnted"//&
-__LOCATION__)
+          IF(destination%use_sp)&
+             CPABORT("only DP kind implemnted")
           m = destination%matrix_struct%nrow_global
           n = destination%matrix_struct%ncol_global
           dmat => destination%local_data
@@ -1423,18 +1406,10 @@ __LOCATION__)
        END IF
 
        IF(sdat*ddat == 1) THEN
-          CALL cp_assert(source%matrix_struct%nrow_global==&
-               destination%matrix_struct%nrow_global,&
-               cp_failure_level,&
-               cp_assertion_failed, routineP, &
-               "cannot copy between full matrixes of different sizes"//&
-__LOCATION__)
-          CALL cp_assert(source%matrix_struct%ncol_global==&
-               destination%matrix_struct%ncol_global,&
-               cp_failure_level,&
-               cp_assertion_failed, routineP, &
-               "cannot copy between full matrixes of differen sizes"//&
-__LOCATION__)
+          IF(source%matrix_struct%nrow_global/=destination%matrix_struct%nrow_global)&
+             CPABORT("cannot copy between full matrixes of different sizes")
+          IF(source%matrix_struct%ncol_global/=destination%matrix_struct%ncol_global)&
+             CPABORT("cannot copy between full matrixes of differen sizes")
        END IF
 
        CALL pdgemr2d(m,n,smat,1,1,desca,dmat,1,1,descb,global_context)

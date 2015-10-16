@@ -26,10 +26,8 @@
     scalar_data_type = dbcsr_scalar_get_type(encapsulated)
     IF (scalar_data_type .EQ. dbcsr_type_complex_4 .OR.&
         scalar_data_type .EQ. dbcsr_type_complex_8) THEN
-       CALL cp_assert (data_type .EQ. dbcsr_type_complex_4 .OR.&
-            data_type .EQ. dbcsr_type_complex_8,&
-            cp_fatal_level, cp_wrong_args_error, routineN,&
-            "Can not conform a complex to a real number")
+       IF(data_type .NE. dbcsr_type_complex_4 .AND. data_type .NE. dbcsr_type_complex_8)&
+          CPABORT("Can not conform a complex to a real number")
     END IF
     CALL dbcsr_scalar_set_type (encapsulated,data_type)
   END FUNCTION make_conformant_scalar_d
@@ -91,8 +89,8 @@
     CALL dbcsr_iterator_next_block (iterator, row, column,&
        block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)
-    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
-         routineN, "CP2K does not handle transposed blocks.")
+    IF(transposed)&
+       CPABORT("CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_2d_block_d
 
@@ -125,8 +123,8 @@
 
     CALL dbcsr_iterator_next_block (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
-    CALL cp_assert(.NOT. transposed, cp_fatal_level, cp_internal_error,&
-         routineN, "CP2K does not handle transposed blocks.")
+    IF(transposed)&
+       CPABORT("CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_iterator_next_1d_block_d
 
@@ -208,8 +206,8 @@
 
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
          row_size, col_size)
-    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
-         routineN, "CP2K does not handle transposed blocks.")
+    IF(tr)&
+       CPABORT("CP2K does not handle transposed blocks.")
   END SUBROUTINE cp_dbcsr_get_2d_block_p_d
 
 
@@ -238,8 +236,8 @@
 
     CALL dbcsr_get_block_p(matrix%matrix,row,col,block,tr,found,&
        row_size, col_size)
-    CALL cp_assert(.NOT. tr, cp_fatal_level, cp_internal_error,&
-         routineN, "CP2K does not handle transposed blocks.")
+    IF(tr)&
+       CPABORT("CP2K does not handle transposed blocks.")
 
   END SUBROUTINE cp_dbcsr_get_block_p_d
 

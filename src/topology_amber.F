@@ -1038,9 +1038,9 @@ CONTAINS
        i = i + 1
     END DO
     ! Trigger end of file aborting
-    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
-         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          __LOCATION__)
+    IF(my_end.AND.(i<=dim))&
+       CALL cp_abort(__LOCATION__,&
+            "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i1
 
 ! *****************************************************************************
@@ -1088,9 +1088,9 @@ CONTAINS
        i = i + 1
     END DO
     ! Trigger end of file aborting
-    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
-         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-         __LOCATION__)
+    IF(my_end.AND.(i<=dim))&
+       CALL cp_abort(__LOCATION__,&
+            "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i3
 
 ! *****************************************************************************
@@ -1144,9 +1144,9 @@ CONTAINS
        i = i + 1
     END DO
     ! Trigger end of file aborting
-    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
-         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-         __LOCATION__)
+    IF(my_end.AND.(i<=dim))&
+       CALL cp_abort(__LOCATION__,&
+            "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i4
 
 ! *****************************************************************************
@@ -1208,9 +1208,9 @@ CONTAINS
        i = i + 1
     END DO
     ! Trigger end of file aborting
-    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
-         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-         __LOCATION__)
+    IF(my_end.AND.(i<=dim))&
+       CALL cp_abort(__LOCATION__,&
+            "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i5
 
 ! *****************************************************************************
@@ -1246,9 +1246,9 @@ CONTAINS
        i = i + 1
     END DO
     ! Trigger end of file aborting
-    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
-         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          __LOCATION__)
+    IF(my_end.AND.(i<=dim))&
+       CALL cp_abort(__LOCATION__,&
+            "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_c1
 
 ! *****************************************************************************
@@ -1283,9 +1283,9 @@ CONTAINS
        i = i + 1
     END DO
     ! Trigger end of file aborting
-    CALL cp_assert(.NOT.my_end.OR.(i>dim), cp_fatal_level, cp_assertion_failed, routineP,&
-         "End of file while reading section "//TRIM(section)//" in amber topology file!"//&
-          __LOCATION__)
+    IF(my_end.AND.(i<=dim))&
+       CALL cp_abort(__LOCATION__,&
+            "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_r1
 
 ! *****************************************************************************
