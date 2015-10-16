@@ -301,10 +301,10 @@ CONTAINS
                      para_env=tmc_env%tmc_comp_set%para_env_m_w,&
                      tmc_params=tmc_env%params, &
                      elem=init_conf, success=flag, wait_for_message=.TRUE.)
-    CALL cp_assert(stat.EQ.TMC_STAT_START_CONF_RESULT, cp_failure_level,&
-                   cp_assertion_failed,routineP,&
-                   "receiving start configuration failed, received stat "//&
-                   cp_to_string(stat),failure=failure)
+    IF(stat.NE.TMC_STAT_START_CONF_RESULT)&
+       CALL cp_abort(__LOCATION__,&
+            "receiving start configuration failed, received stat "//&
+            cp_to_string(stat))
     IF(failure)THEN
       CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_w, &
                             worker_info=worker_info, &
@@ -427,11 +427,10 @@ CONTAINS
 
         ! in case of parallel tempering canceled element could be reactivated,
         !   calculated faster and deleted
-        CALL cp_assert(ASSOCIATED(worker_info(wg)%elem),&
-                       cp_failure_level,cp_assertion_failed,routineP,&
-                       "no tree elem exist when receiving stat "//&
-                       cp_to_string(stat)//"of group"//cp_to_string(wg),&
-                       failure=flag)
+        IF(.NOT.ASSOCIATED(worker_info(wg)%elem))&
+           CALL cp_abort(__LOCATION__,&
+                "no tree elem exist when receiving stat "//&
+                cp_to_string(stat)//"of group"//cp_to_string(wg))
 
         IF(DEBUG.GE.1) &
           WRITE(tmc_env%m_env%io_unit,*)&

@@ -130,23 +130,20 @@ CONTAINS
        CALL section_vals_val_get(xc_section,"gradient_cutoff", r_val=gradient_cut)
        CALL section_vals_val_get(xc_section,"tau_cutoff", r_val=tau_cut)
        ! Perform numerical stability checks and possibly correct the issues
-       CALL cp_assert(density_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
-            "DENSITY_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
-            "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(density_cut<=EPSILON(0.0_dp)*100.0_dp)&
+          CALL cp_warn(__LOCATION__,&
+               "DENSITY_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
+               "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! ")
        density_cut = MAX(EPSILON(0.0_dp)*100.0_dp,density_cut)
-       CALL cp_assert(gradient_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
-            "GRADIENT_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
-            "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(gradient_cut<=EPSILON(0.0_dp)*100.0_dp)&
+          CALL cp_warn(__LOCATION__,&
+               "GRADIENT_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
+               "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! ")
        gradient_cut = MAX(EPSILON(0.0_dp)*100.0_dp,gradient_cut)
-       CALL cp_assert(tau_cut>EPSILON(0.0_dp)*100.0_dp,cp_warning_level,cp_assertion_failed,routineP,&
-            "TAU_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
-            "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! "//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(tau_cut<=EPSILON(0.0_dp)*100.0_dp)&
+          CALL cp_warn(__LOCATION__,&
+               "TAU_CUTOFF lower than 100*EPSILON, where EPSILON is the machine precision. "//&
+               "This may lead to numerical problems. Setting up shake_tol to 100*EPSILON! ")
        tau_cut = MAX(EPSILON(0.0_dp)*100.0_dp,tau_cut)
        CALL section_vals_val_set(xc_section,"density_cutoff", r_val=density_cut)
        CALL section_vals_val_set(xc_section,"gradient_cutoff", r_val=gradient_cut)
@@ -251,10 +248,9 @@ __LOCATION__,&
     CALL section_vals_val_get(dft_section,"MULTIPLICITY",i_val=dft_control%multiplicity)
     CALL section_vals_val_get(dft_section,"RELAX_MULTIPLICITY",r_val=dft_control%relax_multiplicity)
     IF (dft_control%relax_multiplicity > 0.0_dp) THEN
-       CALL cp_assert(dft_control%uks,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "The option RELAX_MULTIPLICITY is only valid for unrestricted Kohn-Sham (UKS) calculations",&
-                      only_ionode=.TRUE.)
+       IF(.NOT.dft_control%uks)&
+          CALL cp_abort(__LOCATION__,"The option RELAX_MULTIPLICITY is only valid for "//&
+                        "unrestricted Kohn-Sham (UKS) calculations")
     END IF
 
     ! check for the presence of the low spin roks section
@@ -508,9 +504,8 @@ __LOCATION__,&
 
       CALL section_vals_val_get(mgrid_section,"MULTIGRID_CUTOFF",r_vals=cutofflist)
       IF(ASSOCIATED(cutofflist)) THEN
-         CALL cp_assert(SIZE(cutofflist,1) == ngrid_level,&
-              cp_failure_level,cp_assertion_failed,routineN,&
-              "Inconsistent values for number of multi grids")
+         IF(SIZE(cutofflist,1) /= ngrid_level)&
+            CPABORT("Inconsistent values for number of multi grids")
          DO igrid_level = 1,ngrid_level
             qs_control%e_cutoff(igrid_level) = cutofflist(igrid_level)*0.5_dp
          ENDDO
@@ -835,10 +830,10 @@ __LOCATION__,&
        CALL section_vals_val_get(se_section,"INTEGRAL_SCREENING",&
             i_val=qs_control%se_control%integral_screening)
        IF (qs_control%method_id==do_method_pnnl) THEN
-          CALL cp_assert((qs_control%se_control%integral_screening==do_se_IS_slater),&
-               cp_warning_level,cp_assertion_failed,routineP,&
-               "PNNL semi-empirical parameterization supports only the Slater type "//&
-               "integral scheme. Revert to Slater and continue the calculation.")
+          IF(qs_control%se_control%integral_screening/=do_se_IS_slater)&
+             CALL cp_warn(__LOCATION__,&
+                  "PNNL semi-empirical parameterization supports only the Slater type "//&
+                  "integral scheme. Revert to Slater and continue the calculation.")
           qs_control%se_control%integral_screening = do_se_IS_slater
        END IF
        ! Global Arrays variable
@@ -903,21 +898,21 @@ __LOCATION__,&
           qs_control%se_control%do_ewald     = .FALSE.
           qs_control%se_control%do_ewald_r3  = .FALSE.
           qs_control%se_control%do_ewald_gks = .TRUE.
-          CALL cp_assert(qs_control%method_id==do_method_pnnl,&
-               cp_fatal_level,cp_assertion_failed,routineP,&
-               "A periodic semi-empirical calculation was requested with a long-range  "//&
-               "summation on the single integral evaluation. This scheme is supported  "//&
-               "only by the PNNL parameterization.")
+          IF(qs_control%method_id/=do_method_pnnl)&
+             CALL cp_abort(__LOCATION__,&
+                  "A periodic semi-empirical calculation was requested with a long-range  "//&
+                  "summation on the single integral evaluation. This scheme is supported  "//&
+                  "only by the PNNL parameterization.")
        CASE(do_se_lr_ewald_r3)
           qs_control%se_control%do_ewald     = .TRUE.
           qs_control%se_control%do_ewald_r3  = .TRUE.
           qs_control%se_control%do_ewald_gks = .FALSE.
-          CALL cp_assert(qs_control%se_control%integral_screening==do_se_IS_kdso,&
-               cp_fatal_level,cp_assertion_failed,routineP,&
-               "A periodic semi-empirical calculation was requested with a long-range  "//&
-               "summation for the slowly convergent part 1/R^3, which is not congruent "//&
-               "with the integral screening chosen. The only integral screening supported "//&
-               "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.")
+          IF(qs_control%se_control%integral_screening/=do_se_IS_kdso)&
+             CALL cp_abort(__LOCATION__,&
+                  "A periodic semi-empirical calculation was requested with a long-range  "//&
+                  "summation for the slowly convergent part 1/R^3, which is not congruent "//&
+                  "with the integral screening chosen. The only integral screening supported "//&
+                  "by this periodic type calculation is the standard Klopman-Dewar-Sabelli-Ohno.")
        END SELECT
 
        ! dispersion pair potentials

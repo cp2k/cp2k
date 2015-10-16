@@ -341,28 +341,20 @@ CONTAINS
     IF(first_call) THEN
       ! Assertion that matrices have the expected symmetry (both should be symmetric if no 
       ! S preconditioning and no molecular clustering)
-      CALL cp_assert(cp_dbcsr_has_symmetry (matrix_ks),&
-           cp_fatal_level, cp_internal_error, routineP,&
-           "PEXSI interface expects a non-symmetric DBCSR Kohn-Sham matrix",&
-           only_ionode=.TRUE.)
-      CALL cp_assert(cp_dbcsr_has_symmetry (matrix_s),&
-           cp_fatal_level, cp_internal_error, routineP,&
-           "PEXSI interface expects a non-symmetric DBCSR overlap matrix",&
-           only_ionode=.TRUE.)
-  
+      IF(.NOT.cp_dbcsr_has_symmetry (matrix_ks))&
+         CPABORT("PEXSI interface expects a non-symmetric DBCSR Kohn-Sham matrix")
+      IF(.NOT.cp_dbcsr_has_symmetry (matrix_s))&
+         CPABORT("PEXSI interface expects a non-symmetric DBCSR overlap matrix")
+
       ! Assertion on datatype
-      CALL cp_assert((pexsi_env%csr_mat_s%nzval_local%data_type .EQ. dbcsr_type_real_8) &
-           .AND. (pexsi_env%csr_mat_ks%nzval_local%data_type .EQ. dbcsr_type_real_8), &
-           cp_fatal_level,cp_wrong_args_error, routineP,&
-           "Complex data type not supported by PEXSI",&
-           only_ionode=.TRUE.)
-   
+      IF((pexsi_env%csr_mat_s%nzval_local%data_type .NE. dbcsr_type_real_8) &
+         .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type .NE. dbcsr_type_real_8))&
+         CPABORT("Complex data type not supported by PEXSI")
+
       ! Assertion on number of non-zero elements 
       !(TODO: update when PEXSI changes to Long Int) 
-      CALL cp_assert(pexsi_env%csr_mat_s%nze_total .LT. INT(2,kind=int_8)**31,&
-           cp_fatal_level, cp_internal_error, routineP,&
-           "Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI",&
-           only_ionode=.TRUE.)
+      IF(pexsi_env%csr_mat_s%nze_total .GE. INT(2,kind=int_8)**31)&
+         CPABORT("Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI")
     ENDIF
 
     mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_ks)))

@@ -473,8 +473,8 @@ CONTAINS
 
     n1 = SIZE(sizes1)
     n2 = SIZE(sizes2)
-    CALL cp_assert (n1 .EQ. n2, cp_fatal_level, cp_caller_error,&
-         "match_col_sizes", "distributions must be equal!")
+    IF(n1 .NE. n2)&
+       CPABORT("distributions must be equal!")
     sizes1(1:n1) = sizes2(1:n1)
     used = SUM (sizes1(1:n1))
     ! If sizes1 does not cover everything, then we increase the
@@ -541,8 +541,8 @@ CONTAINS
     NULLIFY(col_dist_left)
 
     IF (ncol .GT. 0) THEN
-       CALL cp_assert (cp_dbcsr_valid_index (sparse_matrix), cp_fatal_level,&
-            cp_caller_error, routineN, "sparse_matrix must pre-exist")
+       IF(.NOT.cp_dbcsr_valid_index (sparse_matrix))&
+          CPABORT("sparse_matrix must pre-exist")
        !
        ! Setup matrix_v
        CALL cp_fm_get_info(matrix_v, ncol_global=k)
@@ -724,12 +724,10 @@ CONTAINS
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
-    CALL cp_assert (nrow_global.eq.nfullrows_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in rows")
-    CALL cp_assert (ncol_global.eq.nfullcols_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in columns")
+    IF(nrow_global.NE.nfullrows_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in rows")
+    IF(ncol_global.NE.nfullcols_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in columns")
 
     ! Create a block-cyclic distribution compatible with the FM matrix.
     CALL dbcsr_distribution_init (bc_dist)
@@ -810,9 +808,8 @@ CONTAINS
              blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   select_data_type=REAL(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
           ENDIF
-          CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Block size does not match block row/col sizes")
+          IF(nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1))&
+             CPABORT("Block size does not match block row/col sizes")
           IF (fm%use_sp) THEN
              blk_1d_sp(1:nze) = RESHAPE(&
                   fm_block_sp(&
@@ -1005,9 +1002,8 @@ CONTAINS
              blk_1d_dp => cp_dbcsr_get_data_p (bc_mat, 1,&
                   select_data_type=REAL(0.0, KIND=dp), lb=blk_map(my_blk), ub=blk_map(my_blk)+nze-1)
           ENDIF
-          CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Block size does not match block row/col sizes")
+          IF(nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1))&
+             CPABORT("Block size does not match block row/col sizes")
           IF (fm%use_sp) THEN
              blk_1d_sp(1:nze) = RESHAPE(&
                   fm_block_sp(&
@@ -1085,12 +1081,10 @@ CONTAINS
          nfullrows_total=nfullrows_total,&
          nfullcols_total=nfullcols_total)
 
-    CALL cp_assert (nrow_global.eq.nfullrows_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in rows")
-    CALL cp_assert (ncol_global.eq.nfullcols_total,&
-         cp_fatal_level, cp_caller_error, routineN,&
-         "FM and DBCSR matrix sizes do not match in columns")
+    IF(nrow_global.NE.nfullrows_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in rows")
+    IF(ncol_global.NE.nfullcols_total)&
+       CPABORT("FM and DBCSR matrix sizes do not match in columns")
 
     ! Create a block-cyclic distribution compatible with the FM matrix.
     CALL dbcsr_distribution_init (bc_dist)
@@ -1162,9 +1156,8 @@ CONTAINS
           !blk_1d => bc_mat%m%wms(1)%data_area%d%c_dp(blk_p:blk_p+nze-1)
           blk_1d => cp_dbcsr_get_data_p (bc_mat, 1,&
                select_data_type=CMPLX(0.0, KIND=dp), lb=blk_p, ub=blk_p+nze-1)
-          CALL cp_assert (nze .EQ. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1),&
-               cp_fatal_level, cp_internal_error, routineN,&
-               "Block size does not match block row/col sizes")
+          IF(nze .NE. (last_row(row)-first_row(row)+1)*(last_col(col)-first_col(col)+1))&
+             CPABORT("Block size does not match block row/col sizes")
           blk_1d(1:nze) = RESHAPE(&
                fm_block(&
                first_row(row):last_row(row),first_col(col):last_col(col)&

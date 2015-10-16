@@ -151,54 +151,48 @@ CONTAINS
     ! Check for   _cell_length_a
     CALL parser_search_string(parser,"_cell_length_a",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field (_cell_length_a) was not found in CIF file! "//&
-__LOCATION__)
+    IF(.NOT.found)&
+       CPABORT("The field (_cell_length_a) was not found in CIF file! ")
     CALL cif_get_real(parser,cell_lengths(1))
     cell_lengths(1) = cp_unit_to_cp2k(cell_lengths(1),"angstrom")
 
     ! Check for   _cell_length_b
     CALL parser_search_string(parser,"_cell_length_b",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field (_cell_length_b) was not found in CIF file! "//&
-__LOCATION__)
+    IF(.NOT.found)&
+       CPABORT("The field (_cell_length_b) was not found in CIF file! ")
     CALL cif_get_real(parser,cell_lengths(2))
     cell_lengths(2) = cp_unit_to_cp2k(cell_lengths(2),"angstrom")
 
     ! Check for   _cell_length_c
     CALL parser_search_string(parser,"_cell_length_c",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field (_cell_length_c) was not found in CIF file! "//&
-__LOCATION__)
+    IF(.NOT.found)&
+       CPABORT("The field (_cell_length_c) was not found in CIF file! ")
     CALL cif_get_real(parser,cell_lengths(3))
     cell_lengths(3) = cp_unit_to_cp2k(cell_lengths(3),"angstrom")
 
     ! Check for   _cell_angle_alpha
     CALL parser_search_string(parser,"_cell_angle_alpha",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field (_cell_angle_alpha) was not found in CIF file! "//&
-__LOCATION__)
+    IF(.NOT.found)&
+       CPABORT("The field (_cell_angle_alpha) was not found in CIF file! ")
     CALL cif_get_real(parser,cell_angles(1))
     cell_angles(1) = cp_unit_to_cp2k(cell_angles(1),"deg")
 
     ! Check for   _cell_angle_beta
     CALL parser_search_string(parser,"_cell_angle_beta",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field (_cell_angle_beta) was not found in CIF file! "//&
-__LOCATION__)
+    IF(.NOT.found)&
+       CPABORT("The field (_cell_angle_beta) was not found in CIF file! ")
     CALL cif_get_real(parser,cell_angles(2))
     cell_angles(2) = cp_unit_to_cp2k(cell_angles(2),"deg")
 
     ! Check for   _cell_angle_gamma
     CALL parser_search_string(parser,"_cell_angle_gamma",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field (_cell_angle_gamma) was not found in CIF file! "//&
-__LOCATION__)
+    IF(.NOT.found)&
+       CPABORT("The field (_cell_angle_gamma) was not found in CIF file! ")
     CALL cif_get_real(parser,cell_angles(3))
     cell_angles(3) = cp_unit_to_cp2k(cell_angles(3),"deg")
 
@@ -213,9 +207,8 @@ __LOCATION__)
     ! Check for   _atom_site_label
     CALL parser_search_string(parser,"_atom_site_label",ignore_case=.FALSE.,found=found,&
          begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
-    CALL cp_assert(found,cp_fatal_level,cp_assertion_failed,routineP,&
-         "The field _atom_site_label was not found in CIF file! "//&
-__LOCATION__)
+    IF(.NOT.found)&
+       CPABORT("The field _atom_site_label was not found in CIF file! ")
     ifield     = 0
     ii         = 1
     ifield(ii) = 0
@@ -311,10 +304,9 @@ __LOCATION__)
        CALL parser_search_string(parser,"_space_group_symop_operation_xyz",ignore_case=.FALSE.,found=found,&
             begin_line=.FALSE.,search_from_begin_of_file=.TRUE.)
     END IF
-    CALL cp_assert(found,cp_warning_level,cp_assertion_failed,routineP,&
-         "The fields (_symmetry_equiv_pos_as_xyz) or (_space_group_symop_operation_xyz) were not found in CIF file! "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(.NOT.found)&
+       CALL cp_warn(__LOCATION__, "The fields (_symmetry_equiv_pos_as_xyz) or "//&
+                    "(_space_group_symop_operation_xyz) were not found in CIF file!")
     IF (iw>0) WRITE(iw,'(A,I0)')" CIF_INFO| Number of atoms before applying symmetry operations :: ",natom
     IF (iw>0) WRITE(iw,'(A10,1X,3F12.6)')(TRIM(id2str(atom_info%id_atmname(ii))),atom_info%r(1:3,ii),ii=1,natom)
     isym = 0

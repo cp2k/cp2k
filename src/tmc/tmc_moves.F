@@ -748,9 +748,10 @@ CONTAINS
     counter = counter-k+1
 
     ! check if loop is minimum size of 6 molecules
-    CALL cp_assert(counter.GE.6,cp_warning_level,cp_assertion_failed,&
-                 routineP,"short proton loop with"//cp_to_string(counter)//&
-                 "molecules.",failure)
+    IF(counter.LT.6)&
+       CALL cp_warn(__LOCATION__,&
+            "short proton loop with"//cp_to_string(counter)//&
+            "molecules.")
     IF(failure) THEN
       tmp_chr=""
       WRITE(tmp_chr, *) mol_arr(1:counter)

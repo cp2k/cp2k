@@ -541,12 +541,12 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,kpoints=kpoints)
     IF(kpoints%nkp /= 0) THEN
        ! check for some incompatible options
-       CALL cp_assert(.NOT.(qs_env%requires_mo_derivs),cp_failure_level,cp_assertion_failed,&
-            routineP,"No MO derivative methods allowed with kpoints")
-       CALL cp_assert(.NOT.(dft_control%do_admm),cp_failure_level,cp_assertion_failed,&
-            routineP,"No ADMM implemented with kpoints")
-       CALL cp_assert(.NOT.(dft_control%do_xas_calculation),cp_failure_level,cp_assertion_failed,&
-            routineP,"No XAS implemented with kpoints")
+       IF(qs_env%requires_mo_derivs)&
+          CPABORT("No MO derivative methods allowed with kpoints")
+       IF(dft_control%do_admm)&
+          CPABORT("No ADMM implemented with kpoints")
+       IF(dft_control%do_xas_calculation)&
+          CPABORT("No XAS implemented with kpoints")
        DO ik=1,SIZE(kpoints%kp_env)
           CALL mpools_get(kpoints%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
           mos_k => kpoints%kp_env(ik)%kpoint_env%mos
@@ -671,12 +671,12 @@ CONTAINS
 
     IF (scf_control%use_diag) THEN
 ! sanity check whether combinations are allowed
-      CALL cp_assert(.NOT.dft_control%restricted,cp_failure_level,cp_assertion_failed,&
-            routineP,"OT only for restricted (ROKS)")
+      IF(dft_control%restricted)&
+         CPABORT("OT only for restricted (ROKS)")
       SELECT CASE (scf_control%diagonalization%method)
       CASE(diag_ot,diag_block_krylov,diag_block_davidson)
-         CALL cp_assert(not_se_or_dftb,cp_failure_level,cp_assertion_failed,&
-            routineP,"DFTB and SE not possible with OT diagonalization")
+         IF(.NOT.not_se_or_dftb)&
+            CPABORT("DFTB and SE not possible with OT diagonalization")
       END SELECT
       SELECT CASE (scf_control%diagonalization%method)
       ! Diagonalization: additional check whether we are in an orthonormal basis
@@ -688,19 +688,19 @@ CONTAINS
         END IF
       ! OT Diagonalization: not possible with ROKS
       CASE (diag_ot)
-        CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
-              routineP,"ROKS with OT diagonalization not possible")
-         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"OT diagonalization not possible with kpoint calculations")
+        IF(dft_control%roks)&
+           CPABORT("ROKS with OT diagonalization not possible")
+         IF(do_kpoints)&
+            CPABORT("OT diagonalization not possible with kpoint calculations")
          scf_env%method=ot_diag_method_nr
          need_coeff_b=.TRUE.
       ! Block Krylov diagonlization: not possible with ROKS,
       ! allocation of additional matrices is needed
       CASE (diag_block_krylov)
-         CALL cp_assert(.NOT.(dft_control%roks),cp_failure_level,cp_assertion_failed,&
-              routineP,"ROKS with block PF diagonalization not possible")
-         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"Block Krylov diagonalization not possible with kpoint calculations")
+         IF(dft_control%roks)&
+            CPABORT("ROKS with block PF diagonalization not possible")
+         IF(do_kpoints)&
+            CPABORT("Block Krylov diagonalization not possible with kpoint calculations")
          scf_env%method=block_krylov_diag_method_nr
          scf_env%needs_ortho=.TRUE.
          IF(.NOT.ASSOCIATED(scf_env%krylov_space))&
@@ -708,8 +708,8 @@ CONTAINS
          CALL krylov_space_allocate(scf_env%krylov_space, scf_control, mos)
       ! Block davidson diagonlization: allocation of additional matrices is needed
       CASE (diag_block_davidson)
-         CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"Block Davidson diagonalization not possible with kpoint calculations")
+         IF(do_kpoints)&
+            CPABORT("Block Davidson diagonalization not possible with kpoint calculations")
         scf_env%method=block_davidson_diag_method_nr
         IF(.NOT.ASSOCIATED(scf_env%block_davidson_env))&
            CALL block_davidson_env_create(scf_env%block_davidson_env,dft_control%nspins,&
@@ -740,8 +740,8 @@ CONTAINS
          CALL diag_subspace_env_create(scf_env%subspace_env,scf_section,&
               dft_control%qs_control%cutoff)
          CALL diag_subspace_allocate(scf_env%subspace_env, qs_env, mos)
-        CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-              routineP,"No subspace diagonlization with kpoint calculation")
+        IF(do_kpoints)&
+           CPABORT("No subspace diagonlization with kpoint calculation")
       END IF
     ! OT: check if OT is used instead of diagonlization. Not possible with added MOS at the moment
     ELSEIF (scf_control%use_ot) THEN
@@ -749,11 +749,10 @@ CONTAINS
       need_coeff_b=.TRUE.
       IF(scf_control%added_mos(1)+scf_control%added_mos(2) > 0) &
          CPABORT("OT with ADDED_MOS/=0 not implemented")
-      IF(dft_control%restricted)&
-         CALL cp_assert(dft_control%nspins.EQ.2,cp_failure_level,cp_assertion_failed,&
-               routineP,"nspin must be 2 for restricted (ROKS)")
-      CALL cp_assert(.NOT.do_kpoints,cp_failure_level,cp_assertion_failed,&
-            routineP,"OT not possible with kpoint calculations")
+      IF(dft_control%restricted .AND. dft_control%nspins.NE.2)&
+         CPABORT("nspin must be 2 for restricted (ROKS)")
+      IF(do_kpoints)&
+         CPABORT("OT not possible with kpoint calculations")
     ELSE
       CPABORT("OT or DIAGONALIZATION have to be set")
     END IF

@@ -343,10 +343,10 @@ CONTAINS
                                      res_exist=flag, ierr=ierr)
                   IF(.NOT.flag) tmc_env%params%print_dipole = .FALSE.
                   ! TODO maybe let run with the changed option, but inform user properly
-                  CALL cp_assert(flag, cp_failure_level,cp_assertion_failed,&
-                       routineP,&
-                       "TMC: The requested dipoles are not porvided by the "//&
-                       "force environment.")
+                  IF(.NOT.flag)&
+                     CALL cp_abort(__LOCATION__,&
+                          "TMC: The requested dipoles are not porvided by the "//&
+                          "force environment.")
                 END IF
               CASE DEFAULT
                 CALL cp_abort(__LOCATION__,&
@@ -886,10 +886,10 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(f_env))
     CPASSERT(ASSOCIATED(f_env%force_env))
-    CALL cp_assert(ASSOCIATED(f_env%force_env%qs_env), &
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "the intermediate SCF energy request can not be set "//&
-                   "employing this force environment! ") 
+    IF(.NOT.ASSOCIATED(f_env%force_env%qs_env))&
+       CALL cp_abort(__LOCATION__,&
+            "the intermediate SCF energy request can not be set "//&
+            "employing this force environment! ")
 
     ! set the information
     values(1) = REAL(comm, KIND=dp)
@@ -928,10 +928,10 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(f_env))
     CPASSERT(ASSOCIATED(f_env%force_env))
-    CALL cp_assert(ASSOCIATED(f_env%force_env%qs_env), &
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "the SCF intermediate energy communicator can not be "//&
-                   "removed! ")
+    IF(.NOT.ASSOCIATED(f_env%force_env%qs_env))&
+       CALL cp_abort(__LOCATION__,&
+            "the SCF intermediate energy communicator can not be "//&
+            "removed! ")
 
     description = "[EXT_SCF_ENER_COMM]"
 

@@ -157,9 +157,9 @@ CONTAINS
                "Overriding input specification!")
        END IF
        check=meta_env%hills_env%nt_hills>=meta_env%hills_env%min_nt_hills
-       CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
-             "MIN_NT_HILLS must have a value smaller or equal to NT_HILLS! Cross check with the input reference!",&
-             only_ionode=.TRUE.)
+       IF(.NOT.check)&
+          CALL cp_abort(__LOCATION__,"MIN_NT_HILLS must have a value smaller or equal to NT_HILLS! "//&
+                        "Cross check with the input reference!")
        !RG Adaptive hills
        CALL section_vals_val_get(metadyn_section,"MIN_DISP",r_val=meta_env%hills_env%min_disp)
        CALL section_vals_val_get(metadyn_section,"OLD_HILL_NUMBER",i_val=meta_env%hills_env%old_hill_number)
@@ -189,15 +189,13 @@ CONTAINS
        IF (meta_env%well_tempered) THEN
          meta_env%hills_env%wtcontrol=meta_env%hills_env%wtcontrol.OR.check
          check=meta_env%hills_env%wtcontrol
-         CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
-               "When using Well-Tempered metadynamics, DELTA_T (or WTGAMMA) should be explicitly specified.",&
-               only_ionode=.TRUE.)
-         CALL cp_assert(.NOT.meta_env%extended_lagrange,cp_fatal_level,cp_assertion_failed,routineP,&
-               "Well-Tempered metadynamics not possible with extended-lagrangian formulation.",&
-               only_ionode=.TRUE.)
-         CALL cp_assert(.NOT.(meta_env%hills_env%min_disp > 0.0_dp),cp_fatal_level,cp_assertion_failed,routineP,&
-               "Well-Tempered metadynamics not possible with Adaptive hills.",&
-               only_ionode=.TRUE.)
+         IF(.NOT.check)&
+            CALL cp_abort(__LOCATION__,"When using Well-Tempered metadynamics, "//&
+                          "DELTA_T (or WTGAMMA) should be explicitly specified.")
+         IF(meta_env%extended_lagrange)&
+            CPABORT("Well-Tempered metadynamics not possible with extended-lagrangian formulation.")
+         IF(meta_env%hills_env%min_disp > 0.0_dp)&
+            CPABORT("Well-Tempered metadynamics not possible with Adaptive hills.")
        ENDIF
 
        CALL section_vals_val_get(metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&
@@ -207,13 +205,12 @@ CONTAINS
           CALL metavar_read(meta_env%metavar(i), meta_env%extended_lagrange, &
                meta_env%langevin, i, metavar_section)
           check=(meta_env%metavar(i)%icolvar<=number_allocated_colvars)
-          CALL cp_assert(check,cp_fatal_level,cp_assertion_failed,routineP,&
-               "An error occured in the specification of COLVAR for METAVAR. "//&
-               "Specified COLVAR #("//TRIM(ADJUSTL(cp_to_string(meta_env%metavar(i)%icolvar)))//") "//&
-               "is larger than the maximum number of COLVARS defined in the SUBSYS ("//&
-               TRIM(ADJUSTL(cp_to_string(number_allocated_colvars)))//") !"//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(.NOT.check)&
+             CALL cp_abort(__LOCATION__,&
+                  "An error occured in the specification of COLVAR for METAVAR. "//&
+                  "Specified COLVAR #("//TRIM(ADJUSTL(cp_to_string(meta_env%metavar(i)%icolvar)))//") "//&
+                  "is larger than the maximum number of COLVARS defined in the SUBSYS ("//&
+                  TRIM(ADJUSTL(cp_to_string(number_allocated_colvars)))//") !")
        END DO
 
        ! Parsing the Multiple Walkers Info
@@ -236,13 +233,12 @@ __LOCATION__,&
           IF (explicit) THEN
              CALL section_vals_val_get(walkers_section,"WALKERS_STATUS",i_vals=walkers_status)
              check = (SIZE(walkers_status)==meta_env%multiple_walkers%walkers_tot_nr)
-             CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Number of Walkers specified in the input does not match with the "//&
-                  "size of the WALKERS_STATUS. Please check your input and in case "//&
-                  "this is a restart run consider the possibility to switch off the "//&
-                  "RESTART_WALKERS in the EXT_RESTART section! "//&
-__LOCATION__,&
-                  only_ionode=.TRUE.)
+             IF(.NOT.check)&
+                CALL cp_abort(__LOCATION__,&
+                     "Number of Walkers specified in the input does not match with the "//&
+                     "size of the WALKERS_STATUS. Please check your input and in case "//&
+                     "this is a restart run consider the possibility to switch off the "//&
+                     "RESTART_WALKERS in the EXT_RESTART section! ")
              meta_env%multiple_walkers%walkers_status = walkers_status
           ELSE
              meta_env%multiple_walkers%walkers_status = 0
@@ -253,13 +249,12 @@ __LOCATION__,&
           CALL section_vals_val_get(walkers_section,"WALKERS_FILE_NAME%_DEFAULT_KEYWORD_",&
                n_rep_val=n_rep)
           check = (n_rep==meta_env%multiple_walkers%walkers_tot_nr)
-          CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
-               "Number of Walkers specified in the input does not match with the "//&
-               "number of Walkers File names provided. Please check your input and in case "//&
-               "this is a restart run consider the possibility to switch off the "//&
-               "RESTART_WALKERS in the EXT_RESTART section! "//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(.NOT.check)&
+             CALL cp_abort(__LOCATION__,&
+                  "Number of Walkers specified in the input does not match with the "//&
+                  "number of Walkers File names provided. Please check your input and in case "//&
+                  "this is a restart run consider the possibility to switch off the "//&
+                  "RESTART_WALKERS in the EXT_RESTART section! ")
           DO i = 1, n_rep
              CALL section_vals_val_get(walkers_section,"WALKERS_FILE_NAME%_DEFAULT_KEYWORD_",&
                   i_rep_val=i, c_val=walkers_file_name)

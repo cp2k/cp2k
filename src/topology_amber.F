@@ -182,10 +182,8 @@ CONTAINS
     END DO
     ! Trigger error
     IF ((my_end).AND.(j/=natom-MOD(natom,2)+1)) THEN
-       CALL cp_assert(j==natom,cp_fatal_level,cp_assertion_failed,routineP,&
-            "Error while reading CRD file. Unexpected end of file."//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(j/=natom)&
+          CPABORT("Error while reading CRD file. Unexpected end of file.")
     ELSE IF (MOD(natom,2)/=0) THEN
        ! In case let's handle the last atom
        j = natom
@@ -207,10 +205,8 @@ __LOCATION__,&
     END IF
 
     IF (my_end) THEN
-       CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
-            "No VELOCITY or BOX information found in CRD file. "//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(j/=natom)&
+          CPWARN("No VELOCITY or BOX information found in CRD file. ")
     ELSE
        ! Velocities
        CALL reallocate(velocity,1,3,1,natom)
@@ -233,11 +229,10 @@ __LOCATION__,&
        END DO
        setup_velocities = .TRUE.
        IF ((my_end).AND.(j/=natom-MOD(natom,2)+1)) THEN
-          CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
-               "No VELOCITY information found in CRD file. Ignoring BOX information. "//&
-               "Please provide the BOX information directly from the main CP2K input! "//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(j/=natom)&
+             CALL cp_warn(__LOCATION__,&
+                  "No VELOCITY information found in CRD file. Ignoring BOX information. "//&
+                  "Please provide the BOX information directly from the main CP2K input! ")
           setup_velocities = .FALSE.
        ELSE IF (MOD(natom,2)/=0) THEN
           ! In case let's handle the last atom
@@ -259,16 +254,13 @@ __LOCATION__,&
        DEALLOCATE(velocity)
     END IF
     IF (my_end) THEN
-       CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
-            "BOX information missing in CRD file. "//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(j/=natom)&
+          CPWARN("BOX information missing in CRD file. ")
     ELSE
-       CALL cp_assert(j==natom,cp_warning_level,cp_assertion_failed,routineP,&
-            "BOX information found in CRD file. They will be ignored."//&
-            "Please provide the BOX information directly from the main CP2K input!"//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(j/=natom)&
+          CALL cp_warn(__LOCATION__,&
+               "BOX information found in CRD file. They will be ignored."//&
+               "Please provide the BOX information directly from the main CP2K input!")
     END IF
     CALL parser_release(parser)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
@@ -1326,10 +1318,8 @@ __LOCATION__,&
        section = TRIM(parser%input_line(indflag:))
        ! Input format
        CALL parser_get_next_line(parser,1,at_end=my_end)
-       CALL cp_assert((INDEX(parser%input_line,"%FORMAT")/=0).AND.(.NOT.my_end),&
-            cp_fatal_level, cp_assertion_failed, routineP,&
-            "Expecting %FORMAT. Not found! Abort reading of AMBER topology file! "//&
-            __LOCATION__)
+       IF(INDEX(parser%input_line,"%FORMAT")==0 .OR. my_end)&
+          CPABORT("Expecting %FORMAT. Not found! Abort reading of AMBER topology file!")
 
        start_f = INDEX(parser%input_line,"(")
        end_f   = INDEX(parser%input_line,")")
@@ -1356,10 +1346,10 @@ __LOCATION__,&
       routineP = moduleN//':'//routineN
 
     CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.)
-    CALL cp_assert(found_AMBER_V8, cp_failure_level, cp_assertion_failed, routineP,&
+    IF(.NOT.found_AMBER_V8)&
+       CALL cp_abort(__LOCATION__,&
             "This is not an AMBER V.8 PRMTOP format file. Cannot interpret older "//&
-            "AMBER file formats. "//&
-            __LOCATION__)
+            "AMBER file formats. ")
     IF (output_unit>0) WRITE(output_unit,'(" AMBER_INFO| ",A)')"Amber PrmTop V.8 or greater.",&
          TRIM(parser%input_line)
 

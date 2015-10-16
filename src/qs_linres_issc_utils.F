@@ -869,10 +869,9 @@ CONTAINS
     natom = SIZE(particle_set,1)
     !
     ! check that the psi0 are localized and you have all the centers
-    CALL cp_assert(linres_control%localized_psi0, cp_warning_level, &
-                   cp_assertion_failed, routineP, &
-                   ' To get indirect spin-spin coupling parameters within PBC you need to localize zero order orbitals ',&
-                   only_ionode=.TRUE.)
+    IF(.NOT.linres_control%localized_psi0)&
+       CALL cp_warn(__LOCATION__,'To get indirect spin-spin coupling parameters within '//&
+                    'PBC you need to localize zero order orbitals')
     !
     !
     ! read terms need to be calculated

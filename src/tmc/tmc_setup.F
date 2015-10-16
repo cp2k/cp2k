@@ -238,8 +238,8 @@ CONTAINS
                   output_path=TRIM(expand_file_name_int(file_name=tmc_energy_worker_out_file_name, &
                                    ivalue=tmc_env%tmc_comp_set%group_nr)), & 
                   ierr=ierr)
-          CALL cp_assert(ierr.EQ.0, cp_failure_level,cp_assertion_failed, routineP,&
-                         "creating force env result in error "//cp_to_string(ierr))
+          IF(ierr.NE.0)&
+             CPABORT("creating force env result in error "//cp_to_string(ierr))
         END IF
         ! worker for configurational change
         IF(tmc_env%params%NMC_inp_file.NE."" .AND. &
@@ -252,8 +252,8 @@ CONTAINS
                   output_path=TRIM(expand_file_name_int(file_name=tmc_NMC_worker_out_file_name, &
                                    ivalue=tmc_env%tmc_comp_set%group_nr)), &
                   ierr=ierr)
-          CALL cp_assert(ierr.EQ.0, cp_failure_level,cp_assertion_failed, routineP,&
-                         "creating approx force env result in error "//cp_to_string(ierr))
+          IF(ierr.NE.0)&
+             CPABORT("creating approx force env result in error "//cp_to_string(ierr))
         END IF
         CALL do_tmc_worker(tmc_env=tmc_env) ! start the worker routine
   
@@ -374,9 +374,8 @@ CONTAINS
     CALL mp_comm_split_direct(my_mpi_world,comm,para_env%mepos, 0)
     CALL cp_para_env_create(para_env=tmc_env%tmc_comp_set%para_env_m_ana,&
                                 group=comm)
-    CALL cp_assert(para_env%num_pe.EQ.1, &
-               cp_warning_level,cp_assertion_failed, routineP,&
-               "just one out of "//cp_to_string(para_env%num_pe)//"cores is used ")
+    IF(para_env%num_pe.NE.1)&
+       CPWARN("just one out of "//cp_to_string(para_env%num_pe)//"cores is used ")
     ! distribute work to availuble cores
     IF(para_env%mepos.EQ.0) THEN
       !TODO get the correct usage of creating and handling the logger...
@@ -618,12 +617,11 @@ CONTAINS
     CALL section_vals_val_get(tmc_section,"GROUP_ANLYSIS_NR",i_val=itmp)
     IF(tmc_env%tmc_comp_set%ana_on_the_fly.GT.0) &
       tmc_env%tmc_comp_set%ana_on_the_fly = itmp
-    CALL cp_assert(tmc_env%tmc_comp_set%ana_on_the_fly.LE.1,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "analysing on the fly is up to now not supported for multiple cores. "//&
-                     " Restart file witing for this case and temperature "//&
-                     "distribution has to be solved.!.",&
-                     only_ionode=.TRUE.)
+    IF(tmc_env%tmc_comp_set%ana_on_the_fly.GT.1)&
+       CALL cp_abort(__LOCATION__,&
+            "analysing on the fly is up to now not supported for multiple cores. "//&
+            " Restart file witing for this case and temperature "//&
+            "distribution has to be solved.!.")
     CALL section_vals_val_get(tmc_section,"RESULT_LIST_IN_MEMORY",l_val=tmc_env%params%USE_REDUCED_TREE)
     ! swap the variable, because of oposit meaning
     tmc_env%params%USE_REDUCED_TREE = .NOT.tmc_env%params%USE_REDUCED_TREE
@@ -636,11 +634,10 @@ CONTAINS
       CPABORT("no or a valid NMC input file has to be specified ")
     ELSE IF(tmc_env%params%NMC_inp_file.EQ."") THEN
     ! no keyword
-      CALL cp_assert(tmc_env%tmc_comp_set%group_cc_size.LE.0,&
-                     cp_warning_level,cp_assertion_failed,routineP,&
-                     "The configurational groups are deactivated, "//&
-                     "because no approximated energy input is specified.",&
-                     only_ionode=.TRUE.)
+      IF(tmc_env%tmc_comp_set%group_cc_size.GT.0)&
+         CALL cp_warn(__LOCATION__,&
+              "The configurational groups are deactivated, "//&
+              "because no approximated energy input is specified.")
       tmc_env%tmc_comp_set%group_cc_size = 0
     ELSE
     ! check file existance
@@ -744,14 +741,13 @@ CONTAINS
         tmc_env%m_env%restart_out_file_name = tmc_default_restart_out_file_name
         tmc_env%m_env%restart_out_step = HUGE(tmc_env%m_env%restart_out_step)
       END IF
-      CALL cp_assert(tmc_env%m_env%restart_out_step.GE.0,&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "Please specify a valid value for the frequency "//&
-                   "to write restart files (RESTART_OUT #). "//&
-                   "# > 0 to define the amount of Markov chain elements in between, "//&
-                   "or 0 to deactivate the restart file writing. "//&
-                   "Lonely keyword writes restart file only at the end of the run.",&
-                   only_ionode=.TRUE.)
+      IF(tmc_env%m_env%restart_out_step.LT.0)&
+         CALL cp_abort(__LOCATION__,&
+              "Please specify a valid value for the frequency "//&
+              "to write restart files (RESTART_OUT #). "//&
+              "# > 0 to define the amount of Markov chain elements in between, "//&
+              "or 0 to deactivate the restart file writing. "//&
+              "Lonely keyword writes restart file only at the end of the run.")
  
       CALL section_vals_val_get(tmc_section,"INFO_OUT_STEP_SIZE",i_val=tmc_env%m_env%info_out_step_size)
       CALL section_vals_val_get(tmc_section,"DOT_TREE",c_val=tmc_env%params%dot_file_name)
@@ -768,10 +764,8 @@ CONTAINS
     ! the NMC_FILE_NAME is already read in tmc_preread_input
     CALL section_vals_val_get(tmc_section,"ENERGY_FILE_NAME",c_val=tmc_env%params%energy_inp_file)
     ! file name keyword without file name
-    CALL cp_assert(tmc_env%params%energy_inp_file.NE."",&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "a valid exact energy input file has to be specified ",&
-                   only_ionode=.TRUE.)
+    IF(tmc_env%params%energy_inp_file.EQ."")&
+       CPABORT("a valid exact energy input file has to be specified ")
     ! check file existance
     INQUIRE (FILE=TRIM(tmc_env%params%energy_inp_file),EXIST=flag,IOSTAT=itmp)
     CALL cp_assert(flag.AND.itmp.EQ.0,&
@@ -789,10 +783,8 @@ CONTAINS
 
     CALL section_vals_val_get(tmc_section,"SUB_BOX",r_vals=r_arr_tmp)
     IF(SIZE(r_arr_tmp).GT.1) THEN
-      CALL cp_assert(SIZE(r_arr_tmp).EQ.tmc_env%params%dim_per_elem,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "The entered sub box sizes does not fit in number of dimensions.",&
-                     only_ionode=.TRUE.)
+      IF(SIZE(r_arr_tmp).NE.tmc_env%params%dim_per_elem)&
+         CPABORT("The entered sub box sizes does not fit in number of dimensions.")
       CALL cp_assert(ALL(r_arr_tmp.GT.0.0_dp),&
                      cp_failure_level,cp_assertion_failed,routineP,&
                      "The entered sub box lenghts should be greater than 0.",&
@@ -877,17 +869,13 @@ CONTAINS
       success = .FALSE.
     ELSE
       ! check if there are enougth cores available
-      CALL cp_assert(tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr.LE.(para_env%num_pe-1),&
-                     cp_warning_level,cp_assertion_failed,routineP,&
-                     "The selected energy group size is too huge. ",&
-                     only_ionode=.TRUE.)
+      IF(tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr.GT.(para_env%num_pe-1))&
+         CPWARN("The selected energy group size is too huge. ")
       IF(flag)THEN
         tmc_comp_set%group_ener_nr = INT((para_env%num_pe-1)/&
           REAL(tmc_comp_set%group_ener_size,KIND=dp))
-        CALL cp_assert(tmc_comp_set%group_ener_nr.GE.1,&
-                     cp_warning_level,cp_assertion_failed,routineP,&
-                     "The selected energy group size is too huge. ",&
-                     only_ionode=.TRUE.)
+        IF(tmc_comp_set%group_ener_nr.LT.1)&
+           CPWARN("The selected energy group size is too huge. ")
         IF(flag) success = .FALSE.
       END IF
   
@@ -898,21 +886,17 @@ CONTAINS
             - tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr)/&
                                        REAL(tmc_comp_set%group_cc_size,KIND=dp))
   
-        CALL cp_assert(tmc_comp_set%group_cc_nr.GE.1,&
-                       cp_warning_level,cp_assertion_failed,routineP,&
-                       "There are not enougth cores left for creating groups for configurational change.",&
-                       failure=flag, only_ionode=.TRUE.)
+        IF(tmc_comp_set%group_cc_nr.LT.1)&
+           CALL cp_warn(__LOCATION__,&
+                "There are not enougth cores left for creating groups for configurational change.")
         IF(flag) success = .FALSE.
       END IF
   
       total_used = tmc_comp_set%group_ener_size*tmc_comp_set%group_ener_nr+&
                      tmc_comp_set%group_cc_size*tmc_comp_set%group_cc_nr + &
                      tmc_comp_set%ana_on_the_fly
-      CALL cp_assert(para_env%num_pe-1.LE.total_used,&
-                     cp_warning_level,cp_assertion_failed,routineP,&
-                     cp_to_string(para_env%num_pe-1-total_used)//&
-                     " mpi ranks are unused, but can be used for analysis.",&
-                     only_ionode=.TRUE.)
+      IF(para_env%num_pe-1.GT.total_used)&
+         CPWARN(" mpi ranks are unused, but can be used for analysis.")
   
       ! duplicate communicator 
       CALL mp_comm_dup(para_env%group, my_mpi_world)

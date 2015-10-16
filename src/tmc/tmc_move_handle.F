@@ -116,26 +116,22 @@ CONTAINS
     CALL section_vals_get(nmc_section, explicit=explicit)
     IF(explicit) THEN
       ! check the approx potential file, already read
-      CALL cp_assert(tmc_params%NMC_inp_file.NE."",&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "Please specify a valid approximate potential.",&
-                     only_ionode=.TRUE.)
+      IF(tmc_params%NMC_inp_file.EQ."")&
+         CPABORT("Please specify a valid approximate potential.")
 
       CALL section_vals_val_get(nmc_section,"NR_NMC_STEPS",&
                                 i_val=nmc_steps)
-      CALL cp_assert(nmc_steps.GT.0,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).",&
-                     only_ionode=.TRUE.)
+      IF(nmc_steps.LE.0)&
+         CPABORT("Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).")
 
       CALL section_vals_val_get(nmc_section,"PROB", r_val=nmc_prob)
 
       CALL section_vals_val_get(move_type_section,"INIT_ACC_PROB",&
                                 r_val=nmc_init_acc_prob)
-      CALL cp_assert(nmc_init_acc_prob.GT.0.0_dp,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "Please select a valid initial acceptance probability (>0.0) "//&
-                     "for INIT_ACC_PROB")
+      IF(nmc_init_acc_prob.LE.0.0_dp)&
+         CALL cp_abort(__LOCATION__,&
+              "Please select a valid initial acceptance probability (>0.0) "//&
+              "for INIT_ACC_PROB")
 
       move_type_section => section_vals_get_subs_vals(nmc_section,"MOVE_TYPE")
       CALL section_vals_get(move_type_section,n_repetition=n_NMC_items)
@@ -157,10 +153,10 @@ CONTAINS
       ! initilaize the move array with related sizes, probs, etc.
       CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp)
 
-      CALL cp_assert(mv_prob_sum.GT.0.0,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "The probabilities to perform the moves are "//&
-                     "in total less equal 0")
+      IF(mv_prob_sum.LE.0.0)&
+         CALL cp_abort(__LOCATION__,&
+              "The probabilities to perform the moves are "//&
+              "in total less equal 0")
 
       
       ! get the sizes, probs, etc. for each move type and convert units
@@ -196,16 +192,16 @@ CONTAINS
         ! move sizes are checked afterwards, because not all moves require a valid move size
         CALL section_vals_val_get(move_type_section,"PROB",i_rep_section=i_rep,&
                                   r_val=mv_prob)
-        CALL cp_assert(mv_prob.GE.0.0_dp,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "Please select a valid move probability (>0.0) "//&
-                      "for the move type "//inp_kind_name)
+        IF(mv_prob.LT.0.0_dp)&
+           CALL cp_abort(__LOCATION__,&
+                "Please select a valid move probability (>0.0) "//&
+                "for the move type "//inp_kind_name)
         CALL section_vals_val_get(move_type_section,"INIT_ACC_PROB",i_rep_section=i_rep,&
                                   r_val=init_acc_prob)
-        CALL cp_assert(init_acc_prob.GE.0.0_dp,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "Please select a valid initial acceptance probability (>0.0) "//&
-                      "for the move type "//inp_kind_name)
+        IF(init_acc_prob.LT.0.0_dp)&
+           CALL cp_abort(__LOCATION__,&
+                "Please select a valid initial acceptance probability (>0.0) "//&
+                "for the move type "//inp_kind_name)
         ! set the related index and perform unit conversion of move sizes
         SELECT CASE(inp_kind_name)
         ! atom / molecule translation
@@ -286,9 +282,8 @@ CONTAINS
               CALL section_vals_val_get(move_type_section,"ATOMS",&
                      i_rep_section=i_rep, i_rep_val=i, &
                      c_vals=move_types%atom_lists(i)%atoms)
-              CALL cp_assert(SIZE(move_types%atom_lists(i)%atoms).GT.1,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "ATOM_SWAP requires minimum two atom kinds selected. ")
+              IF(SIZE(move_types%atom_lists(i)%atoms).LE.1)&
+                 CPABORT("ATOM_SWAP requires minimum two atom kinds selected. ")
             END DO
           END IF
         ! gaussian adaptation
@@ -299,10 +294,10 @@ CONTAINS
           CPABORT("A unknown move type is selected: "//inp_kind_name)
         END SELECT
         ! check for valid move sizes
-        CALL cp_assert(delta_x.GE.0.0_dp,&
-                      cp_failure_level,cp_assertion_failed,routineP,&
-                      "Please select a valid move size (>0.0) "//&
-                      "for the move type "//inp_kind_name)
+        IF(delta_x.LT.0.0_dp)&
+           CALL cp_abort(__LOCATION__,&
+                "Please select a valid move size (>0.0) "//&
+                "for the move type "//inp_kind_name)
         ! check if not already set
         IF(move_types%mv_weight(ind).GT.0.0) THEN
           CPABORT("TMC: Each move type can be set only once. ")
@@ -375,10 +370,11 @@ CONTAINS
                 EXIT ref_loop
               END IF
             END DO ref_loop
-            CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
-                           routineP, "ATOM_SWAP: The selected atom type ("//&
-                           TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
-                           ") is not contained in the system. ")
+            IF(.NOT.found)&
+               CALL cp_abort(__LOCATION__,&
+                    "ATOM_SWAP: The selected atom type ("//&
+                    TRIM(move_types%atom_lists(list_i)%atoms(atom_j))//&
+                    ") is not contained in the system. ")
             ! check if not be swapped with the same atom type
             IF(ANY(move_types%atom_lists(list_i)%atoms(atom_j).EQ.&
                    move_types%atom_lists(list_i)%atoms(atom_j+1:))) THEN
@@ -400,9 +396,10 @@ CONTAINS
             END IF
           END DO ref_lop
         END IF
-        CALL cp_assert(found, cp_failure_level,cp_assertion_failed,&
-               routineP, "The system contains only a single atom type,"//&
-                         " atom_swap is not possible.")
+        IF(.NOT.found)&
+           CALL cp_abort(__LOCATION__,&
+                "The system contains only a single atom type,"//&
+                " atom_swap is not possible.")
       END IF
     END IF
   END SUBROUTINE check_moves

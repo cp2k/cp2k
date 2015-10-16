@@ -317,10 +317,10 @@ CONTAINS
     CALL open_file(file_name=file_name, file_status="OLD", file_form="UNFORMATTED", &
                    file_action="READ", unit_number=file_ptr)
     READ(file_ptr) temp_size
-    CALL cp_assert(temp_size.EQ. SIZE(tmc_env%params%Temp),&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "the actual specified temperatures does not "//&
-                   "fit in amount with the one from restart file ")
+    IF(temp_size.NE. SIZE(tmc_env%params%Temp))&
+       CALL cp_abort(__LOCATION__,&
+            "the actual specified temperatures does not "//&
+            "fit in amount with the one from restart file ")
     ALLOCATE(tmp_temp(temp_size))
     READ(file_ptr) tmp_temp(:), &
                    tmc_env%m_env%gt_act%nr, &
@@ -745,13 +745,13 @@ CONTAINS
     ! write the different energies
     ! TODO if necessary
 
-    CALL cp_assert(.NOT.files_conf_missmatch,&
-           cp_warning_level,cp_assertion_failed,routineP,&
-           'there is a missmatch in the configuration numbering. '//&
-           "Read number of lines (pos|cell|dip)"//&
-           cp_to_string(tmc_ana%lc_traj)//"|"//&
-           cp_to_string(tmc_ana%lc_cell)//"|"//&
-           cp_to_string(tmc_ana%lc_dip), only_ionode=.TRUE.)
+    IF(files_conf_missmatch)&
+       CALL cp_warn(__LOCATION__,&
+            'there is a missmatch in the configuration numbering. '//&
+            "Read number of lines (pos|cell|dip)"//&
+            cp_to_string(tmc_ana%lc_traj)//"|"//&
+            cp_to_string(tmc_ana%lc_cell)//"|"//&
+            cp_to_string(tmc_ana%lc_dip))
 
     ! end the timing
     CALL timestop(handle)
@@ -793,20 +793,20 @@ CONTAINS
       c_tmp(:) = " "
       tmc_ana%lc_traj = tmc_ana%lc_traj +1
       READ(tmc_ana%id_traj,'(A)',IOSTAT=status) c_tmp(:)
-      CALL cp_assert(status.LE.0,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "configuration header read error at line: "//&
-               cp_to_string(tmc_ana%lc_traj)//": "//c_tmp)
+      IF(status.GT.0)&
+         CALL cp_abort(__LOCATION__,&
+              "configuration header read error at line: "//&
+              cp_to_string(tmc_ana%lc_traj)//": "//c_tmp)
       IF(status .LT. 0) THEN ! end of file reached
         stat = TMC_STATUS_WAIT_FOR_NEW_TASK
         EXIT search_next_conf
       END IF
       IF(INDEX(c_tmp,"=").GT.0)THEN
         READ(c_tmp(INDEX(c_tmp,"=")+1:),*,IOSTAT=status) i_tmp ! read the configuration number
-        CALL cp_assert(status.EQ.0,&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "configuration header read error (for conf nr) at line: "//&
-               cp_to_string(tmc_ana%lc_traj))
+        IF(status.NE.0)&
+           CALL cp_abort(__LOCATION__,&
+                "configuration header read error (for conf nr) at line: "//&
+                cp_to_string(tmc_ana%lc_traj))
         IF(i_tmp .GT. conf_nr) THEN
           ! TODO we could also read the energy ...
           conf_nr = i_tmp
@@ -882,9 +882,8 @@ CONTAINS
     ELSE IF(status.LT.0) THEN ! end of file reached
       stat = TMC_STATUS_WAIT_FOR_NEW_TASK
     ELSE
-      CALL cp_assert(status.EQ.0,&
-             cp_warning_level,cp_assertion_failed,routineP,&
-             "configuration dipole read error at line: "//cp_to_string(tmc_ana%lc_dip))
+      IF(status.NE.0)&
+         CPWARN("configuration dipole read error at line: "//cp_to_string(tmc_ana%lc_dip))
       stat = TMC_STATUS_FAILED
     END IF
 
@@ -940,9 +939,8 @@ CONTAINS
     IF(status.LT.0) THEN ! end of file reached
       stat = TMC_STATUS_WAIT_FOR_NEW_TASK
     ELSE IF(status.GT.0) THEN
-      CALL cp_assert(status.EQ.0,&
-           cp_failure_level,cp_assertion_failed,routineP,&
-           "configuration cell read error at line: "//cp_to_string(tmc_ana%lc_cell))
+      IF(status.NE.0)&
+         CPABORT("configuration cell read error at line: "//cp_to_string(tmc_ana%lc_cell))
       stat = TMC_STATUS_FAILED
     ELSE
       IF(elem%nr.LT.0) elem%nr=conf_nr

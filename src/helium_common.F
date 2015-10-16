@@ -1390,8 +1390,8 @@ END SUBROUTINE helium_update_transition_matrix
     WRITE(stmp,*) atom_number
     err_str = "Permutation path of atom " // TRIM(ADJUSTL(stmp)) // &
               " is not cyclic."
-    CALL cp_assert(path_end_reached,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    IF(.NOT.path_end_reached)&
+       CPABORT(err_str)
 
     ! calc winding number (cell_m_inv is in Bohr^-1)
     w(1) = &
@@ -1470,8 +1470,8 @@ END SUBROUTINE helium_update_transition_matrix
     WRITE(stmp,*) atom_number
     err_str = "Permutation path of atom " // TRIM(ADJUSTL(stmp)) // &
               " is not cyclic."
-    CALL cp_assert(path_end_reached,cp_failure_level,&
-         cp_assertion_failed, routineP, err_str)
+    IF(.NOT.path_end_reached)&
+       CPABORT(err_str)
 
     ! calc winding number (cell_m_inv is in Bohr^-1)
     w(1) = &
@@ -1512,7 +1512,6 @@ END SUBROUTINE helium_update_transition_matrix
       routineN = 'helium_calc_atom_cycle_length', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: err_str
     INTEGER                                  :: clen, curr_idx, handle, ia, &
                                                 start_idx
     INTEGER, DIMENSION(:), POINTER           :: atoms_in_cycle
@@ -1548,9 +1547,8 @@ END SUBROUTINE helium_update_transition_matrix
           EXIT
         END IF
       END DO
-      err_str = "Permutation path is not cyclic."
-      CALL cp_assert(path_end_reached,cp_failure_level,&
-           cp_assertion_failed, routineP, err_str)
+      IF(.NOT.path_end_reached)&
+         CPABORT("Permutation path is not cyclic.")
 
       ! assign the cycle length to the collected atoms
       DO ia = 1, clen

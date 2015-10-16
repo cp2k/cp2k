@@ -115,10 +115,8 @@ CONTAINS
     SELECT CASE(ff_type%ff_type)
     CASE(do_ff_charmm,do_ff_amber,do_ff_g96,do_ff_g87)
        CALL section_vals_val_get(ff_section,"PARM_FILE_NAME",c_val=ff_type%ff_file_name)
-       CALL cp_assert(TRIM(ff_type%ff_file_name)/="",cp_failure_level,cp_assertion_failed,routineP,&
-            "Force Field Parameter's filename is empty! Please check your input file. "//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(TRIM(ff_type%ff_file_name)=="")&
+          CPABORT("Force Field Parameter's filename is empty! Please check your input file.")
     CASE(do_ff_undef)
        ! Do Nothing
     CASE DEFAULT
@@ -1090,9 +1088,10 @@ __LOCATION__,&
         ! Calculate p_inv the inverse of the matrix p
         p_inv(:,:) = 0.0_dp
         CALL invert_matrix(p,p_inv,eval_error)
-        CALL cp_assert((eval_error < 1.0E-8_dp),cp_warning_level,cp_assertion_failed,routineP,&
-                       "The polynomial fit for the BUCK4RANGES potential is only accurate to "//&
-                       TRIM(cp_to_string(eval_error)),only_ionode=.TRUE.)
+        IF(eval_error >= 1.0E-8_dp)&
+           CALL cp_warn(__LOCATION__,&
+                "The polynomial fit for the BUCK4RANGES potential is only accurate to "//&
+                TRIM(cp_to_string(eval_error)))
         ! Get the 6 coefficients of the 5th-order polynomial -> x(1:6)
         ! and the 4 coefficients of the 3rd-order polynomial -> x(7:10)
         x(:) = MATMUL(p_inv(:,:),v(:))

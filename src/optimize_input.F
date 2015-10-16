@@ -541,10 +541,8 @@ CONTAINS
     n_frames_current=0
     NULLIFY(local_parser,pos_traj,energy_traj,force_traj)
     filename=oi_env%fm_env%ref_traj_file_name
-    CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
-            "The reference trajectory file name is empty"//&
-            __LOCATION__,&
-            only_ionode=.TRUE.)
+    IF(filename.EQ."")&
+       CPABORT("The reference trajectory file name is empty")
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO
        CALL parser_read_line(local_parser,1,at_end=at_end)
@@ -577,10 +575,8 @@ CONTAINS
 
     ! now force reference trajectory
     filename=oi_env%fm_env%ref_force_file_name
-    CALL cp_assert(filename.NE."",cp_fatal_level,cp_assertion_failed,routineP,&
-            "The reference force file name is empty"//&
-            __LOCATION__,&
-            only_ionode=.TRUE.)
+    IF(filename.EQ."")&
+       CPABORT("The reference force file name is empty")
     CALL parser_create(local_parser,filename,para_env=para_env)
     DO iframe=1,n_frames
        CALL parser_read_line(local_parser,1)

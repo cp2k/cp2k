@@ -630,11 +630,11 @@ CONTAINS
        ALLOCATE(colvar%combine_cvs_param%variables(SIZE(my_par)))
        colvar%combine_cvs_param%variables = my_par
        ! Check that the number of COLVAR provided is equal to the number of variables..
-       CALL cp_assert(SIZE(my_par)==ncol,cp_fatal_level,cp_assertion_failed,routineP,&
-            "Number of defined COLVAR for COMBINE_COLVAR is different from the "//&
-            "number of variables! It is not possible to define COLVARs in a COMBINE_COLVAR "//&
-            "and avoid their usage in the combininig function!"//&
-__LOCATION__)
+       IF(SIZE(my_par)/=ncol)&
+          CALL cp_abort(__LOCATION__,&
+               "Number of defined COLVAR for COMBINE_COLVAR is different from the "//&
+               "number of variables! It is not possible to define COLVARs in a COMBINE_COLVAR "//&
+               "and avoid their usage in the combininig function!")
        ! Parameters
        ALLOCATE(colvar%combine_cvs_param%c_parameters(0))
        CALL section_vals_val_get(combine_section,"PARAMETERS",n_rep_val=ncol)
@@ -738,9 +738,8 @@ __LOCATION__)
        ! Read the specification of the two planes
        plane_sections => section_vals_get_subs_vals(plane_plane_angle_section,"PLANE")
        CALL section_vals_get(plane_sections, n_repetition=n_var)
-       CALL cp_assert(n_var==2,cp_fatal_level,cp_assertion_failed,routineP,&
-               "PLANE_PLANE_ANGLE Colvar section: Two PLANE sections must be provided!"//&
-__LOCATION__)
+       IF(n_var/=2)&
+          CPABORT("PLANE_PLANE_ANGLE Colvar section: Two PLANE sections must be provided!")
        ! Plane 1
        CALL section_vals_val_get(plane_sections,"DEF_TYPE",i_rep_section=1,&
             i_val=colvar%plane_plane_angle_param%plane1%type_of_def)
@@ -870,9 +869,9 @@ __LOCATION__)
                 weights(ndim+1:ndim+SIZE(wei)) = wei
                 ndim = ndim + SIZE(wei)
              END DO
-             CALL cp_assert(ndim==colvar%rmsd_param%n_atoms,cp_fatal_level,cp_assertion_failed,routineP,&
-                  "CV RMSD: list of atoms and list of weights need to contain same number of entries. "//&
-                  __LOCATION__)
+             IF(ndim/=colvar%rmsd_param%n_atoms)&
+                CALL cp_abort(__LOCATION__,"CV RMSD: list of atoms and list of "//&
+                              "weights need to contain same number of entries. ")
              DO i = 1, ndim
                 ii = colvar%rmsd_param%i_rmsd(i)
                 colvar%rmsd_param%weights(ii) = weights(i)
@@ -953,9 +952,8 @@ __LOCATION__)
             i_val=colvar%ring_puckering_param%iq)
        ! test the validity of the parameters
        ndim = colvar%ring_puckering_param%nring
-       CALL cp_assert(ndim > 3,cp_fatal_level,cp_assertion_failed,routineP,&
-            "CV Ring Puckering: Ring size has to be 4 or larger. "//&
-            __LOCATION__)
+       IF(ndim <= 3)&
+          CPABORT("CV Ring Puckering: Ring size has to be 4 or larger. ")
        ii = colvar%ring_puckering_param%iq
        CALL cp_assert( (ABS(ii)/=1 .AND. ii>=-(ndim-1)/2 .AND. ii<=ndim/2) ,&
             cp_fatal_level,cp_assertion_failed,routineP,&
@@ -1963,11 +1961,11 @@ __LOCATION__)
              CALL put_derivative(colvar, iatom, fi)
           ENDDO
        ELSE
-          CALL cp_assert(force_env%in_use==use_mixed_force,cp_fatal_level,-300,routineP,&
-               'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
-               ' A combination of mixed force_eval energies has been requested as '//&
-               ' collective variable, but the MIXED env is not in use! Aborting.',&
-               only_ionode=.TRUE.)
+          IF(force_env%in_use/=use_mixed_force)&
+             CALL cp_abort(__LOCATION__,&
+                  'ASSERTION (cond) failed at line '//cp_to_string(__LINE__)//&
+                  ' A combination of mixed force_eval energies has been requested as '//&
+                  ' collective variable, but the MIXED env is not in use! Aborting.')
           CALL force_env_get(force_env, force_env_section=force_env_section)
           mapping_section => section_vals_get_subs_vals(force_env_section,"MIXED%MAPPING")
           NULLIFY(values, parameters, subsystems, particles, global_forces, map_index, glob_natoms)
@@ -5011,12 +5009,11 @@ __LOCATION__)
           DO j = 1, natom
             ! Atom coordinates
             CALL parser_get_next_line(parser,1,at_end=my_end)
-            CALL cp_assert(.NOT.my_end,cp_fatal_level,cp_assertion_failed,routineP,&
-                 "Number of lines in XYZ format not equal to the number of atoms."//&
-                 " Error in XYZ format for COORD_A (CV rmsd). Very probably the"//&
-                 " line with title is missing or is empty. Please check the XYZ file and rerun your job!"//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+            IF(my_end)&
+               CALL cp_abort(__LOCATION__,&
+                    "Number of lines in XYZ format not equal to the number of atoms."//&
+                    " Error in XYZ format for COORD_A (CV rmsd). Very probably the"//&
+                    " line with title is missing or is empty. Please check the XYZ file and rerun your job!")
             READ(parser%input_line,*) dummy_char,rptr(1:3)
             r_ref((j-1)*3+1,i) = cp_unit_to_cp2k(rptr(1),"angstrom")
             r_ref((j-1)*3+2,i) = cp_unit_to_cp2k(rptr(2),"angstrom")
