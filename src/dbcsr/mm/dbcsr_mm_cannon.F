@@ -1675,6 +1675,9 @@ MODULE dbcsr_mm_cannon
        ENDDO
     ENDIF
 !$omp barrier
+!$omp master
+    CALL m_memory()
+!$omp end master
 
     ! Add timing call to the packing of the send buffers 
     !
@@ -3198,6 +3201,7 @@ MODULE dbcsr_mm_cannon
        ALLOCATE (all_left_max_norms(left_row_nimages,left_col_nimages,0:left_npcols-1))
        CALL mp_allgather(right_max_norms,all_right_max_norms,grp_right)
        CALL mp_allgather(left_max_norms,all_left_max_norms,grp_left)
+       CALL m_memory() ! measure memory usage
        DEALLOCATE(right_max_norms,left_max_norms)
        ALLOCATE(right_max_norms(0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
        ALLOCATE(left_max_norms(left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
