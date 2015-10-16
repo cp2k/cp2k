@@ -28,7 +28,6 @@ import itertools
 import matplotlib as mpl
 mpl.use('Agg')  # change backend, to run without X11
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 from matplotlib.ticker import AutoMinorLocator
 
 #===============================================================================
@@ -258,16 +257,17 @@ def gen_plots(all_reports, log, outdir, full_archive):
     markers = itertools.cycle('os>^*')
     rev_end = log[0]['num']
     rev_start = min(all_reports.keys()) if(full_archive) else rev_end-100
-    for pname, p in plots.items():
+    for pname in sorted(plots.keys()):
+        p = plots[pname]
         print "Working on plot: "+pname
         fig = plt.figure(figsize=(12,4))
-        gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1]) 
-        fig.subplots_adjust(bottom=0.18, left=0.06, right=0.97)
+        fig.subplots_adjust(bottom=0.18, left=0.06, right=0.72)
         fig.suptitle(p['title'], fontsize=14, fontweight='bold', x=0.4)
-        ax = fig.add_subplot(gs[0])
+        ax = fig.add_subplot(111)
         ax.set_xlabel('SVN Revision')
         ax.set_ylabel(p['ylabel'])
-        for cname, c in p['curves'].items():
+        for cname in sorted(p['curves'].keys()):
+            c= p['curves'][cname]
             if(full_archive):
                 ax.plot(c['x'], c['y'], label=c['label'], linewidth=2) # less crowded
             else:
@@ -275,7 +275,8 @@ def gen_plots(all_reports, log, outdir, full_archive):
                             marker=markers.next(), linewidth=2, markersize=6)
         ax.set_xlim(rev_start-1, rev_end+1)
         ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.legend(bbox_to_anchor=(1.01, 1), loc=2, fancybox=True, shadow=True, borderaxespad=0.)
+        ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left',
+                  numpoints=1, fancybox=True, shadow=True, borderaxespad=0.0)
         if(not full_archive): # protect against outlayers
             ymin  = min([min(c['y']) for c in p['curves'].values()]) # lowest point from lowest curve
             ymax1 = max([min(c['y']) for c in p['curves'].values()]) # lowest point from highest curve
