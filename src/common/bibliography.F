@@ -74,7 +74,7 @@ MODULE bibliography
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
-       Luber2014, Berghold2011
+       Luber2014, Berghold2011, DelBen2015b 
 
 CONTAINS
 
@@ -3030,6 +3030,30 @@ CONTAINS
           "UT WOS:000173418600007",&
           "ER"),&
           DOI="10.1063/1.1431270")
+     CALL add_reference(key=DelBen2015b, ISI_record=s2a(&
+          "PT J",&
+          "AU Del Ben, M",&
+          "   Hutter, J",&
+          "   VandeVondele, J",&
+          "AF Del Ben, Mauro",&
+          "   Hutter, Juerg",&
+          "   VandeVondele, Joost",&
+          "TI Forces and stress in second order Moller-Plesset perturbation theory for",&
+          "   condensed phase systems within the resolution-of-identity Gaussian and",&
+          "   plane waves approach",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "SN 0021-9606",&
+          "EI 1089-7690",&
+          "PD SEP 14",&
+          "PY 2015",&
+          "VL 143",&
+          "IS 10",&
+          "AR 102803",&
+          "DI 10.1063/1.4919238",&
+          "UT WOS:000361572900008",&
+          "PM 26373996",&
+          "ER"),&
+          DOI="10.1063/1.4919238")
 
   END SUBROUTINE add_all_references
 

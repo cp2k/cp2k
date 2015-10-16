@@ -16,6 +16,7 @@ MODULE mp2
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE bibliography,                    ONLY: DelBen2012,&
+                                             DelBen2015b,&
                                              cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -226,6 +227,7 @@ MODULE mp2
     ENDIF
 
     IF (calc_forces) THEN
+       CALL cite_reference(DelBen2015b)
        IF(mp2_env%method/=ri_mp2_method_gpw) THEN
          CPABORT("No forces/gradients for the selected method.")
        END IF

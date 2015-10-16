@@ -12,7 +12,8 @@
 MODULE input_cp2k_mp2
   USE bibliography,                    ONLY: DelBen2012,&
                                              DelBen2013,&
-                                             DelBen2015
+                                             DelBen2015,&
+                                             DelBen2015b
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -69,14 +70,14 @@ CONTAINS
     CALL section_create(section,"WF_CORRELATION",&
          description="Sets up the Wavefunction-based Correlation parameters if requested ",&
          n_keywords=8, n_subsections=6, repeats=.TRUE., &
-         citations=(/DelBen2012,DelBen2013,DelBen2015/))
+         citations=(/DelBen2012,DelBen2013,DelBen2015,DelBen2015b/))
 
     NULLIFY(keyword, print_key, subsection)
 
     CALL keyword_create(&
          keyword=keyword,&
          name="METHOD",&
-         citations=(/DelBen2012/),&
+         citations=(/DelBen2012,DelBen2013/),&
          description="Which method should be used to compute the MP2 energy",&
          usage="METHOD MP2_GPW",&
          enum_c_vals=s2a("NONE","DIRECT_CANONICAL","MP2_GPW","RI_MP2_GPW","RI_RPA_GPW","RI_SOS_LAPLACE",&
