@@ -446,41 +446,6 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_stored_block_info_obj
 
-
-
-
-
-! *****************************************************************************
-! Distribution transformations
-! *****************************************************************************
-
-
-
-! *****************************************************************************
-!> \brief Prints a distribution
-!> \param[in] dist  distribution to print
-! *****************************************************************************
-  SUBROUTINE dbcsr_print_dist(dist)
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-
-    TYPE(dbcsr_mp_obj)                       :: mp
-
-    mp = dbcsr_distribution_mp (dist)
-    WRITE(*,'(1X,A,I5,"x",I5,1X,I5)')"Distribution process grid size, threads",&
-         dbcsr_mp_nprows (mp), dbcsr_mp_npcols (mp), dist%d%num_threads
-    IF (array_size(dist%d%row_dist_block).gt.0) &
-         WRITE(*,*)"Distribution: Row dist", array_data(dist%d%row_dist_block)
-    IF (array_size(dist%d%col_dist_block).gt.0) &
-         WRITE(*,*)"Distribution: Col dist", array_data(dist%d%col_dist_block)
-    IF (array_size(dist%d%local_rows).gt.0) &
-         WRITE(*,*)"Distribution: Local rows", array_data(dist%d%local_rows)
-    IF (array_size(dist%d%local_cols).gt.0) &
-         WRITE(*,*)"Distribution: Local cols", array_data(dist%d%local_cols)
-    IF (dist%d%has_thread_dist) &
-         WRITE(*,*)"Distribution: Thread", array_data(dist%d%thread_dist)
-  END SUBROUTINE dbcsr_print_dist
-
-
 ! *****************************************************************************
 !> \brief Transposes a distribution
 !> \param[out] dist_tr        transposed distribution

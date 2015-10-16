@@ -138,47 +138,6 @@ CONTAINS
   END SUBROUTINE cp_para_env_update
 
 ! *****************************************************************************
-!> \brief writes a description of the parallel environment to the given unit
-!> \param para_env the parallel environment to output
-!> \param unit_nr the unit where to output
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE cp_para_env_write(para_env,unit_nr)
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(in)                      :: unit_nr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_write', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iostat
-
-  IF (ASSOCIATED(para_env)) THEN
-     WRITE (unit=unit_nr,&
-          fmt="(' <cp_para_env>:{ owns_group=',l1,',')",&
-          iostat=iostat) para_env%owns_group
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
-          iostat=iostat) para_env%group, para_env%ref_count
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  mepos=',i8,',')",&
-          iostat=iostat) para_env%mepos
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  source=',i8,',')",&
-          iostat=iostat) para_env%source
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  num_pe=',i8,'}')",&
-          iostat=iostat) para_env%num_pe
-     CPASSERT(iostat==0)
-  ELSE
-     WRITE (unit=unit_nr,&
-          fmt="(a)", iostat=iostat) ' <cp_para_env>:*null* '
-     CPASSERT(iostat==0)
-  END IF
-END SUBROUTINE cp_para_env_write
-
-! *****************************************************************************
 !> \brief creates a cart (multidimensional parallel environment)
 !> \param cart the cart environment to create
 !> \param group the mpi communicator
@@ -255,53 +214,5 @@ SUBROUTINE cp_cart_release(cart)
   END IF
   NULLIFY(cart)
 END SUBROUTINE cp_cart_release
-
-! *****************************************************************************
-!> \brief writes out the informations about the cart
-!> \param cart the parallel environment to output
-!> \param unit_nr the unit where to output
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE cp_cart_write(cart,unit_nr)
-    TYPE(cp_para_cart_type), POINTER         :: cart
-    INTEGER, INTENT(in)                      :: unit_nr
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cart_write', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iostat
-
-  IF (ASSOCIATED(cart)) THEN
-     WRITE (unit=unit_nr,&
-          fmt="(' <cp_cart>:{ owns_group=',l1,',')",&
-          iostat=iostat) cart%owns_group
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
-          iostat=iostat) cart%group, cart%ref_count
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  ndims=',i8,',')",&
-          iostat=iostat) cart%ndims
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  rank=',i8,', ntask=',i8,',')",&
-          iostat=iostat) cart%rank, cart%ntask
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  mepos=',10i8)",&
-          iostat=iostat) cart%mepos
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  source=',10i8,',')",&
-          iostat=iostat) cart%source
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  num_pe=',10i8,'}')",&
-          iostat=iostat) cart%num_pe
-     CPASSERT(iostat==0)
-     WRITE (unit=unit_nr,fmt="('  periodic=',10l2,'}')",&
-          iostat=iostat) cart%periodic
-     CPASSERT(iostat==0)
-  ELSE
-     WRITE (unit=unit_nr,&
-          fmt="(a)", iostat=iostat) ' <cp_cart>:*null* '
-     CPASSERT(iostat==0)
-  END IF
-END SUBROUTINE cp_cart_write
 
 END MODULE cp_para_env

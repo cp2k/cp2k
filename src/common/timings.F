@@ -61,6 +61,9 @@ MODULE timings
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'timings'
   TYPE(list_timerenv_type), SAVE, PRIVATE                  :: timers_stack
 
+  !API (via pointer assignment to hook, PR67982, not meant to be called directly)
+  PUBLIC :: timeset_handler, timestop_handler
+
   CONTAINS
 
 ! *****************************************************************************

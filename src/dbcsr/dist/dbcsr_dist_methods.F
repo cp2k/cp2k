@@ -561,38 +561,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param[in] dist  ...
-!> \retval num_row_clusters ...
-! *****************************************************************************
-  FUNCTION dbcsr_distribution_num_row_clusters (dist) RESULT (num_row_clusters)
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    INTEGER                                  :: num_row_clusters
-
-    num_row_clusters = 1
-    IF (dbcsr_distribution_has_row_clusters(dist)) THEN
-       num_row_clusters = dist%d%num_local_row_clusters*dbcsr_mp_nprows(dbcsr_distribution_mp(dist))
-    ENDIF
-
-  END FUNCTION dbcsr_distribution_num_row_clusters
-
-! *****************************************************************************
-!> \brief ...
-!> \param[in] dist  ...
-!> \retval num_col_clusters ...
-! *****************************************************************************
-  FUNCTION dbcsr_distribution_num_col_clusters (dist) RESULT (num_col_clusters)
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    INTEGER                                  :: num_col_clusters
-
-    num_col_clusters = 1
-    IF (dbcsr_distribution_has_col_clusters(dist)) THEN
-       num_col_clusters = dist%d%num_local_col_clusters*dbcsr_mp_npcols(dbcsr_distribution_mp(dist))
-    ENDIF
-
-  END FUNCTION dbcsr_distribution_num_col_clusters
-
-! *****************************************************************************
-!> \brief ...
 !> \param dist ...
 !> \retval row_dist_cluster ...
 ! *****************************************************************************

@@ -758,26 +758,4 @@ SUBROUTINE pw_pools_dealloc(pools)
   NULLIFY(pools)
 END SUBROUTINE pw_pools_dealloc
 
-! *****************************************************************************
-!> \brief deallocates all the cached grids
-!> \param pools the pools to flush
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE pw_pools_flush_cache(pools)
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pools
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_flush_cache', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i
-
-  CPASSERT(ASSOCIATED(pools))
-  DO i=1,SIZE(pools)
-     CALL pw_pool_flush_cache(pools(i)%pool)
-  END DO
-END SUBROUTINE pw_pools_flush_cache
-
 END MODULE pw_pool_types

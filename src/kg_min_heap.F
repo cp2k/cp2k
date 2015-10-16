@@ -486,40 +486,4 @@ CONTAINS
     new_pos = e
   END SUBROUTINE bubble_up
 
-! *****************************************************************************
-!> \brief ...
-!> \param heap ...
-!> \param error ...
-! *****************************************************************************
-  SUBROUTINE heap_check (heap, error)
-    TYPE(heap_t), INTENT(in)                 :: heap
-    LOGICAL, INTENT(out)                     :: error
-
-    INTEGER                                  :: i, n
-    INTEGER(kind=valt)                       :: left_child_value, my_value, &
-                                                right_child_value
-
-!
-
-    error = .FALSE.
-    n = heap%n
-    DO i = 1, n
-       my_value = get_value (heap, i)
-       IF (get_left_child (i) .LE. n) THEN
-          left_child_value = get_value (heap, get_left_child(i))
-          IF (left_child_value .LT. my_value) THEN
-             error = .TRUE.
-             WRITE(*,*)"Error at",i
-          ENDIF
-       ENDIF
-       IF (get_right_child (i) .LE. n) THEN
-          right_child_value = get_value (heap, get_right_child(i))
-          IF (right_child_value .LT. my_value) THEN
-             error = .TRUE.
-             WRITE(*,*)"Error at",i
-          ENDIF
-       ENDIF
-    ENDDO
-  END SUBROUTINE heap_check
-
 END MODULE kg_min_heap

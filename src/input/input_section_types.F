@@ -643,42 +643,6 @@ CONTAINS
   END FUNCTION section_get_keyword
 
 ! *****************************************************************************
-!> \brief returns various attibutes of a section object
-!> \param section the section you want informations about
-!> \param frozen ...
-!> \param repeats ...
-!> \param id_nr ...
-!> \param ref_count ...
-!> \param name ...
-!> \param description ...
-!> \param citations ...
-!> \author fawzi
-!> \note
-!>       give direct access to keywords and subsections?
-! *****************************************************************************
-  SUBROUTINE section_get(section,frozen, repeats,id_nr,ref_count, &
-       name,description,citations)
-    TYPE(section_type), POINTER              :: section
-    LOGICAL, INTENT(out), OPTIONAL           :: frozen, repeats
-    INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
-    CHARACTER(len=*), INTENT(out), OPTIONAL  :: name, description
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: citations
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'section_get', &
-      routineP = moduleN//':'//routineN
-
-    CPASSERT(ASSOCIATED(section))
-    CPASSERT(section%ref_count>0)
-    IF (PRESENT(frozen)) frozen=section%frozen
-    IF (PRESENT(repeats)) repeats=section%repeats
-    IF (PRESENT(id_nr)) id_nr=section%id_nr
-    IF (PRESENT(ref_count)) ref_count=section%ref_count
-    IF (PRESENT(name)) name=section%name
-    IF (PRESENT(description)) description=a2s(section%description)
-    IF (PRESENT(citations)) citations=>section%citations
-  END SUBROUTINE section_get
-
-! *****************************************************************************
 !> \brief adds a keyword to the given section
 !> \param section the section to which the keyword should be added
 !> \param keyword the keyword to add

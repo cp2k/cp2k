@@ -131,6 +131,7 @@ FUNCTION m_energy() RESULT (wt)
 
 END FUNCTION m_energy
 
+#if defined(__CRAY_PM_ACCEL_ENERGY) || defined(__CRAY_PM_ENERGY)
 ! *****************************************************************************
 !> \brief reads energy values from the sys-filesystem
 !> \param filename ...
@@ -160,6 +161,7 @@ FUNCTION read_energy(filename) RESULT (wt)
        wt=raw/1000.0_dp
     ENDIF
 END FUNCTION read_energy
+#endif
 
 
 ! *****************************************************************************

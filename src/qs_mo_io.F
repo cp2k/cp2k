@@ -29,7 +29,6 @@ MODULE qs_mo_io
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
-                                             cp_fm_read_unformatted,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
@@ -359,37 +358,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_low
-! *****************************************************************************
-
-! *****************************************************************************
-!> \brief ...
-!> \param mo_set ...
-!> \param ires ...
-! *****************************************************************************
-  SUBROUTINE write_mo_set_basic(mo_set, ires)
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    INTEGER                                  :: ires
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_basic', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, nao, nmo
-
-    CALL timeset(routineN,handle)
-
-    nao = mo_set%nao
-    nmo=mo_set%nmo
-
-    IF ((ires>0).AND.(nmo > 0)) THEN
-       WRITE (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
-       WRITE (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
-    END IF
-    CALL cp_fm_write_unformatted(mo_set%mo_coeff,ires)
-
-    CALL timestop(handle)
-
-  END SUBROUTINE write_mo_set_basic
 
 ! *****************************************************************************
 !> \brief ...
@@ -938,36 +906,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_mos_restart_low
-
-! *****************************************************************************
-!> \brief ...
-!> \param mo_set ...
-!> \param ires ...
-! *****************************************************************************
-  SUBROUTINE read_mo_set_basic (mo_set, ires)
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    INTEGER, INTENT(in)                      :: ires
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_basic', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: mao, mmo, nao, nmo
-
-    mao = mo_set%nao
-    mmo = mo_set%nmo
-
-    IF ((ires>0).AND.(nmo > 0)) THEN
-       READ (ires) nao,nmo,mo_set%homo,mo_set%lfomo,mo_set%nelectron
-       IF(mao/=nao)&
-          CPABORT("Different size of basis set")
-       IF(mmo/=nmo)&
-          CPABORT("Different number of MOs")
-       READ (ires) mo_set%eigenvalues(1:nmo),mo_set%occupation_numbers(1:nmo)
-    END IF
-    CALL cp_fm_read_unformatted(mo_set%mo_coeff,ires)
-
-  END SUBROUTINE read_mo_set_basic
 
 ! *****************************************************************************
 !> \brief   Write the MO eigenvalues, MO occupation numbers and

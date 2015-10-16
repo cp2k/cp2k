@@ -69,6 +69,9 @@ MODULE cp_error_handling
   !! error number: assertion failure
   INTEGER, PARAMETER :: cp_assertion_failed = -300
 
+  !API (via pointer assignment to hook, PR67982, not meant to be called directly)
+  PUBLIC :: cp_abort_handler, cp_warn_handler
+
 CONTAINS
 
 ! *****************************************************************************
