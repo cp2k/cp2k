@@ -254,17 +254,17 @@ def gen_plots(all_reports, log, outdir, full_archive):
 
     # create png images
     fig_ext = "_full.png" if(full_archive) else ".png"
-    markers = itertools.cycle('os>^*')
     rev_end = log[0]['num']
     rev_start = min(all_reports.keys()) if(full_archive) else rev_end-100
     for pname, p in plots.items():
         print "Working on plot: "+pname
         fig = plt.figure(figsize=(12,4))
-        fig.subplots_adjust(bottom=0.18, left=0.06, right=0.72)
+        fig.subplots_adjust(bottom=0.18, left=0.06, right=0.70)
         fig.suptitle(p['title'], fontsize=14, fontweight='bold', x=0.4)
         ax = fig.add_subplot(111)
         ax.set_xlabel('SVN Revision')
         ax.set_ylabel(p['ylabel'])
+        markers = itertools.cycle('os>^*')
         for cname in sorted(p['curves'].keys()):
             c= p['curves'][cname]
             if(full_archive):
@@ -287,7 +287,7 @@ def gen_plots(all_reports, log, outdir, full_archive):
     # write html output
     html_output = ""
     for pname in sorted(plots.keys()):
-        html_output += '<p><a href="plot_data.txt"><img src="%s" alt="%s"></a></p>\n'%(pname+fig_ext, plots[pname]['title'])
+        html_output += '<a href="plot_data.txt"><img src="%s" alt="%s"></a>\n'%(pname+fig_ext, plots[pname]['title'])
     return(html_output)
 
 #===============================================================================
