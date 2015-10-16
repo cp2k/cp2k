@@ -29,8 +29,7 @@ MODULE dbcsr_error_handling
      MODULE PROCEDURE dbcsr_int_assert
      MODULE PROCEDURE dbcsr_logical_assert
      MODULE PROCEDURE dbcsr_not_assert
-     MODULE PROCEDURE dbcsr_char_assert
-     MODULE PROCEDURE dbcsr_true_assert!bcsr_assert,
+     MODULE PROCEDURE dbcsr_true_assert
   END INTERFACE
 
   INTEGER, PARAMETER :: dbcsr_error_stack_size = 30
@@ -198,47 +197,6 @@ CONTAINS
        CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
   END SUBROUTINE dbcsr_logical_assert
-
-! *****************************************************************************
-!> \brief Assertion
-!> \param[in] left            left value
-!> \param[in] rel             relation
-!> \param[in] right           right value
-!> \param[in] level           error level
-!> \param[in] etype           error type
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-!> \param line ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_char_assert(left, rel, right, level, etype, routine, msg, line)
-    CHARACTER, INTENT(IN)                    :: left
-    CHARACTER(len=2), INTENT(IN)             :: rel
-    CHARACTER, INTENT(IN)                    :: right
-    INTEGER, INTENT(IN)                      :: level, etype
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-    INTEGER, INTENT(IN)                      :: line
-
-    LOGICAL                                  :: l
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (rel)
-    CASE ("EQ")
-       l = left .EQ. right
-    CASE ("NE")
-       l = left .NE. right
-    CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_char_assert", "Invalid relation specified: "//rel, __LINE__)
-       l = .FALSE.
-    END SELECT
-    IF (.NOT. l) THEN
-       WRITE(*,'(1X,A,1X,A1,1X,A4,1X,A1)')"ASSERTION FAILED:",&
-            left, "."//rel//".", right
-       CALL dbcsr_abort_low (level, etype, routine, msg, line)
-    ENDIF
-  END SUBROUTINE dbcsr_char_assert
-
 
 ! *****************************************************************************
 !> \brief Assertion
