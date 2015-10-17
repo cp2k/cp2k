@@ -267,6 +267,9 @@ ENDIF
 #if defined __HAS_IEEE_EXCEPTIONS
    flags=TRIM(flags)//" has_ieee_exceptions"
 #endif
+#if defined __NO_ABORT
+   flags=TRIM(flags)//" no_abort"
+#endif
 
   END FUNCTION cp2k_flags
 
