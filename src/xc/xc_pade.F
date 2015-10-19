@@ -25,8 +25,7 @@ MODULE xc_pade
   USE xc_functionals_utilities,        ONLY: calc_fx,&
                                              calc_rs,&
                                              calc_rs_pw,&
-                                             set_util,&
-                                             setup_calculation
+                                             set_util
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_type
 #include "../common/cp_common_uses.f90"
@@ -60,14 +59,10 @@ MODULE xc_pade
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_pade'
 
-  PUBLIC :: pade, pade_lda_pw_eval, pade_lsd_pw_eval
+  PUBLIC :: pade_lda_pw_eval, pade_lsd_pw_eval, pade_info, pade_init
 
   REAL(KIND=dp) :: eps_rho
   LOGICAL :: debug_flag
-
-  INTERFACE pade
-    MODULE PROCEDURE pade_lda, pade_lsd, pade_init, pade_info
-  END INTERFACE
 
 CONTAINS
 
@@ -137,62 +132,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief ...
-!> \param derivative_set ...
-!> \param rho ...
-!> \param pot ...
-!> \param order ...
-! *****************************************************************************
-  SUBROUTINE pade_lda(derivative_set, rho, pot, order)
-
-    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: pot
-    INTEGER, INTENT(IN), OPTIONAL            :: order
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lda', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: m, m1, m2, mp, mt, mx(0:3,2), &
-                                                n
-    LOGICAL                                  :: calc(0:4)
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rs
-
-    CALL setup_calculation(order,mx,calc,100)
-    mp = SIZE ( pot, 2 )
-    m = ABS(order)
-    mt = mx(m,2)
-    IF ( mt > mp ) CPABORT("Size of POT array too small.")
-
-    n = SIZE ( rho )
-    ALLOCATE ( rs(n))
-
-    CALL calc_rs ( rho, rs )
-    IF ( calc(0) .AND. calc(1) ) THEN
-       m1=mx(0,1)
-       m2=mx(1,2)
-       CALL pade_lda_01(n, rho, rs, pot(:,m1:m1), pot(:,m2:m2))
-    ELSE IF ( calc(0) ) THEN
-       CALL pade_lda_0(n, rho, rs, pot(:,1:1))
-    ELSE IF ( calc(1) ) THEN
-       m1=mx(1,1)
-       CALL pade_lda_1(n, rho, rs, pot(:,m1:m1))
-    END IF
-    IF ( calc(2) ) THEN
-       m1=mx(2,1)
-       CALL pade_lda_2(n, rho, rs, pot(:,m1:m1))
-    END IF
-    IF ( calc(3) ) THEN
-       m1=mx(3,1)
-       CALL pade_lda_3(n, rho, rs, pot(:,m1:m1))
-    END IF
-
-    DEALLOCATE ( rs)
-
-  END SUBROUTINE pade_lda
-
-! *****************************************************************************
-!> \brief ...
 !> \param deriv_set ...
 !> \param rho_set ...
 !> \param order ...
@@ -256,78 +195,6 @@ CONTAINS
     DEALLOCATE ( rs)
 
   END SUBROUTINE pade_lda_pw_eval
-
-! *****************************************************************************
-!> \brief ...
-!> \param derivative_set ...
-!> \param rhoa ...
-!> \param rhob ...
-!> \param pot ...
-!> \param order ...
-! *****************************************************************************
-  SUBROUTINE pade_lsd ( derivative_set, rhoa, rhob, pot, order )
-
-    TYPE(xc_derivative_set_type), POINTER    :: derivative_set
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(INOUT)                          :: pot
-    INTEGER, INTENT(IN), OPTIONAL            :: order
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'pade_lsd', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, m, m1, m2, mp, mt, &
-                                                mx(0:3,2), n
-    LOGICAL                                  :: calc(0:4)
-    REAL(KIND=dp)                            :: rs
-    REAL(KIND=dp), DIMENSION(4)              :: fx
-
-    CALL setup_calculation(order,mx,calc,201)
-
-    n  = SIZE ( rhoa )
-    mp = SIZE ( pot, 2 )
-    m  = ABS(order)
-    mt = mx(m,2)
-
-    IF ( mt > mp ) CPABORT("Size of POT array too small.")
-    IF ( n > SIZE(pot,1) ) CPABORT("Size of POT array too small.")
-
-!$omp parallel do private(i,fx,rs,m1,m2) default(none)&
-!$omp shared(rhoa,rhob,m,pot,n,calc,mx)
-    DO i=1, n
-       fx(1) = rhoa(i) + rhob(i)
-
-       CALL calc_rs ( fx(1), rs )
-       CALL calc_fx ( rhoa(i), rhob(i), fx, m )
-
-       IF ( calc(0) .AND. calc(1) ) THEN
-          m1=mx(0,1)
-          m2=mx(1,2)
-          CALL pade_lsd_01 ( rhoa(i), rhob(i), rs, fx, &
-                             pot(i,m1), pot(i,m1+1), pot(i,m2) )
-       ELSE IF ( calc(0) ) THEN
-          CALL pade_lsd_0 ( rhoa(i), rhob(i), rs, fx, pot(i,1) )
-       ELSE IF ( calc(1) ) THEN
-          m1=mx(1,1)
-          m2=mx(1,2)
-          CALL pade_lsd_1 ( rhoa(i), rhob(i), rs, fx, &
-                            pot(i,m1), pot(i,m2) )
-       END IF
-       IF ( calc(2) ) THEN
-          m1=mx(2,1)
-          m2=mx(2,2)
-          CALL pade_lsd_2 ( rhoa(i), rhob(i), rs, fx, &
-                            pot(i,m1), pot(i,m1+1), pot(i,m2) )
-       END IF
-       IF ( calc(3) ) THEN
-          m1=mx(3,1)
-          m2=mx(3,2)
-          CALL pade_lsd_3 ( rhoa(i), rhob(i), rs, fx, &
-                            pot(i,m1), pot(i,m1+1), pot(i,m1+2), pot(i,m2) )
-       END IF
-    END DO
-
-  END SUBROUTINE pade_lsd
 
 ! *****************************************************************************
 !> \brief ...

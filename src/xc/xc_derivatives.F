@@ -43,7 +43,8 @@ MODULE xc_derivatives
                                              optx_lda_info,&
                                              optx_lsd_eval,&
                                              optx_lsd_info
-  USE xc_pade,                         ONLY: pade,&
+  USE xc_pade,                         ONLY: pade_info,&
+                                             pade_init,&
                                              pade_lda_pw_eval,&
                                              pade_lsd_pw_eval
   USE xc_pbe,                          ONLY: pbe_lda_eval,&
@@ -217,7 +218,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
              needs=needs, max_deriv=max_deriv)
      END IF
   CASE("PADE")
-     CALL pade(reference, shortform, lsd=lsd, needs=needs)
+     CALL pade_info(reference, shortform, lsd=lsd, needs=needs)
   CASE("HCTH")
      CALL section_vals_val_get(functional,"PARAMETER_SET",i_val=i_param)
      CPASSERT(.NOT.lsd)
@@ -419,7 +420,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL lyp_lda_eval(rho_set,deriv_set,deriv_order,functional)
      END IF
   CASE("PADE")
-     CALL pade(density_cut)
+     CALL pade_init(density_cut)
      IF (lsd) THEN
         CALL pade_lsd_pw_eval(deriv_set, rho_set, deriv_order)
      ELSE
