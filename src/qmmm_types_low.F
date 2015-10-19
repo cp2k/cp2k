@@ -9,6 +9,8 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE qmmm_types_low
+  USE eri_mme_types,                   ONLY: eri_mme_param,&
+                                             eri_mme_release
   USE ewald_environment_types,         ONLY: ewald_env_release,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_release,&
@@ -166,6 +168,8 @@ MODULE qmmm_types_low
      REAL(KIND=dp),DIMENSION(:,:),POINTER       :: image_forcesMM
      REAL(KIND=dp)                              :: V0
      REAL(KIND=dp)                              :: eta
+     INTEGER                                    :: image_matrix_method
+     TYPE(eri_mme_param)                        :: eri_mme_param
   END TYPE image_charge_type
 
 ! *****************************************************************************
@@ -513,6 +517,7 @@ CONTAINS
          IF (ASSOCIATED(image_charge_pot%image_forcesMM)) THEN
              DEALLOCATE(image_charge_pot%image_forcesMM)
          END IF
+         CALL eri_mme_release(image_charge_pot%eri_mme_param)
       DEALLOCATE(image_charge_pot)
     END IF
   END SUBROUTINE qmmm_image_charge_dealloc

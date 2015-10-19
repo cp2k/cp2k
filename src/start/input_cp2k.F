@@ -22,6 +22,7 @@ MODULE input_cp2k
                                              low_print_level,&
                                              medium_print_level,&
                                              silent_print_level
+  USE eri_mme_test,                    ONLY: create_eri_mme_test_section
   USE input_constants,                 ONLY: &
        do_diag_syevd, do_diag_syevx, do_mat_random, do_mat_read, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
@@ -261,6 +262,10 @@ CONTAINS
     CALL section_release(subsection)
 
     CALL create_cp_dbcsr_section(subsection)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
+    CALL create_eri_mme_test_section(subsection)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 

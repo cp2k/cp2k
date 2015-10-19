@@ -45,6 +45,7 @@ MODULE library_tests
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_init,          ONLY: init_input_type
+  USE eri_mme_test,                    ONLY: eri_mme_perf_acc_test
   USE fft_tools,                       ONLY: BWFFT,&
                                              FFT_RADIX_CLOSEST,&
                                              FWFFT,&
@@ -140,8 +141,8 @@ CONTAINS
     LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER :: cp_dbcsr_test_section, &
-      cp_fm_gemm_test_section, eigensolver_section, pw_transfer_section, &
-      rs_pw_transfer_section
+      cp_fm_gemm_test_section, eigensolver_section, eri_mme_test_section, &
+      pw_transfer_section, rs_pw_transfer_section
 
     CALL timeset(routineN,handle)
 
@@ -198,6 +199,11 @@ CONTAINS
       CALL eigensolver_test( para_env, iw,eigensolver_section)
     ENDIF
 
+    eri_mme_test_section => section_vals_get_subs_vals(root_section,"TEST%ERI_MME_TEST")
+    CALL section_vals_get(eri_mme_test_section,explicit=explicit)
+    IF (explicit) THEN
+      CALL eri_mme_perf_acc_test( para_env, iw, eri_mme_test_section)
+    ENDIF
 
     ! DBCSR tests
     ! matrix_multiplication

@@ -314,7 +314,9 @@ MODULE input_constants
                                               do_qmmm_wall_reflective=1,&
                                               do_qmmm_wall_quadratic=2,&
                                               do_qmmm_image_calcmatrix=0,&
-                                              do_qmmm_image_iter=1
+                                              do_qmmm_image_iter=1,&
+                                              do_qmmm_image_gpw=0,&
+                                              do_qmmm_image_mme=1
 
   INTEGER, PARAMETER, PUBLIC               :: calc_always=0,&
                                               calc_once=1,&

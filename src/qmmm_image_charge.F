@@ -22,9 +22,12 @@ MODULE  qmmm_image_charge
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE eri_mme_methods,                 ONLY: eri_mme_2c_integrate
   USE input_constants,                 ONLY: calc_always,&
                                              calc_once,&
-                                             calc_once_done
+                                             calc_once_done,&
+                                             do_qmmm_image_gpw,&
+                                             do_qmmm_image_mme
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -621,6 +624,7 @@ CONTAINS
 
   END SUBROUTINE conditional_calc_image_matrix
 
+
 !****************************************************************************
 !> \brief calculate image matrix T
 !> \param image_matrix matrix T
@@ -638,25 +642,20 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, iatom_ref, j, &
-                                                k, natom, output_unit, stat
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
+    INTEGER                                  :: handle, j, k, natom, &
+                                                output_unit, stat
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: rho_gb, vb_gspace, vb_rspace
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
-   
-    NULLIFY(pw_env, auxbas_pw_pool, poisson_env, para_env, int_res,&
-            input, logger)
+    NULLIFY(input, logger)
+
+    failure=.FALSE.
     logger => cp_get_default_logger()
-   
+
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
-   
+
     IF (.NOT.ASSOCIATED(image_matrix)) THEN
         ALLOCATE(image_matrix(natom,natom))
     ENDIF
@@ -664,16 +663,10 @@ CONTAINS
        IF (.NOT.ASSOCIATED(ipiv)) THEN
            ALLOCATE(ipiv(natom))
        ENDIF
+       ipiv=0
     ENDIF
-    ALLOCATE(int_res(natom))
-   
-    image_matrix=0.0_dp
-    IF(PRESENT(ipiv)) ipiv=0
-   
-   
-    CALL get_qs_env(qs_env, pw_env=pw_env,para_env=para_env,&
-                    input=input)
 
+    CALL get_qs_env(qs_env,input=input)
     !print info
     output_unit=cp_print_key_unit_nr(logger,input,&
                 "QMMM%PRINT%PROGRAM_RUN_INFO",&
@@ -688,41 +681,15 @@ CONTAINS
     CALL cp_print_key_finished_output(output_unit,logger,input,&
                 "QMMM%PRINT%PROGRAM_RUN_INFO")
 
-
-    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                    poisson_env=poisson_env)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           rho_gb%pw,&
-                           use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           vb_gspace%pw,&
-                           use_data=COMPLEXDATA1D,&
-                           in_space=RECIPROCALSPACE)
-    CALL pw_pool_create_pw(auxbas_pw_pool,&
-                           vb_rspace%pw,&
-                           use_data=REALDATA3D,&
-                           in_space=REALSPACE)
-    ! calculate vb only once for one reference atom 
-    iatom_ref = 1 !
-    !collocate gaussian of reference MM atom on grid
-    CALL pw_zero(rho_gb%pw)
-    CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom_ref)
-    !calculate potential vb like hartree potential
-    CALL pw_zero(vb_gspace%pw)
-    CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw)
-    CALL pw_zero(vb_rspace%pw)
-    CALL pw_transfer(vb_gspace%pw,vb_rspace%pw)
-    CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol)
-    DO iatom=1,natom
-      !calculate integral vb_rspace*ga
-      int_res=0.0_dp
-      CALL integrate_potential_ga_rspace(vb_rspace,qs_env%qmmm_env_qm,&
-                                         qs_env,int_res,atom_num=iatom,&
-                                         atom_num_ref=iatom_ref)
-      image_matrix(iatom,iatom:natom)=int_res(iatom:natom)
-      image_matrix(iatom+1:natom,iatom)=int_res(iatom+1:natom)
-    END DO
+    ! Calculate image matrix using either GPW or MME method
+    SELECT CASE (qmmm_env%image_charge_pot%image_matrix_method)
+    CASE (do_qmmm_image_gpw)
+      CALL calculate_image_matrix_gpw(image_matrix,qs_env,qmmm_env)
+    CASE (do_qmmm_image_mme)
+      CALL calculate_image_matrix_mme(image_matrix,qs_env,qmmm_env)
+    CASE DEFAULT
+      CPABORT("Unknown method for calculating image matrix")
+    END SELECT
 
     IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
        !inversion --> preconditioner matrix for CG
@@ -744,15 +711,140 @@ CONTAINS
        ENDIF
     ENDIF
 
+    CALL timestop(handle)
+
+  END SUBROUTINE calculate_image_matrix
+
+
+! *****************************************************************************
+!> \brief calculate image matrix T using GPW method
+!> \param image_matrix matrix T
+!> \param qs_env qs environment
+!> \param qmmm_env qmmm environment
+! *****************************************************************************
+  SUBROUTINE calculate_image_matrix_gpw(image_matrix, qs_env, qmmm_env)
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix_gpw', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, iatom, iatom_ref, &
+                                                natom
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: rho_gb, vb_gspace, vb_rspace
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
+    CALL timeset(routineN,handle)
+    NULLIFY(pw_env, auxbas_pw_pool, poisson_env, para_env, int_res)
+
+    failure = .FALSE.
+
+    natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
+    ALLOCATE(int_res(natom))
+
+    image_matrix=0.0_dp
+
+    CALL get_qs_env(qs_env, pw_env=pw_env,para_env=para_env)
+
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                    poisson_env=poisson_env)
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                           rho_gb%pw,&
+                           use_data=COMPLEXDATA1D,&
+                           in_space=RECIPROCALSPACE)
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                           vb_gspace%pw,&
+                           use_data=COMPLEXDATA1D,&
+                           in_space=RECIPROCALSPACE)
+    CALL pw_pool_create_pw(auxbas_pw_pool,&
+                           vb_rspace%pw,&
+                           use_data=REALDATA3D,&
+                           in_space=REALSPACE)
+
+    ! calculate vb only once for one reference atom
+    iatom_ref = 1 !
+    !collocate gaussian of reference MM atom on grid
+    CALL pw_zero(rho_gb%pw)
+    CALL calculate_rho_single_gaussian(rho_gb,qs_env,iatom_ref)
+    !calculate potential vb like hartree potential
+    CALL pw_zero(vb_gspace%pw)
+    CALL pw_poisson_solve(poisson_env,rho_gb%pw,vhartree=vb_gspace%pw)
+    CALL pw_zero(vb_rspace%pw)
+    CALL pw_transfer(vb_gspace%pw,vb_rspace%pw)
+    CALL pw_scale(vb_rspace%pw,vb_rspace%pw%pw_grid%dvol)
+
+    DO iatom=1,natom
+      !calculate integral vb_rspace*ga
+      int_res=0.0_dp
+      CALL integrate_potential_ga_rspace(vb_rspace,qs_env%qmmm_env_qm,&
+                                         qs_env,int_res,atom_num=iatom,&
+                                         atom_num_ref=iatom_ref)
+      image_matrix(iatom,iatom:natom)=int_res(iatom:natom)
+      image_matrix(iatom+1:natom,iatom)=int_res(iatom+1:natom)
+    END DO
+
     CALL pw_release(vb_gspace%pw)
     CALL pw_release(vb_rspace%pw)
     CALL pw_release(rho_gb%pw)
 
     DEALLOCATE(int_res)
-   
-    CALL timestop(handle)
 
-  END SUBROUTINE calculate_image_matrix
+    CALL timestop(handle)
+  END SUBROUTINE calculate_image_matrix_gpw
+
+! *****************************************************************************
+!> \brief calculate image matrix T using MME (MiniMax-Ewald) method
+!> \param image_matrix matrix T
+!> \param qs_env qs environment
+!> \param qmmm_env qmmm environment
+! *****************************************************************************
+  SUBROUTINE calculate_image_matrix_mme(image_matrix,qs_env,qmmm_env)
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: image_matrix
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix_mme', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: atom_a, handle, iatom, natom
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: la_max, la_min
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeta
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: ra
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+    CALL timeset(routineN,handle)
+    NULLIFY(para_env)
+    failure = .FALSE.
+
+    natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
+    ALLOCATE(la_min(natom),la_max(natom))
+    ALLOCATE(zeta(natom),ra(3,natom))
+
+    la_min(:) = 0
+    la_max(:) = 0
+
+    zeta(:)=qmmm_env%image_charge_pot%eta
+
+    DO iatom=1,natom
+       atom_a=qmmm_env%image_charge_pot%image_mm_list(iatom)
+       ra(:,iatom)=qmmm_env%image_charge_pot%particles_all(atom_a)%r(:)
+    ENDDO
+
+    CALL get_qs_env(qs_env, para_env=para_env)
+
+    CALL eri_mme_2c_integrate(qmmm_env%image_charge_pot%eri_mme_param, la_min, la_max, la_min, la_max, &
+                              zeta, zeta, ra, ra, image_matrix, para_env)
+
+    CALL timestop(handle)
+  END SUBROUTINE calculate_image_matrix_mme
 
 ! *****************************************************************************
 !> \brief calculates potential of the metal (image potential) given a set of

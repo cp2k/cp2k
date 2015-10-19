@@ -26,6 +26,7 @@ MODULE input_cp2k_qmmm
                                              medium_print_level,&
                                              silent_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE eri_mme_types,                   ONLY: create_eri_mme_section
   USE input_constants,                 ONLY: &
        alpha_imomm_default, charge_scale_factor, do_fm_mom_conserv_buffer, &
        do_fm_mom_conserv_core, do_fm_mom_conserv_equal_a, &
@@ -35,11 +36,11 @@ MODULE input_cp2k_qmmm
        do_qmmm_center_every_step, do_qmmm_center_max_minus_min, &
        do_qmmm_center_never, do_qmmm_center_pbc_aware, &
        do_qmmm_center_setup_only, do_qmmm_coulomb, do_qmmm_gauss, &
-       do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
-       do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_none, &
-       do_qmmm_pcharge, do_qmmm_swave, do_qmmm_wall_none, &
-       do_qmmm_wall_quadratic, do_qmmm_wall_reflective, gaussian, &
-       radius_qmmm_default, spline3_nopbc_interp
+       do_qmmm_image_calcmatrix, do_qmmm_image_gpw, do_qmmm_image_iter, &
+       do_qmmm_image_mme, do_qmmm_link_gho, do_qmmm_link_imomm, &
+       do_qmmm_link_pseudo, do_qmmm_none, do_qmmm_pcharge, do_qmmm_swave, &
+       do_qmmm_wall_none, do_qmmm_wall_quadratic, do_qmmm_wall_reflective, &
+       gaussian, radius_qmmm_default, spline3_nopbc_interp
   USE input_cp2k_mm,                   ONLY: create_GENPOT_section,&
                                              create_Goodwin_section,&
                                              create_LJ_section,&
@@ -652,14 +653,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
-    NULLIFY(keyword)
+    NULLIFY(keyword,subsection)
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="IMAGE_CHARGE",&
          description="Inclusion of polarization effects within the image charge "//&
                      "approach for systems where QM molecules are physisorbed on e.g. metal "//&
                      "surfaces described by MM. QM box size has to be equal to MM box size.",&
-         n_keywords=3, n_subsections=0, repeats=.FALSE., &
+         n_keywords=3, n_subsections=1, repeats=.FALSE., &
          citations=(/Golze2013/))
 
     CALL keyword_create(keyword, name="MM_ATOM_LIST",&
@@ -714,6 +716,24 @@ CONTAINS
          type_of_var=lchar_t)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="IMAGE_MATRIX_METHOD", &
+         description="Method for calculating the image matrix. The MME method is "//&
+         "much faster than GPW s.t. the overhead of the IC approach compared to "//&
+         "standard QM/MM becomes negligible in total computation time. Note that MME "//&
+         "is an approximative method that has limited accuracy in the current implementation.",&
+         usage="IMAGE_MATRIX_METHOD MME",&
+         enum_c_vals=s2a( "GPW","MME"),&
+         enum_i_vals=(/ do_qmmm_image_gpw, do_qmmm_image_mme /),&
+         enum_desc=s2a("Uses Gaussian Plane Wave method", &
+                       "Uses MiniMax-Ewald method (ERI_MME subsection)"),&
+         default_i_val=do_qmmm_image_gpw)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL create_eri_mme_section(subsection)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
 
   END SUBROUTINE create_qmmm_image_charge_section
 

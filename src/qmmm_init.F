@@ -25,6 +25,8 @@ MODULE qmmm_init
                                              cp_subsys_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                              cp_unit_to_cp2k
+  USE eri_mme_methods,                 ONLY: eri_mme_set_params
+  USE eri_mme_types,                   ONLY: eri_mme_init_read_input
   USE external_potential_types,        ONLY: fist_potential_type,&
                                              get_potential,&
                                              set_potential
@@ -35,8 +37,9 @@ MODULE qmmm_init
                                              read_wl_section
   USE input_constants,                 ONLY: &
        RADIUS_QMMM_DEFAULT, calc_always, calc_once, do_qmmm_gauss, &
-       do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_link_gho, &
-       do_qmmm_link_imomm, do_qmmm_link_pseudo, do_qmmm_pcharge, do_qmmm_swave
+       do_qmmm_image_calcmatrix, do_qmmm_image_iter, do_qmmm_image_mme, &
+       do_qmmm_link_gho, do_qmmm_link_imomm, do_qmmm_link_pseudo, &
+       do_qmmm_pcharge, do_qmmm_swave
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -541,6 +544,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(fist_potential_type), POINTER       :: fist_potential
     TYPE(section_vals_type), POINTER         :: cell_section, &
+                                                eri_mme_section, &
                                                 image_charge_section, mm_kinds
 
     NULLIFY(mm_link_atoms, cell_section, tmp_sph_cut)
@@ -703,6 +707,21 @@ CONTAINS
 
        CALL section_vals_val_get(image_charge_section,"RESTART_IMAGE_MATRIX",&
                                 l_val=qmmm_env%image_charge_pot%image_restart)
+
+       CALL section_vals_val_get(image_charge_section,"IMAGE_MATRIX_METHOD",&
+                                i_val=qmmm_env%image_charge_pot%image_matrix_method)
+
+       IF (qmmm_env%image_charge_pot%image_matrix_method .EQ. do_qmmm_image_mme) THEN
+         eri_mme_section => section_vals_get_subs_vals(image_charge_section, "ERI_MME")
+         CALL eri_mme_init_read_input(eri_mme_section, qmmm_env%image_charge_pot%eri_mme_param)
+         CALL eri_mme_set_params(qmmm_env%image_charge_pot%eri_mme_param, &
+                                 qm_cell_small, &
+                                 zet_err_minimax=qmmm_env%image_charge_pot%eta, &
+                                 zet_err_cutoff=[qmmm_env%image_charge_pot%eta], &
+                                 lmax=0, &
+                                 para_env=para_env)
+
+       ENDIF
     END IF
 
   END SUBROUTINE setup_qmmm_vars_qm
