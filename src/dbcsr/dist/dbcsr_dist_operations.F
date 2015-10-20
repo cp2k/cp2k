@@ -171,16 +171,12 @@ CONTAINS
 !> \param[in,out] row         input is logical row, output is lookup row
 !> \param[in,out] column      input is logical column, output is lookup
 !>                            column
-!> \param[in,out] transpose   input: current block state; output: whether the
-!>                            data should be considered transposed
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! *****************************************************************************
-  PURE SUBROUTINE get_stored_coordinates_type(matrix, row, column, transpose,&
-       processor)
+  PURE SUBROUTINE get_stored_coordinates_type(matrix, row, column,processor)
     TYPE(dbcsr_type), INTENT(IN)             :: matrix
     INTEGER, INTENT(INOUT)                   :: row, column
-    LOGICAL, INTENT(INOUT)                   :: transpose
     INTEGER, INTENT(OUT), OPTIONAL           :: processor
 
 !   ---------------------------------------------------------------------------
@@ -263,9 +259,9 @@ CONTAINS
             "matrix%m not associated",__LINE__)
     ENDIF
     IF (PRESENT (processor)) THEN
-       CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose, processor)
+       CALL dbcsr_get_stored_coordinates (matrix%m, row, column, processor)
     ELSE
-       CALL dbcsr_get_stored_coordinates (matrix%m, row, column, transpose)
+       CALL dbcsr_get_stored_coordinates (matrix%m, row, column)
     ENDIF
   END SUBROUTINE get_stored_coordinates_obj
 
@@ -298,8 +294,7 @@ CONTAINS
     stored_row = row
     stored_column = column
     transpose = .FALSE.
-    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_column,&
-         transpose)
+    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_column)
     CALL get_stored_block_info_type(matrix, stored_row, stored_column,&
          found, block_number, data_offset=data_offset, transposed=transpose)
   END SUBROUTINE get_block_index_type

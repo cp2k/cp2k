@@ -465,7 +465,6 @@ CONTAINS
        ! and have the same distributions as domain_err and domain_ks_xx
        CALL almo_scf_diis_init(diis_env=almo_diis(ispin),&
               sample_err=almo_scf_env%domain_s_sqrt(:,ispin),&
-              sample_var=almo_scf_env%domain_s_sqrt_inv(:,ispin),&
               error_type=1,&
               max_length=optimizer%ndiis)
     ENDDO

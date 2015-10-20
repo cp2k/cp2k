@@ -347,7 +347,7 @@
     IF (tr) CALL swap (row_size, col_size)
 
     stored_row = row ; stored_col = col; sym_tr = .FALSE.
-    CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col, sym_tr)
+    CALL dbcsr_get_stored_coordinates (matrix%m, stored_row, stored_col)
     nze = row_size*col_size
     !
     IF (debug_mod) THEN

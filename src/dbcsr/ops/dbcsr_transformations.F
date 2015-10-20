@@ -634,7 +634,7 @@ CONTAINS
        DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
           tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, tr, p)
+          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, p)
           IF (mynode .EQ. p) THEN
              matrix%m%blk_p(blk) = 0
           ENDIF
@@ -655,7 +655,7 @@ CONTAINS
        DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
           tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, tr, p)
+          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, p)
           IF (mynode .EQ. p) THEN
              nze = nze + row_blk_size(row) * col_blk_size(col)
              nblks = nblks + 1
@@ -670,7 +670,7 @@ CONTAINS
        DO WHILE (dbcsr_iterator_blocks_left (iter))
           CALL dbcsr_iterator_next_block (iter, row, col, r_dp, tr, blk)
           tr = .FALSE.
-          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, tr, p)
+          CALL dbcsr_get_stored_coordinates (matrix%m, row, col, p)
           IF (mynode .EQ. p) THEN
              CALL dbcsr_put_block (distributed, row, col, r_dp, tr)
           ENDIF
@@ -1813,7 +1813,7 @@ CONTAINS
              IF (.NOT. sym .OR. blk_col_new .GE. blk_row_new) THEN
                 tr = .FALSE.
                 CALL dbcsr_get_stored_coordinates (redist%m,&
-                     blk_row_new, blk_col_new, tr, dst_p)
+                     blk_row_new, blk_col_new, dst_p)
                 send_count(1, dst_p) = send_count(1, dst_p) + 1
                 send_count(2, dst_p) = send_count(2, dst_p) +&
                      col_reblocks(2,col_int)*row_reblocks(2,row_int)
@@ -1879,7 +1879,7 @@ CONTAINS
                 ! Start a new RLE run
                 tr = .FALSE.
                 CALL dbcsr_get_stored_coordinates (redist%m,&
-                     blk_row_new, blk_col_new, tr, dst_p)
+                     blk_row_new, blk_col_new, dst_p)
                 row_offset_old = row_reblocks(3, row_int)
                 col_offset_old = col_reblocks(3, col_int)
                 row_offset_new = row_reblocks(4, row_int)
@@ -2167,7 +2167,7 @@ CONTAINS
             row_size=row_size, col_size=col_size)
        sym_tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (redist%m,&
-            row, col, sym_tr, dst_p)
+            row, col, dst_p)
        nze = row_size*col_size
        send_count(1, dst_p) = send_count(1, dst_p) + 1
        send_count(2, dst_p) = send_count(2, dst_p) + nze
@@ -2216,7 +2216,7 @@ CONTAINS
        !IF (tr) WRITE(*,*)"block at",row,col," is transposed"
        sym_tr = .FALSE.
        CALL dbcsr_get_stored_coordinates (redist%m,&
-            row, col, sym_tr, dst_p)
+            row, col, dst_p)
        smp(dst_p) = smp(dst_p) + metalen
        IF (tr) THEN
           send_meta(smp(dst_p)) = -row
@@ -2419,7 +2419,7 @@ CONTAINS
            col_size = col_blk_size(bcol)
            blk_size = row_size*col_size
            sym_tr = .FALSE.
-           CALL dbcsr_get_stored_coordinates (new_matrix%m, brow, bcol, sym_tr, dst_p)
+           CALL dbcsr_get_stored_coordinates (new_matrix%m, brow, bcol, dst_p)
            send_count(1, dst_p) = send_count(1, dst_p) + 1
            send_count(2, dst_p) = send_count(2, dst_p) + blk_size
         ENDDO
@@ -2487,7 +2487,7 @@ CONTAINS
                data_block%d%c_dp => c_dp(start_ind:end_ind)
            END SELECT
            sym_tr = .FALSE.
-           CALL dbcsr_get_stored_coordinates(new_matrix%m, brow, bcol, sym_tr, dst_p)
+           CALL dbcsr_get_stored_coordinates(new_matrix%m, brow, bcol, dst_p)
            smp(dst_p) = smp(dst_p) + metalen
            tr=.FALSE.
 !           IF (tr) THEN

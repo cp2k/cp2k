@@ -150,19 +150,18 @@ CONTAINS
 !> \brief initializes the diis structure 
 !> \param diis_env ...
 !> \param sample_err ...
-!> \param sample_var ...
 !> \param error_type ...
 !> \param max_length ...
 !> \par History
 !>       2011.12 created [Rustam Z Khaliullin]
 !> \author Rustam Z Khaliullin
 ! *****************************************************************************
-  SUBROUTINE almo_scf_diis_init_domain(diis_env,sample_err,sample_var,error_type,&
+  SUBROUTINE almo_scf_diis_init_domain(diis_env,sample_err,error_type,&
     max_length)
 
     TYPE(almo_scf_diis_type), INTENT(INOUT)  :: diis_env
     TYPE(domain_submatrix_type), &
-      DIMENSION(:), INTENT(IN)               :: sample_err, sample_var
+      DIMENSION(:), INTENT(IN)               :: sample_err
     INTEGER, INTENT(IN)                      :: error_type, max_length
 
     CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_diis_init_domain', &
