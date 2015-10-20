@@ -725,7 +725,7 @@ CONTAINS
          usage="IMAGE_MATRIX_METHOD MME",&
          enum_c_vals=s2a( "GPW","MME"),&
          enum_i_vals=(/ do_qmmm_image_gpw, do_qmmm_image_mme /),&
-         enum_desc=s2a("Uses Gaussian Plane Wave method", &
+         enum_desc=s2a("Uses Gaussian Plane Wave method [Golze2013]", &
                        "Uses MiniMax-Ewald method (ERI_MME subsection)"),&
          default_i_val=do_qmmm_image_gpw)
     CALL section_add_keyword(section,keyword)
