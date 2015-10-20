@@ -235,22 +235,23 @@ def gen_plots(all_reports, log, outdir, full_archive):
 
     # write raw data
     tags = sorted([(pname, cname) for pname, p in plots.items() for cname in p['curves'].keys()])
-    raw_output = "#%9s"%"revision"
-    for pname, cname in tags:
-        raw_output += "   %18s   %22s"%(pname+"/"+cname,pname+"/"+cname+"_err")
-    raw_output += "\n"
-    for revision in sorted(all_reports.keys(), reverse=True):
-        report = all_reports[revision]
-        raw_output += "%10d"%revision
+    if(tags):
+        raw_output = "#%9s"%"revision"
         for pname, cname in tags:
-            pp = [pp for pp in report['plotpoints'] if(pp['plot']==pname and pp['name']==cname)]
-            assert(len(pp)<=1)
-            if(pp):
-                raw_output += "   %18f   %22f"%(pp[0]['y'],pp[0]['yerr'])
-            else:
-                raw_output += "   %18s   %22s"%("?","?")
+            raw_output += "   %18s   %22s"%(pname+"/"+cname,pname+"/"+cname+"_err")
         raw_output += "\n"
-    write_file(outdir+"plot_data.txt", raw_output)
+        for revision in sorted(all_reports.keys(), reverse=True):
+            report = all_reports[revision]
+            raw_output += "%10d"%revision
+            for pname, cname in tags:
+                pp = [pp for pp in report['plotpoints'] if(pp['plot']==pname and pp['name']==cname)]
+                assert(len(pp)<=1)
+                if(pp):
+                    raw_output += "   %18f   %22f"%(pp[0]['y'],pp[0]['yerr'])
+                else:
+                    raw_output += "   %18s   %22s"%("?","?")
+            raw_output += "\n"
+        write_file(outdir+"plot_data.txt", raw_output)
 
     # create png images
     fig_ext = "_full.png" if(full_archive) else ".png"
@@ -276,16 +277,14 @@ def gen_plots(all_reports, log, outdir, full_archive):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.legend(bbox_to_anchor=(1.01, 1), loc='upper left',
                   numpoints=1, fancybox=True, shadow=True, borderaxespad=0.0)
-        if(not full_archive): # protect against outlayers
-            ymin  = min([min(c['y']) for c in p['curves'].values()]) # lowest point from lowest curve
-            ymax1 = max([min(c['y']) for c in p['curves'].values()]) # lowest point from highest curve
-            # highest *visible* point from highest curve
-            ymax2 = max([max([y for x,y in zip(c['x'],c['y']) if x>=rev_start]) for c in p['curves'].values()])
-            ax.set_ylim(0.95*ymin, min(1.3*ymax1, 1.05*ymax2))
-        else:
-            ymin = min([min(c['y']) for c in p['curves'].values()]) # lowest point from lowest curve
-            ymax = max([max(c['y']) for c in p['curves'].values()]) # highest point from highest curve
+        visibles = [[y for x,y in zip(c['x'],c['y']) if x>=rev_start] for c in p['curves'].values()] # visible y-values
+        ymin  = min([min(ys) for ys in visibles]) # lowest point from lowest curve
+        ymax = max([max(ys) for ys in visibles]) # highest point from highest curve
+        if(full_archive):
             ax.set_ylim(0.98*ymin, 1.02*ymax)
+        else:
+            ymax2 = max([min(ys) for ys in visibles]) # lowest point from highest curve
+            ax.set_ylim(0.98*ymin, min(1.02*ymax, 1.3*ymax2))  # protect against outlayers
         fig.savefig(outdir+pname+fig_ext)
 
     # write html output
