@@ -654,20 +654,18 @@ CONTAINS
 !> \param matrix ...
 !> \param row ...
 !> \param column ...
-!> \param transpose ...
 !> \param processor ...
 ! *****************************************************************************
-  SUBROUTINE cp_dbcsr_get_stored_coordinates(matrix, row, column, transpose, processor)
+  SUBROUTINE cp_dbcsr_get_stored_coordinates(matrix, row, column, processor)
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
     INTEGER, INTENT(INOUT)                   :: row, column
-    LOGICAL, INTENT(INOUT)                   :: transpose
     INTEGER, INTENT(OUT), OPTIONAL           :: processor
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'cp_dbcsr_get_stored_coordinates', &
       routineP = moduleN//':'//routineN
 
-    CALL dbcsr_get_stored_coordinates(matrix%matrix, row, column, transpose, processor)
+    CALL dbcsr_get_stored_coordinates(matrix%matrix, row, column, processor)
 
   END SUBROUTINE cp_dbcsr_get_stored_coordinates
 
@@ -2533,7 +2531,7 @@ CONTAINS
 !
     IF (dbg) THEN
        r = block_row ; c = block_col ; tr = .FALSE.
-       CALL cp_dbcsr_get_stored_coordinates (matrix, r, c, tr, p)
+       CALL cp_dbcsr_get_stored_coordinates (matrix, r, c, p)
        IF(p .NE. dbcsr_mp_mynode(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix))))&
           CPWARN("Adding non-local element")
     ENDIF

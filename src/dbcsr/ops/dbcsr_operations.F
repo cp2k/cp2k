@@ -1205,8 +1205,7 @@ CONTAINS
     DO row = 1,dbcsr_nblkrows_total(matrix)
        tr = .FALSE.
        stored_row = row
-       CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_row, tr,&
-            hold)
+       CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_row, hold)
        IF(hold.EQ.mynode) THEN
           CALL dbcsr_get_block_p(matrix, stored_row, stored_row, data_a, tr,&
                found, row_size=row_size)
@@ -1287,7 +1286,7 @@ CONTAINS
        tr = .FALSE.
        stored_row = row
        stored_col = col
-       CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, tr, hold)
+       CALL dbcsr_get_stored_coordinates(matrix, stored_row, stored_col, hold)
        IF(hold.EQ.mynode) THEN
           CALL dbcsr_get_block_p(matrix, stored_row, stored_col, data_d, tr, found)
           IF(found.OR.(.NOT.my_keep_sparsity)) THEN

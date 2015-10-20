@@ -1289,7 +1289,7 @@ CONTAINS
           tr = .FALSE.
           iblock_row = row
           iblock_col = col
-          CALL cp_dbcsr_get_stored_coordinates(tmp,iblock_row,iblock_col,tr,hold)
+          CALL cp_dbcsr_get_stored_coordinates(tmp,iblock_row,iblock_col,hold)
           IF (hold.EQ.mynode) THEN
              NULLIFY (p_new_block)
              CALL cp_dbcsr_reserve_block2d(tmp,iblock_row,iblock_col,p_new_block)

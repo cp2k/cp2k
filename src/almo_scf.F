@@ -1068,7 +1068,7 @@ CONTAINS
              iblock_row = row
              iblock_col = col
              CALL cp_dbcsr_get_stored_coordinates(no_quench(1),&
-                     iblock_row, iblock_col, tr, hold)
+                     iblock_row, iblock_col, hold)
              IF (hold.EQ.mynode) THEN
                 NULLIFY (p_new_block)
                 CALL cp_dbcsr_reserve_block2d(no_quench(1),&

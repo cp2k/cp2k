@@ -959,7 +959,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(matrix,&
-                     row, col, transp, block_node)
+                     row, col, block_node)
              IF (block_node.eq.myNode) THEN
                 CALL cp_dbcsr_get_block_p(matrix,row,col,block_p,found,row_size,col_size)
                 IF (found) THEN
@@ -1092,7 +1092,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(matrix,&
-                     row, col, transp, block_node)
+                     row, col, block_node)
              IF (block_node.eq.myNode) THEN
                 CALL cp_dbcsr_get_block_p(matrix,row,col,block_p,found,row_size,col_size)
                 IF (found) THEN
@@ -1466,7 +1466,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
-                     row, idomain, transp, dest_node)
+                     row, idomain, dest_node)
              
              send_descriptor(1,dest_node+1)=send_descriptor(1,dest_node+1)+1
              send_descriptor(2,dest_node+1)=send_descriptor(2,dest_node+1)+&
@@ -1550,7 +1550,7 @@ CONTAINS
 
              transp=.FALSE.
              CALL cp_dbcsr_get_stored_coordinates(distr_pattern,&
-                     row, idomain, transp, dest_node)
+                     row, idomain, dest_node)
             
              ! place the data appropriately
              col_offset=0

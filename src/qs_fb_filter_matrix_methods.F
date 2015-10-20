@@ -1089,7 +1089,6 @@ CONTAINS
        CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
                                             iatom_stored, &
                                             jatom_stored, &
-                                            transpose=transpose, &
                                             processor=dest)
        ! create the send tasks
        tasks_send(TASK_DEST,itask) = dest
@@ -1247,7 +1246,6 @@ CONTAINS
           CALL cp_dbcsr_get_stored_coordinates(filter_mat, &
                                                iatom_stored, &
                                                jatom_stored, &
-                                               transpose=transpose, &
                                                processor=dest)
           ! create the send tasks
           tasks_send(TASK_DEST,itask) = dest

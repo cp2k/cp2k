@@ -203,7 +203,7 @@
        tr = .FALSE.
     ENDIF
     sym_tr = .FALSE.
-    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col, sym_tr)
+    CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col)
     !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
     !     cp_caller_error, routineN, "Work matrices not prepared")
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN

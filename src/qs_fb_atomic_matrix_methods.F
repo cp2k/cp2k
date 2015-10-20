@@ -516,7 +516,6 @@ CONTAINS
           CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
                                                iatom_global, &
                                                jatom_global, &
-                                               transpose=transpose, &
                                                processor=src)
           ! we must encode the global atom indices rather the halo atomic indices
           ! in each task, because halo atomic indices are local to each halo, and
@@ -719,7 +718,6 @@ CONTAINS
              CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
                                                   iatom_global, &
                                                   jatom_global, &
-                                                  transpose=transpose, &
                                                   processor=src)
              ! we must encode the global atom indices rather the halo
              ! atomic indices in each task, because halo atomic indices

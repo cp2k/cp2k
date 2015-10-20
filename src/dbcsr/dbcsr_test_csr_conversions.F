@@ -208,7 +208,7 @@ CONTAINS
         IF (rn .GT. sparsity) THEN
           tr = .FALSE.
           row_s=row ; col_s=col
-          CALL dbcsr_get_stored_coordinates (matrix_a, row_s, col_s, tr, node_holds_blk)
+          CALL dbcsr_get_stored_coordinates (matrix_a, row_s, col_s, node_holds_blk)
           IF(node_holds_blk .EQ. mynode) THEN
             nze = rbs(row_s) * cbs(col_s)
             CALL RANDOM_NUMBER (values (1:nze))

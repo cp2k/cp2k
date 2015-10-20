@@ -374,7 +374,7 @@ CONTAINS
           tr = .FALSE.
           iblock_row = row
           iblock_col = row
-          CALL cp_dbcsr_get_stored_coordinates(matrix_new, iblock_row, iblock_col, tr, hold)
+          CALL cp_dbcsr_get_stored_coordinates(matrix_new, iblock_row, iblock_col, hold)
    
           IF(hold.EQ.mynode) THEN
           
@@ -1002,7 +1002,7 @@ CONTAINS
              !iblock_col = col
 !IF (unit_nr>0) WRITE(*,*) iblock_row, iblock_col
              CALL cp_dbcsr_get_stored_coordinates(almo_scf_env%quench_t(ispin),&
-                     iblock_row, iblock_col, tr, hold)
+                     iblock_row, iblock_col, hold)
 
              IF(hold.EQ.mynode) THEN
 

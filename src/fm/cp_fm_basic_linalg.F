@@ -199,6 +199,7 @@ CONTAINS
     ALLOCATE (ipivot(n+matrix_a%matrix_struct%nrow_block))
 
 #if defined(__SCALAPACK)
+    MARK_USED(correct_sign)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
 

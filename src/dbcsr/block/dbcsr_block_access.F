@@ -463,7 +463,7 @@ CONTAINS
         row = local_rows(row_local)
         col = local_cols(col_local)
         row_s=row ; col_s=col
-        CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+        CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, rank)
         ! is that the correct condition for symmetric matrices ?
         IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) blk_count=blk_count+1
      ENDDO
@@ -478,7 +478,7 @@ CONTAINS
         row = local_rows(row_local)
         col = local_cols(col_local)
         row_s=row ; col_s=col
-        CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+        CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, rank)
         IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) THEN
            blk_count=blk_count+1 
            rows(blk_count)=row
@@ -516,7 +516,7 @@ CONTAINS
        col = row
        tr = .FALSE.
        row_s=row ; col_s=col
-       CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+       CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, rank)
        IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) blk_count=blk_count+1
     ENDDO
 
@@ -527,7 +527,7 @@ CONTAINS
        col = row
        tr = .FALSE.
        row_s=row ; col_s=col
-       CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, tr, rank)
+       CALL dbcsr_get_stored_coordinates (matrix, row_s, col_s, rank)
        IF (rank.EQ.myrank .AND. row_s.EQ.row .AND. col_s.EQ.col) THEN
           blk_count=blk_count+1
           rows(blk_count)=row

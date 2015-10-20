@@ -145,7 +145,7 @@ PROGRAM dbcsr_example_2
         ! get the node id that holds this (row, col) block
         tr = .FALSE.
         row_s=row ; col_s=col
-        CALL dbcsr_get_stored_coordinates (matrix_a, row_s, col_s, tr, node_holds_blk)
+        CALL dbcsr_get_stored_coordinates (matrix_a, row_s, col_s, node_holds_blk)
         !
         ! put the block on the right node
         IF(node_holds_blk .EQ. mynode) THEN

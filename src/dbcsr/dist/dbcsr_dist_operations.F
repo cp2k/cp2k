@@ -238,14 +238,12 @@ CONTAINS
 !> \param[in,out] row         input is logical row, output is lookup row
 !> \param[in,out] column      input is logical column, output is lookup
 !>                            column
-!> \param[out] transpose      whether the data must be transposed
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
 ! *****************************************************************************
-  SUBROUTINE get_stored_coordinates_obj(matrix, row, column, transpose, processor)
+  SUBROUTINE get_stored_coordinates_obj(matrix, row, column, processor)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     INTEGER, INTENT(INOUT)                   :: row, column
-    LOGICAL, INTENT(INOUT)                   :: transpose
     INTEGER, INTENT(OUT), OPTIONAL           :: processor
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &

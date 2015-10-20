@@ -483,7 +483,7 @@ CONTAINS
           s_row=row ; s_col=col
           IF (PRESENT (dist)) THEN
              tr = .FALSE.
-             CALL dbcsr_get_stored_coordinates(matrix, s_row, s_col, tr, p)
+             CALL dbcsr_get_stored_coordinates(matrix, s_row, s_col, p)
              IF(my_symmetry.NE.dbcsr_type_no_symmetry.AND.s_col.LT.s_row) CYCLE
              IF (p .NE. my_proc) CYCLE
           ELSE
