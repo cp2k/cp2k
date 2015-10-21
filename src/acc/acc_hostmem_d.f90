@@ -21,7 +21,10 @@
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr, MAX(1,n)*real_8_size, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n) /))
 #else
-    CALL mp_abort("acc_hostmem_alloc_d: ACC not compiled in.")
+    MARK_USED(host_mem)
+    MARK_USED(n)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_alloc_d: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_alloc_d
 
@@ -47,7 +50,11 @@
     CALL acc_hostmem_alloc_raw(host_mem_c_ptr, n_bytes, stream)
     CALL C_F_POINTER (host_mem_c_ptr, host_mem, (/ MAX(1,n1),MAX(1,n2) /))
 #else
-    CALL mp_abort("acc_hostmem_alloc_d_2D: ACC not compiled in.")
+    MARK_USED(host_mem)
+    MARK_USED(n1)
+    MARK_USED(n2)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_alloc_d_2D: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_alloc_d_2D
 
@@ -69,7 +76,9 @@
 #if defined (__ACC)
     CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1)), stream)
 #else
-    CALL mp_abort("acc_hostmem_dealloc_d: ACC not compiled in.")
+    MARK_USED(host_mem)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_dealloc_d: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_dealloc_d
 
@@ -91,6 +100,8 @@
 #if defined (__ACC)
     CALL acc_hostmem_dealloc_raw(C_LOC(host_mem(1,1)), stream)
 #else
-    CALL mp_abort("acc_hostmem_dealloc_d: ACC not compiled in.")
+    MARK_USED(host_mem)
+    MARK_USED(stream)
+    CPABORT("acc_hostmem_dealloc_d: ACC not compiled in.")
 #endif
   END SUBROUTINE acc_hostmem_dealloc_d_2D

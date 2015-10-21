@@ -293,7 +293,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ngpts
     INTEGER                                  :: l1, l2, l3
     INTEGER, DIMENSION(:), POINTER           :: npts
@@ -340,7 +344,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ngpts, nmaps
     INTEGER                                  :: l1, l2, l3
     INTEGER, DIMENSION(:), POINTER           :: npts
@@ -389,7 +397,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_r3dc1d_3d_ps', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ierr
     INTEGER                                  :: ngpts, iout
     INTEGER                                  :: lg, mg, mmax, lmax, rp, mx2, mz2, n1, n2, nmax
@@ -576,7 +588,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_c1dr3d_3d_ps', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: handle, ierr
 
     INTEGER                                  :: ngpts, iout
@@ -767,7 +783,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cff', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pwbuf)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     REAL(KIND=dp), POINTER                   :: ptr_pwin
@@ -806,7 +825,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_ffc', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf)
+    MARK_USED(pw2)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
@@ -845,7 +867,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_cf', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pwbuf)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     REAL(KIND=dp), POINTER                   :: ptr_pwin
@@ -884,7 +909,10 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fc', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf)
+    MARK_USED(pw2)
+#else
     INTEGER                                  :: l1, l2, l3, handle
     INTEGER, DIMENSION(:), POINTER           :: npts
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
@@ -929,7 +957,13 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_f', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf1)
+    MARK_USED(pwbuf2)
+    MARK_USED(dir)
+    MARK_USED(n)
+    MARK_USED(m)
+#else
     INTEGER                                  :: handle
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
     COMPLEX(KIND=dp), POINTER                :: ptr_pwout
@@ -962,10 +996,13 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_fg', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pwbuf)
+    MARK_USED(pw2)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: mmax, mg, handle, ngpts
     INTEGER, DIMENSION(:), POINTER           :: npts
-    
     COMPLEX(KIND=dp), POINTER                :: ptr_pwin
     COMPLEX(KIND=dp), POINTER                :: ptr_pwout
     INTEGER, POINTER                         :: ptr_ghatmap
@@ -1008,7 +1045,11 @@ END SUBROUTINE pw_cuda_finalize
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_cuda_sf', &
       routineP = moduleN//':'//routineN
 
-#if defined (__PW_CUDA)
+#if ! defined (__PW_CUDA)
+    MARK_USED(pw1)
+    MARK_USED(pwbuf)
+    MARK_USED(scale)
+#else
     INTEGER                                  :: mmax, mg, ngpts, handle, nmaps
     INTEGER, DIMENSION(:), POINTER           :: npts
 

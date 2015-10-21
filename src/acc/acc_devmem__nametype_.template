@@ -11,7 +11,10 @@
     TYPE(acc_stream_type), INTENT(IN) :: stream
 
 #if ! defined (__ACC)
-    CALL mp_abort("__ACC not compiled in.")
+    MARK_USED(this)
+    MARK_USED(hostmem)
+    MARK_USED(stream)
+    CPABORT("__ACC not compiled in.")
 #else
     CALL host2dev_raw(this, C_LOC(hostmem(1)), [size]*SIZE(hostmem), stream)
 #endif
@@ -31,7 +34,10 @@
     TYPE(acc_stream_type), INTENT(IN) :: stream
 
 #if ! defined (__ACC)
-    CALL mp_abort("__ACC not compiled in.")
+    MARK_USED(this)
+    MARK_USED(hostmem)
+    MARK_USED(stream)
+    CPABORT("__ACC not compiled in.")
 #else
     CALL host2dev_raw(this, C_LOC(hostmem(1,1)), [size]*SIZE(hostmem), stream)
 #endif
@@ -51,7 +57,10 @@
     TYPE(acc_stream_type), INTENT(IN) :: stream
 
 #if ! defined (__ACC)
-    CALL mp_abort("__ACC not compiled in.")
+    MARK_USED(this)
+    MARK_USED(hostmem)
+    MARK_USED(stream)
+    CPABORT("__ACC not compiled in.")
 #else
     CALL dev2host_raw(this, C_LOC(hostmem(1)), [size]*SIZE(hostmem), stream)
 #endif

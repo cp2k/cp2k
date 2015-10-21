@@ -23,7 +23,7 @@ MODULE acc_hostmem
   USE acc_stream,                      ONLY: acc_stream_associated,&
                                              acc_stream_cptr,&
                                              acc_stream_type
-  USE message_passing,                 ONLY: mp_abort
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -112,13 +112,14 @@ CONTAINS
     TYPE(C_PTR)                              :: stream_cptr
 
     IF(.NOT. acc_stream_associated(stream)) &
-         CALL mp_abort("acc_hostmem_alloc_raw: stream not associated")
+         CPABORT("acc_hostmem_alloc_raw: stream not associated")
 
     stream_cptr = acc_stream_cptr(stream)
 
     istat = cuda_host_mem_alloc_cu(host_mem_c_ptr, &
                INT(n_bytes, KIND=C_SIZE_T), stream_cptr)
-    IF (istat /= 0) CALL mp_abort("acc_hostmem_alloc_raw: Could not allocate host pinned memory")
+    IF (istat /= 0)&
+       CPABORT("acc_hostmem_alloc_raw: Could not allocate host pinned memory")
   END SUBROUTINE acc_hostmem_alloc_raw
 #endif
 
@@ -139,12 +140,13 @@ CONTAINS
     TYPE(C_PTR)                              :: stream_cptr
 
     IF(.NOT. acc_stream_associated(stream)) &
-         CALL mp_abort("acc_hostmem_dealloc_raw: stream not associated")
+         CPABORT("acc_hostmem_dealloc_raw: stream not associated")
 
     stream_cptr = acc_stream_cptr(stream)
 
     istat = cuda_host_mem_dealloc_cu(host_mem_c_ptr, stream_cptr)
-    IF (istat /= 0 ) CALL mp_abort("acc_hostmem_dealloc_raw: Could not deallocate host pinned memory")
+    IF (istat /= 0 )&
+       CPABORT("acc_hostmem_dealloc_raw: Could not deallocate host pinned memory")
   END SUBROUTINE acc_hostmem_dealloc_raw
 #endif
 

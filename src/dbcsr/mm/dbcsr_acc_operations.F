@@ -22,7 +22,6 @@ MODULE dbcsr_acc_operations
                                              acc_stream_type
   USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
-  USE message_passing,                 ONLY: mp_abort
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -103,7 +102,19 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: success
 
 #if ! defined (__DBCSR_ACC)
-    CALL mp_abort("__DBCSR_ACC not compiled in.")
+    MARK_USED(param_stack)
+    MARK_USED(stack_size)
+    MARK_USED(datatype)
+    MARK_USED(a_data)
+    MARK_USED(b_data)
+    MARK_USED(c_data)
+    MARK_USED(m_max)
+    MARK_USED(n_max)
+    MARK_USED(k_max)
+    MARK_USED(def_mnk)
+    MARK_USED(stream)
+    MARK_USED(success)
+    CPABORT("__DBCSR_ACC not compiled in.")
 #else
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_acc_do_mm_stack', &
@@ -160,7 +171,15 @@ CONTAINS
     TYPE(acc_stream_type), INTENT(IN)        :: stream
 
 #if ! defined (__DBCSR_ACC)
-    CALL mp_abort("__DBCSR_ACC not compiled in.")
+    MARK_USED(trs_stack)
+    MARK_USED(offset)
+    MARK_USED(nblks)
+    MARK_USED(datatype)
+    MARK_USED(buffer)
+    MARK_USED(m)
+    MARK_USED(n)
+    MARK_USED(stream)
+    CPABORT("__DBCSR_ACC not compiled in.")
 #else
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_acc_transpose', &
