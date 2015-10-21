@@ -62,8 +62,7 @@ MODULE dbcsr_mm_hostdrv
 
   PUBLIC :: dbcsr_mm_hostdrv_process
   PUBLIC :: dbcsr_mm_hostdrv_type
-  PUBLIC :: dbcsr_mm_hostdrv_init, dbcsr_mm_hostdrv_finalize
-  PUBLIC :: dbcsr_mm_hostdrv_phaseout, dbcsr_mm_hostdrv_barrier
+  PUBLIC :: dbcsr_mm_hostdrv_init
 
   LOGICAL, PARAMETER :: debug_mod  = .FALSE.
   LOGICAL, PARAMETER :: careful_mod = .FALSE.
@@ -96,47 +95,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE dbcsr_mm_hostdrv_init
-
-
-! *****************************************************************************
-!> \brief Signal approaching end of multiplication
-!> \param this ...
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE dbcsr_mm_hostdrv_phaseout(this)
-    TYPE(dbcsr_mm_hostdrv_type), &
-      INTENT(INOUT)                          :: this
-
-! nothing to do
-
-  END SUBROUTINE dbcsr_mm_hostdrv_phaseout
-
-
-! *****************************************************************************
-!> \brief Signal that previous stacks should be processed first
-!> \param this ...
-!> \author Ole Schuett
-! *****************************************************************************
-  SUBROUTINE dbcsr_mm_hostdrv_barrier(this)
-    TYPE(dbcsr_mm_hostdrv_type), &
-      INTENT(INOUT)                          :: this
-
-! nothing to do here
-
-  END SUBROUTINE dbcsr_mm_hostdrv_barrier
-
-
-! *****************************************************************************
-!> \brief Finalize the library
-!> \param this ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_mm_hostdrv_finalize(this)
-    TYPE(dbcsr_mm_hostdrv_type), &
-      INTENT(INOUT)                          :: this
-
-! nothing to do here
-
-  END SUBROUTINE dbcsr_mm_hostdrv_finalize
 
 ! *****************************************************************************
 !> \brief Calls the various drivers that process the stack.

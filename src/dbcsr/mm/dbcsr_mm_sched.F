@@ -35,10 +35,7 @@ MODULE dbcsr_mm_sched
                                              dbcsr_mm_accdrv_phaseout,&
                                              dbcsr_mm_accdrv_process,&
                                              dbcsr_mm_accdrv_type
-  USE dbcsr_mm_hostdrv,                ONLY: dbcsr_mm_hostdrv_barrier,&
-                                             dbcsr_mm_hostdrv_finalize,&
-                                             dbcsr_mm_hostdrv_init,&
-                                             dbcsr_mm_hostdrv_phaseout,&
+  USE dbcsr_mm_hostdrv,                ONLY: dbcsr_mm_hostdrv_init,&
                                              dbcsr_mm_hostdrv_process,&
                                              dbcsr_mm_hostdrv_type
   USE dbcsr_mm_types,                  ONLY: p_a_first,&
@@ -239,7 +236,8 @@ MODULE dbcsr_mm_sched
   SUBROUTINE dbcsr_mm_sched_phaseout(this)
     TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
 
-    CALL dbcsr_mm_hostdrv_phaseout(this%hostdrv)
+!CALL dbcsr_mm_hostdrv_phaseout(this%hostdrv) ! not needed
+
     IF (mm_driver == mm_driver_acc) &
        CALL dbcsr_mm_accdrv_phaseout(this%accdrv)
   END SUBROUTINE dbcsr_mm_sched_phaseout
@@ -263,7 +261,7 @@ MODULE dbcsr_mm_sched
     ! Just in case dbcsr_mm_sched_process was never called (really needed?)
     CALL ensure_product_wm_cleared(this)
 
-    CALL dbcsr_mm_hostdrv_finalize(this%hostdrv)
+    !CALL dbcsr_mm_hostdrv_finalize(this%hostdrv) ! not needed
     IF (mm_driver == mm_driver_acc) &
        CALL dbcsr_mm_accdrv_finalize(this%accdrv)
 
@@ -300,7 +298,8 @@ MODULE dbcsr_mm_sched
   SUBROUTINE dbcsr_mm_sched_barrier(this)
     TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
 
-    CALL dbcsr_mm_hostdrv_barrier(this%hostdrv)
+!CALL dbcsr_mm_hostdrv_barrier(this%hostdrv) ! not needed
+
     IF (mm_driver==mm_driver_acc) &
        CALL dbcsr_mm_accdrv_barrier()
 
