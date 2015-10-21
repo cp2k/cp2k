@@ -197,8 +197,7 @@ CONTAINS
           IF(mos(1)%mo_set%use_mo_coeff_b)&
              CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%mo_coeff_b)
        END DO
-       CALL write_mo_set(mos_new,particle_set,dft_section=dft_section, &
-                         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set)
+       CALL write_mo_set(mos_new,particle_set,dft_section=dft_section, qs_kind_set=qs_kind_set)
 
        DO ispin=1,SIZE(mos_new)
           CALL deallocate_mo_set(mos_new(ispin)%mo_set)

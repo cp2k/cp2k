@@ -657,7 +657,7 @@ CONTAINS
           END IF
 
           ! Exchange data ( transpose of matrix )
-          CALL cube_transpose_2 ( qbuf, rs_group, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch)
+          CALL cube_transpose_2 ( qbuf, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( rbuf ) )
@@ -763,7 +763,7 @@ CONTAINS
           END IF
 
           ! Exchange data ( transpose of matrix )
-          CALL cube_transpose_1 ( rbuf, rs_group, bo(:,:,:,2), bo(:,:,:,1), pbuf, fft_scratch)
+          CALL cube_transpose_1 ( rbuf, bo(:,:,:,2), bo(:,:,:,1), pbuf, fft_scratch)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( pbuf ) )
@@ -1086,7 +1086,7 @@ CONTAINS
              END IF
           END IF
 
-          CALL cube_transpose_2 ( bbuf, group, bo(:,:,:,1), bo(:,:,:,2), abuf, fft_scratch)
+          CALL cube_transpose_2 ( bbuf, bo(:,:,:,1), bo(:,:,:,2), abuf, fft_scratch)
 
           bbuf => fft_scratch%a4buf
 
@@ -1112,7 +1112,7 @@ CONTAINS
              END IF
           END IF
 
-          CALL cube_transpose_4 ( bbuf, group, bo(:,:,:,2), bo(:,:,:,3), abuf, fft_scratch)
+          CALL cube_transpose_4 ( bbuf, bo(:,:,:,2), bo(:,:,:,3), abuf, fft_scratch)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( abuf ) )
@@ -1163,7 +1163,7 @@ CONTAINS
              END IF
           END IF
 
-          CALL cube_transpose_3 ( bbuf, group, bo(:,:,:,3), bo(:,:,:,2), abuf, fft_scratch)
+          CALL cube_transpose_3 ( bbuf, bo(:,:,:,3), bo(:,:,:,2), abuf, fft_scratch)
 
           bbuf => fft_scratch%a3buf
 
@@ -1189,7 +1189,7 @@ CONTAINS
              END IF
           END IF
 
-          CALL cube_transpose_1 ( bbuf, group, bo(:,:,:,2), bo(:,:,:,1), abuf, fft_scratch)
+          CALL cube_transpose_1 ( bbuf, bo(:,:,:,2), bo(:,:,:,1), abuf, fft_scratch)
 
           IF ( test ) THEN
              sum_data = ABS ( SUM ( abuf ) )
@@ -1997,7 +1997,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param cin ...
-!> \param group ...
 !> \param boin ...
 !> \param boout ...
 !> \param sout ...
@@ -2006,11 +2005,10 @@ CONTAINS
 !>      none
 !> \author JGH (20-Jan-2001)
 ! *****************************************************************************
-  SUBROUTINE cube_transpose_1 ( cin, group, boin, boout, sout, fft_scratch)
+  SUBROUTINE cube_transpose_1 ( cin, boin, boout, sout, fft_scratch)
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
-    INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
@@ -2094,17 +2092,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param cin ...
-!> \param group ...
 !> \param boin ...
 !> \param boout ...
 !> \param sout ...
 !> \param fft_scratch ...
 ! *****************************************************************************
-  SUBROUTINE cube_transpose_2 ( cin, group, boin, boout, sout, fft_scratch)
+  SUBROUTINE cube_transpose_2 ( cin, boin, boout, sout, fft_scratch)
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
-    INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
@@ -2186,17 +2182,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param cin ...
-!> \param group ...
 !> \param boin ...
 !> \param boout ...
 !> \param sout ...
 !> \param fft_scratch ...
 ! *****************************************************************************
-  SUBROUTINE cube_transpose_3 ( cin, group, boin, boout, sout, fft_scratch)
+  SUBROUTINE cube_transpose_3 ( cin, boin, boout, sout, fft_scratch)
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
-    INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout
@@ -2293,17 +2287,15 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param cin ...
-!> \param group ...
 !> \param boin ...
 !> \param boout ...
 !> \param sout ...
 !> \param fft_scratch ...
 ! *****************************************************************************
-  SUBROUTINE cube_transpose_4 ( cin, group, boin, boout, sout, fft_scratch)
+  SUBROUTINE cube_transpose_4 ( cin, boin, boout, sout, fft_scratch)
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: cin
-    INTEGER, INTENT(IN)                      :: group
     INTEGER, DIMENSION(:, :, 0:), INTENT(IN) :: boin, boout
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: sout

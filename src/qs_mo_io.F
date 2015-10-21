@@ -94,19 +94,15 @@ CONTAINS
 !> \param mo_array ...
 !> \param particle_set ...
 !> \param dft_section ...
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,&
-                                     atomic_kind_set,qs_kind_set)
+  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,dft_section,qs_kind_set)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 

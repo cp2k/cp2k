@@ -429,8 +429,7 @@ CONTAINS
              CALL write_kpoints_restart(rho_ao_kp,kpoints,scf_env,dft_section,particle_set,qs_kind_set)
           ELSE
              ! Write Wavefunction restart file
-             CALL write_mo_set(mos,particle_set,dft_section=dft_section,&
-                               atomic_kind_set=atomic_kind_set,qs_kind_set=qs_kind_set)
+             CALL write_mo_set(mos,particle_set,dft_section=dft_section,qs_kind_set=qs_kind_set)
           END IF
 
           ! Exit if we have finished with the SCF inner loop

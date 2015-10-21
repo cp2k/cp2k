@@ -137,7 +137,7 @@ CONTAINS
             timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
     END IF
 #endif
-
+    MARK_USED(itimes)
 #if defined (__PLUMED2)
     CALL plumed_f_installed(plumedavailable)
 
