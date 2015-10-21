@@ -772,7 +772,7 @@ SUBROUTINE dbcsr_mm_csr_purge_stacks(this, left, right)
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
 
     CALL flush_stacks(this, left, right, purge=.TRUE.)
-    CALL dbcsr_mm_sched_barrier(this%sched)
+    CALL dbcsr_mm_sched_barrier()
 END SUBROUTINE dbcsr_mm_csr_purge_stacks
 
 ! *****************************************************************************

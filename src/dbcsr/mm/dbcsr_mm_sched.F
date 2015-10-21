@@ -292,11 +292,9 @@ MODULE dbcsr_mm_sched
 
 ! *****************************************************************************
 !> \brief Signal that previous stacks should be processed first
-!> \param this ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE dbcsr_mm_sched_barrier(this)
-    TYPE(dbcsr_mm_sched_type), INTENT(INOUT) :: this
+  SUBROUTINE dbcsr_mm_sched_barrier()
 
 !CALL dbcsr_mm_hostdrv_barrier(this%hostdrv) ! not needed
 
