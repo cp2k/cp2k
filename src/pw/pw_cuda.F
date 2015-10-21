@@ -502,7 +502,7 @@ END SUBROUTINE pw_cuda_finalize
           CALL pw_cuda_cf(pw1, qbuf)
 
           ! Exchange data ( transpose of matrix )
-          CALL cube_transpose_2(qbuf, rs_group, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch)
+          CALL cube_transpose_2(qbuf, bo(:,:,:,1), bo(:,:,:,2), rbuf, fft_scratch)
 
           ! FFT along y
           ! use the inbuild fft-lib
@@ -703,7 +703,7 @@ END SUBROUTINE pw_cuda_finalize
           ! Exchange data ( transpose of matrix )
           IF (pw1%pw_grid%grid_span /= FULLSPACE) CALL zero_c(sbuf)
 
-          CALL cube_transpose_1(rbuf, rs_group, bo(:,:,:,2), bo(:,:,:,1), sbuf, fft_scratch)
+          CALL cube_transpose_1(rbuf, bo(:,:,:,2), bo(:,:,:,1), sbuf, fft_scratch)
 
           ! FFT along z
           CALL pw_cuda_fc(sbuf, pw2)
