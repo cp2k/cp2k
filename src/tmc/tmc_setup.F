@@ -17,6 +17,11 @@ MODULE tmc_setup
                                              destroy_force_env
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_logger_create,&
+                                             cp_logger_release,&
+                                             cp_logger_set,&
+                                             cp_rm_default_logger
   USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE environment,                     ONLY: cp2k_get_walltime

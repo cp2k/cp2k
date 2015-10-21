@@ -37,6 +37,11 @@ MODULE mp2_gpw
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_logger_create,&
+                                             cp_logger_release,&
+                                             cp_logger_set,&
+                                             cp_rm_default_logger
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type

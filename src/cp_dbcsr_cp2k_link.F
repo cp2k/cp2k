@@ -36,6 +36,8 @@ MODULE cp_dbcsr_cp2k_link
        dbcsr_type_no_symmetry, has_acc, has_mpi, mm_driver_acc, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_name_acc, &
        mm_name_blas, mm_name_matmul, mm_name_smm, multrec_limit
+  USE cp_log_handling,                 ONLY: cp_logger_would_log,&
+                                             cp_note_level
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get

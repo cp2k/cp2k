@@ -28,6 +28,7 @@ MODULE cp_output_handling
                                              cp_iteration_info_type,&
                                              each_desc_labels,&
                                              each_possible_labels
+  USE cp_log_handling,                 ONLY: cp_logger_generate_filename
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type

@@ -20,6 +20,8 @@ MODULE neb_io
   USE cp2k_info,                       ONLY: get_runtime_info
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_rm_default_logger
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k

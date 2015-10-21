@@ -17,6 +17,9 @@ MODULE cell_opt_utils
        cell_type, get_cell_param, set_cell_param
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_logger_create,&
+                                             cp_logger_release,&
+                                             cp_logger_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_units_rad
   USE input_cp2k_global,               ONLY: create_global_section

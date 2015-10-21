@@ -67,12 +67,14 @@
     USE kinds,                           ONLY: dp,&
                                                default_string_length
     USE particle_list_types,             ONLY: particle_list_type
-    USE particle_methods,                  ONLY: write_structure_data
+    USE particle_methods,                ONLY: write_structure_data
     USE virial_methods,                  ONLY: virial_update
     USE virial_types,                    ONLY: cp_virial,&
                                                virial_create,&
                                                virial_release,&
                                                virial_type
+    USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                               cp_rm_default_logger
 
 #include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"

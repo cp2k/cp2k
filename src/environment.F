@@ -24,6 +24,11 @@ MODULE environment
   USE cp_fm_diag,                      ONLY: diag_init
   USE cp_fm_struct,                    ONLY: cp_fm_struct_config
   USE cp_fm_types,                     ONLY: cp_fm_setup
+  USE cp_log_handling,                 ONLY: &
+       cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
+       cp_logger_get_default_io_unit, cp_logger_get_default_unit_nr, &
+       cp_logger_get_unit_nr, cp_logger_release, cp_logger_set, &
+       cp_logger_type, cp_rm_default_logger, cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
                                              debug_print_level,&

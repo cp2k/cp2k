@@ -18,6 +18,11 @@ MODULE mp2_optimize_ri_basis
                                              remove_basis_from_container
   USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_logger_create,&
+                                             cp_logger_release,&
+                                             cp_logger_set,&
+                                             cp_rm_default_logger
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type

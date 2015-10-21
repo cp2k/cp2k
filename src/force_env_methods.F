@@ -25,6 +25,8 @@ MODULE force_env_methods
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE constraint_vsite,                ONLY: vsite_force_control
   USE cp_iter_types,                   ONLY: cp_iteration_info_copy_iter
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_rm_default_logger
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
                                              low_print_level

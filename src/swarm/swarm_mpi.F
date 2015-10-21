@@ -13,6 +13,10 @@ MODULE swarm_mpi
   USE cp_iter_types,                   ONLY: cp_iteration_info_create,&
                                              cp_iteration_info_release,&
                                              cp_iteration_info_type
+  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_logger_create,&
+                                             cp_logger_release,&
+                                             cp_rm_default_logger
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
