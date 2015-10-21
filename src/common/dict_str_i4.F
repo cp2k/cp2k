@@ -26,7 +26,7 @@ MODULE dict_str_i4
   USE kinds,                           ONLY: default_string_length,&
                                              int_4,&
                                              int_8
-  USE message_passing,                 ONLY: mp_abort
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -130,10 +130,10 @@ SUBROUTINE dict_str_i4_init(dict, initial_capacity)
     IF(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
 
     IF(initial_capacity_ < 1) & 
-      CALL mp_abort("dict_str_i4_init: initial_capacity < 1")
+       CPABORT("dict_str_i4_init: initial_capacity < 1")
 
     IF(ASSOCIATED(dict%buckets)) &
-      CALL mp_abort("dict_str_i4_init: dictionary is already initialized.")
+       CPABORT("dict_str_i4_init: dictionary is already initialized.")
 
     ALLOCATE(dict%buckets(initial_capacity_))
     dict%size = 0
@@ -173,7 +173,7 @@ SUBROUTINE dict_str_i4_destroy(dict)
     TYPE(private_item_type), POINTER         :: item, prev_item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-      CALL mp_abort("dict_str_i4_destroy: dictionary is not initialized.")
+       CPABORT("dict_str_i4_destroy: dictionary is not initialized.")
 
     DO i = 1, SIZE(dict%buckets)
         item => dict%buckets(i)%p
@@ -207,7 +207,7 @@ SUBROUTINE dict_str_i4_set(dict, key, value)
     INTEGER(KIND=int_8)                      :: hash
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_str_i4_set: dictionary is not initialized.")
+       CPABORT("dict_str_i4_set: dictionary is not initialized.")
 
     hash = hash_str(key)
     CALL set_hashed(dict, key, value, hash)
@@ -290,9 +290,9 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
        new_cap = HUGE(i) ! grow as far as possible
     END IF
     IF(new_cap < 1) &
-        CALL mp_abort("dict_str_i4_change_capacity: new_capacity < 1.")
+       CPABORT("dict_str_i4_change_capacity: new_capacity < 1.")
     IF(4*dict%size > 3*new_cap) &
-     CALL mp_abort("dict_str_i4_change_capacity: new_capacity too small.")
+       CPABORT("dict_str_i4_change_capacity: new_capacity too small.")
 
     old_size = dict%size
     old_buckets => dict%buckets
@@ -311,7 +311,7 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
     DEALLOCATE(old_buckets)
 
     IF(old_size /= dict%size) &
-      CALL mp_abort("dict_str_i4_change_capacity: assertion failed")
+       CPABORT("dict_str_i4_change_capacity: assertion failed")
 END SUBROUTINE change_capacity
 
 ! *****************************************************************************
@@ -337,7 +337,7 @@ FUNCTION dict_str_i4_get(dict, key, default_value) RESULT(value)
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_str_i4_get: dictionary is not initialized.")
+       CPABORT("dict_str_i4_get: dictionary is not initialized.")
 
     hash = hash_str(key)
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
@@ -358,7 +358,7 @@ FUNCTION dict_str_i4_get(dict, key, default_value) RESULT(value)
         RETURN
     END IF
 
-    CALL mp_abort("dict_str_i4_get: Key not found in dictionary.")
+    CPABORT("dict_str_i4_get: Key not found in dictionary.")
 END FUNCTION dict_str_i4_get
 
 
@@ -379,7 +379,7 @@ SUBROUTINE dict_str_i4_del(dict, key)
     TYPE(private_item_type), POINTER         :: item, prev_item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_str_i4_del: dictionary is not initialized.")
+       CPABORT("dict_str_i4_del: dictionary is not initialized.")
 
     hash = hash_str(key)
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
@@ -403,7 +403,7 @@ SUBROUTINE dict_str_i4_del(dict, key)
         item => item%next
     END DO
 
-    CALL mp_abort("dict_str_i4_del: Key not found in dictionary.")
+    CPABORT("dict_str_i4_del: Key not found in dictionary.")
 END SUBROUTINE dict_str_i4_del
 
 ! *****************************************************************************
@@ -419,7 +419,7 @@ FUNCTION dict_str_i4_size(dict) RESULT(size)
     INTEGER                                  :: size
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_str_i4_size: dictionary is not initialized.")
+       CPABORT("dict_str_i4_size: dictionary is not initialized.")
 
     size = dict%size
 END FUNCTION dict_str_i4_size
@@ -443,7 +443,7 @@ FUNCTION dict_str_i4_haskey(dict, key) RESULT(res)
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_str_i4_haskey: dictionary is not initialized.")
+       CPABORT("dict_str_i4_haskey: dictionary is not initialized.")
 
     res = .FALSE.
     IF(dict%size==0) RETURN
@@ -484,7 +484,7 @@ FUNCTION dict_str_i4_items(dict) RESULT(items)
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_str_i4_items: dictionary is not initialized.")
+       CPABORT("dict_str_i4_items: dictionary is not initialized.")
 
     ALLOCATE(items(dict%size))
     j = 1
@@ -499,7 +499,7 @@ FUNCTION dict_str_i4_items(dict) RESULT(items)
     END DO
 
     IF(j /= dict%size + 1) &
-       CALL mp_abort("dict_str_i4_items: assertion failed!")
+       CPABORT("dict_str_i4_items: assertion failed!")
 END FUNCTION dict_str_i4_items
 
 
@@ -522,9 +522,9 @@ SUBROUTINE dict_str_i4_update(dict, from_dict)
       DIMENSION(:), POINTER                  :: from_items
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_str_i4_update: dictionary is not initialized.")
+       CPABORT("dict_str_i4_update: dictionary is not initialized.")
     IF(.NOT. ASSOCIATED(from_dict%buckets)) &
-       CALL mp_abort("dict_str_i4_update: from_dict is not initialized.")
+       CPABORT("dict_str_i4_update: from_dict is not initialized.")
 
     from_items => dict_str_i4_items(from_dict)
     DO i=1, SIZE(from_items)

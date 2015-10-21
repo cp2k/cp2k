@@ -66,7 +66,6 @@ MODULE dbcsr_mm_accdrv
                                              int_4,&
                                              int_4_size,&
                                              int_8
-  USE message_passing,                 ONLY: mp_abort
 #include "../../base/base_uses.f90"
 
  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -613,11 +612,11 @@ MODULE dbcsr_mm_accdrv
     !WRITE (*,*) "dbcsr_mm_accdrv_process: c_area%memory_type ", c_area%memory_type
 
     IF(.NOT. acc_devmem_allocated(a_area%acc_devmem)) &
-       CALL mp_abort("dbcsr_mm_accdrv_process: a_area%acc_devmem not allocated")
+       CPABORT("dbcsr_mm_accdrv_process: a_area%acc_devmem not allocated")
     IF(.NOT. acc_devmem_allocated(b_area%acc_devmem)) &
-       CALL mp_abort("dbcsr_mm_accdrv_process: b_area%acc_devmem not allocated")
+       CPABORT("dbcsr_mm_accdrv_process: b_area%acc_devmem not allocated")
     IF(.NOT. acc_devmem_allocated(c_area%acc_devmem)) &
-       CALL mp_abort("dbcsr_mm_accdrv_process: c_area%acc_devmem not allocated")
+       CPABORT("dbcsr_mm_accdrv_process: c_area%acc_devmem not allocated")
 
     ! start uploading stacks only after a, b, and c are ready
     CALL acc_stream_wait_event(upload_stream, a_area%acc_ready)

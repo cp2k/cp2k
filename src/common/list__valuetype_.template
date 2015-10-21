@@ -24,9 +24,7 @@
 MODULE list_[valuetype]
 
  [USE]
-
- USE message_passing,                       ONLY: mp_abort
-
+#include "../base/base_uses.f90"
   IMPLICIT NONE
   PRIVATE
 
@@ -106,13 +104,14 @@ SUBROUTINE list_[valuetype]_init(list, initial_capacity)
     If(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
 
     IF(initial_capacity_ < 0) & 
-      CALL mp_abort("list_[valuetype]_create: initial_capacity < 0")
+      CPABORT("list_[valuetype]_create: initial_capacity < 0")
 
     IF(ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_create: list is already initialized.")
+       CPABORT("list_[valuetype]_create: list is already initialized.")
 
     ALLOCATE(list%arr(initial_capacity_), stat=stat)
-    IF (stat/=0) CALL mp_abort("list_[valuetype]_init: allocation failed")
+    IF (stat/=0)&
+       CPABORT("list_[valuetype]_init: allocation failed")
 
     list%size = 0
 END SUBROUTINE list_[valuetype]_init
@@ -130,7 +129,7 @@ SUBROUTINE list_[valuetype]_destroy(list)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     INTEGER :: i
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_destroy: list is not initialized.")
+       CPABORT("list_[valuetype]_destroy: list is not initialized.")
 
     do i=1, list%size
        deallocate(list%arr(i)%p)
@@ -156,9 +155,11 @@ SUBROUTINE list_[valuetype]_set(list, value, pos)
     [valuetype_in], intent(in) :: value
     INTEGER, intent(in) :: pos
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_set: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_[valuetype]_set: pos < 1")
-    IF(pos > list%size) CALL mp_abort("list_[valuetype]_set: pos > size")
+       CPABORT("list_[valuetype]_set: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_[valuetype]_set: pos < 1")
+    IF(pos > list%size)&
+       CPABORT("list_[valuetype]_set: pos > size")
     list%arr(pos)%p%value [value_assign] value
 END SUBROUTINE list_[valuetype]_set
 
@@ -177,13 +178,14 @@ SUBROUTINE list_[valuetype]_push(list, value)
     INTEGER                                     :: stat
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_push: list is not initialized.")
+       CPABORT("list_[valuetype]_push: list is not initialized.")
     if(list%size == size(list%arr)) &
        call change_capacity(list, 2*size(list%arr)+1)
 
     list%size = list%size + 1
     ALLOCATE(list%arr(list%size)%p, stat=stat)
-    IF (stat/=0) CALL mp_abort("list_[valuetype]_push: allocation failed")
+    IF (stat/=0)&
+       CPABORT("list_[valuetype]_push: allocation failed")
     list%arr(list%size)%p%value [value_assign] value
 END SUBROUTINE list_[valuetype]_push
 
@@ -205,9 +207,11 @@ SUBROUTINE list_[valuetype]_insert(list, value, pos)
     INTEGER :: i, stat
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_insert: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_[valuetype]_insert: pos < 1")
-    IF(pos > list%size+1) CALL mp_abort("list_[valuetype]_insert: pos > size+1")
+       CPABORT("list_[valuetype]_insert: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_[valuetype]_insert: pos < 1")
+    IF(pos > list%size+1)&
+       CPABORT("list_[valuetype]_insert: pos > size+1")
 
     if(list%size == size(list%arr)) &
        call change_capacity(list, 2*size(list%arr)+1)
@@ -218,7 +222,8 @@ SUBROUTINE list_[valuetype]_insert(list, value, pos)
     end do
 
     ALLOCATE(list%arr(pos)%p, stat=stat)
-     IF (stat/=0) CALL mp_abort("list_[valuetype]_insert: allocation failed.")
+     IF (stat/=0)&
+        CPABORT("list_[valuetype]_insert: allocation failed.")
     list%arr(pos)%p%value [value_assign] value
 END SUBROUTINE list_[valuetype]_insert
 
@@ -237,9 +242,9 @@ FUNCTION list_[valuetype]_peek(list) RESULT(value)
     [valuetype_out]  :: value
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_peek: list is not initialized.")
+       CPABORT("list_[valuetype]_peek: list is not initialized.")
     IF(list%size < 1) &
-       CALL mp_abort("list_[valuetype]_peek: list is empty.")
+       CPABORT("list_[valuetype]_peek: list is empty.")
 
     value [value_assign] list%arr(list%size)%p%value
 END FUNCTION list_[valuetype]_peek
@@ -262,9 +267,9 @@ FUNCTION list_[valuetype]_pop(list) RESULT(value)
     [valuetype_out]  :: value
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_pop: list is not initialized.")
+       CPABORT("list_[valuetype]_pop: list is not initialized.")
     IF(list%size < 1) &
-       CALL mp_abort("list_[valuetype]_pop: list is empty.")
+       CPABORT("list_[valuetype]_pop: list is empty.")
 
     value [value_assign] list%arr(list%size)%p%value
     deallocate(list%arr(list%size)%p)
@@ -285,7 +290,7 @@ SUBROUTINE list_[valuetype]_clear(list)
     INTEGER :: i
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_clear: list is not initialized.")
+       CPABORT("list_[valuetype]_clear: list is not initialized.")
 
     do i=1, list%size
        deallocate(list%arr(i)%p)
@@ -310,9 +315,11 @@ FUNCTION list_[valuetype]_get(list, pos) RESULT(value)
     [valuetype_out] :: value
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_get: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_[valuetype]_get: pos < 1")
-    IF(pos > list%size) CALL mp_abort("list_[valuetype]_get: pos > size")
+       CPABORT("list_[valuetype]_get: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_[valuetype]_get: pos < 1")
+    IF(pos > list%size)&
+       CPABORT("list_[valuetype]_get: pos > size")
 
     value [value_assign] list%arr(pos)%p%value
 
@@ -333,9 +340,11 @@ SUBROUTINE list_[valuetype]_del(list, pos)
     INTEGER :: i
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_del: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_[valuetype]_det: pos < 1")
-    IF(pos > list%size) CALL mp_abort("list_[valuetype]_det: pos > size")
+       CPABORT("list_[valuetype]_del: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_[valuetype]_det: pos < 1")
+    IF(pos > list%size)&
+       CPABORT("list_[valuetype]_det: pos > size")
 
     deallocate(list%arr(pos)%p)
     do i=pos, list%size-1
@@ -359,7 +368,7 @@ FUNCTION list_[valuetype]_size(list) RESULT(size)
     INTEGER :: size
 
     IF(.not. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_[valuetype]_size: list is not initialized.")
+       CPABORT("list_[valuetype]_size: list is not initialized.")
 
     size = list%size
 END FUNCTION list_[valuetype]_size
@@ -381,22 +390,24 @@ SUBROUTINE change_capacity(list, new_capacity)
 
    new_cap = new_capacity
    IF(new_cap < 0) &
-      CALL mp_abort("list_[valuetype]_change_capacity: new_capacity < 0")
+      CPABORT("list_[valuetype]_change_capacity: new_capacity < 0")
    IF(new_cap < list%size) &
-      CALL mp_abort("list_[valuetype]_change_capacity: new_capacity < size")
+      CPABORT("list_[valuetype]_change_capacity: new_capacity < size")
    IF(new_cap > HUGE(i)) THEN
       IF(size(list%arr) == HUGE(i)) &
-      CALL mp_abort("list_[valuetype]_change_capacity: list has reached integer limit.")
+      CPABORT("list_[valuetype]_change_capacity: list has reached integer limit.")
       new_cap = HUGE(i) ! grow as far as possible
    END IF
 
    old_arr => list%arr
    allocate(list%arr(new_cap), stat=stat)
-   IF (stat/=0) CALL mp_abort("list_[valuetype]_change_capacity: allocation failed")
+   IF (stat/=0)&
+      CPABORT("list_[valuetype]_change_capacity: allocation failed")
 
    do i=1, list%size
       allocate(list%arr(i)%p, stat=stat)
-      IF (stat/=0) CALL mp_abort("list_[valuetype]_change_capacity: allocation failed")
+      IF (stat/=0)&
+         CPABORT("list_[valuetype]_change_capacity: allocation failed")
       list%arr(i)%p%value [value_assign] old_arr(i)%p%value
       deallocate(old_arr(i)%p)
    end do

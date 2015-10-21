@@ -16,7 +16,7 @@ MODULE cuda_profiling
                                              C_SIZE_T
   USE kinds,                           ONLY: default_string_length,&
                                              int_8
-  USE message_passing,                 ONLY: mp_abort
+#include "../base/base_uses.f90"
 
  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -100,8 +100,8 @@ MODULE cuda_profiling
     INTEGER                                  :: level
     level = cuda_nvtx_range_push_dc(TRIM(routineN)//CHAR(0))
 #else
-    WRITE (*,*) "cuda_nvtx_range_push() called with: "//TRIM(routineN)
-    CALL mp_abort("cuda_nvtx_range_push: __CUDA_PROFILING not compiled in.")
+    CALL cp_abort(__LOCATION__,"cuda_nvtx_range_push: "//&
+          "__CUDA_PROFILING not compiled in, but called with:"//TRIM(routineN))
 #endif
   END SUBROUTINE cuda_nvtx_range_push
 
@@ -113,7 +113,7 @@ MODULE cuda_profiling
      INTEGER                                  :: level
      level = cuda_nvtx_range_pop_dc()
 #else
-     CALL mp_abort("cuda_nvtx_range_push: __CUDA_PROFILING not compiled in.")
+     CPABORT("cuda_nvtx_range_push: __CUDA_PROFILING not compiled in.")
 #endif
   END SUBROUTINE cuda_nvtx_range_pop
 

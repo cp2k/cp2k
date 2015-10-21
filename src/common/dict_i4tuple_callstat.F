@@ -27,8 +27,8 @@
 MODULE dict_i4tuple_callstat
   USE kinds,                           ONLY: int_4,&
                                              int_8
-  USE message_passing,                 ONLY: mp_abort
   USE timings_base_type,               ONLY: call_stat_type
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -133,10 +133,10 @@ SUBROUTINE dict_i4tuple_callstat_init(dict, initial_capacity)
     IF(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
 
     IF(initial_capacity_ < 1) & 
-      CALL mp_abort("dict_i4tuple_callstat_init: initial_capacity < 1")
+       CPABORT("dict_i4tuple_callstat_init: initial_capacity < 1")
 
     IF(ASSOCIATED(dict%buckets)) &
-      CALL mp_abort("dict_i4tuple_callstat_init: dictionary is already initialized.")
+       CPABORT("dict_i4tuple_callstat_init: dictionary is already initialized.")
 
     ALLOCATE(dict%buckets(initial_capacity_))
     dict%size = 0
@@ -178,7 +178,7 @@ SUBROUTINE dict_i4tuple_callstat_destroy(dict)
     TYPE(private_item_type), POINTER         :: item, prev_item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-      CALL mp_abort("dict_i4tuple_callstat_destroy: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_destroy: dictionary is not initialized.")
 
     DO i = 1, SIZE(dict%buckets)
         item => dict%buckets(i)%p
@@ -214,7 +214,7 @@ SUBROUTINE dict_i4tuple_callstat_set(dict, key, value)
     INTEGER(KIND=int_8)                      :: hash
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_set: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_set: dictionary is not initialized.")
 
     hash = hash_i4tuple(key)
     CALL set_hashed(dict, key, value, hash)
@@ -300,9 +300,9 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
        new_cap = HUGE(i) ! grow as far as possible
     END IF
     IF(new_cap < 1) &
-        CALL mp_abort("dict_i4tuple_callstat_change_capacity: new_capacity < 1.")
+       CPABORT("dict_i4tuple_callstat_change_capacity: new_capacity < 1.")
     IF(4*dict%size > 3*new_cap) &
-     CALL mp_abort("dict_i4tuple_callstat_change_capacity: new_capacity too small.")
+       CPABORT("dict_i4tuple_callstat_change_capacity: new_capacity too small.")
 
     old_size = dict%size
     old_buckets => dict%buckets
@@ -321,7 +321,7 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
     DEALLOCATE(old_buckets)
 
     IF(old_size /= dict%size) &
-      CALL mp_abort("dict_i4tuple_callstat_change_capacity: assertion failed")
+       CPABORT("dict_i4tuple_callstat_change_capacity: assertion failed")
 END SUBROUTINE change_capacity
 
 ! *****************************************************************************
@@ -348,7 +348,7 @@ FUNCTION dict_i4tuple_callstat_get(dict, key, default_value) RESULT(value)
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_get: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_get: dictionary is not initialized.")
 
     hash = hash_i4tuple(key)
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
@@ -369,7 +369,7 @@ FUNCTION dict_i4tuple_callstat_get(dict, key, default_value) RESULT(value)
         RETURN
     END IF
 
-    CALL mp_abort("dict_i4tuple_callstat_get: Key not found in dictionary.")
+    CPABORT("dict_i4tuple_callstat_get: Key not found in dictionary.")
 END FUNCTION dict_i4tuple_callstat_get
 
 
@@ -391,7 +391,7 @@ SUBROUTINE dict_i4tuple_callstat_del(dict, key)
     TYPE(private_item_type), POINTER         :: item, prev_item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_del: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_del: dictionary is not initialized.")
 
     hash = hash_i4tuple(key)
     idx = MOD(hash, INT(SIZE(dict%buckets),KIND=int_8)) + 1
@@ -415,7 +415,7 @@ SUBROUTINE dict_i4tuple_callstat_del(dict, key)
         item => item%next
     END DO
 
-    CALL mp_abort("dict_i4tuple_callstat_del: Key not found in dictionary.")
+    CPABORT("dict_i4tuple_callstat_del: Key not found in dictionary.")
 END SUBROUTINE dict_i4tuple_callstat_del
 
 ! *****************************************************************************
@@ -432,7 +432,7 @@ FUNCTION dict_i4tuple_callstat_size(dict) RESULT(size)
     INTEGER                                  :: size
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_size: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_size: dictionary is not initialized.")
 
     size = dict%size
 END FUNCTION dict_i4tuple_callstat_size
@@ -457,7 +457,7 @@ FUNCTION dict_i4tuple_callstat_haskey(dict, key) RESULT(res)
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_haskey: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_haskey: dictionary is not initialized.")
 
     res = .FALSE.
     IF(dict%size==0) RETURN
@@ -499,7 +499,7 @@ FUNCTION dict_i4tuple_callstat_items(dict) RESULT(items)
     TYPE(private_item_type), POINTER         :: item
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_items: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_items: dictionary is not initialized.")
 
     ALLOCATE(items(dict%size))
     j = 1
@@ -514,7 +514,7 @@ FUNCTION dict_i4tuple_callstat_items(dict) RESULT(items)
     END DO
 
     IF(j /= dict%size + 1) &
-       CALL mp_abort("dict_i4tuple_callstat_items: assertion failed!")
+       CPABORT("dict_i4tuple_callstat_items: assertion failed!")
 END FUNCTION dict_i4tuple_callstat_items
 
 
@@ -538,9 +538,9 @@ SUBROUTINE dict_i4tuple_callstat_update(dict, from_dict)
       DIMENSION(:), POINTER                  :: from_items
 
     IF(.NOT. ASSOCIATED(dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_update: dictionary is not initialized.")
+       CPABORT("dict_i4tuple_callstat_update: dictionary is not initialized.")
     IF(.NOT. ASSOCIATED(from_dict%buckets)) &
-       CALL mp_abort("dict_i4tuple_callstat_update: from_dict is not initialized.")
+       CPABORT("dict_i4tuple_callstat_update: from_dict is not initialized.")
 
     from_items => dict_i4tuple_callstat_items(from_dict)
     DO i=1, SIZE(from_items)

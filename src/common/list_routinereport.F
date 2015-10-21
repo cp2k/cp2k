@@ -23,8 +23,8 @@
 
 MODULE list_routinereport
 
-  USE message_passing,                 ONLY: mp_abort
   USE timings_base_type,               ONLY: routine_report_type
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -108,13 +108,14 @@ SUBROUTINE list_routinereport_init(list, initial_capacity)
     IF(PRESENT(initial_capacity)) initial_capacity_ = initial_capacity
 
     IF(initial_capacity_ < 0) & 
-      CALL mp_abort("list_routinereport_create: initial_capacity < 0")
+      CPABORT("list_routinereport_create: initial_capacity < 0")
 
     IF(ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_create: list is already initialized.")
+       CPABORT("list_routinereport_create: list is already initialized.")
 
     ALLOCATE(list%arr(initial_capacity_), stat=stat)
-    IF (stat/=0) CALL mp_abort("list_routinereport_init: allocation failed")
+    IF (stat/=0)&
+       CPABORT("list_routinereport_init: allocation failed")
 
     list%size = 0
 END SUBROUTINE list_routinereport_init
@@ -135,7 +136,7 @@ SUBROUTINE list_routinereport_destroy(list)
     INTEGER                                  :: i
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_destroy: list is not initialized.")
+       CPABORT("list_routinereport_destroy: list is not initialized.")
 
     DO i=1, list%size
        DEALLOCATE(list%arr(i)%p)
@@ -164,9 +165,11 @@ SUBROUTINE list_routinereport_set(list, value, pos)
     INTEGER, INTENT(in)                      :: pos
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_set: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_routinereport_set: pos < 1")
-    IF(pos > list%size) CALL mp_abort("list_routinereport_set: pos > size")
+       CPABORT("list_routinereport_set: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_routinereport_set: pos < 1")
+    IF(pos > list%size)&
+       CPABORT("list_routinereport_set: pos > size")
     list%arr(pos)%p%value => value
 END SUBROUTINE list_routinereport_set
 
@@ -188,13 +191,14 @@ SUBROUTINE list_routinereport_push(list, value)
     INTEGER                                  :: stat
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_push: list is not initialized.")
+       CPABORT("list_routinereport_push: list is not initialized.")
     IF(list%size == SIZE(list%arr)) &
        CALL change_capacity(list, 2*SIZE(list%arr)+1)
 
     list%size = list%size + 1
     ALLOCATE(list%arr(list%size)%p, stat=stat)
-    IF (stat/=0) CALL mp_abort("list_routinereport_push: allocation failed")
+    IF (stat/=0)&
+       CPABORT("list_routinereport_push: allocation failed")
     list%arr(list%size)%p%value => value
 END SUBROUTINE list_routinereport_push
 
@@ -219,9 +223,11 @@ SUBROUTINE list_routinereport_insert(list, value, pos)
     INTEGER                                  :: i, stat
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_insert: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_routinereport_insert: pos < 1")
-    IF(pos > list%size+1) CALL mp_abort("list_routinereport_insert: pos > size+1")
+       CPABORT("list_routinereport_insert: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_routinereport_insert: pos < 1")
+    IF(pos > list%size+1)&
+       CPABORT("list_routinereport_insert: pos > size+1")
 
     IF(list%size == SIZE(list%arr)) &
        CALL change_capacity(list, 2*SIZE(list%arr)+1)
@@ -232,7 +238,8 @@ SUBROUTINE list_routinereport_insert(list, value, pos)
     END DO
 
     ALLOCATE(list%arr(pos)%p, stat=stat)
-     IF (stat/=0) CALL mp_abort("list_routinereport_insert: allocation failed.")
+     IF (stat/=0)&
+        CPABORT("list_routinereport_insert: allocation failed.")
     list%arr(pos)%p%value => value
 END SUBROUTINE list_routinereport_insert
 
@@ -252,9 +259,9 @@ FUNCTION list_routinereport_peek(list) RESULT(value)
     TYPE(routine_report_type), POINTER       :: value
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_peek: list is not initialized.")
+       CPABORT("list_routinereport_peek: list is not initialized.")
     IF(list%size < 1) &
-       CALL mp_abort("list_routinereport_peek: list is empty.")
+       CPABORT("list_routinereport_peek: list is empty.")
 
     value => list%arr(list%size)%p%value
 END FUNCTION list_routinereport_peek
@@ -278,9 +285,9 @@ FUNCTION list_routinereport_pop(list) RESULT(value)
     TYPE(routine_report_type), POINTER       :: value
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_pop: list is not initialized.")
+       CPABORT("list_routinereport_pop: list is not initialized.")
     IF(list%size < 1) &
-       CALL mp_abort("list_routinereport_pop: list is empty.")
+       CPABORT("list_routinereport_pop: list is empty.")
 
     value => list%arr(list%size)%p%value
     DEALLOCATE(list%arr(list%size)%p)
@@ -303,7 +310,7 @@ SUBROUTINE list_routinereport_clear(list)
     INTEGER                                  :: i
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_clear: list is not initialized.")
+       CPABORT("list_routinereport_clear: list is not initialized.")
 
     DO i=1, list%size
        DEALLOCATE(list%arr(i)%p)
@@ -329,9 +336,11 @@ FUNCTION list_routinereport_get(list, pos) RESULT(value)
     TYPE(routine_report_type), POINTER       :: value
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_get: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_routinereport_get: pos < 1")
-    IF(pos > list%size) CALL mp_abort("list_routinereport_get: pos > size")
+       CPABORT("list_routinereport_get: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_routinereport_get: pos < 1")
+    IF(pos > list%size)&
+       CPABORT("list_routinereport_get: pos > size")
 
     value => list%arr(pos)%p%value
 
@@ -354,9 +363,11 @@ SUBROUTINE list_routinereport_del(list, pos)
     INTEGER                                  :: i
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_del: list is not initialized.")
-    IF(pos < 1) CALL mp_abort("list_routinereport_det: pos < 1")
-    IF(pos > list%size) CALL mp_abort("list_routinereport_det: pos > size")
+       CPABORT("list_routinereport_del: list is not initialized.")
+    IF(pos < 1)&
+       CPABORT("list_routinereport_det: pos < 1")
+    IF(pos > list%size)&
+       CPABORT("list_routinereport_det: pos > size")
 
     DEALLOCATE(list%arr(pos)%p)
     DO i=pos, list%size-1
@@ -381,7 +392,7 @@ FUNCTION list_routinereport_size(list) RESULT(size)
     INTEGER                                  :: size
 
     IF(.NOT. ASSOCIATED(list%arr)) &
-       CALL mp_abort("list_routinereport_size: list is not initialized.")
+       CPABORT("list_routinereport_size: list is not initialized.")
 
     size = list%size
 END FUNCTION list_routinereport_size
@@ -406,22 +417,24 @@ SUBROUTINE change_capacity(list, new_capacity)
 
    new_cap = new_capacity
    IF(new_cap < 0) &
-      CALL mp_abort("list_routinereport_change_capacity: new_capacity < 0")
+      CPABORT("list_routinereport_change_capacity: new_capacity < 0")
    IF(new_cap < list%size) &
-      CALL mp_abort("list_routinereport_change_capacity: new_capacity < size")
+      CPABORT("list_routinereport_change_capacity: new_capacity < size")
    IF(new_cap > HUGE(i)) THEN
       IF(SIZE(list%arr) == HUGE(i)) &
-      CALL mp_abort("list_routinereport_change_capacity: list has reached integer limit.")
+      CPABORT("list_routinereport_change_capacity: list has reached integer limit.")
       new_cap = HUGE(i) ! grow as far as possible
    END IF
 
    old_arr => list%arr
    ALLOCATE(list%arr(new_cap), stat=stat)
-   IF (stat/=0) CALL mp_abort("list_routinereport_change_capacity: allocation failed")
+   IF (stat/=0)&
+      CPABORT("list_routinereport_change_capacity: allocation failed")
 
    DO i=1, list%size
       ALLOCATE(list%arr(i)%p, stat=stat)
-      IF (stat/=0) CALL mp_abort("list_routinereport_change_capacity: allocation failed")
+      IF (stat/=0)&
+         CPABORT("list_routinereport_change_capacity: allocation failed")
       list%arr(i)%p%value => old_arr(i)%p%value
       DEALLOCATE(old_arr(i)%p)
    END DO

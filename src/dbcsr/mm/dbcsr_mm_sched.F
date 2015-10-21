@@ -51,8 +51,7 @@ MODULE dbcsr_mm_sched
   USE kinds,                           ONLY: dp,&
                                              int_4,&
                                              int_8
-  USE message_passing,                 ONLY: mp_abort,&
-                                             mp_bcast,&
+  USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
                                              mp_max,&
                                              mp_sum
@@ -329,7 +328,8 @@ MODULE dbcsr_mm_sched
     LOGICAL                                  :: success
     TYPE(stats_type), POINTER                :: mystats
 
-    IF(stack_fillcount <= 0) CALL mp_abort("dbcsr_mm_sched_process: got empty stack")
+    IF(stack_fillcount <= 0)&
+       CPABORT("dbcsr_mm_sched_process: got empty stack")
 
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
@@ -362,9 +362,12 @@ MODULE dbcsr_mm_sched
        ! Check if homogenous stacks are indeed homogenous
        IF(stack_descr%defined_mnk) THEN
          DO sp = 1, stack_fillcount
-           IF(stack_data(p_m,sp) /= stack_descr%m) CALL mp_abort("homogenous stacks check failed")
-           IF(stack_data(p_n,sp) /= stack_descr%n) CALL mp_abort("homogenous stacks check failed")
-           IF(stack_data(p_k,sp) /= stack_descr%k) CALL mp_abort("homogenous stacks check failed")
+           IF(stack_data(p_m,sp) /= stack_descr%m)&
+              CPABORT("homogenous stacks check failed")
+           IF(stack_data(p_n,sp) /= stack_descr%n)&
+              CPABORT("homogenous stacks check failed")
+           IF(stack_data(p_k,sp) /= stack_descr%k)&
+              CPABORT("homogenous stacks check failed")
          END DO
        ENDIF
      ENDIF

@@ -7,10 +7,9 @@
 !> \brief Collection of routines to handle the iteration info
 ! *****************************************************************************
 MODULE cp_iter_types
-  
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
-  USE message_passing,                 ONLY: mp_abort
+#include "../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -96,7 +95,8 @@ CONTAINS
     INTEGER                                  :: stat
 
     ALLOCATE(iteration_info,stat=stat)
-    IF (stat/=0)CALL mp_abort(routineP//" could not allocate iteration_info")
+    IF (stat/=0)&
+       CPABORT(routineP//" could not allocate iteration_info")
 
     last_it_info_id = last_it_info_id+1
     iteration_info%id_nr = last_it_info_id
@@ -109,15 +109,15 @@ CONTAINS
     NULLIFY(iteration_info%last_iter)
     ALLOCATE(iteration_info%iteration(iteration_info%n_rlevel),stat=stat)
     IF (stat/=0) THEN
-       CALL mp_abort(routineP//" iteration_info%iteration allocation")
+       CPABORT(routineP//" iteration_info%iteration allocation")
     END IF
     ALLOCATE(iteration_info%level_name(iteration_info%n_rlevel),stat=stat)
     IF (stat/=0) THEN
-       CALL mp_abort(routineP//" iteration_info%level_name allocation")
+       CPABORT(routineP//" iteration_info%level_name allocation")
     END IF
     ALLOCATE(iteration_info%last_iter(iteration_info%n_rlevel),stat=stat)
     IF (stat/=0) THEN
-       CALL mp_abort(routineP//" iteration_info%last_iter allocation")
+       CPABORT(routineP//" iteration_info%last_iter allocation")
     END IF
     iteration_info%iteration(iteration_info%n_rlevel)  = 1
     iteration_info%level_name(iteration_info%n_rlevel) = "__ROOT__"
@@ -137,10 +137,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     IF (.NOT.ASSOCIATED(iteration_info)) THEN
-       CALL mp_abort(routineP//" iteration_info not associated")
+       CPABORT(routineP//" iteration_info not associated")
     END IF
     IF (iteration_info%ref_count<=0) THEN
-       CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
+       CPABORT(routineP//" iteration_info%ref_counf<=0")
     END IF
     iteration_info%ref_count=iteration_info%ref_count+1
   END SUBROUTINE cp_iteration_info_retain
@@ -158,7 +158,7 @@ CONTAINS
 
     IF (ASSOCIATED(iteration_info)) THEN
        IF (iteration_info%ref_count<=0) THEN
-          CALL mp_abort(routineP//" iteration_info%ref_counf<=0")
+          CPABORT(routineP//" iteration_info%ref_counf<=0")
        END IF
        iteration_info%ref_count=iteration_info%ref_count-1
        IF (iteration_info%ref_count==0) THEN
@@ -193,7 +193,7 @@ CONTAINS
 
     IF (ASSOCIATED(iteration_info_in)) THEN
        IF (iteration_info_in%ref_count<=0) THEN
-          CALL mp_abort(routineP//" iteration_info_in%ref_counf<=0")
+          CPABORT(routineP//" iteration_info_in%ref_counf<=0")
        END IF
 
        iteration_info_out%n_rlevel           = iteration_info_in%n_rlevel
@@ -201,23 +201,26 @@ CONTAINS
        DEALLOCATE(iteration_info_out%iteration)
        i = SIZE(iteration_info_in%iteration)
        ALLOCATE(iteration_info_out%iteration(i),stat=stat)
-       IF (stat/=0)CALL mp_abort(routineP//" could not allocate iteration_info%iteration")
+       IF (stat/=0)&
+          CPABORT(routineP//" could not allocate iteration_info%iteration")
        iteration_info_out%iteration          = iteration_info_in%iteration
 
        DEALLOCATE(iteration_info_out%last_iter)
        i = SIZE(iteration_info_in%last_iter)
        ALLOCATE(iteration_info_out%last_iter(i),stat=stat)
-       IF (stat/=0)CALL mp_abort(routineP//" could not allocate iteration_info%last_iter")
+       IF (stat/=0)&
+          CPABORT(routineP//" could not allocate iteration_info%last_iter")
        iteration_info_out%last_iter          = iteration_info_in%last_iter
 
        DEALLOCATE(iteration_info_out%level_name)
        i = SIZE(iteration_info_in%level_name)
        ALLOCATE(iteration_info_out%level_name(i),stat=stat)
-       IF (stat/=0)CALL mp_abort(routineP//" could not allocate iteration_info%level_name")
+       IF (stat/=0)&
+          CPABORT(routineP//" could not allocate iteration_info%level_name")
        iteration_info_out%level_name         = iteration_info_in%level_name
 
     ELSE
-       CALL mp_abort(routineP//" iteration_info_in not associated!")
+       CPABORT(routineP//" iteration_info_in not associated!")
     END IF
   END SUBROUTINE cp_iteration_info_copy_iter
 
