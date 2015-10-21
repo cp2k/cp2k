@@ -314,7 +314,7 @@ CONTAINS
                          IF(drij>rab2_max) CYCLE
                          drij = SQRT(drij)
                          CALL siepmann_energy(pot_loc, siepmann, r_last_update_pbc, atom_a, atom_b, nloc_size,&
-                              glob_loc_list(:,ifirst:ilast),glob_cell_v(:,ifirst:ilast), cell_v, cell, drij,&
+                              glob_loc_list(:,ifirst:ilast), cell_v, cell, drij,&
                               particle_set, nr_oh)
                          pot_manybody = pot_manybody + pot_loc 
                       END DO
@@ -632,12 +632,11 @@ CONTAINS
                          ipair = ipair + 1
                          IF (DOT_PRODUCT(rtmp,rtmp)<=siepmann%rcutsq) THEN
                              CALL siepmann_forces_v2 ( siepmann, r_last_update_pbc, cell_v, cell,&
-                                  nloc_size, glob_loc_list(:,ifirst:ilast), glob_cell_v(:,ifirst:ilast),&
-                                  atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, siepmann%rcutsq,&
+                                  atom_a, atom_b, f_nonbond, use_virial, siepmann%rcutsq,&
                                   particle_set)
                              CALL siepmann_forces_v3( siepmann, r_last_update_pbc, cell_v,&
-                                  nloc_size, glob_loc_list(:,ifirst:ilast), glob_cell_v(:,ifirst:ilast),&
-                                  atom_a, atom_b, f_nonbond, pv_nonbond, use_virial, siepmann%rcutsq, &
+                                  nloc_size, glob_loc_list(:,ifirst:ilast),&
+                                  atom_a, atom_b, f_nonbond, use_virial, siepmann%rcutsq, &
                                   cell, particle_set)
                          END IF
                       END DO

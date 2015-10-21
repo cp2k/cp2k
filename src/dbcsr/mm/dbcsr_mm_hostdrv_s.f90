@@ -118,7 +118,7 @@
     ENDIF
 
 #endif
-
+    MARK_USED(stack_descr)
     DO sp = 1, stack_size
        CALL smm_snn(&
             params(p_m,sp),&
