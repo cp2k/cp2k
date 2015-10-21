@@ -20,7 +20,6 @@ MODULE fparser
   
   USE kinds,                           ONLY: default_string_length,&
                                              rn => dp
-  USE termination,                     ONLY: stop_memory
 #include "../base/base_uses.f90"                                             
 
   IMPLICIT NONE
@@ -586,8 +585,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'Compile', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat
-
 ! Function identifier
 ! Function string
 ! Array with variable names
@@ -603,17 +600,12 @@ CONTAINS
     CALL CompileSubstr (i,F,1,LEN_TRIM(F),Var)               ! Compile string to determine size
     ALLOCATE ( Comp(i)%ByteCode(Comp(i)%ByteCodeSize), &
                Comp(i)%Immed(Comp(i)%ImmedSize),       &
-               Comp(i)%Stack(Comp(i)%StackSize),       &
-               STAT = istat                            )
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,"Byte code")
-    ELSE
-       Comp(i)%ByteCodeSize = 0
-       Comp(i)%ImmedSize    = 0
-       Comp(i)%StackSize    = 0
-       Comp(i)%StackPtr     = 0
-       CALL CompileSubstr (i,F,1,LEN_TRIM(F),Var)            ! Compile string into bytecode
-    END IF
+               Comp(i)%Stack(Comp(i)%StackSize))
+    Comp(i)%ByteCodeSize = 0
+    Comp(i)%ImmedSize    = 0
+    Comp(i)%StackSize    = 0
+    Comp(i)%StackPtr     = 0
+    CALL CompileSubstr (i,F,1,LEN_TRIM(F),Var)            ! Compile string into bytecode
     !
   END SUBROUTINE Compile
   !

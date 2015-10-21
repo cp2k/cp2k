@@ -2471,9 +2471,7 @@ END SUBROUTINE mc_conformation_change
       ALLOCATE (r(1:3,1:nunits_tot(box_number)),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r",3*nunits_tot(box_number)*dp_size)
-      ALLOCATE (hmc_ekin,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "hmc_ekin")
+      ALLOCATE (hmc_ekin)
 
 ! record the attempt
       moves%hmc%attempts=moves%hmc%attempts+1
