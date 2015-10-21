@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE pw_poisson_methods
 
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE dielectric_methods,              ONLY: dielectric_compute
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -61,7 +62,6 @@ MODULE pw_poisson_methods
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

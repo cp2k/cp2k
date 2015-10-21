@@ -36,6 +36,7 @@
 !> \author MJM-Oct-15-03
 ! *****************************************************************************
 MODULE mc_run
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_types,                 ONLY: force_env_p_type,&
                                              force_env_release,&
@@ -72,7 +73,6 @@ MODULE mc_run
                                              rng_stream_type
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

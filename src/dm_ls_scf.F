@@ -28,6 +28,9 @@ MODULE dm_ls_scf
        cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
        cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE dm_ls_chebyshev,                 ONLY: compute_chebyshev
   USE dm_ls_scf_curvy,                 ONLY: deallocate_curvy_data,&
@@ -104,7 +107,6 @@ MODULE dm_ls_scf
   USE transport,                       ONLY: external_scf_method,&
                                              transport_initialize
   USE transport_env_types,             ONLY: transport_env_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

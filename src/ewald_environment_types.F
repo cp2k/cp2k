@@ -10,6 +10,8 @@
 !> \author CJM NOV-30-2003
 ! *****************************************************************************
 MODULE ewald_environment_types
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -34,7 +36,6 @@ MODULE ewald_environment_types
                                              do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

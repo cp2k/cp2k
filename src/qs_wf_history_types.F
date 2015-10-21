@@ -22,7 +22,6 @@ MODULE qs_wf_history_types
   USE pw_types,                        ONLY: pw_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

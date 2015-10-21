@@ -17,6 +17,8 @@ MODULE md_run
                                              release_barostat_type
   USE cell_types,                      ONLY: cell_type
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_p_file,&
@@ -97,7 +99,6 @@ MODULE md_run
   USE virial_types,                    ONLY: virial_type
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              create_wiener_process_cv
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

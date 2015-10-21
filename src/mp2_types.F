@@ -26,7 +26,6 @@ MODULE mp2_types
                                              ri_rpa_method_gpw
   USE kinds,                           ONLY: default_path_length,&
                                              dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

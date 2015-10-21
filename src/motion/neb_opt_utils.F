@@ -16,6 +16,8 @@
 !> \author Teodoro Laino 10.2006
 ! *****************************************************************************
 MODULE neb_opt_utils
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -26,7 +28,6 @@ MODULE neb_opt_utils
                                              reorient_images
   USE particle_types,                  ONLY: particle_type
   USE replica_types,                   ONLY: replica_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

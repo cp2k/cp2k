@@ -29,7 +29,6 @@ MODULE extended_system_dynamics
                                              vel_rescale_baro,&
                                              vel_rescale_particles,&
                                              vel_rescale_shells
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

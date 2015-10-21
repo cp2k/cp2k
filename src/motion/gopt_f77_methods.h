@@ -25,8 +25,6 @@ INTERFACE
     USE gopt_f_types,                    ONLY: gopt_f_type
     USE kinds,                           ONLY: dp
 
-#include "../common/cp_common_uses.f90"
-
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f

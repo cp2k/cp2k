@@ -25,6 +25,8 @@ MODULE cp_ddapc_util
                                              prep_g_dot_rvec_sin_cos
   USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
                                              cp_ddapc_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -56,7 +58,6 @@ MODULE cp_ddapc_util
   USE qs_kind_types,                   ONLY: qs_kind_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

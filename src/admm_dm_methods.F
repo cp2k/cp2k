@@ -21,6 +21,7 @@ MODULE admm_dm_methods
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
        cp_dbcsr_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
   USE input_constants,                 ONLY: do_admm_basis_projection,&
                                              do_admm_blocked_projection
   USE iterate_matrix,                  ONLY: invert_Hotelling
@@ -32,7 +33,6 @@ MODULE admm_dm_methods
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_set,&
                                              qs_rho_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

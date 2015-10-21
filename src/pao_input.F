@@ -5,6 +5,8 @@
 
 MODULE pao_input
   USE bibliography,                    ONLY: Berghold2011
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              cp_print_key_unit_nr,&
@@ -24,7 +26,6 @@ MODULE pao_input
   USE linesearch,                      ONLY: linesearch_create_section
   USE pao_types,                       ONLY: pao_env_type
   USE string_utilities,                ONLY: s2a
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

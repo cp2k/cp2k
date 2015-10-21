@@ -18,6 +18,8 @@ MODULE qmmm_init
   USE cell_types,                      ONLY: cell_type,&
                                              use_perd_xyz
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -63,7 +65,6 @@ MODULE qmmm_init
                                              qmmm_links_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

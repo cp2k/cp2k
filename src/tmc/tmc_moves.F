@@ -14,6 +14,7 @@ MODULE tmc_moves
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: dihedral_angle,&
@@ -37,7 +38,6 @@ MODULE tmc_moves
                                              tree_type
   USE tmc_types,                       ONLY: tmc_atom_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

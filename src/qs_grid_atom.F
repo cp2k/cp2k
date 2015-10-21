@@ -13,7 +13,6 @@ MODULE qs_grid_atom
   USE lebedev,                         ONLY: lebedev_grid
   USE mathconstants,                   ONLY: pi
   USE memory_utilities,                ONLY: reallocate
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

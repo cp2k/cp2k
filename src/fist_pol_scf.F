@@ -15,6 +15,8 @@ MODULE fist_pol_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -34,7 +36,6 @@ MODULE fist_pol_scf
   USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -43,7 +43,6 @@ MODULE semi_empirical_int_num
                                              semi_empirical_type,&
                                              setup_se_int_control_type
   USE taper_types,                     ONLY: taper_eval
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

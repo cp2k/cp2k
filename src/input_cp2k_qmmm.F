@@ -70,7 +70,6 @@ MODULE input_cp2k_qmmm
                                              precond_spl3_aint,&
                                              precond_spl3_aint2
   USE string_utilities,                ONLY: s2a
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

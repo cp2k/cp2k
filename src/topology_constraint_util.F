@@ -25,6 +25,9 @@ MODULE topology_constraint_util
        colvar_release, colvar_setup, colvar_type, dist_colvar_id, &
        torsion_colvar_id, xyz_diag_colvar_id, xyz_outerdiag_colvar_id
   USE colvar_utils,                    ONLY: post_process_colvar
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: do_constr_atomic,&
@@ -56,7 +59,6 @@ MODULE topology_constraint_util
   USE topology_types,                  ONLY: constr_list_type,&
                                              constraint_info_type,&
                                              topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

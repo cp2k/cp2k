@@ -14,6 +14,8 @@ MODULE fist_intra_force
   USE atprop_types,                    ONLY: atprop_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dp
   USE mol_force,                       ONLY: force_bends,&
@@ -30,7 +32,6 @@ MODULE fist_intra_force
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

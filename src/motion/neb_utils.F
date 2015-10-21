@@ -26,6 +26,8 @@ MODULE neb_utils
   USE colvar_utils,                    ONLY: eval_colvar,&
                                              get_clv_force,&
                                              set_colvars_target
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -69,7 +71,6 @@ MODULE neb_utils
   USE replica_types,                   ONLY: rep_env_sync,&
                                              replica_env_type
   USE rmsd,                            ONLY: rmsd3
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

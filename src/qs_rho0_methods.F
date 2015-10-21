@@ -16,6 +16,8 @@ MODULE qs_rho0_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -56,7 +58,6 @@ MODULE qs_rho0_methods
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

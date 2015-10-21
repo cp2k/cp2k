@@ -20,7 +20,6 @@ MODULE kg_environment_types
                                              neighbor_list_set_p_type
   USE task_list_types,                 ONLY: deallocate_task_list,&
                                              task_list_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

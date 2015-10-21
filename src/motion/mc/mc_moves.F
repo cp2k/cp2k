@@ -18,6 +18,9 @@ MODULE mc_moves
                                              cell_release,&
                                              cell_type,&
                                              get_cell
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsys_type
@@ -53,7 +56,6 @@ MODULE mc_moves
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

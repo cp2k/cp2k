@@ -28,7 +28,11 @@ MODULE cp_output_handling
                                              cp_iteration_info_type,&
                                              each_desc_labels,&
                                              each_possible_labels
-  USE cp_log_handling,                 ONLY: cp_logger_generate_filename
+  USE cp_log_handling,                 ONLY: cp_logger_generate_filename,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_get_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -46,7 +50,6 @@ MODULE cp_output_handling
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: compress,&
                                              s2a
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -13,6 +13,8 @@ MODULE geo_opt
   USE bfgs_optimizer,                  ONLY: geoopt_bfgs
   USE cg_optimizer,                    ONLY: geoopt_cg
   USE cp_lbfgs_geo,                    ONLY: geoopt_lbfgs
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -33,7 +35,6 @@ MODULE geo_opt
                                              section_vals_val_get,&
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

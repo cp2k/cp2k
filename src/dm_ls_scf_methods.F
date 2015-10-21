@@ -21,6 +21,9 @@ MODULE dm_ls_scf_methods
        dbcsr_data_new, dbcsr_data_obj, dbcsr_data_release, dbcsr_iterator, &
        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
        dbcsr_iterator_stop, dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
                                              ls_mstruct_type
   USE input_constants,                 ONLY: ls_s_preconditioner_atomic,&
@@ -32,7 +35,6 @@ MODULE dm_ls_scf_methods
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -20,6 +20,8 @@ MODULE se_core_matrix
        cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, &
        cp_dbcsr_sum_replicated, cp_dbcsr_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -60,7 +62,6 @@ MODULE se_core_matrix
   USE semi_empirical_utils,            ONLY: get_se_type
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

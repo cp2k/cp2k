@@ -10,7 +10,6 @@ MODULE pair_potential_coulomb
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: oorootpi
   USE pw_poisson_types,                ONLY: do_ewald_none
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

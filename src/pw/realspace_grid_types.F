@@ -15,6 +15,7 @@
 ! *****************************************************************************
 MODULE realspace_grid_types
   USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE fast,                            ONLY: copy_cr,&
                                              copy_rc
   USE kahan_sum,                       ONLY: accurate_sum
@@ -38,7 +39,6 @@ MODULE realspace_grid_types
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

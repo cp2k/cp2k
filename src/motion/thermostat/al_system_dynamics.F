@@ -24,7 +24,6 @@ MODULE al_system_dynamics
   USE particle_types,                  ONLY: particle_type
   USE thermostat_utils,                ONLY: ke_region_particles,&
                                              vel_rescale_particles
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

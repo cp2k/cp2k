@@ -15,6 +15,8 @@ MODULE paw_proj_set_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: qs_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_section_types,             ONLY: section_vals_type
@@ -32,7 +34,6 @@ MODULE paw_proj_set_types
                                              nso,&
                                              nsoset
   USE orbital_transformation_matrices, ONLY: orbtramat
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -44,6 +44,8 @@ MODULE qs_localization_methods
        cp_fm_maxabsrownorm, cp_fm_maxabsval, cp_fm_p_type, cp_fm_release, &
        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_logger_get_default_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
@@ -58,7 +60,6 @@ MODULE qs_localization_methods
                                              mp_sendrecv,&
                                              mp_sum,&
                                              mp_sync
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

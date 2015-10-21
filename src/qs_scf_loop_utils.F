@@ -12,6 +12,7 @@ MODULE qs_scf_loop_utils
                                              cp_dbcsr_p_type,&
                                              cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
@@ -60,7 +61,6 @@ MODULE qs_scf_loop_utils
                                              special_diag_method_nr
   USE scf_control_types,               ONLY: scf_control_type,&
                                              smear_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

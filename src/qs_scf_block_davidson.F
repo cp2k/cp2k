@@ -57,7 +57,6 @@ MODULE qs_scf_block_davidson
   USE qs_block_davidson_types,         ONLY: davidson_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

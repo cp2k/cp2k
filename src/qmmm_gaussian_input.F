@@ -10,6 +10,7 @@
 !> \author Teodoro Laino
 ! *****************************************************************************
 MODULE qmmm_gaussian_input
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_search_string
@@ -110,7 +111,6 @@ MODULE qmmm_gaussian_input
        s9_b7, s9_b8, s9_b9, s9_rc
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE string_utilities,                ONLY: uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

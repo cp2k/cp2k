@@ -43,7 +43,6 @@ MODULE mp2_ri_grad_util
   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                              mp2_type
   USE util,                            ONLY: get_limit
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

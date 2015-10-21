@@ -19,7 +19,6 @@ MODULE pao_utils
                                              delete_rng_stream,&
                                              next_random_number,&
                                              rng_stream_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

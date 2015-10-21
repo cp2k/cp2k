@@ -12,6 +12,7 @@
 MODULE cg_test
 
   
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: deallocate_lebedev_grids,&
                                              get_number_of_lebedev_grid,&
@@ -23,7 +24,6 @@ MODULE cg_test
                                              clebsch_gordon_deallocate,&
                                              clebsch_gordon_init,&
                                              y_lm
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

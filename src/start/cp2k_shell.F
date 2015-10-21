@@ -37,6 +37,8 @@ PROGRAM cp2k_shell
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE f77_interface,                   ONLY: &
        calc_energy_force, calc_force, create_force_env, destroy_force_env, &
@@ -57,7 +59,6 @@ PROGRAM cp2k_shell
                                              evolt
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

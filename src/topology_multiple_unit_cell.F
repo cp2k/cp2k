@@ -19,7 +19,6 @@ MODULE topology_multiple_unit_cell
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE topology_types,                  ONLY: topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

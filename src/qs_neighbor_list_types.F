@@ -19,7 +19,6 @@ MODULE qs_neighbor_list_types
   USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: locate,&
                                              sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

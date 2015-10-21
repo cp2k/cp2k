@@ -16,13 +16,13 @@ MODULE cp_fm_basic_linalg
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, &
        cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              sp
   USE machine,                         ONLY: m_memory
   USE mathlib,                         ONLY: invert_matrix
   USE message_passing,                 ONLY: mp_sum
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

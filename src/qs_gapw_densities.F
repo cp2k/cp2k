@@ -9,6 +9,7 @@ MODULE qs_gapw_densities
                                              get_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
@@ -26,7 +27,6 @@ MODULE qs_gapw_densities
                                              rho0_mpole_type
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom
   USE qs_rho_atom_types,               ONLY: rho_atom_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

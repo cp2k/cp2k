@@ -26,7 +26,6 @@ MODULE pao_linpot_rotinv
                                              qs_kind_type
   USE spherical_harmonics,             ONLY: y_lm
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

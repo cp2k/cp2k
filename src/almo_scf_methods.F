@@ -26,6 +26,9 @@ MODULE almo_scf_methods
        cp_dbcsr_type, cp_dbcsr_work_create, dbcsr_distribution_mp, &
        dbcsr_mp_group, dbcsr_mp_numnodes, dbcsr_norm_maxabsnorm, &
        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE domain_submatrix_methods,        ONLY: &
        add_submatrices, construct_dbcsr_from_submatrices, &
        construct_submatrices, copy_submatrices, copy_submatrix_data, &
@@ -42,7 +45,6 @@ MODULE almo_scf_methods
                                              matrix_sqrt_Newton_Schulz
   USE kinds,                           ONLY: dp
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

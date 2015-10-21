@@ -16,6 +16,9 @@ MODULE dm_ls_chebyshev
        cp_dbcsr_get_info, cp_dbcsr_get_occupation, cp_dbcsr_init, &
        cp_dbcsr_multiply, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
        cp_dbcsr_trace, cp_dbcsr_type, dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -30,7 +33,6 @@ MODULE dm_ls_chebyshev
                                              m_walltime
   USE mathconstants,                   ONLY: pi
   USE qs_environment_types,            ONLY: qs_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

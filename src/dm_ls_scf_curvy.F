@@ -19,6 +19,9 @@ MODULE dm_ls_scf_curvy
        cp_dbcsr_norm, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
        cp_dbcsr_trace, cp_dbcsr_transposed, cp_dbcsr_type, &
        dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE dm_ls_scf_types,                 ONLY: ls_scf_curvy_type,&
                                              ls_scf_env_type
   USE input_constants,                 ONLY: ls_scf_line_search_3point,&
@@ -28,7 +31,6 @@ MODULE dm_ls_scf_curvy
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: ifac
   USE mathlib,                         ONLY: invmat
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

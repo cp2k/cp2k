@@ -33,7 +33,6 @@ MODULE mixed_environment
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

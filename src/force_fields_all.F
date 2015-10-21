@@ -19,6 +19,7 @@ MODULE force_fields_all
   USE cell_types,                      ONLY: cell_type
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE damping_dipole_types,            ONLY: damping_p_create,&
                                              damping_p_type,&
                                              tang_toennies
@@ -86,7 +87,6 @@ MODULE force_fields_all
   USE string_utilities,                ONLY: compress,&
                                              integer_to_string,&
                                              uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

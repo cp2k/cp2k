@@ -24,6 +24,8 @@ MODULE eri_mme_methods
 
   USE basis_set_types,                 ONLY: gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -35,7 +37,6 @@ MODULE eri_mme_methods
   USE orbital_pointers,                ONLY: ncoset
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

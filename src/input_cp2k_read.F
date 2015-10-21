@@ -23,7 +23,6 @@ MODULE input_cp2k_read
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_create,&
                                              section_vals_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

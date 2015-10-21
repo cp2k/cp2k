@@ -19,6 +19,9 @@ MODULE mscfg_methods
                                              cp_dbcsr_create,&
                                              cp_dbcsr_init,&
                                              dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_methods,               ONLY: create_small_subsys
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -50,7 +53,6 @@ MODULE mscfg_methods
                                              qs_env_release,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: mo_set_p_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

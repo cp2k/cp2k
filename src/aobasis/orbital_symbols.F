@@ -14,7 +14,6 @@ MODULE orbital_symbols
 ! Index:
 ! FUNCTION cgf_symbol(n,lxyz) RESULT(symbol)
 ! FUNCTION sgf_symbol(n,l,m) RESULT(symbol)
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'orbital_symbols'

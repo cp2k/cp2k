@@ -16,7 +16,6 @@ MODULE pint_staging
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE pint_types,                      ONLY: staging_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

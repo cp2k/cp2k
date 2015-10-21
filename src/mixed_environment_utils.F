@@ -26,7 +26,6 @@ MODULE mixed_environment_utils
   USE virial_types,                    ONLY: virial_p_type,&
                                              virial_type,&
                                              zero_virial
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

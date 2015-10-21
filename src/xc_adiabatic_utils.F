@@ -35,7 +35,6 @@ MODULE xc_adiabatic_utils
   USE qs_vxc,                          ONLY: qs_vxc_create
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE xc_adiabatic_methods,            ONLY: rescale_MCY3_pade
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

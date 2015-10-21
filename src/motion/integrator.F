@@ -38,6 +38,7 @@ MODULE integrator
   USE constraint_util,                 ONLY: getold,&
                                              pv_constraint
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_read_line
@@ -98,7 +99,6 @@ MODULE integrator
   USE thermostat_types,                ONLY: thermostat_type
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

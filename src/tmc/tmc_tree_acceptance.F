@@ -14,6 +14,7 @@
 ! *****************************************************************************
 
 MODULE tmc_tree_acceptance
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: boltzmann,&
                                              joule
@@ -41,7 +42,6 @@ MODULE tmc_tree_acceptance
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_env_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -13,7 +13,6 @@
 MODULE tmc_utils
 
 
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
   IMPLICIT NONE
 

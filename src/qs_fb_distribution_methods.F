@@ -10,6 +10,8 @@ MODULE qs_fb_distribution_methods
        cp_dbcsr_get_info, cp_dbcsr_nblkcols_total, cp_dbcsr_p_type, &
        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_distribution_obj, &
        dbcsr_mp_get_process, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_obj
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -28,7 +30,6 @@ MODULE qs_fb_distribution_methods
                                              fb_env_set
   USE qs_kind_types,                   ONLY: qs_kind_type
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

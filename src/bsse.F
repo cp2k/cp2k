@@ -14,6 +14,8 @@ MODULE bsse
   USE cell_types,                      ONLY: cell_type
   USE cp2k_info,                       ONLY: write_restart_header
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -46,7 +48,6 @@ MODULE bsse
                                              qs_env_release,&
                                              qs_environment_type
   USE string_utilities,                ONLY: compress
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

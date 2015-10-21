@@ -42,7 +42,6 @@ MODULE colvar_utils
   USE rmsd,                            ONLY: rmsd3
   USE string_utilities,                ONLY: uppercase
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

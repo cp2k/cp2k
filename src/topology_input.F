@@ -12,6 +12,8 @@
 MODULE topology_input
   USE colvar_types,                    ONLY: colvar_clone,&
                                              colvar_p_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE input_constants,                 ONLY: do_conn_generate,&
                                              do_conn_mol_set,&
                                              do_conn_off,&
@@ -28,7 +30,6 @@ MODULE topology_input
   USE memory_utilities,                ONLY: reallocate
   USE topology_types,                  ONLY: constraint_info_type,&
                                              topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

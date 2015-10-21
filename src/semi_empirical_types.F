@@ -10,6 +10,9 @@
 MODULE semi_empirical_types
   USE basis_set_types,                 ONLY: deallocate_sto_basis_set,&
                                              sto_basis_set_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -37,7 +40,6 @@ MODULE semi_empirical_types
   USE taper_types,                     ONLY: taper_create,&
                                              taper_release,&
                                              taper_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

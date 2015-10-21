@@ -11,13 +11,13 @@
 ! *****************************************************************************
 MODULE qmmm_links_methods
   
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types_low,                  ONLY: add_set_type,&
                                              qmmm_env_qm_type,&
                                              qmmm_imomm_link_type,&
                                              qmmm_links_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

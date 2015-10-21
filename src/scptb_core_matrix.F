@@ -22,6 +22,8 @@ MODULE scptb_core_matrix
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_init,&
                                              cp_dbcsr_p_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -51,7 +53,6 @@ MODULE scptb_core_matrix
                                              scptb_parameter_type
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

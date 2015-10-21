@@ -45,7 +45,6 @@
 ! *****************************************************************************
 MODULE cp_linked_list_real
   USE kinds,                           ONLY: dp
-#include "../common/cp_common_uses.f90"
 #include "../common/../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -30,6 +30,9 @@ MODULE rt_propagator_init
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE dm_ls_scf_methods,               ONLY: density_matrix_trs4
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_bch,&
@@ -52,7 +55,6 @@ MODULE rt_propagator_init
                                              s_matrices_create
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -32,7 +32,6 @@ MODULE atom_output
   USE physcon,                         ONLY: evolt
   USE xc_derivatives,                  ONLY: xc_functional_get_info
   USE xc_libxc,                        ONLY: libxc_version_info
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

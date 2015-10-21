@@ -13,6 +13,10 @@ MODULE topology_generate_util
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
   USE cell_types,                      ONLY: pbc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -55,7 +59,6 @@ MODULE topology_generate_util
                                              reorder_structure
   USE util,                            ONLY: find_boundary,&
                                              sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

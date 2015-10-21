@@ -48,7 +48,6 @@ MODULE preconditioner_makes
                                              ot_precond_solver_inv_chol
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

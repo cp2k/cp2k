@@ -17,6 +17,7 @@
 MODULE tmc_dot_tree
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE tmc_file_io,                     ONLY: expand_file_name_char,&
                                              expand_file_name_temp
   USE tmc_move_types,                  ONLY: mv_type_swap_conf
@@ -29,7 +30,6 @@ MODULE tmc_dot_tree
        status_deleted, status_deleted_result, status_rejected, &
        status_rejected_result, tree_type
   USE tmc_types,                       ONLY: tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -11,6 +11,8 @@
 MODULE helium_sampling
 
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -38,7 +40,6 @@ MODULE helium_sampling
   USE parallel_rng_types,              ONLY: next_random_number
   USE pint_types,                      ONLY: pint_env_type
   USE splines_types,                   ONLY: spline_data_p_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

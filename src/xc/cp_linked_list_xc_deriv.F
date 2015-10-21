@@ -46,7 +46,6 @@
 MODULE cp_linked_list_xc_deriv
   USE xc_derivative_types,             ONLY: xc_derivative_p_type,&
                                              xc_derivative_type
-#include "../common/cp_common_uses.f90"
 #include "../common/../base/base_uses.f90"
 
   IMPLICIT NONE

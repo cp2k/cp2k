@@ -11,7 +11,6 @@ MODULE pao_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE linesearch,                      ONLY: linesearch_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

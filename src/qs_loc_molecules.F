@@ -11,6 +11,8 @@ MODULE qs_loc_molecules
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -37,7 +39,6 @@ MODULE qs_loc_molecules
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              qs_kind_type
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

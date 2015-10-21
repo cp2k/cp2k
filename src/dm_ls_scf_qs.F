@@ -29,6 +29,9 @@ MODULE dm_ls_scf_qs
        dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
        dbcsr_distribution_row_dist, dbcsr_type_no_symmetry, &
        dbcsr_type_real_4, dbcsr_type_real_8, dbcsr_type_symmetric
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
   USE dm_ls_scf_types,                 ONLY: ls_cluster_atomic,&
@@ -76,7 +79,6 @@ MODULE dm_ls_scf_qs
                                              qs_rho_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

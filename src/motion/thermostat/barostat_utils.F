@@ -10,6 +10,8 @@
 MODULE barostat_utils
   USE barostat_types,                  ONLY: barostat_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE extended_system_types,           ONLY: npt_info_type
@@ -26,7 +28,6 @@ MODULE barostat_utils
                                              femtoseconds,&
                                              kelvin
   USE simpar_types,                    ONLY: simpar_type
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

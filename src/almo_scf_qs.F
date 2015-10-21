@@ -41,6 +41,9 @@ MODULE almo_scf_qs
        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
        dbcsr_mp_group, dbcsr_mp_mynode, dbcsr_mp_numnodes, &
        dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: &
@@ -75,7 +78,6 @@ MODULE almo_scf_qs
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

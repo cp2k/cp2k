@@ -9,6 +9,7 @@
 MODULE realspace_grid_cube
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_maxloc,&
                                              mp_recv,&
@@ -17,7 +18,6 @@ MODULE realspace_grid_cube
                                              mp_sync
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_types,                        ONLY: pw_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

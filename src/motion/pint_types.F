@@ -5,12 +5,12 @@
 
 MODULE pint_types
 
+  USE cp_log_handling,                 ONLY: cp_logger_type
   USE gle_system_types,                ONLY: gle_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: rng_stream_type
   USE replica_types,                   ONLY: replica_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

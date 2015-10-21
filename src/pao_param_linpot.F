@@ -16,6 +16,7 @@ MODULE pao_param_linpot
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_scale, &
        cp_dbcsr_set
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE pao_input,                       ONLY: pao_fock_param,&
@@ -33,7 +34,6 @@ MODULE pao_param_linpot
   USE pao_utils,                       ONLY: fill_randomly
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

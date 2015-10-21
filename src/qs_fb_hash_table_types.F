@@ -23,7 +23,6 @@
 MODULE qs_fb_hash_table_types
 
   USE kinds,                           ONLY: int_8
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

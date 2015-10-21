@@ -21,7 +21,10 @@ MODULE neb_io
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
-                                             cp_rm_default_logger
+                                             cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_rm_default_logger,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -63,7 +66,6 @@ MODULE neb_io
                                              particle_type
   USE physcon,                         ONLY: angstrom
   USE replica_types,                   ONLY: replica_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

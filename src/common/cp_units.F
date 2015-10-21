@@ -27,6 +27,7 @@
 ! *****************************************************************************
 MODULE cp_units
   
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: radians,&
@@ -37,7 +38,6 @@ MODULE cp_units
   USE string_utilities,                ONLY: compress,&
                                              s2a,&
                                              uppercase
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

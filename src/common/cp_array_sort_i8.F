@@ -12,7 +12,6 @@
 !>      CP2K: 
 !>      Please use the interface definded in util.F for calling sort().
 !>      This could not go into cp_array__nametype1__utils.template because 
-!>      there some routines use the error-handling from cp_common_uses.f90,
 !>      which in turn uses timings.F, which uses sort() :-(
 !>
 !>      DBCSR:
@@ -28,7 +27,6 @@
 MODULE cp_array_sort_i8
    
   USE kinds,                           ONLY: int_8
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -16,6 +16,8 @@ MODULE fp_methods
                                              psi
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_iter_string,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -28,7 +30,6 @@ MODULE fp_methods
                                              oorootpi
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

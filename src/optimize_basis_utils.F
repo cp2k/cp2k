@@ -5,6 +5,10 @@
 MODULE optimize_basis_utils
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_search_string
@@ -30,7 +34,6 @@ MODULE optimize_basis_utils
                                              subset_type
   USE powell,                          ONLY: opt_state_type
   USE string_utilities,                ONLY: uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -30,6 +30,7 @@ MODULE tmc_worker
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: set_external_comm
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_result_methods,               ONLY: cp_results_erase,&
                                              put_results
@@ -91,7 +92,6 @@ MODULE tmc_worker
                                              tmc_atom_type,&
                                              tmc_env_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

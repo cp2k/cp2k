@@ -27,6 +27,8 @@ MODULE se_fock_matrix_coulomb
        cp_dbcsr_get_block_diag, cp_dbcsr_get_block_p, cp_dbcsr_init, &
        cp_dbcsr_p_type, cp_dbcsr_replicate_all, cp_dbcsr_set, &
        cp_dbcsr_sum_replicated
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -87,7 +89,6 @@ MODULE se_fock_matrix_coulomb
                                              initialize_se_taper
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

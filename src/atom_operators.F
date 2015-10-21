@@ -37,7 +37,6 @@ MODULE atom_operators
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: a_fine
   USE qs_grid_atom,                    ONLY: grid_atom_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

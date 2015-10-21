@@ -13,6 +13,8 @@ MODULE shell_opt
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cg_optimizer,                    ONLY: geoopt_cg
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -37,7 +39,6 @@ MODULE shell_opt
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE shell_potential_types,           ONLY: shell_kind_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

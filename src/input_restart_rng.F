@@ -16,7 +16,6 @@ MODULE input_restart_rng
                                              val_type
   USE parallel_rng_types,              ONLY: rng_record_length
   USE string_utilities,                ONLY: ascii_to_string
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

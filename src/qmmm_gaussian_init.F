@@ -12,6 +12,8 @@
 ! *****************************************************************************
 MODULE qmmm_gaussian_init
   USE ao_util,                         ONLY: exp_radius
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -33,7 +35,6 @@ MODULE qmmm_gaussian_init
                                              set_mm_potential_swave
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

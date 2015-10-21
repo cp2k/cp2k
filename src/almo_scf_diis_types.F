@@ -18,6 +18,9 @@ MODULE almo_scf_diis_types
                                              cp_dbcsr_set,&
                                              cp_dbcsr_trace,&
                                              cp_dbcsr_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE domain_submatrix_methods,        ONLY: add_submatrices,&
                                              copy_submatrices,&
                                              init_submatrices,&
@@ -25,7 +28,6 @@ MODULE almo_scf_diis_types
                                              set_submatrices
   USE domain_submatrix_types,          ONLY: domain_submatrix_type
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

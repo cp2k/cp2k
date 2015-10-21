@@ -6,6 +6,8 @@
 ! *****************************************************************************
 MODULE farming_methods
   USE cp_files,                        ONLY: get_unit_number
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_generate_filename,&
                                              cp_print_key_unit_nr
@@ -20,7 +22,6 @@ MODULE farming_methods
                                              section_vals_type,&
                                              section_vals_val_get
   USE message_passing,                 ONLY: mp_bcast
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -19,6 +19,8 @@ MODULE fist_environment
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              get_cell
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -67,7 +69,6 @@ MODULE fist_environment
                                              write_structure_data
   USE particle_types,                  ONLY: particle_type
   USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

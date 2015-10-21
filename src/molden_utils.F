@@ -9,12 +9,12 @@
 ! *****************************************************************************
 MODULE molden_utils
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cp_log_handling,                 ONLY: cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

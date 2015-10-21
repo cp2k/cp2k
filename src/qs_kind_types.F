@@ -32,6 +32,8 @@ MODULE qs_kind_types
        write_orb_basis_set
   USE cp_control_types,                ONLY: dft_control_type,&
                                              qs_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -85,7 +87,6 @@ MODULE qs_kind_types
                                              se_param_set_default
   USE soft_basis_set,                  ONLY: create_soft_basis
   USE string_utilities,                ONLY: uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

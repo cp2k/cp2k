@@ -12,6 +12,8 @@ MODULE topology_coordinate_util
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              set_atomic_kind
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE exclusion_types,                 ONLY: exclusion_type
@@ -48,7 +50,6 @@ MODULE topology_coordinate_util
                                              topology_parameters_type
   USE topology_util,                   ONLY: array1_list_type,&
                                              reorder_structure
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

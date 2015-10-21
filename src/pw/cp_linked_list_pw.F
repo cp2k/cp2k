@@ -47,7 +47,6 @@
 MODULE cp_linked_list_pw
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_type
-#include "../common/cp_common_uses.f90"
 #include "../common/../base/base_uses.f90"
 
   IMPLICIT NONE

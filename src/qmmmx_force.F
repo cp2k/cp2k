@@ -36,7 +36,6 @@ MODULE qmmmx_force
   USE qmmmx_types,                     ONLY: qmmmx_env_type
   USE qmmmx_util,                      ONLY: apply_qmmmx_translate
   USE qs_environment_types,            ONLY: get_qs_env
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

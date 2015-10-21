@@ -10,7 +10,6 @@ MODULE atom_optimization
   USE atom_types,                      ONLY: atom_optimization_type
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgelss
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

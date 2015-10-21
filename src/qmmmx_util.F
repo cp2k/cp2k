@@ -16,6 +16,8 @@ MODULE qmmmx_util
   USE cell_types,                      ONLY: cell_copy,&
                                              cell_type,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_logger_get_default_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -47,7 +49,6 @@ MODULE qmmmx_util
                                              force_mixing_label_termination
   USE qmmm_util,                       ONLY: apply_qmmm_translate
   USE qmmmx_types,                     ONLY: qmmmx_env_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

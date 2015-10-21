@@ -36,7 +36,6 @@ MODULE wiener_process
   USE particle_list_types,             ONLY: particle_list_type
   USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: compress
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

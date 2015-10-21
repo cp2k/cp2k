@@ -42,6 +42,10 @@ MODULE rt_propagation_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE input_constants,                 ONLY: do_arnoldi,&
                                              do_bch,&
                                              do_em,&
@@ -68,7 +72,6 @@ MODULE rt_propagation_methods
   USE rt_propagation_utils,            ONLY: calc_S_derivs,&
                                              calc_update_rho,&
                                              calc_update_rho_sparse
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

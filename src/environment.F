@@ -26,8 +26,7 @@ MODULE environment
   USE cp_fm_types,                     ONLY: cp_fm_setup
   USE cp_log_handling,                 ONLY: &
        cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
-       cp_logger_get_default_io_unit, cp_logger_get_default_unit_nr, &
-       cp_logger_get_unit_nr, cp_logger_release, cp_logger_set, &
+       cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, &
        cp_logger_type, cp_rm_default_logger, cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
@@ -104,7 +103,6 @@ MODULE environment
                                              timings_report_print
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -16,7 +16,6 @@ MODULE mdctrl_methods
   USE glbopt_callback,                 ONLY: glbopt_md_callback
   USE md_environment_types,            ONLY: md_environment_type
   USE mdctrl_types,                    ONLY: mdctrl_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -19,7 +19,6 @@ MODULE qs_harmonics_atom
                                              soset
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE spherical_harmonics,             ONLY: y_lm
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

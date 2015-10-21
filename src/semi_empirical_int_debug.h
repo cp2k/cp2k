@@ -14,7 +14,6 @@ INTERFACE
      USE kinds,                           ONLY: dp
      USE semi_empirical_types,            ONLY: rotmat_type,&
                                                 semi_empirical_type
-#include "./common/cp_common_uses.f90"
      IMPLICIT NONE
      TYPE(semi_empirical_type), POINTER       :: sepi, sepj
      REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
@@ -38,7 +37,6 @@ INTERFACE
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
@@ -64,7 +62,6 @@ INTERFACE
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
@@ -90,7 +87,6 @@ INTERFACE
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -119,7 +115,6 @@ INTERFACE
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv
@@ -148,7 +143,6 @@ INTERFACE
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rijv
@@ -175,7 +169,6 @@ INTERFACE
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), INTENT(IN)                     :: r
@@ -200,7 +193,6 @@ INTERFACE
     USE semi_empirical_types,            ONLY: semi_empirical_type,&
                                                se_int_control_type,&
                                                se_taper_type
-#include "./common/cp_common_uses.f90"
     IMPLICIT NONE
     TYPE(semi_empirical_type), POINTER       :: sepi, sepj
     REAL(dp), DIMENSION(3), INTENT(IN)       :: rijv

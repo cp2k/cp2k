@@ -17,6 +17,9 @@ MODULE pair_potential
                                              get_atomic_kind
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE fparser,                         ONLY: finalizef,&
                                              initf,&
                                              parsef
@@ -47,7 +50,6 @@ MODULE pair_potential
                                              spline_factor_type
   USE string_table,                    ONLY: str2id
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

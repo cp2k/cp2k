@@ -46,6 +46,10 @@ MODULE xas_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -114,7 +118,6 @@ MODULE xas_methods
   USE xas_restart,                     ONLY: xas_read_restart
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf,&
                                              xes_scf_once
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

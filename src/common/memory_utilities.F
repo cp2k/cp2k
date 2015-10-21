@@ -21,7 +21,6 @@ MODULE memory_utilities
                                              int_8_size,&
                                              int_size
   USE termination,                     ONLY: stop_memory
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -39,6 +39,7 @@ MODULE constraint
                                              update_temporary_set
   USE constraint_vsite,                ONLY: shake_vsite_ext,&
                                              shake_vsite_int
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: npt_f_ensemble,&
@@ -56,7 +57,6 @@ MODULE constraint
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
   USE simpar_types,                    ONLY: simpar_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

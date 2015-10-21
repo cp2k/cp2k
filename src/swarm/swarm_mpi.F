@@ -14,8 +14,10 @@ MODULE swarm_mpi
                                              cp_iteration_info_release,&
                                              cp_iteration_info_type
   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_get_default_logger,&
                                              cp_logger_create,&
                                              cp_logger_release,&
+                                             cp_logger_type,&
                                              cp_rm_default_logger
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
@@ -38,7 +40,6 @@ MODULE swarm_mpi
                                              swarm_message_mpi_recv,&
                                              swarm_message_mpi_send,&
                                              swarm_message_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
  IMPLICIT NONE

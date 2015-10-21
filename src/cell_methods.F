@@ -15,6 +15,8 @@ MODULE cell_methods
        cell_clone, cell_create, cell_sym_none, cell_type, get_cell, &
        init_cell, set_cell_param, use_perd_none, use_perd_x, use_perd_xy, &
        use_perd_xyz, use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -40,7 +42,6 @@ MODULE cell_methods
                                              dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

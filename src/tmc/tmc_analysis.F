@@ -17,6 +17,7 @@ MODULE tmc_analysis
                                              pbc
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE force_fields_input,              ONLY: read_chrg_section
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -61,7 +62,6 @@ MODULE tmc_analysis
                                              write_subtree_elem_unformated
   USE tmc_types,                       ONLY: tmc_atom_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

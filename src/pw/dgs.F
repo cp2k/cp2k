@@ -36,7 +36,6 @@ MODULE dgs
                                              realspace_grid_type
   USE structure_factors,               ONLY: structure_factor_evaluate
   USE termination,                     ONLY: stop_memory
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -13,7 +13,6 @@ MODULE dg_types
                                              dg_rho0_release,&
                                              dg_rho0_retain,&
                                              dg_rho0_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

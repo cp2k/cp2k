@@ -24,7 +24,6 @@ MODULE preconditioner_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: ot_precond_solver_default
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

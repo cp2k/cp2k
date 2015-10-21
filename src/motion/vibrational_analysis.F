@@ -17,6 +17,9 @@
 ! *****************************************************************************
 MODULE vibrational_analysis
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -59,7 +62,6 @@ MODULE vibrational_analysis
   USE replica_types,                   ONLY: rep_env_release,&
                                              replica_env_type
   USE util,                            ONLY: sort
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

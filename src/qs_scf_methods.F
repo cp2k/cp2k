@@ -48,7 +48,6 @@ MODULE qs_scf_methods
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              mo_set_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

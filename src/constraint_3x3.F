@@ -25,7 +25,6 @@ MODULE constraint_3x3
                                              local_g3x3_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

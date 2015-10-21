@@ -141,7 +141,6 @@ MODULE xc_libxc_wrap
                                              XC_GGA_XC_LB,&
                                              XC_GGA_K_ABSR1
 
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

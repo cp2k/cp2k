@@ -26,6 +26,9 @@ MODULE  rt_propagation_utils
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: use_restart_wfn,&
                                              use_rt_restart
@@ -55,7 +58,6 @@ MODULE  rt_propagation_utils
                                              qs_rho_type
   USE rt_propagation_types,            ONLY: get_rtp,&
                                              rt_prop_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

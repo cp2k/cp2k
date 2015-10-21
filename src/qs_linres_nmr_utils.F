@@ -22,6 +22,8 @@ MODULE qs_linres_nmr_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -48,7 +50,6 @@ MODULE qs_linres_nmr_utils
                                              nmr_env_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE scf_control_types,               ONLY: scf_control_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

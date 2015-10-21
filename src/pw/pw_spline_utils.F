@@ -14,6 +14,9 @@
 !> \author Fawzi Mohamed
 ! *****************************************************************************
 MODULE pw_spline_utils
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_alltoall,&
@@ -37,7 +40,6 @@ MODULE pw_spline_utils
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

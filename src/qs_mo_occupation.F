@@ -12,6 +12,7 @@
 
 MODULE qs_mo_occupation
 
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE fermi_utils,                     ONLY: FermiFixed,&
                                              FermiFixedDeriv
   USE input_constants,                 ONLY: smear_energy_window,&
@@ -27,7 +28,6 @@ MODULE qs_mo_occupation
   USE util,                            ONLY: sort
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              xas_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

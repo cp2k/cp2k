@@ -29,6 +29,7 @@ MODULE fft_tools
                                              C_LOC,&
                                              C_PTR,&
                                              C_SIZE_T
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE fast,                            ONLY: zero_c
   USE fft_lib,                         ONLY: &
@@ -48,7 +49,6 @@ MODULE fft_tools
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -17,9 +17,13 @@ MODULE cell_opt_utils
        cell_type, get_cell_param, set_cell_param
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_log_handling,                 ONLY: cp_logger_create,&
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_create,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_release,&
-                                             cp_logger_set
+                                             cp_logger_set,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_units_rad
   USE input_cp2k_global,               ONLY: create_global_section
@@ -38,7 +42,6 @@ MODULE cell_opt_utils
                                              dp
   USE mathconstants,                   ONLY: sqrt3
   USE mathlib,                         ONLY: angle
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -26,7 +26,6 @@ MODULE transport_env_types
                                              cp_dbcsr_type,&
                                              csr_type
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

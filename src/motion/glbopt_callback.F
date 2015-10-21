@@ -18,7 +18,6 @@ MODULE glbopt_callback
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE mdctrl_types,                    ONLY: glbopt_mdctrl_data_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
  IMPLICIT NONE

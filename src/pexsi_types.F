@@ -21,6 +21,9 @@ MODULE pexsi_types
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_type,&
                                              csr_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE message_passing,                 ONLY: mp_dims_create,&
@@ -30,7 +33,6 @@ MODULE pexsi_types
                                              cp_pexsi_plan_finalize,&
                                              cp_pexsi_plan_initialize,&
                                              cp_pexsi_set_options
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

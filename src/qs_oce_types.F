@@ -10,7 +10,6 @@ MODULE qs_oce_types
   USE sap_kind_types,                  ONLY: release_sap_int,&
                                              sap_int_type
   USE termination,                     ONLY: stop_memory
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

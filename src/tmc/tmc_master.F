@@ -21,6 +21,7 @@
 MODULE tmc_master
   USE cell_types,                      ONLY: init_cell
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -73,7 +74,6 @@ MODULE tmc_master
        status_canceled_ener, status_canceled_nmc, status_created, &
        status_rejected, tree_type
   USE tmc_types,                       ONLY: tmc_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

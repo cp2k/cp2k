@@ -17,7 +17,6 @@ MODULE ps_wavelet_util
                                              s_poissonsolver
   USE ps_wavelet_fft3d,                ONLY: fourier_dim
   USE pw_grid_types,                   ONLY: pw_grid_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

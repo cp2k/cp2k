@@ -56,6 +56,9 @@ MODULE qs_ks_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -148,7 +151,6 @@ MODULE qs_ks_methods
   USE se_fock_matrix,                  ONLY: build_se_fock_matrix
   USE surface_dipole,                  ONLY: calc_dipsurf_potential
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

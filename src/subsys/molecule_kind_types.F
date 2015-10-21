@@ -28,6 +28,8 @@ MODULE molecule_kind_types
        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
        reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, &
        xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE force_field_kind_types,          ONLY: &
@@ -38,7 +40,6 @@ MODULE molecule_kind_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE shell_potential_types,           ONLY: shell_kind_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

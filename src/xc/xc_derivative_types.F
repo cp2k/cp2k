@@ -16,7 +16,6 @@ MODULE xc_derivative_types
                                              MAX_LABEL_LENGTH,&
                                              create_split_derivative_desc,&
                                              standardize_derivative_desc
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

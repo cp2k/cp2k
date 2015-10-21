@@ -8,6 +8,8 @@ MODULE atom
   USE atom_basis,                      ONLY: atom_basis_opt
   USE atom_energy,                     ONLY: atom_energy_opt
   USE atom_pseudo,                     ONLY: atom_pseudo_opt
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE header,                          ONLY: atom_footer,&
@@ -21,7 +23,6 @@ MODULE atom
                                              section_vals_val_get
   USE periodic_table,                  ONLY: nelem,&
                                              ptable
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

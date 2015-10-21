@@ -19,7 +19,6 @@ MODULE cp_lbfgs
   USE cp_files,                        ONLY: open_file
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

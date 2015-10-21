@@ -26,6 +26,7 @@ MODULE optbas_fenv_manipulation
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_output_handling,              ONLY: debug_print_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_admm_basis_projection,&
@@ -62,7 +63,6 @@ MODULE optbas_fenv_manipulation
                                              qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE string_utilities,                ONLY: uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

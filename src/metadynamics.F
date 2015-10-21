@@ -10,6 +10,7 @@
 !>      11.2007 Teodoro Laino [tlaino] - University of Zurich
 ! *****************************************************************************
 MODULE metadynamics
+USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger
   USE bibliography,                    ONLY: VandenCic2006
 #if defined (__PLUMED_CP2K) || defined (__PLUMED2)
   USE cell_types,                      ONLY: cell_type,&
@@ -65,7 +66,6 @@ MODULE metadynamics
 #endif
   USE reference_manager,               ONLY: cite_reference
   USE simpar_types,                    ONLY: simpar_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

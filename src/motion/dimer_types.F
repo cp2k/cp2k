@@ -11,6 +11,7 @@
 ! *****************************************************************************
 MODULE dimer_types
   
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_first_rotation_step
   USE input_section_types,             ONLY: section_vals_get,&
@@ -19,7 +20,6 @@ MODULE dimer_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE parallel_rng_types,              ONLY: random_numbers
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

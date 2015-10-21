@@ -16,6 +16,8 @@ MODULE qs_electric_field_gradient
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE eigenvalueproblems,              ONLY: diagonalise
@@ -69,7 +71,6 @@ MODULE qs_electric_field_gradient
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE util,                            ONLY: get_limit,&
                                              sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

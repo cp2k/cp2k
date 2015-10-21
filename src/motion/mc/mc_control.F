@@ -16,6 +16,7 @@ MODULE mc_control
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -51,7 +52,6 @@ MODULE mc_control
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

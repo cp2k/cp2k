@@ -28,6 +28,8 @@ MODULE input_parsing
                                              cp_to_array
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE cp_parser_methods,               ONLY: parser_get_object,&
                                              parser_location,&
                                              parser_skip_space,&
@@ -59,7 +61,6 @@ MODULE input_parsing
                                              max_line_length
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: print_message
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

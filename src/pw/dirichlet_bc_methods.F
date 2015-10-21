@@ -11,6 +11,9 @@
 ! *****************************************************************************
 MODULE dirichlet_bc_methods
 
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE dirichlet_bc_types,              ONLY: &
        AA_CUBOIDAL, AA_PLANAR, BWROT, CIRCUMSCRIBED, CYLINDRICAL, INSCRIBED, &
        PLANAR, cs_box_create, cs_rectangle, cs_rectangle_create, &
@@ -39,7 +42,6 @@ MODULE dirichlet_bc_methods
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE
   USE rs_methods,                      ONLY: setup_grid_axes
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

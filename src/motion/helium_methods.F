@@ -15,6 +15,8 @@ MODULE helium_methods
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: silent_print_level
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
@@ -61,7 +63,6 @@ MODULE helium_methods
   USE splines_types,                   ONLY: spline_data_create,&
                                              spline_data_release,&
                                              spline_data_retain
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

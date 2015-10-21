@@ -7,6 +7,9 @@
 !> \author teo
 ! *****************************************************************************
 MODULE qmmm_topology_util
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_section_types,             ONLY: section_vals_type
@@ -20,7 +23,6 @@ MODULE qmmm_topology_util
                                              str2id
   USE string_utilities,                ONLY: compress
   USE topology_types,                  ONLY: topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -17,7 +17,6 @@ MODULE pw_grid_info
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE pw_grid_types,                   ONLY: pw_grid_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

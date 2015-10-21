@@ -35,6 +35,7 @@ MODULE kpoint_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_env,                     ONLY: cp_cart_create,&
                                              cp_para_env_create,&
                                              cp_para_env_retain
@@ -76,7 +77,6 @@ MODULE kpoint_methods
                                              neighbor_list_set_p_type
   USE scf_control_types,               ONLY: smear_type
   USE util,                            ONLY: get_limit
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

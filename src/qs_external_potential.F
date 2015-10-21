@@ -13,6 +13,7 @@ MODULE qs_external_potential
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE force_fields_util,               ONLY: get_generic_info
   USE fparser,                         ONLY: evalf,&
                                              evalfd,&
@@ -38,7 +39,6 @@ MODULE qs_external_potential
                                              qs_kind_type
   USE realspace_grid_cube,             ONLY: cube_to_pw
   USE string_utilities,                ONLY: compress
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -21,7 +21,6 @@ MODULE qs_rho0_types
   USE termination,                     ONLY: stop_memory
   USE whittaker,                       ONLY: whittaker_c0a,&
                                              whittaker_ci
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

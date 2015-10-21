@@ -19,6 +19,8 @@ MODULE pw_env_methods
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -92,7 +94,6 @@ MODULE pw_env_methods
        xc_deriv_pw, xc_deriv_spline2, xc_deriv_spline2_smooth, &
        xc_deriv_spline3, xc_deriv_spline3_smooth, xc_rho_nn10, xc_rho_nn50, &
        xc_rho_no_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

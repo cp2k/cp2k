@@ -28,12 +28,12 @@ MODULE qs_ot
        cp_dbcsr_release_p, cp_dbcsr_scale, cp_dbcsr_scale_by_vector, &
        cp_dbcsr_set, cp_dbcsr_transposed, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE preconditioner,                  ONLY: apply_preconditioner
   USE preconditioner_types,            ONLY: preconditioner_type
   USE qs_ot_types,                     ONLY: qs_ot_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

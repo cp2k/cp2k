@@ -18,8 +18,9 @@ MODULE distribution_2d_types
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_type,&
                                              cp_blacs_env_write
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE machine,                         ONLY: m_flush
-#include "common/cp_common_uses.f90"
 #include "base/base_uses.f90"
 
   IMPLICIT NONE

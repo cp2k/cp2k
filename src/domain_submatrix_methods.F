@@ -22,6 +22,9 @@ MODULE domain_submatrix_methods
        cp_dbcsr_work_create, dbcsr_distribution_mp, dbcsr_mp_group, &
        dbcsr_mp_mynode, dbcsr_mp_numnodes, dbcsr_type_antisymmetric, &
        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE domain_submatrix_types,          ONLY: domain_map_type,&
                                              domain_submatrix_type,&
                                              select_row,&
@@ -30,7 +33,6 @@ MODULE domain_submatrix_methods
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_alltoall,&
                                              mp_sync
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

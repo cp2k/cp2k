@@ -23,6 +23,7 @@
 ! *****************************************************************************
 
 MODULE tmc_move_handle
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -45,7 +46,6 @@ MODULE tmc_move_handle
                                              status_rejected_result,&
                                              tree_type
   USE tmc_types,                       ONLY: tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

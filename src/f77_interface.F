@@ -27,13 +27,11 @@ MODULE f77_interface
   USE cp_error_handling,               ONLY: cp_error_handling_setup
   USE cp_files,                        ONLY: init_preconnection_list,&
                                              open_file
-  USE cp_log_handling,                 ONLY: cp_add_default_logger,&
-                                             cp_default_logger_stack_size,&
-                                             cp_failure_level,&
-                                             cp_logger_create,&
-                                             cp_logger_release,&
-                                             cp_logger_retain,&
-                                             cp_rm_default_logger
+  USE cp_log_handling,                 ONLY: &
+       cp_add_default_logger, cp_default_logger_stack_size, cp_failure_level, &
+       cp_get_default_logger, cp_logger_create, &
+       cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_retain, &
+       cp_logger_type, cp_rm_default_logger, cp_to_string
   USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
@@ -132,7 +130,6 @@ MODULE f77_interface
                                              timings_register_hooks
   USE timings_types,                   ONLY: timer_env_type
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

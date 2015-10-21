@@ -30,7 +30,6 @@ MODULE constraint_clv
                                              local_colvar_constraint_type,&
                                              molecule_type
   USE particle_types,                  ONLY: particle_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

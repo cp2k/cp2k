@@ -17,6 +17,9 @@
 MODULE kg_vertex_coloring_methods
   USE bibliography,                    ONLY: Brelaz1979,&
                                              cite_reference
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE input_constants,                 ONLY: kg_color_dsatur,&
                                              kg_color_greedy
   USE kg_environment_types,            ONLY: kg_environment_type
@@ -30,7 +33,6 @@ MODULE kg_vertex_coloring_methods
                                              valt
   USE kinds,                           ONLY: int_4,&
                                              int_8
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

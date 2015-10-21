@@ -20,7 +20,6 @@ MODULE almo_scf_types
        cg_hestenes_stiefel, cg_liu_storey, cg_polak_ribiere, cg_zero, &
        optimizer_diis, optimizer_pcg, prec_default, prec_zero
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

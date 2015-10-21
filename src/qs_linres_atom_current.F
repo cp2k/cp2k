@@ -23,6 +23,7 @@ MODULE qs_linres_atom_current
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_p_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: current_gauge_atom,&
                                              current_gauge_r,&
@@ -64,7 +65,6 @@ MODULE qs_linres_atom_current
                                              alist_type,&
                                              get_alist
   USE util,                            ONLY: get_limit
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

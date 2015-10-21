@@ -12,6 +12,8 @@ MODULE glbopt_master
                                              deallocate_atomic_kind_set
   USE colvar_types,                    ONLY: colvar_p_release,&
                                              colvar_p_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -49,7 +51,6 @@ MODULE glbopt_master
   USE swarm_message,                   ONLY: swarm_message_get,&
                                              swarm_message_type
   USE topology,                        ONLY: topology_control
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
  IMPLICIT NONE

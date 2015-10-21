@@ -28,7 +28,6 @@ MODULE orbital_pointers
   
   USE kinds,                           ONLY: int_size
   USE termination,                     ONLY: stop_memory
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

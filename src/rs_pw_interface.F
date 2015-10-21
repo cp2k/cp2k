@@ -10,6 +10,7 @@
 !> \author JGH (04.2014)
 ! *****************************************************************************
 MODULE rs_pw_interface
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_spline_utils,                 ONLY: pw_prolongate_s3,&
                                              pw_restrict_s3
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
@@ -37,7 +38,6 @@ MODULE rs_pw_interface
                                              rs2pw,&
                                              rs_grid_release,&
                                              rs_pw_transfer
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

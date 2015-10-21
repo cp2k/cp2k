@@ -18,6 +18,9 @@ MODULE rt_propagation
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_rm_iter_level
@@ -68,7 +71,6 @@ MODULE rt_propagation
   USE rt_propagator_init,              ONLY: init_propagators,&
                                              rt_initialize_rho_from_ks,&
                                              rt_initialize_rho_from_mos
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

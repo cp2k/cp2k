@@ -18,7 +18,6 @@ MODULE linear_systems
   
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

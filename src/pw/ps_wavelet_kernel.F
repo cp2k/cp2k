@@ -20,7 +20,6 @@ MODULE ps_wavelet_kernel
                                              scf_recursion
   USE ps_wavelet_util,                 ONLY: F_FFT_dimensions,&
                                              S_FFT_dimensions
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

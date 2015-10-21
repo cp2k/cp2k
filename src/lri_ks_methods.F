@@ -18,6 +18,9 @@ MODULE lri_ks_methods
                                              cp_dbcsr_finalize,&
                                              cp_dbcsr_get_block_p,&
                                              cp_dbcsr_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -54,7 +57,6 @@ MODULE lri_ks_methods
                                              neighbor_list_set_p_type
   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                              qs_subsys_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

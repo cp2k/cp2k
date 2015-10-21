@@ -27,6 +27,8 @@ MODULE cp_ddapc
   USE cp_ddapc_util,                   ONLY: get_ddapc,&
                                              modify_hartree_pot,&
                                              restraint_functional_potential
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: do_spin_density
@@ -51,7 +53,6 @@ MODULE cp_ddapc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

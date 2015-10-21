@@ -17,7 +17,6 @@ MODULE input_cp2k_atprop
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_create,&
                                              section_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

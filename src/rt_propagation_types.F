@@ -40,12 +40,12 @@ MODULE rt_propagation_types
                                              cp_fm_p_type,&
                                              cp_fm_release
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: dp
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

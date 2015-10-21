@@ -9,6 +9,8 @@ MODULE qs_fb_atomic_halo_types
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -27,7 +29,6 @@ MODULE qs_fb_atomic_halo_types
   USE string_utilities,                ONLY: compress
   USE util,                            ONLY: locate,&
                                              sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

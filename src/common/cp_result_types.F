@@ -17,7 +17,6 @@
 
   USE kinds,                           ONLY: default_string_length,&
                                              dp
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

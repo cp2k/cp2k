@@ -18,7 +18,6 @@ MODULE ai_coulomb_test
                                              init_orbital_pointers,&
                                              nco,&
                                              ncoset
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

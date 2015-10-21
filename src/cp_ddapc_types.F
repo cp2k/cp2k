@@ -15,6 +15,9 @@ MODULE cp_ddapc_types
                                              ddapc_eval_gfunc,&
                                              ewald_ddapc_pot,&
                                              solvation_ddapc_pot
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_printkey_is_on
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
@@ -32,7 +35,6 @@ MODULE cp_ddapc_types
                                              pw_pool_release,&
                                              pw_pool_type
   USE pw_types,                        ONLY: pw_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

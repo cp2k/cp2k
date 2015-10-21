@@ -32,7 +32,6 @@ MODULE qmmm_types_low
                                              pw_pools_dealloc
   USE pw_types,                        ONLY: pw_type
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -30,6 +30,8 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
@@ -48,7 +50,6 @@ MODULE qs_tddfpt_eigensolver
   USE qs_tddfpt_utils,                 ONLY: co_initial_guess,&
                                              normalize,&
                                              reorthogonalize
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

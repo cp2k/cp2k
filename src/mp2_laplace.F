@@ -24,7 +24,6 @@ MODULE mp2_laplace
   USE rpa_communication,               ONLY: fm_redistribute,&
                                              initialize_buffer,&
                                              release_buffer
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

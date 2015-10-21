@@ -19,7 +19,6 @@ MODULE ct_types
                                              tensor_orthogonal,&
                                              tensor_up_down
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

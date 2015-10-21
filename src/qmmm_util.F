@@ -10,6 +10,7 @@
 ! *****************************************************************************
 MODULE qmmm_util
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_subsys_types,                 ONLY: cp_subsys_type
   USE fist_environment_types,          ONLY: fist_env_get
   USE force_env_types,                 ONLY: force_env_type,&
@@ -31,7 +32,6 @@ MODULE qmmm_util
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env
   USE qs_kind_types,                   ONLY: qs_kind_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

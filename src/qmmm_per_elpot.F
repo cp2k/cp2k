@@ -13,6 +13,9 @@ MODULE qmmm_per_elpot
 !> \author Teodoro Laino
   USE ao_util,                         ONLY: exp_radius
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -42,7 +45,6 @@ MODULE qmmm_per_elpot
   USE qmmm_types_low,                  ONLY: qmmm_per_pot_p_type,&
                                              qmmm_per_pot_type,&
                                              qmmm_pot_p_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

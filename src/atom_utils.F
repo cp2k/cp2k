@@ -40,7 +40,6 @@ MODULE atom_utils
                                              ptable
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE string_utilities,                ONLY: uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

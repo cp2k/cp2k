@@ -21,6 +21,9 @@
 MODULE neb_methods
   USE colvar_utils,                    ONLY: number_of_colvar
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_print_key_finished_output,&
@@ -64,7 +67,6 @@ MODULE neb_methods
   USE replica_methods,                 ONLY: rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
                                              replica_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -33,6 +33,7 @@ MODULE matrix_exp
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac
@@ -40,7 +41,6 @@ MODULE matrix_exp
                                              mp_max,&
                                              mp_reordering,&
                                              mp_sum
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

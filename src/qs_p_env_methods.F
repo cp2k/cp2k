@@ -48,6 +48,9 @@ MODULE qs_p_env_methods
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_dealloc
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -84,7 +87,6 @@ MODULE qs_p_env_methods
                                              qs_rho_get,&
                                              qs_rho_type
   USE string_utilities,                ONLY: compress
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

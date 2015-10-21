@@ -37,7 +37,6 @@ MODULE eri_mme_test
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              ncoset
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -20,6 +20,9 @@ MODULE force_fields_util
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: dist_colvar_id
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_to_cp2k
@@ -72,7 +75,6 @@ MODULE force_fields_util
   USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
   USE shell_potential_types,           ONLY: shell_kind_type
   USE string_utilities,                ONLY: compress
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

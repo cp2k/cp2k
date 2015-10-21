@@ -21,6 +21,7 @@ MODULE qs_ot_eigensolver
                                              cp_fm_to_dbcsr_row_template
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE kinds,                           ONLY: dp
   USE preconditioner_types,            ONLY: preconditioner_in_use,&
                                              preconditioner_type
@@ -35,7 +36,6 @@ MODULE qs_ot_eigensolver
                                              qs_ot_settings_init,&
                                              qs_ot_settings_type,&
                                              qs_ot_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

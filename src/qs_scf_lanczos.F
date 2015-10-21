@@ -27,13 +27,13 @@ MODULE qs_scf_lanczos
        cp_fm_set_all, cp_fm_set_submatrix, cp_fm_to_fm, cp_fm_type, &
        cp_fm_vectorsnorm
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_scf_types,                    ONLY: krylov_space_type
   USE scf_control_types,               ONLY: scf_control_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

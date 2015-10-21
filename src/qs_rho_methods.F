@@ -20,6 +20,7 @@ MODULE qs_rho_methods
        cp_dbcsr_distribution, cp_dbcsr_init, cp_dbcsr_p_type, &
        cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_type_symmetric
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -51,7 +52,6 @@ MODULE qs_rho_methods
                                              qs_rho_set,&
                                              qs_rho_type
   USE task_list_types,                 ONLY: task_list_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

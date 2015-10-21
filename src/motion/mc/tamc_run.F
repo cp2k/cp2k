@@ -25,6 +25,9 @@ MODULE tamc_run
                                              colvar_p_type
   USE constraint_fxd,                  ONLY: fix_atom_control
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
                                              cp_p_file,&
@@ -131,7 +134,6 @@ MODULE tamc_run
   USE wiener_process,                  ONLY: create_wiener_process,&
                                              create_wiener_process_cv
 !!!!! monte carlo part
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

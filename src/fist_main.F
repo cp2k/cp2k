@@ -24,7 +24,6 @@ MODULE fist_main
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE qmmm_types_low,                  ONLY: qmmm_env_mm_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

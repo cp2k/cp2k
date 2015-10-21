@@ -27,6 +27,8 @@ MODULE hfx_admm_utils
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -79,7 +81,6 @@ MODULE hfx_admm_utils
   USE rt_propagation_types,            ONLY: rt_prop_type
   USE virial_types,                    ONLY: virial_type
   USE xc_adiabatic_utils,              ONLY: rescale_xc_potential
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

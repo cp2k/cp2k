@@ -131,7 +131,6 @@ MODULE input_cp2k_dft
   USE qs_fb_input,                     ONLY: create_filtermatrix_section
   USE string_utilities,                ONLY: newline,&
                                              s2a
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

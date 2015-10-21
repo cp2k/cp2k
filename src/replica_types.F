@@ -17,6 +17,9 @@
 !> \author fawzi
 ! *****************************************************************************
 MODULE replica_types
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_cart_release,&
                                              cp_para_env_release
@@ -34,7 +37,6 @@ MODULE replica_types
   USE message_passing,                 ONLY: mp_sum
   USE qs_wf_history_types,             ONLY: qs_wf_history_p_type,&
                                              wfi_release
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -15,6 +15,7 @@
 !> \author Mandes
 ! *****************************************************************************
 MODULE tmc_messages
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -44,7 +45,6 @@ MODULE tmc_messages
   USE tmc_types,                       ONLY: allocate_tmc_atom_type,&
                                              tmc_atom_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

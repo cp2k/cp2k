@@ -21,6 +21,7 @@
   RECURSIVE SUBROUTINE cp_eval_at(gopt_env,x,f,gradient,master,&
                                   final_evaluation,para_env)
 
+USE cp_log_handling, ONLY: cp_logger_type
     USE averages_types,                  ONLY: average_quantities_type,&
                                                create_averages,&
                                                release_averages
@@ -76,7 +77,6 @@
     USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                                cp_rm_default_logger
 
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
     IMPLICIT NONE
     TYPE(gopt_f_type), POINTER               :: gopt_env

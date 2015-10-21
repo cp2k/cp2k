@@ -50,7 +50,6 @@ MODULE integrator_utils
   USE thermostat_types,                ONLY: set_thermostats,&
                                              thermostats_type
   USE virial_types,                    ONLY: virial_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

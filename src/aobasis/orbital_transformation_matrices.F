@@ -30,7 +30,6 @@ MODULE orbital_transformation_matrices
   USE orbital_symbols,                 ONLY: cgf_symbol,&
                                              sgf_symbol
   USE termination,                     ONLY: stop_memory
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

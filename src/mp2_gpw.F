@@ -38,9 +38,12 @@ MODULE mp2_gpw
                                              cp_fm_release,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
+                                             cp_get_default_logger,&
                                              cp_logger_create,&
+                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_release,&
                                              cp_logger_set,&
+                                             cp_logger_type,&
                                              cp_rm_default_logger
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
@@ -111,7 +114,6 @@ MODULE mp2_gpw
                                              deallocate_task_list,&
                                              task_list_type
   USE util,                            ONLY: get_limit
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

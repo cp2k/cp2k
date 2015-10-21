@@ -37,7 +37,8 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
                                              random_numbers
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
-#include "./common/cp_common_uses.f90"
+  USE cp_log_handling,                 ONLY: cp_logger_type,&
+                                             cp_get_default_logger
 #include "./base/base_uses.f90"
   IMPLICIT NONE
 
@@ -691,7 +692,8 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
-#include "./common/cp_common_uses.f90"
+  USE cp_log_handling,                 ONLY: cp_logger_type,&
+                                             cp_get_default_logger
 #include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -895,7 +897,8 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
   USE particle_types,                  ONLY: particle_type
   USE ewalds_multipole,                ONLY: ewald_multipole_evaluate
   USE fist_neighbor_list_control,      ONLY: list_control
-#include "./common/cp_common_uses.f90"
+  USE cp_log_handling,                 ONLY: cp_logger_type,&
+                                             cp_get_default_logger
 #include "./base/base_uses.f90"
   IMPLICIT NONE
   TYPE(ewald_environment_type), POINTER    :: ewald_env

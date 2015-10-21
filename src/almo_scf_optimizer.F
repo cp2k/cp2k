@@ -52,6 +52,9 @@ MODULE almo_scf_optimizer
   USE cp_external_control,             ONLY: external_control
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE ct_methods,                      ONLY: analytic_line_search,&
                                              ct_step_execute,&
                                              diagonalize_diagonal_blocks
@@ -80,7 +83,6 @@ MODULE almo_scf_optimizer
                                              m_walltime
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

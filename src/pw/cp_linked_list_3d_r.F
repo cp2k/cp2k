@@ -47,7 +47,6 @@
 MODULE cp_linked_list_3d_r
   USE cp_array_utils_r,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
-#include "../common/cp_common_uses.f90"
 #include "../common/../base/base_uses.f90"
 
   IMPLICIT NONE

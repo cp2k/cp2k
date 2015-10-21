@@ -33,6 +33,8 @@ MODULE mp2_ri_libint
                                              cp_fm_release,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gamma,                           ONLY: init_md_ftable
   USE hfx_energy_potential,            ONLY: coulomb4
@@ -65,7 +67,6 @@ MODULE mp2_ri_libint
                                              qs_kind_type
   USE t_sh_p_s_c,                      ONLY: free_C0,&
                                              init
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -35,6 +35,9 @@ MODULE bfgs_optimizer
                                              cp_fm_type,&
                                              cp_fm_write_unformatted
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_iterate,&
                                              cp_p_file,&
                                              cp_print_key_finished_output,&
@@ -66,7 +69,6 @@ MODULE bfgs_optimizer
   USE message_passing,                 ONLY: mp_min,&
                                              mp_sum
   USE particle_list_types,             ONLY: particle_list_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

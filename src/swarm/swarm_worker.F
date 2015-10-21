@@ -8,6 +8,8 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE swarm_worker
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE glbopt_worker,                   ONLY: glbopt_worker_execute,&
@@ -23,7 +25,6 @@ MODULE swarm_worker
                                              swarm_message_get,&
                                              swarm_message_haskey,&
                                              swarm_message_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
  IMPLICIT NONE

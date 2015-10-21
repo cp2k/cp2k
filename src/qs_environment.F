@@ -41,6 +41,9 @@ MODULE qs_environment
                                              write_dft_control,&
                                              write_qs_control
   USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -178,7 +181,6 @@ MODULE qs_environment
   USE semi_empirical_utils,            ONLY: se_cutoff_compatible
   USE transport,                       ONLY: transport_env_create
 !  USE xas_control,                     ONLY: write_xas_control
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -56,7 +56,6 @@ MODULE rpa_ri_gpw
                                              initialize_buffer,&
                                              release_buffer
   USE util,                            ONLY: get_limit
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

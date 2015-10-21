@@ -9,8 +9,11 @@
 ! *****************************************************************************
 MODULE mixed_main
   USE cp_files,                        ONLY: open_file
-  USE cp_log_handling,                 ONLY: cp_logger_create,&
-                                             cp_logger_set
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_create,&
+                                             cp_logger_set,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -22,7 +25,6 @@ MODULE mixed_main
   USE mixed_environment_types,         ONLY: mixed_env_create,&
                                              mixed_environment_type,&
                                              set_mixed_env
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

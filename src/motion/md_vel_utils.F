@@ -22,6 +22,8 @@ MODULE md_vel_utils
        use_perd_xz, use_perd_y, use_perd_yz, use_perd_z
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -71,7 +73,6 @@ MODULE md_vel_utils
   USE simpar_types,                    ONLY: simpar_type
   USE thermal_region_types,            ONLY: thermal_region_type,&
                                              thermal_regions_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

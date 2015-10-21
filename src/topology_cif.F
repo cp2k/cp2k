@@ -17,6 +17,9 @@ MODULE topology_cif
                                              real_to_scaled,&
                                              scaled_to_real,&
                                              set_cell_param
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -42,7 +45,6 @@ MODULE topology_cif
   USE string_utilities,                ONLY: s2a
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

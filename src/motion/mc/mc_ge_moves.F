@@ -53,7 +53,6 @@ MODULE mc_ge_moves
   USE particle_methods,                ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory
-#include "../../common/cp_common_uses.f90"
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE

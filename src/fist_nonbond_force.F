@@ -19,6 +19,8 @@ MODULE fist_nonbond_force
   USE atprop_types,                    ONLY: atprop_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -50,7 +52,6 @@ MODULE fist_nonbond_force
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_factor_type
   USE termination,                     ONLY: stop_memory
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

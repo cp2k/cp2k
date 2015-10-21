@@ -35,7 +35,6 @@ MODULE cp_dbcsr_diag
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
-#include "common/cp_common_uses.f90"
 #include "base/base_uses.f90"
 
   IMPLICIT NONE

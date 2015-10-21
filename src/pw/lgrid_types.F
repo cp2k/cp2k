@@ -17,7 +17,6 @@ MODULE lgrid_types
   USE kinds,                           ONLY: dp
   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
                                              rs_grid_max_ngpts
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

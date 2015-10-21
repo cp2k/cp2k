@@ -17,6 +17,9 @@ MODULE thermal_region_utils
   USE bibliography,                    ONLY: Kantorovich2008,&
                                              Kantorovich2008a,&
                                              cite_reference
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -43,7 +46,6 @@ MODULE thermal_region_utils
                                              release_thermal_regions,&
                                              thermal_region_type,&
                                              thermal_regions_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

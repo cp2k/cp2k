@@ -23,6 +23,8 @@ MODULE qs_operators_ao
                                              cp_dbcsr_p_type,&
                                              dbcsr_type_antisymmetric,&
                                              dbcsr_type_no_symmetry
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -41,7 +43,6 @@ MODULE qs_operators_ao
                                              neighbor_list_iterator_p_type,&
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

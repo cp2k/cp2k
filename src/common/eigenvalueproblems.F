@@ -20,7 +20,6 @@ MODULE eigenvalueproblems
                                              lapack_chpev,&
                                              lapack_sgesvd,&
                                              lapack_ssyev
-#include "cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

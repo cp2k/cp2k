@@ -15,7 +15,6 @@ MODULE mol_force
        do_ff_g96, do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm2, &
        do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic
   USE kinds,                           ONLY: dp
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

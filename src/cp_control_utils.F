@@ -18,6 +18,8 @@ MODULE cp_control_utils
        ddapc_restraint_type, dft_control_create, dft_control_type, &
        efield_type, qs_control_type, sccs_control_create, &
        tddfpt_control_create, tddfpt_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -57,7 +59,6 @@ MODULE cp_control_utils
   USE xc_input_constants,              ONLY: xc_deriv_collocate
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_write_output,                 ONLY: xc_write
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

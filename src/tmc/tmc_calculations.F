@@ -16,6 +16,7 @@ MODULE tmc_calculations
                                              get_cell,&
                                              init_cell,&
                                              pbc
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE erf_fn,                          ONLY: erfc
   USE f77_interface,                   ONLY: calc_energy,&
                                              calc_force,&
@@ -36,7 +37,6 @@ MODULE tmc_calculations
   USE tmc_types,                       ONLY: tmc_atom_type,&
                                              tmc_env_type,&
                                              tmc_param_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

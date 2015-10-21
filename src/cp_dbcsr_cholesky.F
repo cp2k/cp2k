@@ -28,7 +28,6 @@ MODULE cp_dbcsr_cholesky
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,&
                                              sp
-#include "common/cp_common_uses.f90"
 #include "base/base_uses.f90"
 
   IMPLICIT NONE

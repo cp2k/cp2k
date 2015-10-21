@@ -11,6 +11,9 @@
 ! *****************************************************************************
 MODULE ps_implicit_methods
 
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE dct,                             ONLY: dct_type,&
                                              dct_type_init,&
                                              pw_adjust_bounds_local,&
@@ -53,7 +56,6 @@ MODULE ps_implicit_methods
                                              pw_type
   USE rs_methods,                      ONLY: pw_mollifier,&
                                              setup_grid_axes
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

@@ -5,6 +5,7 @@
 
 MODULE manybody_quip
 
+USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE bibliography,                    ONLY: QUIP_ref,&
                                              cite_reference
@@ -26,7 +27,6 @@ MODULE manybody_quip
   USE quip_unified_wrapper_module,    ONLY : quip_unified_wrapper
 #endif
 
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
 IMPLICIT NONE

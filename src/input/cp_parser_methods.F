@@ -17,6 +17,7 @@
 ! *****************************************************************************
 MODULE cp_parser_methods
 
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser_buffer_types,          ONLY: copy_buffer_type,&
                                              finalize_sub_buffer,&
@@ -36,7 +37,6 @@ MODULE cp_parser_methods
   USE message_passing,                 ONLY: mp_bcast
   USE string_utilities,                ONLY: is_whitespace,&
                                              uppercase
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

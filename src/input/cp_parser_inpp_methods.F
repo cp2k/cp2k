@@ -17,13 +17,13 @@
 MODULE cp_parser_inpp_methods
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_parser_inpp_types,            ONLY: inpp_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: is_whitespace,&
                                              uppercase
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

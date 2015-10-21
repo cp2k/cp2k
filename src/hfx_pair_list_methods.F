@@ -30,7 +30,6 @@ MODULE hfx_pair_list_methods
   USE particle_types,                  ONLY: particle_type
   USE t_c_g0,                          ONLY: t_c_g0_n
   USE t_sh_p_s_c,                      ONLY: trunc_CS_poly_n20
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

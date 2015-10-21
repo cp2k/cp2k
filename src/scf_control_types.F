@@ -14,6 +14,8 @@
 ! *****************************************************************************
 MODULE scf_control_types
 
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -41,7 +43,6 @@ MODULE scf_control_types
   USE qs_ot_types,                     ONLY: ot_readwrite_input,&
                                              qs_ot_settings_init,&
                                              qs_ot_settings_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

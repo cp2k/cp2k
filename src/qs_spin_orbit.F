@@ -18,6 +18,8 @@ MODULE qs_spin_orbit
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_block_p,&
                                              cp_dbcsr_p_type
   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -42,7 +44,6 @@ MODULE qs_spin_orbit
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE termination,                     ONLY: stop_memory
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

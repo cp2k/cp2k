@@ -20,6 +20,7 @@ MODULE ipi_driver
                                              cell_type,&
                                              init_cell
   USE cp_external_control,             ONLY: external_control
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
@@ -41,7 +42,6 @@ MODULE ipi_driver
                                              mp_sync,&
                                              mp_testany
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

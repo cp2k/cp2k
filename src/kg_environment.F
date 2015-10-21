@@ -58,7 +58,6 @@ MODULE kg_environment
                                              write_neighbor_lists
   USE task_list_types,                 ONLY: deallocate_task_list
   USE util,                            ONLY: sort
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

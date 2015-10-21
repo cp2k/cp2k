@@ -33,6 +33,9 @@ MODULE qs_scf_initialization
                                              cp_fm_to_fm,&
                                              cp_fm_to_fm_triangular,&
                                              cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -107,7 +110,6 @@ MODULE qs_scf_initialization
   USE scf_control_types,               ONLY: scf_control_type
   USE xas_env_types,                   ONLY: xas_environment_type
   USE xas_restart,                     ONLY: xas_initialize_rho
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

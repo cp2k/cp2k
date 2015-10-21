@@ -16,6 +16,10 @@ MODULE input_cp2k_restarts
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_get_length,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_io_unit,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -80,7 +84,6 @@ MODULE input_cp2k_restarts
   USE thermostat_types,                ONLY: thermostat_type
   USE thermostat_utils,                ONLY: communication_thermo_low2,&
                                              get_kin_energies
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

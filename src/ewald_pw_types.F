@@ -10,6 +10,8 @@
 MODULE ewald_pw_types
   USE ao_util,                         ONLY: exp_radius
   USE cell_types,                      ONLY: cell_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -47,7 +49,6 @@ MODULE ewald_pw_types
        realspace_grid_type, rs_grid_create, rs_grid_create_descriptor, &
        rs_grid_print, rs_grid_release, rs_grid_release_descriptor, &
        rs_grid_retain_descriptor
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

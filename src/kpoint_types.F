@@ -15,6 +15,8 @@ MODULE kpoint_types
                                              cp_blacs_env_type
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_release
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_cart_release,&
@@ -34,7 +36,6 @@ MODULE kpoint_types
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE string_utilities,                ONLY: uppercase
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

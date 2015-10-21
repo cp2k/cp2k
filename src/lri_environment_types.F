@@ -28,7 +28,6 @@ MODULE lri_environment_types
                                              neighbor_list_iterator_release,&
                                              neighbor_list_set_p_type
   USE virial_types,                    ONLY: virial_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -12,13 +12,14 @@
 MODULE splines_methods
 
   
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE splines_types,                   ONLY: spline_data_p_type,&
                                              spline_data_type,&
                                              spline_factor_type
   USE termination,                     ONLY: stop_memory
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

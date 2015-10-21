@@ -19,12 +19,14 @@ MODULE iterate_matrix
        cp_dbcsr_setup_arnoldi_data, cp_dbcsr_transposed, cp_dbcsr_type, &
        dbcsr_arnoldi_data, dbcsr_norm_maxabsnorm, dbcsr_type_no_symmetry, &
        deallocate_arnoldi_data, get_selected_ritz_val
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE mathconstants,                   ONLY: ifac
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -8,6 +8,8 @@
 ! *****************************************************************************
 MODULE qs_ks_qmmm_methods
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cube_utils,                      ONLY: cube_info_type,&
@@ -32,7 +34,6 @@ MODULE qs_ks_qmmm_methods
                                              set_qs_env
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
                                              qs_ks_qmmm_release
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

@@ -19,6 +19,9 @@ MODULE qs_ot_minimizer
                                              cp_dbcsr_scale,&
                                              cp_dbcsr_set,&
                                              cp_dbcsr_trace
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE mathlib,                         ONLY: diamat_all
@@ -26,7 +29,6 @@ MODULE qs_ot_minimizer
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
                                              qs_ot_get_derivative_ref
   USE qs_ot_types,                     ONLY: qs_ot_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

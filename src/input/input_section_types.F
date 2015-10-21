@@ -18,6 +18,7 @@ MODULE input_section_types
        cp_sll_val_get_length, cp_sll_val_get_rest, cp_sll_val_insert_el_at, &
        cp_sll_val_next, cp_sll_val_p_type, cp_sll_val_rm_el_at, &
        cp_sll_val_set_el_at, cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE input_keyword_types,             ONLY: keyword_describe,&
                                              keyword_describe_html,&
                                              keyword_p_type,&
@@ -46,7 +47,6 @@ MODULE input_section_types
                                              typo_match,&
                                              uppercase
   USE termination,                     ONLY: print_message
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

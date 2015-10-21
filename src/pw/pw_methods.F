@@ -20,6 +20,8 @@
 !> \author apsi
 ! *****************************************************************************
 MODULE pw_methods
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE fast,                            ONLY: copy_cr,&
                                              copy_rc,&
                                              zero_c
@@ -48,7 +50,6 @@ MODULE pw_methods
                                              RECIPROCALSPACE,&
                                              pw_type
   USE termination,                     ONLY: stop_memory
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

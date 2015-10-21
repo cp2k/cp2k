@@ -17,6 +17,9 @@ MODULE reftraj_util
                                              get_atomic_kind
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -52,7 +55,6 @@ MODULE reftraj_util
                                              reftraj_type
   USE simpar_types,                    ONLY: simpar_type
   USE util,                            ONLY: get_limit
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

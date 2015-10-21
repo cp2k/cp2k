@@ -19,7 +19,6 @@ MODULE cp_cfm_basic_linalg
   USE cp_fm_types,                     ONLY: cp_fm_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

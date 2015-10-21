@@ -16,7 +16,6 @@ MODULE pint_public
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
   USE pint_types,                      ONLY: pint_env_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

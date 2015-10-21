@@ -23,6 +23,8 @@ MODULE atoms_input
                                              scaled_to_real
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit,&
+                                             cp_to_string
   USE cp_parser_methods,               ONLY: read_float_object
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_section_types,             ONLY: section_vals_get,&
@@ -44,7 +46,6 @@ MODULE atoms_input
   USE string_utilities,                ONLY: uppercase
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
-#include "./common/cp_common_uses.f90"
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE

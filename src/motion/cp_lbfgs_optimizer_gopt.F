@@ -18,6 +18,9 @@
 ! *****************************************************************************
 MODULE cp_lbfgs_optimizer_gopt
   USE cp_lbfgs,                        ONLY: setulb
+  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                             cp_logger_type,&
+                                             cp_to_string
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -33,7 +36,6 @@ MODULE cp_lbfgs_optimizer_gopt
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
   USE message_passing,                 ONLY: mp_bcast
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

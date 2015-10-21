@@ -17,7 +17,6 @@ MODULE ai_eri_debug
   USE gamma,                           ONLY: fgamma_ref
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

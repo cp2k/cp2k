@@ -20,6 +20,7 @@ MODULE gopt_f_methods
                                              init_cell,&
                                              real_to_scaled,&
                                              scaled_to_real
+  USE cp_log_handling,                 ONLY: cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
@@ -59,7 +60,6 @@ MODULE gopt_f_methods
   USE qmmmx_util,                      ONLY: apply_qmmmx_translate
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
-#include "../common/cp_common_uses.f90"
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
