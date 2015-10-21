@@ -624,7 +624,7 @@ CONTAINS
        ! nothing at the moment, not implemented
     ELSE
        CALL get_qs_env(qs_env,matrix_s=matrix_s)
-       CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, qs_kind_set, &
+       CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
                     lumo_ptr, scf_env, matrix_s, output_unit, marked_states)
        IF(p_loc_lumo)CALL cp_fm_vect_dealloc(lumo_localized)
     END IF

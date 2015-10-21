@@ -500,7 +500,7 @@ CONTAINS
     END DO
 
     output_unit= cp_logger_get_default_io_unit(logger)
-    CALL wfn_mix(mos, particle_set, dft_section, atomic_kind_set, qs_kind_set, &
+    CALL wfn_mix(mos, particle_set, dft_section, qs_kind_set, &
                  lumos, scf_env, matrix_s, output_unit)
 
     DO ispin=1,SIZE(mos)
