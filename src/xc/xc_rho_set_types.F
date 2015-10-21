@@ -623,9 +623,8 @@ CONTAINS
 
     CPASSERT(ASSOCIATED(rho_set))
     CPASSERT(rho_set%ref_count>0)
-    CALL cp_assert(ALL(rho_set%local_bounds==pw_pool%pw_grid%bounds_local),&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "pw_pool cr3d have different size than expected")
+    IF(ANY(rho_set%local_bounds/=pw_pool%pw_grid%bounds_local))&
+       CPABORT("pw_pool cr3d have different size than expected")
     nspins = SIZE(rho_r)
     rho_set%local_bounds=rho_r(1)%pw%pw_grid%bounds_local
     rho_cutoff=0.5*rho_set%rho_cutoff

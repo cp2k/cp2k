@@ -466,11 +466,8 @@ END SUBROUTINE cp_opt_gopt_release
           CPASSERT(.NOT.PRESENT(actual_projected_gradient))
        END IF
     ELSE
-       CALL cp_assert(.NOT.(PRESENT(lower_bound).OR.&
-            PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
-            cp_warning_level,cp_assertion_failed,&
-            routineP, "asked undefined types in "//&
-            __LOCATION__)
+       IF(PRESENT(lower_bound).OR.PRESENT(upper_bound).OR.PRESENT(kind_of_bound))&
+          CPWARN("asked undefined types")
     END IF
 
     !  call timestop(handle)

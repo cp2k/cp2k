@@ -375,11 +375,10 @@ CONTAINS
 
     ! simulated annealing start temperature
     global_tree%Temp = tmc_env%params%Temp(1)
-    CALL cp_assert(.NOT.(tmc_env%params%nr_temp.NE.1 .AND. tmc_env%m_env%temp_decrease.NE.1.0_dp),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "there is no parallel tempering implementation for simulated annealing implemented "//&
-                     "(just one Temp per global tree element.",&
-                     only_ionode=.TRUE.)
+    IF(tmc_env%params%nr_temp.NE.1 .AND. tmc_env%m_env%temp_decrease.NE.1.0_dp)&
+       CALL cp_abort(__LOCATION__,&
+            "there is no parallel tempering implementation for simulated annealing implemented "//&
+            "(just one Temp per global tree element.")
 
     !-- IF program is restarted, read restart file
     IF(tmc_env%m_env%restart_in_file_name.NE."") THEN
@@ -763,12 +762,11 @@ CONTAINS
 
 
     IF(keep_on) THEN ! status changes
-      CALL cp_assert(new_elem%stat.NE.status_accepted_result .AND. &
-                     new_elem%stat.NE.status_accepted .AND. &
-                     new_elem%stat.NE.status_rejected .AND. &
-                     new_elem%stat.NE.status_rejected_result, &
-                     cp_failure_level, cp_assertion_failed, routineP,&
-                     "selected existing RESULT gt node")
+      IF(new_elem%stat.EQ.status_accepted_result .OR. &
+         new_elem%stat.EQ.status_accepted .OR. &
+         new_elem%stat.EQ.status_rejected .OR. &
+         new_elem%stat.EQ.status_rejected_result)&
+           CPABORT("selected existing RESULT gt node")
       !-- set status of global tree element for decision in master routine
       SELECT CASE(new_elem%conf(new_elem%mv_conf)%elem%stat)
       CASE(status_rejected_result,status_rejected,status_accepted,&

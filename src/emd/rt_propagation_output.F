@@ -249,12 +249,12 @@ CONTAINS
                             dft_section,qs_kind_set)
        ENDIF
     ENDIF
-    
+
     rtp%energy_old=rtp%energy_new
-    
-    CALL cp_assert(rtp%converged.OR.rtp%iter<dft_control%rtp_control%max_iter,cp_failure_level,cp_assertion_failed,&
-         routineP,"EMD did not converge, either increase MAX_ITER "//&
-         "or use a smaller TIMESTEP")
+
+    IF(.NOT.rtp%converged .AND. rtp%iter>=dft_control%rtp_control%max_iter)&
+       CALL cp_abort(__LOCATION__,"EMD did not converge, either increase MAX_ITER "//&
+            "or use a smaller TIMESTEP")
 
   END SUBROUTINE rt_prop_output
 

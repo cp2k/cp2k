@@ -1232,12 +1232,11 @@ CONTAINS
     ENDIF
 
     ! This is clearly a user error
-    CALL cp_assert(found.OR.(.NOT.defined_kind_section),cp_fatal_level,cp_assertion_failed,routineP,&
-         "Element <"//TRIM(element_symbol)//"> provided for KIND <"//TRIM(atom_name_in)//"> "//&
-         "which cannot be mapped with any standard element label. Please correct your "//&
-         "input file!"//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(.NOT.found.AND.defined_kind_section)&
+       CALL cp_abort(__LOCATION__, "Element <"//TRIM(element_symbol)//&
+            "> provided for KIND <"//TRIM(atom_name_in)//"> "//&
+            "which cannot be mapped with any standard element label. Please correct your "//&
+            "input file!")
 
     ! Last chance.. are these atom_kinds of AMBER or CHARMM or GROMOS FF ?
     CALL uppercase(element_symbol)

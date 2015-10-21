@@ -340,11 +340,10 @@ CONTAINS
       CALL get_results(results, description=description,&
                        values=res_val_3, n_entries=i_tmp)
       CPASSERT(i_tmp.EQ.3)
-      CALL cp_assert(ANY(res_val_3(:).GT.0.0),cp_failure_level,&
-             cp_assertion_failed,routineP,&
+      IF(ALL(res_val_3(:).LE.0.0))&
+         CALL cp_abort(__LOCATION__,&
              " Trying to access result ("//TRIM(description)//&
-             ") which is not correctly stored. ",&
-             only_ionode=.TRUE.)
+             ") which is not correctly stored.")
     END IF
     external_comm          = NINT(res_val_3(1))
     ext_master_id          = NINT(res_val_3(2))

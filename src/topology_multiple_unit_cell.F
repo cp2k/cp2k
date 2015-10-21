@@ -61,16 +61,17 @@ CONTAINS
     CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL",&
                               i_vals=multiple_unit_cell)
     ! Fail is one of the value is set to zero..
-    CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
-         "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
-         "A value of 0 or negative is meaningless!")
+    IF(ANY(multiple_unit_cell<=0))&
+       CALL cp_abort(__LOCATION__, "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL accepts "//&
+            "only integer values larger than 0! A value of 0 or negative is meaningless!")
     IF (ANY(multiple_unit_cell/=1)) THEN
        ! Check that the setup between CELL and TOPOLOGY is the same..
        CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL",&
                                  i_vals=iwork)
-       CALL cp_assert(ALL(iwork==multiple_unit_cell),cp_fatal_level,cp_assertion_failed,routineP,&
-         "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "//&
-         "setup to two different values!! Correct this error!!")
+       IF(ANY(iwork/=multiple_unit_cell))&
+          CALL cp_abort(__LOCATION__,"SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and "//&
+               "SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "//&
+               "setup to two different values!! Correct this error!!")
        cell => topology%cell_muc
        natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 

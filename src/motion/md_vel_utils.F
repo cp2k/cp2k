@@ -974,8 +974,8 @@ CONTAINS
 
     IF(simpar%soften_nsteps <= 0) RETURN !nothing todo
 
-    CALL cp_assert(ALL(is_fixed==use_perd_none), cp_fatal_level, cp_assertion_failed,&
-                 routineP,"Velocitiy softening with constraints is not supported.")
+    IF(ANY(is_fixed/=use_perd_none))&
+       CPABORT("Velocitiy softening with constraints is not supported.")
 
     !backup positions
     DO i = 1, SIZE(part)
@@ -2012,13 +2012,10 @@ CONTAINS
           no_read_error = .FALSE.
           READ (UNIT=line,FMT=*,ERR=999) atom_index(iatom),vatom(1:3,iatom),weight(iatom)
           no_read_error = .TRUE.
-999       CALL cp_assert(no_read_error,cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Error occurred reading &CASCADE section. Last line read <"//&
-                         TRIM(line)//">",only_ionode=.TRUE.)
-          CALL cp_assert((atom_index(iatom) > 0).AND.((atom_index(iatom) <= nparticle)),&
-                         cp_fatal_level,cp_assertion_failed,routineP,&
-                         "Error occurred reading &CASCADE section: Invalid atom index found",&
-                         only_ionode=.TRUE.)
+999       IF(.NOT.no_read_error)&
+             CPABORT("Error occurred reading &CASCADE section. Last line read <"//TRIM(line)//">")
+          IF((atom_index(iatom) <= 0).OR.((atom_index(iatom) > nparticle)))&
+             CPABORT("Error occurred reading &CASCADE section: Invalid atom index found")
           IF(weight(iatom) < 0.0_dp)&
              CPABORT("Error occurred reading &CASCADE section: Negative weight found")
           IF (iw > 0) THEN

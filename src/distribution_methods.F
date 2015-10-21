@@ -321,8 +321,8 @@ CONTAINS
 
     END DO
 
-    CALL cp_assert (ALL(workload_fill.EQ.workload_count), cp_fatal_level, cp_internal_error, &
-              routineN, "Inconsistent heaps encountered")
+    IF(ANY(workload_fill.NE.workload_count))&
+       CPABORT("Inconsistent heaps encountered")
 
     CALL heap_release (bin_heap_count)
     CALL heap_release (bin_heap_fill)

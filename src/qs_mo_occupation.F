@@ -267,11 +267,9 @@ CONTAINS
        CALL cp_warn(__LOCATION__,&
             "All alpha MOs are occupied. Add more alpha MOs to "//&
             "allow for a higher multiplicity")
-    CALL cp_assert(((mo_set_b%nelectron < mo_set_b%nmo).OR.&
-                    (mo_set_b%nelectron == mo_set_a%nelectron)),&
-                   cp_warning_level,cp_assertion_failed,routineP,&
-                   "All beta MOs are occupied. Add more beta MOs to "//&
-                   "allow for a lower multiplicity",only_ionode=.TRUE.)
+    IF((mo_set_b%nelectron >= mo_set_b%nmo).AND. (mo_set_b%nelectron /= mo_set_a%nelectron))&
+       CALL cp_warn(__LOCATION__,"All beta MOs are occupied. Add more beta MOs to "//&
+            "allow for a lower multiplicity")
 
     eigval_a => mo_set_a%eigenvalues
     eigval_b => mo_set_b%eigenvalues

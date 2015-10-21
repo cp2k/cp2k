@@ -264,10 +264,8 @@ CONTAINS
     mypcol = context%mepos(2)
     n = matrix%matrix_struct%nrow_global
     itype = 1
-    CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "wrong argument op"//&
-         __LOCATION__)
+    IF(op /= "SOLVE" .AND. op /= "MULTIPLY")&
+       CPABORT("wrong argument op")
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -285,11 +283,8 @@ CONTAINS
     chol_transa='N'
     IF (PRESENT(transa)) chol_transa=transa
 
-    CALL cp_assert((matrix%use_sp.EQV.matrixb%use_sp).AND.(matrix%use_sp.EQV.matrixout%use_sp), &
-         cp_failure_level,cp_assertion_failed,&
-         routineP,&
-         "not the same precision"//&
-         __LOCATION__)
+    IF((matrix%use_sp.NEQV.matrixb%use_sp).OR.(matrix%use_sp.NEQV.matrixout%use_sp))&
+       CPABORT("not the same precision")
 
     ! notice b is the cholesky guy
     a => matrix%local_data

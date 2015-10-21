@@ -217,8 +217,8 @@ CONTAINS
     NULLIFY(subsection)
     CALL section_vals_val_get(mme_section, "N_MINIMAX", i_val = param%n_minimax)
     WRITE(string,'(I2)') n_minimax_max
-    CALL cp_assert(param%n_minimax .LE. n_minimax_max, cp_failure_level, cp_assertion_failed, routineP, &
-                   "The maximum allowed number of minimax points N_MINIMAX is "//TRIM(string), only_ionode = .TRUE.)
+    IF(param%n_minimax .GT. n_minimax_max)&
+       CPABORT("The maximum allowed number of minimax points N_MINIMAX is "//TRIM(string))
     CALL section_vals_val_get(mme_section, "CUTOFF", r_val = param%cutoff)
     CALL section_vals_val_get(mme_section, "DO_CALIBRATE_GR_SWITCH", l_val = param%do_calib_alpha)
     CALL section_vals_val_get(mme_section, "DO_CALIBRATE_CUTOFF", l_val = param%do_calib_cutoff)

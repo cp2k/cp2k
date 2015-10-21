@@ -129,11 +129,9 @@ CONTAINS
                  "Error 2: this routine must be called just after having parsed the start of the section "&
                  //TRIM(parser_location(parser)))
     END IF
-    CALL cp_assert(section%repeats.OR.SIZE(section_vals%values,2)==0,&
-         cp_failure_level,cp_assertion_failed,routineP,&
-         "Section "//TRIM(section%name)//&
-         " should not repeat "//TRIM(parser_location(parser)),&
-         failure)
+    IF(.NOT.section%repeats.AND.SIZE(section_vals%values,2)/=0)&
+       CALL cp_abort(__LOCATION__, "Section "//TRIM(section%name)//&
+         " should not repeat "//TRIM(parser_location(parser)))
     skip_description=.TRUE.
     skip_help=.TRUE.
     CALL section_vals_add_values(section_vals)

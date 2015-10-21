@@ -339,12 +339,11 @@ CONTAINS
                    job_counts, &
                    timings
 
-    CALL cp_assert(ALL(ABS(tmc_env%params%Temp(:)-tmp_temp(:)) .LT. 0.005),&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "the temperatures differ from the previous calculation. There were the following temperatures used:")
-    CALL cp_assert(ALL(mv_weight_tmp(:).EQ.tmc_env%params%move_types%mv_weight(:)),&
-                   cp_warning_level,cp_assertion_failed,routineP,&
-                   "The amount of mv types differs between the original and the restart run. ")
+    IF(ANY(ABS(tmc_env%params%Temp(:)-tmp_temp(:)) .GE. 0.005))&
+       CALL cp_abort(__LOCATION__,"the temperatures differ from the previous calculation. "//&
+            "There were the following temperatures used:")
+    IF(ANY(mv_weight_tmp(:).NE.tmc_env%params%move_types%mv_weight(:)))&
+       CPWARN("The amount of mv types differs between the original and the restart run.")
 
     DO i=1, SIZE(tmc_env%params%Temp)
        tmc_env%m_env%gt_act%conf(i)%elem => tmc_env%m_env%result_list(i)%elem

@@ -223,7 +223,6 @@ CONTAINS
             right
        CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
-    !CALL cp_assert(l, level, etype, routine, msg)
   END SUBROUTINE dbcsr_true_assert
 
 

@@ -483,13 +483,11 @@ CONTAINS
           CALL cp_print_key_finished_output(tempkind,logger,motion_section,"MD%PRINT%TEMP_KIND")
        ELSE
           print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%TEMP_KIND")
-          CALL cp_assert(.NOT.BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file),&
-               cp_warning_level,cp_assertion_failed,routineP,&
-               "The print_key MD%PRINT%TEMP_KIND has been activated but the "//&
-               "calculation of the temperature per kind has not been requested. "//&
-               "Please switch on the keyword MD%TEMP_KIND. "//&
-__LOCATION__,&
-               only_ionode=.TRUE.)
+          IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file))&
+             CALL cp_warn(__LOCATION__,&
+                  "The print_key MD%PRINT%TEMP_KIND has been activated but the "//&
+                  "calculation of the temperature per kind has not been requested. "//&
+                  "Please switch on the keyword MD%TEMP_KIND.")
        END IF
        !Thermal Region
        CALL print_thermal_regions_temperature(thermal_regions,itimes,time*femtoseconds,my_pos,my_act)
@@ -555,13 +553,11 @@ __LOCATION__,&
                      "MD%PRINT%TEMP_SHELL_KIND")
              ELSE
                 print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%TEMP_SHELL_KIND")
-                CALL cp_assert(.NOT.BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file),&
-                     cp_warning_level,cp_assertion_failed,routineP,&
-                     "The print_key MD%PRINT%TEMP_SHELL_KIND has been activated but the "//&
-                     "calculation of the temperature per kind has not been requested. "//&
-                     "Please switch on the keyword MD%TEMP_KIND. "//&
-__LOCATION__,&
-                     only_ionode=.TRUE.)
+                IF(BTEST(cp_print_key_should_output(logger%iter_info,print_key),cp_p_file))&
+                   CALL cp_warn(__LOCATION__,&
+                        "The print_key MD%PRINT%TEMP_SHELL_KIND has been activated but the "//&
+                        "calculation of the temperature per kind has not been requested. "//&
+                        "Please switch on the keyword MD%TEMP_KIND.")
              END IF
           END IF
        END IF

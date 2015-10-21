@@ -1540,11 +1540,8 @@ CONTAINS
 !          f_env=f_env,new_error=new_error, failure=failure)
 !     NULLIFY(logger)
 !     logger => cp_error_get_logger(new_error)
-!     CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter+1,&
-!          cp_failure_level,cp_assertion_failed,routineP,&
-!          "md & force_eval lost sychro "//&
-!          __LOCATION__,&
-!          failure)
+!     IF(logger%iter_info%iteration(2)/=pint_env%iter+1)&
+!        CPABORT("md & force_eval lost sychro")
 !     CALL f_env_rm_defaults(f_env,new_error,ierr)
 
 

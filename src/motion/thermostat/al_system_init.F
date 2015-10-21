@@ -138,8 +138,9 @@ CONTAINS
     work_section => section_vals_get_subs_vals(section_vals=al_section,&
          subsection_name="MASS")
     CALL section_vals_get(work_section,explicit=explicit)
-    CALL cp_assert(restart.EQV.explicit,cp_failure_level,cp_assertion_failed,routineP,&
-         "You need to define both CHI and MASS sections (or none) in the AD_LANGEVIN section")
+    IF(restart.NEQV.explicit)&
+       CALL cp_abort(__LOCATION__,&
+            "You need to define both CHI and MASS sections (or none) in the AD_LANGEVIN section")
     restart = restart.and.explicit
     IF (explicit) THEN
        CALL section_vals_val_get(section_vals=work_section,keyword_name="_DEFAULT_KEYWORD_",&

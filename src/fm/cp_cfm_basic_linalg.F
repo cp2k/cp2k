@@ -170,11 +170,8 @@ CONTAINS
        CPASSERT(PRESENT(matrix_b))
        CPASSERT(ASSOCIATED(matrix_b))
        CPASSERT(matrix_b%ref_count>0)
-       CALL cp_assert(matrix_a%matrix_struct%context%group==&
-            matrix_b%matrix_struct%context%group,cp_failure_level,&
-            cp_assertion_failed,fromWhere=routineP,&
-            message="matrixes must be in the same blacs context"//&
-            __LOCATION__)
+       IF(matrix_a%matrix_struct%context%group/=matrix_b%matrix_struct%context%group)&
+          CPABORT("matrixes must be in the same blacs context")
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN
@@ -254,11 +251,8 @@ CONTAINS
 
     ELSE
        CPASSERT(ASSOCIATED(matrix_b))
-       CALL cp_assert(matrix_a%matrix_struct%context%group==&
-            matrix_b%matrix_struct%context%group,cp_failure_level,&
-            cp_assertion_failed,fromWhere=routineP,&
-            message="matrices must be in the same blacs context"//&
-            __LOCATION__)
+       IF(matrix_a%matrix_struct%context%group/=matrix_b%matrix_struct%context%group)&
+          CPABORT("matrices must be in the same blacs context")
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN

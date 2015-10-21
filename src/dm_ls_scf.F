@@ -799,9 +799,8 @@ CONTAINS
     CALL section_vals_get(mixing_section, explicit=ls_scf_env%do_rho_mixing)
 
     CALL section_vals_val_get(mixing_section,"METHOD",i_val=ls_scf_env%density_mixing_method)
-    CALL cp_assert(.NOT.(ls_scf_env%ls_diis.AND.ls_scf_env%do_rho_mixing),cp_failure_level,cp_assertion_failed,&
-                   routineP,"LS_DIIS and RHO_MIXING are not compatible."//&
-                   __LOCATION__,only_ionode=.TRUE.)
+    IF(ls_scf_env%ls_diis.AND.ls_scf_env%do_rho_mixing)&
+       CPABORT("LS_DIIS and RHO_MIXING are not compatible.")
 
     pexsi_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PEXSI")
     CALL section_vals_get(pexsi_section)
@@ -850,20 +849,14 @@ CONTAINS
     END SELECT
 
     ! verify some requirements for the curvy steps
-    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps .AND. ls_scf_env%purification_method .EQ. ls_scf_pexsi), cp_failure_level, &
-                       cp_assertion_failed, routineP, "CURVY_STEPS can not be used together with PEXSI. ", &
-                       only_ionode=.TRUE.)
-    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport), cp_failure_level, &
-                       cp_assertion_failed, routineP, "CURVY_STEPS can not be used together with TRANSPORT. ", &
-                       only_ionode=.TRUE.)
-    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps.AND.ls_scf_env%has_s_preconditioner),cp_failure_level,cp_assertion_failed,&
-                      routineP,"S Preconditioning not implemented in combination with CURVY_STEPS. "//&
-                       __LOCATION__,&
-                       only_ionode=.TRUE.)
-    CALL cp_assert(.NOT.(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%use_s_sqrt),cp_failure_level,cp_assertion_failed,&
-                      routineP,"CURVY_STEPS requires the use of the sqrt inversion. "//&
-                       __LOCATION__,&
-                       only_ionode=.TRUE.)
+    IF(ls_scf_env%curvy_steps .AND. ls_scf_env%purification_method .EQ. ls_scf_pexsi)&
+       CPABORT("CURVY_STEPS can not be used together with PEXSI.")
+    IF(ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport)&
+       CPABORT("CURVY_STEPS can not be used together with TRANSPORT.")
+    IF(ls_scf_env%curvy_steps.AND.ls_scf_env%has_s_preconditioner)&
+       CPABORT("S Preconditioning not implemented in combination with CURVY_STEPS.")
+    IF(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%use_s_sqrt)&
+       CPABORT("CURVY_STEPS requires the use of the sqrt inversion.")
 
     ! an undocumented feature ... allows for just doing the initial guess, no expensive stuff
     IF (ls_scf_env%max_scf<0) THEN

@@ -283,9 +283,8 @@ CONTAINS
     pw_grid => pw_pool % pw_grid
     IF ( PRESENT ( vhartree ) ) THEN
        CPASSERT(ASSOCIATED(vhartree))
-       CALL cp_assert(pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid),cp_assertion_failed,&
-            cp_failure_level,routineP,&
-            "vhartree has a different grid than the poisson solver")
+       IF(.NOT.pw_grid_compare(pw_pool%pw_grid,vhartree%pw_grid))&
+          CPABORT("vhartree has a different grid than the poisson solver")
     END IF
     ! density in G space
     CALL pw_pool_create_pw ( pw_pool, rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE)

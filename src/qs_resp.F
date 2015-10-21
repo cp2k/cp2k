@@ -416,10 +416,9 @@ CONTAINS
                                r_val=resp_env%rheavies_strength)
     ENDIF
     CALL section_vals_val_get(resp_section,"STRIDE",i_vals=my_stride)
-    CALL cp_assert(SIZE(my_stride)==1.OR.SIZE(my_stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
-         "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(SIZE(my_stride)/=1.AND.SIZE(my_stride)/=3)&
+       CALL cp_abort(__LOCATION__, "STRIDE keyword can accept only 1 (the same for X,Y,Z) "//&
+            "or 3 values. Correct your input file.")
     IF (SIZE(my_stride)==1) THEN
        DO i = 1,3
           resp_env%stride(i) = my_stride(1)

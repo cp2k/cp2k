@@ -955,10 +955,8 @@ CONTAINS
        IF(ndim <= 3)&
           CPABORT("CV Ring Puckering: Ring size has to be 4 or larger. ")
        ii = colvar%ring_puckering_param%iq
-       CALL cp_assert( (ABS(ii)/=1 .AND. ii>=-(ndim-1)/2 .AND. ii<=ndim/2) ,&
-            cp_fatal_level,cp_assertion_failed,routineP,&
-            "CV Ring Puckering: Invalid coordinate number. "//&
-            __LOCATION__)
+       IF(ABS(ii)==1 .OR. ii<-(ndim-1)/2 .OR. ii>ndim/2)&
+          CPABORT("CV Ring Puckering: Invalid coordinate number.")
     ELSE IF (my_subsection(23)) THEN
        ! Minimum Distance
        wrk_section => mindist_section

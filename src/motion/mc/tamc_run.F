@@ -394,11 +394,11 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
          (simpar%ensemble==nph_uniaxial_ensemble).OR.&
          (simpar%ensemble==nph_uniaxial_damped_ensemble)) THEN
        check = virial%pv_availability
-       CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
-            routineP,"Virial evaluation not requested for this run in the input file! "//&
+       IF(.NOT.check)&
+           CALL cp_abort(__LOCATION__,&
+            "Virial evaluation not requested for this run in the input file! "//&
             "You may consider to switch on the virial evaluation with the keyword: STRESS_TENSOR."//&
-            "Be sure the method you are using can compute the virial! "//&
-            __LOCATION__)
+            "Be sure the method you are using can compute the virial!")
        IF (ASSOCIATED(force_env%sub_force_env)) THEN
           DO i = 1, SIZE(force_env%sub_force_env)
              IF (ASSOCIATED(force_env%sub_force_env(i)%force_env)) THEN
@@ -408,11 +408,11 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
              END IF
           END DO
        END IF
-       CALL cp_assert(check,cp_failure_level,cp_assertion_failed,&
-            routineP,"Virial evaluation not requested for all the force_eval sections present in"//&
-            " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR "//&
-            " in each force_eval section. Be sure the method you are using can compute the virial!"//&
-            __LOCATION__)
+       IF(.NOT.check)&
+          CALL cp_abort(__LOCATION__,&
+               "Virial evaluation not requested for all the force_eval sections present in"//&
+               " the input file! You have to switch on the virial evaluation with the keyword: STRESS_TENSOR "//&
+               " in each force_eval section. Be sure the method you are using can compute the virial!")
     END IF
 
     ! Computing Forces at zero MD step
@@ -465,7 +465,7 @@ SUBROUTINE qs_tamc(force_env, globenv,averages)
 !                 dummy=force_env%meta_env%wttemperature*(force_env%meta_env%wtgamma-1._dp)
 !                 IF (force_env%meta_env%delta_t>EPSILON(1._dp)) THEN
 !                    check=ABS(force_env%meta_env%delta_t-dummy)<1.E+3_dp*EPSILON(1._dp)
-!                    CALL cp_assert(check,cp_failure_level,cp_assertion_failed,routineP,&
+!                    IF(.NOT.check) CALL cp_abort(__LOCATION__,&
 !                       "Inconsistency between DELTA_T and WTGAMMA (both specified):"//&
 !                       " please, verify that DELTA_T=(WTGAMMA-1)*TEMPERATURE")
 !                 ELSE

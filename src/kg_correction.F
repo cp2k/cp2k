@@ -166,8 +166,8 @@ CONTAINS
     ! loop over all subsets
     DO isub=1,kg_env%nsubsets
       ! for gapw the task_list_soft would be needed
-      CALL cp_assert(.NOT.(my_gapw.OR.my_gapw_xc), cp_fatal_level, cp_assertion_failed, routineP, &
-                     " KG is currently not compatible with all electron calculations.")  
+      IF(my_gapw.OR.my_gapw_xc)&
+         CPABORT(" KG is currently not compatible with all electron calculations.")
 
       ! calculate the densities for the given blocked density matrix - pass the subset task_list
       CALL qs_rho_update_rho(rho_struct, qs_env, &

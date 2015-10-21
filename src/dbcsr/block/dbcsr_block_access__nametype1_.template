@@ -204,8 +204,6 @@
     ENDIF
     sym_tr = .FALSE.
     CALL dbcsr_get_stored_coordinates (matrix, stored_row, stored_col)
-    !call cp_assert (associated (matrix%m%wms), cp_fatal_level,&
-    !     cp_caller_error, routineN, "Work matrices not prepared")
     IF (.NOT.ASSOCIATED (matrix%m%wms)) THEN
        CALL dbcsr_work_create (matrix, work_mutable=.TRUE.)
        !$OMP MASTER
@@ -246,9 +244,6 @@
        ELSE
           DEALLOCATE (original_block)
        ENDIF
-       !CALL cp_assert (ASSOCIATED (data_block%p), cp_warning_level,&
-       !     cp_internal_error, routineN,&
-       !     "Existing block has no associated pointer.")
        block => data_block2%p
     ENDIF
     IF (PRESENT (existed)) existed = found

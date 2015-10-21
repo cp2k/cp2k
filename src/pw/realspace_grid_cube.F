@@ -65,10 +65,9 @@ CONTAINS
     IF(PRESENT(zero_tails)) my_zero_tails = zero_tails
     my_stride=1
     IF (PRESENT(stride)) THEN
-       CALL cp_assert(SIZE(stride)==1.OR.SIZE(stride)==3,cp_fatal_level,cp_assertion_failed,routineP,&
-            "STRIDE keyword can accept only 1 (the same for X,Y,Z) or 3 values. Correct your input file."//&
-__LOCATION__,&
-            only_ionode=.TRUE.)
+       IF(SIZE(stride)/=1.AND.SIZE(stride)/=3)&
+          CALL cp_abort(__LOCATION__, "STRIDE keyword can accept only 1 "//&
+               "(the same for X,Y,Z) or 3 values. Correct your input file.")
        IF (SIZE(stride)==1) THEN
           DO i = 1,3
              my_stride(i) = stride(1)

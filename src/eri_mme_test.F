@@ -187,9 +187,8 @@ MODULE eri_mme_test
     CALL section_vals_val_get(eri_mme_test_section, "ZET_MIN", r_val = zetmin)
     CALL section_vals_val_get(eri_mme_test_section, "ZET_MAX", r_val = zetmax)
     CALL section_vals_val_get(eri_mme_test_section, "NZET", i_val = nzet)
-    CALL cp_assert(nzet .GT. 0, cp_failure_level, cp_assertion_failed, routineP, &
-                   "Number of exponents NZET must be greater than 0. ", &
-                   only_ionode = .TRUE.)
+    IF(nzet .LE. 0)&
+       CPABORT("Number of exponents NZET must be greater than 0.")
 
 
     CALL init_orbital_pointers(lmax)
@@ -314,9 +313,8 @@ MODULE eri_mme_test
           MAXVAL(I_diff_G), MAXVAL(I_diff_R)
 
         acc_check =  param%error_tot .GE. MAX(MAXVAL(I_diff_G), MAXVAL(I_diff_R))
-        CALL cp_assert(acc_check, cp_failure_level, cp_assertion_failed, routineP, &
-                       "Actual error greater than upper bound estimate. ", &
-                       only_ionode = .TRUE.)
+        IF(.NOT.acc_check)&
+           CPABORT("Actual error greater than upper bound estimate.")
 
       ENDIF
     ENDIF

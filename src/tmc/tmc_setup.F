@@ -414,10 +414,8 @@ CONTAINS
                  next_el=elem, nr_dim=nr_dim)
         CALL analysis_restart_read(ana_env=ana_list(temp)%temp, &
                                    elem=elem)
-        CALL cp_assert(ASSOCIATED(elem).OR.&
-               ASSOCIATED(ana_list(temp)%temp%last_elem), &
-               cp_failure_level,cp_assertion_failed, routineP,&
-               "uncorrect initialization of the initial configuration ")
+        IF(.NOT.ASSOCIATED(elem).AND..NOT.ASSOCIATED(ana_list(temp)%temp%last_elem))&
+           CPABORT("uncorrect initialization of the initial configuration")
         ! do for all directories
         DO dir_ind=1, SIZE(ana_list(temp)%temp%dirs)
           WRITE(output_unit,FMT='(T2,A,"| ",A,T41,A40)')"TMC_ANA",&
@@ -511,10 +509,8 @@ CONTAINS
     CALL section_vals_val_get(tmc_section,"NR_TEMPERATURE",i_val=nr_temp)
 
     CALL section_vals_val_get(tmc_section,"TEMPERATURE",r_vals=inp_Temp)
-    CALL cp_assert(.NOT.((nr_temp .GT. 1).AND.(SIZE(inp_Temp).NE.2)),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "specify each temperature, skip keyword NR_TEMPERATURE",&
-                     only_ionode=.TRUE.)
+    IF((nr_temp .GT. 1).AND.(SIZE(inp_Temp).NE.2))&
+       CPABORT("specify each temperature, skip keyword NR_TEMPERATURE")
     IF(nr_temp .EQ. 1) THEN
       nr_temp = SIZE(inp_Temp)
       ALLOCATE(Temps(nr_temp))
@@ -527,11 +523,9 @@ CONTAINS
       DO t_act = 2, SIZE(Temps)
         Temps(t_act) = Temps(t_act-1) + (tmax-tmin)/(SIZE(Temps)-1.0_dp)
       END DO
-      CALL cp_assert(ALL(Temps.GE.0.0_dp),&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "The temperatures are negative. Should be specified using "//&
-                   "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}",&
-                   only_ionode=.TRUE.)
+      IF(ANY(Temps.LT.0.0_dp))&
+         CALL cp_abort(__LOCATION__,"The temperatures are negative. Should be specified using "//&
+              "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}")
     END IF
 
     ! get multiple directories
@@ -642,17 +636,13 @@ CONTAINS
     ELSE
     ! check file existance
       INQUIRE (FILE=TRIM(tmc_env%params%NMC_inp_file),EXIST=flag,IOSTAT=itmp)
-      CALL cp_assert(flag .AND. itmp.EQ.0,&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "a valid NMC input file has to be specified ",&
-                     only_ionode=.TRUE.)
+      IF(.NOT.flag .OR. itmp.NE.0)&
+         CPABORT("a valid NMC input file has to be specified")
     END IF
 
     CALL section_vals_val_get(tmc_section,"TEMPERATURE",r_vals=inp_Temp)
-    CALL cp_assert(.NOT.((tmc_env%params%nr_temp .GT. 1).AND.(SIZE(inp_Temp).NE.2)),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "specify each temperature, skip keyword NR_TEMPERATURE",&
-                     only_ionode=.TRUE.)
+    IF(tmc_env%params%nr_temp.GT.1 .AND. SIZE(inp_Temp).NE.2) &
+       CPABORT("specify each temperature, skip keyword NR_TEMPERATURE")
     IF(tmc_env%params%nr_temp .EQ. 1) THEN
       tmc_env%params%nr_temp = SIZE(inp_Temp)
       ALLOCATE(tmc_env%params%Temp(tmc_env%params%nr_temp))
@@ -665,11 +655,9 @@ CONTAINS
       DO itmp = 2, SIZE(tmc_env%params%Temp)
         tmc_env%params%Temp(itmp) = tmc_env%params%Temp(itmp-1) + (tmax-tmin)/(SIZE(tmc_env%params%Temp)-1.0_dp)
       END DO
-      CALL cp_assert(ALL(tmc_env%params%Temp.GE.0.0_dp),&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "The temperatures are negative. Should be specified using "//&
-                   "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}",&
-                   only_ionode=.TRUE.)
+      IF(ANY(tmc_env%params%Temp.LT.0.0_dp))&
+         CALL cp_abort(__LOCATION__, "The temperatures are negative. Should be specified using "//&
+              "TEMPERATURE {T_min} {T_max} and NR_TEMPERATURE {#temperatures}")
     END IF
 
     CALL section_vals_val_get(tmc_section,"TASK_TYPE" ,explicit=explicit_key)
@@ -768,11 +756,9 @@ CONTAINS
        CPABORT("a valid exact energy input file has to be specified ")
     ! check file existance
     INQUIRE (FILE=TRIM(tmc_env%params%energy_inp_file),EXIST=flag,IOSTAT=itmp)
-    CALL cp_assert(flag.AND.itmp.EQ.0,&
-                   cp_failure_level,cp_assertion_failed,routineP,&
-                   "a valid exact energy input file has to be specified, "//&
-                   TRIM(tmc_env%params%energy_inp_file)//" does not exist.",&
-                   only_ionode=.TRUE.)
+    IF(.NOT.flag.OR.itmp.NE.0)&
+       CALL cp_abort(__LOCATION__, "a valid exact energy input file has to be specified, "//&
+            TRIM(tmc_env%params%energy_inp_file)//" does not exist.")
 
     CALL section_vals_val_get(tmc_section,"NUM_MV_ELEM_IN_CELL",i_val=tmc_env%params%nr_elem_mv)    
 
@@ -785,10 +771,8 @@ CONTAINS
     IF(SIZE(r_arr_tmp).GT.1) THEN
       IF(SIZE(r_arr_tmp).NE.tmc_env%params%dim_per_elem)&
          CPABORT("The entered sub box sizes does not fit in number of dimensions.")
-      CALL cp_assert(ALL(r_arr_tmp.GT.0.0_dp),&
-                     cp_failure_level,cp_assertion_failed,routineP,&
-                     "The entered sub box lenghts should be greater than 0.",&
-                     only_ionode=.TRUE.)
+      IF(ANY(r_arr_tmp.LE.0.0_dp))&
+         CPABORT("The entered sub box lenghts should be greater than 0.")
       DO itmp=1, SIZE(tmc_env%params%sub_box_size)
         tmc_env%params%sub_box_size(itmp) = r_arr_tmp(itmp)/au2a
       END DO

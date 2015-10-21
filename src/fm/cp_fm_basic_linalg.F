@@ -93,11 +93,8 @@ CONTAINS
        CPASSERT(ASSOCIATED(matrix_b))
        CPASSERT(matrix_b%ref_count>0)
        IF (matrix_a%id_nr==matrix_b%id_nr) THEN
-          CALL cp_assert(matrix_a%id_nr/=matrix_b%id_nr, &
-                         cp_warning_level, cp_assertion_failed, &
-                         fromWhere=routineP, &
-                         message="Bad use of routine. Call cp_fm_scale instead: "// &
-                         __LOCATION__)
+          IF(matrix_a%id_nr==matrix_b%id_nr)&
+             CPWARN("Bad use of routine. Call cp_fm_scale instead")
           CALL cp_fm_scale(alpha+beta, matrix_a)
           CALL timestop(handle)
           RETURN
@@ -121,11 +118,8 @@ CONTAINS
        ENDIF
     ENDIF
     IF (my_beta.NE.0.0_dp) THEN
-       CALL cp_assert(matrix_a%matrix_struct%context%group==&
-            matrix_b%matrix_struct%context%group,cp_failure_level,&
-            cp_assertion_failed,fromWhere=routineP,&
-            message="matrixes must be in the same blacs context"//&
-            __LOCATION__)
+       IF(matrix_a%matrix_struct%context%group/=matrix_b%matrix_struct%context%group)&
+          CPABORT("matrixes must be in the same blacs context")
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
             matrix_b%matrix_struct)) THEN

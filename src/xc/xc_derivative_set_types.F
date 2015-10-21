@@ -139,9 +139,8 @@ CONTAINS
        derivative_set%pw_pool => pw_pool
        CALL pw_pool_retain(pw_pool)
        IF (PRESENT(local_bounds)) THEN
-          CALL cp_assert(ALL(pw_pool%pw_grid%bounds_local==local_bounds),&
-               cp_failure_level,cp_assertion_failed,routineP,&
-               "incompatible local_bounds and pw_pool")
+          IF(ANY(pw_pool%pw_grid%bounds_local/=local_bounds))&
+             CPABORT("incompatible local_bounds and pw_pool")
        END IF
     ELSE
        !FM ugly hack, should be replaced by a pool only for 3d arrays

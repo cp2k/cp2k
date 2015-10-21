@@ -243,9 +243,10 @@ CONTAINS
 
 ! Fail is one of the value is set to zero..
 
-    CALL cp_assert(ALL(multiple_unit_cell>0),cp_fatal_level,cp_assertion_failed,routineP,&
-         "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
-         "A value of 0 or negative is meaningless!")
+    IF(ANY(multiple_unit_cell<=0))&
+       CALL cp_abort(__LOCATION__,&
+            "CELL%MULTIPLE_UNIT_CELL accepts only integer values larger than 0! "//&
+            "A value of 0 or negative is meaningless!")
 
     ! scale abc accordingly user request
     cell%hmat(:,1) = cell%hmat(:,1)*multiple_unit_cell(1)

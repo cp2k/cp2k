@@ -342,11 +342,9 @@ CONTAINS
     END DO
     my_ignore_outside_box = .FALSE.
     IF (PRESENT(ignore_outside_box)) my_ignore_outside_box = ignore_outside_box
-    CALL cp_assert(my_ignore_outside_box .OR. check,cp_failure_level,cp_assertion_failed,routineP,&
-         "A non-periodic calculation has been requested but the system size "//&
-         "exceeds the cell size in at least one of the non-periodic directions! "//&
-__LOCATION__,&
-         only_ionode=.TRUE.)
+    IF(.NOT.my_ignore_outside_box .AND. .NOT. check)&
+      CALL cp_abort(__LOCATION__, "A non-periodic calculation has been requested but the system size "//&
+           "exceeds the cell size in at least one of the non-periodic directions!")
     IF (do_center) THEN
        CALL section_vals_val_get(subsys_section,&
             "TOPOLOGY%CENTER_COORDINATES%CENTER_POINT",explicit=explicit)

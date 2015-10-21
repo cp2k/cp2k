@@ -348,9 +348,8 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
-                 cp_assertion_failed,routineP,&
-                 "incorrectly formatted line in coord section'"//line_att//"'")
+            IF(wrd/=5.AND.end_c>=LEN(line_att)+1)&
+               CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
             IF (wrd==1) THEN
                at_name(ishell)=line_att(start_c:end_c-1)
                CALL uppercase(at_name(ishell))
@@ -399,9 +398,8 @@ CONTAINS
                       EXIT
                    END IF
                 END DO
-                CALL cp_assert(wrd==5.OR.end_c<LEN(line_att)+1,cp_failure_level,&
-                     cp_assertion_failed,routineP,&
-                     "incorrectly formatted line in coord section'"//line_att//"'")
+                IF(wrd/=5.AND.end_c>=LEN(line_att)+1)&
+                   CPABORT("incorrectly formatted line in coord section'"//line_att//"'")
                 IF (wrd==1) THEN
                    at_name_c(ishell)=line_att(start_c:end_c-1)
                    CALL uppercase(at_name_c(ishell))

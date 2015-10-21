@@ -259,12 +259,11 @@ CONTAINS
 
     NULLIFY(keyword%default_value, keyword%lone_keyword_value)
     IF (PRESENT(default_val)) THEN
-       CALL cp_assert(.NOT.(PRESENT(default_l_val).OR.PRESENT(default_l_vals).OR.&
-            PRESENT(default_i_val).OR.PRESENT(default_i_vals).OR.&
-            PRESENT(default_r_val).or.PRESENT(default_r_vals).OR.&
-            PRESENT(default_c_val).OR.PRESENT(default_c_vals)),cp_failure_level,&
-            cp_assertion_failed,routineP,&
-            "you should pass either default_val or a default value, not both")
+       IF(PRESENT(default_l_val).OR.PRESENT(default_l_vals).OR.&
+          PRESENT(default_i_val).OR.PRESENT(default_i_vals).OR.&
+          PRESENT(default_r_val).or.PRESENT(default_r_vals).OR.&
+          PRESENT(default_c_val).OR.PRESENT(default_c_vals))&
+          CPABORT("you should pass either default_val or a default value, not both")
        keyword%default_value => default_val
        IF (ASSOCIATED(default_val%enum)) THEN
           IF (ASSOCIATED(keyword%enum)) THEN
@@ -311,12 +310,11 @@ CONTAINS
     END IF
 
     IF (PRESENT(lone_keyword_val)) THEN
-       CALL cp_assert(.NOT.(PRESENT(lone_keyword_l_val).OR.PRESENT(lone_keyword_l_vals).OR.&
-            PRESENT(lone_keyword_i_val).OR.PRESENT(lone_keyword_i_vals).OR.&
-            PRESENT(lone_keyword_r_val).OR.PRESENT(lone_keyword_r_vals).OR.&
-            PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals)),&
-            cp_failure_level, cp_assertion_failed,routineP,&
-            "you should pass either lone_keyword_val or a lone_keyword value, not both")
+       IF(PRESENT(lone_keyword_l_val).OR.PRESENT(lone_keyword_l_vals).OR.&
+          PRESENT(lone_keyword_i_val).OR.PRESENT(lone_keyword_i_vals).OR.&
+          PRESENT(lone_keyword_r_val).OR.PRESENT(lone_keyword_r_vals).OR.&
+          PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals))&
+          CPABORT("you should pass either lone_keyword_val or a lone_keyword value, not both")
        keyword%lone_keyword_value => lone_keyword_val
        CALL val_retain(lone_keyword_val)
        IF (ASSOCIATED(lone_keyword_val%enum)) THEN
@@ -390,9 +388,8 @@ CONTAINS
        END SELECT
     END IF
     IF (PRESENT(n_var)) keyword%n_var=n_var
-    CALL cp_assert(keyword%type_of_var/=lchar_t.or.keyword%n_var==1,cp_failure_level,&
-         cp_assertion_failed,routineP,"arrays of lchar_t not supported : "&
-         //keyword%names(1))
+    IF(keyword%type_of_var==lchar_t.AND.keyword%n_var/=1)&
+       CPABORT("arrays of lchar_t not supported : "//keyword%names(1))
 
     IF (PRESENT(unit_str)) THEN
        CALL cp_unit_create(keyword%unit,unit_str)

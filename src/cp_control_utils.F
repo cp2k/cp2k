@@ -1576,7 +1576,7 @@ CONTAINS
        IF(qs_control%ddapc_restraint_control(i)%ddapc_restraint_control%functional_form==&
             do_ddapc_constraint)k=k+1
     END DO
-    IF(k==2)CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+    IF(k==2) CALL cp_abort(__LOCATION__,&
          "Only a single constraint possible yet, try to use restraints instead ")
 
   END SUBROUTINE read_ddapc_section

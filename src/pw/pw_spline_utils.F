@@ -2422,11 +2422,8 @@ END SUBROUTINE pw_nn_compose_r
           send_offset(ip)=send_tot_size
           send_tot_size=send_tot_size+send_size(ip)
        END DO
-       CALL cp_assert(send_tot_size==&
-            (coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "Error calculating send_tot_size "//&
-            __LOCATION__)
+       IF(send_tot_size/=(coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size)&
+          CPABORT("Error calculating send_tot_size")
        ALLOCATE(send_buf(0:send_tot_size-1))
 
        rcv_tot_size=0
@@ -2451,14 +2448,10 @@ END SUBROUTINE pw_nn_compose_r
           sent_size(p)=sent_size(p)+coarse_slice_size
        END DO
 
-       CALL cp_assert(ALL(sent_size(0:n_procs-2)==send_offset(1:n_procs-1)),&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "error 1 filling send buffer "//&
-            __LOCATION__)
-       CALL cp_assert(sent_size(n_procs-1)==send_tot_size,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "error 2 filling send buffer "//&
-            __LOCATION__)
+       IF(ANY(sent_size(0:n_procs-2)/=send_offset(1:n_procs-1)))&
+          CPABORT("error 1 filling send buffer")
+       IF(sent_size(n_procs-1)/=send_tot_size)&
+          CPABORT("error 2 filling send buffer")
 
     IF (local_data) THEN
        DEALLOCATE(coarse_coeffs)
@@ -2523,14 +2516,10 @@ END SUBROUTINE pw_nn_compose_r
 
        END DO
 
-       CALL cp_assert(ALL(sent_size(0:n_procs-2)==rcv_offset(1:n_procs-1)),&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "error 1 handling the rcv buffer "//&
-            __LOCATION__)
-       CALL cp_assert(sent_size(n_procs-1)==rcv_tot_size,&
-            cp_failure_level,cp_assertion_failed,routineP,&
-            "error 2 handling the rcv buffer "//&
-            __LOCATION__)
+       IF(ANY(sent_size(0:n_procs-2)/=rcv_offset(1:n_procs-1)))&
+          CPABORT("error 1 handling the rcv buffer")
+       IF(sent_size(n_procs-1)/=rcv_tot_size)&
+          CPABORT("error 2 handling the rcv buffer")
 
        ! dealloc
        DEALLOCATE(send_size,send_offset, rcv_size, rcv_offset)

@@ -19,9 +19,3 @@
                                              cp_add_default_logger,&
                                              cp_rm_default_logger,&
                                              cp_to_string
-  USE cp_error_handling,               ONLY: cp_assertion_failed,&
-                                             cp_internal_error,&
-                                             cp_assert,&
-                                             cp_precondition_failed,&
-                                             cp_caller_error,&
-                                             cp_wrong_args_error

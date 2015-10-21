@@ -1541,8 +1541,9 @@ CONTAINS
                                        keyword_name="ORBITALS",&
                                        i_vals=orbitals)
              norbitals = SIZE(orbitals)
-             CALL cp_assert(((norbitals > 0).AND.(norbitals <= 2*l+1)),cp_failure_level,cp_assertion_failed,routineP,&
-                            "DFT+U| Invalid number of ORBITALS specified: 1 to 2*L+1 integer numbers are expected")
+             IF(norbitals<=0.OR.norbitals>2*l+1)&
+                CALL cp_abort(__LOCATION__,"DFT+U| Invalid number of ORBITALS specified: "//&
+                     "1 to 2*L+1 integer numbers are expected")
              ALLOCATE (qs_kind%dft_plus_u%orbitals(norbitals))
              qs_kind%dft_plus_u%orbitals(:) = orbitals(:)
              NULLIFY (orbitals)

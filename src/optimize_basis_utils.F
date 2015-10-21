@@ -774,12 +774,12 @@ CONTAINS
          CALL section_vals_val_get(const_section,"USE_EXP",i_vals=def_exp,i_rep_section=irep)
          CALL section_vals_val_get(const_section,"BOUNDARIES",explicit=is_bound,i_rep_section=irep)
          CALL section_vals_val_get(const_section,"MAX_VAR_FRACTION",explicit=is_varlim,i_rep_section=irep)
-         CALL cp_assert(.NOT.(is_bound.AND.is_varlim),cp_fatal_level,cp_assertion_failed,&
-                        routineP,"Exponent has two constraints. This is not possible at the moment."//&
-                        " Please change input.",only_ionode=.TRUE.) 
-         CALL cp_assert(is_bound.OR.is_varlim,cp_fatal_level,cp_assertion_failed,&
-                        routineP,"Exponent is declared to be constraint but none is given"//&
-                        " Please change input.",only_ionode=.TRUE.)
+         IF(is_bound.AND.is_varlim)&
+            CALL cp_abort(__LOCATION__, "Exponent has two constraints. "//&
+                 "This is not possible at the moment. Please change input.")
+         IF(.NOT.is_bound.AND..NOT.is_varlim)&
+            CALL cp_abort(__LOCATION__, "Exponent is declared to be constraint but none is given"//&
+                 " Please change input.")
          IF(def_exp(1)==-1)THEN
             DO iset=1,flex_basis%nsets
                IF(def_exp(2)==-1)THEN

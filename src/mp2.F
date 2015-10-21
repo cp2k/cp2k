@@ -259,13 +259,6 @@ MODULE mp2
     IF (unit_nr>0) CALL m_flush(unit_nr)
 
     nspins=dft_control%nspins
-
-    !IF (calc_forces.AND.nspins/=1) THEN
-    !  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-    !                 "No forces/gradients for LSD."//&
-    !                 __LOCATION__, only_ionode=.TRUE.)
-    !END IF
-
     natom = SIZE(particle_set,1)
 
     ALLOCATE(kind_of(natom))
@@ -438,17 +431,6 @@ MODULE mp2
      CASE(mp2_method_laplace)
        CPABORT("laplace not implemented")
      CASE (mp2_method_direct)
-       !DO i=1,SIZE(mos)
-       !   CALL get_mo_set( mo_set=mos(i)%mo_set,&
-       !               nmo=nmo, nao=nao, mo_coeff=mo_coeff)
-       !   IF (nmo.NE.nao) THEN
-       !      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-       !          " Direct MP2 needs the full set of virtual MOs, use ADDED_MOS in the input"//&
-       !          __LOCATION__,&
-       !          only_ionode=.TRUE.)
-       !   ENDIF
-       !ENDDO
-
        IF (unit_nr>0) WRITE(unit_nr,*)
 
        IF(nspins==2) THEN

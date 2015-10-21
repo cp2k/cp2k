@@ -762,9 +762,8 @@ CONTAINS
       param%do_calib_alpha = .NOT. calib_failed
     ENDIF
     IF(calib_failed) THEN
-      CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP, &
-                     "GR-switch calibration FAILED. Default switching between G-space and R-space "//&
-                     "will be applied", only_ionode = .TRUE.)
+      CALL cp_warn(__LOCATION__,"GR-switch calibration FAILED. "//&
+           "Default switching between G-space and R-space will be applied")
     ENDIF
 
     IF(param%do_calib_alpha .AND. param%print_calib) THEN
@@ -932,15 +931,12 @@ CONTAINS
 
     max_iter = 100
 
-    CALL cp_assert((cutoff_r - cutoff_l)/(0.5_dp*(cutoff_r + cutoff_l)) .GT. tol, cp_failure_level, &
-                   cp_assertion_failed, routineP, &
-                   "difference of boundaries for cutoff (MAX - MIN) must be greater than cutoff precision.", &
-                   only_ionode = .TRUE.)
+    IF((cutoff_r - cutoff_l)/(0.5_dp*(cutoff_r + cutoff_l)) .LE. tol)&
+       CALL cp_abort(__LOCATION__, "difference of boundaries for cutoff "//&
+            "(MAX - MIN) must be greater than cutoff precision.")
 
-    CALL cp_assert((delta .LT. 1.0_dp) .AND. (delta.GT.0.0_dp), cp_failure_level, &
-                   cp_assertion_failed, routineP, &
-                   "relative delta to modify initial cutoff interval (DELTA) must be in (0, 1)", &
-                   only_ionode = .TRUE.)
+    IF((delta .GE. 1.0_dp) .OR. (delta.LE.0.0_dp))&
+       CPABORT("relative delta to modify initial cutoff interval (DELTA) must be in (0, 1)")
 
     cutoff_lr(1) = cutoff_l
     cutoff_lr(2) = cutoff_r
@@ -956,10 +952,9 @@ CONTAINS
 
     ! 1) find valid initial values for bisection
     DO iter1 = 1, max_iter + 1
-      CALL cp_assert(iter1.LE.max_iter, cp_failure_level, cp_assertion_failed, routineP, &
-                     "Maximum number of iterations in bisection to determine initial "//&
-                     "cutoff interval has been exceeded.", &
-                     only_ionode = .TRUE.)
+      IF(iter1.GT.max_iter)&
+         CALL cp_abort(__LOCATION__, "Maximum number of iterations in bisection to determine initial "//&
+              "cutoff interval has been exceeded.")
 
       cutoff_lr(1) = MAX(cutoff_lr(1), 0.5_dp*G_min**2)
       use_min_cutoff = .FALSE. ! Flag to stop bisection in case minimum cutoff (limited by minimax
@@ -997,9 +992,8 @@ CONTAINS
                 "ERI_MME| Step, cutoff (min, max, mid), err(minimax), err(cutoff), err diff"
 
       DO iter2 = 1, max_iter + 1
-        CALL cp_assert(iter2.LE.max_iter, cp_failure_level, cp_assertion_failed, routineP, &
-                       "Maximum number of iterations in bisection to determine cutoff has been exceeded", &
-                       only_ionode = .TRUE.)
+        IF(iter2.GT.max_iter)&
+           CPABORT("Maximum number of iterations in bisection to determine cutoff has been exceeded")
 
         cutoff_mid = 0.5_dp*(cutoff_lr(1) + cutoff_lr(2))
         CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
@@ -1141,9 +1135,10 @@ CONTAINS
       ! Find valid starting values for golden section search
       DO iter = 1, max_iter + 1
         err_ctff_curr = 0.0_dp
-        CALL cp_assert(iter.LE.max_iter, cp_failure_level, cp_assertion_failed, routineP, &
-                     "Maximum number of iterations for finding exponent maximizing cutoff error "//&
-                     "has been exceeded. ", only_ionode = .TRUE.)
+        IF(iter.GT.max_iter)&
+           CALL cp_abort(__LOCATION__, "Maximum number of iterations for finding "//&
+                "exponent maximizing cutoff error has been exceeded.")
+
         CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_ctff(n), zet_ctff_tmp(n), C, err_ctff_curr(n), para_env)
         IF (err_ctff_prev(n) .GE. err_ctff_curr(n)) THEN
           zet_a = zet_ctff_tmp(n)
@@ -1459,9 +1454,7 @@ CONTAINS
         DO iter = 1, n_start + 1
           IF (iter .GT. n_start) THEN
             failed = .TRUE.
-            CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP, &
-                           "GR-switch calibration FAILED: No valid initial interval was found. ", &
-                           only_ionode = .TRUE.)
+            CPWARN("GR-switch calibration FAILED: No valid initial interval was found.")
             EXIT outerloop
           ENDIF
           alpha = alpha_start(iter)
@@ -1485,9 +1478,7 @@ CONTAINS
           CALL mp_sum(dt_R, para_env%group)
           IF(dt_R - dt_G .GT. 0.0_dp) THEN
             IF(iter .EQ. 1) THEN
-              CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP, &
-                             "GR-switch calibration FAILED: No valid initial interval was found. ", &
-                             only_ionode = .TRUE.)
+              CPWARN("GR-switch calibration FAILED: No valid initial interval was found.")
               EXIT outerloop
             ENDIF
             alpha_lr(1) = alpha_start(iter - 1)
@@ -1500,9 +1491,7 @@ CONTAINS
         DO iter = 1, max_iter + 1
           IF (iter .GT. max_iter) THEN
             failed = .TRUE.
-            CALL cp_assert(.FALSE., cp_warning_level, cp_assertion_failed, routineP, &
-                           "GR-switch calibration FAILED: Maximum number of iterations has been exceeded", &
-                           only_ionode = .TRUE.)
+            CPWARN("GR-switch calibration FAILED: Maximum number of iterations has been exceeded")
             EXIT outerloop
           ENDIF
           alpha = 0.5_dp*(alpha_lr(1) + alpha_lr(2))

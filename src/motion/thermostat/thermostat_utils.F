@@ -637,9 +637,9 @@ CONTAINS
              nointer = .FALSE.
              ! Determine the number of thermostats defined in the input
              CALL section_vals_get(region_sections, n_repetition=sum_of_thermostats)
-             CALL cp_assert((sum_of_thermostats>=1),cp_failure_level,cp_assertion_failed,routineP,&
-                  "Provide at least 1 region (&DEFINE_REGION) when using the thermostat type DEFINED"//&
-                  __LOCATION__)
+             IF(sum_of_thermostats<1)&
+                CALL cp_abort(__LOCATION__,&
+                     "Provide at least 1 region (&DEFINE_REGION) when using the thermostat type DEFINED")
           END SELECT
 
           ! Here we decide which parallel algorithm to use.

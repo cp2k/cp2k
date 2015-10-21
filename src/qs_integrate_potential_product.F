@@ -485,9 +485,8 @@ CONTAINS
 
     DO img=1,nimages
        CALL cp_dbcsr_work_create(dhmat(img)%matrix,work_mutable=.TRUE.,n=nthread)
-!$  CALL cp_assert (dbcsr_distribution_has_threads(cp_dbcsr_distribution(dhmat(img)%matrix)),&
-!$       cp_fatal_level,cp_internal_error,routineN,"No thread distribution defined.")
-!$       
+!$  IF(.NOT.dbcsr_distribution_has_threads(cp_dbcsr_distribution(dhmat(img)%matrix)))&
+!$     CPABORT("No thread distribution defined.")
     END DO
 !$omp barrier
 
