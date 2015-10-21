@@ -304,7 +304,7 @@ CONTAINS
                                                 work(20*ndim)
     REAL(real_4), DIMENSION(ndim)            :: eval1, eval2
     REAL(real_4), DIMENSION(ndim, ndim)      :: evec_l, evec_r
-    
+
     MARK_USED(jobvr) !the argument has to be here for the template to work
     MARK_USED(jobvl) !the argument has to be here for the template to work
 
@@ -374,7 +374,7 @@ CONTAINS
                                                 work(20*ndim)
     REAL(real_8), DIMENSION(ndim)            :: eval1, eval2
     REAL(real_8), DIMENSION(ndim, ndim)      :: evec_l, evec_r
-    
+
     MARK_USED(jobvr) !the argument has to be here for the template to work
     MARK_USED(jobvl) !the argument has to be here for the template to work
 
