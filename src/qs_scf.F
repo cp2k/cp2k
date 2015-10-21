@@ -395,7 +395,7 @@ CONTAINS
           ! another heavy weight print object, print controlled by dft_section
           CALL qs_scf_write_mos(mos,atomic_kind_set,qs_kind_set,particle_set,dft_section)
 
-          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints)
+          CALL qs_scf_density_mixing(scf_env,rho,para_env,diis_step)
 
           t2 = m_walltime()
 

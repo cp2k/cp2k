@@ -405,14 +405,12 @@ CONTAINS
 !> \param rho       All data for the electron density
 !> \param para_env  Parallel environment
 !> \param diis_step Did we do a DIIS step?
-!> \param do_kpoints Is this a kpoint run?
 ! *****************************************************************************
- SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step,do_kpoints)
+ SUBROUTINE qs_scf_density_mixing(scf_env,rho,para_env,diis_step)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL                                  :: diis_step
-    LOGICAL, INTENT(IN)                      :: do_kpoints
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_density_mixing', &
       routineP = moduleN//':'//routineN
