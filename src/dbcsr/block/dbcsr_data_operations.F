@@ -194,8 +194,8 @@ CONTAINS
     IF (PRESENT (drop_real)) keep_real = .NOT. drop_real
     noimult = .TRUE. 
     IF (PRESENT (multiply_by_i)) noimult = .NOT. multiply_by_i
-    ns = dbcsr_data_get_size (source_area)
-    nt = dbcsr_data_get_size (source_area)
+    ns = dbcsr_data_get_size_referenced (source_area)
+    nt = dbcsr_data_get_size_referenced (target_area)
     n = MIN (ns, nt)
     IF (n .GT. 0) THEN
        SELECT CASE (source_area%d%data_type)
