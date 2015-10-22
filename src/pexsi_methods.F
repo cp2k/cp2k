@@ -24,8 +24,8 @@ MODULE pexsi_methods
        cp_dbcsr_setup_arnoldi_data, cp_dbcsr_type, &
        cp_set_arnoldi_initial_vector, csr_eqrow_floor_dist, &
        dbcsr_arnoldi_data, dbcsr_distribution_mp, dbcsr_mp_mynode, &
-       dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8, &
-       deallocate_arnoldi_data, get_selected_ritz_val, get_selected_ritz_vec
+       dbcsr_type_no_symmetry, dbcsr_type_real_8, deallocate_arnoldi_data, &
+       get_selected_ritz_val, get_selected_ritz_vec
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
@@ -197,7 +197,7 @@ CONTAINS
 
     CALL cp_dbcsr_create(pexsi_env%csr_sparsity, "CSR sparsity", &
                          template = pexsi_env%dbcsr_template_matrix_sym, &
-                         data_type=dbcsr_type_real_4)
+                         data_type=dbcsr_type_real_8)
     CALL cp_dbcsr_copy(pexsi_env%csr_sparsity, pexsi_env%dbcsr_template_matrix_sym)
 
     CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity)

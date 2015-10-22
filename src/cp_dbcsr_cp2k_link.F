@@ -46,7 +46,7 @@ MODULE cp_dbcsr_cp2k_link
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             real_4
+                                             real_8
   USE orbital_pointers,                ONLY: nso
   USE qs_integral_utils,               ONLY: basis_set_list_setup
   USE qs_kind_types,                   ONLY: qs_kind_type
@@ -387,7 +387,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, zet_a, zet_b
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: gcc_a, gcc_b
-    REAL(KIND=real_4), DIMENSION(:, :), &
+    REAL(KIND=real_8), DIMENSION(:, :), &
       POINTER                                :: screen_blk
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
