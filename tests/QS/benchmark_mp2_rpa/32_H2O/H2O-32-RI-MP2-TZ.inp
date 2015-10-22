@@ -1,0 +1,90 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME    ./BASIS_H2O
+    POTENTIAL_FILE_NAME    POTENTIAL
+    WFN_RESTART_FILE_NAME  ./H2O-32-HF-TZ-RESTART.wfn
+    &MGRID
+     CUTOFF      800
+     REL_CUTOFF   50
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS  RESTART
+      EPS_SCF    1.0E-6
+      MAX_SCF    30
+      &OT
+        MINIMIZER       DIIS
+        PRECONDITIONER  FULL_SINGLE_INVERSE
+      &END
+      &OUTER_SCF
+        EPS_SCF  1.0E-6
+        MAX_SCF  20
+      &END
+      &PRINT
+        &RESTART OFF
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION  1.0
+        &SCREENING
+          EPS_SCHWARZ           1.0E-7
+          SCREEN_ON_INITIAL_P   TRUE
+        &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS  4.9
+          T_C_G_DATA  t_c_g.dat
+        &END
+        &MEMORY
+          MAX_MEMORY 3000
+        &END
+      &END HF
+      &WF_CORRELATION
+        METHOD  RI_MP2_GPW
+        &WFC_GPW
+          CUTOFF      200
+          REL_CUTOFF  35
+          EPS_FILTER  1.0E-12
+          EPS_GRID    1.0E-8
+        &END
+        MEMORY    3000
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.8528 9.8528 9.8528
+    &END CELL
+    &TOPOLOGY
+       COORD_FILE_NAME   ./H2O-32.xyz
+       COORD_FILE_FORMAT cp2k
+    &END TOPOLOGY
+    &KIND H
+      BASIS_SET         cc-TZ
+      RI_AUX_BASIS_SET  RI-cc-TZ
+      POTENTIAL         GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET         cc-TZ
+      RI_AUX_BASIS_SET  RI-cc-TZ
+      POTENTIAL         GTH-HF-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT     H2O-32-RI-MP2-TZ
+  RUN_TYPE    ENERGY
+  PRINT_LEVEL MEDIUM
+  &TIMINGS
+     THRESHOLD 0.0001
+  &END
+&END GLOBAL
+

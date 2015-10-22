@@ -1,0 +1,27 @@
+Hybrid benchmark for RI-MP2 and RI-dRPA (32-H2O-TZ)
+===================================================
+
+Input files:
+RI-MP2.inp            -> farming input for measuring MP2 time
+RI-RPA.inp            -> farming input for measuring RPA time
+
+Additional files:
+BASIS_H2O             -> contains the primary and auxiliary(RI) basis sets 
+H2O-32.xyz            -> geometry in xyz format
+H2O-32-PBE-TZ.inp     -> needed to generate an initial DFT wfn (RPA, MP2)
+H2O-32-HF-TZ.inp      -> needed to refine DFT wfn at HF level  (MP2)
+H2O-32-RI-MP2-TZ.inp  -> actual RI-MP2 benchmark               (MP2)
+H2O-32-RI-RPA-TZ.inp  -> actual RI-RPA benchmark               (RPA)
+
+the additional fils et_c_g.dat and POTENTIAL are taken from cp2k/data directory.
+
+To run these benchmarks, CP2K needs to be compiled with libint support (-D__LIBINT). Libint library has
+to be compiled such that higher angular momentum can be computed (see: tools/hfx_tools/libint_tools/README_LIBINT),
+use, for example, --with-libint-max-am=6 --with-libderiv-max-am1=5.
+
+Perform the benchmark calculations:
+1) run RI-MP2.inp (392 s with 16 nodes x 16 MPI x 1 OMP, total number of cores 256) 
+2) run RI-RPA.inp (221 s with 16 nodes x 16 MPI x 1 OMP, total number of cores 256)
+
+*) The timings have been obtained on CRAY-XC40 (PizDora@CSCS)   
+

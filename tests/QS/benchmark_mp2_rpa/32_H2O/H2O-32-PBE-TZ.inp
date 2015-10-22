@@ -1,0 +1,61 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME    ./BASIS_H2O
+    POTENTIAL_FILE_NAME    POTENTIAL
+    &MGRID
+     CUTOFF      800
+     REL_CUTOFF   50
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &SCF
+      SCF_GUESS  ATOMIC
+      EPS_SCF    1.0E-6
+      MAX_SCF    30
+      &OT
+        MINIMIZER       CG
+        PRECONDITIONER  FULL_ALL
+      &END
+      &OUTER_SCF
+        EPS_SCF  1.0E-6
+        MAX_SCF  20
+      &END
+      &PRINT
+        &RESTART
+          BACKUP_COPIES 0
+        &END
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 9.8528 9.8528 9.8528
+    &END CELL
+    &TOPOLOGY
+       COORD_FILE_NAME   ./H2O-32.xyz
+       COORD_FILE_FORMAT cp2k
+    &END TOPOLOGY
+    &KIND H
+      BASIS_SET         cc-TZ
+      RI_AUX_BASIS_SET  RI-cc-TZ
+      POTENTIAL         GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET         cc-TZ
+      RI_AUX_BASIS_SET  RI-cc-TZ
+      POTENTIAL         GTH-PBE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT     H2O-32-PBE-TZ
+  RUN_TYPE    ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+
