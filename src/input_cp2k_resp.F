@@ -10,7 +10,8 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE input_cp2k_resp
-  USE bibliography,                    ONLY: Golze2015
+  USE bibliography,                    ONLY: Campana2009,&
+                                             Golze2015
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              high_print_level,&
@@ -92,7 +93,7 @@ CONTAINS
     CALL keyword_create(keyword, name="RESTRAIN_HEAVIES_TO_ZERO",&
          description="Restrain non-hydrogen atoms to zero.",&
          usage="RESTRAIN_HEAVIES_TO_ZERO FALSE",&
-         default_l_val=.TRUE.)
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -112,6 +113,25 @@ CONTAINS
          usage="WIDTH <real> ",n_var=1,type_of_var=real_t,&
          default_r_val=cp_unit_to_cp2k(value=11.249_dp,unit_str="angstrom^-2"), &
          unit_str="angstrom^-2")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="USE_REPEAT_METHOD",&
+         description="Fits the variance of the potential, i.e. the deviation "//&
+                     "from the mean value of the potential within the selected "//&
+                     "range. The evaluation of the potentials is still treated "//&
+                     "within the GPW approach as desribed in [Golze2015]. "//&
+                     "When used in conjunction with INTEGER_TOTAL_CHARGE = T "//&
+                     "and SPHERE_SAMPLING, the results will be very similar to "//&
+                     "the REPEAT method given in [Campana2009]. In most "//&
+                     "cases switching on this option gives reasonable "//&
+                     "atomic charges without the need to define any "//&
+                     "restraints. Note that by switching on this option, "//&
+                     "RESTRAIN_HEAVIES_TO_ZERO will be switched off "//&
+                     "automatically.",&
+         usage="USE_REPEAT_METHOD",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
+         citations=(/Campana2009/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -270,44 +290,74 @@ CONTAINS
                      "for molecular structures, i.e. systems that do not involve " //&
                      "surfaces. Fitting points are sampled in spheres around the "//&
                      "atom. All grid points in the shell defined by rmin and rmax "//&
-                     "are accepted for fitting.",&
+                     "are accepted for fitting. Default is that rmin is the vdW "//&
+                     "radius and rmax=10*vdW_radius, which can be overwritten by "//&
+                     "the keywords below.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="X_LOW",&
-         description="Specifies the lower boundary of the box along X used to sample the potential.",&
+         description="Specifies the lower boundary of the box along X used to "//&
+         "sample the potential. Only valid for nonperiodic RESP fitting.",&
          usage="X_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom')
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="X_HI",&
-         description="Specifies the upper boundary of the box along X used to sample the potential.",&
+         description="Specifies the upper boundary of the box along X used to "//&
+        " sample the potential. Only valid for nonperiodic RESP fitting.",&
          usage="X_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom')
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="Y_LOW",&
-         description="Specifies the lower boundary of the box along Y used to sample the potential.",&
+         description="Specifies the lower boundary of the box along Y used to "//&
+         "sample the potential. Only valid for nonperiodic RESP fitting.",&
          usage="Y_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom')
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="Y_HI",&
-         description="Specifies the upper boundary of the box along Y used to sample the potential.",&
+         description="Specifies the upper boundary of the box along Y used to "//&
+         "sample the potential. Only valid for nonperiodic RESP fitting.",&
          usage="Y_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom')
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="Z_LOW",&
-         description="Specifies the lower boundary of the box along Z used to sample the potential.",&
+         description="Specifies the lower boundary of the box along Z used to "//&
+         "sample the potential. Only valid for nonperiodic RESP fitting.",&
          usage="Z_LOW  -15.", type_of_var=real_t, n_var=1, unit_str='angstrom')
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="Z_HI",&
-         description="Specifies the upper boundary of the box along Z used to sample the potential.",&
+         description="Specifies the upper boundary of the box along Z used to "//&
+         "sample the potential. Only valid for nonperiodic RESP fitting.",&
          usage="Z_HI  5.", type_of_var=real_t, n_var=1, unit_str='angstrom')
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="AUTO_RMAX_SCALE",&
+         description="IF RMAX or RMAX_KIND keywords are not present, defines the "//&
+                     "maximumn distance a fit point is away from an atom based on "//&
+                     "the formula: rmax(kind) = AUTO_RMAX_SCALE * vdW_radius(kind). "//&
+                     "The van der Waals radiii of the elements are based on data from "//&
+                     "the Cambridge Structural Database.",&
+         usage="AUTO_RMAX_SCALE 10.0",&
+         default_r_val=10.0_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="AUTO_RMIN_SCALE",&
+         description="IF RMIN or RMIN_KIND keywords are not present, defines the "//&
+                     "minimum distance a fit point is away from an atom based on "//&
+                     "the formula: rmin(kind) = AUTO_RMIN_SCALE * vdW_radius(kind). "//&
+                     "The van der Waals radii of the elements are based on data from "//&
+                     "the Cambridge Structural Database.",&
+         usage="AUTO_RMIN_SCALE 1.5",&
+         default_r_val=1.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

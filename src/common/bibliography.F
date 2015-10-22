@@ -73,7 +73,7 @@ MODULE bibliography
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
-       Luber2014, Berghold2011, DelBen2015b 
+       Luber2014, Berghold2011, DelBen2015b, Campana2009 
 
 CONTAINS
 
@@ -3029,6 +3029,7 @@ CONTAINS
           "UT WOS:000173418600007",&
           "ER"),&
           DOI="10.1063/1.1431270")
+
      CALL add_reference(key=DelBen2015b, ISI_record=s2a(&
           "PT J",&
           "AU Del Ben, M",&
@@ -3053,6 +3054,27 @@ CONTAINS
           "PM 26373996",&
           "ER"),&
           DOI="10.1063/1.4919238")
+
+     CALL add_reference(key=Campana2009, ISI_record=s2a(&
+          "PT J",&
+          "AU Campana, C",&
+          "   Mussard, B",&
+          "   Woo, T K",&
+          "AF Campana, Carlos",&
+          "   Mussard, Bastien",&
+          "   Woo, Tom K.",&
+          "TI Electrostatic Potential Derived Atomic Charges for ",&
+          "   Periodic Systems Using a Modified Error Functional",&
+          "SO JOURNAL OF CHEMICAL THEORY AND COMPUTATION",&
+          "SN 1549-9618",&
+          "PD OCT 13",&
+          "PY 2009",&
+          "VL 5",&
+          "IS 10",&
+          "AR 2866",&
+          "DI 10.1021/ct9003405",&
+          "ER"),&
+          DOI="10.1021/ct9003405")
 
   END SUBROUTINE add_all_references
 

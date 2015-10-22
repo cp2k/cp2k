@@ -1322,7 +1322,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
    
-    NULLIFY(cell,dft_control,pab,pw_env,rs_rho,auxbas_pw_pool,&
+    NULLIFY(cell,cores,dft_control,pab,pw_env,rs_rho,auxbas_pw_pool,&
             particle_set)
    
     ALLOCATE (pab(1,1),STAT=ierr)

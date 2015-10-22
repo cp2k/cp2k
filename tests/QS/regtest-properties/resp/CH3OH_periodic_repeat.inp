@@ -1,0 +1,89 @@
+!
+! increase cutoff and max_scf for an example of resp fitting
+!
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 20
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      MAP_CONSISTENT
+    &END QS
+    &SCF
+      MAX_SCF 1
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+      &OT 
+         PRECONDITIONER FULL_ALL
+         ENERGY_GAP 0.001
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+       PERIODIC XYZ 
+       PSOLVER PERIODIC
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 16.0 16.0 16.0
+      PERIODIC XYZ
+    &END CELL
+    &TOPOLOGY
+     &CENTER_COORDINATES
+     &END
+    &END
+    &COORD
+C  -0.0458  0.6537  0.0000
+O  -0.0458  -0.7445  0.0000
+H  -1.0815  0.9731  0.0000
+H  0.4413  1.0630  0.8859
+H  0.4413  1.0630  -0.8859
+H  0.8395  -1.0657  0.0000
+    &END COORD
+    &KIND C
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q4
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q6
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q1
+    &END KIND
+  &END SUBSYS
+    &PROPERTIES
+      &RESP
+        USE_REPEAT_METHOD
+        &SPHERE_SAMPLING
+         AUTO_RMIN_SCALE 1.0
+         AUTO_RMAX_SCALE 2.0
+        &END
+         STRIDE 3
+         ! fix methyl carbons to be equivalent
+         &CONSTRAINT
+          ATOM_LIST 3 4 5
+          EQUAL_CHARGES
+         &END
+         &PRINT
+          &COORD_FIT_POINTS
+          &END
+          &V_RESP_CUBE
+          &END
+         &END
+      &END
+    &END
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT CH3OH
+  PRINT_LEVEL LOW
+&END GLOBAL
