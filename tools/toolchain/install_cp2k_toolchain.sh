@@ -738,7 +738,7 @@ else
       echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_x86_64_gfortran
       export QUIP_ARCH=linux_x86_64_gfortran
       # hit enter a few times to accept defaults
-      echo -e "-lreflapack -lrefblas\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+      echo -e "-L${INSTALLDIR}/lib -lreflapack -lrefblas\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
       # make -j does not work :-(
       make >& make.log
       cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
