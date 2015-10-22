@@ -525,15 +525,11 @@ def ticket_cell(label):
 
 #===============================================================================
 def parse_regtest_report(report_txt):
-    report = dict()
-
-    m = re.search("svn: E000111: (Can't connect .*):", report_txt)
+    m = re.search("svn: .*(Can't connect .*):", report_txt)
     if(m):
-        report['revision'] = None
-        report['status'] = "UNKNOWN"
-        report['summary'] = m.group(1)
-        return(report)
+        return({'revision':None, 'status':'UNKNOWN', 'summary':m.group(1)})
 
+    report = dict()
     report['revision'] = int(re.search("(revision|Revision:) (\d+)\.?\n", report_txt).group(2))
 
     if("LOCKFILE" in report_txt):
@@ -577,13 +573,15 @@ def parse_regtest_report(report_txt):
 
 #===============================================================================
 def parse_generic_report(report_txt):
+    m = re.search("svn: .*(Can't connect .*):", report_txt)
+    if(m):
+        return({'revision':None, 'status':'UNKNOWN', 'summary':m.group(1)})
     report = dict()
     report['revision']  = int(re.search("(^|\n)Revision: (\d+)\n", report_txt).group(2))
     report['summary'] = re.search("(^|\n)Summary: (.+)\n", report_txt).group(2)
     report['status'] = re.search("(^|\n)Status: (.+)\n", report_txt).group(2)
     report['plots'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)Plot: (.+)(?=\n)", report_txt)]
     report['plotpoints'] = [eval("dict(%s)"%m[1]) for m in re.findall("(^|\n)PlotPoint: (.+)(?=\n)", report_txt)]
-   
     return(report)
 
 #===============================================================================
