@@ -2281,7 +2281,7 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=12,count=1,time=t_end-t_start,msg_size=msglen*(2*real_8_size))
 #else
-    CALL mp_abort( "mp_irecv called in non parallel case" )
+    CPABORT("mp_irecv called in non parallel case")
     MARK_USED(msgout)
     MARK_USED(source)
     MARK_USED(comm)
@@ -2350,7 +2350,7 @@
     MARK_USED(comm)
     MARK_USED(request)
     MARK_USED(tag)
-    CALL mp_abort( "mp_irecv called in non parallel case" )
+    CPABORT("mp_irecv called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_zm2
@@ -2419,7 +2419,7 @@
     MARK_USED(comm)
     MARK_USED(request)
     MARK_USED(tag)
-    CALL mp_abort( "mp_irecv called in non parallel case" )
+    CPABORT("mp_irecv called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_irecv_zm3
@@ -2471,7 +2471,7 @@
     MARK_USED(base)
     MARK_USED(comm)
     MARK_USED(win)
-    CALL mp_abort( "mp_win_create called in non parallel case" )
+    CPABORT("mp_win_create called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_create_zv
@@ -2525,7 +2525,7 @@
     ENDIF
 #else
     request = 0
-    CALL mp_abort("mp_rget requires MPI-3 standard")
+    CPABORT("mp_rget requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_rget @ "//routineN )
 
@@ -2537,7 +2537,7 @@
     MARK_USED(win)
     MARK_USED(disp)
     MARK_USED(request)
-    CALL mp_abort( "mp_rget called in non parallel case" )
+    CPABORT("mp_rget called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_rget_zv
@@ -2646,7 +2646,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_zv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_zv @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2676,7 +2677,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, 1, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_z @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_z @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg
@@ -2714,7 +2716,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_zv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_all_zv @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2744,7 +2747,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, 1, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_write_at_all_z @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_write_at_all_z @ "//routineN)
     DEALLOCATE(status)
 #else
     WRITE(UNIT=fh, POS=offset+1) msg
@@ -2783,7 +2787,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_zv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_zv @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2814,7 +2819,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, 1, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_z @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_z @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg
@@ -2851,7 +2857,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_zv @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_all_zv @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg(1:msg_len)
@@ -2881,7 +2888,8 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, 1, MPI_DOUBLE_COMPLEX, status, ierr)
-    IF (ierr .NE. 0) CALL mp_abort("mpi_file_read_at_all_z @ "//routineN)
+    IF (ierr .NE. 0)&
+       CPABORT("mpi_file_read_at_all_z @ "//routineN)
     DEALLOCATE(status)
 #else
     READ(UNIT=fh, POS=offset+1) msg
@@ -2914,7 +2922,8 @@
 #if defined(__parallel)
     type_descriptor%type_handle = MPI_DOUBLE_COMPLEX
     CALL MPI_Get_address (ptr, type_descriptor%base, ierr)
-    IF (ierr /= 0) CALL mp_abort("MPI_Get_address @ "//routineN)
+    IF (ierr /= 0)&
+       CPABORT("MPI_Get_address @ "//routineN)
 #else
     type_descriptor%type_handle = 7
 #endif
@@ -2922,7 +2931,7 @@
     type_descriptor%has_indexing = .FALSE.
     type_descriptor%data_z => ptr
     IF (PRESENT (vector_descriptor) .OR. PRESENT (index_descriptor)) THEN
-       CALL mp_abort (routineN//": Vectors and indices NYI")
+       CPABORT(routineN//": Vectors and indices NYI")
     ENDIF
   END FUNCTION mp_type_make_z
 

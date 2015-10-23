@@ -72,8 +72,7 @@ MODULE environment
                                              m_procrun
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
-                                             mp_external_timeset,&
-                                             mp_external_timestop,&
+                                             mp_collect_timings,&
                                              mp_max,&
                                              mp_sum,&
                                              rm_mp_perf_env
@@ -506,8 +505,7 @@ CONTAINS
       SReclaimable, SReclaimable_avr, SReclaimable_max, SReclaimable_min
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: ata, do_echo_all_hosts, efl, &
-                                                explicit, time_mpi, trace, &
-                                                trace_master
+                                                explicit, trace, trace_master
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum1, enum2
     TYPE(keyword_type), POINTER              :: keyword
@@ -566,11 +564,7 @@ CONTAINS
        END IF
     ENDIF 
    
-    CALL section_vals_val_get(global_section,"TIMINGS%TIME_MPI",l_val=time_mpi)
-    IF (time_mpi) THEN
-       mp_external_timeset=>timeset
-       mp_external_timestop=>timestop
-    ENDIF
+    CALL section_vals_val_get(global_section,"TIMINGS%TIME_MPI",l_val=mp_collect_timings)
 
     SELECT CASE(i_diag)
     CASE(do_diag_sl)
