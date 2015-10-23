@@ -233,6 +233,12 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,blacs_grid_layout,blacs_repeat
   ! fill in the info one needs
   CALL cp_blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
        blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
+
+#else
+  MARK_USED(blacs_grid_layout)
+  MARK_USED(blacs_repeatable)
+  MARK_USED(grid_2d)
+  MARK_USED(row_major)
 #endif
 
   ! generate the mappings blacs2mpi and mpi2blacs

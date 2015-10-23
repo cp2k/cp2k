@@ -1122,7 +1122,6 @@ CONTAINS
     ! Reshuffle the data
     CALL make_undense_data (undense_matrix, dense_data,&
          nfullrows_local, nfullcols_local,&
-         local_row_blk_offsets, local_col_blk_offsets,&
          dense_local_row_blk_offsets, dense_local_col_blk_offsets,&
          array_data(row_map), array_data(col_map),&
          row_internal_offsets, col_internal_offsets)
@@ -1270,8 +1269,6 @@ CONTAINS
 !> \param[in] dense_data             Dense data
 !> \param[in] nfullrows              number of full rows in local submatrix
 !> \param[in] nfullcols              number of full columns in local submatrix
-!> \param[in] und_row_blk_offsets    row block offsets for undense data
-!> \param[in] und_col_blk_offsets    column block offsets for undense data
 !> \param[in] dense_row_blk_offsets  row block offsets for dense data
 !> \param[in] dense_col_blk_offsets  column block offsets for dense data
 !> \param[in] row_map                mapping from undense to dense rows
@@ -1281,15 +1278,14 @@ CONTAINS
 !> \note Used for making matrices dense/undense
 ! *****************************************************************************
   SUBROUTINE make_undense_data (matrix, dense_data, nfullrows, nfullcols,&
-       und_row_blk_offsets, und_col_blk_offsets,&
        dense_row_blk_offsets, dense_col_blk_offsets,&
        row_map, col_map, row_internal_offsets, col_internal_offsets)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     TYPE(dbcsr_data_obj), INTENT(IN)         :: dense_data
     INTEGER, INTENT(IN)                      :: nfullrows, nfullcols
-    INTEGER, DIMENSION(:), INTENT(IN) :: und_row_blk_offsets, &
-      und_col_blk_offsets, dense_row_blk_offsets, dense_col_blk_offsets, &
-      row_map, col_map, row_internal_offsets, col_internal_offsets
+    INTEGER, DIMENSION(:), INTENT(IN) :: dense_row_blk_offsets, &
+      dense_col_blk_offsets, row_map, col_map, row_internal_offsets, &
+      col_internal_offsets
 
     CHARACTER(len=*), PARAMETER :: routineN = 'make_undense_data', &
       routineP = moduleN//':'//routineN
@@ -1317,7 +1313,7 @@ CONTAINS
 !$OMP          dense_offset) &
 !$OMP SHARED (&
 !$OMP         matrix, dense_data, &
-!$OMP         nfullrows, nfullcols, und_row_blk_offsets, und_col_blk_offsets,&
+!$OMP         nfullrows, nfullcols, &
 !$OMP         dense_row_blk_offsets, dense_col_blk_offsets,&
 !$OMP         row_map, col_map,&
 !$OMP         row_internal_offsets, col_internal_offsets)

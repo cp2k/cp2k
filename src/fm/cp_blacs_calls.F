@@ -44,6 +44,11 @@ SUBROUTINE cp_blacs_gridinit(context,order,nprow,npcol)
    INTEGER, INTENT(IN)    :: nprow, npcol
 #if defined(__SCALAPACK)
    CALL blacs_gridinit(context,order,nprow,npcol)
+#else
+   MARK_USED(context)
+   MARK_USED(order)
+   MARK_USED(nprow)
+   MARK_USED(npcol)
 #endif
 END SUBROUTINE cp_blacs_gridinit
 
@@ -55,6 +60,8 @@ SUBROUTINE cp_blacs_gridexit(context)
    INTEGER, INTENT(IN) :: context
 #if defined(__SCALAPACK)
    CALL blacs_gridexit(context)
+#else
+   MARK_USED(context)
 #endif
 END SUBROUTINE cp_blacs_gridexit
 
@@ -72,6 +79,7 @@ SUBROUTINE cp_blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
 #if defined(__SCALAPACK)
    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
 #else
+   MARK_USED(context)
    nprow = 1
    npcol = 1
    myprow = 0
@@ -96,6 +104,10 @@ SUBROUTINE cp_blacs_set(context,what,val)
    INTEGER, INTENT(IN)  :: context,what,val
 #if defined(__SCALAPACK)
    CALL blacs_set(context,what,val)
+#else
+   MARK_USED(context)
+   MARK_USED(what)
+   MARK_USED(val)
 #endif
 END SUBROUTINE cp_blacs_set
 
@@ -116,6 +128,14 @@ SUBROUTINE cp_blacs_zgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
   COMPLEX(KIND=dp)            :: A
 #if defined(__SCALAPACK)
   CALL zgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
+#else
+  MARK_USED(ICONTXT)
+  MARK_USED(SCOPE)
+  MARK_USED(TOP)
+  MARK_USED(M)
+  MARK_USED(N)
+  MARK_USED(A)
+  MARK_USED(LDA)
 #endif
 END SUBROUTINE
 ! *****************************************************************************
@@ -138,6 +158,16 @@ SUBROUTINE cp_blacs_zgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC,
   COMPLEX(KIND=dp)            :: A
 #if defined(__SCALAPACK)
   CALL zgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
+#else
+  MARK_USED(ICONTXT)
+  MARK_USED(SCOPE)
+  MARK_USED(TOP)
+  MARK_USED(M)
+  MARK_USED(N)
+  MARK_USED(A)
+  MARK_USED(LDA)
+  MARK_USED(RSRC)
+  MARK_USED(CSRC)
 #endif
 END SUBROUTINE
 
@@ -158,6 +188,14 @@ SUBROUTINE cp_blacs_dgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
   REAL(KIND=dp)               :: A
 #if defined(__SCALAPACK)
   CALL dgebs2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
+#else
+  MARK_USED(ICONTXT)
+  MARK_USED(SCOPE)
+  MARK_USED(TOP)
+  MARK_USED(M)
+  MARK_USED(N)
+  MARK_USED(A)
+  MARK_USED(LDA)
 #endif
 END SUBROUTINE
 ! *****************************************************************************
@@ -180,6 +218,16 @@ SUBROUTINE cp_blacs_dgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC,
   REAL(KIND=dp)               :: A
 #if defined(__SCALAPACK)
   CALL dgebr2d(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
+#else
+  MARK_USED(ICONTXT)
+  MARK_USED(SCOPE)
+  MARK_USED(TOP)
+  MARK_USED(M)
+  MARK_USED(N)
+  MARK_USED(A)
+  MARK_USED(LDA)
+  MARK_USED(RSRC)
+  MARK_USED(CSRC)
 #endif
 END SUBROUTINE
 

@@ -175,6 +175,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    MARK_USED(dynamic) ! only used with OMP
+
     CALL timeset (routineN, error_handle)
     iterator%shared = .TRUE.
 !$  iterator%shared = omp_in_parallel()
@@ -445,6 +447,9 @@ CONTAINS
     LOGICAL                                  :: local, row_inrange, row_ok
 
 !   ---------------------------------------------------------------------------
+
+    MARK_USED(tdist) ! only used with OMP
+    MARK_USED(tid)   ! only used with OMP
 
     local = PRESENT (local2global)
     IF (maxpos .GE. 1) THEN

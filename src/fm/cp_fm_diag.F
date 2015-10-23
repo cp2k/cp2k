@@ -466,7 +466,12 @@ CONTAINS
     DEALLOCATE (work)
 
     DEALLOCATE (iwork)
-
+#else
+   MARK_USED(matrix)
+   MARK_USED(eigenvectors)
+   MARK_USED(eig)
+   info = -1
+   CPABORT("cp_fm_syevd_base called with out SCALAPACK compiled in")
 #endif
 
     CALL timestop(handle)

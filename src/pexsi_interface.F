@@ -116,6 +116,25 @@ CONTAINS
     IF(PRESENT(npSymbFact)) pexsi_options%options%npSymbFact = npSymbFact
     IF(PRESENT(verbosity)) pexsi_options%options%verbosity = verbosity
 #else
+    MARK_USED(pexsi_options)
+    MARK_USED(temperature)
+    MARK_USED(gap)
+    MARK_USED(deltaE)
+    MARK_USED(numPole)
+    MARK_USED(isInertiaCount)
+    MARK_USED(maxPEXSIIter)
+    MARK_USED(muMin0)
+    MARK_USED(muMax0)
+    MARK_USED(mu0)
+    MARK_USED(muInertiaTolerance)
+    MARK_USED(muInertiaExpansion)
+    MARK_USED(muPEXSISafeGuard)
+    MARK_USED(numElectronPEXSITolerance)
+    MARK_USED(matrixType)
+    MARK_USED(isSymbolicFactorize)
+    MARK_USED(ordering)
+    MARK_USED(npSymbFact)
+    MARK_USED(verbosity)
     CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE cp_pexsi_set_options
@@ -188,6 +207,7 @@ CONTAINS
     IF(PRESENT(npSymbFact)) npSymbFact = pexsi_options%options%npSymbFact
     IF(PRESENT(verbosity)) verbosity = pexsi_options%options%verbosity
 #else
+   MARK_USED(pexsi_options)
    ! assign intent-out arguments to silence compiler warnings
    IF(PRESENT(temperature)) temperature = 0.0_real_8
    IF(PRESENT(gap)) gap = 0.0_real_8
@@ -253,6 +273,10 @@ CONTAINS
        CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
     CALL timestop(handle)
 #else
+    MARK_USED(comm)
+    MARK_USED(numProcRow)
+    MARK_USED(numProcCol)
+    MARK_USED(outputFileIndex)
     CPABORT("Requires linking to the PEXSI library.")
 #endif
   END FUNCTION cp_pexsi_plan_initialize
@@ -300,7 +324,19 @@ CONTAINS
        CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
     CALL timestop(handle)
 #else
+    MARK_USED(plan)
+    MARK_USED(pexsi_options)
+    MARK_USED(nrows)
+    MARK_USED(nnz)
+    MARK_USED(nnzLocal)
+    MARK_USED(numColLocal)
+    MARK_USED(isSIdentity)
     CPABORT("Requires linking to the PEXSI library.")
+
+    ! MARK_USED macro does not work on assumed shape variables
+    IF(.FALSE.) THEN; DO
+         IF(colptrLocal(1)>rowindLocal(1).OR.HnzvalLocal(1)>SnzvalLocal(1)) EXIT
+    ENDDO; ENDIF
 #endif
   END SUBROUTINE cp_pexsi_load_real_symmetric_hs_matrix
 
@@ -341,6 +377,9 @@ CONTAINS
        CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
     CALL timestop(handle)
 #else
+    MARK_USED(plan)
+    MARK_USED(numelectronexact)
+    MARK_USED(pexsi_options)
     ! assign intent-out arguments to silence compiler warnings
     muPEXSI = 0.0_real_8
     numElectronPEXSI = 0.0_real_8
@@ -385,6 +424,7 @@ CONTAINS
        CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
     CALL timestop(handle)
 #else
+    MARK_USED(plan)
     ! assign intent-out arguments to silence compiler warnings
     DMnzvalLocal(1) = 0.0_real_8
     EDMnzvalLocal(1) = 0.0_real_8
@@ -416,6 +456,7 @@ CONTAINS
        CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
     CALL timestop(handle)
 #else
+    MARK_USED(plan)
     CPABORT("Requires linking to the PEXSI library.")
 #endif
   END SUBROUTINE

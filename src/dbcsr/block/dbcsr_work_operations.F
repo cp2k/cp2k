@@ -219,6 +219,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    MARK_USED(thread_dist) ! only used with OMP
+
     CALL timeset(routineN, handle)
     CALL dbcsr_assert(dbcsr_is_initialized(matrix), &
            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
