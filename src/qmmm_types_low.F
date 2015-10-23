@@ -54,6 +54,7 @@ MODULE qmmm_types_low
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
   PUBLIC :: qmmm_imomm_link_type, qmmm_links_type
   PUBLIC :: add_set_type, add_set_release, create_add_set_type
+  PUBLIC :: add_shell_type, add_shell_release, create_add_shell_type
   PUBLIC :: qmmm_per_pot_type, qmmm_per_pot_p_type
 
 ! *****************************************************************************
@@ -155,6 +156,21 @@ MODULE qmmm_types_low
   END TYPE add_set_type
 
 ! *****************************************************************************
+!> \brief parameters for core-shell model potentials
+! *****************************************************************************
+  TYPE add_shell_type
+     INTEGER                                                 :: num_mm_atoms
+     TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles
+     INTEGER,        DIMENSION(:), POINTER                   :: mm_core_index
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_core_chrg
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius_corr
+     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
+     TYPE(qmmm_per_pot_p_type), DIMENSION(:), POINTER        :: Per_Potentials
+     TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
+  END TYPE add_shell_type
+
+! *****************************************************************************
 !> \brief ...
 ! *****************************************************************************
   TYPE image_charge_type
@@ -209,6 +225,7 @@ MODULE qmmm_types_low
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
      TYPE(qmmm_links_type), POINTER                          :: qmmm_links
      TYPE(add_set_type), POINTER                             :: added_charges
+     TYPE(add_shell_type), POINTER                           :: added_shells
      TYPE(image_charge_type), POINTER                        :: image_charge_pot
      TYPE(ewald_environment_type), POINTER                   :: ewald_env
      TYPE(ewald_pw_type), POINTER                            :: ewald_pw
@@ -341,7 +358,8 @@ CONTAINS
             qmmm_env%pgfs, qmmm_env%maxradius,&
             qmmm_env%aug_pools, qmmm_env%potentials,&
             qmmm_env%qmmm_links, qmmm_env%added_charges,&
-            qmmm_env%per_potentials,qmmm_env%image_charge_pot)
+            qmmm_env%per_potentials,qmmm_env%image_charge_pot,&
+            qmmm_env%added_shells)
     NULLIFY(qmmm_env%ewald_env, qmmm_env%ewald_pw)
     qmmm_env%do_translate     = .TRUE.
     qmmm_env%center_qm_subsys = .TRUE.
@@ -362,6 +380,7 @@ CONTAINS
     qmmm_env%gridlevel_info%auxbas_grid  = 0
     qmmm_env%gridlevel_info%coarser_grid = 0
     CALL create_add_set_type(qmmm_env%added_charges, ndim=0)
+    !CALL create_add_shell_type(qmmm_env%added_shells, ndim=0)
     CALL create_image_charge_type(qmmm_env%image_charge_pot)
   END SUBROUTINE qmmm_env_qm_create
 
@@ -422,6 +441,9 @@ CONTAINS
           END IF
           IF (ASSOCIATED(qmmm_env%added_charges)) THEN
              CALL add_set_release(qmmm_env%added_charges)
+          END IF
+          IF (ASSOCIATED(qmmm_env%added_shells)) THEN
+             CALL add_shell_release(qmmm_env%added_shells)
           END IF
           IF (ASSOCIATED(qmmm_env%image_charge_pot)) THEN
              CALL qmmm_image_charge_dealloc(qmmm_env%image_charge_pot)
@@ -646,6 +668,53 @@ CONTAINS
   END SUBROUTINE add_set_release
 
 ! *****************************************************************************
+!> \brief deallocates the add_shell_release
+!> \param added_shells ...
+!> \author MattW
+! *****************************************************************************
+SUBROUTINE add_shell_release(added_shells)
+
+    TYPE(add_shell_type), POINTER            :: added_shells
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_shell_release', &
+      routineP = moduleN//':'//routineN
+
+  IF (ASSOCIATED(added_shells)) THEN
+     IF (ASSOCIATED(added_shells%added_particles)) THEN
+        !XXXFIST should clean up shell particles
+        NULLIFY(added_shells%added_particles)
+        !CALL deallocate_particle_set(added_shells%added_particles)
+     END IF
+     IF (ASSOCIATED(added_shells%mm_core_index)) THEN
+        DEALLOCATE(added_shells%mm_core_index)
+     END IF
+     IF (ASSOCIATED(added_shells%mm_core_chrg)) THEN
+        DEALLOCATE(added_shells%mm_core_chrg)
+     END IF
+     IF (ASSOCIATED(added_shells%mm_el_pot_radius)) THEN
+        DEALLOCATE(added_shells%mm_el_pot_radius)
+     END IF
+     IF (ASSOCIATED(added_shells%mm_el_pot_radius_corr)) THEN
+        DEALLOCATE(added_shells%mm_el_pot_radius_corr)
+     END IF
+     IF (ASSOCIATED(added_shells%Potentials)) THEN
+        CALL qmmm_pot_type_dealloc(added_shells%Potentials)
+        DEALLOCATE(added_shells%Potentials)
+     END IF
+     IF (ASSOCIATED(added_shells%Per_Potentials)) THEN
+        CALL qmmm_per_pot_type_dealloc(added_shells%Per_Potentials)
+        DEALLOCATE(added_shells%Per_Potentials)
+     END IF
+     IF (ASSOCIATED(added_shells%pgfs)) THEN
+        CALL pgfs_release(added_shells%pgfs)
+        DEALLOCATE(added_shells%pgfs)
+     END IF
+     DEALLOCATE(added_shells)
+  END IF
+     
+END SUBROUTINE add_shell_release
+
+! *****************************************************************************
 !> \brief creates the add_set_type structure
 !> \param added_charges ...
 !> \param ndim ...
@@ -683,6 +752,44 @@ CONTAINS
     ALLOCATE(added_charges%mm_el_pot_radius(ndim))
     ALLOCATE(added_charges%mm_el_pot_radius_corr(ndim))
   END SUBROUTINE create_add_set_type
+
+! *****************************************************************************
+!> \brief creates the add_shell_type structure
+!> \param added_shells ...
+!> \param ndim ...
+!> \author Teodoro Laino
+! *****************************************************************************
+
+  SUBROUTINE create_add_shell_type(added_shells, ndim)
+    TYPE(add_shell_type), POINTER            :: added_shells
+    INTEGER, INTENT(IN)                      :: ndim
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_add_shell_type', &
+      routineP = moduleN//':'//routineN
+
+    IF (ASSOCIATED(added_shells)) CALL add_shell_release(added_shells)
+    ALLOCATE(added_shells)
+
+    NULLIFY(added_shells%mm_core_index,&
+         added_shells%added_particles,&
+         added_shells%mm_core_chrg,&
+         added_shells%mm_el_pot_radius,&
+         added_shells%mm_el_pot_radius_corr,&
+         added_shells%potentials,&
+         added_shells%per_potentials,&
+         added_shells%pgfs)
+
+    added_shells%num_mm_atoms = ndim
+    IF (ndim == 0) RETURN
+    !
+    ! Allocate leave out just potential and pgfs...
+    !
+    ALLOCATE(added_shells%mm_core_index(ndim))
+    ALLOCATE(added_shells%mm_core_chrg(ndim))
+    ALLOCATE(added_shells%mm_el_pot_radius(ndim))
+    ALLOCATE(added_shells%mm_el_pot_radius_corr(ndim))
+
+  END SUBROUTINE create_add_shell_type
 
 ! *****************************************************************************
 !> \brief creates the image_charge_type structure

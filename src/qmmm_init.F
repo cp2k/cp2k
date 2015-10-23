@@ -59,12 +59,16 @@ MODULE qmmm_init
   USE qmmm_per_elpot,                  ONLY: qmmm_ewald_potential_init,&
                                              qmmm_per_potential_init
   USE qmmm_types_low,                  ONLY: add_set_type,&
+                                             add_shell_type,&
                                              create_add_set_type,&
+                                             create_add_shell_type,&
                                              qmmm_env_mm_type,&
                                              qmmm_env_qm_type,&
                                              qmmm_links_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE shell_potential_types,           ONLY: get_shell,&
+                                             shell_kind_type
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -98,13 +102,15 @@ CONTAINS
 !> \param mm_atom_index ...
 !> \param mm_link_atoms ...
 !> \param mm_link_scale_factor ...
+!> \param added_shells ...
+!> \param shell_model ...
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE assign_mm_charges_and_radius(subsys, charges, mm_atom_chrg,mm_el_pot_radius,&
                                          mm_el_pot_radius_corr, mm_atom_index, mm_link_atoms,&
-                                         mm_link_scale_factor)
+                                         mm_link_scale_factor, added_shells, shell_model)
     TYPE(cp_subsys_type), POINTER            :: subsys
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
@@ -112,26 +118,46 @@ CONTAINS
                                                 mm_el_pot_radius_corr
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms
     REAL(dp), DIMENSION(:), POINTER          :: mm_link_scale_factor
+    TYPE(add_shell_type), OPTIONAL, POINTER  :: added_shells
+    LOGICAL                                  :: shell_model
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'assign_mm_charges_and_radius', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, ilink, IndMM
-    REAL(dp)                                 :: qi, rc, ri
+    INTEGER                                  :: I, ilink, IndMM, IndShell, &
+                                                ishell
+    LOGICAL                                  :: is_shell
+    REAL(dp)                                 :: qcore, qi, qshell, rc, ri
     TYPE(atomic_kind_type), POINTER          :: my_kind
     TYPE(fist_potential_type), POINTER       :: my_potential
-    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: particles, shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+      POINTER                                :: particle_set, shell_set
+    TYPE(shell_kind_type), POINTER           :: shell_kind
 
-    NULLIFY(particle_set, my_kind)
-    CALL cp_subsys_get(subsys=subsys,particles=particles)
+    NULLIFY(particle_set, my_kind, added_shells)
+    CALL cp_subsys_get(subsys=subsys,particles=particles, shell_particles=shell_particles)
     particle_set => particles%els
+
+    IF (ALL(particle_set(:)%shell_index .EQ. 0)) THEN
+       shell_model = .FALSE.
+       CALL create_add_shell_type(added_shells, ndim=0) 
+    ELSE
+       shell_model = .TRUE.
+    END IF
+
+    IF(shell_model) THEN 
+       shell_set => shell_particles%els
+       ishell = SIZE(shell_set)
+       CALL create_add_shell_type(added_shells, ndim=ishell)
+       added_shells%added_particles => shell_set
+    END IF
 
     DO I = 1, SIZE(mm_atom_index)
        IndMM = mm_atom_index(I)
        my_kind => particle_set(IndMM)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=my_kind, fist_potential=my_potential)
+       CALL get_atomic_kind(atomic_kind=my_kind, fist_potential=my_potential,&
+            shell_active=is_shell,shell=shell_kind)
        CALL get_potential  (potential=my_potential,&
                             qeff=qi,&
                             qmmm_radius=ri,&
@@ -140,6 +166,19 @@ CONTAINS
        mm_atom_chrg(I)          = qi
        mm_el_pot_radius(I)      = ri
        mm_el_pot_radius_corr(I) = rc
+       IF (is_shell) THEN
+          IndShell = particle_set(IndMM)%shell_index
+          IF (ASSOCIATED(shell_kind)) THEN
+             CALL get_shell(shell=shell_kind,&
+                  charge_core=qcore,&
+                  charge_shell=qshell)
+             mm_atom_chrg(I) = qcore
+          END IF
+          added_shells%mm_core_index(IndShell)         = IndMM
+          added_shells%mm_core_chrg(IndShell)          = qshell
+          added_shells%mm_el_pot_radius(Indshell)      = ri*1.0_dp
+          added_shells%mm_el_pot_radius_corr(Indshell) = rc*1.0_dp
+       END IF
     END DO
 
     IF (ASSOCIATED(mm_link_atoms)) THEN
@@ -161,21 +200,24 @@ CONTAINS
 !> \param mm_el_pot_radius ...
 !> \param mm_el_pot_radius_corr ...
 !> \param added_charges ...
+!> \param added_shells ...
 !> \param qmmm_section ...
 !> \param nocompatibility ...
+!> \param shell_model ...
 !> \par History
 !>      01.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
-                               added_charges, qmmm_section, nocompatibility)
+                               added_charges, added_shells, qmmm_section, nocompatibility, shell_model)
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
     TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(add_shell_type), POINTER            :: added_shells
     TYPE(section_vals_type), POINTER         :: qmmm_section
-    LOGICAL, INTENT(IN)                      :: nocompatibility
+    LOGICAL, INTENT(IN)                      :: nocompatibility, shell_model
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_qmmm_charges', &
       routineP = moduleN//':'//routineN
@@ -227,6 +269,29 @@ CONTAINS
           END DO
 
        END IF
+
+       IF (shell_model) THEN
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+          WRITE(iw,'(/5X,A)')"ADDED SHELL CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
+          WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
+
+          DO I = 1, SIZE(added_shells%mm_core_index)
+             IndMM = added_shells%mm_core_index(I)
+             qi = added_shells%mm_core_chrg(I)
+             qtot = qtot + qi
+             ri = added_shells%mm_el_pot_radius(I)             
+             IF (nocompatibility) THEN
+                WRITE(iw,'(7X,A,I5,A8,F12.6,A8,F12.6,3F12.6)')'SHELL:',IndMM,' RADIUS:',ri,&
+                     ' CHARGE:',qi, added_shells%added_particles(I)%r
+             ELSE
+                WRITE(iw,'(7X,A,I5,A8,F12.6,A8,F12.6,A,F12.6)')'SHELL:',IndMM,' RADIUS:',ri,&
+                     ' CHARGE:',qi,' CORR. RADIUS',rc
+             END IF
+
+          END DO
+
+       END IF
+
        WRITE(iw,FMT="(/,T2,A)") REPEAT("-",79)
        WRITE(iw,'(/,T50,A,T69,F12.6)')' TOTAL CHARGE:',qtot
        WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",79)
@@ -298,6 +363,7 @@ CONTAINS
 !> \param mm_atom_chrg ...
 !> \param qs_env ...
 !> \param added_charges ...
+!> \param added_shells ...
 !> \param print_section ...
 !> \param qmmm_section ...
 !> \par History
@@ -305,13 +371,14 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, para_env, &
-                                    mm_atom_chrg, qs_env, added_charges, print_section, &
-                                    qmmm_section)
+                                    mm_atom_chrg, qs_env, added_charges, added_shells, & 
+                                    print_section, qmmm_section)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cp_para_env_type), POINTER          :: para_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(add_shell_type), POINTER            :: added_shells
     TYPE(section_vals_type), POINTER         :: print_section, qmmm_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_init_gaussian_type', &
@@ -364,6 +431,33 @@ CONTAINS
        IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2)
     END IF
 
+    IF (qmmm_env_qm%added_shells%num_mm_atoms .GT. 0) THEN
+
+       maxchrg = MAXVAL(ABS(added_shells%mm_core_chrg(:)))
+       CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_shells%pgfs,&
+                                     para_env=para_env,&
+                                     pw_env=pw_env,&
+                                     mm_el_pot_radius=added_shells%mm_el_pot_radius,&
+                                     mm_el_pot_radius_corr=added_shells%mm_el_pot_radius_corr,&
+                                     qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                                     eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+                                     maxradius=maxradius2,&
+                                     maxchrg=maxchrg,&
+                                     compatibility=qmmm_env_qm%compatibility,&
+                                     print_section=print_section,&
+                                     qmmm_section=qmmm_section)
+
+       SELECT CASE(qmmm_env_qm%qmmm_coupl_type)
+       CASE(do_qmmm_gauss,do_qmmm_swave,do_qmmm_pcharge)
+          DO i = 1, SIZE(maxradius)
+             maxradius(i) = MAX( maxradius(i), maxradius2(i))
+          END DO
+       END SELECT
+
+       IF (ASSOCIATED(maxradius2)) DEALLOCATE(maxradius2)
+
+    END IF
+
     qmmm_env_qm%maxradius => maxradius
 
  END SUBROUTINE qmmm_init_gaussian_type
@@ -373,16 +467,18 @@ CONTAINS
 !> \param qmmm_env_qm ...
 !> \param mm_cell ...
 !> \param added_charges ...
+!> \param added_shells ...
 !> \param print_section ...
 !> \par History
 !>      1.2005 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE qmmm_init_potential(qmmm_env_qm, mm_cell, &
-                                added_charges, print_section)
+                                added_charges, added_shells, print_section)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: mm_cell
     TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(add_shell_type), POINTER            :: added_shells
     TYPE(section_vals_type), POINTER         :: print_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qmmm_init_potential', &
@@ -407,6 +503,17 @@ CONTAINS
                                 print_section=print_section)
     END IF
 
+    IF (qmmm_env_qm%added_shells%num_mm_atoms .GT. 0) THEN
+
+       CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                                mm_el_pot_radius=added_shells%mm_el_pot_radius,&
+                                potentials=added_shells%potentials,&
+                                pgfs=added_shells%pgfs,&
+                                mm_cell=mm_cell,&
+                                compatibility=qmmm_env_qm%compatibility,&
+                                print_section=print_section)
+    END IF
+
  END SUBROUTINE qmmm_init_potential
 
 ! *****************************************************************************
@@ -417,6 +524,7 @@ CONTAINS
 !> \param para_env ...
 !> \param qs_env ...
 !> \param added_charges ...
+!> \param added_shells ...
 !> \param qmmm_periodic ...
 !> \param print_section ...
 !> \param mm_atom_chrg ...
@@ -425,12 +533,13 @@ CONTAINS
 !> \author Teodoro Laino
 ! *****************************************************************************
  SUBROUTINE qmmm_init_periodic_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, qs_env,&
-                                         added_charges, qmmm_periodic, print_section, mm_atom_chrg)
+                                         added_charges, added_shells, qmmm_periodic, print_section, mm_atom_chrg)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(add_shell_type), POINTER            :: added_shells
     TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
 
@@ -480,6 +589,24 @@ CONTAINS
                  per_potentials=added_charges%per_potentials,&
                  potentials=added_charges%potentials,&
                  pgfs=added_charges%pgfs,&
+                 qm_cell_small=qm_cell_small,&
+                 mm_cell=mm_cell,&
+                 para_env=para_env,&
+                 compatibility=qmmm_env_qm%compatibility,&
+                 qmmm_periodic=qmmm_periodic,&
+                 print_section=print_section,&
+                 eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
+                 maxchrg=maxchrg,&
+                 ncp =qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts,&
+                 ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local)
+         END IF
+
+         IF (qmmm_env_qm%added_shells%num_mm_atoms .GT. 0) THEN
+
+            CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type,&
+                 per_potentials=added_shells%per_potentials,&
+                 potentials=added_shells%potentials,&
+                 pgfs=added_shells%pgfs,&
                  qm_cell_small=qm_cell_small,&
                  mm_cell=mm_cell,&
                  para_env=para_env,&

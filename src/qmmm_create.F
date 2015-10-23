@@ -57,14 +57,10 @@ MODULE qmmm_create
   USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_types,                      ONLY: qmmm_env_type
-  USE qmmm_types_low,                  ONLY: add_set_release,&
-                                             add_set_type,&
-                                             qmmm_env_mm_create,&
-                                             qmmm_env_mm_release,&
-                                             qmmm_env_mm_type,&
-                                             qmmm_env_qm_create,&
-                                             qmmm_env_qm_type,&
-                                             qmmm_links_type
+  USE qmmm_types_low,                  ONLY: &
+       add_set_release, add_set_type, add_shell_type, qmmm_env_mm_create, &
+       qmmm_env_mm_release, qmmm_env_mm_type, qmmm_env_qm_create, &
+       qmmm_env_qm_type, qmmm_links_type
   USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_create,&
@@ -122,7 +118,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index
     LOGICAL :: add_mm_charges, explicit, move_mm_charges, nocompatibility, &
-      qmmm_link, qmmm_link_Imomm
+      qmmm_link, qmmm_link_Imomm, shell_model
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
@@ -131,6 +127,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: fist_scale_charge_link, &
                                                 mm_link_scale_factor
     TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(add_shell_type), POINTER            :: added_shells
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small, &
                                                 super_cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -151,7 +148,7 @@ CONTAINS
     NULLIFY(qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small)
     NULLIFY(mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm, fist_env)
     NULLIFY(qmmm_env)
-    NULLIFY(mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges)
+    NULLIFY(mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, added_shells)
     NULLIFY(fist_scale_charge_link, print_section, fist_nonbond_env)
     NULLIFY(print_gen, logger, mm_el_pot_radius_corr, super_cell, pw_env)
 
@@ -309,12 +306,14 @@ CONTAINS
                                       mm_el_pot_radius_corr=mm_el_pot_radius_corr,&
                                       mm_atom_index=mm_atom_index,&
                                       mm_link_atoms=mm_link_atoms,&
-                                      mm_link_scale_factor=mm_link_scale_factor)
+                                      mm_link_scale_factor=mm_link_scale_factor,&
+                                      added_shells=added_shells,&
+                                      shell_model=shell_model)
 
     qmmm_env_qm%mm_atom_chrg          => mm_atom_chrg
     qmmm_env_qm%mm_el_pot_radius      => mm_el_pot_radius
     qmmm_env_qm%mm_el_pot_radius_corr => mm_el_pot_radius_corr
-
+    qmmm_env_qm%added_shells          => added_shells
 
     qmmm_link_Imomm = .FALSE.
     IF (qmmm_link) THEN
@@ -336,7 +335,7 @@ CONTAINS
 
     CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
                             mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
-                            qmmm_section, nocompatibility)
+                            qmmm_env_qm%added_shells, qmmm_section, nocompatibility, shell_model)
     IF (qmmm_env_qm%image_charge) THEN
        CALL print_image_charge_info(qmmm_env_qm, qmmm_section)
     ENDIF
@@ -384,6 +383,7 @@ CONTAINS
                                   qs_env=qs_env,&
                                   mm_atom_chrg=mm_atom_chrg,&
                                   added_charges=qmmm_env_qm%added_charges,&
+                                  added_shells=qmmm_env_qm%added_shells,&
                                   print_section=print_section,&
                                   qmmm_section=qmmm_section)
     !
@@ -392,6 +392,7 @@ CONTAINS
     CALL qmmm_init_potential(qmmm_env_qm=qmmm_env_qm,&
                              mm_cell=mm_cell,&
                              added_charges=qmmm_env_qm%added_charges,&
+                             added_shells=qmmm_env_qm%added_shells,&
                              print_section=print_section)
     !
     ! Initialize the qmmm_pw_grid
@@ -408,6 +409,7 @@ CONTAINS
                              para_env=para_env,&
                              qs_env=qs_env,&
                              added_charges=qmmm_env_qm%added_charges,&
+                             added_shells=qmmm_env_qm%added_shells,&
                              qmmm_periodic=qmmm_periodic,&
                              print_section=print_section,&
                              mm_atom_chrg=mm_atom_chrg)

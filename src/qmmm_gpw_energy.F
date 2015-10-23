@@ -265,6 +265,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, igrid, &
                                                 ilevel, kind_interp, lb(3), &
                                                 ngrids, ub(3)
+    LOGICAL                                  :: shells
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     CPASSERT(ASSOCIATED(mm_particles))
@@ -280,13 +281,15 @@ CONTAINS
        CALL pw_zero(grids(igrid)%pw)
     END DO
 
+    shells = .FALSE.
+
     CALL qmmm_elec_with_gaussian_low( grids, mm_particles,&
          qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index, &
          cube_info, para_env, eps_mm_rspace, qmmm_env%pgfs,  &
          auxbas_grid, coarser_grid, qmmm_env%potentials,       &
          mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm, periodic=qmmm_env%periodic,     &
          per_potentials=qmmm_env%per_potentials, par_scheme=qmmm_env%par_scheme,    &
-         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff)
+         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff, shells=shells)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
        CALL qmmm_elec_with_gaussian_low( grids, qmmm_env%added_charges%added_particles,   &
@@ -296,7 +299,19 @@ CONTAINS
          coarser_grid, qmmm_env%added_charges%potentials,            &
          mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm, periodic=qmmm_env%periodic,           &
          per_potentials=qmmm_env%per_potentials, par_scheme=qmmm_env%par_scheme,          &
-         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff)
+         qmmm_spherical_cutoff=qmmm_env%spherical_cutoff, shells=shells)
+    END IF
+    IF (qmmm_env%added_shells%num_mm_atoms .GT. 0) THEN
+       shells = .TRUE.
+       CALL qmmm_elec_with_gaussian_low( grids, qmmm_env%added_shells%added_particles,   &
+         qmmm_env%added_shells%mm_core_chrg,  &
+         qmmm_env%added_shells%mm_core_index,  & 
+         cube_info, para_env, eps_mm_rspace, qmmm_env%added_shells%pgfs,auxbas_grid,     &
+         coarser_grid, qmmm_env%added_shells%potentials,            &
+         mm_cell=mm_cell, dOmmOqm=qmmm_env%dOmmOqm, periodic=qmmm_env%periodic,           &
+         per_potentials=qmmm_env%added_shells%per_potentials,&
+         par_scheme=qmmm_env%par_scheme, qmmm_spherical_cutoff=qmmm_env%spherical_cutoff,&
+         shells=shells)
     END IF
     ! Sumup all contributions according the parallelization scheme
     IF (qmmm_env%par_scheme==do_par_atom) THEN
@@ -353,6 +368,7 @@ CONTAINS
 !> \param per_potentials ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -361,7 +377,7 @@ CONTAINS
        mm_atom_index, cube_info, para_env,   &
        eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,  &
        potentials, mm_cell, dOmmOqm, periodic, per_potentials, par_scheme,   &
-       qmmm_spherical_cutoff)
+       qmmm_spherical_cutoff, shells)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: tmp_grid
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -383,6 +399,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: per_potentials
     INTEGER, INTENT(IN)                      :: par_scheme
     REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
+    LOGICAL, INTENT(IN)                      :: shells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
       routineNb = 'qmmm_elec_gaussian_low', routineP = moduleN//':'//routineN
@@ -427,7 +444,11 @@ CONTAINS
              END IF
              LIndMM    =   pot%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
-             ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
+             IF (shells) THEN
+                ra(:)     =   pbc(mm_particles(LIndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
+             ELSE
+                ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
+             END IF
              W         =   mm_charges(LIndMM) * height
              ! Possible Spherical Cutoff
              IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
@@ -474,7 +495,8 @@ CONTAINS
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
                                            par_scheme=par_scheme,&
-                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                           shells=shells)
     ELSE
        ! Long Range Part of the QM/MM Potential with Gaussians
        CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
@@ -487,7 +509,8 @@ CONTAINS
                                            mm_cell=mm_cell,&
                                            dOmmOqm=dOmmOqm,&
                                            par_scheme=par_scheme,&
-                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                           shells=shells)
     END IF
     CALL timestop(handle2)
     CALL timestop(handle)
@@ -510,6 +533,7 @@ CONTAINS
 !> \param dOmmOqm ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      07.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -519,7 +543,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LG(pgfs, cgrid, mm_charges, mm_atom_index,&
        mm_particles, para_env, per_potentials,&
-       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff)
+       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, shells)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -534,6 +558,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
+    LOGICAL                                  :: shells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LG', &
       routineP = moduleN//':'//routineN
@@ -577,8 +602,12 @@ CONTAINS
           END IF
           LIndMM    =   per_pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
-          ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
+          IF (shells) THEN
+             ra(:)     =   pbc(mm_particles(LIndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
+          ELSE
+             ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm             
+          END IF
           ! Possible Spherical Cutoff
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor)
@@ -723,13 +752,14 @@ CONTAINS
 !> \param dOmmOqm ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      07.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_LR(pgfs, grid, mm_charges, mm_atom_index,&
        mm_particles, para_env, potentials,&
-       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff)
+       mm_cell, dOmmOqm, par_scheme, qmmm_spherical_cutoff, shells)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: grid
@@ -744,6 +774,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
+    LOGICAL                                  :: shells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_LR', &
       routineP = moduleN//':'//routineN
@@ -787,6 +818,8 @@ CONTAINS
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
+          IF (shells) &
+               ra(:)     =   pbc(mm_particles(LIndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
           ! Possible Spherical Cutoff
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
              CALL spherical_cutoff_factor(qmmm_spherical_cutoff, ra, sph_chrg_factor)

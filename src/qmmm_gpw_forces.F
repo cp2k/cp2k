@@ -114,7 +114,8 @@ CONTAINS
     INTEGER                                  :: handle, iatom, image_IndMM, &
                                                 Imm, IndMM, ispin, iw
     LOGICAL                                  :: gapw, need_f, periodic
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges, &
+                                                Forces_added_shells
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -160,8 +161,10 @@ CONTAINS
     IF (need_f) THEN
        ALLOCATE(Forces(3,qmmm_env%num_mm_atoms))
        ALLOCATE(Forces_added_charges(3,qmmm_env%added_charges%num_mm_atoms))
+       ALLOCATE(Forces_added_shells(3,qmmm_env%added_shells%num_mm_atoms))
        Forces(:,:)               = 0.0_dp
        Forces_added_charges(:,:) = 0.0_dp
+       Forces_added_shells(:,:)  = 0.0_dp
     END IF
     IF (dft_control%qs_control%semi_empirical) THEN
        ! SEMIEMPIRICAL
@@ -262,6 +265,7 @@ CONTAINS
                                             cube_info=ks_qmmm_env_loc%cube_info,&
                                             Forces=Forces,&
                                             Forces_added_charges=Forces_added_charges,&
+                                            Forces_added_shells=Forces_added_shells,&
                                             interp_section=interp_section,&
                                             iw=iw,&
                                             mm_cell=mm_cell)
@@ -282,6 +286,7 @@ CONTAINS
        !array dimension of 0
        IF(qmmm_env%num_mm_atoms/=0)               CALL mp_sum(Forces,para_env%group)
        IF(qmmm_env%added_charges%num_mm_atoms/=0) CALL mp_sum(Forces_added_charges,para_env%group)
+       IF(qmmm_env%added_shells%num_mm_atoms/=0) CALL mp_sum(Forces_added_shells,para_env%group)
        ! Debug Forces
        IF (debug_this_module) THEN
           IF ( (dft_control%qs_control%semi_empirical).OR.&
@@ -353,6 +358,17 @@ CONTAINS
           END DO
        END IF
        DEALLOCATE(Forces_added_charges)
+       IF (qmmm_env%added_shells%num_mm_atoms .GT. 0) THEN
+          DO Imm = 1, qmmm_env%added_shells%num_mm_atoms
+             IndMM = qmmm_env%added_shells%mm_core_index(Imm)
+             ! Hack: In Forces there the gradients indeed...
+             ! Minux sign to take care of this misunderstanding...
+             qmmm_env%added_shells%added_particles(Imm)%f(:) = qmmm_env%added_shells%added_particles(Imm)%f(:) - &
+                  Forces_added_shells(:,Imm)
+                  
+          END DO
+       END IF
+       DEALLOCATE(Forces_added_shells)
     END IF
     CALL cp_print_key_finished_output(iw,logger,print_section,"PROGRAM_RUN_INFO")
     CALL timestop(handle)
@@ -375,6 +391,7 @@ CONTAINS
 !> \param pw_pools ...
 !> \param Forces ...
 !> \param Forces_added_charges ...
+!> \param Forces_added_shells ...
 !> \param interp_section ...
 !> \param iw ...
 !> \param mm_cell ...
@@ -384,7 +401,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian(rho, qmmm_env, mm_particles,  &
        aug_pools, auxbas_grid, coarser_grid, cube_info, para_env,    &
-       eps_mm_rspace, pw_pools, Forces, Forces_added_charges,        &
+       eps_mm_rspace, pw_pools, Forces, Forces_added_charges, Forces_added_shells,&
        interp_section, iw, mm_cell)
     TYPE(pw_type), POINTER                   :: rho
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
@@ -399,7 +416,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges, &
+                                                Forces_added_shells
     TYPE(section_vals_type), POINTER         :: interp_section
     INTEGER, INTENT(IN)                      :: iw
     TYPE(cell_type), POINTER                 :: mm_cell
@@ -412,6 +430,7 @@ CONTAINS
                                                 request, stat
     INTEGER, DIMENSION(3)                    :: glb, gub, lb, ub
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
+    LOGICAL                                  :: shells
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
@@ -515,12 +534,13 @@ CONTAINS
        CPABORT("")
     END SELECT
 
+    shells = .FALSE.
     CALL qmmm_force_with_gaussian_low(grids, mm_particles,&
          qmmm_env%mm_atom_chrg, qmmm_env%mm_atom_index,&
          qmmm_env%num_mm_atoms, cube_info, para_env, eps_mm_rspace, auxbas_grid, &
          coarser_grid, qmmm_env%pgfs, qmmm_env%potentials, Forces, aug_pools,    &
          mm_cell, qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials,  &
-         iw, qmmm_env%par_scheme, qmmm_env%spherical_cutoff)
+         iw, qmmm_env%par_scheme, qmmm_env%spherical_cutoff, shells)
 
     IF (qmmm_env%move_mm_charges.OR.qmmm_env%add_mm_charges) THEN
        CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_charges%added_particles,&
@@ -529,7 +549,18 @@ CONTAINS
             cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_charges%pgfs,&
             qmmm_env%added_charges%potentials, Forces_added_charges, aug_pools, mm_cell, &
             qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%per_potentials, iw, qmmm_env%par_scheme,&
-            qmmm_env%spherical_cutoff)
+            qmmm_env%spherical_cutoff, shells)
+    END IF
+
+    IF (qmmm_env%added_shells%num_mm_atoms .GT. 0) THEN
+       shells = .TRUE.
+       CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_shells%added_particles,&
+            qmmm_env%added_shells%mm_core_chrg, &
+            qmmm_env%added_shells%mm_core_index, qmmm_env%added_shells%num_mm_atoms,&
+            cube_info, para_env, eps_mm_rspace, auxbas_grid, coarser_grid, qmmm_env%added_shells%pgfs,&
+            qmmm_env%added_shells%potentials, Forces_added_shells, aug_pools, mm_cell, &
+            qmmm_env%dOmmOqm, qmmm_env%periodic, qmmm_env%added_shells%per_potentials, iw, qmmm_env%par_scheme,&
+            qmmm_env%spherical_cutoff, shells)
     END IF
 
     CALL pw_pools_give_back_pws(aug_pools,grids)
@@ -562,6 +593,7 @@ CONTAINS
 !> \param iw ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      06.2004 created [tlaino]
 !> \author Teodoro Laino
@@ -570,7 +602,7 @@ CONTAINS
        mm_atom_index, num_mm_atoms, cube_info, para_env, &
        eps_mm_rspace, auxbas_grid, coarser_grid, pgfs, potentials, Forces, &
        aug_pools, mm_cell, dOmmOqm, periodic, per_potentials, iw, par_scheme,&
-       qmmm_spherical_cutoff)
+       qmmm_spherical_cutoff, shells)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
@@ -596,6 +628,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: per_potentials
     INTEGER, INTENT(IN)                      :: iw, par_scheme
     REAL(KIND=dp), INTENT(IN)                :: qmmm_spherical_cutoff(2)
+    LOGICAL, INTENT(in)                      :: shells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_force_with_gaussian_low', &
       routineNb = 'qmmm_forces_gaussian_low', &
@@ -643,7 +676,11 @@ CONTAINS
              END IF
              LIndMM    =   pot%mm_atom_index(Imm)
              IndMM     =   mm_atom_index(LIndMM)
-             ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
+             IF (shells) THEN
+                ra(:)     =   pbc(mm_particles(Imm)%r-dOmmOqm, mm_cell)+dOmmOqm
+             ELSE
+                ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
+             END IF
              W         =   mm_charges(LIndMM) * height
              force     =   0.0_dp
              ! Possible Spherical Cutoff
@@ -710,7 +747,8 @@ CONTAINS
                                            dOmmOqm=dOmmOqm,&
                                            iw=iw,&
                                            par_scheme=par_scheme,&
-                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                           shells=shells)
     ELSE
        CALL qmmm_forces_with_gaussian_LR  (pgfs=pgfs,&
                                            cgrid=grids(coarser_grid)%pw,&
@@ -727,7 +765,8 @@ CONTAINS
                                            dOmmOqm=dOmmOqm,&
                                            iw=iw,&
                                            par_scheme=par_scheme,&
-                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                           qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                           shells=shells)
     END IF
     CALL timestop(handle2)
     CALL timestop(handle)
@@ -753,13 +792,14 @@ CONTAINS
 !> \param iw ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LG  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
        mm_particles,para_env, coarser_grid_level,Forces, per_potentials,&
-       aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff)
+       aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff, shells)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -779,6 +819,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
+    LOGICAL                                  :: shells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LG', &
       routineP = moduleN//':'//routineN
@@ -833,7 +874,11 @@ CONTAINS
           END IF
           LIndMM    =   per_pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
-          ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
+          IF (shells) THEN
+             ra(:)     =   pbc(mm_particles(LIndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
+          ELSE
+             ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
+          END IF
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
@@ -1143,7 +1188,8 @@ CONTAINS
                                             dOmmOqm=dOmmOqm,&
                                             iw=iw,&
                                             par_scheme=par_scheme,&
-                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                            shells=shells)
     END IF
     DEALLOCATE(LForces)
     CALL timestop(handle)
@@ -1169,13 +1215,14 @@ CONTAINS
 !> \param iw ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE qmmm_forces_with_gaussian_LR  (pgfs,cgrid,num_mm_atoms,mm_charges,mm_atom_index,&
        mm_particles,para_env, coarser_grid_level,Forces, potentials,&
-       aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff)
+       aug_pools, mm_cell, dOmmOqm, iw, par_scheme, qmmm_spherical_cutoff, shells)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(pw_type), POINTER                   :: cgrid
@@ -1195,6 +1242,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
+    LOGICAL                                  :: shells
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian_LR', &
       routineP = moduleN//':'//routineN
@@ -1241,6 +1289,8 @@ CONTAINS
           LIndMM    =   pot%mm_atom_index(Imm)
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r-dOmmOqm,mm_cell)+dOmmOqm
+          IF (shells) &
+               ra(:)     =   pbc(mm_particles(LIndMM)%r-dOmmOqm, mm_cell)+dOmmOqm
           qt        =   mm_charges(LIndMM)
           ! Possible Spherical Cutoff
           IF (qmmm_spherical_cutoff(1)>0.0_dp) THEN
@@ -1322,7 +1372,8 @@ CONTAINS
                                             dOmmOqm=dOmmOqm,&
                                             iw=iw,&
                                             par_scheme=par_scheme,&
-                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                            qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                            shells=shells)
     END IF
 
     DEALLOCATE(LForces)
@@ -1608,13 +1659,14 @@ CONTAINS
 !> \param iw ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LG(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
        mm_particles, num_mm_atoms, coarser_grid_level, per_potentials,&
-       debug_force, para_env, mm_cell,dOmmOqm,iw,par_scheme,qmmm_spherical_cutoff)
+       debug_force, para_env, mm_cell,dOmmOqm,iw,par_scheme,qmmm_spherical_cutoff, shells)
 
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
@@ -1635,6 +1687,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
+    LOGICAL                                  :: shells
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_qmmm_forces_with_gauss_LG', &
@@ -1675,7 +1728,8 @@ CONTAINS
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&
                                                  par_scheme=par_scheme,&
-                                                 qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                                 qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                                 shells=shells)
 
              energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw)
           END DO Diff
@@ -1728,13 +1782,14 @@ CONTAINS
 !> \param iw ...
 !> \param par_scheme ...
 !> \param qmmm_spherical_cutoff ...
+!> \param shells ...
 !> \par History
 !>      08.2004 created [tlaino]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE debug_qmmm_forces_with_gauss_LR(pgfs,aug_pools, rho, mm_charges, mm_atom_index,&
        mm_particles, num_mm_atoms, coarser_grid_level, potentials,&
-       debug_force, para_env, mm_cell,dOmmOqm,iw, par_scheme, qmmm_spherical_cutoff)
+       debug_force, para_env, mm_cell,dOmmOqm,iw, par_scheme, qmmm_spherical_cutoff, shells)
 
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
@@ -1755,6 +1810,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: dOmmOqm
     INTEGER, INTENT(IN)                      :: iw, par_scheme
     REAL(KIND=dp), DIMENSION(2), INTENT(IN)  :: qmmm_spherical_cutoff
+    LOGICAL                                  :: shells
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'debug_qmmm_forces_with_gauss_LR', &
@@ -1795,7 +1851,8 @@ CONTAINS
                                                  mm_cell=mm_cell,&
                                                  dOmmOqm=dOmmOqm,&
                                                  par_scheme=par_scheme,&
-                                                 qmmm_spherical_cutoff=qmmm_spherical_cutoff)
+                                                 qmmm_spherical_cutoff=qmmm_spherical_cutoff,&
+                                                 shells=shells)
 
              energy(K) =  pw_integral_ab ( rho, grids(coarser_grid_level)%pw)
           END DO Diff
