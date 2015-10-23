@@ -40,6 +40,7 @@ binutils_ver=2.25
 valgrind_ver=3.11.0
 lcov_ver=1.11
 #gcc_ver=4.9.2
+#gcc_ver=4.9.3
 #gcc_ver=5.1.0
 gcc_ver=5.2.0
 
@@ -568,6 +569,9 @@ DFLAGS="${DFLAGS} IF_MPI(-D__ELPA2 IF_OMP(${P1},${P2}),)"
 LIBS="IF_MPI(IF_OMP(-lelpa_openmp,-lelpa),) ${LIBS}"
 
 
+if  [ "x${pexsi_ver}" == "x" ]; then
+   echo "Skipping PEXSI build and dependencies"
+else
 echo "================== Installing PT-Scotch =================="
 if [ -f scotch_${scotch_ver}.tar.gz ]; then
    echo "Installation already started, skipping it."
@@ -701,6 +705,7 @@ else
 fi
 DFLAGS="${DFLAGS} IF_MPI(-D__LIBPEXSI,)"
 LIBS="IF_MPI(-lpexsi_linux_v${pexsi_ver},) ${LIBS}"
+fi
 
 
 #echo "==================== Installing PLUMED ====================="
@@ -771,9 +776,9 @@ BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
 # Special flags for gfortran
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 # we error out for these warnings
-WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion"
+WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion -Werror=zerotrip"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
-WFLAGSWARN="-Wuse-without-only -Wzerotrip"
+WFLAGSWARN="-Wuse-without-only"
 # while here we collect all other warnings, some we'll ignore
 WFLAGSWARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 # combine warn/error flags
