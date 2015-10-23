@@ -969,12 +969,14 @@ END SUBROUTINE pw_cuda_finalize
 
     CALL timeset(routineN,handle)
 
-   ! pointers to data arrays
-    ptr_pwin => pwbuf1(1,1)
-    ptr_pwout => pwbuf2(1,1)
+    IF (n * m /= 0) THEN
+      ! pointers to data arrays
+       ptr_pwin => pwbuf1(1,1)
+       ptr_pwout => pwbuf2(1,1)
 
-   ! invoke the combined transformation
-    CALL pw_cuda_f_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+      ! invoke the combined transformation
+       CALL pw_cuda_f_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), dir, n, m)
+    END IF
 
     CALL timestop(handle)
 #endif
@@ -1011,18 +1013,20 @@ END SUBROUTINE pw_cuda_finalize
     ngpts = SIZE(pw2%pw_grid%gsq)
     npts => pw2%pw_grid%npts
 
-    mg = SIZE(pw2%pw_grid%grays, 2)
-    mmax = MAX(mg, 1)
+    IF ((npts(1) /= 0) .AND. (ngpts /= 0)) THEN
+       mg = SIZE(pw2%pw_grid%grays, 2)
+       mmax = MAX(mg, 1)
 
-   ! pointers to data arrays
-    ptr_pwin => pwbuf(1,1)
-    ptr_pwout => pw2%cc(1)
+      ! pointers to data arrays
+       ptr_pwin => pwbuf(1,1)
+       ptr_pwout => pw2%cc(1)
 
-   ! pointer to map array
-    ptr_ghatmap => pw2%pw_grid%g_hatmap(1,1)
+      ! pointer to map array
+       ptr_ghatmap => pw2%pw_grid%g_hatmap(1,1)
 
-   ! invoke the combined transformation
-    CALL pw_cuda_fg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+      ! invoke the combined transformation
+       CALL pw_cuda_fg_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, scale)
+    END IF
   
     CALL timestop(handle)
 #endif
@@ -1061,19 +1065,21 @@ END SUBROUTINE pw_cuda_finalize
     ngpts = SIZE(pw1%pw_grid%gsq)
     npts => pw1%pw_grid%npts
 
-    mg = SIZE(pw1%pw_grid%grays, 2)
-    mmax = MAX(mg, 1)
+    IF ((npts(1) /= 0) .AND. (ngpts /= 0)) THEN
+       mg = SIZE(pw1%pw_grid%grays, 2)
+       mmax = MAX(mg, 1)
 
-   ! pointers to data arrays
-    ptr_pwin => pw1%cc(1)
-    ptr_pwout => pwbuf(1,1)
+      ! pointers to data arrays
+       ptr_pwin => pw1%cc(1)
+       ptr_pwout => pwbuf(1,1)
 
-   ! pointer to map array
-    nmaps = SIZE(pw1%pw_grid%g_hatmap,2)
-    ptr_ghatmap => pw1%pw_grid%g_hatmap(1,1)
+      ! pointer to map array
+       nmaps = SIZE(pw1%pw_grid%g_hatmap,2)
+       ptr_ghatmap => pw1%pw_grid%g_hatmap(1,1)
 
-   ! invoke the combined transformation
-    CALL pw_cuda_sf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+      ! invoke the combined transformation
+       CALL pw_cuda_sf_cu(c_loc(ptr_pwin), c_loc(ptr_pwout), c_loc(ptr_ghatmap), npts, mmax, ngpts, nmaps, scale)
+    END IF
   
     CALL timestop(handle)
 #endif
