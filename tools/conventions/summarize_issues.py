@@ -44,7 +44,7 @@ def main():
 
     n = len(issues_shown)
     m = len(issues_supp)
-    print 'Plot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"'
+    print '\nPlot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"'
     print 'PlotPoint: name="coding", plot="supps", label="Coding Conventions", y=%d, yerr=0'%m
     print "Summary: Found %d issues (%d suppressed)"%(n, m)
     print "Status: " + ("OK" if n==0 else "FAILED")

@@ -36,11 +36,8 @@ Flag XC_MAJOR_VERSION not mentioned in INSTALL
 Flag XC_MAJOR_VERSION not mentioned in cp2k_flags()
 Flag XC_MINOR_VERSION not mentioned in INSTALL
 Flag XC_MINOR_VERSION not mentioned in cp2k_flags()
-Flag __ACC not mentioned in INSTALL
 Flag __ACC_MIC not mentioned in INSTALL
 Flag __ACC_MIC not mentioned in cp2k_flags()
-Flag __CRAY_PM_ACCEL_ENERGY not mentioned in INSTALL
-Flag __CRAY_PM_ENERGY not mentioned in INSTALL
 Flag __CRAY_PM_FAKE_ENERGY not mentioned in INSTALL
 Flag __DATA_DIR not mentioned in cp2k_flags()
 Flag __FFTW3_UNALIGNED not mentioned in cp2k_flags()
@@ -57,11 +54,8 @@ Flag __HAS_smm_stt not mentioned in INSTALL
 Flag __HAS_smm_znt not mentioned in INSTALL
 Flag __HAS_smm_ztn not mentioned in INSTALL
 Flag __HAS_smm_ztt not mentioned in INSTALL
-Flag __LIBDERIV_MAX_AM1 not mentioned in INSTALL
-Flag __LIBINT_MAX_AM not mentioned in INSTALL
 Flag __LIBXSMM not mentioned in INSTALL
 Flag __LIBXSMM not mentioned in cp2k_flags()
-Flag __MAX_CONTR not mentioned in INSTALL
 Flag __MIC__ not mentioned in INSTALL
 Flag __MIC__ not mentioned in cp2k_flags()
 Flag __MKL not mentioned in cp2k_flags()
@@ -70,38 +64,18 @@ Flag __PW_CUDA_NO_HOSTALLOC not mentioned in INSTALL
 Flag __RELEASE_VERSION not mentioned in INSTALL
 Flag __RELEASE_VERSION not mentioned in cp2k_flags()
 Flag __SCALAPACK2 not mentioned in INSTALL
-Flag __STATM_RESIDENT not mentioned in INSTALL
-Flag __STATM_TOTAL not mentioned in INSTALL
 al_system_dynamics.F: Found WRITE statement with hardcoded unit in "dump_vel"
 almo_scf.F: Found WRITE statement with hardcoded unit in "almo_scf_init"
-almo_scf_diis_types.F: Unused dummy argument ‘sample_var’ at (1) [-Wunused-dummy-argument]
 almo_scf_methods.F: Found WRITE statement with hardcoded unit in "hessian_diag_apply"
 almo_scf_methods.F: Found WRITE statement with hardcoded unit in "matrix_sqrt"
 almo_scf_methods.F: Found WRITE statement with hardcoded unit in "newton_grad_to_step"
 almo_scf_methods.F: Found WRITE statement with hardcoded unit in "pseudo_invert_matrix"
 almo_scf_optimizer.F: Found WRITE statement with hardcoded unit in "almo_scf_xalmo_pcg"
+base_hooks.F: Found CALL m_abort in procedure "cp_abort"
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort"
+base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"
 beta_gamma_psi.F: Found GOTO statement in procedure "bratio"
 bfgs_optimizer.F: Found GOTO statement in procedure "rat_fun_opt"
-btree_i8_k_cp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_node"
-btree_i8_k_cp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_short_node"
-btree_i8_k_cp2d_v.F: Found WRITE statement with hardcoded unit in "btree_rebalance"
-btree_i8_k_cp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify"
-btree_i8_k_cp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify_node"
-btree_i8_k_dp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_node"
-btree_i8_k_dp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_short_node"
-btree_i8_k_dp2d_v.F: Found WRITE statement with hardcoded unit in "btree_rebalance"
-btree_i8_k_dp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify"
-btree_i8_k_dp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify_node"
-btree_i8_k_sp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_node"
-btree_i8_k_sp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_short_node"
-btree_i8_k_sp2d_v.F: Found WRITE statement with hardcoded unit in "btree_rebalance"
-btree_i8_k_sp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify"
-btree_i8_k_sp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify_node"
-btree_i8_k_zp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_node"
-btree_i8_k_zp2d_v.F: Found WRITE statement with hardcoded unit in "btree_print_short_node"
-btree_i8_k_zp2d_v.F: Found WRITE statement with hardcoded unit in "btree_rebalance"
-btree_i8_k_zp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify"
-btree_i8_k_zp2d_v.F: Found WRITE statement with hardcoded unit in "btree_verify_node"
 call_collocate.f90: Routine COLLOCATE_CORE_0 called with an implicit interface.
 call_collocate.f90: Routine COLLOCATE_CORE_1 called with an implicit interface.
 call_collocate.f90: Routine COLLOCATE_CORE_2 called with an implicit interface.
@@ -127,10 +101,10 @@ call_collocate_omp.f90: Routine COLLOCATE_CORE_DEFAULT called with an implicit i
 cg_test.F: Found WRITE statement with hardcoded unit in "clebsch_gordon_test"
 cp2k_shell.F: Found GOTO statement in procedure "cp2k_shell"
 cp2k_shell.F: Found OPEN statement in procedure "get_eof_stat"
+cp2k_shell.F: Found READ with unchecked STAT in "cp2k_shell"
 cp_dbcsr_cholesky.F: Routine PDCOPY called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRF called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDPOTRI called with an implicit interface.
-cp_dbcsr_cholesky.F: Routine PDSYGST called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDTRMM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PDTRSM called with an implicit interface.
 cp_dbcsr_cholesky.F: Routine PSCOPY called with an implicit interface.
@@ -146,11 +120,10 @@ cp_dbcsr_operations.F: Found WRITE statement with hardcoded unit in "cp_dbcsr_pl
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_charge"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_a_matrix"
 cp_ddapc_util.F: Found WRITE statement with hardcoded unit in "debug_der_b_vector"
-cp_error_handling.F: Unused dummy argument ‘error_nr’ at (1) [-Wunused-dummy-argument]
+cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler"
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
-cp_fm_basic_linalg.F: Unused dummy argument ‘correct_sign’ at (1) [-Wunused-dummy-argument]
 cp_fm_diag.F: Unused parameter ‘vl’ declared at (1) [-Wunused-parameter]
 cp_fm_diag.F: Unused parameter ‘vu’ declared at (1) [-Wunused-parameter]
 cp_gemm_interface.F: Found CALL cp_fm_gemm in procedure "cp_gemm"
@@ -165,27 +138,24 @@ cp_lbfgs.F: Found WRITE statement with hardcoded unit in "prn3lb"
 cp_lbfgs.F: Found WRITE statement with hardcoded unit in "subsm"
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_int_to_string"
 cp_log_handling.F: Found WRITE statement with hardcoded unit in "cp_logger_get_default_unit_nr"
+cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive"
+cp_parser_methods.F: Found READ with unchecked STAT in "parser_read_line_low"
 cube_utils.F: Found WRITE statement with hardcoded unit in "return_cube_nonortho"
-cuda_profiling.F: Found WRITE statement with hardcoded unit in "cuda_nvtx_range_push"
+d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random"
 dbcsr_data_methods_low.F: Found WRITE statement with hardcoded unit in "internal_data_allocate"
 dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "create_bl_distribution"
 dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_dist_block_cyclic"
 dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_create_image_dist"
-dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_print_dist"
 dbcsr_dist_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_reset_locals"
-dbcsr_dist_operations.F: Unused dummy argument ‘transpose’ at (1) [-Wunused-dummy-argument]
-dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_char_assert"
-dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_error_print_stack"
-dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_error_stop"
 dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_int_assert"
 dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_logical_assert"
 dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_not_assert"
 dbcsr_error_handling.F: Found WRITE statement with hardcoded unit in "dbcsr_true_assert"
 dbcsr_example_1.F: Found WRITE statement with hardcoded unit in "dbcsr_example_1"
+dbcsr_example_2.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_example_2"
 dbcsr_example_2.F: Found WRITE statement with hardcoded unit in "dbcsr_example_2"
+dbcsr_example_3.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_example_3"
 dbcsr_example_3.F: Found WRITE statement with hardcoded unit in "dbcsr_example_3"
-dbcsr_geev.F: Unused dummy argument ‘jobvl’ at (1) [-Wunused-dummy-argument]
-dbcsr_geev.F: Unused dummy argument ‘jobvr’ at (1) [-Wunused-dummy-argument]
 dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_addto_index_array"
 dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_clearfrom_index_array"
 dbcsr_index_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_make_index_list"
@@ -205,11 +175,6 @@ dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "build_csr_index"
 dbcsr_mm_csr.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_csr_multiply_low"
 dbcsr_mm_hostdrv.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_hostdrv_process"
 dbcsr_mm_hostdrv.F: Found WRITE statement with hardcoded unit in "print_gemm_parameters"
-dbcsr_mm_hostdrv.F: Unused dummy argument ‘this’ at (1) [-Wunused-dummy-argument]
-dbcsr_mm_hostdrv_c.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
-dbcsr_mm_hostdrv_d.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
-dbcsr_mm_hostdrv_s.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
-dbcsr_mm_hostdrv_z.f90: Unused dummy argument ‘stack_descr’ at (1) [-Wunused-dummy-argument]
 dbcsr_mm_multrec.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_multrec_init"
 dbcsr_mm_multrec.F: Found WRITE statement with hardcoded unit in "sparse_multrec"
 dbcsr_mm_sched.F: Found WRITE statement with hardcoded unit in "dbcsr_mm_sched_process"
@@ -228,6 +193,9 @@ dbcsr_ptr_util.F: Found WRITE statement with hardcoded unit in "ensure_array_siz
 dbcsr_test_add.F: Found WRITE statement with hardcoded unit in "dbcsr_check_add"
 dbcsr_test_add.F: Found WRITE statement with hardcoded unit in "dbcsr_test_adds"
 dbcsr_test_add.F: Found WRITE statement with hardcoded unit in "test_add"
+dbcsr_test_csr_conversions.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_test_csr_conversions"
+dbcsr_test_csr_conversions.F: Found CALL RANDOM_NUMBER in procedure "make_random_dbcsr_matrix"
+dbcsr_test_csr_conversions.F: Found CALL RANDOM_SEED in procedure "dbcsr_test_csr_conversions"
 dbcsr_test_multiply.F: Found WRITE statement with hardcoded unit in "dbcsr_check_multiply"
 dbcsr_test_multiply.F: Found WRITE statement with hardcoded unit in "dbcsr_test_multiplies"
 dbcsr_test_multiply.F: Found WRITE statement with hardcoded unit in "test_multiply"
@@ -244,7 +212,6 @@ dbcsr_work_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_mer
 dbcsr_work_operations.F: Found WRITE statement with hardcoded unit in "dbcsr_merge_single_wm"
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral"
 dkh_main.F: Found WRITE statement with hardcoded unit in "kintegral_a"
-dm_ls_scf.F: Unused dummy argument ‘ls_scf_env’ at (1) [-Wunused-dummy-argument]
 domain_submatrix_methods.F: Found WRITE statement with hardcoded unit in "print_submatrices"
 eip_silicon.F: Found OPEN statement in procedure "eip_bazant_silicon"
 eip_silicon.F: Found OPEN statement in procedure "eip_lenosky_silicon"
@@ -252,6 +219,7 @@ eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_bazant_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "eip_lenosky_silicon"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_b"
 eip_silicon.F: Found WRITE statement with hardcoded unit in "subfeniat_l"
+environment.F: Found READ with unchecked STAT in "cp2k_get_walltime"
 erf_fn.F: Found GOTO statement in procedure "calerf"
 ewalds_multipole_debug.F: Found WRITE statement with hardcoded unit in "debug_ewald_multipoles"
 ewalds_multipole_debug.F: Found WRITE statement with hardcoded unit in "debug_ewald_multipoles_fields"
@@ -259,11 +227,9 @@ ewalds_multipole_debug.F: Found WRITE statement with hardcoded unit in "debug_ew
 ewalds_multipole_debug.h: Copyright banner malformed
 extended_system_init.F: Found WRITE statement with hardcoded unit in "init_barostat_variables"
 f77_int.h: Copyright banner malformed
-f77_interface.F: Unused dummy argument ‘failure’ at (1) [-Wunused-dummy-argument]
 farming_methods.F: Found CLOSE statement in procedure "farming_parse_input"
 farming_methods.F: Found OPEN statement in procedure "farming_parse_input"
 fft_lib.F: Unused parameter ‘dp’ which has been explicitly imported at (1) [-Wunused-parameter]
-fft_tools.F: Unused dummy argument ‘group’ at (1) [-Wunused-dummy-argument]
 fparser.F: Copyright banner malformed
 fparser.F: Found WRITE statement with hardcoded unit in "parseerrmsg"
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_norm_sc"
@@ -274,6 +240,7 @@ glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist"
 glob_matching.F: Copyright banner malformed
 gopt_f77_methods.h: Copyright banner malformed
 graph.F: Copyright banner malformed
+graph.F: Found CALL RANDOM_SEED in procedure "graph"
 graph.F: Found WRITE statement with hardcoded unit in "graph"
 graph_methods.F: Copyright banner malformed
 graph_methods.F: Found OPEN statement in procedure "fes_cube_write"
@@ -288,47 +255,47 @@ helium_methods.F: Found WRITE statement with hardcoded unit in "helium_set_solut
 helium_methods.F: Found WRITE statement with hardcoded unit in "helium_set_solute_indices"
 helium_sampling.F: Found WRITE statement with hardcoded unit in "helium_slice_metro_cyclic"
 hfx_admm_utils.F: Found WRITE statement with hardcoded unit in "create_admm_xc_section"
+hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache"
 hfx_energy_potential.F: Found WRITE statement with hardcoded unit in "print_integrals"
-hfx_pair_list_methods.F: Found WRITE statement with hardcoded unit in "build_pgf_product_list"
 input_enumeration_types.F: Found WRITE statement with hardcoded unit in "enum_i2c"
 input_parsing.F: Found WRITE statement with hardcoded unit in "section_vals_parse"
-ipi_driver.F: Found WRITE statement with hardcoded unit in "readbuffer_s"
-ipi_driver.F: Found WRITE statement with hardcoded unit in "run_driver"
 k290.F: Found GOTO statement in procedure "mesh"
 k290.F: Found GOTO statement in procedure "sppt2"
 k290.F: Found WRITE statement with hardcoded unit in "atftm1"
 k290.F: Found WRITE statement with hardcoded unit in "bzrduc"
 k290.F: Found WRITE statement with hardcoded unit in "mesh"
 k290.F: Found WRITE statement with hardcoded unit in "sppt2"
-kg_min_heap.F: Found WRITE statement with hardcoded unit in "heap_check"
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test"
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
+library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
 library_tests.F: Routine PILAENV called with an implicit interface.
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_aabb_test_simple"
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_ab_test_simple"
 lri_debug_integrals.F: Found WRITE statement with hardcoded unit in "overlap_abc_test_simple"
-machine.F: Found OPEN statement in procedure "read_energy"
+machine_internal.F: Found CALL m_abort in procedure "m_getarg"
+machine_internal.F: Found CALL m_abort in procedure "m_getcwd"
+machine_internal.F: Found CALL m_abort in procedure "m_hostnm"
+machine_internal.F: Found CALL m_abort in procedure "m_mov"
 machine_internal.F: Found CLOSE statement in procedure "m_memory_details"
 machine_internal.F: Found OPEN statement in procedure "m_memory"
 machine_internal.F: Found OPEN statement in procedure "m_memory_details"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_getarg"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_getcwd"
+machine_internal.F: Found WRITE statement with hardcoded unit in "m_hostnm"
 machine_internal.F: Found WRITE statement with hardcoded unit in "m_mov"
-manybody_siepmann.F: Unused dummy argument ‘full_loc_list’ at (1) [-Wunused-dummy-argument]
-manybody_siepmann.F: Unused dummy argument ‘loc_cell_v’ at (1) [-Wunused-dummy-argument]
-manybody_siepmann.F: Unused dummy argument ‘pv_nonbond’ at (1) [-Wunused-dummy-argument]
 mathlib.F: Found WRITE statement with hardcoded unit in "diag"
 mc_coordinates.F: Found WRITE statement with hardcoded unit in "generate_cbmc_swap_config"
 mc_move_control.F: Found WRITE statement with hardcoded unit in "mc_move_update"
+message_passing.F: Found CALL m_abort in procedure "mp_abort"
 message_passing.F: Found CLOSE statement in procedure "mp_file_close"
 message_passing.F: Found OPEN statement in procedure "mp_file_open"
-message_passing.F: Found WRITE statement with hardcoded unit in "mp_abort"
+message_passing.F: Found STOP statement in procedure "mp_abort"
 message_passing.F: USE statement at (1) has no ONLY qualifier [-Wuse-without-only]
-metadynamics.F: Unused dummy argument ‘itimes’ at (1) [-Wunused-dummy-argument]
-min_heap.F: Found WRITE statement with hardcoded unit in "error_test"
-min_heap.F: Found WRITE statement with hardcoded unit in "heap_check"
-min_heap.F: Found WRITE statement with hardcoded unit in "heap_print"
-min_heap.F: Found WRITE statement with hardcoded unit in "test_heap"
 mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "ctrig"
-mltfftsg_tools.F: Found WRITE statement with hardcoded unit in "mltfftsg"
 mm_collocate_potential.F: Routine COLLOCATE_GF_NPBC called with an implicit interface.
 mm_collocate_potential.F: Routine INTEGRATE_GF_NPBC called with an implicit interface.
+mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
 mp2_cphf.F: Found WRITE statement with hardcoded unit in "write_array"
 mp2_ri_gpw.F: Found WRITE statement with hardcoded unit in "calculate_lmin1"
 mp2_ri_gpw.F: Found WRITE statement with hardcoded unit in "write_array"
@@ -336,7 +303,6 @@ mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "create_w_p"
 mp2_ri_grad.F: Found WRITE statement with hardcoded unit in "write_array"
 mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "complete_gamma"
 mp2_ri_grad_util.F: Found WRITE statement with hardcoded unit in "write_array"
-mulliken.F: Found WRITE statement with hardcoded unit in "rf_deriv_check"
 pint_methods.F: Found WRITE statement with hardcoded unit in "pint_create"
 powell.F: Found GOTO statement in procedure "newuob"
 preconditioner_makes.F: Found WRITE statement with hardcoded unit in "make_full_all"
@@ -354,7 +320,6 @@ ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "p_fft_dimension
 ps_wavelet_util.F: Found WRITE statement with hardcoded unit in "s_fft_dimensions"
 pw_grids.F: Found WRITE statement with hardcoded unit in "pw_grid_sort"
 qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_density"
-qs_external_density.F: Found WRITE statement with hardcoded unit in "external_read_vxc"
 qs_fb_env_methods.F: Found CALL cp_fm_gemm in procedure "fb_env_do_diag"
 qs_fb_filter_matrix_methods.F: Found WRITE statement with hardcoded unit in "fb_fltrmat_build_atomic_fltrmat"
 qs_gspace_mixing.F: Found WRITE statement with hardcoded unit in "broyden_mixing_new"
@@ -382,12 +347,8 @@ qs_linres_issc_utils.F: Found WRITE statement with hardcoded unit in "issc_issc"
 qs_linres_op.F: Routine INDXL2G called with an implicit interface.
 qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_localization_methods.F: Routine PZROT called with an implicit interface.
-qs_mo_io.F: Unused dummy argument ‘atomic_kind_set’ at (1) [-Wunused-dummy-argument]
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation"
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom"
-qs_scf_loop_utils.F: Unused dummy argument ‘do_kpoints’ at (1) [-Wunused-dummy-argument]
-replica_types.F: Found WRITE statement with hardcoded unit in "rep_env_local_index"
-scptb_ks_matrix.F: Found WRITE statement with hardcoded unit in "scp_print"
 scptb_types.F: Found WRITE statement with hardcoded unit in "scp_vector_print"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds"
@@ -418,9 +379,6 @@ swarm_mpi.F: Found OPEN statement in procedure "logger_finalize"
 t_c_g0.F: Copyright banner malformed
 t_sh_p_s_c.F: Copyright banner malformed
 task_list_methods.F: Found WRITE statement with hardcoded unit in "generate_qs_task_list"
-termination.F: Unused dummy argument ‘line_number’ at (1) [-Wunused-dummy-argument]
-timings.F: Found WRITE statement with hardcoded unit in "routine_name2id"
-timings.F: Found WRITE statement with hardcoded unit in "timeset_handler"
 timings.F: Found WRITE statement with hardcoded unit in "timestop_handler"
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_average_displacement"
 tmc_analysis.F: Found WRITE statement with hardcoded unit in "print_dipole_moment"
@@ -436,13 +394,14 @@ topology_constraint_util.F: Found WRITE statement with hardcoded unit in "setup_
 topology_coordinate_util.F: Found WRITE statement with hardcoded unit in "topology_coordinate_pack"
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "generate_molname_low"
 topology_generate_util.F: Found WRITE statement with hardcoded unit in "topology_generate_molecule"
+topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
+topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found CLOSE statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_debug"
 xc.F: Found OPEN statement in procedure "xc_vxc_pw_create_test_lsd"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_debug"
 xc.F: Found WRITE statement with hardcoded unit in "xc_vxc_pw_create_test_lsd"
-xc_pade.F: Unused dummy argument ‘derivative_set’ at (1) [-Wunused-dummy-argument]
 xml_parser.F: Copyright banner malformed
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_put_element_"
 xml_parser.F: Found WRITE statement with hardcoded unit in "xml_report_details_int_"
@@ -476,45 +435,3 @@ xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_1 called with an implicit interface
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_2 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_3 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_4 called with an implicit interface.
-xyz_to_vab_optimised.F: Unused dummy argument ‘coset’ at (1) [-Wunused-dummy-argument]
-xyz_to_vab_optimised.F: Unused dummy argument ‘la_max_local’ at (1) [-Wunused-dummy-argument]
-xyz_to_vab_optimised.F: Unused dummy argument ‘la_min_local’ at (1) [-Wunused-dummy-argument]
-xyz_to_vab_optimised.F: Unused dummy argument ‘lb_max_local’ at (1) [-Wunused-dummy-argument]
-xyz_to_vab_optimised.F: Unused dummy argument ‘lb_min_local’ at (1) [-Wunused-dummy-argument]
-xyz_to_vab_optimised.F: Unused dummy argument ‘rab’ at (1) [-Wunused-dummy-argument]
-xyz_to_vab_optimised.F: Unused dummy argument ‘ra’ at (1) [-Wunused-dummy-argument]
-xyz_to_vab_optimised.F: Unused dummy argument ‘rp’ at (1) [-Wunused-dummy-argument]
-message_passing.F: Found STOP statement in procedure "mp_abort"
-machine_internal.F: Found WRITE statement with hardcoded unit in "m_getarg"
-machine_internal.F: Found WRITE statement with hardcoded unit in "m_getcwd"
-machine_internal.F: Found WRITE statement with hardcoded unit in "m_hostnm"
-cp2k_shell.F: Found READ with unchecked STAT in "cp2k_shell"
-cp2k_shell.F: Found READ with unchecked STAT in "cp2k_shell"
-cp_parser_inpp_methods.F: Found READ with unchecked STAT in "inpp_process_directive"
-cp_parser_methods.F: Found READ with unchecked STAT in "parser_read_line_low"
-environment.F: Found READ with unchecked STAT in "cp2k_get_walltime"
-mode_selective.F: Found READ with unchecked STAT in "bfgs_guess"
-topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
-topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
-topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
-topology_gromos.F: Found READ with unchecked STAT in "read_topology_gromos"
-topology_pdb.F: Found READ with unchecked STAT in "read_coordinate_pdb"
-hfx_compression_methods.F: Found READ with unchecked STAT in "hfx_decompress_cache"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "cp_fm_gemm_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "rs_pw_transfer_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "fft_test"
-library_tests.F: Found CALL RANDOM_NUMBER in procedure "copy_test"
-d3_poly.F: Found CALL RANDOM_NUMBER in procedure "poly_random"
-dbcsr_example_2.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_example_2"
-dbcsr_example_3.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_example_3"
-dbcsr_test_csr_conversions.F: Found CALL RANDOM_NUMBER in procedure "dbcsr_test_csr_conversions"
-dbcsr_test_csr_conversions.F: Found CALL RANDOM_NUMBER in procedure "make_random_dbcsr_matrix"
-dbcsr_test_csr_conversions.F: Found CALL RANDOM_SEED in procedure "dbcsr_test_csr_conversions"
-graph.F: Found CALL RANDOM_SEED in procedure "graph"
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_abort"
-base_hooks.F: Found WRITE statement with hardcoded unit in "cp_warn"

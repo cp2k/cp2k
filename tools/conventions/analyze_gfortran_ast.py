@@ -9,8 +9,12 @@ from os import path
 
 
 BANNED_STM  = ('GOTO', 'FORALL', 'OPEN', 'CLOSE', 'STOP',)
-BANNED_CALL = ('CP_FM_GEMM', )
-USE_EXCEPTIONS = ("OMP_LIB", "OMP_LIB_KINDS", "LAPACK",)
+BANNED_CALL = ('cp_fm_gemm', 'm_abort', 'mp_abort',)
+USE_EXCEPTIONS = ("omp_lib", "omp_lib_kinds", "lapack",)
+
+assert(all([x.upper()==x for x in BANNED_STM]))
+assert(all([x.lower()==x for x in BANNED_CALL]))
+assert(all([x.lower()==x for x in USE_EXCEPTIONS]))
 
 # precompile regex
 re_symbol    = re.compile(r"^\s*symtree.* symbol: '([^']+)'.*$")
@@ -80,7 +84,7 @@ def process_log_file(fn, public_symbols, used_symbols):
             if("USE-ASSOC" in line):
                 mod = re_use.search(line).group(1)
                 used_symbols.add(mod+"::"+curr_symbol)
-                if("MODULE  USE-ASSOC" in line and mod.upper() not in USE_EXCEPTIONS):
+                if("MODULE  USE-ASSOC" in line and mod.lower() not in USE_EXCEPTIONS):
                     print(loc+': Module "'+mod+'" USEd without ONLY clause or not PRIVATE')
             #if(("SAVE" in line) and ("PARAMETER" not in line) and ("PUBLIC" in line)):
             #    print(loc+': Symbol "'+curr_symbol+'" in procedure "'+curr_procedure+'" is PUBLIC-SAVE')
@@ -98,7 +102,7 @@ def process_log_file(fn, public_symbols, used_symbols):
                 print(loc+': OMP PARALLEL without DEFAULT(NONE) found in "'+curr_procedure+'"')
 
         elif(line.startswith("CALL")):
-            if(tokens[1].upper() in BANNED_CALL):
+            if(tokens[1].lower() in BANNED_CALL):
                 print(loc+": Found CALL "+tokens[1]+' in procedure "'+curr_procedure+'"')
             elif(tokens[1].lower().startswith("_gfortran_arandom_")):
                 print(loc+': Found CALL RANDOM_NUMBER in procedure "'+curr_procedure+'"')
@@ -119,7 +123,6 @@ def process_log_file(fn, public_symbols, used_symbols):
         elif("STAT=" in line): # catches also IOSTAT
             stat_var = line.split("STAT=",1)[1].split()[0]
             stat_stm = line.split()[0]
-            
 
 #===============================================================================
 main()
