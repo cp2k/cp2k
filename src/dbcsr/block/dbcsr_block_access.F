@@ -47,7 +47,6 @@ MODULE dbcsr_block_access
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_clearfrom_index_array,&
@@ -197,9 +196,8 @@ CONTAINS
        ENDIF
     ELSE
        IF (debug_mod) THEN
-          CALL dbcsr_assert (b, "NE", 0,&
-               dbcsr_warning_level, dbcsr_caller_error, routineN,&
-               "Block does not exist or is already deleted.",__LINE__)
+          IF(b.EQ.0)&
+             CPWARN("Block does not exist or is already deleted.")
        ENDIF
     ENDIF
     IF (careful_mod) CALL timestop (error_handle)

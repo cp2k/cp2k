@@ -31,7 +31,6 @@ MODULE dbcsr_index_operations
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_unimplemented_error_nr,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_get_index_memory_type
@@ -1112,9 +1111,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     multidata = PRESENT (old_blk_d) .AND. PRESENT (new_blk_d)
-    CALL dbcsr_assert(old_size+add_size .EQ. new_size, &
-         dbcsr_warning_level, dbcsr_internal_error ,"merge_arrays",&
-         "Mismatch of new and old size",__LINE__)
+    IF(old_size+add_size.NE.new_size)&
+       CPWARN("Mismatch of new and old size")
     CALL dbcsr_assert (PRESENT (added_size_offset), "EQV",&
          PRESENT (added_sizes), dbcsr_fatal_level, dbcsr_wrong_args_error,&
          routineN, "Must specify a set of arguments", __LINE__)

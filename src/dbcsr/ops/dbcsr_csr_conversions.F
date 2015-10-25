@@ -28,10 +28,8 @@ MODULE dbcsr_csr_conversions
                                              dbcsr_distribution_new,&
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -1129,9 +1127,8 @@ CONTAINS
         "field col_blk_size of DBCSR matrix not consistent with CSR matrix",&
         __LINE__)
     ELSE
-      CALL dbcsr_assert(.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
-        "Can not assert consistency of the matrices as no block data stored in CSR matrix.",&
-        __LINE__)
+      CALL cp_warn(__LOCATION__, "Can not assert consistency of the matrices "//&
+           "as no block data stored in CSR matrix.")
     ENDIF
     CALL timestop(handle)
   END SUBROUTINE csr_assert_consistency_with_dbcsr

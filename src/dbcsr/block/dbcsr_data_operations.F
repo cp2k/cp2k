@@ -28,7 +28,6 @@ MODULE dbcsr_data_operations
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_obj,&
@@ -110,8 +109,8 @@ CONTAINS
     CALL timeset (routineN, error_handle)
     CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_fatal_level,&
          dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__)
-    CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unheld data",__LINE__)
+    IF(source_area%d%refcount.LE.0)&
+       CPWARN("Attempt to copy unheld data")
     shallow_copy = .FALSE.
     IF (PRESENT (shallow)) shallow_copy = shallow
     IF (shallow_copy) THEN
@@ -183,10 +182,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_warning_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__)
-    CALL dbcsr_assert (source_area%d%refcount .GT. 0, dbcsr_warning_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unheld data",__LINE__)
+    IF(.NOT.ASSOCIATED(source_area%d))&
+       CPWARN("Attempt to copy unassigned data")
+    IF(source_area%d%refcount.LE.0)&
+       CPWARN("Attempt to copy unheld data")
     IF (.NOT. ASSOCIATED (source_area%d)) THEN
        RETURN
     ENDIF

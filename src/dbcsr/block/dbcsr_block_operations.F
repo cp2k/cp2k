@@ -29,7 +29,6 @@ MODULE dbcsr_block_operations
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: &
        dbcsr_data_obj, dbcsr_datatype_sizeof, dbcsr_scalar_type, &
@@ -177,15 +176,15 @@ CONTAINS
             "Data areas must be setup.",__LINE__)
        CALL dbcsr_assert (dst%d%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN, "Data type must be the same.",__LINE__)
-       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
-            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__)
+       IF(       dst%d%data_type.NE.dbcsr_type_real_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4_2d)&
+            CPWARN("Incorrect data type.")
        IF (PRESENT (scale)) THEN
           IF (dbcsr_type_is_2d (src%d%data_type)) THEN
              CALL dbcsr_assert (scale%data_type, &
@@ -343,11 +342,11 @@ CONTAINS
             "Data areas must be setup.",__LINE__)
        CALL dbcsr_assert (dst%d%data_type, 'EQ', src%d%data_type, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN, "Data type must be the same.",__LINE__)
-       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
-            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__)
+       IF (      dst%d%data_type.NE.dbcsr_type_real_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4)&
+            CPWARN("Incorrect data type.")
        IF (PRESENT (scale)) THEN
           IF (dbcsr_type_is_2d (src%d%data_type)) THEN
              CALL dbcsr_assert (scale%data_type, &
@@ -453,15 +452,15 @@ CONTAINS
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Data area must be setup.",__LINE__)
-       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
-            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__)
+       IF (      dst%d%data_type.NE.dbcsr_type_real_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4_2d)&
+            CPWARN("Incorrect data type.")
     ENDIF
     CALL dbcsr_assert (scale%data_type, &
          'EQ', dbcsr_type_2d_to_1d (dst%d%data_type),&
@@ -535,15 +534,15 @@ CONTAINS
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Data area must be setup.",__LINE__)
-       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
-            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__)
+       IF(       dst%d%data_type.NE.dbcsr_type_real_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4_2d)&
+            CPWARN("Incorrect data type.")
     ENDIF
 
     data_size = row_size*col_size
@@ -626,15 +625,15 @@ CONTAINS
        CALL dbcsr_assert (ASSOCIATED(dst%d),&
             dbcsr_fatal_level, dbcsr_caller_error, routineN,&
             "Data area must be setup.",__LINE__)
-       CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_real_4_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_8_2d&
-            .OR.dst%d%data_type.EQ.dbcsr_type_complex_4_2d,&
-            dbcsr_warning_level, dbcsr_caller_error, routineN, "Incorrect data type.",__LINE__)
+       IF (      dst%d%data_type.NE.dbcsr_type_real_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_real_4_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_8_2d&
+            .AND.dst%d%data_type.NE.dbcsr_type_complex_4_2d)&
+            CPWARN("Incorrect data type.")
     ENDIF
 
     data_size = row_size*col_size
@@ -755,12 +754,6 @@ CONTAINS
        CALL dbcsr_assert (dst%d%data_type .EQ. src%d%data_type, dbcsr_fatal_level,&
             dbcsr_caller_error, routineN,&
             "Data type must be the same.",__LINE__)
-       !CALL dbcsr_assert (dst%d%data_type.EQ.dbcsr_type_real_8&
-       !     .OR.dst%d%data_type.EQ.dbcsr_type_real_4&
-       !     .OR.dst%d%data_type.EQ.dbcsr_type_complex_8&
-       !     .OR.dst%d%data_type.EQ.dbcsr_type_complex_4,&
-       !     dbcsr_warning_level, dbcsr_caller_error, routineN,&
-       !     "Incorrect data types: "//dst%d%data_type//", "//src%d%data_type)
     ENDIF
     IF (PRESENT (scale) .AND. careful_mod) THEN
        IF (dbcsr_type_is_2d(src%d%data_type)) THEN
@@ -793,9 +786,8 @@ CONTAINS
     ENDIF
     IF (PRESENT (lb2)) THEN
        IF (careful_mod) THEN
-          CALL dbcsr_assert (dbcsr_type_is_2d (src%d%data_type),&
-               dbcsr_warning_level, dbcsr_caller_error, routineN,&
-               "Should not specify lb2 for 1-D data",__LINE__)
+          IF(.NOT.dbcsr_type_is_2d(src%d%data_type))&
+             CPWARN("Should not specify lb2 for 1-D data")
        ENDIF
        ub2 = lb2 + data_size2 - 1
        IF (PRESENT (source_lb2)) THEN

@@ -34,7 +34,6 @@ MODULE dbcsr_dist_operations
                                              dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
                                              dbcsr_is_initialized,&
@@ -560,9 +559,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (MOD(nbins*nimages,multiplicity), "EQ", 0,&
-         dbcsr_warning_level, dbcsr_internal_error,&
-         routineN, "mulitplicity is not divisor of new process grid coordinate",__LINE__)
+    IF(MOD(nbins*nimages,multiplicity).NE.0)&
+       CPWARN("mulitplicity is not divisor of new process grid coordinate")
     old_nbins = (nbins * nimages) / multiplicity
     ALLOCATE (bin_multiplier(0:old_nbins-1))
     bin_multiplier(:) = 0

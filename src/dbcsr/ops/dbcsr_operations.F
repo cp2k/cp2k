@@ -54,7 +54,6 @@ MODULE dbcsr_operations
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_unimplemented_error_nr,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_index_checksum,&
                                              dbcsr_repoint_index
@@ -1582,9 +1581,8 @@ CONTAINS
     CALL dbcsr_assert (.not.keep_sparse.or.dbcsr_valid_index(matrix_b),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "Target matrix must be valid to keep its sparsity",__LINE__)
-    CALL dbcsr_assert (.not.keep_sparse.or..not.shallow, dbcsr_warning_level,&
-         dbcsr_wrong_args_error, routineN,&
-         "Shallow copy not compatibly with sparsity retainment",__LINE__)
+    IF(keep_sparse.AND.shallow)&
+       CPWARN("Shallow copy not compatibly with sparsity retainment")
     IF (keep_sparse) THEN
        IF (PRESENT (name)) matrix_b%m%name = name
        CALL dbcsr_copy_into_existing(matrix_b, matrix_a)

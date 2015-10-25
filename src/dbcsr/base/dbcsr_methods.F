@@ -32,7 +32,6 @@ MODULE dbcsr_methods
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
@@ -240,9 +239,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
-         dbcsr_warning_level, dbcsr_caller_error, routineN,&
-         "Matrix not initialized",__LINE__)
+    IF(.NOT.dbcsr_is_initialized (matrix))&
+       CPWARN("Matrix not initialized")
     IF (matrix%m%initialized) THEN
        matrix%m%refcount = matrix%m%refcount - 1
        IF (matrix%m%refcount .EQ. 0) THEN
@@ -269,21 +267,18 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, error_handle)
-    CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
-         dbcsr_warning_level, dbcsr_caller_error, routineN,&
-         "Can not destroy uninitialized matrix object.",__LINE__)
+    IF(.NOT.dbcsr_is_initialized (matrix))&
+       CPWARN("Can not destroy uninitialized matrix object.")
     force_all = .FALSE.
     IF (PRESENT (force)) force_all = force
     IF (dbcsr_is_initialized (matrix)) THEN
-       CALL dbcsr_assert (force_all .OR. matrix%m%refcount.EQ.0,&
-            dbcsr_warning_level, dbcsr_caller_error,&
-            routineN, "You should not destroy referenced matrix.",__LINE__)
-       CALL dbcsr_assert (.NOT.force_all .OR. matrix%m%refcount.LE.1,&
-            dbcsr_warning_level, dbcsr_caller_error,&
-            routineN, "You should not destroy referenced matrix.",__LINE__)
+       IF(.NOT.force_all.AND.matrix%m%refcount.NE.0)&
+          CPWARN("You should not destroy referenced matrix.")
+       IF(force_all.AND.matrix%m%refcount.GT.1)&
+          CPWARN("You should not destroy referenced matrix.")
        IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
-          CALL dbcsr_assert (.NOT. ASSOCIATED (matrix%m%wms), dbcsr_warning_level,&
-               dbcsr_caller_error, routineN, "Destroying unfinalized matrix",__LINE__)
+          IF(ASSOCIATED (matrix%m%wms))&
+             CPWARN("Destroying unfinalized matrix")
           CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type)
           CALL dbcsr_data_release (matrix%m%data_area)
           CALL array_release (matrix%m%row_blk_size)
@@ -936,8 +931,7 @@ CONTAINS
                   routineN, "Incorrect data type",__LINE__)
           END SELECT
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Uninitialized data area",__LINE__)
+       CPWARN("Uninitialized data area")
        data_size = 0
     ENDIF
   END FUNCTION dbcsr_get_data_size
@@ -1173,8 +1167,6 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED (mutable%m)) THEN
-       !CALL dbcsr_assert (mutable%m%refcount .EQ. 0, dbcsr_warning_level,&
-       !     dbcsr_caller_error, routineN, "Destroying with non-0 reference count")
        CALL btree_destroy_s (mutable%m%btree_s)
        CALL btree_destroy_d (mutable%m%btree_d)
        CALL btree_destroy_c (mutable%m%btree_c)
@@ -1254,22 +1246,5 @@ CONTAINS
 
     instantiated = ASSOCIATED (mutable%m)
   END FUNCTION dbcsr_mutable_instantiated
-
-
-!! *****************************************************************************
-!!> \brief Returns the entire data for a matrix.
-!!> \par Warning
-!!>      This routine should only be used within DBCSR code.
-!!> \param[in] area       data area
-!!> \param[in] select_data_type   force datatype
-!!> \param[out] data      pointer to data
-!! *****************************************************************************
-!  SUBROUTINE get_data_m_[nametype1] (matrix, DATA)
-!    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-!    [type1], DIMENSION(:), POINTER :: DATA
-!
-!    CALL get_data_[nametype1] (matrix%m%data_area, DATA)
-!  END SUBROUTINE get_data_m_[nametype1]
-
 
 END MODULE dbcsr_methods

@@ -75,10 +75,14 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_reset_vlocals,&
                                              image_calculator,&
                                              make_sizes_dense
-  USE dbcsr_error_handling,            ONLY: &
-       dbcsr_abort, dbcsr_assert, dbcsr_caller_error, dbcsr_failure_level, &
-       dbcsr_fatal_level, dbcsr_internal_error, dbcsr_unimplemented_error_nr, &
-       dbcsr_warning_level, dbcsr_wrong_args_error
+  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
+                                             dbcsr_assert,&
+                                             dbcsr_caller_error,&
+                                             dbcsr_failure_level,&
+                                             dbcsr_fatal_level,&
+                                             dbcsr_internal_error,&
+                                             dbcsr_unimplemented_error_nr,&
+                                             dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: &
        dbcsr_count_row_index, dbcsr_has_local_row_index, dbcsr_index_compact, &
        dbcsr_index_prune_deleted, dbcsr_make_index_canonical, &
@@ -1441,9 +1445,8 @@ MODULE dbcsr_mm_cannon
     row_dist => dbcsr_distribution_row_dist (target_dist)
     col_dist => dbcsr_distribution_col_dist (target_dist)
     IF (sm%symmetry) THEN
-       CALL dbcsr_assert(SIZE(row_dist),'EQ', SIZE(col_dist), dbcsr_warning_level,&
-            dbcsr_wrong_args_error, routineN,&
-            'Unequal row and column distributions for symmetric matrix.',__LINE__)
+       IF(SIZE(row_dist).NE.SIZE(col_dist))&
+          CPWARN('Unequal row and column distributions for symmetric matrix.')
     ENDIF
     nrow_images = target_imgdist%i%row_decimation
     IF (nrow_images .GT. 1) THEN
@@ -1464,17 +1467,17 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_assert(MAXVAL(row_dist),'LE',UBOUND(blacs2mpi,1), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Row distribution references unexistent processor rows',__LINE__)
-    IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(row_dist),'EQ',UBOUND(blacs2mpi,1), dbcsr_warning_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Range of row distribution not equal to processor rows',__LINE__)
+    IF (dbg) THEN
+         IF(MAXVAL(row_dist).NE.UBOUND(blacs2mpi,1))&
+            CPWARN('Range of row distribution not equal to processor rows')
+    ENDIF
     CALL dbcsr_assert(MAXVAL(col_dist),'LE',UBOUND(blacs2mpi,2), dbcsr_failure_level,&
          dbcsr_wrong_args_error, routineN,&
          'Col distribution references unexistent processor cols',__LINE__)
-    IF (dbg) &
-         CALL dbcsr_assert(MAXVAL(col_dist),'EQ',UBOUND(blacs2mpi,2), dbcsr_warning_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Range of col distribution not equal to processor cols',__LINE__)
+    IF (dbg) THEN
+         IF(MAXVAL(col_dist).NE.UBOUND(blacs2mpi,2))&
+            CPWARN('Range of col distribution not equal to processor cols')
+    ENDIF
 
     ! Check threads configuration
 !$  CALL dbcsr_assert (dbcsr_distribution_has_threads (old_dist),&
@@ -2404,9 +2407,8 @@ MODULE dbcsr_mm_cannon
          right_set%mats(1,1), index_size=right_max_nblks, data_size=right_max_nze)
     IF (otf_filtering) THEN
        ALLOCATE (right_norms (right_max_nblks), stat=stat)
-       CALL dbcsr_assert (stat, "EQ", 0, dbcsr_warning_level,&
-            dbcsr_internal_error,&
-            routineN, "Could not allocate memory for right norms", __LINE__)
+       IF(stat.NE.0)&
+          CPWARN("Could not allocate memory for right norms")
        IF (stat .NE. 0) otf_filtering = .FALSE.
     ENDIF
     right_buffer_calc => right_set

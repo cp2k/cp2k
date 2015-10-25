@@ -44,7 +44,6 @@ MODULE dbcsr_data_methods
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_unimplemented_error_nr,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
@@ -415,15 +414,14 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert (ASSOCIATED (area%d), &
-         dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Data seems to be unreferenced.",__LINE__)
+    IF(.NOT.ASSOCIATED(area%d))&
+       CPWARN("Data seems to be unreferenced.")
     IF (ASSOCIATED (area%d)) THEN
        !
-       IF (careful_mod) &
-            CALL dbcsr_assert (area%d%refcount, "GT", 0,&
-            dbcsr_warning_level, dbcsr_caller_error,&
-            routineN, "Data seems to be unreferenced.",__LINE__)
+       IF (careful_mod) THEN
+          IF(area%d%refcount.LE.0)&
+             CPWARN("Data seems to be unreferenced.")
+       ENDIF
        !
        area%d%refcount = area%d%refcount - 1
        ! If we're releasing the last reference, then free the memory.

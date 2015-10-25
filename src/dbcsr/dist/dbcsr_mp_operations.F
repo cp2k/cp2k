@@ -20,7 +20,6 @@ MODULE dbcsr_mp_operations
                                              dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_mp_methods,                ONLY: &
        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
@@ -175,8 +174,6 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: send_data_p, recv_data_p
     TYPE(dbcsr_mp_obj)                       :: mpe
 
-    !CALL dbcsr_assert (mp_env%mp%subgroups_defined, dbcsr_warning_level,&
-    !     dbcsr_caller_error, routineN, "Row/col communicators undefined.")
     IF (.NOT. dbcsr_mp_has_subgroups (mp_env)) THEN
        mpe = mp_env
        CALL dbcsr_mp_grid_setup (mpe)

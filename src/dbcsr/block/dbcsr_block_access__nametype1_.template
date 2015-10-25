@@ -432,9 +432,8 @@
                   make_coordinate_tuple(stored_row, stored_col),&
                   data_block, found, data_block2, replace=.TRUE.)
              IF (found) THEN
-                CALL dbcsr_assert (ASSOCIATED (data_block2%p), dbcsr_warning_level,&
-                     dbcsr_internal_error, routineN,&
-                     "Data was not present in block",__LINE__)
+                IF(.NOT.ASSOCIATED(data_block2%p))&
+                   CPWARN("Data was not present in block")
                 IF (ASSOCIATED (data_block2%p)) DEALLOCATE (data_block2%p)
              ENDIF
           ELSE
@@ -446,9 +445,8 @@
                 IF(nze > 0) &
                    CALL [nametype1]axpy (nze, [one1], block(1), 1,&
                         data_block2%p(1,1), 1)
-                CALL dbcsr_assert (ASSOCIATED (data_block%p), dbcsr_warning_level,&
-                     dbcsr_internal_error, routineN,&
-                     "Data was not present in block",__LINE__)
+                IF(.NOT.ASSOCIATED(data_block%p))&
+                   CPWARN("Data was not present in block")
                 IF (ASSOCIATED (data_block%p)) DEALLOCATE (data_block%p)
              ENDIF
           ENDIF

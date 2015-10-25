@@ -54,7 +54,6 @@ MODULE dbcsr_work_operations
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_unimplemented_error_nr,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
                                              dbcsr_build_row_index,&
@@ -425,10 +424,8 @@ CONTAINS
             .OR. replication_type .EQ. dbcsr_repl_col,&
             dbcsr_failure_level, dbcsr_wrong_args_error, routineN,&
             "Invalid replication type '"//replication_type//"'",__LINE__)
-       CALL dbcsr_assert (replication_type .NE. dbcsr_repl_row&
-            .AND. replication_type .NE. dbcsr_repl_col,&
-            dbcsr_warning_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Row and column replication not fully supported",__LINE__)
+       IF(replication_type.EQ.dbcsr_repl_row.OR. replication_type .EQ. dbcsr_repl_col)&
+          CPWARN("Row and column replication not fully supported")
        matrix%m%replication_type = replication_type
     ELSE
        matrix%m%replication_type = dbcsr_repl_none
@@ -814,9 +811,8 @@ CONTAINS
     wms_realloc = .FALSE.
     IF (ASSOCIATED (matrix%m%wms)) THEN
        ow = SIZE(matrix%m%wms)
-       CALL dbcsr_assert (ow, 'GE', nw, dbcsr_warning_level,&
-            dbcsr_internal_error, routineN,&
-            "Number of work matrices less than threads.",__LINE__)
+       IF(ow.LT.nw)&
+          CPWARN("Number of work matrices less than threads.")
        IF (ow .LT. nw) wms_realloc = .TRUE.
     ENDIF
     IF (PRESENT (work_mutable)) THEN
@@ -947,10 +943,8 @@ CONTAINS
     ENDIF
     IF (.FALSE. .AND. dbcsr_data_get_size_referenced (matrix%m%data_area) .NE. &
          matrix%m%nze) THEN
-       CALL dbcsr_assert (matrix%m%nze, "EQ", &
-            dbcsr_data_get_size_referenced (matrix%m%data_area),&
-            dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Should reshuffle.", __LINE__)
+       IF(matrix%m%nze.NE.dbcsr_data_get_size_referenced(matrix%m%data_area))&
+          CPWARN("Should reshuffle.")
        IF (ASSOCIATED (matrix%m%wms)) THEN
           sort_data = .NOT. dbcsr_wm_use_mutable (matrix%m%wms(1))
        ENDIF
@@ -1274,9 +1268,8 @@ CONTAINS
     preexists = ASSOCIATED (matrix%m%wms)
     IF (preexists) THEN
        old_nwms = SIZE (matrix%m%wms)
-       CALL dbcsr_assert (old_nwms, "NE", 0, dbcsr_warning_level,&
-            dbcsr_internal_error, routineN, "Nonexisting work matrices?!",&
-            __LINE__)
+       IF(old_nwms.EQ.0)&
+          CPWARN("Nonexisting work matrices?!")
     ELSE
        old_nwms = 0
     ENDIF
@@ -1500,8 +1493,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert (ASSOCIATED (m%wms), dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Want to destroy nonexisting work matrices.",__LINE__)
+    IF(.NOT.ASSOCIATED (m%wms))&
+       CPWARN("Want to destroy nonexisting work matrices.")
     IF (ASSOCIATED (m%wms)) THEN
        DO i = 1, SIZE (m%wms)
           CALL dbcsr_work_destroy (m%wms(i))

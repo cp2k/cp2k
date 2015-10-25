@@ -23,8 +23,7 @@ MODULE dbcsr_io
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_failure_level,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_warning_level
+                                             dbcsr_fatal_level
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
@@ -123,9 +122,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index (matrix),&
-         dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Can not print invalid matrix.",__LINE__)
+    IF(.NOT.dbcsr_valid_index(matrix))&
+       CPWARN("Can not print invalid matrix.")
 
     iunit=default_output_unit
     IF (PRESENT(unit_nr)) iunit=unit_nr
@@ -748,10 +746,9 @@ CONTAINS
 
    CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert (default_string_length==80,&
-         dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Changing the default string length affects the format of the writen matrix. Version needs to be adjusted",&
-         __LINE__)
+    IF(default_string_length/=80)&
+       CALL cp_warn(__LOCATION__, "Changing the default string length affects "//&
+            "the format of the writen matrix. Version needs to be adjusted")
 
     nblkrows_total = dbcsr_nblkrows_total(matrix)
     nblkcols_total = dbcsr_nblkcols_total(matrix)
@@ -957,10 +954,8 @@ CONTAINS
 !> read version, matrix name and matrix type
     CALL mp_file_read_at_all(thefile, BOF, version)
 
-    CALL dbcsr_assert (version==version_v_1_0,&
-         dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Trying to read an unknown version of the matrix data file. Good luck!",&
-         __LINE__)
+    IF(version/=version_v_1_0)&
+       CPWARN("Trying to read an unknown version of the matrix data file. Good luck!")
 
     CALL mp_file_read_at_all(thefile, BOF+version_len*mpi_character_size, matrix_name_v_1_0) 
     matrix_name=matrix_name_v_1_0
@@ -1249,9 +1244,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index (matrix),&
-         dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Can not print invalid matrix.",__LINE__)
+    IF(.NOT.dbcsr_valid_index(matrix))&
+       CPWARN("Can not print invalid matrix.")
 
     iunit=default_output_unit
     IF (PRESENT(unit_nr)) iunit=unit_nr

@@ -32,7 +32,6 @@ MODULE dbcsr_data_methods_low
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_allocate,&
                                              memory_deallocate,&
@@ -309,8 +308,8 @@ MODULE dbcsr_data_methods_low
     ENDIF
 
 
-    CALL dbcsr_assert (area%d%refcount .GT. 0, dbcsr_warning_level, dbcsr_caller_error,&
-         routineN, "Data seems to be unreferenced.",__LINE__)
+    IF(area%d%refcount.LE.0)&
+       CPWARN("Data seems to be unreferenced.")
     SELECT CASE (area%d%data_type)
     CASE (dbcsr_type_int_4)
        NULLIFY (area%d%i4)
@@ -600,8 +599,7 @@ MODULE dbcsr_data_methods_low
                   routineN, "Incorrect data type",__LINE__)
           END SELECT
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_warning_level, dbcsr_caller_error, routineN,&
-            "Uninitialized data area",__LINE__)
+       CPWARN("Uninitialized data area")
        data_size = 0
     ENDIF
   END FUNCTION dbcsr_data_get_size

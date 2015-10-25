@@ -25,7 +25,6 @@ MODULE dbcsr_iterator_operations
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_warning_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_methods,                   ONLY: dbcsr_distribution
   USE dbcsr_ptr_util,                  ONLY: pointer_rank_remap2
@@ -180,9 +179,6 @@ CONTAINS
     CALL timeset (routineN, error_handle)
     iterator%shared = .TRUE.
 !$  iterator%shared = omp_in_parallel()
-!ub!$  CALL dbcsr_assert (omp_in_parallel(), "IMP", PRESENT (shared),&
-!ub!$       dbcsr_warning_level, dbcsr_caller_error, routineN,&
-!ub!$       "SHARED must be specified in OMP invocation.", __LINE__)
     IF (PRESENT (shared)) iterator%shared = shared
     iterator%dynamic = .TRUE.
 !$  iterator%dynamic = .FALSE.
@@ -198,10 +194,8 @@ CONTAINS
 !$     iterator%dynamic = .FALSE.
 !$  ENDIF
     dist = dbcsr_distribution (matrix)
-!$  CALL dbcsr_assert (dbcsr_distribution_has_threads(dist),&
-!$       dbcsr_warning_level, dbcsr_internal_error, routineN,&
-!$       "Thread distribution should be defined for OpenMP.",&
-!$       __LINE__)
+!$  IF(.NOT.dbcsr_distribution_has_threads(dist))&
+!$     CPWARN("Thread distribution should be defined for OpenMP.")
     CALL dbcsr_assert (.NOT.iterator%dynamic, "IMP",&
          dbcsr_distribution_has_threads(dist),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&

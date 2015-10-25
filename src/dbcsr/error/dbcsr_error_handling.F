@@ -19,7 +19,7 @@ MODULE dbcsr_error_handling
   ! procedures
   PUBLIC :: dbcsr_assert, dbcsr_abort
   ! parameters
-  PUBLIC :: dbcsr_warning_level, dbcsr_failure_level, dbcsr_fatal_level
+  PUBLIC :: dbcsr_failure_level, dbcsr_fatal_level
   PUBLIC :: dbcsr_caller_error, dbcsr_wrong_args_error,&
             dbcsr_internal_error,&
             dbcsr_unimplemented_error_nr
@@ -37,8 +37,6 @@ MODULE dbcsr_error_handling
   INTEGER, PARAMETER :: dbcsr_fatal_level=3
   !! level of a failure
   INTEGER, PARAMETER :: dbcsr_failure_level=2
-  !! level of a warning
-  INTEGER, PARAMETER :: dbcsr_warning_level=1
   !! level of a note
   INTEGER, PARAMETER :: dbcsr_note_level=0
   !! error number: no error
@@ -95,13 +93,9 @@ CONTAINS
     CHARACTER(*), INTENT(in)                 :: routine, msg
     INTEGER, INTENT(in)                      :: line
 
+    MARK_USED(level)
     MARK_USED(etype)
-
-    IF(level==dbcsr_warning_level) THEN
-       CALL cp_warn(cp__l(routine, line), msg)
-    ELSE
-       CALL cp_abort(cp__l(routine, line), msg)
-    ENDIF
+    CALL cp_abort(cp__l(routine, line), msg)
 
   END SUBROUTINE dbcsr_abort_low
 
