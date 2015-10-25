@@ -24,12 +24,9 @@ MODULE message_passing
   USE kinds,                           ONLY: &
        dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
        real_8_size
-  USE machine,                         ONLY: default_output_unit,&
-                                             m_abort,&
-                                             m_flush,&
+  USE machine,                         ONLY: m_abort,&
                                              m_walltime
 
-!$ USE OMP_LIB,                        ONLY: omp_get_thread_num
 #include "../base/base_uses.f90"
 
 #if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
@@ -130,6 +127,7 @@ MODULE message_passing
   PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
   PUBLIC :: cp2k_is_parallel
   PUBLIC :: mp_probe
+  PUBLIC :: mp_is_world_rank0
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
@@ -927,49 +925,13 @@ CONTAINS
   END SUBROUTINE add_perf
 
 ! *****************************************************************************
-!> \brief globally stops all tasks, can optionally print a message.
-!>       this is intended to be low level, most of CP2K should rather use cp_error_handling
-!> \param message ...
+!> \brief globally stops all tasks
+!>       this is intended to be low level, most of CP2K should call cp_abort()
 ! *****************************************************************************
-  SUBROUTINE mp_abort (message)
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: message
-
-    INTEGER                                  :: ierr, ithread, numtask, taskid
-    REAL(KIND=dp)                            :: t1, wait_time
+  SUBROUTINE mp_abort()
+    INTEGER                                  :: ierr
 
     ierr = 0
-
-    ithread = 0
-!$  ithread = omp_get_thread_num()
-
-#if defined(__parallel)
-    CALL mp_environ ( numtask, taskid, MPI_COMM_WORLD )
-#else
-    numtask=1
-    taskid=0
-#endif
-
-   ! delayed abort on non-master ranks/threads, for cleaner output if all ranks call this subroutine at the same time.
-    wait_time = 0.0_dp
-    IF (taskid /= 0) &
-       wait_time = wait_time + 1.0_dp ! rank-0 gets a head start of one second.
-    IF (ithread /= 0) &
-       wait_time = wait_time + 1.0_dp ! master threads gets another second
-
-    IF (wait_time > 0.0_dp) THEN
-       t1=m_walltime()
-       DO
-         IF (m_walltime()-t1 > wait_time .OR. t1<0) EXIT
-       ENDDO
-    ENDIF
-
-    WRITE(default_output_unit,*)
-    IF (PRESENT(message)) THEN
-       WRITE(default_output_unit,'(A)')   ' CP2K| Error: '//TRIM(message)
-    ENDIF
-    WRITE(default_output_unit,'(A,I0)')   ' CP2K| Abnormal program termination, stopped by process number ',taskid
-    WRITE(default_output_unit,*) 
-    CALL m_flush(default_output_unit)
 
 #if !defined(__NO_ABORT)
 #if defined(__parallel)
@@ -1039,6 +1001,27 @@ CONTAINS
     CALL mp_timestop(handle)
 
   END SUBROUTINE mp_sync
+
+! *****************************************************************************
+!> \brief Checks whether this is the first rank within the COMM_WORLD.
+!>        It never calls cp_abort() to prevent recursion during error-handling.
+!> \retval res ...
+! *****************************************************************************
+FUNCTION mp_is_world_rank0() RESULT(res)
+    LOGICAL                                  :: res
+
+#if defined(__parallel)
+    INTEGER                                  :: taskid, ierr
+    CALL mpi_comm_rank (MPI_COMM_WORLD, taskid, ierr)
+    IF (ierr==0) THEN
+       res = taskid==0
+    ELSE
+       res = .TRUE.
+    ENDIF
+#else
+    res = .TRUE.
+#endif
+  END FUNCTION mp_is_world_rank0
 
 ! *****************************************************************************
 !> \brief returns number of tasks and task id for a given mpi group

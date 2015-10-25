@@ -91,8 +91,7 @@ MODULE environment
   USE string_utilities,                ONLY: ascii_to_string,&
                                              integer_to_string,&
                                              string_to_ascii
-  USE termination,                     ONLY: set_error_unit,&
-                                             stop_memory
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: add_timer_env,&
                                              rm_timer_env,&
                                              timings_setup_tracing
@@ -150,14 +149,6 @@ CONTAINS
 
     ! message passing performance
     CALL add_mp_perf_env()
-
-    ! Set the default logical output and error unit number
-    ! write to screen in case of error on non-io nodes, and hope this is appropriate
-    IF (para_env%ionode) THEN
-       CALL set_error_unit(output_unit)
-    ELSE
-       CALL set_error_unit(6)
-    ENDIF
 
     ! Set flag if this is a development version
     dev_flag = ""

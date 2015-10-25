@@ -151,7 +151,7 @@ CONTAINS
 
     ALLOCATE (id_name(natomkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "id_name",int_size*natomkind,para_env)
+                                     "id_name",int_size*natomkind)
     ! Read atomic kind names
     DO ikind=1,natomkind
        IF (para_env%ionode) THEN
@@ -169,56 +169,56 @@ CONTAINS
     ALLOCATE (atom_info%id_molname(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_molname",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_molname(:) = 0
     ALLOCATE (atom_info%id_resname(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_resname",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_resname(:) = 0
     ALLOCATE (atom_info%resid(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%resid",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%resid = 1
     ALLOCATE (atom_info%id_atmname(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_atmname",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_atmname = 0
     ALLOCATE (atom_info%r(3,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%r",&
-                                     int_size*3*natom,para_env)
+                                     int_size*3*natom)
     atom_info%r(:,:) = 0.0_dp
     ALLOCATE (atom_info%atm_mass(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%atm_mass",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%atm_mass(:) = HUGE(0.0_dp)
     ALLOCATE (atom_info%atm_charge(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%atm_charge",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%atm_charge(:) = -HUGE(0.0_dp)
     ALLOCATE (atom_info%occup(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%occup",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%occup(:) = 0.0_dp
     ALLOCATE (atom_info%beta(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_beta",&
-                                     dp_size*natom,para_env)
+                                     dp_size*natom)
     atom_info%beta(:) = 0.0_dp
     ALLOCATE (atom_info%id_element(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom_info%id_element",&
-                                     int_size*natom,para_env)
+                                     int_size*natom)
     atom_info%id_element(:) = 0
     ALLOCATE (ibuf(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ibuf",int_size*natom,para_env)
+                                     "ibuf",int_size*natom)
 
     ! Read atomic kind number of each atom
     IF (para_env%ionode) THEN
@@ -248,8 +248,7 @@ CONTAINS
     IF (nmolecule > 0) THEN
        ALLOCATE (id_name(nmoleculekind),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "id_name",nmoleculekind*int_size,&
-                                        para_env)
+                                        "id_name",nmoleculekind*int_size)
        ! Read molecule kind names
        DO ikind=1,nmoleculekind
           IF (para_env%ionode) THEN
@@ -417,8 +416,7 @@ CONTAINS
                 ! Perform dummy read
                 ALLOCATE (rbuf(3,nbuf),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "rbuf",dp_size*3*nbuf,&
-                                                 para_env)
+                                                 "rbuf",dp_size*3*nbuf)
                 READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nbuf)
                 IF (istat /= 0) CALL stop_read("rbuf(1:3,1:nbuf) -> "//prefix//&
                                                " coordinates (IOSTAT = "//&
@@ -427,8 +425,7 @@ CONTAINS
                 DEALLOCATE (rbuf)
                 ALLOCATE (ibuf(nbuf),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "ibuf",int_size*nbuf,&
-                                                 para_env)
+                                                 "ibuf",int_size*nbuf)
                 READ (UNIT=input_unit,IOSTAT=istat) ibuf(1:nbuf)
                 IF (istat /= 0) CALL stop_read("ibuf(1:nparticle) -> atomic indices of the "//&
                                                TRIM(section_name)//" (IOSTAT = "//&
@@ -465,8 +462,7 @@ CONTAINS
 
     ALLOCATE (rbuf(3,nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "rbuf",dp_size*3*nparticle,&
-                                     para_env)
+                                     "rbuf",dp_size*3*nparticle)
 
     IF (para_env%ionode) THEN
        READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nparticle)
@@ -485,8 +481,7 @@ CONTAINS
 
     ALLOCATE (ibuf(nparticle),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "ibuf",int_size*nparticle,&
-                                     para_env)
+                                     "ibuf",int_size*nparticle)
 
     IF (para_env%ionode) THEN
        READ (UNIT=input_unit,IOSTAT=istat) ibuf(1:nparticle)
@@ -626,7 +621,7 @@ CONTAINS
                 ! Ignore thermostat information
                 ALLOCATE (rbuf(nbuf,1),STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "rbuf",dp_size*nbuf,para_env)
+                                                 "rbuf",dp_size*nbuf)
                 ! Perform dummy read
                 DO i=1,4
                    READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:nbuf,1)
@@ -663,8 +658,7 @@ CONTAINS
 
        ALLOCATE (rbuf(3,nbuf),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "rbuf",dp_size*3*nbuf,&
-                                        para_env)
+                                        "rbuf",dp_size*3*nbuf)
 
        IF (para_env%ionode) THEN
           READ (UNIT=input_unit,IOSTAT=istat) rbuf(1:3,1:nbuf)
@@ -812,7 +806,7 @@ CONTAINS
 
        ALLOCATE (rbuf(nhc_size),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                     "rbuf",dp_size*nhc_size,para_env)
+                                     "rbuf",dp_size*nhc_size)
        rbuf(:) = 0.0_dp
 
        ! Read NHC section &COORD

@@ -2344,7 +2344,7 @@ CONTAINS
        ! Write atomic kind numbers of all atoms
        ALLOCATE (ibuf(natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "ibuf",int_size*natom,para_env)
+                                        "ibuf",int_size*natom)
        DO iatom=1,natom
           ibuf(iatom) = particles%els(iatom)%atomic_kind%kind_number
        END DO
@@ -2356,7 +2356,7 @@ CONTAINS
        ! Write atomic coordinates
        ALLOCATE (rbuf(3,natom),STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "rbuf",dp_size*3*natom,para_env)
+                                        "rbuf",dp_size*3*natom)
        DO iatom=1,natom
           rbuf(1:3,iatom) = particles%els(iatom)%r(1:3)
        END DO
@@ -2381,7 +2381,7 @@ CONTAINS
           ibuf(:) = 0
           ALLOCATE (imol(natom),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "imol",int_size*natom,para_env)
+                                           "imol",int_size*natom)
           imol(:) = 0
           DO imolecule=1,nmolecule
              ikind = molecules%els(imolecule)%molecule_kind%kind_number
@@ -2420,7 +2420,7 @@ CONTAINS
           ! Write shell coordinates
           ALLOCATE (rbuf(3,nshell),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "rbuf",dp_size*3*nshell,para_env)
+                                           "rbuf",dp_size*3*nshell)
           DO ishell=1,nshell
              rbuf(1:3,ishell) = shell_particles%els(ishell)%r(1:3)
           END DO
@@ -2433,7 +2433,7 @@ CONTAINS
           ! Write atomic indices, i.e. number of the atom the shell belongs to
           ALLOCATE (ibuf(nshell),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "ibuf",int_size*nshell,para_env)
+                                           "ibuf",int_size*nshell)
           DO ishell=1,nshell
              ibuf(ishell) = shell_particles%els(ishell)%atom_index
           END DO
@@ -2456,7 +2456,7 @@ CONTAINS
           ! Write core coordinates
           ALLOCATE (rbuf(3,ncore),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "rbuf",dp_size*3*ncore,para_env)
+                                           "rbuf",dp_size*3*ncore)
           DO icore=1,ncore
              rbuf(1:3,icore) = core_particles%els(icore)%r(1:3)
           END DO
@@ -2469,7 +2469,7 @@ CONTAINS
           ! Write atomic indices, i.e. number of the atom the core belongs to
           ALLOCATE (ibuf(ncore),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "ibuf",int_size*ncore,para_env)
+                                           "ibuf",int_size*ncore)
           DO icore=1,ncore
              ibuf(icore) = core_particles%els(icore)%atom_index
           END DO
@@ -2560,7 +2560,7 @@ CONTAINS
        IF (write_velocities) THEN
           ALLOCATE (rbuf(3,natom),STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "rbuf",dp_size*3*natom,para_env)
+                                           "rbuf",dp_size*3*natom)
           ! Write atomic velocities
           DO iatom=1,natom
              rbuf(1:3,iatom) = particles%els(iatom)%v(1:3)
@@ -2588,7 +2588,7 @@ CONTAINS
           IF (write_velocities) THEN
              ALLOCATE (rbuf(3,nshell),STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "rbuf",dp_size*3*nshell,para_env)
+                                              "rbuf",dp_size*3*nshell)
              DO ishell=1,nshell
                 rbuf(1:3,ishell) = shell_particles%els(ishell)%v(1:3)
              END DO
@@ -2616,7 +2616,7 @@ CONTAINS
           IF (write_velocities) THEN
              ALLOCATE (rbuf(3,ncore),STAT=istat)
              IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                              "rbuf",dp_size*3*ncore,para_env)
+                                              "rbuf",dp_size*3*ncore)
              DO icore=1,ncore
                 rbuf(1:3,icore) = core_particles%els(icore)%v(1:3)
              END DO
