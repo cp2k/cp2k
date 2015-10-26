@@ -178,7 +178,10 @@ CONTAINS
     INTEGER, INTENT(in)                      :: lineNr
     CHARACTER(len=default_string_length)     :: location
 
-    WRITE (location, FMT='(A,A,I6)') TRIM(filename),':',lineNr
+    CHARACTER(len=15)                        :: lineNr_str
+
+    WRITE (lineNr_str, FMT='(I10)') lineNr
+    location = TRIM(filename)//":"//TRIM(ADJUSTL(lineNr_str))
 
   END FUNCTION cp__l
 

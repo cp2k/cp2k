@@ -127,7 +127,6 @@ MODULE message_passing
   PUBLIC :: mp_comm_dup, mp_comm_split, mp_comm_split_direct
   PUBLIC :: cp2k_is_parallel
   PUBLIC :: mp_probe
-  PUBLIC :: mp_is_world_rank0
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
@@ -1001,27 +1000,6 @@ CONTAINS
     CALL mp_timestop(handle)
 
   END SUBROUTINE mp_sync
-
-! *****************************************************************************
-!> \brief Checks whether this is the first rank within the COMM_WORLD.
-!>        It never calls cp_abort() to prevent recursion during error-handling.
-!> \retval res ...
-! *****************************************************************************
-FUNCTION mp_is_world_rank0() RESULT(res)
-    LOGICAL                                  :: res
-
-#if defined(__parallel)
-    INTEGER                                  :: taskid, ierr
-    CALL mpi_comm_rank (MPI_COMM_WORLD, taskid, ierr)
-    IF (ierr==0) THEN
-       res = taskid==0
-    ELSE
-       res = .TRUE.
-    ENDIF
-#else
-    res = .TRUE.
-#endif
-  END FUNCTION mp_is_world_rank0
 
 ! *****************************************************************************
 !> \brief returns number of tasks and task id for a given mpi group
