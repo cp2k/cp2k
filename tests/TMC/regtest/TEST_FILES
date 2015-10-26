@@ -22,7 +22,7 @@ TMC_atom_swap_test.inp                                 1    1.0E-14            0
 # also the reference for the restart test
 TMC_PT.inp                                             1    1.0E-14            0.55029051152245501
 # testing the NPT routines (volume move and volume acceptance check with 1 potential
-TMC_NPT.inp                                            1    1.0E-14             4.4183527090890706
+TMC_NPT.inp                       1     9e+14             4.4183527090890706
 # testing the NPT routines (volume move and volume acceptance check with 2 potential
 TMC_NPT_2pot.inp                                       1    1.0E-14             4.7682876287348002
 # test the move handling (sorting to NMC moves...)
