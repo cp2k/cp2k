@@ -67,6 +67,7 @@ MODULE qs_force
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE qs_scf_initialization,           ONLY: qs_scf_compute_properties
   USE qs_subsys_types,                 ONLY: qs_subsys_set,&
                                              qs_subsys_type
   USE rt_propagation_forces,           ONLY: calc_c_mat_force,&
@@ -162,7 +163,8 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_subsys_type), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                print_section
     TYPE(virial_type), POINTER               :: virial
 
     CALL timeset(routineN,handle)
@@ -316,6 +318,7 @@ CONTAINS
                     energy=energy)
        NULLIFY (rho_ao)
        CALL qs_rho_get(rho,rho_ao=rho_ao)
+
        ! with MP2 we have to recalculate the SCF energy with the
        ! correct density
        DO ispin=1,dft_control%nspins
@@ -325,9 +328,28 @@ CONTAINS
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
        CALL qs_ks_update_qs_env(qs_env,just_energy=.TRUE.)
        energy%total = energy%total + energy%mp2
+
+       ! Compute MP2 properties
+       CALL get_qs_env(qs_env=qs_env,input=input)
+       dft_section => section_vals_get_subs_vals(input,"DFT")
+       ! Get the HF+MP2 density
+       DO ispin=1,dft_control%nspins
+          CALL cp_dbcsr_add(rho_ao(ispin)%matrix,matrix_p_mp2(ispin)%matrix,1.0_dp,1.0_dp)
+       END DO
+       CALL qs_rho_update_rho(rho,qs_env=qs_env)
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
+       CALL qs_scf_compute_properties(qs_env,dft_section)
+       ! Get everything back
+       DO ispin=1,dft_control%nspins
+          CALL cp_dbcsr_add(rho_ao(ispin)%matrix,matrix_p_mp2(ispin)%matrix,1.0_dp,-1.0_dp)
+       END DO
+       CALL qs_rho_update_rho(rho,qs_env=qs_env)
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
+
        ! deallocate mp2_W 
        CALL cp_dbcsr_deallocate_matrix_set(matrix_w_mp2)
        CALL set_ks_env(ks_env,matrix_w_mp2=Null())
+
     END IF
 
     ! Add forces resulting from wavefunction fitting
