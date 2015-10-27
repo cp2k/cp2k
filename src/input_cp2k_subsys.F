@@ -1353,7 +1353,7 @@ CONTAINS
     CALL keyword_create(keyword,&
                         name="L",&
                         variants=(/"L"/),&
-                        description="Angular momentum quantum number of the"//&
+                        description="Angular momentum quantum number of the "//&
                                     "orbitals whose occupation is changed",&
                         repeats=.FALSE.,&
                         n_var=-1,&
