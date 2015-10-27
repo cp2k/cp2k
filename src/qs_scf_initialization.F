@@ -769,10 +769,12 @@ CONTAINS
 !> \brief computes properties for a given hamilonian using the current wfn
 !> \param qs_env ...
 !> \param dft_section ...
+!> \param wf_type ...
 ! *****************************************************************************
- SUBROUTINE qs_scf_compute_properties(qs_env,dft_section)
+ SUBROUTINE qs_scf_compute_properties(qs_env,dft_section,wf_type)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: dft_section
+    CHARACTER(6), OPTIONAL                   :: wf_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_compute_properties', &
       routineP = moduleN//':'//routineN
@@ -795,7 +797,11 @@ CONTAINS
     ELSEIF (dft_control%qs_control%lri_optbas.AND.dft_control%qs_control%gpw) THEN
        CALL optimize_lri_basis(qs_env)
     ELSE
-       CALL scf_post_calculation_gpw (dft_section, scf_env, qs_env)
+       IF (PRESENT(wf_type)) THEN
+          CALL scf_post_calculation_gpw (dft_section, scf_env, qs_env, wf_type=wf_type)
+       ELSE
+          CALL scf_post_calculation_gpw (dft_section, scf_env, qs_env)
+       ENDIF
     END IF
 
   END SUBROUTINE qs_scf_compute_properties

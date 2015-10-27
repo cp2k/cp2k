@@ -199,10 +199,12 @@ CONTAINS
 !> \param dft_section ...
 !> \param scf_env the scf_env whose info should be written out
 !> \param qs_env the qs_env in which the qs_env lives
+!> \param wf_type ...
 !> \par History
 !>      02.2003 created [fawzi]
 !>      10.2004 moved here from qs_scf [Joost VandeVondele]
 !>              started splitting out different subroutines
+!>      10.2015 added header for wave-function correlated methods [Vladimir Rybkin]
 !> \author fawzi
 !> \note
 !>      this function changes mo_eigenvectors and mo_eigenvalues, depending on the print keys.
@@ -211,11 +213,12 @@ CONTAINS
 !>      change afterwards slightly the forces (hence small numerical differences between MD
 !>      with and without the debug print level). Ideally this should not happen...
 ! *****************************************************************************
-  SUBROUTINE scf_post_calculation_gpw(dft_section, scf_env,qs_env)
+  SUBROUTINE scf_post_calculation_gpw(dft_section, scf_env,qs_env,wf_type)
 
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    CHARACTER(6), OPTIONAL                   :: wf_type
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
       routineP = moduleN//':'//routineN
@@ -270,6 +273,18 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    logger => cp_get_default_logger()
+    output_unit= cp_logger_get_default_io_unit(logger)
+
+    ! Print out the type of wavefunction to distinguish between SCF and post-SCF
+    IF (PRESENT(wf_type)) THEN
+       IF (output_unit>0) THEN
+          WRITE(UNIT=output_unit,FMT='(/,(T1,A))') REPEAT("-",40)
+          WRITE (UNIT=output_unit,FMT='(/,(T3,A,T19,A,T25,A))')"Properties from ", wf_type, " density"
+          WRITE(UNIT=output_unit,FMT='(/,(T1,A))') REPEAT("-",40)
+       ENDIF
+    ENDIF
+
     ! Writes the data that is already available in qs_env
     CALL write_available_results(qs_env,scf_env)
 
@@ -285,9 +300,6 @@ CONTAINS
     p_loc = .FALSE.
     p_loc_homo = .FALSE.
     p_loc_lumo= .FALSE.
-
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
 
     CPASSERT(ASSOCIATED(scf_env))
     CPASSERT(scf_env%ref_count>0)

@@ -338,7 +338,7 @@ CONTAINS
        END DO
        CALL qs_rho_update_rho(rho,qs_env=qs_env)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
-       CALL qs_scf_compute_properties(qs_env,dft_section)
+       CALL qs_scf_compute_properties(qs_env,dft_section,wf_type='MP2   ')
        ! Get everything back
        DO ispin=1,dft_control%nspins
           CALL cp_dbcsr_add(rho_ao(ispin)%matrix,matrix_p_mp2(ispin)%matrix,1.0_dp,-1.0_dp)
