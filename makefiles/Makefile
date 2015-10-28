@@ -220,7 +220,7 @@ OTHER_HELP += "install : Print installation help"
 #
 # cleaning stuff ============================================================
 clean:
-	rm -rf  $(LIBCUSMM_DIR)/libcusmm.cu
+	rm -rf  $(LIBCUSMM_DIR)/libcusmm.cu $(LIBCUSMM_DIR)/libcusmm_part*.cu
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.o)
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.mod $(MAINOBJDIR)/$(ARCH)/$(v)/*.MOD $(MAINOBJDIR)/$(ARCH)/$(v)/*.smod) 
 	rm -rf $(foreach v, $(VERSION), $(MAINOBJDIR)/$(ARCH)/$(v)/*.dep) 
