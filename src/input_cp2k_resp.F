@@ -357,7 +357,7 @@ CONTAINS
                      "maximumn distance a fit point is away from an atom based on "//&
                      "the formula: rmax(kind) = AUTO_RMAX_SCALE * vdW_radius(kind). "//&
                      "The van der Waals radiii of the elements are based on data from "//&
-                     "the Cambridge Structural Database.",&
+                     "data tables chosen by AUTO_VDW_RADII_TABLE.",&
          usage="AUTO_RMAX_SCALE 60.0",&
          default_r_val=100.0_dp)
     CALL section_add_keyword(section,keyword)
@@ -368,7 +368,7 @@ CONTAINS
                      "minimum distance a fit point is away from an atom based on "//&
                      "the formula: rmin(kind) = AUTO_RMIN_SCALE * vdW_radius(kind). "//&
                      "The van der Waals radii of the elements are based on data from "//&
-                     "the Cambridge Structural Database.",&
+                     "data tables chosen by AUTO_VDW_RADII_TABLE.",&
          usage="AUTO_RMIN_SCALE 1.5",&
          default_r_val=1.0_dp)
     CALL section_add_keyword(section,keyword)
