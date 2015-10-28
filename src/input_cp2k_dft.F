@@ -6877,7 +6877,7 @@ CONTAINS
 
     CALL cp_print_key_section_create(print_key,"CURRENT",&
          description="Print the current during an EMD simulation to cube files."//&
-         "Under development, sign might be wrong. Does not yet work with orthonormal keyword in REAL_TIME_PROPAGATION section.",&
+         "Under development, qualitatively correct, but off by a prefactor.",&
          print_level=high_print_level, common_iter_levels=0,&
          each_iter_names=s2a("MD"),&
          each_iter_values=(/20/), &
