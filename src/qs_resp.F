@@ -1550,9 +1550,9 @@ CONTAINS
            "+----------------------------------------------------------------------+"
       WRITE(output_unit,'(T3,A)') &
            "| Due to using REPEAT method, the following keywords has been changed: |"
-      WRITE(output_unit,'(T3,A,l,T74,A)') &
+      WRITE(output_unit,'(T3,A,l1,T74,A)') &
            "| * RESTRAIN_HEAVIES_TO_ZERO = ", resp_env%rheavies, "|"
-      WRITE(output_unit,'(T3,A,l,T74,A)') &
+      WRITE(output_unit,'(T3,A,l1,T74,A)') &
            "| * SPHERE_SAMPLING = ", resp_env%molecular_sys, "|"
       WRITE(output_unit,'(T3,A)') &
            "| * Using UFF vdW radii table for SPHERE_SAMPLING                      |"
