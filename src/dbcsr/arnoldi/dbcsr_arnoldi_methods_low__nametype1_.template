@@ -679,7 +679,7 @@
 
     TYPE(arnoldi_control), POINTER           :: control
     TYPE(arnoldi_data_[nametype1]), POINTER            :: ar_data
-    INTEGER                                  :: nrow_local, ind, i
+    INTEGER                                  :: ncol_local, nrow_local, ind, i
     [type_nametype1], ALLOCATABLE, DIMENSION(:)      :: v_vec
     REAL([type_prec])                        :: rnorm
     [type_nametype1]                         :: norm
@@ -706,19 +706,23 @@
     CALL dbcsr_add(matrix_arnoldi(1)%matrix, matrix(2)%matrix, [nametype_one], -ar_data%rho_scale)
 
 ! compute convergence and set the correct eigenvalue and eigenvector
-    CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local)
-    ALLOCATE(v_vec(nrow_local))
-    CALL compute_norms_[nametype1](ar_data%x_vec, norm, rnorm, control%pcol_group)
-    IF (rnorm==0) rnorm=1 ! catch case where this rank has no actual data
-    v_vec(:)=ar_data%x_vec(:)/rnorm
+    CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
+    IF (ncol_local>0) THEN
+       ALLOCATE(v_vec(nrow_local))
+       CALL compute_norms_[nametype1](ar_data%x_vec, norm, rnorm, control%pcol_group)
+       v_vec(:)=ar_data%x_vec(:)/rnorm
+    ENDIF
     CALL transfer_local_array_to_dbcsr_[nametype1](vectors%input_vec, v_vec, nrow_local, control%local_comp)
     CALL dbcsr_matrix_colvec_multiply(matrix_arnoldi(1)%matrix, vectors%input_vec, vectors%result_vec, [nametype_one], &
                                             [nametype_zero], vectors%rep_row_vec, vectors%rep_col_vec)
     CALL transfer_dbcsr_to_local_array_[nametype1](vectors%result_vec, v_vec, nrow_local, control%local_comp)
-    CALL compute_norms_[nametype1](v_vec, norm, rnorm, control%pcol_group)
-
-! check convergence and broadcast the real eigenvalue    
-    control%converged=rnorm.LT.control%threshold
+    IF (ncol_local>0) THEN
+       CALL compute_norms_[nametype1](v_vec, norm, rnorm, control%pcol_group)
+       ! check convergence 
+       control%converged=rnorm.LT.control%threshold
+       DEALLOCATE(v_vec)
+    ENDIF
+    ! and broadcast the real eigenvalue    
     CALL mp_bcast(control%converged,0,control%mp_group)
     ind=control%selected_ind(1)
     CALL mp_bcast(ar_data%rho_scale,0,control%mp_group)
@@ -726,7 +730,6 @@
 ! Again the maximum value request is done on -A therefore the eigenvalue needs the opposite sign
     ar_data%evals(ind)=ar_data%rho_scale
 
-    DEALLOCATE(v_vec)
 
   END SUBROUTINE gev_update_data_[nametype1]
 
