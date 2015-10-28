@@ -9,3 +9,5 @@ graphite.inp
 CH3OH_periodic.inp
 #
 graphite.inp 
+# Changed default table from Cambridge to UFF
+CH3OH_periodic_repeat.inp
