@@ -109,13 +109,16 @@ def gen_benchmark(outdir, m, n, k):
 
         output += "\n"
         output += "int main(int argc, char** argv){\n"
+        output += "libcusmm_benchmark_t* handle;\n"
         output += "KernelLauncher launchers[%d];\n"%(B-A)
         output += "char *kernel_descr[%d];\n"%(B-A)
 
         for j in range(B-A):
             output += "launchers[%d]    = %s;\n"%(j, launchers[A+j])
             output += 'kernel_descr[%d] = "%s";\n'%(j, kernel_descr[A+j])
-        output += "return libcusmm_benchmark(%d, %d, %d, %d, launchers, kernel_descr, true);\n"%(m, n, k, B-A)
+        output += "libcusmm_benchmark_init(&handle, %d, %d, %d);\n"%(m, n, k)
+        output += "return libcusmm_benchmark(handle, %d, %d, %d, %d, launchers, kernel_descr, true);\n"%(m, n, k, B-A)
+        output += "libcusmm_benchmark_finalize(handle);\n"
         output += "}\n"
 
         fn = outdir+"/tune_%dx%dx%d_exe%d_main.cu"%(m, n, k, i)
