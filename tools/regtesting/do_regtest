@@ -931,7 +931,7 @@ if [[ ${skiptest} != "skiptest" ]]; then
    #
    # get the cp2k flags for supported features
    #
-   cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} 2>&1 | grep cp2kflags `
+   cp2kflags=`${cp2k_prefix} --version ${cp2k_postfix} < /dev/null 2>&1 | grep cp2kflags `
    echo "CP2K supports: $cp2kflags"
    
    # get a list of regtest directories
