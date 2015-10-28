@@ -17,13 +17,10 @@ MODULE input_cp2k_resp
                                              high_print_level,&
                                              low_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE input_constants,                 ONLY: do_resp_minus_x_dir,&
-                                             do_resp_minus_y_dir,&
-                                             do_resp_minus_z_dir,&
-                                             do_resp_x_dir,&
-                                             do_resp_y_dir,&
-                                             do_resp_z_dir,&
-                                             gaussian
+  USE input_constants,                 ONLY: &
+       do_resp_minus_x_dir, do_resp_minus_y_dir, do_resp_minus_z_dir, &
+       do_resp_x_dir, do_resp_y_dir, do_resp_z_dir, gaussian, &
+       use_cambridge_vdw_radii, use_uff_vdw_radii
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -339,14 +336,30 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="AUTO_VDW_RADII_TABLE",&
+         description="Select which vdW radii table to use for automatic "//&
+                     "determination of RMIN_KIND and RMAX_KIND if those "//&
+                     "are not declared explicitly",&
+         usage="AUTO_VDW_RADII_TABLE UFF",&
+         default_i_val=use_cambridge_vdw_radii,&
+         enum_c_vals=s2a("CAMBRIDGE",&
+                         "UFF"),&
+         enum_desc=s2a("Cambridge Structural Database",&
+                       "Universal Force Field: "//&
+                       "Rappe et al. J. Am. Chem. Soc. 114, 10024 (1992)"),&
+         enum_i_vals=(/use_cambridge_vdw_radii,&
+                       use_uff_vdw_radii/))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="AUTO_RMAX_SCALE",&
          description="IF RMAX or RMAX_KIND keywords are not present, defines the "//&
                      "maximumn distance a fit point is away from an atom based on "//&
                      "the formula: rmax(kind) = AUTO_RMAX_SCALE * vdW_radius(kind). "//&
                      "The van der Waals radiii of the elements are based on data from "//&
                      "the Cambridge Structural Database.",&
-         usage="AUTO_RMAX_SCALE 10.0",&
-         default_r_val=10.0_dp)
+         usage="AUTO_RMAX_SCALE 60.0",&
+         default_r_val=100.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

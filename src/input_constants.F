@@ -836,7 +836,9 @@ MODULE input_constants
                                               do_resp_z_dir=2,& 
                                               do_resp_minus_x_dir=3,&
                                               do_resp_minus_y_dir=4,& 
-                                              do_resp_minus_z_dir=5 
+                                              do_resp_minus_z_dir=5,&
+                                              use_cambridge_vdw_radii=0,&
+                                              use_uff_vdw_radii=1
 
   ! basis optimization parameters
   INTEGER, PARAMETER, PUBLIC               :: do_opt_all=0,&
