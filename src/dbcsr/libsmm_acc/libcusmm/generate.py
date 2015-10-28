@@ -68,17 +68,34 @@ def make_plan(triples, param_fn):
 
 #===============================================================================
 def gen_library(plan):
-    output  = "/*****************************************************************************\n"
-    output += " *  CP2K: A general program to perform molecular dynamics simulations        *\n"
-    output += " *  Copyright (C) 2000 - 2015  CP2K developers group                         *\n"
-    output += " *****************************************************************************/\n"
+    header  = "/*****************************************************************************\n"
+    header += " *  CP2K: A general program to perform molecular dynamics simulations        *\n"
+    header += " *  Copyright (C) 2000 - 2015  CP2K developers group                         *\n"
+    header += " *****************************************************************************/\n"
 
     for i in get_includes(plan):
-        output += '#include "%s"\n'%i
-    output += "\n\n"
+        header += '#include "%s"\n'%i
+    header += "\n\n"
 
-    for kern in plan.values():
-        output += "static "+kern.launcher_code() + "\n\n"
+    all_kernels = plan.values()
+
+    # write part files
+    LAUNCHERS_PER_OBJ = 100
+    for i in range(len(all_kernels)/LAUNCHERS_PER_OBJ + 1):
+        a = i*LAUNCHERS_PER_OBJ
+        b = min((i+1)*LAUNCHERS_PER_OBJ, len(all_kernels))
+        output = header
+        for j in range(a, b):
+            output += all_kernels[j].launcher_code() + "\n\n"
+        output += "//EOF\n"
+        writefile("libcusmm_part%.2d.cu"%i, output)
+
+    # write main file
+    output = header
+    for kern in all_kernels:
+        l = "launch_"+kern.name
+        output += "int "+ l + "(int *param_stack, int stack_size, cudaStream_t stream, int m_max, int n_max, int k_max, double *a_data, double *b_data, double *c_data);\n"
+    output += "\n\n"
 
     output += gen_process(plan)
     output += "\n\n"
