@@ -9,30 +9,40 @@
 #include "libcusmm_benchmark.h"
 
 //===========================================================================
-static const int n_a = 10000;
-static const int n_b = 10000;
-static const int n_c = 1000;
-
-//===========================================================================
 // Allocate memory and cuda events
-void libcusmm_benchmark_init(libcusmm_benchmark_t** handle, int max_m, int max_n, int max_k){
+void libcusmm_benchmark_init(libcusmm_benchmark_t** handle, bool tune_mode,
+                             int max_m, int max_n, int max_k){
+
     libcusmm_benchmark_t* h = (libcusmm_benchmark_t*) malloc(sizeof(libcusmm_benchmark_t));
     *handle = h;
+
+    h-> tune_mode = tune_mode;
+
+    if(h->tune_mode){
+       h->n_a = 10000;
+       h->n_b = 10000;
+       h->n_c = 1000;
+       h->n_stack = 16005;
+    }else{
+       h->n_a = 100;
+       h->n_b = 100;
+       h->n_c = 10;
+       h->n_stack = 100;
+    }
 
     h->max_m = max_m;
     h->max_n = max_n;
     h->max_k = max_k;
-    h->max_stack = 16005;
 
-    h->mat_a = (double*) malloc(n_a * max_m * max_k * sizeof(double));
-    h->mat_b = (double*) malloc(n_b * max_k * max_n * sizeof(double));
-    h->mat_c = (double*) malloc(n_c * max_m * max_n * sizeof(double));
-    h->stack = (int*) malloc(h->max_stack * 7 * sizeof(int));
+    h->mat_a = (double*) malloc(h->n_a * max_m * max_k * sizeof(double));
+    h->mat_b = (double*) malloc(h->n_b * max_k * max_n * sizeof(double));
+    h->mat_c = (double*) malloc(h->n_c * max_m * max_n * sizeof(double));
+    h->stack = (int*) malloc(h->n_stack * 7 * sizeof(int));
 
-    cudaMalloc(&h->d_mat_a, n_a * max_m * max_k * sizeof(double));
-    cudaMalloc(&h->d_mat_b, n_b * max_k * max_n * sizeof(double));
-    cudaMalloc(&h->d_mat_c, n_c * max_m * max_n * sizeof(double));
-    cudaMalloc(&h->d_stack, h->max_stack * 7 * sizeof(int));
+    cudaMalloc(&h->d_mat_a, h->n_a * max_m * max_k * sizeof(double));
+    cudaMalloc(&h->d_mat_b, h->n_b * max_k * max_n * sizeof(double));
+    cudaMalloc(&h->d_mat_c, h->n_c * max_m * max_n * sizeof(double));
+    cudaMalloc(&h->d_stack, h->n_stack * 7 * sizeof(int));
 
     cudaEventCreate(&h->t_start);
     cudaEventCreate(&h->t_stop);
@@ -43,6 +53,7 @@ void libcusmm_benchmark_init(libcusmm_benchmark_t** handle, int max_m, int max_n
       exit(1);
     }
 }
+
 
 //===========================================================================
 // Free memory and cuda events
@@ -64,6 +75,7 @@ void libcusmm_benchmark_finalize(libcusmm_benchmark_t* handle){
       exit(1);
     }
 }
+
 
 //===========================================================================
 // initialize matrix
@@ -90,8 +102,13 @@ static void stackInit(int *stack, int n_stack, int n_c, double* mat_c,
                int n_a, double * mat_a, int n_b, double* mat_b,
                int mat_m, int mat_n, int mat_k){
 
+  if(n_stack < n_c){
+    printf("Error: n_stack < n_c\n");
+    exit(1);
+  }
+
   // on average, we have n_avg matrix prodcuts contributing to a result mat_c
-  int n_avg = max(1, n_stack / n_c);
+  int n_avg = n_stack / n_c;
 
   int n_imbalance = max(1, n_avg-4);
 
@@ -166,7 +183,6 @@ static double checkSum(double* mat_c, int n_c, int mat_m, int mat_n){
 }
 
 
-
 //===========================================================================
 //Removes special symbols so that the output is usefull for awk and gnuplot.
 static void clean_string(char* str_in, char* str_out){
@@ -183,24 +199,18 @@ static void clean_string(char* str_in, char* str_out){
 
 
 //===========================================================================
-int libcusmm_benchmark(libcusmm_benchmark_t* handle,
+int libcusmm_benchmark(libcusmm_benchmark_t* h,
                        int mat_m, int mat_n, int mat_k,
-                       int nkernels, KernelLauncher* launchers, char ** kernel_descr, bool tune_mode){
-  int stack_n, n_iter;
+                       int nkernels, KernelLauncher* launchers, char ** kernel_descr){
 
-  if(tune_mode){
-      // for larger matrices we get enough statistics from fewer iterations
-      n_iter = max(3, 1250/(mat_m * mat_n * mat_k));
-      stack_n = 16005;
-  }else{
-      n_iter = 1;
-      stack_n = 10  ;
-  }
+ if(mat_m > h->max_m || mat_n > h->max_n || mat_k > h->max_k){
+     printf("libcusmm_benchmark: got handle with too few resources");
+     exit(1);
+ }
 
-  if(mat_m>handle->max_m ||mat_n>handle->max_n || mat_k>handle->max_k|| stack_n>handle->max_stack){
-      printf("libcusmm_benchmark: got handle with too few resources");
-      exit(1);
-  }
+ int n_iter = 1;
+ if(h->tune_mode) // for larger matrices few iteration give enough statistics
+     n_iter = max(3, 1250/(mat_m * mat_n * mat_k));
 
  const int stream = 0;
 
@@ -212,46 +222,46 @@ int libcusmm_benchmark(libcusmm_benchmark_t* handle,
  char descr[1000], msg_prefix[100]="";
  cudaError_t cudaError;
 
- memset(handle->mat_c, 0, n_c * mat_m * mat_n * sizeof(double));
- matInit(handle->mat_a, n_a, mat_m, mat_k, 42);
- matInit(handle->mat_b, n_b, mat_k, mat_n, 24);
+ memset(h->mat_c, 0, h->n_c * mat_m * mat_n * sizeof(double));
+ matInit(h->mat_a, h->n_a, mat_m, mat_k, 42);
+ matInit(h->mat_b, h->n_b, mat_k, mat_n, 24);
 
- if(tune_mode)
+ if(h->tune_mode)
      printf("Initializing ...\n");
- stackInit(handle->stack, stack_n, n_c, handle->mat_c, n_a, handle->mat_a, n_b, handle->mat_b, mat_m, mat_n, mat_k);
+ stackInit(h->stack, h->n_stack, h->n_c, h->mat_c, h->n_a, h->mat_a, h->n_b, h->mat_b, mat_m, mat_n, mat_k);
 
  // Actually, we would have to calculate the stack n_iter times.
  // We cheat by simply scaling the results of a single stack calulcation.
- stackCalc(handle->stack, stack_n, handle->mat_c, handle->mat_a, handle->mat_b, mat_m, mat_n, mat_k);
- for(int i=0 ; i < n_c*mat_m*mat_n ; i++)
-     handle->mat_c[i] *= n_iter;
+ stackCalc(h->stack, h->n_stack, h->mat_c, h->mat_a, h->mat_b, mat_m, mat_n, mat_k);
+ for(int i=0 ; i < h->n_c*mat_m*mat_n ; i++)
+     h->mat_c[i] *= n_iter;
 
- sumCPU =  checkSum(handle->mat_c, n_c, mat_m, mat_n);
+ sumCPU =  checkSum(h->mat_c, h->n_c, mat_m, mat_n);
 
- cudaMemcpy(handle->d_mat_a, handle->mat_a, n_a * mat_m * mat_k * sizeof(double), cudaMemcpyHostToDevice);
- cudaMemcpy(handle->d_mat_b, handle->mat_b, n_b * mat_k * mat_n * sizeof(double), cudaMemcpyHostToDevice);
- cudaMemcpy(handle->d_stack, handle->stack, stack_n * 7 * sizeof(int), cudaMemcpyHostToDevice);
+ cudaMemcpy(h->d_mat_a, h->mat_a, h->n_a * mat_m * mat_k * sizeof(double), cudaMemcpyHostToDevice);
+ cudaMemcpy(h->d_mat_b, h->mat_b, h->n_b * mat_k * mat_n * sizeof(double), cudaMemcpyHostToDevice);
+ cudaMemcpy(h->d_stack, h->stack, h->n_stack * 7 * sizeof(int), cudaMemcpyHostToDevice);
  //d_mat_c get's zeroed after warmup run
 
  for(int ikern=0; ikern < nkernels; ikern++){
     //warmup run
-    launchers[ikern](handle->d_stack, stack_n, stream, mat_m, mat_n, mat_k, handle->d_mat_a, handle->d_mat_b, handle->d_mat_c);
-    cudaMemset(handle->d_mat_c, stream, n_c * mat_m * mat_n * sizeof(double));
+    launchers[ikern](h->d_stack, h->n_stack, stream, mat_m, mat_n, mat_k, h->d_mat_a, h->d_mat_b, h->d_mat_c);
+    cudaMemset(h->d_mat_c, stream, h->n_c * mat_m * mat_n * sizeof(double));
 
-    cudaEventRecord(handle->t_start, stream);
+    cudaEventRecord(h->t_start, stream);
 
     for(int i=0; i<n_iter; i++)
-        launchers[ikern](handle->d_stack, stack_n, stream, mat_m, mat_n, mat_k, handle->d_mat_a, handle->d_mat_b, handle->d_mat_c);
+        launchers[ikern](h->d_stack, h->n_stack, stream, mat_m, mat_n, mat_k, h->d_mat_a, h->d_mat_b, h->d_mat_c);
 
-    cudaEventRecord(handle->t_stop, stream);
-    cudaEventSynchronize(handle->t_stop);
-    cudaEventElapsedTime(&t_duration, handle->t_start, handle->t_stop);
+    cudaEventRecord(h->t_stop, stream);
+    cudaEventSynchronize(h->t_stop);
+    cudaEventElapsedTime(&t_duration, h->t_start, h->t_stop);
 
-    cudaMemcpy(handle->mat_c, handle->d_mat_c, n_c * mat_m * mat_n * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h->mat_c, h->d_mat_c, h->n_c * mat_m * mat_n * sizeof(double), cudaMemcpyDeviceToHost);
 
     clean_string(kernel_descr[ikern], descr);
 
-    if(tune_mode)
+    if(h->tune_mode)
         sprintf(msg_prefix, "params %d / %d",ikern+1, nkernels);
 
     cudaError = cudaGetLastError();
@@ -261,15 +271,15 @@ int libcusmm_benchmark(libcusmm_benchmark_t* handle,
       continue;
     }
 
-    sumGPU =  checkSum(handle->mat_c, n_c, mat_m, mat_n);
+    sumGPU =  checkSum(h->mat_c, h->n_c, mat_m, mat_n);
     if(sumGPU != sumCPU){
         printf("%sERROR %s checksum_diff: %g\n",msg_prefix, descr, sumGPU-sumCPU);
         error_counter++;
         continue;
     }
 
-    if(tune_mode){
-       double gflops = ((double) n_iter *stack_n * mat_m * mat_n * mat_k * 2 / (1e9))/(t_duration * 1e-3);
+    if(h->tune_mode){
+       double gflops = ((double) n_iter * h->n_stack * mat_m * mat_n * mat_k * 2 / (1e9))/(t_duration * 1e-3);
        printf("%sOK %s GFlop/s %g\n", msg_prefix, descr, gflops);
        if(best_gflops < gflops){
            best_gflops = gflops;
@@ -280,7 +290,7 @@ int libcusmm_benchmark(libcusmm_benchmark_t* handle,
     }
  }
 
- if(tune_mode){
+ if(h->tune_mode){
     printf("\n\n");
     if(best_kernel > -1){
         printf("WINNER: %d %s , # %g GFlop/s \n", best_kernel+1, kernel_descr[best_kernel], best_gflops);

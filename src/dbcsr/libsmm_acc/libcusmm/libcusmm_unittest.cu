@@ -32,7 +32,7 @@ int main(int argc, char** argv){
     }
 
     libcusmm_benchmark_t* handle;
-    libcusmm_benchmark_init(&handle, max_m, max_n, max_k);
+    libcusmm_benchmark_init(&handle, false, max_m, max_n, max_k);
 
     int errors = 0;
     for(int i=0; i<n_blocksizes; i++){
@@ -40,7 +40,7 @@ int main(int argc, char** argv){
         int n = blocksizes[3*i + 1];
         int k = blocksizes[3*i + 2];
         sprintf(buffer, "%d x %d x %d", m, n, k);
-        errors += libcusmm_benchmark(handle, m, n, k, 1, &launcher, kernel_descr, false);
+        errors += libcusmm_benchmark(handle, m, n, k, 1, &launcher, kernel_descr);
     }
     libcusmm_benchmark_finalize(handle);
 
