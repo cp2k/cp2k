@@ -1,0 +1,189 @@
+&FORCE_EVAL
+  METHOD QMMM
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    &MGRID
+      COMMENSURATE
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-06
+      MAX_SCF 5
+      SCF_GUESS ATOMIC
+      &OT
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      &SHELL Cl
+        CORE_CHARGE 1.485
+        SHELL_CHARGE -2.485
+        MASS_FRACTION 0.1
+        SPRING [eV*angstrom^-2] 29.38
+      &END SHELL
+      &CHARGE
+         ATOM K
+         CHARGE 1.0
+      &END CHARGE 
+      &CHARGE
+         ATOM KZ
+         CHARGE 0.0
+      &END CHARGE
+      &CHARGE
+         ATOM ClZ
+         CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &WILLIAMS
+          atoms K   Cl
+          A [eV] 4117.9
+          B [angstrom^-1] 3.2808
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 5.0
+        &END WILLIAMS
+	&WILLIAMS
+          atoms K   ClZ
+          A [eV] 4117.9
+          B [angstrom^-1] 3.2808
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 5.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms KZ  Cl
+          A [eV] 4117.9
+          B [angstrom^-1] 3.2808
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 5.0
+        &END WILLIAMS
+	&WILLIAMS
+          atoms KZ  ClZ
+          A [eV] 4117.9
+          B [angstrom^-1] 3.2808
+          C [eV*angstrom^6] 0.0
+          RCUT [angstrom] 5.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms Cl  Cl
+          A [eV] 1227.2
+          B [angstrom^-1] 3.1114
+          C [eV*angstrom^6] 124.0
+          RCUT [angstrom] 10.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms Cl  ClZ
+          A [eV] 1227.2
+          B [angstrom^-1] 3.1114
+          C [eV*angstrom^6] 124.0
+          RCUT [angstrom] 10.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms ClZ ClZ
+          A [eV] 1227.2
+          B [angstrom^-1] 3.1114
+          C [eV*angstrom^6] 124.0
+          RCUT [angstrom] 10.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms K   K  
+          A [eV] 3796.9
+          B [angstrom^-1] 3.84172
+          C [eV*angstrom^6] 124.0
+          RCUT [angstrom] 10.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms K   KZ
+          A [eV] 3796.9
+          B [angstrom^-1] 3.84172
+          C [eV*angstrom^6] 124.0
+          RCUT [angstrom] 10.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms KZ   KZ
+          A [eV] 3796.9
+          B [angstrom^-1] 3.84172
+          C [eV*angstrom^6] 124.0
+          RCUT [angstrom] 10.0
+        &END WILLIAMS
+      &END NONBONDED
+      #IGNORE_MISSING_CRITICAL_PARAMS T
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX  40
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &EWALD_INFO
+      &END
+    &END
+  &END MM
+  &QMMM
+    &CELL
+      ABC 6.0 6.0 6.0
+      PERIODIC XYZ
+    &END CELL
+    &PERIODIC
+    &END
+    CENTER_TYPE PBC_AWARE_MAX_MINUS_MIN
+    CENTER NEVER
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    USE_GEEP_LIB 6
+    &MM_KIND K
+      RADIUS 1.52
+    &END MM_KIND
+    &MM_KIND Cl
+      RADIUS 1.67
+    &END MM_KIND
+    &QM_KIND K
+      MM_INDEX  5 6 7 8
+    &END QM_KIND
+    &QM_KIND Cl
+      MM_INDEX 1 2 3 4
+    &END QM_KIND
+  &END QMMM
+   &SUBSYS
+     &CELL
+       ABC 1.2430769273802913E+01  1.2430769273802913E+01 1.2430769273802913E+01
+     &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME KCl_64.xyz
+      COORD_FILE_FORMAT XYZ
+    &END
+    &KIND K
+      ELEMENT K
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q9
+    &END KIND
+    &KIND Cl
+      ELEMENT Cl
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q7
+    &END
+    &KIND KZ
+      ELEMENT K
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE-q9
+    &END KIND
+    &KIND ClZ
+      ELEMENT Cl
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q7
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FLUSH_SHOULD_FLUSH
+  PRINT_LEVEL MEDIUM
+  PROJECT KCl
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
