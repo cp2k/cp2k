@@ -5,6 +5,8 @@
 <xsl:output doctype-public="html" doctype-system="html" indent="yes" method="html" name="html"/>
 
 <xsl:param name="add_edit_links" select="'no'"/>
+<xsl:param name="version" select="'trunk'"/>
+<xsl:param name="release_path" select="'/trunk'"/>
 
 <xsl:template match="/CP2K_INPUT">
  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -21,7 +23,7 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
     and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
@@ -224,7 +226,7 @@
    </td>
    <td align="center">
     Input reference of
-    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
    </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
@@ -254,8 +256,8 @@
  <form method="get" action="http://www.google.com/search">
   <input type="text" name="q" maxlength="255"/>
   <input type="submit" value="Search this manual (Google)"/>
-  <input type="hidden" name="domains" value="http://manual.cp2k.org/trunk/"/>
-  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/trunk/" checked="checked"/>
+  <input type="hidden" name="domains" value="http://manual.cp2k.org/{$version}/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/{$version}/" checked="checked"/>
  </form>
 </xsl:template>
 
