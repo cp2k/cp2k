@@ -5,6 +5,8 @@
 <xsl:output doctype-public="html" doctype-system="html" indent="yes" method="html" name="html"/>
 
 <xsl:param name="add_edit_links" select="'no'"/>
+<xsl:param name="version" select="'trunk'"/>
+<xsl:param name="release_path" select="'/trunk'"/>
 
 <xsl:template match="/CP2K_INPUT">
  <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
@@ -21,7 +23,7 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="http://sourceforge.net/p/cp2k/code/HEAD/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
     and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
@@ -131,7 +133,7 @@
      </ul>
      <ul class="none">
       <li>
-       This section cannot be repeated and can be optional.
+       This section cannot be repeated.
       </li>
      </ul>
      <ul class="none">
@@ -212,7 +214,7 @@
    ul.noscript {display: none}
   </style>
  </noscript>
- <script language="javascript" type="text/javascript" src="./toggle_folding.js"></script>
+ <script language="javascript" type="text/javascript" src="{$root}toggle_folding.js"></script>
 </xsl:template>
 
 <xsl:template name="header">
@@ -224,7 +226,7 @@
    </td>
    <td align="center">
     Input reference of
-    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree/trunk/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="http://sourceforge.net/p/cp2k/code/HEAD/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
    </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
@@ -254,8 +256,8 @@
  <form method="get" action="http://www.google.com/search">
   <input type="text" name="q" maxlength="255"/>
   <input type="submit" value="Search this manual (Google)"/>
-  <input type="hidden" name="domains" value="http://manual.cp2k.org/trunk/"/>
-  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/trunk/" checked="checked"/>
+  <input type="hidden" name="domains" value="http://manual.cp2k.org/{$version}/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/{$version}/" checked="checked"/>
  </form>
 </xsl:template>
 
@@ -314,8 +316,7 @@
      </ul>
      <ul class="none">
       <li>
-       This section can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
-       and can<xsl:if test="@required = 'yes'">not</xsl:if> be optional.
+       This section can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated.
       </li>
      </ul>
      <xsl:if test="count(REFERENCE) > 0">
@@ -437,7 +438,7 @@
    <xsl:sort select="NAME[@type='default']"/>
    <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
     <li>
-     <a href="#desc_{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+     <a href="#{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
     </li>
    </xsl:if>
   </xsl:for-each>
@@ -458,7 +459,8 @@
      <td class="l">
       <ul class="disc">
        <li>
-        <a href="#list_{string(NAME[@type='default'])}" id="desc_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+        <a id="desc_{string(NAME[@type='default'])}"></a>
+        <a href="#list_{string(NAME[@type='default'])}" id="{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
        </li>
       </ul>
      </td>
@@ -523,14 +525,7 @@
      <td class="l">
      </td>
      <td class="r">
-      This
-      <xsl:if test="@required = 'yes'">
-       required
-      </xsl:if>
-      <xsl:if test="@required = 'no'">
-       optional
-      </xsl:if>
-      keyword can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
+      This keyword can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
       and it expects
       <xsl:if test="DATA_TYPE/N_VAR = -1">
        a list of <xsl:value-of select="DATA_TYPE/@kind"/>s.

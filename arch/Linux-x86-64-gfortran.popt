@@ -20,7 +20,7 @@ FCFLAGS    = $(DFLAGS) -O2 -ffast-math -ffree-form -ffree-line-length-none\
              -mtune=native\
              -I$(ACML_INC) -I$(FFTW_INC) -I$(LIBINT_INC) -I$(LIBXC_INC)
 LDFLAGS    = $(FCFLAGS) -static-libgfortran
-LIBS       = $(LIBPATH)/libscalapack-gnu.a\
+LIBS       = $(MPI_LIBRARY_PATH)/libscalapack-gnu.a\
              $(ACML_LIB)/libacml.a\
              $(FFTW_LIB)/libfftw3.a\
              $(LIBXC_LIB)/libxc.a\
