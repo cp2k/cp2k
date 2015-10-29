@@ -629,25 +629,25 @@ CONTAINS
                                kind_number=kind_number)
           IF (.NOT. rmin_is_set(kind_number)) THEN
              n_rmin_missing = n_rmin_missing + 1
-             missing_rmin = missing_rmin // symbol // ", "
+             missing_rmin = TRIM(missing_rmin)//" "//TRIM(symbol)//","
           END IF
           IF (.NOT. rmax_is_set(kind_number)) THEN
              n_rmax_missing = n_rmax_missing + 1
-             missing_rmax = missing_rmax // symbol // ", "
+             missing_rmax = TRIM(missing_rmax)//" "//TRIM(symbol)//","
           END IF
        END DO
        IF (n_rmin_missing > 0) THEN
           CALL cp_warn(__LOCATION__, &
                        "RMIN for the following elements are missing: "//&
                        TRIM(missing_rmin)//&
-                       "please set these values manually using "//&
+                       " please set these values manually using "//&
                        "RMIN_KIND in SPHERE_SAMPLING section")
        END IF
        IF (n_rmax_missing > 0) THEN
           CALL cp_warn(__LOCATION__, &
                        "RMAX for the following elements are missing: "//&
                        TRIM(missing_rmax)//&
-                       "please set these values manually using "//&
+                       " please set these values manually using "//&
                        "RMAX_KIND in SPHERE_SAMPLING section")
        END IF
        IF (n_rmin_missing > 0 .OR. &
