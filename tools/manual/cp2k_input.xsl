@@ -133,7 +133,7 @@
      </ul>
      <ul class="none">
       <li>
-       This section cannot be repeated and can be optional.
+       This section cannot be repeated.
       </li>
      </ul>
      <ul class="none">
@@ -316,8 +316,7 @@
      </ul>
      <ul class="none">
       <li>
-       This section can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
-       and can<xsl:if test="@required = 'yes'">not</xsl:if> be optional.
+       This section can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated.
       </li>
      </ul>
      <xsl:if test="count(REFERENCE) > 0">
@@ -439,7 +438,7 @@
    <xsl:sort select="NAME[@type='default']"/>
    <xsl:if test="not(starts-with(NAME[@type='default'],'__CONTROL'))">
     <li>
-     <a href="#desc_{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+     <a href="#{string(NAME[@type='default'])}" id="list_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
     </li>
    </xsl:if>
   </xsl:for-each>
@@ -460,7 +459,8 @@
      <td class="l">
       <ul class="disc">
        <li>
-        <a href="#list_{string(NAME[@type='default'])}" id="desc_{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
+        <a id="desc_{string(NAME[@type='default'])}"></a>
+        <a href="#list_{string(NAME[@type='default'])}" id="{string(NAME[@type='default'])}"><xsl:value-of select="NAME[@type='default']"/></a>
        </li>
       </ul>
      </td>
@@ -525,14 +525,7 @@
      <td class="l">
      </td>
      <td class="r">
-      This
-      <xsl:if test="@required = 'yes'">
-       required
-      </xsl:if>
-      <xsl:if test="@required = 'no'">
-       optional
-      </xsl:if>
-      keyword can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
+      This keyword can<xsl:if test="@repeats = 'no'">not</xsl:if> be repeated
       and it expects
       <xsl:if test="DATA_TYPE/N_VAR = -1">
        a list of <xsl:value-of select="DATA_TYPE/@kind"/>s.
