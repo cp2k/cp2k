@@ -68,7 +68,7 @@ CONTAINS
          "system (i.e. isolated Poisson solver and big, nonperiodic cells), "//&
          "the nonperiodic RESP routines are automatically used. All restraints "//&
          "are harmonic!",&
-         n_keywords=2, n_subsections=2, repeats=.FALSE., citations=(/Golze2015/)) 
+         n_keywords=2, n_subsections=2, repeats=.FALSE., citations=(/Golze2015/))
 
     NULLIFY(keyword, subsection)
 
@@ -125,7 +125,7 @@ CONTAINS
                      "atomic charges without the need to define any "//&
                      "restraints. Note that by switching on this option, "//&
                      "RESTRAIN_HEAVIES_TO_ZERO will be switched off "//&
-                     "automatically.",&
+                     "and SPHERE_SAMPLING is turned on automatically.",&
          usage="USE_REPEAT_METHOD",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          citations=(/Campana2009/))
@@ -185,7 +185,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="EQUAL_CHARGES",&
          description="All atoms in ATOM_LIST are constrained to have the "//&
-         "same charges. When using this keyword, TARGET and ATOM_COEF do "//& 
+         "same charges. When using this keyword, TARGET and ATOM_COEF do "//&
          "not need to be set and will be ignored. Instead of using this "//&
          "keyword, the constraint section could be repeated.",&
          usage="EQUAL_CHARGES",&
@@ -267,8 +267,8 @@ CONTAINS
   END SUBROUTINE create_restraint_section
 
 ! *****************************************************************************
-!> \brief specifies the parameter for sampling the resp fitting points for 
-!>        molecular structures; sampling in spheres around the atoms 
+!> \brief specifies the parameter for sampling the resp fitting points for
+!>        molecular structures; sampling in spheres around the atoms
 !> \param section the section to create
 !> \author Dorothea Golze
 ! *****************************************************************************
@@ -412,8 +412,8 @@ CONTAINS
   END SUBROUTINE create_sphere_sampling_section
 
 ! *****************************************************************************
-!> \brief specifies the parameter for sampling the resp fitting points for 
-!>        slab-like periodic systems, i.e. systems that involve surfaces 
+!> \brief specifies the parameter for sampling the resp fitting points for
+!>        slab-like periodic systems, i.e. systems that involve surfaces
 !> \param section the section to create
 !> \author Dorothea Golze
 ! *****************************************************************************
@@ -486,7 +486,7 @@ CONTAINS
   END SUBROUTINE create_slab_sampling_section
 
 ! *****************************************************************************
-!> \brief create the resp print section 
+!> \brief create the resp print section
 !> \param section the section to create
 !> \author Dorothea Golze
 ! *****************************************************************************

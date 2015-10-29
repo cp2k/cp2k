@@ -1522,19 +1522,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'print_resp_parameter_info', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, output_unit
+    CHARACTER(len=2)                         :: symbol
+    INTEGER                                  :: handle, i, ikind, &
+                                                kind_number, nkinds, &
+                                                output_unit
     REAL(KIND=dp)                            :: conv, eta_conv
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input, resp_section
 
     CALL timeset(routineN,handle)
     NULLIFY(logger,input,resp_section)
 
-    CALL get_qs_env(qs_env, input=input)
+    CALL get_qs_env(qs_env, &
+                    input=input, &
+                    atomic_kind_set=atomic_kind_set)
     resp_section => section_vals_get_subs_vals(input,"PROPERTIES%RESP")
     logger => cp_get_default_logger()
     output_unit=cp_print_key_unit_nr(logger,resp_section,"PRINT%PROGRAM_RUN_INFO",&
                                        extension=".resp")
+    nkinds = SIZE(atomic_kind_set)
 
     conv=cp_unit_from_cp2k(1.0_dp,"angstrom")
     IF(.NOT.my_per==use_perd_none) THEN
@@ -1546,17 +1554,17 @@ CONTAINS
      IF(resp_env%use_repeat_method) THEN
       WRITE(output_unit,'(T3,A)') &
            "Fit the variance of the potential (REPEAT method)."
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "+----------------------------------------------------------------------+"
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "| Due to using REPEAT method, the following keywords has been changed: |"
-      WRITE(output_unit,'(T3,A,l1,T74,A)') &
+      WRITE(output_unit,'(T6,A,l1,T77,A)') &
            "| * RESTRAIN_HEAVIES_TO_ZERO = ", resp_env%rheavies, "|"
-      WRITE(output_unit,'(T3,A,l1,T74,A)') &
+      WRITE(output_unit,'(T6,A,l1,T77,A)') &
            "| * SPHERE_SAMPLING = ", resp_env%molecular_sys, "|"
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "| * Using UFF vdW radii table for SPHERE_SAMPLING                      |"
-      WRITE(output_unit,'(T3,A)') &
+      WRITE(output_unit,'(T6,A)') &
            "+----------------------------------------------------------------------+"
      ENDIF
      IF(.NOT.resp_env%equal_charges) THEN
@@ -1577,14 +1585,32 @@ CONTAINS
      ENDIF
      WRITE(output_unit,'(T3,A,T66,3I5)') "Stride: ",resp_env%stride
      IF(resp_env%molecular_sys) THEN
+        WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
         WRITE(output_unit,'(T3,A)') "Using sphere sampling"
-       IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))&
-        WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin_kind(1)*conv
-       IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))&
-        WRITE(output_unit,'(T3,A,T71,F10.5)')  "Rmax [angstrom]: ",resp_env%rmax_kind(1)*conv
+        WRITE(output_unit,'(T3,A,T46,A,T66,A)') &
+             "Element", "RMIN [angstrom]", "RMAX [angstrom]"
+        DO ikind = 1, nkinds
+           CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), &
+                                kind_number=kind_number, &
+                                element_symbol=symbol)
+           WRITE(output_unit,'(T3,A,T51,F10.5,T71,F10.5)') &
+                symbol, &
+                resp_env%rmin_kind(kind_number)*conv, &
+                resp_env%rmax_kind(kind_number)*conv
+        END DO
+       ! IF(ALL(resp_env%rmin_kind==resp_env%rmin_kind(1)))&
+       !  WRITE(output_unit,'(T3,A,T71,F10.5)') "Rmin [angstrom]: ",resp_env%rmin_kind(1)*conv
+       ! IF(ALL(resp_env%rmax_kind==resp_env%rmax_kind(1)))&
+       !  WRITE(output_unit,'(T3,A,T71,F10.5)')  "Rmax [angstrom]: ",resp_env%rmax_kind(1)*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box min [angstrom]: ",resp_env%box_low(1:3)*conv
        WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box max [angstrom]: ",resp_env%box_hi(1:3)*conv
+       WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
      ELSE
+       WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
+       WRITE(output_unit,'(T3,A)') "Using slab sampling"
        WRITE(output_unit,'(2X,A,F10.5)')  "Index of atoms defining the surface: "
        DO i=1, SIZE(rep_sys)
         IF(i>1.AND.ALL(rep_sys(i)%p_resp%atom_surf_list==rep_sys(1)%p_resp%atom_surf_list)) EXIT
@@ -1601,6 +1627,8 @@ CONTAINS
         WRITE(output_unit,'(T3,A,T71,F10.5)')  "Length of sampling box above each"//&
                            " surface atom [angstrom]: ",rep_sys(i)%p_resp%length*conv
        ENDDO
+       WRITE(output_unit,'(T3,A)') &
+             "------------------------------------------------------------------------------"
      ENDIF
      IF(.NOT.my_per==use_perd_none) THEN
        WRITE(output_unit,'(T3,A,T71,F10.5)')  "Width of Gaussian charge"//&
