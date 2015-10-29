@@ -73,7 +73,8 @@ MODULE bibliography
        Rayson2009, Grimme2011, Fattebert2002, Andreussi2012,           &
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
-       Luber2014, Berghold2011, DelBen2015b, Campana2009 
+       Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
+       Schiffmann2015
 
 CONTAINS
 
@@ -3075,6 +3076,30 @@ CONTAINS
           "DI 10.1021/ct9003405",&
           "ER"),&
           DOI="10.1021/ct9003405")
+
+     CALL add_reference(key=Schiffmann2015, ISI_record=s2a(&
+          "PT J",&
+          "AU Schiffmann, F",&
+          "   VandeVondele, J",&
+          "AF Schiffmann, Florian",&
+          "   VandeVondele, Joost",&
+          "TI Efficient preconditioning of the electronic structure problem in large",&
+          "   scale ab initio molecular dynamics simulations",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "RI VandeVondele, Joost/L-6420-2013",&
+          "OI VandeVondele, Joost/0000-0002-0902-5111",&
+          "SN 0021-9606",&
+          "EI 1089-7690",&
+          "PD JUN 28",&
+          "PY 2015",&
+          "VL 142",&
+          "IS 24",&
+          "AR 244117",&
+          "DI 10.1063/1.4922988",&
+          "UT WOS:000357615100021",&
+          "PM 26133420",&
+          "ER"),&
+          DOI="10.1063/1.4922988")
 
   END SUBROUTINE add_all_references
 

@@ -11,6 +11,8 @@
 !> \author Joost VandeVondele (09.2002)
 ! *****************************************************************************
 MODULE preconditioner_solvers
+  USE bibliography,                    ONLY: Schiffmann2015,&
+                                             cite_reference
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_arnoldi_ev, cp_dbcsr_col_block_sizes, cp_dbcsr_create, &
@@ -242,6 +244,7 @@ CONTAINS
     ! uses an update of the full inverse (needs to be computed the first time)
     ! make sure preconditioner_env is not destroyed in between
 
+    CALL cite_reference(Schiffmann2015)
 
     ! Maybe I gonna add a fm Hotelling, ... for now the same as above make sure we are dbcsr
     CALL transfer_fm_to_dbcsr(preconditioner_env%fm, preconditioner_env%sparse_matrix, &
