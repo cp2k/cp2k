@@ -5,5 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 # QM/MM with shell model
 input_rigid.inp                   11     5.0E-12    -178.836492438299302
-input_shell.inp                   11     5.0E-12    -178.836492441821463
+input_shell.inp                  11     1e-11           -178.836492441821463
 #EOF
