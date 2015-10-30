@@ -22,6 +22,7 @@ skip_dirs[1]=""
 ndirstorestrict=0
 restrict_dirs[1]=""
 default_err_tolerance="1.0E-14"
+mpiexec="mpiexec"
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -43,6 +44,10 @@ while [ $# -ge 1 ]; do
  -cp2kdir)
   cp2k_dir=$2
   shift ;;
+ # MPI executable
+ -mpiexec)
+  mpiexec=$2 
+  shift;;
  # MPI ranks
  -mpiranks)
   numprocs=$2 
@@ -109,6 +114,7 @@ while [ $# -ge 1 ]; do
   echo "  -h, -help, --help         print this help screen."
   echo "  -c, -config FILE          read any of the following configuration switches from FILE."
   echo "  -cp2kdir PATH             location of cp2k source tree relative to current working directory."
+  echo "  -mpiexec EXE              name of the executable to run mpi-ranks. Default: mpiexec."
   echo ""
   echo "Svn:"
   echo "  -svndate DATE             checkout svn revision of given DATE. Default: use trunk."
@@ -204,7 +210,7 @@ else
 fi
 
 if [[ $numprocs > 1 ]] ; then
-    cp2k_run_prefix=${cp2k_run_prefix:-"mpiexec -np ${numprocs} ${valgrindstring}"}
+    cp2k_run_prefix=${cp2k_run_prefix:-"${mpiexec} -np ${numprocs} ${valgrindstring}"}
 else
     cp2k_run_prefix=${cp2k_run_prefix:-"${valgrindstring}"}
 fi
@@ -265,7 +271,7 @@ printf "Summary of the regression tester run from ${datum_short} using ${dir_tri
 ###################################################################################
 function end_test() {
 full_time_t2=`date +%s`
-full_timing_all=`echo "1+(${full_time_t2})-(${full_time_t1})" | bc -l`
+full_timing_all=$((1+full_time_t2-full_time_t1))
 # Remove lockfile
 if [[ -n $2 ]]; then
    [[ -f $2 ]] && rm $2
@@ -522,7 +528,7 @@ function run_regtest_dir() {
   done
 
   t2=`date +%s`
-  timing_all=`echo "1+($t2)-($t1)" | bc -l`
+  timing_all=$((1+t2-t1))
   printf "%s %0.2f %s\n" "<<< ${dir_out}/tests/${dir} (${idir} of ${ndir}) done in" ${timing_all} "sec"  >> ${dir_out}/status/REGTEST_TASK_TESTS-$task
   echo "${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests}" > ${dir_out}/status/REGTEST_TASK_RESULT-$task
   cat ${dir_out}/status/REGTEST_TASK_TESTS-$task
@@ -556,7 +562,7 @@ function run_unittest() {
   ( ulimit -t ${job_max_time} ; ${testcmd} &> ${output_file} ) >& /dev/null
   (( cp2k_exit_status = $? ))
   t2=`date +%s`
-  timing=`echo "1+($t2)-($t1)" | bc -l`
+  timing=$((1+t2-t1))
 
   # check if this was a valgrinded run, and adjust exit status as needed
   grep -a "^==[0-9][0-9]*== ERROR SUMMARY" ${output_file} &> /dev/null
