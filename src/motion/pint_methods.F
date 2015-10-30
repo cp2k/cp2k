@@ -549,6 +549,7 @@ CONTAINS
         DEALLOCATE(pint_env%uf_h)
         DEALLOCATE(pint_env%rtmp_ndim)
         DEALLOCATE(pint_env%rtmp_natom)
+        DEALLOCATE(pint_env%propagator)
 
         IF(pint_env%pimd_thermostat==thermostat_nose) THEN
           DEALLOCATE(pint_env%tx)
