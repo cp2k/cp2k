@@ -14,7 +14,6 @@
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
 MODULE transport
-
   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
                                              C_DOUBLE,&
                                              C_F_PROCPOINTER,&
@@ -22,6 +21,8 @@ MODULE transport
                                              C_LOC,&
                                              C_NULL_PTR,&
                                              C_PTR
+  USE bibliography,                    ONLY: Bruck2014,&
+                                             cite_reference
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
   USE cp_dbcsr_interface,              ONLY: &
        cp_convert_csr_to_dbcsr, cp_convert_dbcsr_to_csr, cp_csr_create, &
@@ -181,6 +182,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)  
+
+    CALL cite_reference(Bruck2014)
 
     logger => cp_get_default_logger()
     IF (logger%para_env%mepos==logger%para_env%source) THEN

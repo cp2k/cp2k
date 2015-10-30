@@ -12,7 +12,7 @@
 !> \author Hossein Bani-Hashemian
 ! *****************************************************************************
 MODULE input_cp2k_transport
-
+  USE bibliography,                    ONLY: Bruck2014
   USE cp_dbcsr_interface,              ONLY: csr_dbcsr_blkrow_dist,&
                                              csr_eqrow_ceil_dist,&
                                              csr_eqrow_floor_dist
@@ -55,6 +55,7 @@ CONTAINS
     CALL section_create(section,"TRANSPORT",&
          description="Specifies the parameters for transport, sets parameters for the OMEN code, "//&
                      "see also http://www.nano-tcad.ethz.ch/ ",&
+         citations=(/Bruck2014/),&
          n_keywords=19, n_subsections=0, repeats=.FALSE.)
 
     NULLIFY (keyword)
