@@ -25,8 +25,10 @@ MODULE input_cp2k_motion
        default_minimization_method_id, default_ts_method_id, do_mc_gemc_npt, &
        do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, &
        fmt_id_xyz, gaussian, helium_cell_shape_cube, &
-       helium_cell_shape_octahedron, ls_2pnt, ls_3pnt, ls_fit, ls_gold, &
-       ls_none, numerical, transformation_normal, transformation_stage
+       helium_cell_shape_octahedron, integrate_exact, integrate_numeric, &
+       ls_2pnt, ls_3pnt, ls_fit, ls_gold, ls_none, numerical, &
+       propagator_pimd, propagator_rpmd, transformation_normal, &
+       transformation_stage
   USE input_cp2k_constraints,          ONLY: create_constraint_section
   USE input_cp2k_free_energy,          ONLY: create_fe_section
   USE input_cp2k_md,                   ONLY: create_md_section
@@ -1544,7 +1546,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PINT",&
          description="The section that controls a path integral run",&
-         n_keywords=11, n_subsections=8, repeats=.FALSE.)
+         n_keywords=13, n_subsections=8, repeats=.FALSE.)
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="p",&
@@ -1593,17 +1595,35 @@ CONTAINS
          usage="dt 1.0",unit_str="fs")
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="HARM_INT",&
+         description="integrator scheme for integrating the harmonic bead springs.",&
+         usage="HARM_INT (NUMERIC|EXACT)",&
+         default_i_val=integrate_numeric,&
+         enum_c_vals=s2a("NUMERIC","EXACT"),&
+         enum_i_vals=(/integrate_numeric,integrate_exact/))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
     CALL keyword_create(keyword, name="nrespa",&
          description="number of respa steps for the bead for each md step",&
          repeats=.FALSE., default_i_val=5)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="transformation",&
          description="Specifies the coordinate transformation to use",&
          usage="TRANSFORMATION (NORMAL|STAGE)",&
          default_i_val=transformation_normal,&
          enum_c_vals=s2a("NORMAL","STAGE"),&
          enum_i_vals=(/transformation_normal,transformation_stage/))
+
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="propagator",&
+         description="Specifies the real time propagator to use",&
+         usage="PROPAGATOR (PIMD|RPMD)",&
+         default_i_val=propagator_pimd,&
+         enum_c_vals=s2a("PIMD","RPMD"),&
+         enum_i_vals=(/propagator_pimd,propagator_rpmd/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
     CALL keyword_create(keyword, name="FIX_CENTROID_POS",&

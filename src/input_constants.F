@@ -272,6 +272,13 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: transformation_normal=1,&
                                               transformation_stage=2
 
+  ! pint propagator mode
+  INTEGER, PARAMETER, PUBLIC               :: propagator_pimd=1,&
+                                              propagator_rpmd=2
+  ! pint propagator mode
+  INTEGER, PARAMETER, PUBLIC               :: integrate_numeric=1,&
+                                              integrate_exact=2
+
   ! helium pbc unit cell shapes
   INTEGER, PARAMETER, PUBLIC               :: helium_cell_shape_none=0,&
                                               helium_cell_shape_cube=1,&

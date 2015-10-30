@@ -10,8 +10,12 @@
 !>         2006-02 created
 !>         2006-11 modified so it might actually work [hforbert]
 !>         2009-04-07 moved from pint_types module to a separate file [lwalewski]
+!>         2015-10 added alternative normal mode transformation needed by RPMD
+!>                 [Felix Uhl
 ! *****************************************************************************
 MODULE pint_normalmode
+  USE input_constants,                 ONLY: propagator_pimd,&
+                                             propagator_rpmd
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -44,24 +48,27 @@ CONTAINS
 !> \param normalmode_section ...
 !> \param p ...
 !> \param kT ...
+!> \param propagator ...
 !> \author Harald Forbert
 ! *****************************************************************************
-  SUBROUTINE normalmode_env_create(normalmode_env,normalmode_section,p,kT)
+  SUBROUTINE normalmode_env_create(normalmode_env,normalmode_section,p,kT,propagator)
     TYPE(normalmode_env_type), POINTER       :: normalmode_env
     TYPE(section_vals_type), POINTER         :: normalmode_section
     INTEGER, INTENT(in)                      :: p
     REAL(kind=dp), INTENT(in)                :: kT
+    INTEGER, INTENT(in)                      :: propagator
 
     CHARACTER(len=*), PARAMETER :: routineN = 'normalmode_env_create', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, k, li
-    REAL(kind=dp), DIMENSION(p)              :: lambda
+    REAL(kind=dp)                            :: invsqrtp, pip, sqrt2p, twopip
 
     CPASSERT(.NOT.ASSOCIATED(normalmode_env))
     ALLOCATE(normalmode_env)
     ALLOCATE(normalmode_env%x2u(p,p))
     ALLOCATE(normalmode_env%u2x(p,p))
+    ALLOCATE(normalmode_env%lambda(p))
     last_normalmode_id=last_normalmode_id+1
     normalmode_env%id_nr=last_normalmode_id
     normalmode_env%ref_count=1
@@ -82,31 +89,73 @@ CONTAINS
        normalmode_env%Q_bead = -normalmode_env%Q_bead/(kT*p)
     END IF
 
-    normalmode_env%harm = p*kT*kT/normalmode_env%modefactor
+    !Use different normal mode transformations depending on the propagator
+    IF (propagator == propagator_pimd) THEN
+       normalmode_env%harm = p*kT*kT/normalmode_env%modefactor
 
-    ! set up the transformation matrices
-    DO i = 1, p
-       lambda(i) = 2.0_dp*(1.0_dp - COS(pi*(i/2)*2.0_dp/p))
-       DO j = 1, p
-          k = ((i/2)*(j-1))/p
-          k = (i/2)*(j-1)-k*p
-          li = 2*(i-2*(i/2))*p-p
-          normalmode_env%u2x(j,i)=SQRT(2.0_dp/p)*SIN(twopi*(k+0.125_dp*li)/p)
+       ! set up the transformation matrices
+       DO i = 1, p
+          normalmode_env%lambda(i) = 2.0_dp*(1.0_dp - COS(pi*(i/2)*2.0_dp/p))
+          DO j = 1, p
+             k = ((i/2)*(j-1))/p
+             k = (i/2)*(j-1)-k*p
+             li = 2*(i-2*(i/2))*p-p
+             normalmode_env%u2x(j,i)=SQRT(2.0_dp/p)*SIN(twopi*(k+0.125_dp*li)/p)
+          END DO
        END DO
-    END DO
-    lambda(1) = 1.0_dp/(p*normalmode_env%modefactor)
-    DO i = 1, p
-       DO j = 1, p
-          normalmode_env%x2u(i,j)=SQRT(lambda(i)*normalmode_env%modefactor)*&
-                                  normalmode_env%u2x(j,i)
+       normalmode_env%lambda(1) = 1.0_dp/(p*normalmode_env%modefactor)
+       DO i = 1, p
+          DO j = 1, p
+             normalmode_env%x2u(i,j)=SQRT(normalmode_env%lambda(i)*&
+                                     normalmode_env%modefactor)*&
+                                     normalmode_env%u2x(j,i)
+          END DO
        END DO
-    END DO
-    DO i = 1, p
-       DO j = 1, p
-          normalmode_env%u2x(i,j)=normalmode_env%u2x(i,j)/ &
-                                  SQRT(lambda(j)*normalmode_env%modefactor)
+       DO i = 1, p
+          DO j = 1, p
+             normalmode_env%u2x(i,j)=normalmode_env%u2x(i,j)/ &
+                                     SQRT(normalmode_env%lambda(j)*&
+                                     normalmode_env%modefactor)
+          END DO
        END DO
-    END DO
+       normalmode_env%lambda(:)=normalmode_env%harm
+    ELSE IF (propagator == propagator_rpmd) THEN
+        normalmode_env%harm = kT/normalmode_env%modefactor
+        sqrt2p = SQRT(2.0_dp/REAL(p,dp))
+        twopip = twopi/REAL(p,dp)
+        pip    = pi/REAL(p,dp)
+        invsqrtp = 1.0_dp/SQRT(REAL(p,dp))
+        normalmode_env%x2u(:,:) = 0.0_dp
+        normalmode_env%x2u(1,:) = invsqrtp
+        DO j = 1, p
+           DO i = 2, p/2+1
+              normalmode_env%x2u(i,j) = sqrt2p * COS(twopip*(i-1)*(j-1))
+           END DO
+           DO i = p/2+2, p
+              normalmode_env%x2u(i,j) = sqrt2p * SIN(twopip*(i-1)*(j-1))
+           END DO
+        END DO
+        IF (MOD(p,2) == 0) THEN
+           DO i = 1, p-1, 2
+              normalmode_env%x2u(p/2+1,i) = invsqrtp
+              normalmode_env%x2u(p/2+1,i+1) = -1.0_dp*invsqrtp
+           END DO
+        END IF
+        
+        normalmode_env%u2x = TRANSPOSE(normalmode_env%x2u)
+
+        ! Setting up propagator frequencies for rpmd
+        normalmode_env%lambda(1) = 0.0_dp
+        DO i = 2, p
+           normalmode_env%lambda(i) = 2.0_dp*normalmode_env%harm * SIN((i-1)*pip)
+           normalmode_env%lambda(i) = normalmode_env%lambda(i) * normalmode_env%lambda(i)
+        END DO
+        normalmode_env%harm = kT*kT
+     ELSE
+        CPABORT("UNKNOWN PROPAGATOR FOR PINT SELECTED")
+     END IF
+
+     RETURN
   END SUBROUTINE normalmode_env_create
 
 ! ***************************************************************************
@@ -127,6 +176,7 @@ CONTAINS
       IF (normalmode_env%ref_count==0) THEN
         DEALLOCATE(normalmode_env%x2u)
         DEALLOCATE(normalmode_env%u2x)
+        DEALLOCATE(normalmode_env%lambda)
         DEALLOCATE(normalmode_env)
       END IF
     END IF
@@ -309,7 +359,7 @@ CONTAINS
 
       uf_h(1,idim) = 0.0_dp
       DO ibead = 2, normalmode_env%p
-         f = - mass_beads(ibead,idim)*normalmode_env%harm*ux(ibead,idim)
+         f = - mass_beads(ibead,idim)*normalmode_env%lambda(ibead)*ux(ibead,idim)
          uf_h(ibead,idim)= f
          ! - to cancel the - in the force f.
          e_h = e_h - 0.5_dp*ux(ibead,idim)*f

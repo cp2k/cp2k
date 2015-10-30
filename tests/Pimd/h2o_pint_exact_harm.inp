@@ -1,0 +1,53 @@
+&GLOBAL
+  PROJECT_NAME               h2o_pint_fist
+  RUN_TYPE                   PINT
+  PRINT_LEVEL                LOW
+&END GLOBAL
+
+&MOTION
+  &PINT
+    P                        4
+    PROC_PER_REPLICA         1
+    NUM_STEPS                4
+    DT                       0.5
+    NRESPA                   2
+    TEMP                    50.0
+    TRANSFORMATION           NORMAL
+    HARM_INT                 EXACT
+  &END PINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      PARM_FILE_NAME  ../Fist/sample_pot/water.pot
+      PARMTYPE        CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE SPME
+        ALPHA 0.44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../Fist/sample_pdb/water_1.pdb
+      COORD_FILE_FORMAT PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

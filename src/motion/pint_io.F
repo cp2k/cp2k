@@ -145,7 +145,7 @@ MODULE pint_io
     content_id(vel_id) = "VEL"
     WRITE(UNIT=title(pos_id),FMT="(A,I8,A,F20.10)")&
           " i =",pint_env%iter,&
-          ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
+          ", E =",SUM(pint_env%e_pot_bead)*pint_env%propagator%physpotscale
     WRITE(UNIT=title(vel_id),FMT="(A,I8,A,F20.10,A,F20.10)")&
           " i =",pint_env%iter,&
           ", E_trm =",pint_env%energy(e_kin_thermo_id),&
@@ -555,7 +555,7 @@ MODULE pint_io
         END IF
         temp = cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/&
                REAL(ndof,dp)/REAL(pint_env%ndim,dp),&
-               "K")
+               "K") * pint_env%propagator%temp_sim2phys
 
         WRITE (unit_nr,"(I8,1X,F12.3,1X,5(F20.9,1X),F12.1)")&
                pint_env%iter,&

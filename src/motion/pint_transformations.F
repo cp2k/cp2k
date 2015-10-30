@@ -142,7 +142,8 @@ CONTAINS
     ELSE
       CALL normalmode_f2uf(pint_env%normalmode_env,uf=my_uf,f=my_f)
     END IF
-    my_uf=my_uf/pint_env%mass_fict/REAL(pint_env%p,dp)
+
+   my_uf=my_uf/pint_env%mass_fict * pint_env%propagator%physpotscale
     RETURN
   END SUBROUTINE pint_f2uf
 

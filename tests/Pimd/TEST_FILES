@@ -6,6 +6,8 @@ h2o_pint_fist_nose_restart.inp                         9      2e-14        1.072
 h2o_pint_qs_nve.inp                                    9    1.0E-14            -17.137404051108664
 h2o_pint_qs_nose.inp                                   9    1.0E-14            -17.129537082523932
 h2o_pint_qs_nose_restart.inp                           9      1e-09              -17.1295368829579
+h2o_pint_exact_harm.inp                                9    1.0E-14        2.8526159182178153E-003
+h2o_pint_rpmd.inp                                      9    1.0E-14        1.1503487725277912E-002
 he32_only.inp                                         40
 he32_only_restart.inp                                 40      2e-14
 water-in-helium.inp                                    9      7e-14
