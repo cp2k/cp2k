@@ -27,7 +27,7 @@
 !> \author Joost VandeVondele
 ! *****************************************************************************
 MODULE bibliography
-  
+
   USE reference_manager,               ONLY: add_reference,&
                                              cite_reference
   USE string_utilities,                ONLY: s2a
@@ -74,7 +74,7 @@ MODULE bibliography
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
-       Schiffmann2015, Bruck2014
+       Schiffmann2015, Bruck2014, Rappe1992
 
 CONTAINS
 
@@ -2795,7 +2795,7 @@ CONTAINS
          "UT WOS:000338614300001",&
          "ER"),&
          DOI="10.1016/j.parco.2014.03.012")
-    
+
     CALL add_reference(key=Rayson2009, ISI_record=s2a(&
          "PT J",&
          "AU Rayson, M. J.",&
@@ -3128,6 +3128,32 @@ CONTAINS
           "UT WOS:000345736700024",&
           "ER"),&
           DOI="10.1109/IWCE.2014.6865831")
+
+     CALL add_reference(key=Rappe1992, ISI_record=s2a(&
+          "TY  JOUR",&
+          "AU Rappe, AK",&
+          "   Casewit, CJ",&
+          "   Colwell, KS",&
+          "   Goddard, WA",&
+          "   Skiff, WM",&
+          "AF Rappe, A. K.",&
+          "   Casewit, C. J.",&
+          "   Colwell, K. S.",&
+          "   Goddard, W. A.",&
+          "   Skiff, W. M.",&
+          "TI UFF, a full periodic table force field for molecular ",&
+          "   mechanics and molecular dynamics simulations",&
+          "SO JOURNAL OF THE AMERICAN CHEMICAL SOCIETY",&
+          "SN 0002-7863",&
+          "VL 114",&
+          "IS 25",&
+          "BP 10024",&
+          "EP 10035",&
+          "PD DEC 1",&
+          "PY 1992",&
+          "DI 10.1021/ja00051a040",&
+          "ER"),&
+          DOI="10.1021/ja00051a040")
 
   END SUBROUTINE add_all_references
 

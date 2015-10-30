@@ -11,7 +11,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_resp
   USE bibliography,                    ONLY: Campana2009,&
-                                             Golze2015
+                                             Golze2015,&
+                                             Rappe1992
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              high_print_level,&
@@ -288,8 +289,8 @@ CONTAINS
                      "surfaces. Fitting points are sampled in spheres around the "//&
                      "atom. All grid points in the shell defined by rmin and rmax "//&
                      "are accepted for fitting. Default is that rmin is the vdW "//&
-                     "radius and rmax=10*vdW_radius, which can be overwritten by "//&
-                     "the keywords below.",&
+                     "radius and rmax=100.0*vdW_radius, which can be overwritten "//&
+                     "by the keywords below.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
     NULLIFY(keyword)
@@ -348,7 +349,8 @@ CONTAINS
                        "Universal Force Field: "//&
                        "Rappe et al. J. Am. Chem. Soc. 114, 10024 (1992)"),&
          enum_i_vals=(/use_cambridge_vdw_radii,&
-                       use_uff_vdw_radii/))
+                       use_uff_vdw_radii/),&
+         citations=(/Rappe1992/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

@@ -17,6 +17,7 @@ MODULE qs_resp
                                              get_atomic_kind
   USE bibliography,                    ONLY: Campana2009,&
                                              Golze2015,&
+                                             Rappe1992,&
                                              cite_reference
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
@@ -280,7 +281,7 @@ CONTAINS
     resp_env%nrest_sec=0
     resp_env%npoints=0
     resp_env%npoints_proc=0
-    resp_env%auto_vdw_radii_table=1
+    resp_env%auto_vdw_radii_table=use_cambridge_vdw_radii
 
   END SUBROUTINE create_resp_type
 
@@ -566,6 +567,7 @@ CONTAINS
              CALL get_ptable_info(symbol,vdw_radius=resp_env%rmin_kind(kind_number))
              rmin_is_set(kind_number) = .TRUE.
           CASE (use_uff_vdw_radii)
+             CALL cite_reference(Rappe1992)
              CALL get_uff_vdw_radius(z, radius=resp_env%rmin_kind(kind_number), &
                                      found=rmin_is_set(kind_number))
           CASE DEFAULT
