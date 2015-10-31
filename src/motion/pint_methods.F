@@ -551,6 +551,12 @@ CONTAINS
         DEALLOCATE(pint_env%rtmp_natom)
         DEALLOCATE(pint_env%propagator)
 
+        IF (pint_env%harm_integrator==integrate_exact) THEN
+           DEALLOCATE(pint_env%wsinex)
+           DEALLOCATE(pint_env%iwsinex)
+           DEALLOCATE(pint_env%cosex)
+        END IF
+
         IF(pint_env%pimd_thermostat==thermostat_nose) THEN
           DEALLOCATE(pint_env%tx)
           DEALLOCATE(pint_env%tv)
