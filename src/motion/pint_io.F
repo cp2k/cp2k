@@ -598,12 +598,13 @@ MODULE pint_io
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: msgstr, stmp, time_unit
-    INTEGER                                  :: unit_nr = 0
+    INTEGER                                  :: unit_nr
     REAL(kind=dp)                            :: time_used
     TYPE(cp_logger_type), POINTER            :: logger
 
     CPASSERT(ASSOCIATED(pint_env))
     
+    unit_nr = 0
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
