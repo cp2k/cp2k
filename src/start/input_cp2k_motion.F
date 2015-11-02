@@ -1818,6 +1818,12 @@ CONTAINS
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
 
+    CALL keyword_create(keyword, name="IMAGINARY_TIME_STRIDE", &
+         description="Prints only every nth bead trajectory",&
+         repeats=.FALSE., default_i_val=1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 

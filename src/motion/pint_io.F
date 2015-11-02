@@ -281,7 +281,8 @@ MODULE pint_io
       DIMENSION(2)                           :: content_id, middle_name, &
                                                 sect_path
     INTEGER                                  :: handle, handle1, iat, ib, id, &
-                                                idim, idir, ierr, outformat, &
+                                                idim, idir, ierr, &
+                                                imag_stride, outformat, &
                                                 should_output, unit_nr
     LOGICAL                                  :: failure, new_file
     REAL(kind=dp)                            :: unit_conv
@@ -355,8 +356,13 @@ MODULE pint_io
            cell=cell, subsys=subsys)
       CALL cp_subsys_get(subsys,particles=particles)
 
+      !Get print stride for bead trajectories
+      CALL section_vals_val_get(pint_env%input,&
+         "MOTION%PINT%PRINT%IMAGINARY_TIME_STRIDE",&
+         i_val=imag_stride)
+
       ! iterate over beads
-      DO ib = 1, pint_env%p
+      DO ib = 1, pint_env%p, imag_stride
 
         ! copy the requested property of the current bead
         ! to the particles structure
@@ -592,12 +598,12 @@ MODULE pint_io
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: msgstr, stmp, time_unit
-    INTEGER                                  :: unit_nr
+    INTEGER                                  :: unit_nr = 0
     REAL(kind=dp)                            :: time_used
     TYPE(cp_logger_type), POINTER            :: logger
 
     CPASSERT(ASSOCIATED(pint_env))
-
+    
     NULLIFY(logger)
     logger => cp_get_default_logger()
 
