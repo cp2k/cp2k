@@ -34,6 +34,7 @@ def main():
 
     cp2k_dir = sys.argv[1]
 
+    # check flags and banners
     flags = set()
     for root, dirs, files in os.walk(path.join(cp2k_dir, "src")):
         if(".svn" in root): continue
@@ -76,6 +77,18 @@ def main():
             print("Flag %s not mentioned in INSTALL"%f)
         if(f not in flags_src):
             print("Flag %s not mentioned in cp2k_flags()"%f)
+
+    # check for copies of data files
+    data_files = set()
+    for root, dirs, files in os.walk(path.join(cp2k_dir, "data")):
+        if(".svn" in root): continue
+        data_files.update(files)
+    data_files.remove("README")
+    for root, dirs, files in os.walk(path.join(cp2k_dir, "tests")):
+        if(".svn" in root): continue
+        d = path.relpath(root, cp2k_dir)
+        for c in data_files.intersection(files):
+            print("Data file %s copied to %s"%(c, d))
 
 #===============================================================================
 

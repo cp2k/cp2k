@@ -435,3 +435,7 @@ xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_1 called with an implicit interface
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_2 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_3 called with an implicit interface.
 xyz_to_vab_optimised.F: Routine XYZ_TO_VAB_4_4 called with an implicit interface.
+Data file MM_POTENTIAL copied to tests/QMMM/QS
+Data file BASIS_SET copied to tests/QMMM/QS
+Data file POTENTIAL copied to tests/QMMM/QS
+Data file GTH_BASIS_SETS copied to tests/QMMM/QS
