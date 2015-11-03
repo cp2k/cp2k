@@ -33,7 +33,7 @@ H2O-langevin-2.inp                                     1    1.0E-14             
 H2O-ref-1.inp                     1     2e-14            -17.140234553218249
 H2O-ref-2.inp                                          1      3e-14             -17.14023455852142
 # All-to-all single communication in parallel runs
-H2O-ata.inp                                            1      1e-08             -17.14619639410385
+H2O-ata.inp                       1     2e-08             -17.14619639410385
 # Lowdin charges
 CN-lowdin.inp                                         41    1.0E-14                       1.000000
 # High-spin restricted open Kohn-Sham
