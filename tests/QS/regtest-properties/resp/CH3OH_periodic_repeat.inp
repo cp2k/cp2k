@@ -65,6 +65,7 @@ H  0.8395  -1.0657  0.0000
       &RESP
         USE_REPEAT_METHOD
         &SPHERE_SAMPLING
+         AUTO_VDW_RADII_TABLE UFF
          AUTO_RMIN_SCALE 1.0
          AUTO_RMAX_SCALE 2.0
         &END

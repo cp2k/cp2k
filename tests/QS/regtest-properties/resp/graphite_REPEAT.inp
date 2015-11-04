@@ -1,0 +1,67 @@
+!
+! increase cutoff and max_scf for an example of resp fitting
+!
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 20
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      MAP_CONSISTENT
+    &END QS
+    &SCF
+      MAX_SCF 1
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL BLYP
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+       PERIODIC XYZ 
+       PSOLVER PERIODIC
+    &END
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 4.92 4.92 8.0
+      ALPHA_BETA_GAMMA 90. 90. 60.
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+C      0.000000    0.000000    0.000000
+C      1.230000   -0.710100    0.000000
+C      2.460000    0.000000    0.000000
+C      3.690000   -0.710100    0.000000
+C      1.230000    2.129900    0.000000
+C      2.460000    1.419800    0.000000
+C      3.690000    2.129900    0.000000
+C      4.920000    1.419800    0.000000
+    &END COORD
+    &KIND C
+      BASIS_SET DZVP-GTH-BLYP
+      POTENTIAL GTH-BLYP-q4
+    &END KIND
+  &END SUBSYS
+    &PROPERTIES
+      &RESP
+       STRIDE 3
+       USE_REPEAT_METHOD 
+       &SLAB_SAMPLING
+        RANGE 1.0 3.0
+        LENGTH 1.0
+        ATOM_LIST 1..8 
+        SURF_DIRECTION Z 
+       &END
+      &END
+    &END
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT graphite
+  PRINT_LEVEL LOW
+&END GLOBAL

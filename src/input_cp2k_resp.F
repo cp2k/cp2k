@@ -118,15 +118,14 @@ CONTAINS
          description="Fits the variance of the potential, i.e. the deviation "//&
                      "from the mean value of the potential within the selected "//&
                      "range. The evaluation of the potentials is still treated "//&
-                     "within the GPW approach as desribed in [Golze2015]. "//&
+                     "within the GPW approach as described in [Golze2015]. "//&
                      "When used in conjunction with INTEGER_TOTAL_CHARGE = T "//&
                      "and SPHERE_SAMPLING, the results will be very similar to "//&
-                     "the REPEAT method given in [Campana2009]. In most "//&
+                     "the REPEAT charges given in [Campana2009]. In most "//&
                      "cases switching on this option gives reasonable "//&
                      "atomic charges without the need to define any "//&
                      "restraints. Note that by switching on this option, "//&
-                     "RESTRAIN_HEAVIES_TO_ZERO will be switched off "//&
-                     "and SPHERE_SAMPLING is turned on automatically.",&
+                     "RESTRAIN_HEAVIES_TO_ZERO will be switched off. ",&
          usage="USE_REPEAT_METHOD",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          citations=(/Campana2009/))

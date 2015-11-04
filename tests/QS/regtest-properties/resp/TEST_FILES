@@ -9,4 +9,5 @@ CH3OH_nonperiodic.inp                                 51    1.0E-14             
 CH3OH_periodic.inp                                    51    1.0E-14                       2.456029
 graphite.inp                                          51    1.0E-14                      -1.073313
 CH3OH_periodic_repeat.inp                             51
+graphite_REPEAT.inp                                   51
 #EOF

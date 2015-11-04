@@ -105,8 +105,7 @@ MODULE qs_resp
   TYPE resp_type
    LOGICAL                                :: equal_charges, itc,&
                                              molecular_sys, rheavies,&
-                                             use_repeat_method, &
-                                             orthorhombic_cell
+                                             use_repeat_method
    INTEGER                                :: nres, ncons,&
                                              nrest_sec, ncons_sec,&
                                              npoints, stride(3), my_fit,&
@@ -270,7 +269,6 @@ CONTAINS
     resp_env%molecular_sys=.FALSE.
     resp_env%rheavies=.FALSE.
     resp_env%use_repeat_method=.FALSE.
-    resp_env%orthorhombic_cell=.FALSE.
 
     resp_env%box_hi=0.0_dp
     resp_env%box_low=0.0_dp
@@ -423,17 +421,13 @@ CONTAINS
     END IF
     CALL section_vals_val_get(resp_section,"WIDTH", r_val=resp_env%eta)
 
-    ! record if cell is orthorhombic
-    CALL get_cell(cell=cell, orthorhombic=resp_env%orthorhombic_cell)
-
     ! get if the user wants to use REPEAT method
     CALL section_vals_val_get(resp_section,"USE_REPEAT_METHOD",&
                               l_val=resp_env%use_repeat_method)
     IF (resp_env%use_repeat_method) THEN
        resp_env%ncons = resp_env%ncons + 1
-       ! settings modified for use_repeat_method run
-       resp_env%rheavies = .FALSE.                       ! restrain heavies should be off
-       resp_env%molecular_sys = .TRUE.                   ! force sphere sampling
+       ! restrain heavies should be off
+       resp_env%rheavies = .FALSE.      
     END IF
 
     ! get and set the parameters for molecular (non-surface) systems
@@ -444,6 +438,11 @@ CONTAINS
     ! get the parameter for periodic/surface systems
     CALL section_vals_get(slab_section, explicit=explicit, n_repetition=nrep)
     IF (explicit) THEN
+       IF(resp_env%molecular_sys) THEN 
+         CALL cp_abort(__LOCATION__,&
+              "You can only use either SPHERE_SAMPLING or SLAB_SAMPLING, but "//&
+              "not both.")
+       ENDIF
        ALLOCATE(rep_sys(nrep))
        DO i=1, nrep
           ALLOCATE(rep_sys(i)%p_resp)
@@ -533,14 +532,10 @@ CONTAINS
     has_rmax = .FALSE.
 
     CALL section_vals_get(sphere_section, explicit=explicit)
-    IF (explicit) resp_env%molecular_sys = .TRUE.
-    IF (resp_env%molecular_sys) THEN
+    IF (explicit) THEN
+       resp_env%molecular_sys = .TRUE.
        CALL section_vals_val_get(sphere_section,"AUTO_VDW_RADII_TABLE",&
                                  i_val=resp_env%auto_vdw_radii_table)
-       IF (resp_env%use_repeat_method) THEN
-          ! force using UFF table
-          resp_env%auto_vdw_radii_table = use_uff_vdw_radii
-       END IF
        CALL section_vals_val_get(sphere_section,"AUTO_RMIN_SCALE",r_val=auto_rmin_scale)
        CALL section_vals_val_get(sphere_section,"AUTO_RMAX_SCALE",r_val=auto_rmax_scale)
        CALL section_vals_val_get(sphere_section,"RMIN",explicit=has_rmin,r_val=rmin)
@@ -808,7 +803,7 @@ CONTAINS
 
     CALL get_cell(cell=cell, h=hmat, h_inv=hmat_inv)
 
-    IF (.NOT.resp_env%orthorhombic_cell) THEN
+    IF (.NOT.cell%orthorhombic) THEN
        CALL cp_abort(__LOCATION__,&
             "Nonperiodic solution for RESP charges only"//&
             " implemented for orthorhombic cells!")
@@ -1571,18 +1566,6 @@ CONTAINS
      IF(resp_env%use_repeat_method) THEN
       WRITE(output_unit,'(T3,A)') &
            "Fit the variance of the potential (REPEAT method)."
-      WRITE(output_unit,'(T6,A)') &
-           "+----------------------------------------------------------------------+"
-      WRITE(output_unit,'(T6,A)') &
-           "| Due to using REPEAT method, the following keywords has been changed: |"
-      WRITE(output_unit,'(T6,A,l1,T77,A)') &
-           "| * RESTRAIN_HEAVIES_TO_ZERO = ", resp_env%rheavies, "|"
-      WRITE(output_unit,'(T6,A,l1,T77,A)') &
-           "| * SPHERE_SAMPLING = ", resp_env%molecular_sys, "|"
-      WRITE(output_unit,'(T6,A)') &
-           "| * Using UFF vdW radii table for SPHERE_SAMPLING                      |"
-      WRITE(output_unit,'(T6,A)') &
-           "+----------------------------------------------------------------------+"
      ENDIF
      IF(.NOT.resp_env%equal_charges) THEN
       WRITE(output_unit,'(T3,A,T75,I6)') "Number of explicit constraints: ",resp_env%ncons_sec
@@ -1616,7 +1599,7 @@ CONTAINS
                 resp_env%rmin_kind(kind_number)*conv, &
                 resp_env%rmax_kind(kind_number)*conv
         END DO
-        IF(resp_env%orthorhombic_cell) THEN
+        IF(my_per==use_perd_none) THEN
            WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box min [angstrom]: ",resp_env%box_low(1:3)*conv
            WRITE(output_unit,'(T3,A,T51,3F10.5)') "Box max [angstrom]: ",resp_env%box_hi(1:3)*conv
         END IF
@@ -1708,9 +1691,9 @@ CONTAINS
       filename = cp_print_key_generate_filename(logger,&
                  print_key, extension=".resp", &
                  my_local=.FALSE.)
-     CALL print_atomic_charges(particle_set,qs_kind_set,output_file,title="RESP charges:",&
-                                             atomic_charges=resp_env%rhs(1:natom))
-     IF(output_runinfo>0) WRITE(output_runinfo,'(2X,A,/)')  "PRINTED RESP CHARGES TO FILE"
+      CALL print_atomic_charges(particle_set,qs_kind_set,output_file,title="RESP charges:",&
+                                              atomic_charges=resp_env%rhs(1:natom))
+      IF(output_runinfo>0) WRITE(output_runinfo,'(2X,A,/)')  "PRINTED RESP CHARGES TO FILE"
      ENDIF
 
      CALL cp_print_key_finished_output(output_file,logger,resp_section,&
