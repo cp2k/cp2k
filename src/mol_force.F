@@ -12,8 +12,9 @@ MODULE mol_force
   
   USE force_field_kind_types,          ONLY: &
        do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, do_ff_g87, &
-       do_ff_g96, do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm2, &
-       do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic
+       do_ff_g96, do_ff_harmonic, do_ff_legendre, do_ff_mixed_bend_stretch, &
+       do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic, &
+       legendre_data_type
   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -125,20 +126,24 @@ CONTAINS
 !> \param kbs12 ...
 !> \param kbs32 ...
 !> \param kss ...
+!> \param legendre ...
 !> \param g1 ...
 !> \param g2 ...
 !> \param g3 ...
 !> \param energy ...
 !> \param fscalar ...
+!> \par History
+!>      Legendre Bonding Potential added 2015-11-02 [Felix Uhl]
 !> \author CJM
 ! *****************************************************************************
   SUBROUTINE force_bends (id_type, b12, b32, d12, d32, id12, id32, dist, &
-       theta, theta0, k, cb, r012,r032,kbs12,kbs32,kss, g1, g2, g3, energy, fscalar )
+       theta, theta0, k, cb, r012,r032,kbs12,kbs32,kss, legendre, g1, g2, g3, energy, fscalar )
     INTEGER, INTENT(IN)                      :: id_type
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b12, b32
     REAL(KIND=dp), INTENT(IN)                :: d12, d32, id12, id32, dist, &
                                                 theta, theta0, k, cb, r012, &
                                                 r032, kbs12, kbs32, kss
+    TYPE(legendre_data_type), INTENT(IN)     :: legendre
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: g1, g2, g3
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
@@ -146,7 +151,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
 
-    REAL(KIND=dp)                            :: denom, disp12, disp32
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: ctheta, denom, disp12, &
+                                                disp32, y0, y1, y2, yd0, yd1, &
+                                                yd2
 
     SELECT CASE (id_type)
     CASE (do_ff_g96)
@@ -251,6 +259,65 @@ CONTAINS
 
        ! fscalar is already included in g1, g2 and g3
        fscalar=1.0_dp
+    CASE (do_ff_legendre)
+        ! Calculates f(x) = sum_{n=0}^{nmax} c(n) * P(n,x)
+        !
+        ! Legendre Polynomials recursion formula:
+        ! P(n+1,x) = x*(2n+1)/(n+1) * P(n,x) - n/(n+1) * P(n-1,x)     n = 1, 2,... ; P(0,x) = 1, P(1,x) = x, ...
+        ! P(n+1,x) = alpha(n,x) * P(n,x) + beta(n,x) * P(n-1,x) 
+        ! with alpha(n,x) = x*(2n+1)/(n+1)
+        ! and  beta(n,x) = -n/(n+1)
+        !
+        ! Therefore 
+        ! f(x) = sum_{n=0}^{nmax} c(n) * P(n,x)
+        ! can be calculated using a Clenshaw recursion
+        ! (c(n) are the coefficients for the Legendre polynomial expansion) 
+        ! 
+        ! f(x) = beta(1,x)*P(0,x)*y(2) + P(1,x)*y(1) + P(0,x)*c(0)
+        ! beta(1,x) = -0.5
+        ! y(k) is calculated in the following way:
+        ! y(nmax+1) = 0
+        ! y(nmax+2) = 0
+        ! y(k) = alpha(k,x)*y(k+1) + beta(k+1,x)*y(k+2) + c(k)
+
+        ! Calculates f'(x) = sum_{n=0}^{nmax} c(n) * P'(n,x)
+        !
+        ! Recursion formula for the m-th derivatives of Legendre Polynomials
+        ! P^{m}(n+1,x) = x*(2n+1)/(n+1-m) * P^{m}(n,x) -(n+m)/(n+1-m) * P^{m}(n-1,x)   n = 1, 2, ... ; m = 1, ..., n-1
+        ! For first derivative:
+        ! P'(n+1,x) = x*(2n+1)/n * P'(n,x) - (n+1)/n * P'(n-1,x) with P(0,x) = 0; P(1,x) = 1
+        ! P'(n+1,x) = alpha(n,x) * P'(n,x) + beta(n,x) * P'(n-1,x)
+        ! with alpha(n,x) = x*(2n+1)/n
+        ! and  beta(n,x) = -1*(n+1)/n
+        !
+        ! Therefore Clenshaw recursion can be used
+        ! f'(x) = beta(1,x)*P'(0,x)*y(2) + P'(1,x)*y(1) + P'(0,x)*c(0)
+        !       = beta(1,x)*0*y(2)      +        y(1) + 0
+        !       = y(1)
+        ! y(k) is calculated in the following way:
+        ! y(nmax+1) = 0
+        ! y(nmax+2) = 0
+        ! y(k) = alpha(k,x)*y(k+1) + beta(k+1,x)*y(k+2) + c(k)
+        !
+        ctheta=COS(theta)
+        y1 = 0.0d0
+        y2 = 0.0d0
+        yd1 = 0.0d0
+        yd2 = 0.0d0
+        DO i = legendre%order, 2, -1                                                                                
+            y0 = (2*i-1)*ctheta*y1/i-i*y2/(i+1)+legendre%coeffs(i)
+            y2 = y1
+            y1 = y0
+            yd0 = (2*i-1)*ctheta*yd1/(i-1)-(i+1)*yd2/i+legendre%coeffs(i)
+            yd2 = yd1
+            yd1 = yd0
+        END DO
+
+        energy = -f12*y2 + ctheta*y1 + legendre%coeffs(1)
+        fscalar = -yd1
+        g1 = (b32*id32-b12*id12*ctheta)*id12
+        g3 = (b12*id12-b32*id32*ctheta)*id32
+        g2 = -g1-g3
 
     CASE DEFAULT
        CPABORT("Unmatched bend kind")

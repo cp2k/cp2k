@@ -306,6 +306,7 @@ CONTAINS
                                bend_list(ibend)%bend_kind%kbs12, &
                                bend_list(ibend)%bend_kind%kbs32, &
                                bend_list(ibend)%bend_kind%kss, &
+                               bend_list(ibend)%bend_kind%legendre,&
                                g1,g2,g3,energy,fscalar)
              pot_bend = pot_bend + energy
              IF (atener) THEN

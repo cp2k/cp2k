@@ -14,6 +14,7 @@
 MODULE force_field_types
 
   USE damping_dipole_types,            ONLY: damping_info_type
+  USE force_field_kind_types,          ONLY: legendre_data_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -57,6 +58,7 @@ MODULE force_field_types
                                                       bend_kbs12,&
                                                       bend_kbs32,&
                                                       bend_kss
+    TYPE(legendre_data_type), POINTER, DIMENSION(:):: bend_legendre
     INTEGER, POINTER                               :: ub_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
@@ -396,6 +398,7 @@ CONTAINS
     NULLIFY(inp_info%bend_kbs12)
     NULLIFY(inp_info%bend_kbs32)
     NULLIFY(inp_info%bend_kss)
+    NULLIFY(inp_info%bend_legendre)
     NULLIFY(inp_info%ub_kind)
     NULLIFY(inp_info%ub_a)
     NULLIFY(inp_info%ub_b)
@@ -746,6 +749,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_inp_info', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
+
     IF(ASSOCIATED(inp_info%charge_atm)) THEN
        DEALLOCATE(inp_info%charge_atm)
     END IF
@@ -799,6 +804,16 @@ CONTAINS
     END IF
     IF(ASSOCIATED(inp_info%bend_theta0)) THEN
        DEALLOCATE(inp_info%bend_theta0)
+    END IF
+    IF(ASSOCIATED(inp_info%bend_legendre)) THEN
+      DO i = 1, SIZE(inp_info%bend_legendre)
+         IF(ASSOCIATED(inp_info%bend_legendre(i)%coeffs)) THEN
+            DEALLOCATE(inp_info%bend_legendre(i)%coeffs)
+            NULLIFY(inp_info%bend_legendre(i)%coeffs)
+         END IF
+      END DO
+      DEALLOCATE(inp_info%bend_legendre)
+      NULLIFY(inp_info%bend_legendre)
     END IF
     IF(ASSOCIATED(inp_info%bend_cb)) THEN
        DEALLOCATE(inp_info%bend_cb)

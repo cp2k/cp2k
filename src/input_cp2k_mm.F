@@ -24,8 +24,9 @@ MODULE input_cp2k_mm
   USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE force_field_kind_types,          ONLY: &
        do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, do_ff_g87, &
-       do_ff_g96, do_ff_harmonic, do_ff_mixed_bend_stretch, do_ff_mm2, &
-       do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic, do_ff_undef
+       do_ff_g96, do_ff_harmonic, do_ff_legendre, do_ff_mixed_bend_stretch, &
+       do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic, &
+       do_ff_undef
   USE input_constants,                 ONLY: use_mom_ref_coac,&
                                              use_mom_ref_com,&
                                              use_mom_ref_user,&
@@ -639,7 +640,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="BEND",&
          description="Specifies the bend potential of the MM system.",&
-         n_keywords=1, n_subsections=1, repeats=.TRUE.)
+         n_keywords=11, n_subsections=1, repeats=.TRUE.)
 
     NULLIFY(keyword,subsection)
 
@@ -653,7 +654,8 @@ CONTAINS
     CALL keyword_create(keyword=keyword, name="KIND",&
          description="Define the kind of bend potential",&
          usage="KIND HARMONIC",&
-         enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","CUBIC","MIXED_BEND_STRETCH","MM3"),&
+         enum_c_vals=s2a("HARMONIC","CHARMM","AMBER","G87","G96","CUBIC","MIXED_BEND_STRETCH","MM3",&
+                         "LEGENDRE"),&
          enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2",&
                        "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2",&
                        "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2",&
@@ -664,7 +666,8 @@ CONTAINS
                           " KSS*(R12-R012)*(R32-R032)+KBS12*(R12-R012)*(THETA-THETA0)+KBS32*(R32-R032)*(THETA-THETA0)",&
                        "Functional Form (MM3): 1/2*K*(THETA-THETA0)**2*(1-0.014*(THETA-THETA0)+5.6E-5*(THETA-THETA0)**2"//&
                           " -7.0E-7*(THETA-THETA0)**3+9.0E-10*(THETA-THETA0)**4)+KBS12*(R12-R012)*(THETA-THETA0)+"//&
-                          " KBS32*(R32-R032)*(THETA-THETA0)"),&
+                          " KBS32*(R32-R032)*(THETA-THETA0)",&
+                       "Functional Form (LEGENDRE): sum_{i=0}^N c_i*P_i(COS(THETA)) " ),&
          enum_i_vals=(/ do_ff_harmonic,&
                         do_ff_charmm,&
                         do_ff_amber,&
@@ -672,7 +675,8 @@ CONTAINS
                         do_ff_g96,&
                         do_ff_cubic,&
                         do_ff_mixed_bend_stretch,&
-                        do_ff_mm3/),&
+                        do_ff_mm3,&
+                        do_ff_legendre/),&
          default_i_val=do_ff_charmm)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
@@ -726,6 +730,16 @@ CONTAINS
          description="Defines the equilibrium angle.",&
          usage="THETA0 {real}",  type_of_var=real_t,&
          n_var=1, unit_str='rad')
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="LEGENDRE",&
+         description="Specifies the coefficients for the legendre"//&
+         " expansion of the bending potential."//&
+         "'THETA0' and 'K' are not used, but need to be specified."//&
+         "Use an arbitrary value.", usage="LEGENDRE {REAL} {REAL} ...",&
+         default_r_val=0.0d0, type_of_var=real_t,&
+         n_var=-1, unit_str="hartree")
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

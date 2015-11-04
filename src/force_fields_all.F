@@ -998,7 +998,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b, &
                                                 name_atm_c
     INTEGER                                  :: atm_a, atm_b, atm_c, first, &
-                                                handle2, i, itype, j, k, &
+                                                handle2, i, itype, j, k, l, &
                                                 last, natom, nbend
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     LOGICAL                                  :: found, only_qm
@@ -1110,6 +1110,16 @@ CONTAINS
                    bend_list(j)%bend_kind%kbs12   = inp_info%bend_kbs12(k)
                    bend_list(j)%bend_kind%kbs32   = inp_info%bend_kbs32(k)
                    bend_list(j)%bend_kind%kss     = inp_info%bend_kss(k)
+                   bend_list(j)%bend_kind%legendre%order = inp_info%bend_legendre(k)%order
+                   IF (bend_list(j)%bend_kind%legendre%order /= 0) THEN
+                       IF (ASSOCIATED(bend_list(j)%bend_kind%legendre%coeffs)) THEN
+                          DEALLOCATE(bend_list(j)%bend_kind%legendre%coeffs)
+                       END IF
+                       ALLOCATE(bend_list(j)%bend_kind%legendre%coeffs(bend_list(j)%bend_kind%legendre%order))
+                       DO l = 1, bend_list(j)%bend_kind%legendre%order
+                           bend_list(j)%bend_kind%legendre%coeffs(l) =inp_info%bend_legendre(k)%coeffs(l)
+                       END DO
+                   END IF
                    CALL issue_duplications(found, "Bend", name_atm_a, name_atm_b,&
                         name_atm_c)
                    found = .TRUE.

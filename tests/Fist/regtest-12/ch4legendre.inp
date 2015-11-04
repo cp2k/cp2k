@@ -1,0 +1,117 @@
+&GLOBAL
+  PROJECT CH4_Legendre
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL LOW
+&END GLOBAL
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &BEND
+        ATOMS H C H
+        K 1.0
+        KIND LEGENDRE 
+        LEGENDRE 0.0177254 0.0228137 0.0315748 8.10304e-05 0.00701695 0.00012197 0.00306851 0.000172612 0.00165041 0.000217677 0.000961433 0.000262085 0.000563332 0.00030562 0.000304908 4.72948e-08 0.000122236 -8.2971e-08 -1.5505e-05 0.000430085 -0.000124497
+        THETA0 2.00
+      &END BEND
+      &BOND
+        ATOMS C H
+        K 0.340374
+        KIND HARMONIC
+        R0 2.06132
+      &END BOND
+      &CHARGE
+        ATOM C
+        CHARGE 0.0
+      &END CHARGE
+      &CHARGE 
+        ATOM H
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS C C
+          EPSILON 0.D0
+          SIGMA 1.D0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS C H
+          EPSILON 0.D0
+          SIGMA 1.D0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS H H
+          EPSILON 0.D0
+          SIGMA 1.D0
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+      POISSON_SOLVER PERIODIC
+    &END POISSON
+    &PRINT
+      &FF_INFO ON
+        &EACH
+        &END EACH
+      &END FF_INFO
+    &END PRINT
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC                   16.D0    16.D0    16.D0
+      PERIODIC              NONE
+    &END CELL
+    &COORD
+  C         0.0000000000        0.0000000000        0.0000000000
+  H         1.0908182134        0.0000000000        0.0000000000
+  H        -0.3633843227        1.0285781897        0.0000000000
+  H        -0.3633992182       -0.5139858842       -0.8907249051
+  H        -0.3628369795       -0.5145055868        0.8907994993
+    &END COORD
+    &VELOCITY
+            0.0000000000        0.0000000000        0.0000000000
+            0.0000000000        0.0000000000        0.0000000000
+            0.0000000000        0.0000000000        0.0000000000
+            0.0000000000        0.0000000000        0.0001000000
+            0.0000000000        0.0000000000       -0.0001000000
+    &END VELOCITY
+    &TOPOLOGY
+      &GENERATE
+        &BOND               ADD
+          ATOMS             1  2
+        &END BOND
+        &BOND               ADD
+          ATOMS             1  3
+        &END BOND
+        &BOND               ADD
+          ATOMS             1  4
+        &END BOND
+        &BOND               ADD
+          ATOMS             1  5
+        &END BOND
+        &ANGLE              ADD
+          ATOMS             2  1  3
+        &END ANGLE
+        &ANGLE              ADD
+          ATOMS             2  1  4
+        &END ANGLE
+        &ANGLE              ADD
+          ATOMS             2  1  5
+        &END ANGLE
+        &ANGLE              ADD
+          ATOMS             3  1  4
+        &END ANGLE
+        &ANGLE              ADD
+          ATOMS             3  1  5
+        &END ANGLE
+        &ANGLE              ADD
+          ATOMS             4  1  5
+        &END ANGLE
+      &END GENERATE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

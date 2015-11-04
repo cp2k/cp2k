@@ -33,9 +33,16 @@ MODULE force_field_kind_types
                                               do_ff_mm2=10,&
                                               do_ff_mm3=11,&
                                               do_ff_mm4=12,&
-                                              do_ff_fues=13
+                                              do_ff_fues=13,&
+                                              do_ff_legendre=14
 
 ! *** Define the derived structure types ***
+
+! *****************************************************************************
+  TYPE legendre_data_type
+    INTEGER :: order
+    REAL(KIND=dp), DIMENSION(:), POINTER :: coeffs
+  END TYPE legendre_data_type
 
 ! *****************************************************************************
   TYPE bond_kind_type
@@ -49,6 +56,7 @@ MODULE force_field_kind_types
      INTEGER                        :: id_type
      REAL(KIND = dp)                :: k,theta0,cb
      REAL(KIND = dp)                :: r012,r032,kbs12,kbs32,kss
+     TYPE(legendre_data_type)       :: legendre
      INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
@@ -103,7 +111,8 @@ MODULE force_field_kind_types
             torsion_kind_type,&
             opbend_kind_type,&
             ub_kind_type,&
-            ub_kind_dealloc_ref
+            ub_kind_dealloc_ref,&
+            legendre_data_type
 CONTAINS
 
 ! *****************************************************************************
@@ -134,6 +143,8 @@ CONTAINS
        bend_kind_set(ikind)%kbs12 = 0.0_dp
        bend_kind_set(ikind)%kbs32 = 0.0_dp
        bend_kind_set(ikind)%kss = 0.0_dp
+       bend_kind_set(ikind)%legendre%order = 0
+       NULLIFY(bend_kind_set(ikind)%legendre%coeffs)
        bend_kind_set(ikind)%kind_number = ikind
     END DO
   END SUBROUTINE allocate_bend_kind_set
@@ -284,6 +295,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_bend_kind_set', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i
+
+    IF (.NOT.ASSOCIATED(bend_kind_set)) RETURN
+    DO i = 1, SIZE(bend_kind_set)
+      IF (ASSOCIATED(bend_kind_set(i)%legendre%coeffs)) THEN
+         DEALLOCATE(bend_kind_set(i)%legendre%coeffs)
+         NULLIFY(bend_kind_set(i)%legendre%coeffs)
+      END IF
+    END DO
     DEALLOCATE (bend_kind_set)
   END SUBROUTINE deallocate_bend_kind_set
 

@@ -68,6 +68,8 @@ nptf_ortho_screen.inp                                  2      8e-09             
 # morse and cubic bonded potentials
 bonded-1.inp                                           2    1.0E-14             0.163326996014E-02
 bonded-2.inp                                           2    1.0E-14            -0.321706670827E+00
+# Angular legende potential
+ch4legendre.inp                                       11    1.0E-14             0.000337730329915
 # mixed stretch-bend form
 bonded-3.inp                                           2    1.0E-14             0.168535489010E-02
 #EOF

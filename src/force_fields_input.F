@@ -38,7 +38,8 @@ MODULE force_fields_input
                                              do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
-                                             do_ff_undef
+                                             do_ff_undef,&
+                                             legendre_data_type
   USE force_field_types,               ONLY: force_field_type,&
                                              input_info_type
   USE force_fields_util,               ONLY: get_generic_info
@@ -99,6 +100,8 @@ CONTAINS
     REAL(KIND=dp)                            :: min_eps_spline_allowed
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
+
+INTEGER::i
 
     NULLIFY(tmp_section, tmp_section2)
     inp_info => ff_type%inp_info
@@ -348,10 +351,25 @@ CONTAINS
        CALL reallocate(inp_info%bend_kbs12,1,nbends)
        CALL reallocate(inp_info%bend_kbs32,1,nbends)
        CALL reallocate(inp_info%bend_kss,1,nbends)
+       IF (ASSOCIATED(inp_info%bend_legendre)) THEN
+          DO i = 1, SIZE(inp_info%bend_legendre)
+             IF (ASSOCIATED(inp_info%bend_legendre(i)%coeffs)) THEN
+                DEALLOCATE(inp_info%bend_legendre(i)%coeffs)
+                NULLIFY(inp_info%bend_legendre(i)%coeffs)
+             END IF
+          END DO
+          DEALLOCATE(inp_info%bend_legendre)
+          NULLIFY(inp_info%bend_legendre)
+       END IF
+       ALLOCATE(inp_info%bend_legendre(1:nbends))
+       DO i = 1, SIZE(inp_info%bend_legendre(1:nbends))
+          NULLIFY(inp_info%bend_legendre(i)%coeffs)
+          inp_info%bend_legendre(i)%order = 0
+       END DO
        CALL read_bends_section(inp_info%bend_kind,inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
             inp_info%bend_k, inp_info%bend_theta0, inp_info%bend_cb,&
             inp_info%bend_r012,inp_info%bend_r032,inp_info%bend_kbs12,inp_info%bend_kbs32,inp_info%bend_kss,&
-            tmp_section, ntot)
+            inp_info%bend_legendre,tmp_section, ntot)
     END IF
     tmp_section => section_vals_get_subs_vals(ff_section,"BEND")
     CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nubs)
@@ -1621,12 +1639,14 @@ CONTAINS
 !> \param bend_kbs12 ...
 !> \param bend_kbs32 ...
 !> \param bend_kss ...
+!> \param bend_legendre ...
 !> \param section ...
 !> \param start ...
 !> \author teo
 ! *****************************************************************************
   SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, bend_cb, &
-                                bend_r012,bend_r032,bend_kbs12,bend_kbs32,bend_kss, section, start)
+                                bend_r012,bend_r032,bend_kbs12,bend_kbs32,bend_kss, bend_legendre,&
+                                section, start)
     INTEGER, DIMENSION(:), POINTER           :: bend_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: bend_a, bend_b, bend_c
@@ -1634,6 +1654,8 @@ CONTAINS
                                                 bend_r012, bend_r032, &
                                                 bend_kbs12, bend_kbs32, &
                                                 bend_kss
+    TYPE(legendre_data_type), DIMENSION(:), &
+      POINTER                                :: bend_legendre
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
 
@@ -1642,11 +1664,12 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atm_names
-    INTEGER                                  :: isec, n_items
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
+    INTEGER                                  :: isec, k, n_items, n_rep
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals, r_values
 
     NULLIFY(Kvals, atm_names)
     CALL section_vals_get(section,n_repetition=n_items)
+    bend_legendre%order = 0
     DO isec = 1, n_items
        CALL section_vals_val_get(section,"KIND",i_rep_section=isec,i_val=bend_kind(start+isec))
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names)
@@ -1666,6 +1689,17 @@ CONTAINS
        CALL section_vals_val_get(section,"KBS12",i_rep_section=isec,r_val=bend_kbs12(start+isec))
        CALL section_vals_val_get(section,"KBS32",i_rep_section=isec,r_val=bend_kbs32(start+isec))
        CALL section_vals_val_get(section,"KSS",i_rep_section=isec,r_val=bend_kss(start+isec))
+       ! get legendre based data
+       CALL section_vals_val_get(section,"LEGENDRE", i_rep_section=isec,n_rep_val=n_rep)
+       DO k = 1, n_rep
+          CALL section_vals_val_get(section,"LEGENDRE",i_rep_val=k,r_vals=r_values,i_rep_section=isec)
+          bend_legendre(start+isec)%order = SIZE(r_values)
+          IF (ASSOCIATED(bend_legendre(start+isec)%coeffs)) THEN
+             DEALLOCATE(bend_legendre(start+isec)%coeffs)
+          END IF
+          ALLOCATE(bend_legendre(start+isec)%coeffs(bend_legendre(start+isec)%order))
+          bend_legendre(start+isec)%coeffs = r_values
+       END DO
     END DO
   END SUBROUTINE read_bends_section
 

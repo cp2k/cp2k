@@ -423,6 +423,11 @@ CONTAINS
            DEALLOCATE (molecule_kind_set(imolecule_kind)%atom_list)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set)) THEN
+           DO i = 1, SIZE(molecule_kind_set(imolecule_kind)%bend_kind_set)
+              IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)) &
+                 DEALLOCATE(molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)
+                 NULLIFY(molecule_kind_set(imolecule_kind)%bend_kind_set(i)%legendre%coeffs)
+           END DO
            DEALLOCATE (molecule_kind_set(imolecule_kind)%bend_kind_set)
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bend_list)) THEN
