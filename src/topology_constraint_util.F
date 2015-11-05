@@ -178,7 +178,7 @@ CONTAINS
        ! only allocate the lci if constraints are active. Can this stuff be distributed ?
        IF (topology%const_atom .OR. topology%const_hydr .OR. &
            topology%const_33   .OR. topology%const_46   .OR. &
-           topology%const_colv ) THEN
+           topology%const_colv .OR. topology%const_vsite) THEN
           ALLOCATE(lci)
           NULLIFY(lci%lcolv)
           NULLIFY(lci%lg3x3)
