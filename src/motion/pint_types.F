@@ -28,11 +28,13 @@ MODULE pint_types
 
   INTEGER, PARAMETER, PUBLIC :: thermostat_none  = 0, &
                                 thermostat_nose  = 1, &
-                                thermostat_gle   = 2
+                                thermostat_gle   = 2, &
+                                thermostat_pile  = 3
 
   PUBLIC :: pint_env_type
   PUBLIC :: normalmode_env_type
   PUBLIC :: staging_env_type
+  PUBLIC :: pile_therm_type
   PUBLIC :: pint_propagator_type
 
   ! ***************************************************************************
@@ -85,6 +87,7 @@ MODULE pint_types
   !> \param tf nose hoover chain forces (?)
   !> \param Q nose hoover chain masses
   !> \param time_per_step - time per step in seconds (updated every step)
+  !> \param pile_therm data used for the pile thermostat
   !> \param wsinex omega*sin(omega*deltat) for exact harminic integrator
   !> \param iwsinex 1/omega*sin(omega*deltat) for exact harminic integrator
   !> \param cosex cos(omega*deltat) for exact harminic integrator
@@ -98,13 +101,14 @@ MODULE pint_types
   !>      Added normal mode transformation - hforbert
   !>      2009-06-15 helium_solvent_type object is no longer a member of
   !>                   pint_env_type [lwalewski]
+  !>      2014-10-23 added pile_therm [Felix Uhl]
   ! ***************************************************************************
   TYPE pint_env_type
      INTEGER :: ref_count, id_nr, p, nnos, nrespa, iter, ndim, transform
      INTEGER :: first_step, last_step, num_steps, first_propagated_mode
-     INTEGER :: pimd_thermostat, harm_integrator
+     INTEGER :: pimd_thermostat, harm_integrator, thermostat_rng_seed
      REAL(KIND=dp) :: t_tol, v_tol, kT, beta, dt, &
-          e_gle, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
+          e_gle, e_pile, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
      TYPE(cp_logger_type), POINTER :: logger
      TYPE(replica_env_type), POINTER :: replicas
      TYPE(section_vals_type), POINTER :: input
@@ -121,6 +125,7 @@ MODULE pint_types
      REAL(KIND=dp), DIMENSION(:), POINTER :: Q ! dim p, make it (p,ndim)?
      REAL(KIND=dp), DIMENSION(:), POINTER :: rtmp_ndim, rtmp_natom
      REAL(KIND=dp), DIMENSION(:), POINTER :: iwsinex, wsinex, cosex
+     TYPE(pile_therm_type), POINTER :: pile_therm
 
      TYPE(pint_propagator_type), POINTER :: propagator
   END TYPE pint_env_type
@@ -167,6 +172,29 @@ MODULE pint_types
      INTEGER :: id_nr,ref_count,nseg,j,p
      REAL(KIND=dp) w_p,w_j,Q_stage,Q_end
   END TYPE staging_env_type
+
+  ! ***************************************************************************
+  !> \brief data to use the pile thermostat
+  !> \note                                                                                    
+  !>    lamb          - coupling constant of pile to the normal modes
+  !>    tau           - time constant for centroid mode
+  !>    thermostat_energy        - energy difference for conxerved quantity
+  !>    c1            - scaling of the old momenta
+  !>    c2            - scaling of the friction term
+  !>    g_fric        - mode specific friction
+  !>    massfact      - Mass prefactor to get units right
+  !>    gaussian_rng_stream - random number generator
+  !> \author Felix Uhl
+  ! ***************************************************************************
+  TYPE pile_therm_type
+    INTEGER                              :: ref_count
+    REAL(KIND=dp)                        :: lamb, tau, thermostat_energy
+    REAL(KIND=dp), DIMENSION(:), POINTER :: c1
+    REAL(KIND=dp), DIMENSION(:), POINTER :: c2
+    REAL(KIND=dp), DIMENSION(:), POINTER :: g_fric
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: massfact
+    TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
+  END TYPE pile_therm_type
 
   ! ***************************************************************************                                        
   !> \brief data for the use of different Path Integral propagators                                                    

@@ -72,6 +72,10 @@ MODULE pint_methods
   USE pint_gle,                        ONLY: pint_calc_gle_energy,&
                                              pint_gle_init,&
                                              pint_gle_step
+  USE pint_pile,                       ONLY: pint_pile_step,&
+                                             pint_pile_init,&
+                                             pint_pile_release,&
+                                             pint_calc_pile_energy
   USE pint_io,                         ONLY: pint_write_centroids,&
                                              pint_write_com,&
                                              pint_write_ener,&
@@ -97,9 +101,11 @@ MODULE pint_methods
                                              e_kin_virial_id,&
                                              e_potential_id,&
                                              pint_env_type,&
+                                             pile_therm_type,&
                                              thermostat_gle,&
                                              thermostat_none,&
-                                             thermostat_nose
+                                             thermostat_nose,&
+                                             thermostat_pile
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                              rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
@@ -156,6 +162,7 @@ CONTAINS
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(section_vals_type), POINTER         :: gle_section, nose_section, &
                                                 pint_section, &
+                                                pile_section, &
                                                 transform_section
 
     CALL timeset(routineN,handle)
@@ -311,6 +318,7 @@ CONTAINS
     pint_env%e_kin_beads=0._dp
     pint_env%e_pot_t=0._dp
     pint_env%e_gle=0._dp
+    pint_env%e_pile=0._dp
     pint_env%e_kin_t=0._dp
     pint_env%energy(:) = 0.0_dp
 
@@ -426,6 +434,26 @@ CONTAINS
       END IF
     END IF
 
+    !Setup pile thermostat
+    NULLIFY(pint_env%pile_therm)
+    pile_section => section_vals_get_subs_vals(input,"MOTION%PINT%PILE")
+    CALL section_vals_get(pile_section, explicit=explicit)
+    IF (explicit) THEN
+       CALL section_vals_val_get(pint_env%input,&
+           "MOTION%PINT%INIT%THERMOSTAT_SEED",&
+            i_val=pint_env%thermostat_rng_seed)
+       IF (pint_env%pimd_thermostat==thermostat_none) THEN
+          pint_env%pimd_thermostat=thermostat_pile
+          CALL pint_pile_init(pile_therm=pint_env%pile_therm,&
+                              pint_env=pint_env,&
+                              normalmode_env=pint_env%normalmode_env,&
+                              section=pile_section)
+       ELSE
+          CPABORT("PILE thermostat can't be used with another thermostat.")
+       END IF
+    END IF
+
+
     !Initialize integrator scheme 
     CALL section_vals_val_get(pint_section,"HARM_INT",i_val=pint_env%harm_integrator)
        IF (pint_env%harm_integrator == integrate_exact) THEN
@@ -444,7 +472,13 @@ CONTAINS
              pint_env%harm_integrator = integrate_numeric
           END IF
        ELSE IF (pint_env%harm_integrator == integrate_numeric) THEN
-         CONTINUE
+          IF (pint_env%pimd_thermostat == thermostat_pile) THEN
+             IF (para_env%ionode) THEN
+                WRITE(*,*) "PINT WARNING| PILE Thermostat only avaliable in the exact harmonic integrator."
+                WRITE(*,*) "              Switching to exact harmonic integrator."
+             END IF
+             pint_env%harm_integrator = integrate_exact
+          END IF
        END IF
 
        IF (pint_env%harm_integrator == integrate_exact) THEN
@@ -557,16 +591,19 @@ CONTAINS
            DEALLOCATE(pint_env%cosex)
         END IF
 
-        IF(pint_env%pimd_thermostat==thermostat_nose) THEN
+        SELECT CASE (pint_env%pimd_thermostat)
+        CASE (thermostat_nose)
           DEALLOCATE(pint_env%tx)
           DEALLOCATE(pint_env%tv)
           DEALLOCATE(pint_env%tv_t)
           DEALLOCATE(pint_env%tv_old)
           DEALLOCATE(pint_env%tv_new)
           DEALLOCATE(pint_env%tf)
-        ELSEIF(pint_env%pimd_thermostat==thermostat_gle) THEN
+        CASE (thermostat_gle) 
           CALL gle_dealloc(pint_env%gle)
-        END IF
+        CASE (thermostat_pile)
+          CALL pint_pile_release(pint_env%pile_therm)
+        END SELECT
 
         DEALLOCATE(pint_env%Q)
 
@@ -1640,6 +1677,14 @@ CONTAINS
 
        ! 1. Apply thermostats
        SELECT CASE (pint_env%pimd_thermostat)
+       CASE (thermostat_pile)
+           CALL pint_pile_step(vold=pint_env%uv,&
+                               vnew=pint_env%uv_t,&
+                               p=pint_env%p,&
+                               ndim=pint_env%ndim,&
+                               first_mode=pint_env%first_propagated_mode,&
+                               masses=pint_env%mass_fict,&
+                               pile_therm=pint_env%pile_therm)
        CASE DEFAULT
           pint_env%uv_t=pint_env%uv
        END SELECT
@@ -1692,6 +1737,14 @@ CONTAINS
 
        ! 5. Apply thermostats
        SELECT CASE (pint_env%pimd_thermostat)
+       CASE (thermostat_pile)
+           CALL pint_pile_step(vold=pint_env%uv_t,&
+                               vnew=pint_env%uv,&
+                               p=pint_env%p,&
+                               ndim=pint_env%ndim,&
+                               first_mode=pint_env%first_propagated_mode,&
+                               masses=pint_env%mass_fict,&
+                               pile_therm=pint_env%pile_therm)
        CASE DEFAULT
           pint_env%uv=pint_env%uv_t
        END SELECT
@@ -1738,11 +1791,14 @@ CONTAINS
     CALL pint_calc_e_kin_beads_u(pint_env)
     CALL pint_calc_e_vir(pint_env)
 
-    IF (pint_env%pimd_thermostat==thermostat_nose) THEN
+    SELECT CASE (pint_env%pimd_thermostat)
+    CASE (thermostat_nose)
       CALL pint_calc_nh_energy(pint_env)
-    ELSEIF (pint_env%pimd_thermostat==thermostat_gle) THEN
+    CASE (thermostat_gle)
       CALL pint_calc_gle_energy(pint_env)
-    END IF
+    CASE (thermostat_pile)
+      CALL pint_calc_pile_energy(pint_env)
+    END SELECT
 
     pint_env%energy(e_kin_thermo_id) = &
       0.5_dp * REAL(pint_env%p,dp) * REAL(pint_env%ndim,dp) * pint_env%kT - &
@@ -1755,7 +1811,7 @@ CONTAINS
       pint_env%e_pot_h + &
       pint_env%e_kin_beads + &
       pint_env%e_pot_t + &
-      pint_env%e_kin_t + pint_env%e_gle
+      pint_env%e_kin_t + pint_env%e_gle + pint_env%e_pile
 
     pint_env%energy(e_potential_id) = &
       pint_env%energy(e_potential_id) / REAL(pint_env%p,dp)

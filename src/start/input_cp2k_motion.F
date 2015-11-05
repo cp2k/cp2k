@@ -38,6 +38,7 @@ MODULE input_cp2k_motion
   USE input_cp2k_thermostats,          ONLY: create_coord_section,&
                                              create_gle_section,&
                                              create_velocity_section
+  USE input_cp2k_subsys,               ONLY: create_rng_section
   USE input_cp2k_tmc,                  ONLY: create_TMC_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -1709,6 +1710,30 @@ CONTAINS
     CALL section_add_subsection(section, subsection)
     CALL section_release(subsection)
 
+    CALL section_create(subsection,name="PILE",&
+         description="Controls the PI Langevin Equation thermostat."//&
+         " Needs the exact harmonic integrator",&
+         n_keywords=2, n_subsections=1,&
+         repeats=.FALSE.)
+    CALL create_rng_section(subsubsection)
+    CALL section_add_subsection(subsection,subsubsection)
+    CALL section_release(subsubsection)
+    CALL keyword_create(keyword, name="TAU", &
+         description="Time constant for centroid motion. "//&
+         "If zero or negative the centroid is not thermostated.",&
+         usage="TAU {real}", type_of_var=real_t,&
+         n_var=1, default_r_val=10000.0_dp)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="LAMBDA", &
+         description="Scaling of friction to mode coupling",&
+         usage="LAMBDA {real}", type_of_var=real_t,&
+         unit_str="fs", n_var=1, default_r_val=0.01_dp)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
     CALL section_create( subsection, name="INIT",&
          description="Controls the initialization if the beads are not present",&
          repeats=.FALSE.)
@@ -1741,6 +1766,13 @@ CONTAINS
          description="Initial seed for the (pseudo)random number "//&
          "generator that controls Levy walk for bead positions.",&
          usage="LEVY_SEED <INTEGER>",default_i_val=1234,&
+         repeats=.FALSE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword,name="THERMOSTAT_SEED",&
+         description="Initial seed for the (pseudo)random number "//&
+         "generator that controls the PILE thermostat.",&
+         usage="THERMOSTAT_SEED <INTEGER>",default_i_val=12345,&
          repeats=.FALSE.)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
