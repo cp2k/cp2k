@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2014  CP2K developers group                          !
+!   Copyright (C) 2000 - 2015  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
@@ -62,17 +62,16 @@ MODULE pint_pile
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER                                  :: i, j, p, stat
+    INTEGER                                  :: i, j, p
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp)                            :: dti2, ex
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(section_vals_type), POINTER         :: rng_section
 
-    stat = 0
     failure = .FALSE.
 
     pint_env%e_pile = 0.0_dp
-    ALLOCATE(pile_therm,stat=stat)
+    ALLOCATE(pile_therm)
     pile_therm%ref_count=1
     pile_therm%thermostat_energy=0.0_dp
     !Get input parameter
