@@ -283,6 +283,8 @@ CONTAINS
 !> \author Michele
 !>  "stabilized" cholesky to deal with small & negative diagonal elements,
 !>  in practice a LDL^T decomposition is computed, and negative els. are zeroed
+!>  \par History
+!>      05.11.2015: Bug fix: In rare cases D(j) is negative due to numerics [Felix Uhl]
 ! *****************************************************************************
   SUBROUTINE gle_cholesky_stab(SST, S, n)
     INTEGER, INTENT(in)                      :: n
@@ -311,7 +313,9 @@ CONTAINS
     ENDDO
     DO i=1,n
       DO j=1,i
-         IF (ABS(D(j))>EPSILON(1.0_dp)) S(i,j)=S(i,j)+L(i,j)*SQRT(D(j))
+         IF ((ABS(D(j))>EPSILON(1.0_dp)).AND.(D(j) > 0.0_dp)) THEN
+            S(i,j)=S(i,j)+L(i,j)*SQRT(D(j))
+         END IF
       ENDDO
     ENDDO
 
