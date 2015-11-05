@@ -139,9 +139,9 @@ CONTAINS
     IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. START"
     CALL rep_env_create(rep_env, para_env=para_env, input=input,&
          input_declaration=input_declaration,nrep=nrep,prep=prep,row_force=row_force)
-    CPASSERT(SIZE(rep_env%local_rep_indices)==1)
     IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. END"
     IF (ASSOCIATED(rep_env)) THEN
+       CPASSERT(SIZE(rep_env%local_rep_indices)==1)
        CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
             failure=failure)
        CALL force_env_get(f_env%force_env,subsys=subsys)
