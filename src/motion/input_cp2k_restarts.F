@@ -899,13 +899,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_motion_pint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, ibead, inos,&
-                                                isp, idim
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER                                  :: handle, i, iatom, ibead, inos
+    INTEGER, DIMENSION(rng_record_length, 1) :: ascii
     LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     TYPE(section_vals_type), POINTER         :: pint_section, tmpsec
-    CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER, DIMENSION(rng_record_length,1)    :: ascii
 
     CALL timeset(routineN,handle)
 

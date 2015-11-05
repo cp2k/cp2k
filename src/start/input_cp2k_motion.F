@@ -35,10 +35,10 @@ MODULE input_cp2k_motion
   USE input_cp2k_motion_print,         ONLY: add_format_keyword,&
                                              create_motion_print_section
   USE input_cp2k_neb,                  ONLY: create_band_section
+  USE input_cp2k_subsys,               ONLY: create_rng_section
   USE input_cp2k_thermostats,          ONLY: create_coord_section,&
                                              create_gle_section,&
                                              create_velocity_section
-  USE input_cp2k_subsys,               ONLY: create_rng_section
   USE input_cp2k_tmc,                  ONLY: create_TMC_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&

@@ -72,10 +72,6 @@ MODULE pint_methods
   USE pint_gle,                        ONLY: pint_calc_gle_energy,&
                                              pint_gle_init,&
                                              pint_gle_step
-  USE pint_pile,                       ONLY: pint_pile_step,&
-                                             pint_pile_init,&
-                                             pint_pile_release,&
-                                             pint_calc_pile_energy
   USE pint_io,                         ONLY: pint_write_centroids,&
                                              pint_write_com,&
                                              pint_write_ener,&
@@ -87,6 +83,10 @@ MODULE pint_methods
                                              normalmode_env_create,&
                                              normalmode_init_masses,&
                                              normalmode_release
+  USE pint_pile,                       ONLY: pint_calc_pile_energy,&
+                                             pint_pile_init,&
+                                             pint_pile_release,&
+                                             pint_pile_step
   USE pint_public,                     ONLY: pint_com_pos,&
                                              pint_levy_walk
   USE pint_staging,                    ONLY: staging_calc_uf_h,&
@@ -96,16 +96,10 @@ MODULE pint_methods
   USE pint_transformations,            ONLY: pint_f2uf,&
                                              pint_u2x,&
                                              pint_x2u
-  USE pint_types,                      ONLY: e_conserved_id,&
-                                             e_kin_thermo_id,&
-                                             e_kin_virial_id,&
-                                             e_potential_id,&
-                                             pint_env_type,&
-                                             pile_therm_type,&
-                                             thermostat_gle,&
-                                             thermostat_none,&
-                                             thermostat_nose,&
-                                             thermostat_pile
+  USE pint_types,                      ONLY: &
+       e_conserved_id, e_kin_thermo_id, e_kin_virial_id, e_potential_id, &
+       pint_env_type, thermostat_gle, thermostat_none, thermostat_nose, &
+       thermostat_pile
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                              rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
@@ -161,8 +155,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(section_vals_type), POINTER         :: gle_section, nose_section, &
-                                                pint_section, &
-                                                pile_section, &
+                                                pile_section, pint_section, &
                                                 transform_section
 
     CALL timeset(routineN,handle)
