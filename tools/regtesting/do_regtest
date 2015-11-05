@@ -210,7 +210,11 @@ else
 fi
 
 if [[ $numprocs > 1 ]] ; then
-    cp2k_run_prefix=${cp2k_run_prefix:-"${mpiexec} -np ${numprocs} ${valgrindstring}"}
+    if [[ "$farming" == "yes" ]]; then
+       cp2k_run_prefix=${cp2k_run_prefix:-"${mpiexec} -np ${maxtasks} ${valgrindstring}"}
+    else
+       cp2k_run_prefix=${cp2k_run_prefix:-"${mpiexec} -np ${numprocs} ${valgrindstring}"}
+    fi
 else
     cp2k_run_prefix=${cp2k_run_prefix:-"${valgrindstring}"}
 fi
