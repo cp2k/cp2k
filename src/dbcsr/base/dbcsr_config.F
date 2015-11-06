@@ -97,12 +97,6 @@ MODULE dbcsr_config
 
   LOGICAL, PARAMETER :: has_blas = .TRUE.
 
-#if defined (__HAS_smm_dnn)
-  LOGICAL, PARAMETER :: has_smm_gemm = .TRUE.
-#else
-  LOGICAL, PARAMETER :: has_smm_gemm = .FALSE.
-#endif
-
 #if defined(__HAS_smm_vec)
   LOGICAL, PARAMETER :: has_smm_vec = .TRUE.
 #else
@@ -230,7 +224,6 @@ CONTAINS
        IF(.NOT.has_blas) CPABORT("Support for BLAS not compiled in.")
        mm_driver = mm_driver_blas
     CASE (mm_driver_smm)
-       IF(.NOT.has_smm_gemm) CPABORT("Support for libsmm not compiled in.")
        mm_driver = mm_driver_smm
     CASE (mm_driver_xsmm)
        IF(.NOT.has_xsmm) CPABORT("Support for libxsmm not compiled in.")
