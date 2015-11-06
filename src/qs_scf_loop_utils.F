@@ -131,7 +131,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: has_unit_metric, skip_diag_sub
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
@@ -141,6 +141,8 @@ CONTAINS
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(energy, ks_env, matrix_ks, matrix_s, rho, mos, dft_control)
 
@@ -243,6 +245,8 @@ CONTAINS
     ENDDO
     energy%efermi = energy%efermi /REAL(SIZE(mos),KIND=dp)
 
+    CALL timestop(handle)
+
   END SUBROUTINE qs_scf_new_mos
 
 ! *****************************************************************************
@@ -262,7 +266,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_new_mos_kp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
+    INTEGER                                  :: handle, ispin
     LOGICAL                                  :: has_unit_metric
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks, matrix_s
@@ -271,6 +275,8 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:, :), &
       POINTER                                :: mos
     TYPE(qs_energy_type), POINTER            :: energy
+
+    CALL timeset(routineN,handle)
 
     NULLIFY(dft_control, kpoints, matrix_ks, matrix_s)
 
@@ -315,6 +321,8 @@ CONTAINS
        energy%efermi = energy%efermi + mos(1,ispin)%mo_set%mu
     ENDDO
     energy%efermi = energy%efermi/REAL(SIZE(mos,2),KIND=dp)
+
+    CALL timestop(handle)
 
   END SUBROUTINE qs_scf_new_mos_kp
 

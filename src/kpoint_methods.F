@@ -112,13 +112,15 @@ CONTAINS
 
     CHARACTER(LEN=2), ALLOCATABLE, &
       DIMENSION(:)                           :: element
-    INTEGER                                  :: i, ik, iounit, natom
+    INTEGER                                  :: handle, i, ik, iounit, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atype
     LOGICAL                                  :: inv, spez, symmo
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: weight, zeff
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
     TYPE(csym_type), POINTER                 :: crys_sym
+
+    CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -213,6 +215,8 @@ CONTAINS
        END IF
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE kpoint_initialize
 
 ! *****************************************************************************
@@ -226,10 +230,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_env_initialize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: comm_cart, comm_inter_kp, &
-                                                comm_kp, igr, ik, ikk, ngr, &
-                                                niogrp, nkp, nkp_grp, &
-                                                nkp_loc, npe, unit_nr
+    INTEGER :: comm_cart, comm_inter_kp, comm_kp, handle, igr, ik, ikk, ngr, &
+      niogrp, nkp, nkp_grp, nkp_loc, npe, unit_nr
     INTEGER, DIMENSION(2)                    :: dims, pos
     LOGICAL, DIMENSION(2)                    :: rdim
     TYPE(cp_para_cart_type), POINTER         :: cart
@@ -238,6 +240,8 @@ CONTAINS
     TYPE(kpoint_env_p_type), DIMENSION(:), &
       POINTER                                :: kp_env
     TYPE(kpoint_env_type), POINTER           :: kp
+
+    CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(kpoint))
     para_env => kpoint%para_env
@@ -363,6 +367,8 @@ CONTAINS
 
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE kpoint_env_initialize
 
 ! *****************************************************************************
@@ -379,7 +385,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_initialize_mos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ic, ik, is, nao, nc, &
+    INTEGER                                  :: handle, ic, ik, is, nao, nc, &
                                                 nelectron, nkp_loc, nmo, nspin
     REAL(KIND=dp)                            :: flexible_electron_count, &
                                                 maxocc, n_el_f
@@ -390,6 +396,8 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: fmlocal
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
+
+    CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -478,6 +486,8 @@ CONTAINS
 
     END IF
 
+    CALL timestop(handle)
+
   END SUBROUTINE kpoint_initialize_mos
 
 ! *****************************************************************************
@@ -499,8 +509,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_init_cell_index', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i1, i2, i3, ic, icount, it, &
-                                                ncount
+    INTEGER                                  :: handle, i1, i2, i3, ic, &
+                                                icount, it, ncount
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: index_to_cell
     INTEGER, DIMENSION(3)                    :: cell, itm
     INTEGER, DIMENSION(:, :), POINTER        :: list
@@ -508,6 +518,8 @@ CONTAINS
     LOGICAL                                  :: new
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
+
+    CALL timeset(routineN,handle)
 
     CPASSERT(ASSOCIATED(kpoint))
 
@@ -597,6 +609,8 @@ CONTAINS
     dft_control%nimages = SIZE(index_to_cell, 2)
 
     DEALLOCATE(list,index_to_cell)
+
+    CALL timestop(handle)
   END SUBROUTINE kpoint_init_cell_index
 
 ! *****************************************************************************
@@ -625,7 +639,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rskp_transform', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ic, icol, irow, jatom
+    INTEGER                                  :: handle, iatom, ic, icol, &
+                                                irow, jatom
     INTEGER, DIMENSION(3)                    :: cell
     LOGICAL                                  :: do_symmetric, found, &
                                                 wfn_real_only
@@ -633,6 +648,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cblock, rblock, rsblock
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
+
+    CALL timeset(routineN,handle)
+
 
     wfn_real_only = .TRUE.
     IF(PRESENT(cmatrix)) wfn_real_only = .FALSE.
@@ -686,6 +704,8 @@ CONTAINS
     END DO
     CALL neighbor_list_iterator_release(nl_iterator)
 
+    CALL timestop(handle)
+
   END SUBROUTINE rskp_transform
 
 ! *****************************************************************************
@@ -701,9 +721,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, ikpgr, ispin, kplocal, &
-                                                nb, ne_a, ne_b, nelectron, &
-                                                nkp, nmo, nspin
+    INTEGER                                  :: handle, ik, ikpgr, ispin, &
+                                                kplocal, nb, ne_a, ne_b, &
+                                                nelectron, nkp, nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
     REAL(KIND=dp)                            :: kTS, mu, mus(2), nel
     REAL(KIND=dp), ALLOCATABLE, &
@@ -714,6 +734,9 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
 
 ! first collect all the eigenvalues
+
+    CALL timeset(routineN,handle)
+
 
     CALL get_kpoint_info(kpoint,nkp=nkp)
     kp => kpoint%kp_env(1)%kpoint_env
@@ -796,6 +819,8 @@ CONTAINS
 
     DEALLOCATE(weig,wocc)
 
+    CALL timestop(handle)
+
   END SUBROUTINE kpoint_set_mo_occupation
 
 ! *****************************************************************************
@@ -811,8 +836,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_matrices', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikpgr, ispin, kplocal, nao, &
-                                                nmo, nspin
+    INTEGER                                  :: handle, ikpgr, ispin, &
+                                                kplocal, nao, nmo, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
     LOGICAL                                  :: wtype
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, occupation
@@ -822,6 +847,9 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
 
 ! which type of density matrix
+
+    CALL timeset(routineN,handle)
+
 
     IF(PRESENT(energy_weighted)) THEN
        wtype = energy_weighted
@@ -893,6 +921,8 @@ CONTAINS
 
     CALL cp_fm_release(fwork)
 
+    CALL timestop(handle)
+
   END SUBROUTINE kpoint_density_matrices
 
 ! *****************************************************************************
@@ -920,9 +950,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_density_transform', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bcntxt, iatom, ic, icell, &
-                                                icol, ik, ikk, irow, ispin, &
-                                                jatom, nc, nimg, nkp, nspin
+    INTEGER                                  :: bcntxt, handle, iatom, ic, &
+                                                icell, icol, ik, ikk, irow, &
+                                                ispin, jatom, nc, nimg, nkp, &
+                                                nspin
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_symmetric, found, &
@@ -936,6 +967,8 @@ CONTAINS
     TYPE(kpoint_env_type), POINTER           :: kp
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
+
+    CALL timeset(routineN,handle)
 
 ! work storage
 
@@ -1042,6 +1075,8 @@ CONTAINS
 
     CALL cp_dbcsr_deallocate_matrix(rpmat)
     CALL cp_dbcsr_deallocate_matrix(cpmat)
+
+    CALL timestop(handle)
 
   END SUBROUTINE kpoint_density_transform
 

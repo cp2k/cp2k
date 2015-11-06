@@ -334,8 +334,8 @@ CONTAINS
       czero = CMPLX(0.0_dp,0.0_dp,KIND=dp), &
       ione = CMPLX(0.0_dp,1.0_dp,KIND=dp)
 
-    INTEGER                                  :: bcntxt, ik, ikp, ikpgr, &
-                                                ispin, kplocal, nkp, &
+    INTEGER                                  :: bcntxt, handle, ik, ikp, &
+                                                ikpgr, ispin, kplocal, nkp, &
                                                 nkp_groups, nspin
     INTEGER, DIMENSION(2)                    :: kp_range
     INTEGER, DIMENSION(:, :), POINTER        :: kp_dist
@@ -357,6 +357,8 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
+
+    CALL timeset(routineN,handle)
 
     diis_step = .FALSE.
     nspin = SIZE(matrix_ks,1)
@@ -527,6 +529,8 @@ CONTAINS
        CALL cp_cfm_release(cmos)
     END IF
     CALL fm_pool_give_back_fm(ao_ao_fm_pools(1)%pool, fmlocal)
+
+    CALL timestop(handle)
 
   END SUBROUTINE do_general_diag_kp
 
