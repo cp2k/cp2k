@@ -100,7 +100,7 @@ MODULE qs_rho0_ggrid
       routineP = moduleN//':'//routineN
 
     INTEGER :: auxbas_grid, handle, iat, iatom, igrid, ikind, istat, ithread, &
-      j, l0_ikind, lmax0, nat, nch_ik, nch_max, npme
+      j, l0_ikind, lmax0, lmax_global, nat, nch_ik, nch_max, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: paw_atom
     REAL(KIND=dp)                            :: eps_rho_rspace, rpgf0, zet0
@@ -188,6 +188,13 @@ MODULE qs_rho0_ggrid
     IF(istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                     "pab",dp_size*nch_max)
 
+    !Compute global lmax for use in collocate_pgf_product_rspace
+    lmax_global=0
+    DO ikind = 1,SIZE(atomic_kind_set)
+      CALL get_rho0_mpole(rho0_mpole=rho0, ikind=ikind, l0_ikind=l0_ikind)
+      lmax_global=MAX(lmax_global,l0_ikind)
+    END DO 
+
     DO ikind = 1,SIZE(atomic_kind_set)
       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list,natom=nat)
       CALL get_qs_kind(qs_kind_set(ikind),paw_atom=paw_atom)
@@ -237,7 +244,7 @@ MODULE qs_rho0_ggrid
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
            rs_grid,cell, cube_info(igrid),eps_rho_rspace,ga_gb_function=401,&
            ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0,&
-           use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
+           use_subpatch=.TRUE.,subpatch_pattern=0_int_8,lmax_global=lmax_global)
 
       END DO  !  j
 

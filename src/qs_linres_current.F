@@ -604,16 +604,16 @@ CONTAINS
     INTEGER :: bcol, brow, cindex, curr_tasks, handle, i, iatom, iatom_old, &
       idir2, igrid_level, iiB, iiiB, ikind, ikind_old, ipgf, iset, iset_old, &
       itask, ithread, jatom, jatom_old, jkind, jkind_old, jpgf, jset, &
-      jset_old, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, na2, natom, &
-      nb1, nb2, ncoa, ncob, ngpts, nimages, nkind, nseta, nsetb, ntasks, &
-      nthread, sgfa, sgfb
+      jset_old, lmax_global, maxco, maxpgf, maxset, maxsgf, maxsgf_set, na1, &
+      na2, natom, nb1, nb2, ncoa, ncob, ngpts, nimages, nkind, nseta, nsetb, &
+      ntasks, nthread, sgfa, sgfb
     INTEGER(kind=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb
+                                                lb_min, mylmax, npgfa, npgfb, &
+                                                nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, den_found, den_found_a, &
       distributed_rs_grids, do_igaim, map_consistent, my_rtp, my_soft
@@ -668,7 +668,7 @@ CONTAINS
          rs_descs, para_env, dist_ab, set_radius_a, set_radius_b, la_max, &
          la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb, rpgfa, rpgfb, &
          sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb, dist_ab, &
-         tasks, workt, mat_a, mat_b, mat_c, mat_d, rs_gauge)
+         tasks, workt, mat_a, mat_b, mat_c, mat_d, rs_gauge, mylmax)
     NULLIFY(deltajp_a,deltajp_b,deltajp_c,deltajp_d)
     NULLIFY(jp_block_a,jp_block_b,jp_block_c,jp_block_d)
     NULLIFY(jpblock_a,jpblock_b,jpblock_c,jpblock_d)
@@ -768,6 +768,7 @@ CONTAINS
     CPASSERT(nimages==1)
     cindex = 1
 
+    lmax_global=0
     DO ikind=1,nkind
        qs_kind => qs_kind_set(ikind)
 
@@ -777,11 +778,17 @@ CONTAINS
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            npgf=npgfa, nset=nseta )
+            npgf=npgfa, nset=nseta, lmax=mylmax )
 
        maxset=MAX(nseta,maxset)
        maxpgf=MAX(MAXVAL(npgfa),maxpgf)
+       ! Find maximum l, for collocate_pgf_product_rspace
+       lmax_global=MAX(MAXVAL(mylmax),lmax_global)
     END DO
+
+    ! ga_gb_function can be one of FUNC_AB, FUNC_ADBmDAB or FUNC_ARDBm_DARB
+    ! take worst case and add 2 to lmax_global
+    lmax_global=lmax_global+2
 
     !   *** Initialize working density matrix ***
 
@@ -1182,7 +1189,7 @@ CONTAINS
             eps_rho_rspace,&
             ga_gb_function=FUNC_ADBmDAB,&
             idir=idir,&
-            map_consistent=map_consistent)
+            map_consistent=map_consistent,lmax_global=lmax_global)
        IF(do_igaim) THEN
           ! here the decontracted mat_jb_{ab} is multiplied by
           !     f_{ab} = g_{a} * g_{b} ! THIS GOES OUTSIDE THE LOOP !
@@ -1193,7 +1200,7 @@ CONTAINS
                   rs_rho(igrid_level)%rs_grid,cell,cube_info(igrid_level),&
                   eps_rho_rspace,&
                   ga_gb_function=FUNC_AB,&
-                  map_consistent=map_consistent)
+                  map_consistent=map_consistent,lmax_global=lmax_global)
           ENDIF!rm
           ! here the decontracted mat_jp_rii{ab} is multiplied by
           !     f_{ab} = g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1208,7 +1215,7 @@ CONTAINS
                idir=idir,ir=iiiB,&
                rsgauge=rs_gauge(iiiB)%rs(igrid_level)%rs_grid,&
                rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
-               map_consistent=map_consistent)
+               map_consistent=map_consistent,lmax_global=lmax_global)
           ! here the decontracted mat_jp_riii{ab} is multiplied by
           !     f_{ab} = -g_{a} (d(r) - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
           !             (dg_{a}/dr)_{idir} (d(r) - R_{b})_{iiB} g_{b}
@@ -1222,7 +1229,7 @@ CONTAINS
                idir=idir,ir=iiB,&
                rsgauge=rs_gauge(iiB)%rs(igrid_level)%rs_grid,&
                rsbuf=current_env%rs_buf(igrid_level)%rs_grid,&
-               map_consistent=map_consistent)
+               map_consistent=map_consistent,lmax_global=lmax_global)
        ELSE
           ! here the decontracted mat_jp_rii{ab} is multiplied by
           !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} -
@@ -1235,7 +1242,7 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_ARDBmDARB,&
                idir=idir,ir=iiiB,&
-               map_consistent=map_consistent)
+               map_consistent=map_consistent,lmax_global=lmax_global)
           ! here the decontracted mat_jp_riii{ab} is multiplied by
           !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} +
           !             (dg_{a}/dr)_{idir} (r - R_{b})_{iiB} g_{b}
@@ -1247,7 +1254,7 @@ CONTAINS
                eps_rho_rspace,&
                ga_gb_function=FUNC_ARDBmDARB,&
                idir=idir,ir=iiB,&
-               map_consistent=map_consistent)
+               map_consistent=map_consistent,lmax_global=lmax_global)
        ENDIF
 
     END DO loop_tasks

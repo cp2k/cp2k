@@ -455,10 +455,12 @@ CONTAINS
             pab(1,1) = hirshfeld_env%charges(atom_a) * coef
             ra(:) = pbc(particle_set(atom_a)%r,cell)
             subpatch_pattern=0
+            ! la_max==0 so set lmax_global to 0
             CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
                (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,1.0_dp,pab,0,0,rs_rho,&
                cell,cube_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
-               ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern)
+               ithread=ithread,use_subpatch=.TRUE.,subpatch_pattern=subpatch_pattern,&
+               lmax_global=0)
          END DO
       END DO
 
