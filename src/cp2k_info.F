@@ -201,6 +201,10 @@ IF(INDEX(flags, " smm_") > 0) THEN
    flags=TRIM(flags)//" smm"
 ENDIF
 
+#if defined __LIBXSMM
+   flags=TRIM(flags)//" libxsmm"
+#endif
+
 #if defined __CRAY_PM_ACCEL_ENERGY
    flags=TRIM(flags)//" cray_pm_accel_energy"
 #endif

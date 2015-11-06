@@ -25,8 +25,8 @@ MODULE input_cp2k_global
        dbcsr_get_conf_mm_driver, dbcsr_get_conf_randmat_seed, &
        dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_filtering, &
        dbcsr_get_conf_use_mpi_rma, mm_driver_acc, mm_driver_blas, &
-       mm_driver_matmul, mm_driver_smm, mm_name_acc, mm_name_blas, &
-       mm_name_matmul, mm_name_smm, multrec_limit
+       mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, mm_name_acc, &
+       mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -525,13 +525,14 @@ CONTAINS
          usage="mm_driver blas",&
          default_i_val=dbcsr_get_conf_mm_driver(),&
          enum_c_vals=s2a(mm_name_blas,mm_name_matmul,mm_name_smm,&
-                         mm_name_acc),&
+                         mm_name_xsmm,mm_name_acc),&
          enum_i_vals=(/mm_driver_blas,mm_driver_matmul,mm_driver_smm,&
-                       mm_driver_acc/),&
+                       mm_driver_xsmm,mm_driver_acc/),&
          enum_desc=s2a("BLAS (requires the BLAS library at link time)",&
                        "Fortran MATMUL",&
                        "Library optimised for Small Matrix Multiplies "//&
                        "(requires the SMM library at link time)",&
+                       "(requires the libxsmm at link time)",&
                        "ACC (requires an accelerator backend)"))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)

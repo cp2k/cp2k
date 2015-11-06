@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE dbcsr_config
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE kinds,                           ONLY: dp
@@ -55,11 +54,13 @@ MODULE dbcsr_config
             mm_driver_blas,&
             mm_driver_matmul,&
             mm_driver_smm,&
+            mm_driver_xsmm,&
             mm_driver_acc
   PUBLIC :: mm_async
   PUBLIC :: mm_name_blas,&
             mm_name_matmul,&
             mm_name_smm,&
+            mm_name_xsmm,&
             mm_name_acc
   PUBLIC :: use_mpi_rma, use_mpi_filtering, use_comm_thread, comm_thread_load
   PUBLIC :: max_elements_per_block, avg_elements_images
@@ -83,12 +84,14 @@ MODULE dbcsr_config
   INTEGER, PARAMETER :: mm_driver_matmul     = 1
   INTEGER, PARAMETER :: mm_driver_blas       = 2
   INTEGER, PARAMETER :: mm_driver_smm        = 3
-  INTEGER, PARAMETER :: mm_driver_acc       = 5
+  INTEGER, PARAMETER :: mm_driver_xsmm       = 4
+  INTEGER, PARAMETER :: mm_driver_acc        = 5
 
   CHARACTER(len=*), PARAMETER :: mm_name_blas   = "BLAS",&
                                  mm_name_matmul = "MATMUL",&
                                  mm_name_smm    = "SMM",&
-                                 mm_name_acc   = "ACC"
+                                 mm_name_xsmm   = "XSMM",&
+                                 mm_name_acc    = "ACC"
 
   ! Then the capabilities are specified.
 
@@ -104,6 +107,12 @@ MODULE dbcsr_config
   LOGICAL, PARAMETER :: has_smm_vec = .TRUE.
 #else
   LOGICAL, PARAMETER :: has_smm_vec = .FALSE.
+#endif
+
+#if defined(__LIBXSMM)
+  LOGICAL, PARAMETER :: has_xsmm = .TRUE.
+#else
+  LOGICAL, PARAMETER :: has_xsmm = .FALSE.
 #endif
 
 #if defined (__DBCSR_ACC)
@@ -218,21 +227,23 @@ CONTAINS
     CASE (mm_driver_matmul)
        mm_driver = mm_driver_matmul
     CASE (mm_driver_blas)
-       CALL dbcsr_assert (has_blas,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Support for BLAS not compiled in.", __LINE__)
+       IF(.NOT.has_blas) CPABORT("Support for BLAS not compiled in.")
        mm_driver = mm_driver_blas
     CASE (mm_driver_smm)
+       IF(.NOT.has_smm_gemm) CPABORT("Support for libsmm not compiled in.")
        mm_driver = mm_driver_smm
+    CASE (mm_driver_xsmm)
+       IF(.NOT.has_xsmm) CPABORT("Support for libxsmm not compiled in.")
+       mm_driver = mm_driver_xsmm
     CASE (mm_driver_acc)
-       CALL dbcsr_assert (has_acc,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Support for ACC not compiled in.", __LINE__)
+       IF(.NOT.has_acc) CPABORT("Support for ACC not compiled in.")
        mm_driver = mm_driver_acc
        mm_stack_size = 30000
        nm_stacks = 3
        nn_stacks = 3
        nk_stacks = 3
+    CASE DEFAULT
+       CPABORT("Unkown MM driver")
     END SELECT
     mm_async = driver_is_async (mm_driver)
     IF (mm_async) THEN
