@@ -9,7 +9,7 @@
 ! 6) multrec 3
 ! 7) multrec 4
 ! 8) multvec
-! 9) Intel Xeon Phi C intrinsics
+! 9) libxsmm
 !
 PROGRAM small_gen
    USE mults
@@ -20,7 +20,7 @@ PROGRAM small_gen
    INTEGER :: M,N,K,transpose_flavor,data_type,SIMD_size
    INTEGER :: ibest_square=3, best_square=4
    INTEGER :: isquare
-   LOGICAL :: do_intrinsics
+   LOGICAL :: do_libxsmm
 
    CALL GET_COMMAND_ARGUMENT(1,arg)
    READ(arg,*) M
@@ -37,9 +37,9 @@ PROGRAM small_gen
    CALL GET_COMMAND_ARGUMENT(7,filename)
 
    IF (COMMAND_ARGUMENT_COUNT().gt.7) THEN
-      do_intrinsics = .TRUE.
+      do_libxsmm = .TRUE.
    ELSE
-      do_intrinsics = .FALSE.
+      do_libxsmm = .FALSE.
    END IF
 
    ! generation of the tiny version
@@ -61,17 +61,17 @@ PROGRAM small_gen
    ENDDO
    
    ! generation of the vector version, 
-   ! only in the case of SIMD_size=32(i.e. AVX) and SIMD_size=64(i.e. MIC)
+   ! only in the case of SIMD_size=32(i.e. AVX/AVX2) and SIMD_size=64(i.e. KNC/AVX512)
+   ibest_square=ibest_square+1
    IF ((SIMD_size==32 .OR. SIMD_size==64) .AND. transpose_flavor==1 .AND. data_type<=2) THEN
-      ibest_square=ibest_square+1
       write(label,'(A,I0)') "_",ibest_square+best_square
       CALL mult_versions(M,N,K,ibest_square+best_square,label,&
            transpose_flavor,data_type,SIMD_size,filename,stack_size_label="")
    ENDIF
 
-   ! generation of the C intrinsics version for Xeon Phi
-   IF ((do_intrinsics).AND.(SIMD_size==64.AND.transpose_flavor==1.AND.data_type==1)) THEN
-      ibest_square=ibest_square+1
+   ! generation of the libxsmm version interface
+   ibest_square=ibest_square+1
+   IF (do_libxsmm .AND. transpose_flavor==1 .AND. data_type<=2) THEN
       write(label,'(A,I0)') "_",ibest_square+best_square
       CALL mult_versions(M,N,K,ibest_square+best_square,label,&
            transpose_flavor,data_type,SIMD_size,filename,stack_size_label="")
@@ -85,13 +85,15 @@ PROGRAM small_gen
    write(6,'(A)')                    "  INTEGER :: unit ! Output unit"
    write(6,'(A,I0,A,I0,A,I0,A,I0)')  "  INTEGER, PARAMETER :: M=",M,",N=",N,",K=",K
    write(6,'(A)')                    "  CHARACTER(len=64) :: filename"
-   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.,padding=.TRUE.)
+   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.,.FALSE.,padding=.TRUE.)
    write(6,'(A)')                    "  INTERFACE"
    write(6,'(A)')                    "    SUBROUTINE X("//TRIM(trparam())//")"
-   CALL write_matrix_defs(data_type=data_type,write_intent=.TRUE.)
+   CALL write_matrix_defs(data_type=data_type,write_intent=.TRUE.,write_target=.FALSE.)
    write(6,'(A)')                    "    END SUBROUTINE"
    write(6,'(A)')                    "  END INTERFACE"
    DO isquare=1,ibest_square+best_square
+      IF (isquare==8 .AND. ((SIMD_size/=32 .AND. SIMD_size/=64) .OR. transpose_flavor/=1 .OR. data_type>2)) CYCLE
+      IF (isquare==9 .AND. ((.NOT.do_libxsmm) .OR. transpose_flavor/=1 .OR. data_type>2)) CYCLE
       write(6,'(A,I0,A,I0,A,I0,A,I0)') "PROCEDURE(X) :: smm_"//trstr(transpose_flavor,data_type)//"_",&
            M,"_",N,"_",K,"_",isquare
    ENDDO
@@ -102,8 +104,13 @@ PROGRAM small_gen
    write(6,'(A)')                    "  TYPE(t_kernels) :: kernels(Nk,Nloop)"
    write(6,'(A)')                    "  INTEGER :: mnk(3,Nk) ! mu, nu, ku"
    DO isquare=1,ibest_square+best_square
-      write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0)') "  kernels(Nk,",isquare,")%ptr => smm_"//trstr(transpose_flavor,data_type)//"_",&
-           M,"_",N,"_",K,"_",isquare
+      IF ((isquare==8 .AND. ((SIMD_size/=32 .AND. SIMD_size/=64) .OR. transpose_flavor/=1 .OR. data_type>2)) .OR. &
+          (isquare==9 .AND. ((.NOT.do_libxsmm) .OR. transpose_flavor/=1 .OR. data_type>2))) THEN
+         write(6,'(A,I0,A)') "  kernels(Nk,",isquare,")%ptr => Null()"
+      ELSE
+         write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0)') "  kernels(Nk,",isquare,")%ptr => smm_"//trstr(transpose_flavor,data_type)//"_",&
+              M,"_",N,"_",K,"_",isquare
+      ENDIF
    ENDDO
    write(6,'(A,I0,A,I0,A,I0,A)')     "  filename='small_find_",M,"_",N,"_",K,".out'"
    write(6,'(A)')                    "  C = 0 ; A = 0 ; B = 0"

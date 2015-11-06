@@ -9,7 +9,7 @@
 ! 6) multrec 3
 ! 7) multrec 4
 ! 8) Vector version
-! 9) Intel Xeon Phi C intrinsics
+! 9) libxsmm
 !
 MODULE multrec_gen
   USE mults
@@ -71,9 +71,9 @@ CONTAINS
     ENDIF
   END FUNCTION trsum
   
-  SUBROUTINE write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label,Cbuffer_row,Cbuffer_col)
+  SUBROUTINE write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,version,stack_size_label,Cbuffer_row,Cbuffer_col)
     CHARACTER(LEN=*) :: label
-    INTEGER :: M,N,K,transpose_flavor,data_type
+    INTEGER :: M,N,K,transpose_flavor,data_type,version
     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
     INTEGER, OPTIONAL :: Cbuffer_row, Cbuffer_col
 
@@ -95,7 +95,15 @@ CONTAINS
           CALL write_stack_params(data_type,stack_size_label)
           write(6,'(A)')                    "      INTEGER            :: sp"
           IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
-             write(6,'(A,I0,A,I0,A)')   "       "//trdat(data_type)//":: Cbuffer(",Cbuffer_row,",",Cbuffer_col,")"
+             write(6,'(A,I0,A,I0,A)')   "       "//trdat(data_type,.FALSE.)//":: Cbuffer(",Cbuffer_row,",",Cbuffer_col,")"
+          ENDIF
+          IF (version.eq.9) THEN
+             write (6,'(A)')                "      INTERFACE"
+             write(6,'(A,I0,A,I0,A,I0,A)')  "        SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+                  M,"_",N,"_",K,TRIM(label)//"(A,B,C)"             
+             CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.,version.eq.9) 
+             write(6,'(A)') "        END SUBROUTINE"
+             write (6,'(A)')                "      END INTERFACE"             
           ENDIF
           write(6,'(A)')                    "      DO sp = 1, "//TRIM(stack_size_label)
           IF (PRESENT(Cbuffer_row).AND.PRESENT(Cbuffer_col)) THEN
@@ -132,11 +140,11 @@ CONTAINS
        IF (do_stack) THEN
           write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                M,"_",N,"_",K,TRIM(label)//"_buffer(A,B,C,Cbuffer)"
-          write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type,"INOUT")//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
+          write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type,.FALSE.,"INOUT")//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
        ELSE
           write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
-          write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type)//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
+          write(6,'(A,I0,A,I0,A)') "      "//trdat(data_type,.FALSE.)//" :: Cbuffer(",nSIMD,",",MIN(stride,N),")"
        ENDIF
     ELSE
        if (PRESENT(stack_size_label)) THEN
@@ -147,7 +155,7 @@ CONTAINS
        ENDIF
     ENDIF
 
-    CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.) 
+    CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.,.FALSE.) 
     
     write(6,'(A)') "      INTEGER :: i"
 
@@ -207,9 +215,9 @@ CONTAINS
     if (PRESENT(stack_size_label)) THEN
 
        IF (modElements>0.AND.nSIMD>0.AND.stride>0) THEN
-          CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label,nSIMD,MIN(stride,N))
+          CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,8,stack_size_label,nSIMD,MIN(stride,N))
        ELSE
-          CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label)
+          CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,8,stack_size_label)
        ENDIF
     ENDIF
 
@@ -231,7 +239,7 @@ CONTAINS
      INTEGER, PARAMETER :: stride=8 ! used for the unrolling
      size_type=0; nSIMD=0
 
-     ! only in the case of SIMD_size=32(i.e. AVX) and SIMD_size=64(i.e. MIC)
+     ! only in the case of SIMD_size=32(i.e. AVX/AVX2) and SIMD_size=64(i.e. KNC/AVX512)
      IF ((SIMD_size==32 .OR. SIMD_size==64) .AND. transpose_flavor==1 .AND. data_type<=2 .AND. &
           (LABEL=="" .OR. version==8)) THEN
 
@@ -291,12 +299,14 @@ CONTAINS
         IF (version.ne.3.and.version.ne.9) THEN
            write(6,'(A,I0,A,I0,A,I0,A)')    "   PURE SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
                 M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
-           ELSE
-              write(6,'(A,I0,A,I0,A,I0,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
-                   M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
+        ELSE
+           write(6,'(A,I0,A,I0,A,I0,A)')    "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",&
+                M,"_",N,"_",K,TRIM(label)//"(A,B,C)"
+           IF (version.eq.9) THEN
               write (6,'(A)')                  "      USE, INTRINSIC :: ISO_C_BINDING"
            ENDIF
-        CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.) 
+        ENDIF
+        CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.TRUE.,version.eq.9) 
      ENDIF
 
      SELECT CASE(version)
@@ -319,7 +329,7 @@ CONTAINS
        END SELECT
      CASE(3)
        ! generation of the gemm version
-       WRITE(6,'(A)') "      "//trdat(data_type)//", PARAMETER :: one=1"
+       WRITE(6,'(A)') "      "//trdat(data_type,.FALSE.)//", PARAMETER :: one=1"
        write(6,'(A)') "#ifdef __INTEL_OFFLOAD"
        write(6,'(A)') "!dir$ attributes offload:mic :: "//trgemm(data_type)
        write(6,'(A)') "#endif"
@@ -356,19 +366,19 @@ CONTAINS
         ENDIF
      CASE(9)
         write (6,'(A)')                "      INTERFACE"
-        write (6,'(A,I0,A,I0,A,I0,A)') "        SUBROUTINE dc_smm_dnn_",M,"_",N,"_",K,"(A,B,C) BIND(C)"
+        write (6,'(A,I0,A,I0,A,I0,A)') "        SUBROUTINE libxsmm_",M,"_",N,"_",K,"(A,B,C) BIND(C)"
         write (6,'(A)')                "          USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_PTR"
         write (6,'(A)')                "          TYPE(C_PTR), VALUE               :: C, B, A"
-        write (6,'(A,I0,A,I0,A,I0)')   "        END SUBROUTINE dc_smm_dnn_",M,"_",N,"_",K
+        write (6,'(A,I0,A,I0,A,I0)')   "        END SUBROUTINE libxsmm_",M,"_",N,"_",K
         write (6,'(A)')                "      END INTERFACE"
-        write (6,'(A,I0,A,I0,A,I0,A)') "      CALL dc_smm_dnn_",M,"_",N,"_",K,"(C_LOC(A),C_LOC(B),C_LOC(C))"
+        write (6,'(A,I0,A,I0,A,I0,A)') "      CALL libxsmm_",M,"_",N,"_",K,"(C_LOC(A),C_LOC(B),C_LOC(C))"
      CASE DEFAULT
        ERROR STOP "MISSING CASE mult_versions"
      END SELECT
 
      IF ((version.ge.1.and.version.le.7).or.version.eq.9) THEN
         write(6,'(A)') "   END SUBROUTINE"
-        CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,stack_size_label)
+        CALL write_subroutine_stack(label,M,N,K,transpose_flavor,data_type,version,stack_size_label)
      ENDIF
 
   END SUBROUTINE mult_versions

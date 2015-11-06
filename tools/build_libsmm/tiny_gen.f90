@@ -27,10 +27,10 @@ PROGRAM tiny_gen
   write(6,'(A)')                    "  INTEGER :: unit ! Output unit"
   write(6,'(A,I0,A,I0,A,I0)')       "  INTEGER, PARAMETER :: M=",M,",N=",N,",K=",K
   write(6,'(A)')                    "  CHARACTER(len=64) :: filename"
-  CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.)
+  CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.,.FALSE.)
   write(6,'(A)')                    "  INTERFACE"
   write(6,'(A)')                    "    SUBROUTINE X(A,B,C)"
-  CALL write_matrix_defs(data_type=data_type,write_intent=.FALSE.)
+  CALL write_matrix_defs(data_type=data_type,write_intent=.FALSE.,write_target=.FALSE.)
   write(6,'(A)')                    "    END SUBROUTINE"
   write(6,'(A)')                    "  END INTERFACE"
   CALL loop_variants(2)
@@ -74,7 +74,7 @@ CONTAINS
                    write(6,'(A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A,I0,A)') &
                         "   SUBROUTINE smm_"//trstr(transpose_flavor,data_type)//"_",M,"_",N,"_",K,"_", &
                         iloop,"_",mu,"_",nu,"_",ku,"(A,B,C)"
-                   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.)
+                   CALL write_matrix_defs(M,N,K,transpose_flavor,data_type,.FALSE.,.FALSE.)
                    write(6,'(A)')                "      INTEGER ::i,j,l"
                    CALL smm_inner(mi,mf,ni,nf,ki,kf,iloop,mu,nu,ku,transpose_flavor,data_type)
                    write(6,'(A)') "   END SUBROUTINE"

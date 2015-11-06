@@ -1,5 +1,5 @@
 #
-# Author: Alfio Lazzaro, alazzaro@cray.com (2013-2014)
+# Author: Alfio Lazzaro, alfio.lazzaro@mat.ethz.ch (2013-2015)
 # Library for the generate script used in LIBSMM library    
 #
 
@@ -12,76 +12,74 @@ write_makefile_header() {
     #
     prefix_file=$1 ; shift
 
-    printf "DIMS         = $@\n"
-    printf "DIMS_INDICES = \$(foreach m,\$(DIMS),\$(foreach n,\$(DIMS),\$(foreach k,\$(DIMS),\$m_\$n_\$k)))"
+    printf "LIBSMM_DIMS         = $@\n"
+    printf "LIBSMM_DIMS_INDICES = \$(foreach m,\$(LIBSMM_DIMS),\$(foreach n,\$(LIBSMM_DIMS),\$(foreach k,\$(LIBSMM_DIMS),\$m_\$n_\$k)))"
     printf "\n\n"
 
     #
     # consider only a sub-range of all indices
     #
-    printf "SI = 1\n"
-    printf "EI = \$(words \$(DIMS_INDICES))\n"
-    printf "INDICES = \$(wordlist \$(SI),\$(EI),\$(DIMS_INDICES))\n\n"
+    printf "LIBSMM_SI = 1\n"
+    printf "LIBSMM_EI = \$(words \$(LIBSMM_DIMS_INDICES))\n"
+    printf "LIBSMM_INDICES = \$(wordlist \$(LIBSMM_SI),\$(LIBSMM_EI),\$(LIBSMM_DIMS_INDICES))\n\n"
 
     #
     # output directory for compiled and results files 
     #
-    printf "OUTDIR=${out_dir}\n\n"
+    printf "LIBSMM_WORKDIR=${work_dir}\n\n"
 
     #
     # list of source files
     #
-    printf "SRCFILES=\$(patsubst %%,${prefix_file}_find_%%.f90,\$(INDICES)) \n"
+    printf "LIBSMM_SRCFILES=\$(patsubst %%,${prefix_file}_find_%%.f90,\$(LIBSMM_INDICES)) \n"
     
     #
     # list of executables
     #
-    printf "OBJFILES=\$(patsubst %%,\$(OUTDIR)/${prefix_file}_find_%%.o,\$(INDICES)) \n"
+    printf "LIBSMM_OBJFILES=\$(patsubst %%,\$(LIBSMM_WORKDIR)/${prefix_file}_find_%%.o,\$(LIBSMM_INDICES)) \n"
     
     #
     # list of output files
     #
-    printf "OUTFILES=\$(OBJFILES:.o=.out) \n\n"
+    printf "LIBSMM_OUTFILES=\$(LIBSMM_OBJFILES:.o=.out) \n\n"
 
     #
     # name of the executable
     #
-    printf "EXE=\$(OUTDIR)/${prefix_file}_find_\$(firstword \$(INDICES))__\$(lastword \$(INDICES)).x \n\n"
+    printf "LIBSMM_EXE=\$(LIBSMM_WORKDIR)/${prefix_file}_find_\$(firstword \$(LIBSMM_INDICES))__\$(lastword \$(LIBSMM_INDICES)).x \n\n"
 
     #
     # main target
     #
-    printf ".PHONY: bench \$(EXE:.x=.f90) \n"
-    printf "all: bench \n\n"
+    printf ".PHONY: all_libsmm compile_libsmm source_libsmm \$(LIBSMM_EXE:.x=.f90) \n"
+    printf "all_libsmm: \n\n"
 
     #
     # include makefile for source master code generation
     #
-    printf "DATATYPE=${strdat}\n"
+    printf "LIBSMM_DATATYPE=${strdat}\n"
     if [ -n "${target_compile_offload}" ]; then
-	printf "MIC_OFFLOAD=1\n"
+	printf "LIBSMM_MIC_OFFLOAD=1\n"
     fi
     printf "include ../make.gen\n\n"
 
     #
-    # include Makefile for C intrinsics kernels for Intel Xeon Phi
+    # include Makefile for libxsmm kernels
     #
-    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_offload}") ]]; then
-	printf "ROW_MAJOR := 0\n"
-	printf "INDICES_M := \$(DIMS)\n"
-	printf "INDICES_N := \$(DIMS)\n"
-	printf "INDICES_K := \$(DIMS)\n"
-	printf "DIR_KNC=../libxsmm\n"
-	printf "LIB_KNC=\$(LIBDIR_KNC)/libxsmm_\$(firstword \$(INDICES))__\$(lastword \$(INDICES)).a\n"
-	printf "NO_MAIN=1\n"
-	printf "include \$(DIR_KNC)/Makefile\n\n"
+    if [[ ("$prefix_file" = "small") && ( -n "${libxsmm_dir}") ]]; then
+	printf "LIBXSMM_DIR=${libxsmm_dir}\n"
+	printf "LIBXSMM_WORKDIR=${libxsmm_work_dir}\n"
+	printf "ROW_MAJOR=0\n"
+	printf "${SIMD_libxsmm_target}\n"
+	printf "include \$(LIBXSMM_DIR)/Makefile\n"
+	printf "LIBXSMM_OBJFILES=\$(patsubst %%,\$(LIBXSMM_WORKDIR)/libxsmm${type_label}_${SIMD_libxsmm}_${prefix_file}_find_%%.o,\$(LIBSMM_INDICES))\n\n"
     fi
 
     #
     # write general targets
     #
-    printf "bench: \$(EXE) \n"
-    printf "\t rm -f \$(OUTFILES) \n"
+    printf "all_libsmm: \$(LIBSMM_EXE) \n"
+    printf "\t rm -f \$(LIBSMM_OUTFILES) \n"
     printf "\t export OMP_NUM_THREADS="
     if [ -n "${MIC_OMP_NUM_THREADS}" ]; then
 	printf "${MIC_OMP_NUM_THREADS}"
@@ -90,9 +88,9 @@ write_makefile_header() {
     fi
     printf " ; ./\$< \n\n"
 
-    printf "\$(EXE): \$(OBJFILES) \$(EXE:.x=.f90)"
-    if [[ ("$prefix_file" = "small") && ( -n "${target_compile_offload}") ]]; then
-	printf " \$(LIB_KNC)"
+    printf "\$(LIBSMM_EXE): \$(LIBSMM_OBJFILES) \$(LIBSMM_EXE:.x=.f90)"
+    if [[ ("$prefix_file" = "small") && ( -n "${libxsmm_dir}") ]]; then
+	printf " \$(LIBXSMM_OBJFILES)"
     fi
     printf "\n"
     if [ -n "${target_compile_offload}" ]; then
@@ -110,9 +108,9 @@ write_makefile_header() {
 #
 run_make() {
     cd ${run_dir}
-    mkdir -p ${out_dir}
+    mkdir -p ${work_dir}
     if [ -n "${target_compile_offload}" ]; then
-	chmod o+w ${out_dir}
+	chmod o+w ${work_dir}
     fi
 
     ndims=$#
@@ -133,7 +131,7 @@ run_make() {
 
         test_name=${run_dir}_job${ijob}
         echo "Launching elements ${element_start} --> ${element_end} (${test_name})"
-        ${run_cmd} make -j ${ntasks} -f ../${make_file} ${target} SI=${element_start} EI=${element_end}
+        ${run_cmd} make -j ${ntasks} -f ../${make_file} ${target} LIBSMM_SI=${element_start} LIBSMM_EI=${element_end}
 
         element_start=$(( element_end + 1))
     done
@@ -167,9 +165,9 @@ collect_results() {
 	    for n in $@  ; do
 		for k in $@  ; do
 		    file=${suffix}_find_${m}_${n}_${k}.out
-		    res=`tail -n 1 ${run_dir}/${out_dir}/$file`
+		    res=`tail -n 1 ${run_dir}/${work_dir}/$file`
 		    if [ -z "${res}" ]; then
-			res=`tail -n 2 ${run_dir}/${out_dir}/$file`
+			res=`tail -n 2 ${run_dir}/${work_dir}/$file`
 		    fi
 		    echo "$m $n $k $res"
 		done ; done ; done
@@ -187,7 +185,7 @@ do_generate_tiny() {
         #
 	${host_compile} -c mults.f90 
 	${host_compile} mults.o tiny_gen.f90 -o tiny_gen.x
-
+	
         #
         # for easy parallelism go via a Makefile
         #
@@ -198,11 +196,11 @@ do_generate_tiny() {
 	    #
 	    # Write specific targets
 	    #
-	    printf "compile: \$(OBJFILES) \n"
-	    printf "\$(OUTDIR)/%%.o: %%.f90 \n"
+	    printf "compile_libsmm: \$(LIBSMM_OBJFILES) \n"
+	    printf "\$(LIBSMM_WORKDIR)/%%.o: %%.f90 \n"
 	    printf "\t ${target_compile} -c \$< -o \$@ \n\n"
 
-	    printf "source: \$(SRCFILES) \n"
+	    printf "source_libsmm: \$(LIBSMM_SRCFILES) \n"
 	    printf "%%.f90: \n"
 	    printf '\t .././tiny_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
 	    printf " ${transpose_flavor} ${data_type} > \$@ \n\n"
@@ -237,29 +235,64 @@ do_generate_small() {
 	${host_compile} -c mults.f90
 	${host_compile} -c multrec_gen.f90
 	${host_compile} mults.o multrec_gen.o small_gen.f90 -o small_gen.x
-
+	#
+	# compile libxsmm generator
+	#
+	if [[ ( -n "${libxsmm_dir}") ]]; then
+	    libxsmm_work_dir=libxsmm
+	    mkdir -p ${run_dir}/${libxsmm_work_dir}
+	    ( cd ${libxsmm_dir} && make -j ${ntasks} generator )
+	fi
 	#
 	# for easy parallelism go via a Makefile
 	#
 	rm -f ${make_file}
 	(
 	    write_makefile_header small "${dims_small}"
-
     	    #
 	    # Write specific targets
 	    #
-	    printf "compile: \$(OBJFILES) \n"
-	    printf "\$(OUTDIR)/%%.o: \$(OUTDIR)/%%.f90 \n"
-	    printf "\t ${target_compile} -c \$< -o \$@ \n\n"
+	    printf "compile_libsmm: \$(LIBSMM_OBJFILES)"
+	    if [[ ( -n "${libxsmm_dir}") ]]; then
+		printf " \$(LIBXSMM_OBJFILES)"
+	    fi
+	    printf "\n"
+	    printf "\$(LIBSMM_WORKDIR)/%%.o: \$(LIBSMM_WORKDIR)/%%.f90 \n"
+	    printf "\t ${target_compile} -c \$< -o \$@ \n"
+    	    #
+	    # compile libxsmm kernel
+	    #
+	    if [[ ( -n "${libxsmm_dir}") ]]; then
+		printf "\$(LIBXSMM_WORKDIR)/%%.o: \$(LIBXSMM_WORKDIR)/%%.c \n"
+		printf "\t \$(CC) \$(CFLAGS) \$(DFLAGS) \$(TARGET) -c \$< -o \$@ \n"
+	    fi
+	    printf "\n"
 
-	    printf "source: \$(addprefix \$(OUTDIR)/,\$(SRCFILES)) \n"
-	    printf "\$(OUTDIR)/%%.f90: ../${tiny_file} \n"
+	    printf "source_libsmm: \$(addprefix \$(LIBSMM_WORKDIR)/,\$(LIBSMM_SRCFILES))"
+	    if [[ ( -n "${libxsmm_dir}") ]]; then
+		printf " \$(LIBXSMM_OBJFILES:.o=.c)"
+	    fi
+	    printf "\n"
+	    printf "\$(LIBSMM_WORKDIR)/%%.f90: ../${tiny_file} \n"
 	    printf '\t .././small_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
 	    printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${tiny_file} "
-	    if [ -n "${target_compile_offload}" ]; then
+	    if [ -n "${libxsmm_dir}" ]; then
 		printf "1 "
 	    fi
-	    printf "> \$@\n\n"
+	    printf "> \$@\n"
+	    #
+	    # generate libxsmm kernel
+	    #
+	    if [[ ( -n "${libxsmm_dir}") ]]; then
+		printf "\$(LIBXSMM_WORKDIR)/%%.c:\n"
+		printf "\t rm -f \$@\n"
+		printf "\t \$(LIBXSMM_DIR)/bin/./generator dense"
+		printf " \$@"
+		printf " libxsmm_"
+		printf '`echo $* | awk -F_ '\''{ print $$6"_"$$7"_"$$8" "$$6" "$$7" "$$8" "$$6" "$$8" "$$6 }'\''` '
+		printf "1 1 0 0 ${SIMD_libxsmm} nopf ${data_libxsmm}" 
+	    fi
+	    printf "\n\n"
 	) > ${make_file}
 
 	run_make ${dims_small}
@@ -425,75 +458,104 @@ do_generate_lib() {
     cd ..
 
     #
+    # compile libxsmm generator
+    #
+    if [[ ( -n "${libxsmm_dir}") ]]; then
+	libxsmm_work_dir=libxsmm
+	mkdir -p ${run_dir}/${libxsmm_work_dir}
+	( cd ${libxsmm_dir} && make -j ${ntasks} generator )
+    fi
+
+    #
     # for easy parallelism go via a Makefile
     #
     rm -f ${make_file}
     rm -f ${archive}
 
     (
-	printf "DIMS         = ${dims_small}\n"
-	printf "INDICES = \$(foreach m,\$(DIMS),\$(foreach n,\$(DIMS),\$(foreach k,\$(DIMS),\$m_\$n_\$k)))"
+	printf "LIBSMM_DIMS = ${dims_small}\n"
+	printf "LIBSMM_DIMS_INDICES = \$(foreach m,\$(LIBSMM_DIMS),\$(foreach n,\$(LIBSMM_DIMS),\$(foreach k,\$(LIBSMM_DIMS),\$m_\$n_\$k)))"
 	printf "\n\n"
 
 	#
 	# output directory for compiled and results files
 	#
-	printf "OUTDIR=${out_dir}\n\n"
+	printf "LIBSMM_WORKDIR=${work_dir}\n\n"
 
 	#
 	# driver file
 	#
-	printf "DRIVER=${file%.*}.o \n\n"
+	printf "LIBSMM_DRIVER=${file%.*}.o \n\n"
 
 	#
 	# list of source files
 	#
-	printf "SRCFILES=\$(patsubst %%,\$(OUTDIR)/smm${type_label}_%%.f90,\$(INDICES)) \n"
+	printf "LIBSMM_SRCFILES=\$(patsubst %%,\$(LIBSMM_WORKDIR)/smm${type_label}_%%.f90,\$(LIBSMM_DIMS_INDICES)) \n"
 
 	#
 	# list of obj files
 	#
-	printf "OBJFILES=\$(patsubst %%,\$(OUTDIR)/smm${type_label}_%%.o,\$(INDICES)) \n\n"
+	printf "LIBSMM_OBJFILES=\$(patsubst %%,\$(LIBSMM_WORKDIR)/smm${type_label}_%%.o,\$(LIBSMM_DIMS_INDICES)) \n\n"
 
-	printf ".PHONY: \$(OUTDIR)/\$(DRIVER) archive \n\n"
+	printf ".PHONY: \$(LIBSMM_WORKDIR)/\$(LIBSMM_DRIVER) all_libsmm \n\n"
 	
-	printf "all: archive \n\n"
+	printf "all_libsmm: \n\n"
 
         #
-        # include Makefile for C intrinsics kernels for Intel Xeon Phi
+        # include Makefile for libxsmm kernels
         #
-	if [ -n "${target_compile_offload}" ]; then
-	    printf "ROW_MAJOR := 0\n"
-	    printf "INDICES_M := \$(DIMS)\n"
-	    printf "INDICES_N := \$(DIMS)\n"
-	    printf "INDICES_K := \$(DIMS)\n"
-	    printf "DIR_KNC=../libxsmm\n"
-	    printf "NO_MAIN=1\n"
-	    printf "include \$(DIR_KNC)/Makefile\n\n"
+	if [[ ( -n "${libxsmm_dir}") ]]; then
+            printf "LIBXSMM_DIR=${libxsmm_dir}\n"
+            printf "LIBXSMM_WORKDIR=${libxsmm_work_dir}\n"
+            printf "ROW_MAJOR=0\n"
+            printf "${SIMD_libxsmm_target}\n"
+            printf "include \$(LIBXSMM_DIR)/Makefile\n"
+            printf "LIBXSMM_OBJFILES=\$(patsubst %%,\$(LIBXSMM_WORKDIR)/libxsmm${type_label}_${SIMD_libxsmm}_%%.o,\$(LIBSMM_DIMS_INDICES))\n\n"
 	fi
 
 	#
 	# generation source rule
 	#
-	printf "source: \$(SRCFILES) \n"
-	printf "\$(OUTDIR)/%%.f90: ../${small_file} ../${tiny_file} \n"
+	printf "source_libsmm: \$(LIBSMM_SRCFILES) \n"
+	printf "\$(LIBSMM_WORKDIR)/%%.f90: ../${small_file} ../${tiny_file} \n"
 	printf '\t .././lib_gen.x `echo $* | awk -F_ '\''{ print $$3" "$$4" "$$5 }'\''`'
-	printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${small_file} ../${tiny_file} > \$@\n\n"
+	printf " ${transpose_flavor} ${data_type} ${SIMD_size} ../${small_file} ../${tiny_file} > \$@\n"
+        #
+        # generate libxsmm kernel
+        #
+        if [[ ( -n "${libxsmm_dir}") ]]; then
+            printf "\$(LIBXSMM_WORKDIR)/%%.c:\n"
+            printf "\t rm -f \$@\n"
+            printf "\t \$(LIBXSMM_DIR)/bin/./generator dense"
+            printf " \$@"
+            printf " libxsmm_"
+            printf '`echo $* | awk -F_ '\''{ print $$4"_"$$5"_"$$6" "$$4" "$$5" "$$6" "$$4" "$$6" "$$4 }'\''` '
+            printf "1 1 0 0 ${SIMD_libxsmm} nopf ${data_libxsmm}\n" 
+        fi
+	printf "\n"
 
 	#
 	# compile rule
 	#
-	printf "compile: \$(OBJFILES) \n"
-	printf "\$(OUTDIR)/%%.o: \$(OUTDIR)/%%.f90 \n"
+	printf "compile_libsmm: \$(LIBSMM_OBJFILES) \n"
+	printf "\$(LIBSMM_WORKDIR)/%%.o: \$(LIBSMM_WORKDIR)/%%.f90 \n"
 	printf "\t ${target_compile} -c \$< -o \$@ \n\n"
+        #
+        # compile libxsmm kernel
+        #
+        if [[ ( -n "${libxsmm_dir}") ]]; then
+            printf "\$(LIBXSMM_WORKDIR)/%%.o: \$(LIBXSMM_WORKDIR)/%%.c \n"
+            printf "\t \$(CC) \$(CFLAGS) \$(DFLAGS) \$(TARGET) -c \$< -o \$@ \n"
+        fi
+        printf "\n"
 
-	printf "\$(OUTDIR)/\$(DRIVER): \n"
+	printf "\$(LIBSMM_WORKDIR)/\$(LIBSMM_DRIVER): \n"
 	printf "\t ${target_compile} -c \$(notdir \$*).f90 -o \$@ \n\n"
 
-	printf "archive: ${archive} \n\n"
-	printf "${archive}: \$(OBJFILES) \$(OUTDIR)/\$(DRIVER)"
-	if [ -n "${target_compile_offload}" ]; then
-	    printf " \$(OBJFILES_KNC)"
+	printf "all_libsmm: ${archive} \n"
+	printf "${archive}: \$(LIBSMM_OBJFILES) \$(LIBSMM_WORKDIR)/\$(LIBSMM_DRIVER)"
+	if [ -n "${libxsmm_dir}" ]; then
+	    printf " \$(LIBXSMM_OBJFILES)"
 	fi
 	printf "\n"
 	if [ -n "${target_compile_offload}" ]; then
@@ -510,7 +572,7 @@ do_generate_lib() {
     #
     # make the output dir
     #
-    mkdir -p ${out_dir}
+    mkdir -p ${work_dir}
 
     #
     # execute makefile compiling all variants and executing them
@@ -550,7 +612,7 @@ do_check() {
         #
         # make the output dir
         #
-        mkdir -p ${out_dir}
+        mkdir -p ${work_dir}
 
 	for m in ${dims_small}  ; do
 	    for n in ${dims_small}  ; do
@@ -567,7 +629,7 @@ do_check() {
 			echo "Preparing test program for job #$ijob..."
 			filename=${test_file}_job$ijob
 
-cat << EOF > ${out_dir}/${filename}.f90
+cat << EOF > ${work_dir}/${filename}.f90
 MODULE WTF_job$ijob
   INTERFACE MYRAND
     MODULE PROCEDURE SMYRAND, DMYRAND, CMYRAND, ZMYRAND
@@ -575,9 +637,9 @@ MODULE WTF_job$ijob
 CONTAINS
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ attributes offload:mic :: DMYRAND \n' >> ${out_dir}/${filename}.f90
+    printf '!dir$ attributes offload:mic :: DMYRAND \n' >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
   SUBROUTINE DMYRAND(A)
     REAL(KIND=KIND(0.0D0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq
@@ -586,9 +648,9 @@ cat << EOF >> ${out_dir}/${filename}.f90
   END SUBROUTINE
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ attributes offload:mic :: SMYRAND \n' >> ${out_dir}/${filename}.f90
+    printf '!dir$ attributes offload:mic :: SMYRAND \n' >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
   SUBROUTINE SMYRAND(A)
     REAL(KIND=KIND(0.0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq
@@ -597,9 +659,9 @@ cat << EOF >> ${out_dir}/${filename}.f90
   END SUBROUTINE
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ attributes offload:mic :: CMYRAND \n' >> ${out_dir}/${filename}.f90
+    printf '!dir$ attributes offload:mic :: CMYRAND \n' >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
   SUBROUTINE CMYRAND(A)
     COMPLEX(KIND=KIND(0.0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq,Beq
@@ -609,9 +671,9 @@ cat << EOF >> ${out_dir}/${filename}.f90
   END SUBROUTINE
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ attributes offload:mic :: ZMYRAND \n' >> ${out_dir}/${filename}.f90
+    printf '!dir$ attributes offload:mic :: ZMYRAND \n' >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
   SUBROUTINE ZMYRAND(A)
     COMPLEX(KIND=KIND(0.0D0)), DIMENSION(:,:) :: A
     REAL(KIND=KIND(0.0)), DIMENSION(SIZE(A,1),SIZE(A,2)) :: Aeq,Beq
@@ -623,10 +685,10 @@ END MODULE
 
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ attributes offload:mic :: testit, ' >> ${out_dir}/${filename}.f90
-    printf "${gemm}, smm${type_label} \n" >> ${out_dir}/${filename}.f90
+    printf '!dir$ attributes offload:mic :: testit, ' >> ${work_dir}/${filename}.f90
+    printf "${gemm}, smm${type_label} \n" >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
 SUBROUTINE testit(M,N,K)
   USE WTF_job$ijob
   IMPLICIT NONE
@@ -689,41 +751,41 @@ SUBROUTINE testit(M,N,K)
 END SUBROUTINE 
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ attributes offload:mic :: testit \n ' >> ${out_dir}/${filename}.f90
+    printf '!dir$ attributes offload:mic :: testit \n ' >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
 PROGRAM tester
   IMPLICIT NONE
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ offload begin target(mic) \n' >> ${out_dir}/${filename}.f90
+    printf '!dir$ offload begin target(mic) \n' >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
   !\$omp parallel
 EOF
 
 		    fi
 
-		    echo "   CALL testit(${m},${n},${k})" >> ${out_dir}/${filename}.f90
+		    echo "   CALL testit(${m},${n},${k})" >> ${work_dir}/${filename}.f90
 
 		    # last entry for a job
 		    if [ $element -eq $element_end ]; then
 
 			# last job
 			if [ $ijob -eq $jobs -a ! -n "${target_compile_offload}" ]; then
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
   ! checking 'peak' performance (and a size likely outside of the library)
   CALL testit(1000,1000,1000)
 EOF
 			fi
 
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
   !\$omp end parallel
 EOF
 if [ -n "${target_compile_offload}" ]; then
-    printf '!dir$ end offload \n' >> ${out_dir}/${filename}.f90
+    printf '!dir$ end offload \n' >> ${work_dir}/${filename}.f90
 fi
-cat << EOF >> ${out_dir}/${filename}.f90
+cat << EOF >> ${work_dir}/${filename}.f90
 END PROGRAM
 EOF
 
@@ -732,7 +794,7 @@ EOF
 
 			exe=${filename}.x
 
-			rm -f ${out_dir}/${filename}.sh
+			rm -f ${work_dir}/${filename}.sh
 			#
 			# Prepare the script for compile the benchmarking 
 			# and testing program for the smm library
@@ -740,7 +802,7 @@ EOF
 			(
 			    printf "#!/bin/bash -e \n\n"
 			    printf "set -o pipefail\n\n"
-			    printf "cd ${out_dir}\n"
+			    printf "cd ${work_dir}\n"
 			    if [ -n "${target_compile_offload}" ]; then
 				printf "${target_compile_offload}"
 			    else
@@ -748,10 +810,10 @@ EOF
 			    fi
 			    printf " ${filename}.f90 -o ${exe} ../../${archive} ${blas_linking}\n"
 			    printf "export OMP_NUM_THREADS=1 ; ./${exe} | tee ${filename}.out\n"
-			) > ${out_dir}/${filename}.sh
-			chmod +x ${out_dir}/${filename}.sh
+			) > ${work_dir}/${filename}.sh
+			chmod +x ${work_dir}/${filename}.sh
 
-			${run_cmd} ./${out_dir}/${filename}.sh
+			${run_cmd} ./${work_dir}/${filename}.sh
 		    fi
 
 		    element=$(( element + 1 ))  
@@ -775,11 +837,11 @@ EOF
     rm -f ${test_file}_${config_file_name}.out
 
     for (( ijob=1 ; ijob<=jobs; ijob++ )); do
-	if [ ! -s ${run_dir}/${out_dir}/${test_file}"_job$ijob".out ]; then
-	    echo "ERROR: Empty check file \"${run_dir}/${out_dir}/${test_file}_job$ijob.out\""
+	if [ ! -s ${run_dir}/${work_dir}/${test_file}"_job$ijob".out ]; then
+	    echo "ERROR: Empty check file \"${run_dir}/${work_dir}/${test_file}_job$ijob.out\""
 	    exit
 	fi
-	cat ${run_dir}/${out_dir}/${test_file}"_job$ijob".out | grep "Matrix size" >> ${test_file}_${config_file_name}.out
+	cat ${run_dir}/${work_dir}/${test_file}"_job$ijob".out | grep "Matrix size" >> ${test_file}_${config_file_name}.out
     done
 
     #

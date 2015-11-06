@@ -55,17 +55,23 @@ b) How to generate the library running a single job interactively.
    For this example we will use a Linux system with GNU compiler.
    Run "./generate -h" to see the meaning of the options.
 
-   1) Run: ./generate -c config/linux.gnu -j 0 -t 16 tiny1
-      This command generates a file tiny_gen_optimal_dnn_linux.gnu.out
+   1) Run: ./generate -c config/linux.gnu -j 10 -t 16 -w none tiny1
+      This command generates, compiles and executes the tiny kernels 
+      in 10 groups. Please increase the number of groups (-j <#> option)
+      if you get the error "Argument list too long".
    
-   2) Run: ./generate -c config/linux.gnu -j 0 -t 16 small1
+   2) Run: ./generate -c config/linux.gnu tiny2
+      This command collects all results produced in the tiny1 phase and it
+      generates a file tiny_gen_optimal_dnn_linux.gnu.out
+
+   3) Run: ./generate -c config/linux.gnu -j 0 -t 16 small1
       This command generates a file small_gen_optimal_dnn_linux.gnu.out
 
-   3) Run: ./generate -c config/linux.gnu -j 0 -t 16 -w slurm lib
+   4) Run: ./generate -c config/linux.gnu -j 0 -t 16 -w slurm lib
       This command produces the llibrary inside the directory lib/
       (libsmm_dnn_linux.gnu.a).
 
-   4) It is highly recommended to run the final test to check the correctness
+   5) It is highly recommended to run the final test to check the correctness
       of the library.
       Run: ./generate -c config/linux.gnu -j 0 -w slurm check1
       Finally check test_smm_dnn_linux.gnu.out for performance
@@ -74,12 +80,8 @@ b) How to generate the library running a single job interactively.
    6) Intermediate files (but not some key output and the library itself)
       might be removed using ./generate clean
 
-
 ====================================================================================================================
 c) How to generate the library for the Intel Xeon Phi in batch mode.
-   The Intel Xeon Phi optimization uses the library libxsmm, a special 
-   library based on C intrinsics optimized for the KNC (see
-   https://github.com/hfp/libxsmm).
 
    For this example we will use a cluster with SLURM, where each node has a
    Intel Xeon Phi card.
@@ -128,7 +130,7 @@ c) How to generate the library for the Intel Xeon Phi in batch mode.
 
 The following copyright covers code and generated library
 !====================================================================================================================
-! * Copyright (c) 2014 Joost VandeVondele and Alfio Lazzaro
+! * Copyright (c) 2015 Joost VandeVondele and Alfio Lazzaro
 ! * All rights reserved.
 ! *
 ! * Redistribution and use in source and binary forms, with or without

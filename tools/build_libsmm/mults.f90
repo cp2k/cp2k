@@ -3,27 +3,31 @@ MODULE mults
   IMPLICIT NONE
 
 CONTAINS
-  FUNCTION trdat(data_type,in_intent_label)
+  FUNCTION trdat(data_type,write_target,in_intent_label)
     INTEGER :: data_type
+    LOGICAL :: write_target
     CHARACTER(LEN=*), OPTIONAL :: in_intent_label
-    CHARACTER(LEN=50) :: intent_label
+    CHARACTER(LEN=50) :: options
     CHARACTER(LEN=50) :: trdat
 
-    intent_label=""    
+    options=""    
     IF (PRESENT(in_intent_label)) THEN
        IF (in_intent_label/="") THEN
-          intent_label=", INTENT("//TRIM(in_intent_label)//")"
+          options=", INTENT("//TRIM(in_intent_label)//")"
        ENDIF
+    ENDIF
+    IF (write_target) THEN
+       options=TRIM(options)//", TARGET"
     ENDIF
     SELECT CASE(data_type)
     CASE(1)
-      trdat="REAL(KIND=KIND(0.0D0))"//TRIM(intent_label)
+      trdat="REAL(KIND=KIND(0.0D0))"//TRIM(options)
     CASE(2)
-      trdat="REAL(KIND=KIND(0.0))"//TRIM(intent_label)
+      trdat="REAL(KIND=KIND(0.0))"//TRIM(options)
     CASE(3)
-      trdat="COMPLEX(KIND=KIND(0.0D0))"//TRIM(intent_label)
+      trdat="COMPLEX(KIND=KIND(0.0D0))"//TRIM(options)
     CASE(4)
-      trdat="COMPLEX(KIND=KIND(0.0))"//TRIM(intent_label)
+      trdat="COMPLEX(KIND=KIND(0.0))"//TRIM(options)
     END SELECT
   END FUNCTION
 
@@ -81,7 +85,7 @@ CONTAINS
   SUBROUTINE write_stack_params(data_type,stack_size_label)
     INTEGER          :: data_type
     CHARACTER(LEN=*), OPTIONAL :: stack_size_label
-    CALL write_matrix_defs(data_type=data_type,write_intent=.TRUE.)
+    CALL write_matrix_defs(data_type=data_type,write_intent=.TRUE.,write_target=.FALSE.)
     IF (PRESENT(stack_size_label)) THEN
        write(6,'(A)')                    "        INTEGER, INTENT(IN) :: "//TRIM(stack_size_label)//", dbcsr_ps_width"
        write(6,'(A)')                    "        INTEGER, INTENT(IN) :: params(dbcsr_ps_width, "//TRIM(stack_size_label)//")"
@@ -89,10 +93,11 @@ CONTAINS
     ENDIF
   END SUBROUTINE write_stack_params
 
-  SUBROUTINE write_matrix_defs(M,N,K,transpose_flavor,data_type,write_intent,stack_size_label,padding)
+  SUBROUTINE write_matrix_defs(M,N,K,transpose_flavor,data_type,write_intent,&
+       write_target,stack_size_label,padding)
    INTEGER, OPTIONAL          :: M,N,K,transpose_flavor
    INTEGER                    :: data_type
-   LOGICAL                    :: write_intent
+   LOGICAL                    :: write_intent, write_target
    CHARACTER(LEN=*), OPTIONAL :: stack_size_label
    LOGICAL, OPTIONAL          :: padding
    CHARACTER(LEN=50)          :: intent_label   
@@ -102,14 +107,14 @@ CONTAINS
       IF (PRESENT(stack_size_label)) THEN
          ! +8 ... the buffered routines need to be able to read past the last 'used' elements of the C array.
          !        the array therefore needs to be padded appropriately.
-         write(6,'(A)') "      "//trdat(data_type)// &
+         write(6,'(A)') "      "//trdat(data_type,write_target)// &
               " :: C(M*N*"//TRIM(stack_size_label)// &
               "+8), B(K*N*"//TRIM(stack_size_label)// &
               "), A(M*K*"//TRIM(stack_size_label)//")"
       ELSE
          IF (write_intent) THEN
             write(6,'(A,I0,A,I0,A)') &
-                 "      "//trdat(data_type,"INOUT")//" :: C(",M,",",N,")"
+                 "      "//trdat(data_type,write_target,"INOUT")//" :: C(",M,",",N,")"
             intent_label="IN"
          ELSE
             do_padding=.FALSE.
@@ -118,35 +123,35 @@ CONTAINS
             ENDIF
             IF (do_padding) THEN
                write(6,'(A)') &
-                    "      "//trdat(data_type)//" :: C(M*N+8)"
+                    "      "//trdat(data_type,write_target)//" :: C(M*N+8)"
             ELSE
                write(6,'(A,I0,A,I0,A)') &
-                    "      "//trdat(data_type)//" :: C(",M,",",N,")"
+                    "      "//trdat(data_type,write_target)//" :: C(",M,",",N,")"
             ENDIF
             intent_label=""
          ENDIF
          SELECT CASE(transpose_flavor)
          CASE(1)
             write(6,'(A,I0,A,I0,A,I0,A,I0,A)') &
-                 "      "//trdat(data_type,intent_label)//" :: B(",K,",",N,"), A(",M,",",K,")"                 
+                 "      "//trdat(data_type,write_target,intent_label)//" :: B(",K,",",N,"), A(",M,",",K,")"                 
          CASE(2)
             write(6,'(A,I0,A,I0,A,I0,A,I0,A)') &
-                 "      "//trdat(data_type,intent_label)//" :: B(",K,",",N,"), A(",K,",",M,")"
+                 "      "//trdat(data_type,write_target,intent_label)//" :: B(",K,",",N,"), A(",K,",",M,")"
          CASE(3)
             write(6,'(A,I0,A,I0,A,I0,A,I0,A)') &
-                 "      "//trdat(data_type,intent_label)//" :: B(",N,",",K,"), A(",M,",",K,")"
+                 "      "//trdat(data_type,write_target,intent_label)//" :: B(",N,",",K,"), A(",M,",",K,")"
          CASE(4)
             write(6,'(A,I0,A,I0,A,I0,A,I0,A)') & 
-                 "      "//trdat(data_type,intent_label)//" :: B(",N,",",K,"), A(",K,",",M,")"
+                 "      "//trdat(data_type,write_target,intent_label)//" :: B(",N,",",K,"), A(",K,",",M,")"
          END SELECT
       ENDIF
    ELSE
       IF (write_intent) THEN
-         write(6,'(A)') "      "//trdat(data_type,"INOUT")//" :: C(*)"
-         write(6,'(A)') "      "//trdat(data_type,"IN")//" :: B(*), A(*)"
+         write(6,'(A)') "      "//trdat(data_type,write_target,"INOUT")//" :: C(*)"
+         write(6,'(A)') "      "//trdat(data_type,write_target,"IN")//" :: B(*), A(*)"
       ELSE
-         write(6,'(A)') "      "//trdat(data_type)//" :: C(*)"
-         write(6,'(A)') "      "//trdat(data_type)//" :: B(*), A(*)"
+         write(6,'(A)') "      "//trdat(data_type,write_target)//" :: C(*)"
+         write(6,'(A)') "      "//trdat(data_type,write_target)//" :: B(*), A(*)"
       ENDIF
    ENDIF
   END SUBROUTINE write_matrix_defs

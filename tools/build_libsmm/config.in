@@ -29,6 +29,6 @@ dims_small="1 4 5 6 8 9 13 16 17 22 23 24 26 32"
 #
 # tiny dimensions used are used as primivitves and generated in an 'exhaustive' search.
 # They should be a sequence from 1 to N,
-# where N is a number that is large enough to have good in cache performance (e.g. for modern SSE cpus 8 to 12)
+# where N is a number that is large enough to have good in cache performance
 #
 dims_tiny=`seq 1 24`

@@ -1,13 +1,13 @@
 #!/bin/bash -e
 
 #
-# Author: Alfio Lazzaro, alazzaro@cray.com (2013-2014)
+# Author: Alfio Lazzaro, alfio.lazzaro@mat.ethz.ch (2013-2015)
 # Script to generate LIBSMM library
 # Run ./generate -h to see the help
 #
 echo
 echo "Script to generate LIBSMM library."
-echo "Author: Alfio Lazzaro, alazzaro@cray.com (2013-2014)"
+echo "Author: Alfio Lazzaro, alfio.lazzaro@mat.ethz.ch (2013-2015)"
 echo
 
 #
@@ -22,7 +22,7 @@ def_config_dir="config"
 def_config_file="${def_config_dir}/cray.gnu"
 def_SIMD="avx"
 def_ntasks="1"
-def_base_out_dir="output"
+def_base_work_dir="output"
 def_target="all"
 def_njobs="1"
 def_wlm="slurm"
@@ -37,7 +37,7 @@ show_help() {
     echo "                      Default value is \"${def_config_file}\"."
     echo "   -j <#>           : set the number of jobs for batch submission. Setting to zero means no batch submission."
     echo "                      Default value is \"${def_njobs}\"."
-    echo "   -s <SIMD type>   : SIMD registers type (sse, avx, knc). Use novec to not generate vector kernel."
+    echo "   -s <SIMD type>   : SIMD registers type (sse, avx, avx2, knc, avx512)."
     echo "                      Default value is \"${def_SIMD}\"."
     echo "   -t <#>           : set the number of tasks per each node."
     echo "                      Default value is ${def_ntasks}."
@@ -49,7 +49,6 @@ show_help() {
     echo "                           all: generate, compile and run the kernels."
     echo "                        source: only generate the source file kernels."
     echo "                       compile: generate and compile the kernels."
-    echo "                         bench: same as all."
     echo "                      Default value is \"${def_target}\"." 
     echo
     echo "COMMAND is one of the followings:"
@@ -67,8 +66,8 @@ show_help() {
     echo "NOTE: COMMANDs must be executed in the above order."
     echo
     echo "Special COMMAND:"
-    echo "    clean : remove intermediate files (but not some key output and the library itself)."
-    echo " cleanall : remove all intermediate files."
+    echo "     clean : remove intermediate files (but not some key output and the library itself)."
+    echo " realclean : remove all intermediate files."
     echo
     exit
 }
@@ -120,7 +119,7 @@ while getopts "c:hj:s:t:w:m:a:" OPTION; do
 	    ;;
 	a)
 	    case $OPTARG in
-		all|source|compile|bench)
+		all|source|compile)
 		    target=$OPTARG
 	    	    ;;
 		*)
@@ -167,7 +166,7 @@ if [ -z "${target}" ]; then
     target=${def_target}
 fi
 
-base_out_dir=$def_base_out_dir
+base_work_dir=$def_base_work_dir
 
 #
 # Check COMMAND value
@@ -182,7 +181,7 @@ cmd=`echo $1 | awk '{ print tolower($0)}'`
 case $cmd in
     tiny1|tiny2|small1|small2|lib|check1|check2)
 	;;
-    clean|cleanall)
+    clean|realclean)
 	echo "Remove files."
 	rm -fR run_tiny_*/
 	rm -fR run_small_*/
@@ -190,8 +189,7 @@ case $cmd in
 	rm -fR run_check_*/
 	rm -f *.mod Makefile.* *.x *.o
 	rm -f *~
-	make -s -f libxsmm/Makefile DIR_KNC=libxsmm realclean
-	if [ "$cmd" == "cleanall" ]; then
+	if [ "$cmd" == "realclean" ]; then
 	    rm -f *.out
 	    rm -fR lib
 	fi
@@ -231,19 +229,47 @@ fi
 source config.in
 source ${config_file}
 
+if [[ ( -n "${libxsmm_dir}") ]]; then
+    echo "Use libxsmm from ${libxsmm_dir}"
+    if [[ ( "${data_type}" != "1" ) && ( "${data_type}" != "2" ) ]]; then
+	echo "Error: libxsmm doesn't support complex numbers."
+	exit
+    fi
+    if [[ ( "${transpose_flavor}" != "1" ) ]]; then
+	echo "Error: libxsmm supports only NN transposity."
+	exit
+    fi
+fi
+
 case `echo ${SIMD} | awk '{ print tolower($0)}'` in
-    novec)
-	# set to zero: remove the specific vector version
-	SIMD_size=0
-	;;
     sse)
 	SIMD_size=16
+	SIMD_libxsmm="wsm"
+	SIMD_libxsmm_target="SSE=3"
 	;;
     avx)
 	SIMD_size=32
+	SIMD_libxsmm="snb"
+	SIMD_libxsmm_target="AVX=1"
+	;;
+    avx2)
+	SIMD_size=32
+	SIMD_libxsmm="hsw"
+	SIMD_libxsmm_target="AVX=2"
 	;;
     knc)
+	if [ ! -n "${target_compile_offload}" ]; then
+            echo "Error: knc requires to set \`target_compile_offload' variable in the config file!"
+	    exit
+	fi
 	SIMD_size=64
+	SIMD_libxsmm="knc"
+	SIMD_libxsmm_target="OFFLOAD=1"
+	;;
+    avx512)
+	SIMD_size=64
+	SIMD_libxsmm="knl"
+	SIMD_libxsmm_target="AVX=3"
 	;;
     *)
 	echo "Error: SIMD register type \"${SIMD}\" doesn't exist!"
@@ -269,10 +295,15 @@ echo "Make target                   : \"${target}\""
 echo
 
 #
+# customize target for libsmm
+#
+target+="_libsmm"
+
+#
 # Set working variables
 #
 config_file_name=`basename ${config_file}`
-out_dir="${base_out_dir}_${config_file_name}"
+work_dir="${base_work_dir}_${config_file_name}"
 
 if [ ${jobs} -gt 0 ]; then
     source ${def_config_dir}/${wlm}.wlm
@@ -302,11 +333,13 @@ case "${data_type}" in
 	type_label+="d"
 	gemm="DGEMM"
         strdat="REAL(KIND=KIND(0.0D0))"
+	data_libxsmm="DP"
 	;;
     2 )
 	type_label+="s"
 	gemm="SGEMM"
 	strdat="REAL(KIND=KIND(0.0))"
+	data_libxsmm="SP"
 	;;
     3 )
 	type_label+="z"
