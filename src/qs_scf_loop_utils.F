@@ -526,10 +526,7 @@ CONTAINS
         inner_loop_converged=.TRUE.
         exit_inner_loop = .TRUE.
      ELSE IF (should_stop .OR.  scf_env%iter_count >= scf_control%max_scf) THEN
-        IF (output_unit>0) THEN
-           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
-                "*** SCF run NOT converged ***"
-        END IF
+        CPWARN("SCF run NOT converged")
         inner_loop_converged=.FALSE.
         exit_inner_loop = .TRUE.
      END IF

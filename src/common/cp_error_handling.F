@@ -32,6 +32,8 @@ MODULE cp_error_handling
   !API (via pointer assignment to hook, PR67982, not meant to be called directly)
   PUBLIC :: cp_abort_handler, cp_warn_handler
 
+  INTEGER, PUBLIC, SAVE :: warning_counter = 0
+
 CONTAINS
 
 ! *****************************************************************************
@@ -54,21 +56,15 @@ CONTAINS
 
     INTEGER                                  :: unit_nr
 
+    CALL delay_non_master() ! cleaner output if all ranks abort simultaneously
+
     unit_nr = cp_logger_get_default_io_unit()
-    IF(unit_nr>0 .AND. unit_nr/=default_output_unit) THEN
-       ! write a copy of the error message to the default logger
-       CALL print_abort_message(message, location, unit_nr)
-       CALL print_stack(unit_nr)
-       CALL m_flush(unit_nr)
-    ENDIF
+    IF(unit_nr <= 0) &
+       unit_nr = default_output_unit ! fall back to stdout
 
-    ! delay output on non-master ranks/threads, for cleaner output
-    ! if all ranks call this subroutine at the same time.
-    CALL delay_non_master()
-
-    CALL print_abort_message(message, location, default_output_unit)
-    CALL print_stack(default_output_unit)
-    CALL m_flush(default_output_unit)
+    CALL print_abort_message(message, location, unit_nr)
+    CALL print_stack(unit_nr)
+    CALL m_flush(unit_nr)
 
     CALL mp_abort()
   END SUBROUTINE cp_abort_handler
@@ -83,6 +79,10 @@ CONTAINS
     CHARACTER(len=*), INTENT(in)             :: location, message
 
     INTEGER                                  :: unit_nr
+
+!$OMP MASTER
+    warning_counter = warning_counter + 1
+!$OMP END MASTER
 
     unit_nr = cp_logger_get_default_io_unit()
     IF(unit_nr>0) THEN

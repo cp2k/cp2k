@@ -18,6 +18,7 @@ MODULE environment
        compile_arch, compile_date, compile_host, compile_revision, &
        cp2k_flags, cp2k_home, cp2k_version, cp2k_year, get_runtime_info, &
        id_cp2k_version, r_host_name, r_pid, r_user_name
+  USE cp_error_handling,               ONLY: warning_counter
   USE cp_files,                        ONLY: close_file,&
                                              get_data_dir,&
                                              open_file
@@ -1152,6 +1153,18 @@ CONTAINS
           CALL open_file(file_name=TRIM(logger%iter_info%project_name)//".EXIT",unit_number=unit_exit)
           CALL close_file(unit_number=unit_exit,file_status="DELETE")
        END IF
+
+       ! print warning counter
+       IF(iw>0) THEN
+          IF(warning_counter==0) THEN
+             WRITE (iw,"(A)") " There have been no warnings :-)"
+          ELSEIF (warning_counter==1) THEN
+             WRITE (iw,"(A)") " There has been a warning :-/"
+          ELSE
+             WRITE (iw,"(A,I4,A)") " There have been ",warning_counter, " warnings :-("
+          ENDIF
+          WRITE (iw,*) ""
+       ENDIF
 
        ! update the runtime enviroment variables
        CALL get_runtime_info()
