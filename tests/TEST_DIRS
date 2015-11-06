@@ -100,7 +100,7 @@ QS/regtest-ri-laplace-mp2                                   libint
 ATOM/regtest-1
 QS/regtest-hfx-stress                                       libint 
 QS/regtest-admm-3                                           libint 
-QS/regtest-gw
+QS/regtest-gw                                               libint
 QS/regtest-pexsi                                            pexsi 
 QS/regtest-mp2-4                                            libint 
 QS/regtest-md-extrap
