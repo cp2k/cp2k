@@ -145,6 +145,9 @@ CONTAINS
 #if defined(__PW_CUDA)
     flags=TRIM(flags)//" pw_cuda"
 #endif
+#if defined(__HAS_PATCHED_CUFFT_70)
+    flags=TRIM(flags)//" patched_cufft_70"
+#endif
 
 #if defined __HAS_smm_vec
    flags=TRIM(flags)//" smm_vec"
