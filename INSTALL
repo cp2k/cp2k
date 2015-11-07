@@ -129,7 +129,9 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
     to LIBS.
   * Use -D__PW_CUDA for CUDA support for PW (gather/scatter/fft)
     calculations.  The Fortran compiler must use an appended
-    underscore for linking C subroutines.
+    underscore for linking C subroutines. CUFFT 7.0 has a known bug and its use
+    is disabled by default. NVidia's webpage list a patch - use this
+    together with -D__HAS_PATCHED_CUFFT_70. 
   * USE -D__CUDA_PROFILING to turn on Nvidia Tools Extensions.
   * Link to a blas/scalapack library that accelerates large DGEMMs (e.g. libsci_acc)
 

@@ -32,11 +32,6 @@ extern "C" int acc_set_active_device(int device_id){
   if (cuda_error_check (cErr))
     return -1;
 
-  if(runtimeVersion==7000){
-     printf("CUDA 7.0 disabled due to an unresolved bug. Please upgrade to CUDA 7.5 or later.\n");
-     return -1;
-  }
-
   cErr = cudaSetDevice (device_id);
   if (cuda_error_check (cErr))
     return -1;

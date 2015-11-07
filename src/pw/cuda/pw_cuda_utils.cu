@@ -17,6 +17,7 @@
 
 // local dependencies
 #include "fft_cuda.h"
+#include "fft_cuda_utils.h"
 
 // debug flag
 #define CHECK 1
@@ -138,12 +139,27 @@ extern void pw_cuda_device_mem_free (double **ptr) {
 }
 
 // INIT/RELEASE
-extern "C" void pw_cuda_init (int memory) {
+extern "C" int pw_cuda_init () {
   if ( is_configured == 0 ) {
+    int version;
+    cufftResult_t cufftErr;
     pw_cuda_device_streams_alloc (&cuda_streams);
     pw_cuda_device_events_alloc (&cuda_events);
     is_configured = 1;
+    cufftErr = cufftGetVersion(&version);
+    if (CHECK) cufft_error_check(cufftErr, __LINE__);
+    if (version == 7000){
+#if defined ( __HAS_PATCHED_CUFFT_70 )
+       printf("CUFFT 7.0 enabled on user request (-D__HAS_PATCHED_CUFFT_70).\n");
+       printf("Please ensure that CUFFT is patched (libcufft.so.x.y.z, libcufftw.so.x,y,z; x.y.z >= 7.0.35).\n");
+#else
+       printf("CUFFT 7.0 disabled due to an unresolved bug.\n");
+       printf("Please upgrade to CUDA 7.5 or later or apply CUFFT patch.\n");
+       return -1;
+#endif
+    }
   }
+  return 0;
 }
 
 extern "C" void pw_cuda_finalize () {

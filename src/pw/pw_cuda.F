@@ -243,8 +243,10 @@ MODULE pw_cuda
   END INTERFACE
 
   INTERFACE
-    SUBROUTINE pw_cuda_init_cu() BIND(C, name="pw_cuda_init")
-    END SUBROUTINE pw_cuda_init_cu
+    FUNCTION pw_cuda_init_cu() RESULT(istat) BIND(C, name="pw_cuda_init")
+      IMPORT
+      INTEGER(KIND=C_INT)                    :: istat
+    END FUNCTION pw_cuda_init_cu
     SUBROUTINE pw_cuda_finalize_cu() BIND(C, name="pw_cuda_finalize")
     END SUBROUTINE pw_cuda_finalize_cu
   END INTERFACE
@@ -261,7 +263,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE pw_cuda_init()
 #if defined (__PW_CUDA)
-    CALL pw_cuda_init_cu()
+    INTEGER :: istat 
+    istat = pw_cuda_init_cu()
+    IF (istat /= 0)&
+       CPABORT("pw_cuda_init: failed")
 #endif
   END SUBROUTINE pw_cuda_init
 

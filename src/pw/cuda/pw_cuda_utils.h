@@ -27,7 +27,7 @@ extern void pw_cuda_device_mem_free (float **ptr);
 extern void pw_cuda_device_mem_free (double **ptr);
 
 // DEVICE INIT/RELEASE
-extern "C" void pw_cuda_device_mem_init (int memory);
-extern "C" void pw_cuda_device_mem_release ();
+extern "C" int  pw_cuda_init ();
+extern "C" void pw_cuda_release ();
 
 #endif
