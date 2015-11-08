@@ -837,8 +837,6 @@ CONTAINS
 
   END SUBROUTINE xaa_cylindrical_dbc_setup
 
-! utilities for setting up the Dirichlet regions
-
 ! *****************************************************************************
 !> \brief  Creteas an evenly-spaced 1D array between two values
 !> \param a starting value

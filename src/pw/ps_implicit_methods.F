@@ -16,7 +16,6 @@ MODULE ps_implicit_methods
                                              cp_logger_type
   USE dct,                             ONLY: dct_type,&
                                              dct_type_init,&
-                                             pw_adjust_bounds_local,&
                                              pw_expand,&
                                              pw_shrink
   USE dielectric_methods,              ONLY: dielectric_create
@@ -92,7 +91,6 @@ MODULE ps_implicit_methods
                       compute_error_mixed_bc
   END INTERFACE ps_implicit_compute_error
 
-  LOGICAL, PRIVATE, PARAMETER          :: adjust_local_bounds = .FALSE.
   REAL(dp), PRIVATE, PARAMETER         :: large_error = 1.0E4_dp
 
 CONTAINS
@@ -384,8 +382,8 @@ CONTAINS
     CALL pw_copy(v0, v_old)
 
 ! res_old = g - \Delta(v_old) - P(v_old)
-    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                adjust_local_bounds, v_old, res_old)
+    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, &
+                                dct_env, v_old, res_old)
     CALL pw_scale(res_old, - 1.0_dp)
     CALL pw_axpy(g, res_old)
 
@@ -395,7 +393,7 @@ CONTAINS
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres)
+                                    res_old, QAinvxres)
 
     iter = 1
     DO
@@ -414,7 +412,7 @@ CONTAINS
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
-                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error)
+                                      v_old, v_new, QAinvxres, pres_error, nabs_error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
        IF (PRESENT(ehartree)) THEN
@@ -873,8 +871,8 @@ CONTAINS
     lambda_old(:)= lambda0
 
 ! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
-    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, &
-                                adjust_local_bounds, v_old, res_old)
+    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, & 
+                                dct_env, v_old, res_old)
     CALL pw_scale(res_old, - 1.0_dp)
     CALL pw_axpy(g, res_old)
     IF (data_size .NE. 0) THEN
@@ -889,7 +887,7 @@ CONTAINS
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_old, QAinvxres)
+                                    res_old, QAinvxres)
 
     iter = 1
     DO
@@ -937,7 +935,7 @@ CONTAINS
 
 ! compute the error
        CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
-                                      v_old, v_new, QAinvxres, adjust_local_bounds, pres_error, nabs_error)
+                                      v_old, v_new, QAinvxres, pres_error, nabs_error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
        IF (PRESENT(electric_enthalpy)) THEN
@@ -1181,7 +1179,7 @@ CONTAINS
                                              dct_env%srcs_expand, dct_env%flipg_stat, &
                                              dct_env%dests_shrink, dct_env%srcs_shrink, &
                                              dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                             adjust_local_bounds, pw_in, pw_out)
+                                             pw_in, pw_out)
              QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
              ! the electrostatic potential has opposite sign by internal convention
              ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%contacts(j)%dirichlet_bc%v_D
@@ -1460,7 +1458,6 @@ CONTAINS
 !> \param srcs_shrink list of the source proceses (pw_shrink)
 !> \param bounds_shftd bounds of the original grid shifted to have g0 in the middle of the cell
 !> \param bounds_local_shftd local bounds of the original grid after shifting
-!> \param adjust_local_bounds whether or not to adjust local bounds
 !> \param pw_in input data
 !> \param pw_out output data
 !> \par History
@@ -1469,8 +1466,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE apply_inv_laplace_operator_dct(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, dests_shrink, &
-               srcs_shrink, bounds_shftd, bounds_local_shftd, adjust_local_bounds, &
-               pw_in, pw_out)
+               srcs_shrink, bounds_shftd, bounds_local_shftd, pw_in, pw_out)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
                                                 aux_pw_pool_xpndd
@@ -1481,7 +1477,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: srcs_shrink
     INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bounds_shftd, &
                                                 bounds_local_shftd
-    LOGICAL, INTENT(in)                      :: adjust_local_bounds
     TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
     TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
 
@@ -1492,9 +1487,8 @@ CONTAINS
     INTEGER                                  :: handle, ig, ng_xpndd
     REAL(dp)                                 :: prefactor
     TYPE(pw_grid_type), POINTER              :: pw_grid_orig
-    TYPE(pw_type), POINTER                   :: pw_in_xpndd, pw_in_xpndd_adj, &
-                                                pw_in_xpndd_gs, pw_out_xpndd, &
-                                                pw_out_xpndd_adj
+    TYPE(pw_type), POINTER                   :: pw_in_xpndd, pw_in_xpndd_gs, &
+                                                pw_out_xpndd
 
     CALL timeset(routineN,handle)
 
@@ -1504,59 +1498,25 @@ CONTAINS
     pw_grid_orig => pw_in%pw_grid
     ng_xpndd = SIZE(pw_pool_xpndd%pw_grid%gsq)
 
-    IF (adjust_local_bounds) THEN
+    CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
+                           use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd_gs, &
+                           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+    CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd, &
+                           use_data=REALDATA3D, in_space=REALSPACE)
 
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-       CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-   
-       CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd)
-       CALL pw_adjust_bounds_local(pw_in_xpndd, pw_in_xpndd_adj) 
-       CALL pw_transfer(pw_in_xpndd_adj, pw_in_xpndd_gs, debug=.FALSE.)
-       DO ig = 1, ng_xpndd
-          pw_in_xpndd_gs%cc(ig) = prefactor * pw_in_xpndd_gs%cc(ig) * green%dct_influence_fn%cc(ig)
-       END DO
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
-       CALL pw_adjust_bounds_local(pw_out_xpndd, pw_out_xpndd_adj) 
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd_adj, pw_out)
-   
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd_adj)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_out_xpndd)
+    CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+                   pw_in, pw_in_xpndd)
+    CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE.)
+    DO ig = 1, ng_xpndd
+       pw_in_xpndd_gs%cc(ig) = prefactor * pw_in_xpndd_gs%cc(ig) * green%dct_influence_fn%cc(ig)
+    END DO
+    CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
+    CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out)
 
-    ELSE
-
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-   
-       CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd)
-       CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE.)
-       DO ig = 1, ng_xpndd
-          pw_in_xpndd_gs%cc(ig) = prefactor * pw_in_xpndd_gs%cc(ig) * green%dct_influence_fn%cc(ig)
-       END DO
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out)
-   
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd)
-
-    END IF
+    CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
+    CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs)
+    CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd)
 
     CALL timestop(handle)
 
@@ -1632,7 +1592,6 @@ CONTAINS
 !> \param srcs_shrink list of the source proceses (pw_shrink)
 !> \param bounds_shftd bounds of the original grid shifted to have g0 in the middle of the cell
 !> \param bounds_local_shftd local bounds of the original grid after shifting
-!> \param adjust_local_bounds whether or not to adjust local bounds 
 !> \param pw_in input data
 !> \param pw_out output data
 !> \par History
@@ -1641,8 +1600,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE apply_laplace_operator_dct(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
                recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, dests_shrink, &
-               srcs_shrink, bounds_shftd, bounds_local_shftd, adjust_local_bounds, &
-               pw_in, pw_out)
+               srcs_shrink, bounds_shftd, bounds_local_shftd, pw_in, pw_out)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
                                                 aux_pw_pool_xpndd
@@ -1653,7 +1611,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: srcs_shrink
     INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bounds_shftd, &
                                                 bounds_local_shftd
-    LOGICAL, INTENT(IN)                      :: adjust_local_bounds
     TYPE(pw_type), INTENT(IN), POINTER       :: pw_in
     TYPE(pw_type), INTENT(INOUT), POINTER    :: pw_out
 
@@ -1664,9 +1621,8 @@ CONTAINS
     LOGICAL                                  :: have_g0
     REAL(dp)                                 :: prefactor
     TYPE(pw_grid_type), POINTER              :: pw_grid_orig
-    TYPE(pw_type), POINTER                   :: pw_in_xpndd, pw_in_xpndd_adj, &
-                                                pw_in_xpndd_gs, pw_out_xpndd, &
-                                                pw_out_xpndd_adj
+    TYPE(pw_type), POINTER                   :: pw_in_xpndd, pw_in_xpndd_gs, &
+                                                pw_out_xpndd
 
     CALL timeset(routineN,handle)
 
@@ -1677,71 +1633,31 @@ CONTAINS
     ng_xpndd = SIZE(pw_pool_xpndd%pw_grid%gsq)
     have_g0 = green%dct_influence_fn%pw_grid%have_g0
 
-    IF (adjust_local_bounds) THEN
+    CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
+                           use_data=REALDATA3D, in_space=REALSPACE)
+    CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd_gs, &
+                           use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+    CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd, &
+                           use_data=REALDATA3D, in_space=REALSPACE)
 
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-       CALL pw_pool_create_pw(aux_pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd_adj, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-   
-       CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd)
-       CALL pw_adjust_bounds_local(pw_in_xpndd, pw_in_xpndd_adj) 
-       CALL pw_transfer(pw_in_xpndd_adj, pw_in_xpndd_gs, debug=.FALSE.)
+    CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+                   pw_in, pw_in_xpndd)
+    CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE.)
 
-       IF (have_g0) THEN
-          g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
-          pw_in_xpndd_gs%cc(g0_index) = 0.0_dp
-       END IF
-       DO ig = green%dct_influence_fn%pw_grid%first_gne0, ng_xpndd
-          pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
-       END DO
-
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
-       CALL pw_adjust_bounds_local(pw_out_xpndd, pw_out_xpndd_adj) 
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd_adj, pw_out)
-   
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_adj)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_in_xpndd_gs)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd_adj)
-       CALL pw_pool_give_back_pw(aux_pw_pool_xpndd, pw_out_xpndd)
-
-    ELSE
-
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_in_xpndd_gs, &
-                              use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
-       CALL pw_pool_create_pw(pw_pool_xpndd, pw_out_xpndd, &
-                              use_data=REALDATA3D, in_space=REALSPACE)
-
-       CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
-                      pw_in, pw_in_xpndd)
-       CALL pw_transfer(pw_in_xpndd, pw_in_xpndd_gs, debug=.FALSE.)
-
-       IF (have_g0) THEN
-          g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
-          pw_in_xpndd_gs%cc(g0_index) = 0.0_dp
-       END IF
-       DO ig = green%dct_influence_fn%pw_grid%first_gne0, ng_xpndd
-          pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
-       END DO
-
-       CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
-       CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out)
-   
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs)
-       CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd)
-
+    IF (have_g0) THEN
+       g0_index = green%dct_influence_fn%pw_grid%first_gne0 - 1
+       pw_in_xpndd_gs%cc(g0_index) = 0.0_dp
     END IF
+    DO ig = green%dct_influence_fn%pw_grid%first_gne0, ng_xpndd
+       pw_in_xpndd_gs%cc(ig) = prefactor * (pw_in_xpndd_gs%cc(ig) / green%dct_influence_fn%cc(ig))
+    END DO
+
+    CALL pw_transfer(pw_in_xpndd_gs, pw_out_xpndd, debug=.FALSE.)
+    CALL pw_shrink(dests_shrink, srcs_shrink, bounds_local_shftd, pw_out_xpndd, pw_out)
+
+    CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd)
+    CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_in_xpndd_gs)
+    CALL pw_pool_give_back_pw(pw_pool_xpndd, pw_out_xpndd)
 
     CALL timestop(handle)
 
@@ -1798,7 +1714,6 @@ CONTAINS
 !> \param pw_pool_xpndd pool of the expanded plane wave grid
 !> \param aux_pw_pool_xpndd ...
 !> \param dct_env discrete cosine transform environment
-!> \param adjust_local_bounds whether or not to adjust local bounds
 !> \param v potential
 !> \param density density
 !> \par History
@@ -1806,7 +1721,7 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE apply_poisson_operator_dct(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, &
-                                        dct_env, adjust_local_bounds, v, density)
+                                        dct_env, v, density)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
@@ -1816,7 +1731,6 @@ CONTAINS
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
                                                 aux_pw_pool_xpndd
     TYPE(dct_type), INTENT(IN), POINTER      :: dct_env
-    LOGICAL, INTENT(IN)                      :: adjust_local_bounds
     TYPE(pw_type), INTENT(IN), POINTER       :: v
     TYPE(pw_type), INTENT(INOUT), POINTER    :: density
 
@@ -1837,7 +1751,7 @@ CONTAINS
                                 dct_env%srcs_expand, dct_env%flipg_stat, &
                                 dct_env%dests_shrink, dct_env%srcs_shrink, &
                                 dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                adjust_local_bounds, v, density)
+                                v, density)
     CALL pw_axpy(Pxv, density)
 
     CALL pw_pool_give_back_pw(pw_pool, Pxv)
@@ -2051,7 +1965,6 @@ CONTAINS
 !> \param v_old old v
 !> \param v_new new v
 !> \param QAinvxres_new \Delta^-1(res_new)
-!> \param adjust_local_bounds whether or not to adjust local bounds
 !> \param pres_error preconditioned residual norm error
 !> \param nabs_error normalized absolute error
 !> \par History
@@ -2060,7 +1973,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE compute_error_mixed_bc(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, &
                                     dct_env, res_new, v_old, v_new, QAinvxres_new, &
-                                    adjust_local_bounds, pres_error, nabs_error)
+                                    pres_error, nabs_error)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
@@ -2070,7 +1983,6 @@ CONTAINS
     TYPE(dct_type), INTENT(IN), POINTER      :: dct_env
     TYPE(pw_type), INTENT(IN), POINTER       :: res_new, v_old, v_new
     TYPE(pw_type), INTENT(INOUT), POINTER    :: QAinvxres_new
-    LOGICAL, INTENT(in)                      :: adjust_local_bounds
     REAL(dp), INTENT(OUT)                    :: pres_error, nabs_error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_error_mixed_bc', &
@@ -2089,7 +2001,7 @@ CONTAINS
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
                                     dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                    adjust_local_bounds, res_new, QAinvxres_new)
+                                    res_new, QAinvxres_new)
 ! (normalized) preconditioned residual norm error :
     pres_error = accurate_sum(QAinvxres_new%cr3d(:,:,:)**2)
     CALL mp_sum(pres_error, pw_pool%pw_grid%para%group)
