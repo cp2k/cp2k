@@ -171,9 +171,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_grid_type), POINTER :: dct_aux_pw_grid, dct_pw_grid, &
-      mt_super_ref_grid, old_pw_grid, pw_grid, super_ref_grid, vdw_grid, &
-      xc_super_ref_grid
+    TYPE(pw_grid_type), POINTER :: dct_pw_grid, mt_super_ref_grid, &
+      old_pw_grid, pw_grid, super_ref_grid, vdw_grid, xc_super_ref_grid
     TYPE(pw_poisson_parameter_type)          :: poisson_params
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -205,8 +204,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   NULLIFY(cutoff, cell, pw_grid, old_pw_grid, dft_control, qs_kind_set, &
        pw_pools, rho0_mpole, rs_descs, para_env, cell_ref, &
        mt_super_ref_grid, input, poisson_section, xc_super_ref_grid, &
-       dct_pw_grid, dct_aux_pw_grid, &
-       vdw_grid, super_ref_grid, my_cell, rs_grids, dispersion_env)
+       dct_pw_grid, vdw_grid, super_ref_grid, my_cell, rs_grids, dispersion_env)
 
   CALL get_qs_env(qs_env=qs_env,&
                   dft_control=dft_control,&
@@ -496,11 +494,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   CALL pw_poisson_read_parameters(poisson_section, poisson_params)
   CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=my_cell%hmat,pw_pools=pw_env%pw_pools,&
        parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
-       dct_pw_grid=dct_pw_grid, dct_aux_pw_grid=dct_aux_pw_grid,&
-       use_level=pw_env%auxbas_grid)
+       dct_pw_grid=dct_pw_grid, use_level=pw_env%auxbas_grid)
   CALL pw_grid_release(mt_super_ref_grid)
   CALL pw_grid_release(dct_pw_grid)
-  CALL pw_grid_release(dct_aux_pw_grid)
 !
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...
 ! do not re-init the Gaussian grid level (fix the gridlevel on which the pgf should go.
@@ -513,16 +509,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
       CALL pw_poisson_read_parameters(poisson_section, poisson_params)
       CALL pw_poisson_set(pw_env%poisson_env,cell_hmat=cell%hmat,pw_pools=pw_env%pw_pools,&
                           parameters=poisson_params,mt_super_ref_pw_grid=mt_super_ref_grid,&
-                          dct_pw_grid=dct_pw_grid, dct_aux_pw_grid=dct_aux_pw_grid,&
-                          use_level=pw_env%auxbas_grid)
+                          dct_pw_grid=dct_pw_grid, use_level=pw_env%auxbas_grid)
   END IF
 
   ! setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT) 
   IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
       (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
      CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
-                         my_cell%hmat, &
-                         pw_env%poisson_env%dct_pw_grid, pw_env%poisson_env%dct_aux_pw_grid)
+                         my_cell%hmat, pw_env%poisson_env%dct_pw_grid)
   END IF
   ! setup real space grid for finite difference derivatives of dielectric constant function
   IF ( poisson_params%has_dielectric .AND. &

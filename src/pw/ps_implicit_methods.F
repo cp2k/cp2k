@@ -100,20 +100,18 @@ CONTAINS
 !> \param pw_pool pool of pw grid
 !> \param poisson_params poisson_env parameters
 !> \param dct_pw_grid discrete cosine transform (extended) grid
-!> \param dct_aux_pw_grid ...
 !> \param green green function for FFT based inverse Laplacian
 !> \param ps_implicit_env implicit env to be created
 !> \par History
 !>       06.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_create(pw_pool, poisson_params, dct_pw_grid, dct_aux_pw_grid, &
-                                green, ps_implicit_env)
+  SUBROUTINE ps_implicit_create(pw_pool, poisson_params, dct_pw_grid, green, ps_implicit_env)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(pw_poisson_parameter_type), &
       INTENT(INOUT)                          :: poisson_params
-    TYPE(pw_grid_type), INTENT(IN), POINTER  :: dct_pw_grid, dct_aux_pw_grid
+    TYPE(pw_grid_type), INTENT(IN), POINTER  :: dct_pw_grid
     TYPE(greens_fn_type), INTENT(IN), &
       POINTER                                :: green
     TYPE(ps_implicit_type), INTENT(INOUT), &
@@ -159,8 +157,7 @@ CONTAINS
        END IF
 ! prepare dirichlet bc
        CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%contacts)
-       CALL ps_implicit_prepare_blocks(pw_pool, dct_pw_grid, dct_aux_pw_grid, green, poisson_params, &
-                                       ps_implicit_env)
+       CALL ps_implicit_prepare_blocks(pw_pool, dct_pw_grid, green, poisson_params, ps_implicit_env)
 
     END IF
 
@@ -339,8 +336,7 @@ CONTAINS
     TYPE(dielectric_type), POINTER           :: dielectric
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(ps_implicit_type), POINTER          :: ps_implicit_env
-    TYPE(pw_pool_type), POINTER              :: aux_pw_pool_xpndd, pw_pool, &
-                                                pw_pool_xpndd
+    TYPE(pw_pool_type), POINTER              :: pw_pool, pw_pool_xpndd
     TYPE(pw_type), POINTER                   :: g, PxQAinvxres, QAinvxres, &
                                                 res_new, res_old, v0, v_old
 
@@ -362,7 +358,6 @@ CONTAINS
     IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
     CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid)
-    CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=poisson_env%dct_aux_pw_grid)
     CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
     CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE)
     CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
@@ -382,13 +377,12 @@ CONTAINS
     CALL pw_copy(v0, v_old)
 
 ! res_old = g - \Delta(v_old) - P(v_old)
-    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, &
-                                dct_env, v_old, res_old)
+    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, dct_env, v_old, res_old)
     CALL pw_scale(res_old, - 1.0_dp)
     CALL pw_axpy(g, res_old)
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+    CALL apply_inv_laplace_operator(pw_pool_xpndd, green, &
                                     dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
@@ -411,7 +405,7 @@ CONTAINS
        CALL pw_axpy(res_old, res_new, 1.0_dp - omega)
 
 ! compute the error
-       CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
+       CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, dct_env, res_new, &
                                       v_old, v_new, QAinvxres, pres_error, nabs_error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
@@ -451,7 +445,6 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, res_new)
     CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
     CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
-    CALL pw_pool_release(aux_pw_pool_xpndd)
     CALL pw_pool_release(pw_pool_xpndd)
 
     CALL timestop(handle)
@@ -774,8 +767,7 @@ CONTAINS
     TYPE(ps_implicit_type), POINTER          :: ps_implicit_env
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_poisson_parameter_type), POINTER :: poisson_params
-    TYPE(pw_pool_type), POINTER              :: aux_pw_pool_xpndd, pw_pool, &
-                                                pw_pool_xpndd
+    TYPE(pw_pool_type), POINTER              :: pw_pool, pw_pool_xpndd
     TYPE(pw_type), POINTER                   :: Axvbar, g, PxQAinvxres, &
                                                 QAinvxres, res_new, res_old, &
                                                 v0, v_old
@@ -846,7 +838,6 @@ CONTAINS
     ALLOCATE(Bxv_new(n_tiles_tot))
 
     CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid)
-    CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=poisson_env%dct_aux_pw_grid)
     CALL pw_pool_create_pw(pw_pool, g, use_data=REALDATA3D, in_space=REALSPACE)
     CALL pw_pool_create_pw(pw_pool, v0, use_data=REALDATA3D, in_space=REALSPACE)
     CALL pw_pool_create_pw(pw_pool, v_old, use_data=REALDATA3D, in_space=REALSPACE)
@@ -871,8 +862,7 @@ CONTAINS
     lambda_old(:)= lambda0
 
 ! res_old = g - \Delta(v_old) - P(v_old) - B^t * \lambda_old
-    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, & 
-                                dct_env, v_old, res_old)
+    CALL apply_poisson_operator(pw_pool, green, dielectric, pw_pool_xpndd, dct_env, v_old, res_old)
     CALL pw_scale(res_old, - 1.0_dp)
     CALL pw_axpy(g, res_old)
     IF (data_size .NE. 0) THEN
@@ -882,7 +872,7 @@ CONTAINS
     res_old%cr3d = res_old%cr3d - Btxlambda_old3D
 
 ! evaluate \Delta^-1(res_old)
-    CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+    CALL apply_inv_laplace_operator(pw_pool_xpndd, green, &
                                     dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &
@@ -934,7 +924,7 @@ CONTAINS
        res_new%cr3d = res_new%cr3d - Btxlambda_new3D + Btxlambda_old3D
 
 ! compute the error
-       CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, dct_env, res_new, &
+       CALL ps_implicit_compute_error(pw_pool, green, pw_pool_xpndd, dct_env, res_new, &
                                       v_old, v_new, QAinvxres, pres_error, nabs_error)
 ! output
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
@@ -1002,7 +992,6 @@ CONTAINS
     CALL pw_pool_give_back_pw(pw_pool, QAinvxres)
     CALL pw_pool_give_back_pw(pw_pool, PxQAinvxres)
     CALL pw_pool_give_back_pw(pw_pool, Axvbar)
-    CALL pw_pool_release(aux_pw_pool_xpndd)
     CALL pw_pool_release(pw_pool_xpndd)
 
     CALL timestop(handle)
@@ -1046,7 +1035,6 @@ CONTAINS
 !> \brief  prepare blocks B, Bt, QS, R^-1, v_D
 !> \param pw_pool_orig original pw grid
 !> \param dct_pw_grid DCT (extended) grid
-!> \param dct_aux_pw_grid ...
 !> \param green green functions for FFT based inverse Laplacian
 !> \param poisson_params paramaters of the poisson_env
 !> \param ps_implicit_env the implicit_env that stores the blocks
@@ -1054,11 +1042,11 @@ CONTAINS
 !>       10.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE ps_implicit_prepare_blocks(pw_pool_orig, dct_pw_grid, dct_aux_pw_grid, green, &
+  SUBROUTINE ps_implicit_prepare_blocks(pw_pool_orig, dct_pw_grid, green, &
                                         poisson_params, ps_implicit_env)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_orig
-    TYPE(pw_grid_type), INTENT(IN), POINTER  :: dct_pw_grid, dct_aux_pw_grid
+    TYPE(pw_grid_type), INTENT(IN), POINTER  :: dct_pw_grid
     TYPE(greens_fn_type), INTENT(IN), &
       POINTER                                :: green
     TYPE(pw_poisson_parameter_type), &
@@ -1085,8 +1073,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dct_type), POINTER                  :: dct_env
     TYPE(pw_grid_type), POINTER              :: pw_grid_orig
-    TYPE(pw_pool_type), POINTER              :: aux_pw_pool_xpndd, &
-                                                pw_pool_xpndd
+    TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
 
     CALL timeset(routineN,handle)
@@ -1158,7 +1145,6 @@ CONTAINS
        CALL setup_grid_axes(pw_grid_orig, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
 ! prepare pw_pool for evaluating inverse Laplacian of tile_pw's using DCT
        CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
-       CALL pw_pool_create(aux_pw_pool_xpndd, pw_grid=dct_aux_pw_grid)
 
 ! set up B, B^t, (\Delta^-1)*B^t
        indx1 = 1
@@ -1174,7 +1160,7 @@ CONTAINS
              ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
              CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
-             CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+             CALL apply_inv_laplace_operator(pw_pool_xpndd, green, &
                                              dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                              dct_env%srcs_expand, dct_env%flipg_stat, &
                                              dct_env%dests_shrink, dct_env%srcs_shrink, &
@@ -1219,7 +1205,6 @@ CONTAINS
 
        DEALLOCATE(QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
        CALL pw_pool_release(pw_pool_xpndd)
-       CALL pw_pool_release(aux_pw_pool_xpndd)
 
        done_preparing = .TRUE.
        CALL mp_sum(done_preparing, pw_grid_orig%para%group)
@@ -1448,7 +1433,6 @@ CONTAINS
 !> \brief  Evaluates the action of the inverse of the Laplace operator on a given
 !>         3d matrix using DCT-I
 !> \param pw_pool_xpndd pool of the expanded plane wave grid
-!> \param aux_pw_pool_xpndd auxiliary DCT plane-wave grid
 !> \param green the greens_fn_type holding information for FFT based Laplace inversion
 !> \param recv_msgs_bnds bounds of the messages to be received (pw_expand)
 !> \param dests_expand list of the destination processes (pw_expand)
@@ -1464,12 +1448,11 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE apply_inv_laplace_operator_dct(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+  SUBROUTINE apply_inv_laplace_operator_dct(pw_pool_xpndd, green, &
                recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, dests_shrink, &
                srcs_shrink, bounds_shftd, bounds_local_shftd, pw_in, pw_out)
 
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
-                                                aux_pw_pool_xpndd
+    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd
     TYPE(greens_fn_type), POINTER            :: green
     INTEGER, DIMENSION(2, 3, 4), INTENT(IN)  :: recv_msgs_bnds
     INTEGER, DIMENSION(4), INTENT(IN)        :: dests_expand, srcs_expand, &
@@ -1582,7 +1565,6 @@ CONTAINS
 ! *****************************************************************************
 !> \brief  Evaluates the action of the Laplace operator on a given 3d matrix using DCT-I
 !> \param pw_pool_xpndd pool of the expanded plane wave grid
-!> \param aux_pw_pool_xpndd auxiliary DCT plane-wave grid
 !> \param green the greens_fn_type holding information for FFT based Laplace inversion
 !> \param recv_msgs_bnds bounds of the messages to be received (pw_expand)
 !> \param dests_expand list of the destination processes (pw_expand)
@@ -1598,12 +1580,11 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE apply_laplace_operator_dct(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+  SUBROUTINE apply_laplace_operator_dct(pw_pool_xpndd, green, &
                recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, dests_shrink, &
                srcs_shrink, bounds_shftd, bounds_local_shftd, pw_in, pw_out)
 
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
-                                                aux_pw_pool_xpndd
+    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd
     TYPE(greens_fn_type), POINTER            :: green
     INTEGER, DIMENSION(2, 3, 4), INTENT(IN)  :: recv_msgs_bnds
     INTEGER, DIMENSION(4), INTENT(IN)        :: dests_expand, srcs_expand, &
@@ -1712,7 +1693,6 @@ CONTAINS
 !> \param green greens functions for FFT based inverse Laplacian
 !> \param dielectric dielectric environment
 !> \param pw_pool_xpndd pool of the expanded plane wave grid
-!> \param aux_pw_pool_xpndd ...
 !> \param dct_env discrete cosine transform environment
 !> \param v potential
 !> \param density density
@@ -1720,7 +1700,7 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE apply_poisson_operator_dct(pw_pool, green, dielectric, pw_pool_xpndd, aux_pw_pool_xpndd, &
+  SUBROUTINE apply_poisson_operator_dct(pw_pool, green, dielectric, pw_pool_xpndd, &
                                         dct_env, v, density)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
@@ -1728,8 +1708,7 @@ CONTAINS
       POINTER                                :: green
     TYPE(dielectric_type), INTENT(IN), &
       POINTER                                :: dielectric
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
-                                                aux_pw_pool_xpndd
+    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd
     TYPE(dct_type), INTENT(IN), POINTER      :: dct_env
     TYPE(pw_type), INTENT(IN), POINTER       :: v
     TYPE(pw_type), INTENT(INOUT), POINTER    :: density
@@ -1746,7 +1725,7 @@ CONTAINS
                            use_data=REALDATA3D, in_space=REALSPACE)
 
     CALL apply_P_operator(pw_pool, dielectric, v, Pxv)
-    CALL apply_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+    CALL apply_laplace_operator(pw_pool_xpndd, green, &
                                 dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                 dct_env%srcs_expand, dct_env%flipg_stat, &
                                 dct_env%dests_shrink, dct_env%srcs_shrink, &
@@ -1959,7 +1938,6 @@ CONTAINS
 !> \param pw_pool pool of the original plane-wave grid
 !> \param green greens functions for FFT based inverse Laplacian
 !> \param pw_pool_xpndd pool of the expanded plane-wave grid
-!> \param aux_pw_pool_xpndd ...
 !> \param dct_env discrete cosine transform env
 !> \param res_new residual
 !> \param v_old old v
@@ -1971,15 +1949,14 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE compute_error_mixed_bc(pw_pool, green, pw_pool_xpndd, aux_pw_pool_xpndd, &
+  SUBROUTINE compute_error_mixed_bc(pw_pool, green, pw_pool_xpndd, &
                                     dct_env, res_new, v_old, v_new, QAinvxres_new, &
                                     pres_error, nabs_error)
 
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     TYPE(greens_fn_type), INTENT(IN), &
       POINTER                                :: green
-    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd, &
-                                                aux_pw_pool_xpndd
+    TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_xpndd
     TYPE(dct_type), INTENT(IN), POINTER      :: dct_env
     TYPE(pw_type), INTENT(IN), POINTER       :: res_new, v_old, v_new
     TYPE(pw_type), INTENT(INOUT), POINTER    :: QAinvxres_new
@@ -1996,7 +1973,7 @@ CONTAINS
     vol = pw_pool%pw_grid%vol
 
 ! evaluate \Delta^-1(res) = \Delta^-1 (g - \Delta(v_new) - P(v_new) + Bt \lambda)
-    CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+    CALL apply_inv_laplace_operator(pw_pool_xpndd, green, &
                                     dct_env%recv_msgs_bnds, dct_env%dests_expand, &
                                     dct_env%srcs_expand, dct_env%flipg_stat, &
                                     dct_env%dests_shrink, dct_env%srcs_shrink, &

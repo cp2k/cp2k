@@ -104,18 +104,16 @@ CONTAINS
 !> \param pw_grid the original plane wave grid
 !> \param cell_hmat cell hmat
 !> \param dct_pw_grid DCT plane-wave grid
-!> \param dct_aux_pw_grid auxiliary DCT plane-wave grid (i.e an expanded pw grid
-!>                        whose local bounds are decided internally by cp2k)
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE setup_dct_pw_grids(pw_grid, cell_hmat, dct_pw_grid, dct_aux_pw_grid)
+  SUBROUTINE setup_dct_pw_grids(pw_grid, cell_hmat, dct_pw_grid)
 
     TYPE(pw_grid_type), INTENT(IN), POINTER  :: pw_grid
     REAL(dp), DIMENSION(3, 3), INTENT(IN)    :: cell_hmat
     TYPE(pw_grid_type), INTENT(INOUT), &
-      POINTER                                :: dct_pw_grid, dct_aux_pw_grid
+      POINTER                                :: dct_pw_grid
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_dct_pw_grids', &
       routineP = moduleN//':'//routineN
@@ -135,7 +133,6 @@ CONTAINS
     CALL expansion_bounds(pw_grid, srcs_expand, flipg_stat, bounds_shftd, bounds_local_shftd, &
                           recv_msgs_bnds, bounds_new, bounds_local_new)
     CALL pw_grid_create(dct_pw_grid, pw_grid%para%rs_group, local=.FALSE.)
-    CALL pw_grid_create(dct_aux_pw_grid, pw_grid%para%rs_group, local=.FALSE.)
 
     hmat2 = 0.0_dp
     hmat2(1,1) = 2*(cell_hmat(1,1) - pw_grid%dr(1))
@@ -156,11 +153,6 @@ CONTAINS
                        rs_dims = pw_grid%para%rs_dims, &
                        blocked = blocked, &
                        bounds_local=bounds_local_new)
-
-    CALL pw_grid_setup(hmat2, dct_aux_pw_grid, &
-                       bounds=bounds_new, &
-                       rs_dims = pw_grid%para%rs_dims, &
-                       blocked = blocked)
 
     CALL timestop(handle)
 

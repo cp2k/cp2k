@@ -142,7 +142,6 @@ MODULE pw_poisson_types
      TYPE (pw_grid_type), POINTER                 :: mt_super_ref_pw_grid
      TYPE (ps_implicit_type), POINTER             :: implicit_env
      TYPE (pw_grid_type), POINTER                 :: dct_pw_grid
-     TYPE (pw_grid_type), POINTER                 :: dct_aux_pw_grid
      TYPE (realspace_grid_type), POINTER          :: diel_rs_grid
   END TYPE pw_poisson_type
 
@@ -643,7 +642,6 @@ END SUBROUTINE calc_p3m_charge
          poisson_env%wavelet,&
          poisson_env%implicit_env,&
          poisson_env%dct_pw_grid,&
-         poisson_env%dct_aux_pw_grid,&
          poisson_env%diel_rs_grid)
     poisson_env%pw_level=-1
     poisson_env%ref_count=1
@@ -693,7 +691,6 @@ END SUBROUTINE calc_p3m_charge
           CALL ps_wavelet_release(poisson_env%wavelet)
           CALL ps_implicit_release(poisson_env%implicit_env)
           CALL pw_grid_release(poisson_env%dct_pw_grid)
-          CALL pw_grid_release(poisson_env%dct_aux_pw_grid)
           CALL rs_grid_release(poisson_env%diel_rs_grid)
           DEALLOCATE(poisson_env)
 
