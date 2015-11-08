@@ -22,3 +22,8 @@ Ar_mixed_cylindrical.inp
 # perform less fft/dct
 Ar_mixed_cuboidal.inp
 Ar_mixed_cylindrical.inp
+
+# completely revised constructing dbc
+Ar_mixed_periodic_aa_planar.inp
+Ar_mixed_cuboidal.inp
+Ar_mixed_cylindrical.inp

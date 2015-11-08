@@ -43,7 +43,7 @@
             Y_xtnt    0.0 7.9
             Z_xtnt    0.0 7.9
             n_prtn    1 1
-            smooth   .TRUE.
+            thickness 0.7
             smoothing_width 0.1
           &END AA_PLANAR
           &AA_PLANAR
@@ -53,7 +53,7 @@
             Y_xtnt    0.0 7.9
             Z_xtnt    0.0 7.9
             n_prtn    1 1
-            smooth   .TRUE.
+            thickness 0.7
             smoothing_width 0.1
           &END AA_PLANAR
         &END DIRICHLET_BC

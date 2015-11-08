@@ -32,9 +32,9 @@ MODULE input_cp2k_poisson
        spatially_dependent, spatially_rho_dependent
   USE dirichlet_bc_types,              ONLY: CIRCUMSCRIBED,&
                                              INSCRIBED,&
-                                             xy_aligned_rectangle,&
-                                             xz_aligned_rectangle,&
-                                             yz_aligned_rectangle
+                                             xy_plane,&
+                                             xz_plane,&
+                                             yz_plane
   USE input_constants,                 ONLY: do_fist_pol_cg,&
                                              do_fist_pol_none,&
                                              do_fist_pol_sc
@@ -757,9 +757,9 @@ END SUBROUTINE create_ewald_section
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
+    CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants = s2a('zeta'),  &
          description="The width of the standard mollifier.", &
-         usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp)
+         usage="SMOOTHING_WIDTH <real>", unit_str="angstrom", default_r_val=0.2_dp)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -885,20 +885,20 @@ END SUBROUTINE create_ewald_section
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AA_PLANAR", &
-         description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary region.",&
+         description="Parameters for creating axis-aligned planar (rectangular) Dirichlet boundary regions.",&
          n_keywords=9, n_subsections=0, repeats=.TRUE.)
 
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="v_D", &
-         description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+         description="The value of the fixed potential to be imposed at the axis-aligned Dirichlet boundary.", &
          usage="v_D <real>", unit_str="volt", type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="PARALLEL_PLANE", &
          enum_c_vals=s2a( 'XY', 'YZ' , 'XZ'), &
-         enum_i_vals=(/ xy_aligned_rectangle, yz_aligned_rectangle, xz_aligned_rectangle /), &
+         enum_i_vals=(/ xy_plane, yz_plane, xz_plane /), &
          description="The coordinate plane that the region is parallel to.", &
          usage="PARALLEL_PLANE <plane>",  &
          type_of_var=enum_t)
@@ -913,43 +913,43 @@ END SUBROUTINE create_ewald_section
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="X_xtnt", &
-         description="The X extents of the plane.", &
+         description="The X extents of the rectangle.", &
          usage="X_xtnt <xmin(real)> <xmax(real)>", unit_str="angstrom", &
          n_var=2, type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="Y_xtnt", &
-         description="The Y extents of the plane.", &
+         description="The Y extents of the rectangle.", &
          usage="Y_xtnt <ymin(real)> <ymax(real)>", unit_str="angstrom", &
          n_var=2, type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="Z_xtnt", &
-         description="The Z extents of the plane.", &
+         description="The Z extents of the rectangle.", &
          usage="Z_xtnt <zmin(real)> <zmax(real)>", unit_str="angstrom", &
          n_var=2, type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="N_PRTN", &
-         description="The number of partitions in xy, yz or xz directions for tiling the plane.", &
+         description="The number of partitions in the directions of the unit vectors generating the "// &
+         "corresponding PARALLEL_PLANE (e1, e2 or e3) for tiling the rectangluar region.", &
          usage="N_PRTN <integer> <integer>", &
          n_var=2, default_i_vals=(/1, 1/))
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="SMOOTH", &
-         description="Whether or not to smoothen (mollify) the dirichlet boundary region to avoid "//&
-         "possible Gibbs phenomenon.", &
-         usage="SMOOTH <logical>", default_l_val=.FALSE.)
+    CALL keyword_create(keyword, name="THICKNESS", &
+         description="The thickness of the planar Dirichlet region.", &
+         usage="THICKNESS <real>", default_r_val=0.2_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
-         description="The width of the standard mollifier.", &
-         usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp)
+    CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants = s2a('SIGMA'), &
+         description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
+         usage="SMOOTHING_WIDTH <real>", default_r_val=0.2_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -970,13 +970,13 @@ END SUBROUTINE create_ewald_section
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="PLANAR", &
-         description="Parameters for creating an arbitrary planar Dirichlet boundary region.",&
+         description="Parameters for creating planar (rectangular) Dirichlet boundary regions with given vertices.",&
          n_keywords=7, n_subsections=0, repeats=.TRUE.)
 
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="v_D", &
-         description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+         description="The value of the fixed potential to be imposed at the planar Dirichlet boundary.", &
          usage="v_D <real>", unit_str="volt", type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
@@ -1003,22 +1003,22 @@ END SUBROUTINE create_ewald_section
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="N_PRTN", &
-         description="The number of partitions in the x, y and z directions for tiling the plane.", &
-         usage="N_PRTN <integer> <integer> <integer>", &
-         n_var=3, default_i_vals=(/1, 1, 1/))
+         description="The number of partitions along the edges for tiling the rectangular region. If the edges "// &
+         "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
+         usage="N_PRTN <integer> <integer>", &
+         n_var=2, default_i_vals=(/1, 1/))
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="SMOOTH", &
-         description="Whether or not to smoothen (mollify) the dirichlet boundary region to avoid "//&
-         "possible Gibbs phenomenon.", &
-         usage="SMOOTH <logical>", default_l_val=.FALSE.)
+    CALL keyword_create(keyword, name="THICKNESS", &
+         description="The thickness of the planar Dirichlet region.", &
+         usage="THICKNESS <real>", default_r_val=0.2_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
-         description="The width of the standard mollifier.", &
-         usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp)
+    CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants = s2a('SIGMA'), &
+         description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
+         usage="SMOOTHING_WIDTH <real>", default_r_val=0.2_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -1040,13 +1040,13 @@ END SUBROUTINE create_ewald_section
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="XAA_CYLINDRICAL", &
-         description="Parameters for creating x-axis-aligned cylindrical Dirichlet boundary region.",&
-         n_keywords=9, n_subsections=0, repeats=.TRUE.)
+         description="Parameters for creating x-axis-aligned cylindrical Dirichlet boundary regions.",&
+         n_keywords=10, n_subsections=0, repeats=.TRUE.)
 
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="v_D", &
-         description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+         description="The value of the fixed potential to be imposed at the cylindrical Dirichlet boundary.", &
          usage="v_D <real>", unit_str="volt", type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
@@ -1058,50 +1058,58 @@ END SUBROUTINE create_ewald_section
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="base_center", &
+    CALL keyword_create(keyword, name="BASE_CENTER", &
          description="The y and z coordinates of the cylinder's base center.", &
-         usage="base_center <y(real)> <z(real)>", unit_str="angstrom", &
+         usage="BASE_CENTER <y(real)> <z(real)>", unit_str="angstrom", &
          n_var=2, type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="base_radius", &
+    CALL keyword_create(keyword, name="BASE_RADIUS", &
          description="The base radius of the cylinder.", &
-         usage="base_radius <real>", default_r_val=1.0_dp, unit_str="angstrom")
+         usage="BASE_RADIUS <real>", default_r_val=1.0_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="n_sides", &
-         description="The number of sides os the n-gonal prism approximating the cylinder.", &
-         usage="n_sides <integer>", default_i_val=5)
+    CALL keyword_create(keyword, name="N_SIDES", &
+         description="The number of sides (faces) of the n-gonal prism approximating the cylinder.", &
+         usage="N_SIDES <integer>", default_i_val=5)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="apx_type", &
+    CALL keyword_create(keyword, name="APX_TYPE", &
          enum_c_vals=s2a( 'CIRCUMSCRIBED', 'INSCRIBED' ), &
          enum_i_vals=(/ CIRCUMSCRIBED, INSCRIBED /), &
          description="Specifies the type of the n-gonal prism approximating the cylinder.", &
-         usage="apx_type <apx_type>", default_i_val=CIRCUMSCRIBED)
+         usage="APX_TYPE <apx_type>", default_i_val=CIRCUMSCRIBED)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="N_PRTN", &
-         description="The number of partitions in the x, y and z directions for tiling the plane.", &
-         usage="N_PRTN <integer> <integer> <integer>", &
-         n_var=3, default_i_vals=(/1, 1, 1/))
+         description="The number of partitions along the face edges of the prism for tiling. If the edges "// &
+         "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
+         usage="N_PRTN <integer> <integer>", &
+         n_var=2, default_i_vals=(/1, 1/))
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="SMOOTH", &
-         description="Whether or not to smoothen (mollify) the dirichlet boundary region to avoid "//&
-         "possible Gibbs phenomenon.", &
-         usage="SMOOTH <logical>", default_l_val=.FALSE.)
+    CALL keyword_create(keyword, name="THICKNESS", &
+         description="The thickness of the cylinder.", &
+         usage="THICKNESS <real>", default_r_val=0.2_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
-         description="The width of the standard mollifier.", &
-         usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp)
+    CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants = s2a('SIGMA'), &
+         description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
+         usage="SMOOTHING_WIDTH <real>", default_r_val=0.2_dp, unit_str="angstrom")
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="delta_alpha", &
+         description="A central angle specifying the gap between the faces of the n-gonal prism. To avoide overlap "//&
+         "between the cuboids (of the given thickness) built on top of the faces, a larger value is required if the"//&
+         " number of faces (N_SIDES) is quite few and/or the base radius is fairly small.", &
+         usage="delta_alpha <real>", default_r_val=0.05_dp, unit_str="rad")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -1122,13 +1130,13 @@ END SUBROUTINE create_ewald_section
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="AA_CUBOIDAL", &
-         description="Parameters for creating axis-aligned cuboidal region where a fixed voltage is applied.",&
-         n_keywords=7, n_subsections=0, repeats=.TRUE.)
+         description="Parameters for creating axis-aligned cuboidal Dirichlet regions.",&
+         n_keywords=6, n_subsections=0, repeats=.TRUE.)
 
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="v_D", &
-         description="value of the potential at the Dirichlet boundary (e.g. gate voltage).", &
+         description="The value of the fixed potential to be imposed at the region.", &
          usage="v_D <real>", unit_str="volt", type_of_var=real_t)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
@@ -1161,16 +1169,9 @@ END SUBROUTINE create_ewald_section
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="SMOOTH", &
-         description="Whether or not to smoothen (mollify) the dirichlet region to avoid "//&
-         "possible Gibbs phenomenon.", &
-         usage="SMOOTH <logical>", default_l_val=.FALSE.)
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="smoothing_width", variants = s2a('zeta'),  &
-         description="The width of the standard mollifier.", &
-         usage="smoothing_width <real>", unit_str="angstrom", default_r_val=0.2_dp)
+    CALL keyword_create(keyword, name="SMOOTHING_WIDTH", variants = s2a('SIGMA'), &
+         description="The width of the transition region between the Dirichlet subdomain and its surrounding.", &
+         usage="SMOOTHING_WIDTH <real>", default_r_val=0.2_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 

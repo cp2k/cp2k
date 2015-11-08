@@ -32,12 +32,12 @@
         &DIRICHLET_BC
           &PLANAR
             v_D      0.01
-            A        2.0 2.0 2.0
-            B        3.0 4.0 7.0
-            C        6.0 5.0 6.0
-            n_prtn   2 1 2
-            smooth  .TRUE.
-            smoothing_width 0.2
+            A        1.1523    3.9377    1.3945
+            B        2.1523    5.9377    6.3945
+            C        5.1523    6.9377    5.3945
+            n_prtn   2 1 
+            thickness 0.7
+            smoothing_width 0.1
           &END PLANAR
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -49,6 +49,10 @@
       &V_HARTREE_CUBE off
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
+      &DIRICHLET_BC_CUBE off
+        TILE_CUBES .false.
+        STRIDE 1 1 1
+      &END DIRICHLET_BC_CUBE
     &END PRINT
     &MGRID
       CUTOFF 200

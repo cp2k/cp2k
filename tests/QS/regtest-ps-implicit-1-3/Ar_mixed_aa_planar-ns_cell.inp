@@ -32,8 +32,8 @@
             Y_xtnt    0.5 7.5
             Z_xtnt    0.5 7.5
             n_prtn    1 1
-            smooth   .FALSE.
-            smoothing_width 0.2
+            thickness 0.9
+            smoothing_width 0.1
           &END AA_PLANAR
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -45,6 +45,10 @@
       &V_HARTREE_CUBE off
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
+      &DIRICHLET_BC_CUBE off
+        TILE_CUBES .false.
+        STRIDE 1 1 1
+      &END DIRICHLET_BC_CUBE
     &END PRINT
     &MGRID
       CUTOFF 10

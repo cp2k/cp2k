@@ -52,9 +52,9 @@ MODULE ps_implicit_types
      REAL(dp)                          :: electric_enthalpy
      INTEGER                           :: times_called 
      TYPE(dirichlet_bc_p_type), & 
-       DIMENSION(:), POINTER           :: gates => NULL()
-     REAL(dp), DIMENSION(:,:), POINTER :: QS    => NULL()
-     REAL(dp), DIMENSION(:,:), POINTER :: Rinv  => NULL()
+       DIMENSION(:), POINTER           :: contacts => NULL()
+     REAL(dp), DIMENSION(:,:), POINTER :: QS   => NULL()
+     REAL(dp), DIMENSION(:,:), POINTER :: Rinv => NULL()
      REAL(dp), DIMENSION(:,:), POINTER :: B   => NULL()
      REAL(dp), DIMENSION(:,:), POINTER :: Bt  => NULL()
      REAL(dp), DIMENSION(:), POINTER   :: v_D => NULL()
@@ -101,13 +101,13 @@ CONTAINS
                                     accept_non_compatible=.TRUE.)
           CALL pw_pool_give_back_pw(pw_pool, implicit_env%cstr_charge, &
                                     accept_non_compatible=.TRUE.)
-          CALL dirichlet_boundary_region_release(implicit_env%gates, &
+          CALL dirichlet_boundary_region_release(implicit_env%contacts, &
                                                  pw_pool=pw_pool)
        ELSE
           CALL pw_release(implicit_env%initial_guess)
           CALL pw_release(implicit_env%v_eps)
           CALL pw_release(implicit_env%cstr_charge)
-          CALL dirichlet_boundary_region_release(implicit_env%gates)
+          CALL dirichlet_boundary_region_release(implicit_env%contacts)
        END IF
 
        DEALLOCATE(implicit_env%initial_lambda)

@@ -7,3 +7,7 @@ H2O_periodic.inp
 H2plus2_implicit_md.inp
 #  
 Hplus_dbl_cstr_md.inp
+
+# completely revised constructing dbc
+H2O_dbl_cstr_otcg.inp
+Hplus_dbl_cstr_md.inp

@@ -32,12 +32,12 @@
         &DIRICHLET_BC
           &PLANAR
             v_D      0.01
-            A        2.0 2.0 2.0
-            B        3.0 4.0 7.0
-            C        6.0 5.0 6.0
-            n_prtn   1 1 1
-            smooth  .FALSE.
-            smoothing_width 0.2
+            A        1.1523    3.9377    1.3945
+            B        2.1523    5.9377    6.3945
+            C        5.1523    6.9377    5.3945
+            n_prtn   2 3 
+            thickness   0.7
+            smoothing_width 0.1
           &END PLANAR
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -49,6 +49,10 @@
       &V_HARTREE_CUBE off
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
+      &DIRICHLET_BC_CUBE off
+        TILE_CUBES .false.
+        STRIDE 1 1 1
+      &END DIRICHLET_BC_CUBE
     &END PRINT
     &MGRID
       CUTOFF 150
@@ -117,9 +121,9 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-     O         4.9999870401        4.5606769781        4.5606769833
-     H         5.0000000491        4.4536015938        5.5327585878
-     H         5.0000000214        5.5327585972        4.4536017371
+     O         3.9999870401        3.5606769781        3.5606769833
+     H         4.0000000491        3.4536015938        4.5327585878
+     H         4.0000000214        4.5327585972        3.4536017371
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH

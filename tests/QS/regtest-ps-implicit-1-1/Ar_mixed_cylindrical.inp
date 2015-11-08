@@ -34,12 +34,13 @@
             v_D         0.01
             X_xtnt      0.5 7.5
             base_center 4.0 4.0
-            base_radius 2.5
+            base_radius 3.5
             apx_type    INSCRIBED
             n_sides     6
-            n_prtn      1 1 1
-            smooth     .FALSE.
-            smoothing_width 0.2
+            n_prtn      1 1 
+            thickness   0.45
+            smoothing_width 0.08
+            delta_alpha 0.12
           &END XAA_CYLINDRICAL
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -51,6 +52,9 @@
       &V_HARTREE_CUBE off
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
+      &DIRICHLET_BC_CUBE off
+        STRIDE 1 1 1
+      &END DIRICHLET_BC_CUBE
     &END PRINT
     &MGRID
       CUTOFF 280

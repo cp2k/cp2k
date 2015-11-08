@@ -36,7 +36,6 @@
             Y_xtnt   0.5 7.5
             Z_xtnt   0.5 7.5
             n_prtn   1 1 1
-            smooth  .FALSE.
             smoothing_width 0.2
           &END AA_CUBOIDAL
         &END DIRICHLET_BC
@@ -49,6 +48,9 @@
       &V_HARTREE_CUBE off
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
+      &DIRICHLET_BC_CUBE off
+        STRIDE 1 1 1
+      &END DIRICHLET_BC_CUBE
     &END PRINT
     &MGRID
       CUTOFF 280

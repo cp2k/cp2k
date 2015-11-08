@@ -54,8 +54,7 @@ MODULE ps_implicit_methods
                                              RECIPROCALSPACE,&
                                              pw_p_type,&
                                              pw_type
-  USE rs_methods,                      ONLY: pw_mollifier,&
-                                             setup_grid_axes
+  USE rs_methods,                      ONLY: setup_grid_axes
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -161,7 +160,7 @@ CONTAINS
           CALL dct_type_init(pw_pool%pw_grid, ps_implicit_env%dct_env)
        END IF
 ! prepare dirichlet bc
-       CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%gates)
+       CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%contacts)
        CALL ps_implicit_prepare_blocks(pw_pool, dct_pw_grid, dct_aux_pw_grid, green, poisson_params, &
                                        ps_implicit_env)
 
@@ -482,9 +481,9 @@ CONTAINS
       routineN = 'implicit_poisson_solver_mixed_periodic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, n_gates, &
-      n_tiles_tot, ng, ngpts_local, nt, nt_tot, outp_unit, times_called, ub1, &
-      ub2, ub3
+    INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, &
+      n_contacts, n_tiles_tot, ng, ngpts_local, nt, nt_tot, outp_unit, &
+      times_called, ub1, ub2, ub3
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, DIMENSION(2, 3)                 :: bounds_local
     INTEGER, DIMENSION(3)                    :: npts_local
@@ -531,10 +530,10 @@ CONTAINS
     use_zero_initial_guess = poisson_params%ps_implicit_params%zero_initial_guess
     times_called = ps_implicit_env%times_called
 
-    n_gates = SIZE(ps_implicit_env%gates)
+    n_contacts = SIZE(ps_implicit_env%contacts)
     n_tiles_tot = 0
-    DO j = 1 , n_gates
-       n_tiles_tot = n_tiles_tot + ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
+    DO j = 1 , n_contacts
+       n_tiles_tot = n_tiles_tot + ps_implicit_env%contacts(j)%dirichlet_bc%n_tiles
     END DO
 
     IF (pw_grid%para%blocked) THEN
@@ -680,8 +679,8 @@ CONTAINS
              WRITE(outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
              WRITE(outp_unit, '(T19,A)') REPEAT('-', 46)
              nt_tot = 1
-             DO ng = 1, n_gates
-                DO nt = 1, ps_implicit_env%gates(ng)%dirichlet_bc%n_tiles
+             DO ng = 1, n_contacts
+                DO nt = 1, ps_implicit_env%contacts(ng)%dirichlet_bc%n_tiles
                    WRITE(outp_unit, '(T17,I6,5X,I6,3X,E13.4,E13.4)') ng, nt, Bxv_new(nt_tot), lambda_new(nt_tot)
                    nt_tot = nt_tot + 1
                 END DO
@@ -751,9 +750,9 @@ CONTAINS
       routineN = 'implicit_poisson_solver_mixed', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, n_gates, &
-      n_tiles_tot, ng, ngpts_local, nt, nt_tot, outp_unit, times_called, ub1, &
-      ub2, ub3
+    INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, &
+      n_contacts, n_tiles_tot, ng, ngpts_local, nt, nt_tot, outp_unit, &
+      times_called, ub1, ub2, ub3
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, DIMENSION(2, 3)                 :: bounds_local
     INTEGER, DIMENSION(3)                    :: npts_local
@@ -803,10 +802,10 @@ CONTAINS
     use_zero_initial_guess = poisson_params%ps_implicit_params%zero_initial_guess
     times_called = ps_implicit_env%times_called
  
-    n_gates = SIZE(ps_implicit_env%gates)
+    n_contacts = SIZE(ps_implicit_env%contacts)
     n_tiles_tot = 0
-    DO j = 1 , n_gates
-       n_tiles_tot = n_tiles_tot + ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
+    DO j = 1 , n_contacts
+       n_tiles_tot = n_tiles_tot + ps_implicit_env%contacts(j)%dirichlet_bc%n_tiles
     END DO
 
     IF (pw_grid%para%blocked) THEN
@@ -960,8 +959,8 @@ CONTAINS
              WRITE(outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
              WRITE(outp_unit, '(T19,A)') REPEAT('-', 46)
              nt_tot = 1
-             DO ng = 1, n_gates
-                DO nt = 1, ps_implicit_env%gates(ng)%dirichlet_bc%n_tiles
+             DO ng = 1, n_contacts
+                DO nt = 1, ps_implicit_env%contacts(ng)%dirichlet_bc%n_tiles
                    WRITE(outp_unit, '(T17,I6,5X,I6,3X,E13.4,E13.4)') ng, nt, Bxv_new(nt_tot), lambda_new(nt_tot)
                    nt_tot = nt_tot + 1
                 END DO
@@ -1073,14 +1072,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_size, handle, i, indx1, indx2, info, j, k, l, lb1, lb2, &
-      lb3, n_gates, n_tiles, n_tiles_tot, ngpts_local, tile_npts, ub1, ub2, &
-      ub3, unit_nr
+      lb3, n_contacts, n_tiles, n_tiles_tot, ngpts_local, ub1, ub2, ub3, &
+      unit_nr
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     INTEGER, DIMENSION(2, 3)                 :: bounds, bounds_local
     INTEGER, DIMENSION(3)                    :: npts, npts_local
-    LOGICAL                                  :: done_preparing, smooth
-    REAL(dp)                                 :: smooth_tile_npts, zeta
+    LOGICAL                                  :: done_preparing
+    REAL(dp)                                 :: sigma, tile_volume
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Bxunit_vec, test_vec, &
                                                 work_arr, x_glbl, x_locl, &
                                                 y_glbl, y_locl, z_glbl, z_locl
@@ -1090,7 +1089,7 @@ CONTAINS
     TYPE(pw_grid_type), POINTER              :: pw_grid_orig
     TYPE(pw_pool_type), POINTER              :: aux_pw_pool_xpndd, &
                                                 pw_pool_xpndd
-    TYPE(pw_type), POINTER                   :: pw_in, pw_out, tile_pw
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
 
     CALL timeset(routineN,handle)
 
@@ -1140,10 +1139,10 @@ CONTAINS
           END DO
        END DO
 
-       n_gates = SIZE(ps_implicit_env%gates)
+       n_contacts = SIZE(ps_implicit_env%contacts)
        n_tiles_tot = 0
-       DO j = 1 , n_gates
-          n_tiles_tot = n_tiles_tot + ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
+       DO j = 1 , n_contacts
+          n_tiles_tot = n_tiles_tot + ps_implicit_env%contacts(j)%dirichlet_bc%n_tiles
        END DO
 
        ALLOCATE(ps_implicit_env%B (n_tiles_tot, data_size))
@@ -1165,57 +1164,30 @@ CONTAINS
 
 ! set up B, B^t, (\Delta^-1)*B^t
        indx1 = 1
-       DO j = 1 , n_gates
-          n_tiles = ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
-          smooth = ps_implicit_env%gates(j)%dirichlet_bc%smooth
-          zeta = ps_implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
+       DO j = 1 , n_contacts
+          n_tiles = ps_implicit_env%contacts(j)%dirichlet_bc%n_tiles
+          sigma = ps_implicit_env%contacts(j)%dirichlet_bc%smoothing_width
           indx2 = indx1 + n_tiles - 1
-          IF (smooth) THEN
-             DO i = 1, n_tiles
-                tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
-                CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE)
-                CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in)
-                smooth_tile_npts = accurate_sum(pw_in%cr3d)
-                CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
-                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
+          DO i = 1, n_tiles
+             pw_in => ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
-                CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
-                                                dct_env%recv_msgs_bnds, dct_env%dests_expand, &
-                                                dct_env%srcs_expand, dct_env%flipg_stat, &
-                                                dct_env%dests_shrink, dct_env%srcs_shrink, &
-                                                dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                                adjust_local_bounds, pw_in, pw_out)
-                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
-                ! the electrostatic potential has opposite sign by internal convention
-                ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
+             tile_volume = ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%volume
+             CALL pw_scale(pw_in, 1.0_dp / tile_volume)     ! normalize tile_pw
+             ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in)
-             END DO
-          ELSE
-             DO i = 1, n_tiles
-                pw_in => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
+             CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
+             CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
+                                             dct_env%recv_msgs_bnds, dct_env%dests_expand, &
+                                             dct_env%srcs_expand, dct_env%flipg_stat, &
+                                             dct_env%dests_shrink, dct_env%srcs_shrink, &
+                                             dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
+                                             adjust_local_bounds, pw_in, pw_out)
+             QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
+             ! the electrostatic potential has opposite sign by internal convention
+             ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%contacts(j)%dirichlet_bc%v_D
 
-                tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                CALL pw_scale(pw_in, 1.0_dp / tile_npts)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
-
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
-                CALL apply_inv_laplace_operator(pw_pool_xpndd, aux_pw_pool_xpndd, green, &
-                                                dct_env%recv_msgs_bnds, dct_env%dests_expand, &
-                                                dct_env%srcs_expand, dct_env%flipg_stat, &
-                                                dct_env%dests_shrink, dct_env%srcs_shrink, &
-                                                dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                                                adjust_local_bounds, pw_in, pw_out)
-                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
-                ! the electrostatic potential has opposite sign by internal convention
-                ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
-
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
-             END DO
-          END IF
+             CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
+          END DO
           indx1 = indx2 + 1
        END DO
        ps_implicit_env%B = TRANSPOSE(ps_implicit_env%Bt)
@@ -1272,10 +1244,10 @@ CONTAINS
           END DO
        END DO
 
-       n_gates = SIZE(ps_implicit_env%gates)
+       n_contacts = SIZE(ps_implicit_env%contacts)
        n_tiles_tot = 0
-       DO j = 1 , n_gates
-          n_tiles_tot = n_tiles_tot + ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
+       DO j = 1 , n_contacts
+          n_tiles_tot = n_tiles_tot + ps_implicit_env%contacts(j)%dirichlet_bc%n_tiles
        END DO
 
        ALLOCATE(ps_implicit_env%B (n_tiles_tot, data_size))
@@ -1294,47 +1266,25 @@ CONTAINS
 
 ! set up B, B^t, (\Delta^-1)*B^t
        indx1 = 1
-       DO j = 1 , n_gates
-          n_tiles = ps_implicit_env%gates(j)%dirichlet_bc%n_tiles
-          smooth = ps_implicit_env%gates(j)%dirichlet_bc%smooth
-          zeta = ps_implicit_env%gates(j)%dirichlet_bc%mollifier_zeta
+       DO j = 1 , n_contacts
+          n_tiles = ps_implicit_env%contacts(j)%dirichlet_bc%n_tiles
+          sigma = ps_implicit_env%contacts(j)%dirichlet_bc%smoothing_width
           indx2 = indx1 + n_tiles - 1
-          IF (smooth) THEN
-             DO i = 1, n_tiles
-                tile_pw => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
-                CALL pw_pool_create_pw(pw_pool_orig, pw_in, use_data=REALDATA3D, in_space=REALSPACE)
-                CALL pw_mollifier(pw_pool_orig, zeta, x_glbl, y_glbl, z_glbl, tile_pw, pw_in)
-                smooth_tile_npts = accurate_sum(pw_in%cr3d)
-                CALL mp_sum(smooth_tile_npts, pw_grid_orig%para%group)
-                CALL pw_scale(pw_in, 1.0_dp / smooth_tile_npts)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
+          DO i = 1, n_tiles
+             pw_in => ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
-                CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out)
-                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
-                ! the electrostatic potential has opposite sign by internal convention
-                ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
+             tile_volume = ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%volume
+             CALL pw_scale(pw_in, 1.0_dp / tile_volume)     ! normalize tile_pw
+             ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_in)
-             END DO
-          ELSE
-             DO i = 1, n_tiles
-                pw_in => ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%tile_pw
+             CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
+             CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out)
+             QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
+             ! the electrostatic potential has opposite sign by internal convention
+             ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%contacts(j)%dirichlet_bc%v_D
 
-                tile_npts = ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%npts
-                CALL pw_scale(pw_in, 1.0_dp / tile_npts)     ! normalize tile_pw
-                ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
-
-                CALL pw_pool_create_pw(pw_pool_orig, pw_out, use_data=REALDATA3D, in_space=REALSPACE)
-                CALL apply_inv_laplace_operator(pw_pool_orig, green, pw_in, pw_out)
-                QAinvxBt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_out%cr3d, (/data_size/))
-                ! the electrostatic potential has opposite sign by internal convention
-                ps_implicit_env%v_D(indx1+i-1) = -1.0_dp * ps_implicit_env%gates(j)%dirichlet_bc%tiles(i)%tile%v_D
-
-                CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
-             END DO
-          END IF
+             CALL pw_pool_give_back_pw(pw_pool_orig, pw_out)
+          END DO
           indx1 = indx2 + 1
        END DO
        ps_implicit_env%B = TRANSPOSE(ps_implicit_env%Bt)

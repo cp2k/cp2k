@@ -19,9 +19,9 @@ MODULE pw_poisson_read_input
                                              use_perd_y,&
                                              use_perd_yz,&
                                              use_perd_z
-  USE dirichlet_bc_types,              ONLY: xy_aligned_rectangle,&
-                                             xz_aligned_rectangle,&
-                                             yz_aligned_rectangle
+  USE dirichlet_bc_types,              ONLY: xy_plane,&
+                                             xz_plane,&
+                                             yz_plane
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -271,6 +271,7 @@ CONTAINS
 
 
     IF (params%solver .EQ. pw_poisson_implicit) THEN
+
        IF (aa_cuboidal_explicit) THEN
           params%dielectric_params%n_aa_cuboidal = n_aac_rep
           ALLOCATE(params%dielectric_params%aa_cuboidal_xxtnt(2, n_aac_rep), &
@@ -280,16 +281,11 @@ CONTAINS
                    params%dielectric_params%aa_cuboidal_zeta(n_aac_rep))
           NULLIFY(aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt)
           DO i = 1, n_aac_rep
-             CALL section_vals_val_get(aa_cuboidal_section,"epsilon"   ,&
-                                       i_rep_section=i,r_val=eps)
-             CALL section_vals_val_get(aa_cuboidal_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta)
-             CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_xxtnt)
-             CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_yxtnt)
-             CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_zxtnt)
+             CALL section_vals_val_get(aa_cuboidal_section,"epsilon",i_rep_section=i,r_val=eps)
+             CALL section_vals_val_get(aa_cuboidal_section,"zeta",i_rep_section=i,r_val=zeta)
+             CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",i_rep_section=i,r_vals=aa_cuboidal_xxtnt)
+             CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",i_rep_section=i,r_vals=aa_cuboidal_yxtnt)
+             CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",i_rep_section=i,r_vals=aa_cuboidal_zxtnt)
              params%dielectric_params%aa_cuboidal_eps(i) = eps
              params%dielectric_params%aa_cuboidal_zeta(i) = zeta
              params%dielectric_params%aa_cuboidal_xxtnt(:,i) = aa_cuboidal_xxtnt
@@ -299,6 +295,7 @@ CONTAINS
        ELSE
          params%dielectric_params%n_aa_cuboidal = 0
        END IF
+
        IF (xaa_annular_explicit) THEN
           params%dielectric_params%n_xaa_annular = n_xaaa_rep
           ALLOCATE(params%dielectric_params%xaa_annular_xxtnt(2, n_xaaa_rep), &
@@ -308,16 +305,11 @@ CONTAINS
                    params%dielectric_params%xaa_annular_zeta(n_xaaa_rep))
           NULLIFY(xaa_annular_xxtnt, xaa_annular_bctr, xaa_annular_brad)
           DO i = 1, n_xaaa_rep
-             CALL section_vals_val_get(xaa_annular_section,"epsilon"    ,&
-                                       i_rep_section=i,r_val=eps)
-             CALL section_vals_val_get(xaa_annular_section,"zeta"    ,&
-                                       i_rep_section=i,r_val=zeta)
-             CALL section_vals_val_get(xaa_annular_section,"X_xtnt"  ,&
-                                       i_rep_section=i,r_vals=xaa_annular_xxtnt)
-             CALL section_vals_val_get(xaa_annular_section,"base_center",&
-                                       i_rep_section=i,r_vals=xaa_annular_bctr)
-             CALL section_vals_val_get(xaa_annular_section,"base_radii",&
-                                       i_rep_section=i,r_vals=xaa_annular_brad)
+             CALL section_vals_val_get(xaa_annular_section,"epsilon",i_rep_section=i,r_val=eps)
+             CALL section_vals_val_get(xaa_annular_section,"zeta",i_rep_section=i,r_val=zeta)
+             CALL section_vals_val_get(xaa_annular_section,"X_xtnt",i_rep_section=i,r_vals=xaa_annular_xxtnt)
+             CALL section_vals_val_get(xaa_annular_section,"BASE_CENTER",i_rep_section=i,r_vals=xaa_annular_bctr)
+             CALL section_vals_val_get(xaa_annular_section,"BASE_RADII",i_rep_section=i,r_vals=xaa_annular_brad)
              params%dielectric_params%xaa_annular_eps(i) = eps
              params%dielectric_params%xaa_annular_zeta(i) = zeta
              params%dielectric_params%xaa_annular_xxtnt(:,i) = xaa_annular_xxtnt
@@ -327,6 +319,7 @@ CONTAINS
        ELSE
           params%dielectric_params%n_xaa_annular = 0
        END IF
+
     END IF
 
   END SUBROUTINE dielectric_read_parameters
@@ -339,6 +332,7 @@ CONTAINS
 !> \par History
 !>      08.2014 created [Hossein Bani-Hashemian]
 !>      07.2015 refactored [Hossein Bani-Hashemian]
+!>      10.2015 revised [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE dirichlet_bc_read_parameters(dbc_section, params)
@@ -356,9 +350,10 @@ CONTAINS
                                                 planar_nprtn, &
                                                 xaa_cylindrical_nprtn
     LOGICAL :: aa_cuboidal_explicit, aa_planar_explicit, planar_explicit, &
-      smooth, xaa_cylindrical_explicit
-    REAL(dp)                                 :: intercept, v_D, &
-                                                xaa_cylindrical_brad, zeta
+      xaa_cylindrical_explicit
+    REAL(dp)                                 :: delta_alpha, intercept, &
+                                                sigma, thickness, v_D, &
+                                                xaa_cylindrical_brad
     REAL(dp), DIMENSION(:), POINTER :: aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, &
       aa_cuboidal_zxtnt, aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt, &
       planar_Avtx, planar_Bvtx, planar_Cvtx, xaa_cylindrical_bctr, &
@@ -379,78 +374,63 @@ CONTAINS
     CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep)
 
     IF (params%solver .EQ. pw_poisson_implicit) THEN
+
        IF (aa_planar_explicit) THEN
           params%dbc_params%n_aa_planar = n_aap_rep
-          ALLOCATE(params%dbc_params%aa_planar_xxtnt(2, n_aap_rep), &
+          ALLOCATE(params%dbc_params%aa_planar_nprtn(3, n_aap_rep), &
+                   params%dbc_params%aa_planar_pplane(n_aap_rep),   &
+                   params%dbc_params%aa_planar_xxtnt(2, n_aap_rep), &
                    params%dbc_params%aa_planar_yxtnt(2, n_aap_rep), &
                    params%dbc_params%aa_planar_zxtnt(2, n_aap_rep), &
-                   params%dbc_params%aa_planar_nprtn(3, n_aap_rep), &
                    params%dbc_params%aa_planar_vD(n_aap_rep),&
-                   params%dbc_params%aa_planar_zeta(n_aap_rep),&
-                   params%dbc_params%aa_planar_smooth(n_aap_rep))
-          NULLIFY(aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt, aa_planar_nprtn)
+                   params%dbc_params%aa_planar_sigma(n_aap_rep),&
+                   params%dbc_params%aa_planar_thickness(n_aap_rep))
+          NULLIFY(aa_planar_nprtn, aa_planar_xxtnt, aa_planar_yxtnt, aa_planar_zxtnt)
           DO i = 1, n_aap_rep
-             CALL section_vals_val_get(aa_planar_section,"v_D"   ,&
-                                       i_rep_section=i,r_val=v_D)
-             CALL section_vals_val_get(aa_planar_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta)
-             CALL section_vals_val_get(aa_planar_section,"smooth",&
-                                       i_rep_section=i,l_val=smooth)
+             CALL section_vals_val_get(aa_planar_section,"v_D",i_rep_section=i,r_val=v_D)
+             CALL section_vals_val_get(aa_planar_section,"SIGMA",i_rep_section=i,r_val=sigma)
+             CALL section_vals_val_get(aa_planar_section,"THICKNESS",i_rep_section=i,r_val=thickness)
 
              params%dbc_params%aa_planar_vD(i) = v_D
-             params%dbc_params%aa_planar_zeta(i) = zeta
-             params%dbc_params%aa_planar_smooth(i) = smooth
+             params%dbc_params%aa_planar_sigma(i) = sigma
+             params%dbc_params%aa_planar_thickness(i) = thickness
 
-             CALL section_vals_val_get(aa_planar_section,"PARALLEL_PLANE",&
-                                       i_rep_section=i,i_val=parallel_plane)
-             CALL section_vals_val_get(aa_planar_section,"INTERCEPT",&
-                                       i_rep_section=i,r_val=intercept)
+             CALL section_vals_val_get(aa_planar_section,"PARALLEL_PLANE",i_rep_section=i,i_val=parallel_plane)
+             CALL section_vals_val_get(aa_planar_section,"INTERCEPT",i_rep_section=i,r_val=intercept)
              SELECT CASE (parallel_plane)
-             CASE (xy_aligned_rectangle)
-                CALL section_vals_val_get(aa_planar_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_xxtnt)
-                CALL section_vals_val_get(aa_planar_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_yxtnt)
-
+             CASE (xy_plane)
+                params%dbc_params%aa_planar_pplane(i) = xy_plane
+                CALL section_vals_val_get(aa_planar_section,"X_xtnt",i_rep_section=i,r_vals=aa_planar_xxtnt)
+                CALL section_vals_val_get(aa_planar_section,"Y_xtnt",i_rep_section=i,r_vals=aa_planar_yxtnt)
                 params%dbc_params%aa_planar_xxtnt(:,i) = aa_planar_xxtnt
                 params%dbc_params%aa_planar_yxtnt(:,i) = aa_planar_yxtnt
                 params%dbc_params%aa_planar_zxtnt(:,i) = intercept
 
-                CALL section_vals_val_get(aa_planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_planar_nprtn)
-
+                CALL section_vals_val_get(aa_planar_section,"N_PRTN",i_rep_section=i,i_vals=aa_planar_nprtn)
                 params%dbc_params%aa_planar_nprtn(1,i) = aa_planar_nprtn(1)
                 params%dbc_params%aa_planar_nprtn(2,i) = aa_planar_nprtn(2)
                 params%dbc_params%aa_planar_nprtn(3,i) = 1
-             CASE (yz_aligned_rectangle)
-                CALL section_vals_val_get(aa_planar_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_yxtnt)
-                CALL section_vals_val_get(aa_planar_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_zxtnt)
-
+             CASE (yz_plane)
+                params%dbc_params%aa_planar_pplane(i) = yz_plane
+                CALL section_vals_val_get(aa_planar_section,"Y_xtnt",i_rep_section=i,r_vals=aa_planar_yxtnt)
+                CALL section_vals_val_get(aa_planar_section,"Z_xtnt",i_rep_section=i,r_vals=aa_planar_zxtnt)
                 params%dbc_params%aa_planar_xxtnt(:,i) = intercept
                 params%dbc_params%aa_planar_yxtnt(:,i) = aa_planar_yxtnt
                 params%dbc_params%aa_planar_zxtnt(:,i) = aa_planar_zxtnt
 
-                CALL section_vals_val_get(aa_planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_planar_nprtn)
-
+                CALL section_vals_val_get(aa_planar_section,"N_PRTN",i_rep_section=i,i_vals=aa_planar_nprtn)
                 params%dbc_params%aa_planar_nprtn(1,i) = 1
                 params%dbc_params%aa_planar_nprtn(2,i) = aa_planar_nprtn(1)
                 params%dbc_params%aa_planar_nprtn(3,i) = aa_planar_nprtn(2)
-             CASE (xz_aligned_rectangle)
-                CALL section_vals_val_get(aa_planar_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_xxtnt)
-                CALL section_vals_val_get(aa_planar_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_planar_zxtnt)
-
+             CASE (xz_plane)
+                params%dbc_params%aa_planar_pplane(i) = xz_plane
+                CALL section_vals_val_get(aa_planar_section,"X_xtnt",i_rep_section=i,r_vals=aa_planar_xxtnt)
+                CALL section_vals_val_get(aa_planar_section,"Z_xtnt",i_rep_section=i,r_vals=aa_planar_zxtnt)
                 params%dbc_params%aa_planar_xxtnt(:,i) = aa_planar_xxtnt
                 params%dbc_params%aa_planar_yxtnt(:,i) = intercept
                 params%dbc_params%aa_planar_zxtnt(:,i) = aa_planar_zxtnt
 
-                CALL section_vals_val_get(aa_planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_planar_nprtn)
-
+                CALL section_vals_val_get(aa_planar_section,"N_PRTN",i_rep_section=i,i_vals=aa_planar_nprtn)
                 params%dbc_params%aa_planar_nprtn(1,i) = aa_planar_nprtn(1)
                 params%dbc_params%aa_planar_nprtn(2,i) = 1
                 params%dbc_params%aa_planar_nprtn(3,i) = aa_planar_nprtn(2)
@@ -460,123 +440,104 @@ CONTAINS
        ELSE
          params%dbc_params%n_aa_planar = 0
        END IF
+
        IF (planar_explicit) THEN
           params%dbc_params%n_planar = n_p_rep
-          ALLOCATE(params%dbc_params%planar_Avtx(3, n_p_rep), &
+          ALLOCATE(params%dbc_params%planar_nprtn(2, n_p_rep), &
+                   params%dbc_params%planar_Avtx(3, n_p_rep), &
                    params%dbc_params%planar_Bvtx(3, n_p_rep), &
                    params%dbc_params%planar_Cvtx(3, n_p_rep), &
-                   params%dbc_params%planar_nprtn(3, n_p_rep), &
                    params%dbc_params%planar_vD(n_p_rep), &
-                   params%dbc_params%planar_zeta(n_p_rep), &
-                   params%dbc_params%planar_smooth(n_p_rep))
-          NULLIFY(planar_Avtx, planar_Bvtx, planar_Cvtx, planar_nprtn)
+                   params%dbc_params%planar_sigma(n_p_rep), &
+                   params%dbc_params%planar_thickness(n_p_rep))
+          NULLIFY(planar_nprtn, planar_Avtx, planar_Bvtx, planar_Cvtx)
           DO i = 1, n_p_rep
-             CALL section_vals_val_get(planar_section,"v_D"   ,&
-                                       i_rep_section=i,r_val=v_D)
-             CALL section_vals_val_get(planar_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta)
-             CALL section_vals_val_get(planar_section,"smooth",&
-                                       i_rep_section=i,l_val=smooth)
-             CALL section_vals_val_get(planar_section,"A"     ,&
-                                       i_rep_section=i,r_vals=planar_Avtx)
-             CALL section_vals_val_get(planar_section,"B"     ,&
-                                       i_rep_section=i,r_vals=planar_Bvtx)
-             CALL section_vals_val_get(planar_section,"C"     ,&
-                                       i_rep_section=i,r_vals=planar_Cvtx)
-             CALL section_vals_val_get(planar_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=planar_nprtn)
-             params%dbc_params%planar_vD(i) = v_D
-             params%dbc_params%planar_zeta(i) = zeta
-             params%dbc_params%planar_smooth(i) = smooth
+             CALL section_vals_val_get(planar_section,"N_PRTN",i_rep_section=i,i_vals=planar_nprtn)
+             CALL section_vals_val_get(planar_section,"A",i_rep_section=i,r_vals=planar_Avtx)
+             CALL section_vals_val_get(planar_section,"B",i_rep_section=i,r_vals=planar_Bvtx)
+             CALL section_vals_val_get(planar_section,"C",i_rep_section=i,r_vals=planar_Cvtx)
+             CALL section_vals_val_get(planar_section,"v_D",i_rep_section=i,r_val=v_D)
+             CALL section_vals_val_get(planar_section,"SIGMA",i_rep_section=i,r_val=sigma)
+             CALL section_vals_val_get(planar_section,"THICKNESS",i_rep_section=i,r_val=thickness)
+             params%dbc_params%planar_nprtn(:,i) = planar_nprtn
              params%dbc_params%planar_Avtx(:,i) = planar_Avtx
              params%dbc_params%planar_Bvtx(:,i) = planar_Bvtx
              params%dbc_params%planar_Cvtx(:,i) = planar_Cvtx
-             params%dbc_params%planar_nprtn(:,i) = planar_nprtn
+             params%dbc_params%planar_vD(i) = v_D
+             params%dbc_params%planar_sigma(i) = sigma
+             params%dbc_params%planar_thickness(i) = thickness
           END DO
        ELSE
           params%dbc_params%n_planar = 0
        END IF
+
        IF (xaa_cylindrical_explicit) THEN
           params%dbc_params%n_xaa_cylindrical = n_xaac_rep
-          ALLOCATE(params%dbc_params%xaa_cylindrical_xxtnt(2, n_xaac_rep), &
-                   params%dbc_params%xaa_cylindrical_nprtn(3, n_xaac_rep), &
-                   params%dbc_params%xaa_cylindrical_bctr(2, n_xaac_rep), &
-                   params%dbc_params%xaa_cylindrical_brad(n_xaac_rep), &
+          ALLOCATE(params%dbc_params%xaa_cylindrical_nprtn(2, n_xaac_rep), &
                    params%dbc_params%xaa_cylindrical_nsides(n_xaac_rep), &
                    params%dbc_params%xaa_cylindrical_apxtyp(n_xaac_rep), &
+                   params%dbc_params%xaa_cylindrical_xxtnt(2, n_xaac_rep), &
+                   params%dbc_params%xaa_cylindrical_bctr(2, n_xaac_rep), &
+                   params%dbc_params%xaa_cylindrical_brad(n_xaac_rep), &
                    params%dbc_params%xaa_cylindrical_vD(n_xaac_rep), &
-                   params%dbc_params%xaa_cylindrical_zeta(n_xaac_rep), &
-                   params%dbc_params%xaa_cylindrical_smooth(n_xaac_rep))
-          NULLIFY(xaa_cylindrical_xxtnt, xaa_cylindrical_bctr, xaa_cylindrical_nprtn)
+                   params%dbc_params%xaa_cylindrical_sigma(n_xaac_rep), &
+                   params%dbc_params%xaa_cylindrical_thickness(n_xaac_rep), &
+                   params%dbc_params%xaa_cylindrical_sgap(n_xaac_rep))
+          NULLIFY(xaa_cylindrical_nprtn, xaa_cylindrical_xxtnt, xaa_cylindrical_bctr)
           DO i = 1, n_xaac_rep
-             CALL section_vals_val_get(xaa_cylindrical_section,"v_D"        ,&
-                                       i_rep_section=i,r_val=v_D)
-             CALL section_vals_val_get(xaa_cylindrical_section,"zeta"       ,&
-                                       i_rep_section=i,r_val=zeta)
-             CALL section_vals_val_get(xaa_cylindrical_section,"smooth"     ,&
-                                       i_rep_section=i,l_val=smooth)
-             CALL section_vals_val_get(xaa_cylindrical_section,"X_xtnt"  ,&
-                                       i_rep_section=i,r_vals=xaa_cylindrical_xxtnt)
-             CALL section_vals_val_get(xaa_cylindrical_section,"base_center",&
-                                       i_rep_section=i,r_vals=xaa_cylindrical_bctr)
-             CALL section_vals_val_get(xaa_cylindrical_section,"base_radius",&
-                                       i_rep_section=i,r_val=xaa_cylindrical_brad)
-             CALL section_vals_val_get(xaa_cylindrical_section,"n_sides"    ,&
-                                       i_rep_section=i,i_val=xaa_cylindrical_nsides)
-             CALL section_vals_val_get(xaa_cylindrical_section,"apx_type"   ,&
-                                       i_rep_section=i,i_val=xaa_cylindrical_apxtyp)
-             CALL section_vals_val_get(xaa_cylindrical_section,"n_prtn"     ,&
-                                       i_rep_section=i,i_vals=xaa_cylindrical_nprtn)
-             params%dbc_params%xaa_cylindrical_vD(i) = v_D
-             params%dbc_params%xaa_cylindrical_zeta(i) = zeta
-             params%dbc_params%xaa_cylindrical_smooth(i) = smooth
-             params%dbc_params%xaa_cylindrical_xxtnt(:,i) = xaa_cylindrical_xxtnt
-             params%dbc_params%xaa_cylindrical_bctr(:,i)  = xaa_cylindrical_bctr
-             params%dbc_params%xaa_cylindrical_brad(i)    = xaa_cylindrical_brad
-             params%dbc_params%xaa_cylindrical_nsides(i)  = xaa_cylindrical_nsides
-             params%dbc_params%xaa_cylindrical_apxtyp(i)  = xaa_cylindrical_apxtyp
+             CALL section_vals_val_get(xaa_cylindrical_section,"N_PRTN",i_rep_section=i,i_vals=xaa_cylindrical_nprtn)
+             CALL section_vals_val_get(xaa_cylindrical_section,"N_SIDES",i_rep_section=i,i_val=xaa_cylindrical_nsides)
+             CALL section_vals_val_get(xaa_cylindrical_section,"APX_TYPE",i_rep_section=i,i_val=xaa_cylindrical_apxtyp)
+             CALL section_vals_val_get(xaa_cylindrical_section,"X_xtnt",i_rep_section=i,r_vals=xaa_cylindrical_xxtnt)
+             CALL section_vals_val_get(xaa_cylindrical_section,"BASE_CENTER",i_rep_section=i,r_vals=xaa_cylindrical_bctr)
+             CALL section_vals_val_get(xaa_cylindrical_section,"BASE_RADIUS",i_rep_section=i,r_val=xaa_cylindrical_brad)
+             CALL section_vals_val_get(xaa_cylindrical_section,"v_D",i_rep_section=i,r_val=v_D)
+             CALL section_vals_val_get(xaa_cylindrical_section,"SIGMA",i_rep_section=i,r_val=sigma)
+             CALL section_vals_val_get(xaa_cylindrical_section,"THICKNESS",i_rep_section=i,r_val=thickness)
+             CALL section_vals_val_get(xaa_cylindrical_section,"delta_alpha",i_rep_section=i,r_val=delta_alpha)
              params%dbc_params%xaa_cylindrical_nprtn(:,i) = xaa_cylindrical_nprtn
+             params%dbc_params%xaa_cylindrical_nsides(i) = xaa_cylindrical_nsides
+             params%dbc_params%xaa_cylindrical_apxtyp(i) = xaa_cylindrical_apxtyp
+             params%dbc_params%xaa_cylindrical_xxtnt(:,i) = xaa_cylindrical_xxtnt
+             params%dbc_params%xaa_cylindrical_bctr(:,i) = xaa_cylindrical_bctr
+             params%dbc_params%xaa_cylindrical_brad(i) = xaa_cylindrical_brad
+             params%dbc_params%xaa_cylindrical_vD(i) = v_D
+             params%dbc_params%xaa_cylindrical_sigma(i) = sigma
+             params%dbc_params%xaa_cylindrical_thickness(i) = thickness
+             params%dbc_params%xaa_cylindrical_sgap(i) = delta_alpha
           END DO
        ELSE
           params%dbc_params%n_xaa_cylindrical = 0
           ALLOCATE(params%dbc_params%xaa_cylindrical_nsides(n_xaac_rep))
        END IF
+
        IF (aa_cuboidal_explicit) THEN
           params%dbc_params%n_aa_cuboidal = n_aac_rep
-          ALLOCATE(params%dbc_params%aa_cuboidal_xxtnt(2, n_aac_rep), &
+          ALLOCATE(params%dbc_params%aa_cuboidal_nprtn(3, n_aac_rep), &
+                   params%dbc_params%aa_cuboidal_xxtnt(2, n_aac_rep), &
                    params%dbc_params%aa_cuboidal_yxtnt(2, n_aac_rep), &
                    params%dbc_params%aa_cuboidal_zxtnt(2, n_aac_rep), &
-                   params%dbc_params%aa_cuboidal_nprtn(3, n_aac_rep), &
                    params%dbc_params%aa_cuboidal_vD(n_aac_rep),&
-                   params%dbc_params%aa_cuboidal_zeta(n_aac_rep),&
-                   params%dbc_params%aa_cuboidal_smooth(n_aac_rep))
-          NULLIFY(aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt, aa_cuboidal_nprtn)
+                   params%dbc_params%aa_cuboidal_sigma(n_aac_rep))
+          NULLIFY(aa_cuboidal_nprtn, aa_cuboidal_xxtnt, aa_cuboidal_yxtnt, aa_cuboidal_zxtnt)
           DO i = 1, n_aac_rep
-             CALL section_vals_val_get(aa_cuboidal_section,"v_D"   ,&
-                                       i_rep_section=i,r_val=v_D)
-             CALL section_vals_val_get(aa_cuboidal_section,"zeta"  ,&
-                                       i_rep_section=i,r_val=zeta)
-             CALL section_vals_val_get(aa_cuboidal_section,"smooth",&
-                                       i_rep_section=i,l_val=smooth)
-             CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_xxtnt)
-             CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_yxtnt)
-             CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",&
-                                       i_rep_section=i,r_vals=aa_cuboidal_zxtnt)
-             CALL section_vals_val_get(aa_cuboidal_section,"n_prtn",&
-                                       i_rep_section=i,i_vals=aa_cuboidal_nprtn)
-             params%dbc_params%aa_cuboidal_vD(i) = v_D
-             params%dbc_params%aa_cuboidal_zeta(i) = zeta
-             params%dbc_params%aa_cuboidal_smooth(i) = smooth
+             CALL section_vals_val_get(aa_cuboidal_section,"N_PRTN",i_rep_section=i,i_vals=aa_cuboidal_nprtn)
+             CALL section_vals_val_get(aa_cuboidal_section,"X_xtnt",i_rep_section=i,r_vals=aa_cuboidal_xxtnt)
+             CALL section_vals_val_get(aa_cuboidal_section,"Y_xtnt",i_rep_section=i,r_vals=aa_cuboidal_yxtnt)
+             CALL section_vals_val_get(aa_cuboidal_section,"Z_xtnt",i_rep_section=i,r_vals=aa_cuboidal_zxtnt)
+             CALL section_vals_val_get(aa_cuboidal_section,"v_D",i_rep_section=i,r_val=v_D)
+             CALL section_vals_val_get(aa_cuboidal_section,"SIGMA",i_rep_section=i,r_val=sigma)
+             params%dbc_params%aa_cuboidal_nprtn(:,i) = aa_cuboidal_nprtn
              params%dbc_params%aa_cuboidal_xxtnt(:,i) = aa_cuboidal_xxtnt
              params%dbc_params%aa_cuboidal_yxtnt(:,i) = aa_cuboidal_yxtnt
              params%dbc_params%aa_cuboidal_zxtnt(:,i) = aa_cuboidal_zxtnt
-             params%dbc_params%aa_cuboidal_nprtn(:,i) = aa_cuboidal_nprtn
+             params%dbc_params%aa_cuboidal_vD(i) = v_D
+             params%dbc_params%aa_cuboidal_sigma(i) = sigma
           END DO
        ELSE
          params%dbc_params%n_aa_cuboidal = 0
        END IF
+
     END IF
 
   END SUBROUTINE dirichlet_bc_read_parameters

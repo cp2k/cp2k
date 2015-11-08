@@ -28,3 +28,8 @@ Ar_mixed_periodic_planar.inp
 
 # Fixed NaNs from ACOS
 Ar_mixed_periodic_planar.inp
+
+# completely revised constructing dbc
+Ar_mixed_periodic_planar.inp
+Ar_mixed_periodic_cuboidal.inp
+Ar_mixed_periodic_cylindrical.inp

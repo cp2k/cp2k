@@ -15,3 +15,7 @@ H2O_mixed_periodic_planar.inp
 
 # Fix NaNs from ACOS
 H2O_mixed_periodic_planar.inp
+
+# completely revised constructing dbc
+H2O_mixed_periodic_aa_planar.inp   
+H2O_mixed_periodic_planar.inp      

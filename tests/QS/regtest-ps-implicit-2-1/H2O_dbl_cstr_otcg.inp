@@ -15,7 +15,7 @@
       &IMPLICIT
         BOUNDARY_CONDITIONS MIXED_PERIODIC
         MAX_ITER     300
-        TOL          1.0E-4
+        TOL          1.0E-09
         OR_PARAMETER 1.0E-00
         &DIELECTRIC
           DIELECTRIC_CONSTANT 1.0
@@ -32,8 +32,8 @@
             Y_xtnt    0.5 7.5
             Z_xtnt    0.5 7.5
             n_prtn    1 1
-            smooth   .TRUE.
-            smoothing_width 0.2
+            thickness 0.7
+            smoothing_width 0.1
           &END AA_PLANAR
           &AA_PLANAR
             v_D       0.1
@@ -42,8 +42,8 @@
             Y_xtnt    0.5 7.5
             Z_xtnt    0.5 7.5
             n_prtn    1 1
-            smooth   .TRUE.
-            smoothing_width 0.2
+            thickness 0.7
+            smoothing_width 0.1
           &END AA_PLANAR
         &END DIRICHLET_BC
       &END IMPLICIT
@@ -58,6 +58,9 @@
       &DIRICHLET_BC_CUBE off
         STRIDE 1 1 1
       &END DIRICHLET_BC_CUBE
+      &DIRICHLET_CSTR_CHARGE_CUBE off
+        STRIDE 1 1 1
+      &END DIRICHLET_CSTR_CHARGE_CUBE
     &END PRINT
     &MGRID
       CUTOFF 180
@@ -116,9 +119,9 @@
       ABC 8.0 8.0 8.0
     &END CELL
     &COORD
-     O         4.9999870401        4.5606769781        4.5606769833
-     H         5.0000000491        4.4536015938        5.5327585878
-     H         5.0000000214        5.5327585972        4.4536017371
+     O         3.9999870401        3.5606769781        3.5606769833
+     H         4.0000000491        3.4536015938        4.5327585878
+     H         4.0000000214        4.5327585972        3.4536017371
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH
