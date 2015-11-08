@@ -151,7 +151,7 @@ CONTAINS
                                   poisson_params%dbc_params%aa_planar_zxtnt(:,j), &
                                   thickness, sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
-         CALL dirichlet_bc_partition(v_D, sigma, n_prtn, pw_pool, cell_xtnts, &
+         CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                   x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
       END DO
 
@@ -174,7 +174,7 @@ CONTAINS
                                   poisson_params%dbc_params%aa_cuboidal_zxtnt(:,j - l), &
                                   sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
-         CALL dirichlet_bc_partition(v_D, sigma, n_prtn, pw_pool, cell_xtnts, &
+         CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                   x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
       END DO
 
@@ -199,7 +199,7 @@ CONTAINS
                                  poisson_params%dbc_params%planar_Cvtx(:,j - l), &
                                  thickness, sigma, v_D, dbc_id, verbose, dbcs(j)%dirichlet_bc)
 
-         CALL dirichlet_bc_partition(v_D, sigma, n_prtn, pw_pool, cell_xtnts, &
+         CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                  x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
       END DO
 
@@ -244,7 +244,6 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief Partitions a dirichlet_bc_type into tiles  
-!> \param v_D potential imposed at the Dirichlet part of the boundary (gate voltage)
 !> \param sigma the width of the transition region between 0 and 1 at the edges of the tile
 !> \param n_prtn vetor of size 3 specifying the number of times that the x, y and
 !>               z interval (defining the region) should be partitioned into  
@@ -259,10 +258,10 @@ CONTAINS
 !>       10.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dirichlet_bc_partition(v_D, sigma, n_prtn, pw_pool, cell_xtnts, &
+  SUBROUTINE dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                     x_locl, y_locl, z_locl, verbose, dirichlet_bc)
 
-    REAL(dp), INTENT(IN)                     :: v_D, sigma
+    REAL(dp), INTENT(IN)                     :: sigma
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_prtn
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool
     REAL(dp), DIMENSION(2, 3), INTENT(IN)    :: cell_xtnts
@@ -829,7 +828,7 @@ CONTAINS
           END DO
        END IF
 
-       CALL dirichlet_bc_partition(v_D, sigma, n_prtn, pw_pool, cell_xtnts, &
+       CALL dirichlet_bc_partition(sigma, n_prtn, pw_pool, cell_xtnts, &
                                    x_locl, y_locl, z_locl, verbose, dbcs(j)%dirichlet_bc)
     END DO
 
