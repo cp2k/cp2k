@@ -284,7 +284,8 @@ MODULE hfx_libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libint', &
       routineP = moduleN//':'//routineN
 
-    CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+    MARK_USED(lib)
+    MARK_USED(max_am)
 
   END SUBROUTINE initialize_libint
 
@@ -300,7 +301,8 @@ MODULE hfx_libint_wrapper
     CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_libderiv', &
       routineP = moduleN//':'//routineN
 
-    CPABORT("This CP2K executable has not been linked against the library libint, required for HFX.")
+    MARK_USED(deriv)
+    MARK_USED(max_am)
 
   END SUBROUTINE initialize_libderiv
 
@@ -311,6 +313,8 @@ MODULE hfx_libint_wrapper
   SUBROUTINE terminate_libint(lib)
     TYPE(lib_int)                            :: lib
 
+    MARK_USED(lib)
+
   END SUBROUTINE terminate_libint
 
 ! *****************************************************************************
@@ -319,6 +323,8 @@ MODULE hfx_libint_wrapper
 ! *****************************************************************************
   SUBROUTINE terminate_libderiv(deriv)
     TYPE(lib_deriv)                          :: deriv
+
+    MARK_USED(deriv)
 
   END SUBROUTINE terminate_libderiv
 
@@ -340,6 +346,15 @@ MODULE hfx_libint_wrapper
     REAL(dp), DIMENSION(:), POINTER          :: p_work
     INTEGER                                  :: a_mysize(1)
 
+    MARK_USED(n_a)
+    MARK_USED(n_b)
+    MARK_USED(n_c)
+    MARK_USED(n_d)
+    MARK_USED(lib)
+    MARK_USED(prim)
+    MARK_USED(p_work)
+    MARK_USED(a_mysize)
+
   END SUBROUTINE get_eris
 
 ! *****************************************************************************
@@ -360,6 +375,15 @@ MODULE hfx_libint_wrapper
     REAL(dp), DIMENSION(nco(n_a)*nco(n_b)*&
       nco(n_c)*nco(n_d), 12)                 :: work_forces
     INTEGER                                  :: a_mysize(1)
+
+    MARK_USED(n_a)
+    MARK_USED(n_b)
+    MARK_USED(n_c)
+    MARK_USED(n_d)
+    MARK_USED(deriv)
+    MARK_USED(prim)
+    MARK_USED(work_forces)
+    MARK_USED(a_mysize)
 
   END SUBROUTINE get_derivs
 #endif
