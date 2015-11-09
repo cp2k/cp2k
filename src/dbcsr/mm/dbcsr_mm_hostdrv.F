@@ -13,16 +13,14 @@
 !  - 2011-09-26 Split dbcsr_internal_operations
 ! *****************************************************************************
 MODULE dbcsr_mm_hostdrv
-  USE dbcsr_config,                    ONLY: mm_driver,&
-                                             mm_driver_acc,&
+  USE dbcsr_config,                    ONLY: has_acc,&
+                                             mm_driver,&
                                              mm_driver_blas,&
                                              mm_driver_matmul,&
                                              mm_driver_smm,&
-                                             mm_driver_xsmm,&
-                                             mm_host_driver
+                                             mm_driver_xsmm
   USE dbcsr_data_methods,              ONLY: dbcsr_data_get_size
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width,&
@@ -57,9 +55,6 @@ MODULE dbcsr_mm_hostdrv
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dbcsr_mm_hostdrv'
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
-
-  LOGICAL, PARAMETER, PUBLIC :: show_levels = .FALSE.
-  LOGICAL, PARAMETER :: verbose_acc = .FALSE.
 
   PUBLIC :: dbcsr_mm_hostdrv_process
   PUBLIC :: dbcsr_mm_hostdrv_type
@@ -127,7 +122,7 @@ CONTAINS
     INTEGER                                  :: error_handle, sp
     REAL(KIND=dp)                            :: rnd
 
-    IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
+    IF(has_acc) & !for cpu-only runs this is called too often
        CALL timeset (routineN, error_handle)
 
     success = .TRUE. !host driver never failes...hopefully
@@ -161,7 +156,7 @@ CONTAINS
        ENDDO
     ENDIF
 
-    SELECT CASE (mm_host_driver)
+    SELECT CASE (mm_driver)
     CASE (mm_driver_matmul)
        SELECT CASE (this%data_area%d%data_type)
        CASE (dbcsr_type_real_4)
@@ -181,8 +176,7 @@ CONTAINS
                stack_size,&
                left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__)
+          CPABORT("Invalid data type")
        END SELECT
     CASE (mm_driver_smm)
        SELECT CASE (this%data_area%d%data_type)
@@ -203,8 +197,7 @@ CONTAINS
                stack_size,&
                left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__)
+          CPABORT("Invalid data type")
        END SELECT
 
     CASE (mm_driver_xsmm)
@@ -215,8 +208,14 @@ CONTAINS
        CASE (dbcsr_type_real_8)
           CALL xsmm_process_mm_stack_d (stack_descr, params, stack_size,&
                left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
+       CASE (dbcsr_type_complex_4)
+          CALL xsmm_process_mm_stack_c (stack_descr, params, stack_size,&
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
+       CASE (dbcsr_type_complex_8)
+          CALL xsmm_process_mm_stack_z (stack_descr, params, stack_size,&
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
        CASE default
-          CPABORT("Data type not supported by XSMM backend")
+          CPABORT("Invalid data type")
        END SELECT
 
     CASE (mm_driver_blas)
@@ -238,16 +237,14 @@ CONTAINS
                stack_size,&
                left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type",__LINE__)
+          CPABORT("Invalid data type")
        END SELECT
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Invalid multiplication driver",__LINE__)
+       CPABORT("Invalid multiplication driver")
     END SELECT
 
 
-    IF(mm_driver==mm_driver_acc) & !for cpu-only runs this is called too often
+    IF(has_acc) & !for cpu-only runs this is called too often
        CALL timestop(error_handle)
 
 

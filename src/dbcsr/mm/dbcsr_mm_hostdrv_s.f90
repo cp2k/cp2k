@@ -105,20 +105,19 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'smm_process_mm_stack_s', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                   :: sp
+#if defined(__HAS_smm_snn)
 
-!   ---------------------------------------------------------------------------
-#if defined(__HAS_smm_vec) && defined(__HAS_smm_snn)
+   INTEGER                                   :: sp
 
+#if defined(__HAS_smm_vec)
     IF(stack_descr%defined_mnk) THEN
        CALL smm_vec_snn (stack_descr%m, stack_descr%n, stack_descr%k, &
          a_data, b_data, c_data, stack_size, &
          dbcsr_ps_width, params, p_a_first, p_b_first, p_c_first)
        RETURN
     ENDIF
-
 #endif
-    MARK_USED(stack_descr)
+
     DO sp = 1, stack_size
        CALL smm_snn(&
             params(p_m,sp),&
@@ -129,10 +128,14 @@
             c_data(params(p_c_first,sp)))
     ENDDO
 
+#else
+    ! We do not want to abort here, fall back to BLAS.
+    CALL blas_process_mm_stack_s(params, stack_size,a_data, b_data, c_data)
+#endif
+
+    MARK_USED(stack_descr)
   END SUBROUTINE smm_process_mm_stack_s
 
-
-#if 1
 
 ! *****************************************************************************
 !> \brief Processes MM stack and issues libxsmm calls
@@ -147,7 +150,7 @@
   SUBROUTINE xsmm_process_mm_stack_s(stack_descr, params,&
        stack_size, a_data, b_data, c_data)
 
-#if defined(__LIBXSMM)
+#if defined(__LIBXSMM) && 1
     USE libxsmm, ONLY: libxsmm_smm
 #endif
 
@@ -163,12 +166,9 @@
     CHARACTER(len=*), PARAMETER :: routineN = 'libxsmm_process_mm_stack_s', &
       routineP = moduleN//':'//routineN
 
-#if defined(__LIBXSMM)
-    REAL(kind=real_4), DIMENSION(:,:), POINTER          :: a_ptr, &
-                                                 b_ptr, &
-                                                 c_ptr
-    INTEGER                                   :: fa, fb, fc, m, n, k
-    INTEGER                                   :: sp
+#if defined(__LIBXSMM) && 1
+    REAL(kind=real_4), DIMENSION(:,:), POINTER          :: a_ptr, b_ptr, c_ptr
+    INTEGER                                   :: fa, fb, fc, m, n, k, sp
 
     DO sp = 1, stack_size
        fa = params(p_a_first,sp)
@@ -183,19 +183,14 @@
 
        CALL libxsmm_smm(m, n, k, a_ptr, b_ptr, c_ptr)
     ENDDO
+
 #else
-   CPABORT("libxsmm not compiled in")
-   MARK_USED(params)
-   MARK_USED(stack_size)
-   !MARK_USED does not work with assumed size arguments
-   IF(.FALSE.)THEN; DO; IF(ABS(a_data(1))>ABS(b_data(1)))EXIT; ENDDO; ENDIF
-   IF(.FALSE.) c_data(1)=0
+    ! We do not want to abort here, fall back to BLAS.
+    CALL blas_process_mm_stack_s(params, stack_size,a_data, b_data, c_data)
 #endif
 
     MARK_USED(stack_descr)
   END SUBROUTINE xsmm_process_mm_stack_s
-
-#endif
 
 ! *****************************************************************************
 !> \brief ...

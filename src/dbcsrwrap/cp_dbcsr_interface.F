@@ -88,9 +88,9 @@ MODULE cp_dbcsr_interface
        dbcsr_verify_matrix, dbcsr_wm_use_mutable, dbcsr_work_create, &
        deallocate_arnoldi_data, get_selected_ritz_val, &
        get_selected_ritz_vector, has_acc, has_mpi, heap_fill, heap_get_first, &
-       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_acc, &
+       heap_new, heap_release, heap_reset_first, heap_t, mm_driver_auto, &
        mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, &
-       mm_name_acc, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, &
+       mm_name_auto, mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, &
        multrec_limit, set_arnoldi_initial_vector, setup_arnoldi_data, swap
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -221,9 +221,8 @@ MODULE cp_dbcsr_interface
             accdrv_priority_buffers, accdrv_priority_streams,&
             dbcsr_get_conf_max_ele_block,&
             dbcsr_get_conf_mm_driver, dbcsr_get_conf_mpi_mem,&
-            mm_driver_acc,&
-            mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm,&
-            mm_name_acc, mm_name_blas, mm_name_matmul,&
+            mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, mm_driver_xsmm,&
+            mm_name_auto, mm_name_blas, mm_name_matmul,&
             mm_name_smm, mm_name_xsmm, multrec_limit
   PUBLIC :: dbcsr_set_conf_randmat_seed, dbcsr_get_conf_randmat_seed
   PUBLIC :: heap_fill,&

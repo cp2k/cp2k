@@ -44,8 +44,8 @@ MODULE dbcsr_api
        dbcsr_set_conf_nstacks, dbcsr_set_conf_randmat_seed, &
        dbcsr_set_conf_use_comm_thread, dbcsr_set_conf_use_mpi_filtering, &
        dbcsr_set_conf_use_mpi_rma, dbcsr_set_default_config, has_acc, &
-       has_mpi, mm_driver_acc, mm_driver_blas, mm_driver_matmul, &
-       mm_driver_smm, mm_driver_xsmm, mm_name_acc, mm_name_blas, &
+       has_mpi, mm_driver_auto, mm_driver_blas, mm_driver_matmul, &
+       mm_driver_smm, mm_driver_xsmm, mm_name_auto, mm_name_blas, &
        mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
   USE dbcsr_csr_conversions,           ONLY: &
        convert_csr_to_dbcsr, convert_dbcsr_to_csr, csr_create_from_dbcsr, &
@@ -325,18 +325,18 @@ MODULE dbcsr_api
             dbcsr_verify_matrix,&
             dbcsr_wm_use_mutable,&
             dbcsr_work_create,&
-            has_acc,&
             has_mpi,&
+            mm_driver_auto,&
             mm_driver_blas,&
-            mm_driver_acc,&
             mm_driver_matmul,&
             mm_driver_smm,&
             mm_driver_xsmm,&
+            mm_name_auto,&
             mm_name_blas,&
-            mm_name_acc,&
             mm_name_matmul,&
             mm_name_smm,&
             mm_name_xsmm,&
+            has_acc,&
             multrec_limit,&
             swap,&
             dbcsr_set_default_config,&

@@ -39,9 +39,7 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_block_transpose_aa,&
                                              dbcsr_data_set
   USE dbcsr_config,                    ONLY: default_resize_factor,&
-                                             mm_async,&
-                                             mm_driver,&
-                                             mm_driver_acc,&
+                                             has_acc,&
                                              use_comm_thread,&
                                              use_mpi_filtering,&
                                              use_mpi_rma
@@ -545,7 +543,7 @@ MODULE dbcsr_mm_cannon
     ! setup driver-dependent memory-types and their memory-pools ---------------
 
     ! the ab_buffers are shared by all threads
-    IF (mm_driver==mm_driver_acc) THEN
+    IF (has_acc) THEN
        IF(.NOT. acc_stream_associated(stream_1)) THEN
           CALL acc_stream_create(stream_1, "MemCpy (odd ticks)")
           CALL acc_stream_create(stream_2, "MemCpy (even ticks)")
@@ -687,7 +685,7 @@ MODULE dbcsr_mm_cannon
     !
     ! No dense multiplication when filtering is used.
     use_dense_mult = .NOT. PRESENT (filter_eps)
-    IF (mm_async) use_dense_mult = .FALSE.
+    IF (has_acc) use_dense_mult = .FALSE.
     !
     ! No dense multiplication and local indexing when 2D clustering is used.
     IF (use_mpi_rma) THEN
@@ -2365,7 +2363,7 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel
 
     ! update capacity of memory-pools
-    IF (mm_driver == mm_driver_acc) THEN
+    IF (has_acc) THEN
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
       capacity=left_row_mult*left_col_nimages + right_row_nimages*right_col_mult)
       CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
@@ -2456,7 +2454,7 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_data_new(right_data_rp, data_type)
 
     ! Setup transpose stackbuffers
-    IF (mm_driver==mm_driver_acc) THEN
+    IF (has_acc) THEN
        CALL dbcsr_data_init(trs_stackbuf_1)
        CALL dbcsr_data_init(trs_stackbuf_2)
        CALL dbcsr_data_new(trs_stackbuf_1, data_type=dbcsr_type_int_4, data_size=1000, memory_type=memtype_trsbuffer_1)
@@ -2551,7 +2549,7 @@ MODULE dbcsr_mm_cannon
                   vprow_shift=metronome*min_nimages,&
                   shifting='R')
              !
-             IF (mm_driver == mm_driver_acc) THEN
+             IF (has_acc) THEN
                 CALL timeset(routineN//"_acc_sync_right", handle3)
                 CALL acc_event_synchronize(right_buffer_comm%mats(v_ki+1, 1)%m%data_area%d%acc_ready)
                 CALL timestop(handle3)
@@ -2676,7 +2674,7 @@ MODULE dbcsr_mm_cannon
                   vpcol_shift=metronome*min_nimages,&
                   shifting='L')
              !
-             IF (mm_driver == mm_driver_acc) THEN
+             IF (has_acc) THEN
                 CALL timeset(routineN//"_acc_sync_left", handle3)
                 CALL acc_event_synchronize(left_buffer_comm%mats(1, v_ki+1)%m%data_area%d%acc_ready)
                 CALL timestop(handle3)
@@ -2756,7 +2754,7 @@ MODULE dbcsr_mm_cannon
                   left_set%image_dist)
           ENDIF
 
-          IF (mm_driver==mm_driver_acc) THEN
+          IF (has_acc) THEN
              CALL dbcsr_data_host2dev(left_buffer_calc%mats(1, v_ki+1)%m%data_area)
              CALL dbcsr_data_host2dev(right_buffer_calc%mats(v_ki+1, 1)%m%data_area)
              CALL acc_transpose_blocks(right_buffer_calc%mats(v_ki+1, 1), trs_stackbuf_calc)
@@ -2838,7 +2836,7 @@ MODULE dbcsr_mm_cannon
     CALL m_memory(mem)
     max_memory = MAX(max_memory,REAL(mem))
 
-    IF (mm_driver==mm_driver_acc) THEN
+    IF (has_acc) THEN
        CALL dbcsr_data_release(trs_stackbuf_1)
        CALL dbcsr_data_release(trs_stackbuf_2)
     END IF
@@ -3274,7 +3272,7 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel
     !
     ! update capacity of memory-pools
-    IF (mm_driver == mm_driver_acc) THEN
+    IF (has_acc) THEN
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_1%pool, &
             capacity=left_col_nimages + right_row_nimages)
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
@@ -3385,7 +3383,7 @@ MODULE dbcsr_mm_cannon
 !$omp end parallel
     !
     ! Setup transpose stackbuffers
-    IF (mm_driver==mm_driver_acc) THEN
+    IF (has_acc) THEN
        CALL dbcsr_data_init(trs_stackbuf_1)
        CALL dbcsr_data_init(trs_stackbuf_2)
        CALL dbcsr_data_new(trs_stackbuf_1, data_type=dbcsr_type_int_4, &
@@ -3673,7 +3671,7 @@ MODULE dbcsr_mm_cannon
        ! iteration.
        xfer_right: IF (metronome .LT. nsteps_k) THEN
           !
-          IF (mm_driver == mm_driver_acc) THEN
+          IF (has_acc) THEN
              CALL timeset(routineN//"_acc_sync_right", handle3)
              CALL acc_event_synchronize(rma_buffers_comm%right_data%d%acc_ready)
              CALL timestop(handle3)
@@ -3772,7 +3770,7 @@ MODULE dbcsr_mm_cannon
        ! iteration.
        xfer_left: IF (metronome .LT. nsteps_k) THEN
           !
-          IF (mm_driver == mm_driver_acc) THEN
+          IF (has_acc) THEN
              CALL timeset(routineN//"_acc_sync_left", handle3)
              CALL acc_event_synchronize(rma_buffers_comm%left_data%d%acc_ready)
              CALL timestop(handle3)
@@ -3854,7 +3852,7 @@ MODULE dbcsr_mm_cannon
        !
        CALL timeset(routineN//"_multrec", handle2)
        !
-       IF (mm_driver==mm_driver_acc) THEN
+       IF (has_acc) THEN
           CALL dbcsr_data_host2dev(rma_buffers_calc%right_data)
           CALL dbcsr_data_host2dev(rma_buffers_calc%left_data)
        ENDIF
@@ -3869,7 +3867,7 @@ MODULE dbcsr_mm_cannon
                   nodata=.TRUE.)
           ENDIF
           !
-          IF (mm_driver==mm_driver_acc) THEN
+          IF (has_acc) THEN
              CALL acc_transpose_blocks(rma_buffers_calc%right_buffer%mats(v_ki, 1), &
                   rma_buffers_calc%trs_stackbuf)
           ENDIF
@@ -3951,7 +3949,7 @@ MODULE dbcsr_mm_cannon
             LOG(REAL(v_ki))/LOG(10.0)
     ENDIF
     !
-    IF (mm_driver==mm_driver_acc) THEN
+    IF (has_acc) THEN
        CALL dbcsr_data_release(trs_stackbuf_1)
        CALL dbcsr_data_release(trs_stackbuf_2)
     END IF

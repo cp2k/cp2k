@@ -22,11 +22,11 @@ MODULE input_cp2k_global
        accdrv_posterior_buffers, accdrv_posterior_streams, &
        accdrv_priority_buffers, accdrv_priority_streams, &
        dbcsr_get_conf_avg_elements_images, dbcsr_get_conf_max_ele_block, &
-       dbcsr_get_conf_mm_driver, dbcsr_get_conf_randmat_seed, &
-       dbcsr_get_conf_use_comm_thread, dbcsr_get_conf_use_mpi_filtering, &
-       dbcsr_get_conf_use_mpi_rma, mm_driver_acc, mm_driver_blas, &
-       mm_driver_matmul, mm_driver_smm, mm_driver_xsmm, mm_name_acc, &
-       mm_name_blas, mm_name_matmul, mm_name_smm, mm_name_xsmm, multrec_limit
+       dbcsr_get_conf_randmat_seed, dbcsr_get_conf_use_comm_thread, &
+       dbcsr_get_conf_use_mpi_filtering, dbcsr_get_conf_use_mpi_rma, &
+       mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
+       mm_driver_xsmm, mm_name_auto, mm_name_blas, mm_name_matmul, &
+       mm_name_smm, mm_name_xsmm, multrec_limit
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -520,20 +520,20 @@ CONTAINS
     CALL keyword_release(keyword)
     !
     CALL keyword_create(keyword, name="mm_driver",&
-         description="Select which routines to use "//&
-         "for matrix block multiplications.",&
+         description="Select which backend to use preferably "//&
+         "for matrix block multiplications on the host.",&
          usage="mm_driver blas",&
-         default_i_val=dbcsr_get_conf_mm_driver(),&
-         enum_c_vals=s2a(mm_name_blas,mm_name_matmul,mm_name_smm,&
-                         mm_name_xsmm,mm_name_acc),&
-         enum_i_vals=(/mm_driver_blas,mm_driver_matmul,mm_driver_smm,&
-                       mm_driver_xsmm,mm_driver_acc/),&
-         enum_desc=s2a("BLAS (requires the BLAS library at link time)",&
+         default_i_val=mm_driver_auto,&
+         enum_c_vals=s2a(mm_name_auto, mm_name_blas,mm_name_matmul,mm_name_smm,&
+                         mm_name_xsmm),&
+         enum_i_vals=(/mm_driver_auto, mm_driver_blas,mm_driver_matmul,mm_driver_smm,&
+                       mm_driver_xsmm/),&
+         enum_desc=s2a("Choose automatically the best available driver",&
+                       "BLAS (requires the BLAS library at link time)",&
                        "Fortran MATMUL",&
                        "Library optimised for Small Matrix Multiplies "//&
                        "(requires the SMM library at link time)",&
-                       "(requires the libxsmm at link time)",&
-                       "ACC (requires an accelerator backend)"))
+                       "Intel's libxsmm"))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
     !

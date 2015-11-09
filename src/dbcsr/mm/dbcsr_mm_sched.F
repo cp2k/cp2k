@@ -22,8 +22,7 @@ MODULE dbcsr_mm_sched
                                              accdrv_do_inhomogenous,&
                                              accdrv_min_flop_process,&
                                              default_resize_factor,&
-                                             mm_driver,&
-                                             mm_driver_acc
+                                             has_acc
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
   USE dbcsr_error_handling,            ONLY: dbcsr_abort
@@ -220,7 +219,7 @@ MODULE dbcsr_mm_sched
 
     CALL dbcsr_mm_hostdrv_init(this%hostdrv,product_wm)
 
-    IF (mm_driver == mm_driver_acc) &
+    IF (has_acc) &
        CALL dbcsr_mm_accdrv_init(this%accdrv, product_wm)
 
     CALL timestop(handle)
@@ -237,7 +236,7 @@ MODULE dbcsr_mm_sched
 
 !CALL dbcsr_mm_hostdrv_phaseout(this%hostdrv) ! not needed
 
-    IF (mm_driver == mm_driver_acc) &
+    IF (has_acc) &
        CALL dbcsr_mm_accdrv_phaseout(this%accdrv)
   END SUBROUTINE dbcsr_mm_sched_phaseout
 
@@ -261,7 +260,7 @@ MODULE dbcsr_mm_sched
     CALL ensure_product_wm_cleared(this)
 
     !CALL dbcsr_mm_hostdrv_finalize(this%hostdrv) ! not needed
-    IF (mm_driver == mm_driver_acc) &
+    IF (has_acc) &
        CALL dbcsr_mm_accdrv_finalize(this%accdrv)
 
     CALL timestop(handle)
@@ -297,7 +296,7 @@ MODULE dbcsr_mm_sched
 
 !CALL dbcsr_mm_hostdrv_barrier(this%hostdrv) ! not needed
 
-    IF (mm_driver==mm_driver_acc) &
+    IF (has_acc) &
        CALL dbcsr_mm_accdrv_barrier()
 
   END SUBROUTINE dbcsr_mm_sched_barrier
@@ -376,7 +375,7 @@ MODULE dbcsr_mm_sched
      flop_per_entry = 2*stack_descr%max_m*stack_descr%max_n*stack_descr%max_k
      total_flop = stack_fillcount * flop_per_entry
 
-     IF (mm_driver==mm_driver_acc .AND. &
+     IF (has_acc .AND. &
          flop_per_entry > accdrv_min_flop_process .AND. &
          (.NOT. this%avoid_accdrv) .AND. &
          (stack_descr%defined_mnk .OR. accdrv_do_inhomogenous) ) THEN
