@@ -143,6 +143,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: output_file_name, project_name
+    CHARACTER(len=default_string_length)     :: msg
     INTEGER                                  :: handle, iat, ibead, idim, &
                                                 idir, ierr, itmp, nrep, prep, &
                                                 stat
@@ -177,7 +178,8 @@ CONTAINS
          (MOD(prep*nrep,para_env%num_pe) /= 0) ) THEN
        prep = para_env%num_pe/gcd(para_env%num_pe,nrep)
        IF (para_env%ionode) THEN
-          WRITE (*,*) "PINT WARNING: Adjusting number of processors per replica to ",prep
+          WRITE (UNIT=msg,FMT=*) "PINT WARNING: Adjusting number of processors per replica to ",prep
+          CPWARN(msg)
        END IF
     END IF
 
@@ -452,23 +454,26 @@ CONTAINS
        IF (pint_env%harm_integrator == integrate_exact) THEN
           IF (pint_env%pimd_thermostat == thermostat_nose) THEN
              IF (para_env%ionode) THEN
-                WRITE(*,*) "PINT WARNING| Nose Thermostat only avaliable in the numeric harmonic integrator."
-                WRITE(*,*) "              Switching to numeric harmonic integrator."
+                WRITE(UNIT=msg,FMT=*) "PINT WARNING| Nose Thermostat only avaliable in " // & 
+                                      "the numeric harmonic integrator. Switching to numeric harmonic integrator."
+                CPWARN(msg)
              END IF
              pint_env%harm_integrator = integrate_numeric
           END IF
           IF (pint_env%pimd_thermostat == thermostat_gle) THEN
              IF (para_env%ionode) THEN
-                WRITE(*,*) "PINT WARNING| GLE Thermostat only avaliable in the numeric harmonic integrator."
-                WRITE(*,*) "              Switching to numeric harmonic integrator."
+                WRITE(UNIT=msg,FMT=*) "PINT WARNING| GLE Thermostat only avaliable in " // & 
+                                      "the numeric harmonic integrator. Switching to numeric harmonic integrator."
+                CPWARN(msg)
              END IF
              pint_env%harm_integrator = integrate_numeric
           END IF
        ELSE IF (pint_env%harm_integrator == integrate_numeric) THEN
           IF (pint_env%pimd_thermostat == thermostat_pile) THEN
              IF (para_env%ionode) THEN
-                WRITE(*,*) "PINT WARNING| PILE Thermostat only avaliable in the exact harmonic integrator."
-                WRITE(*,*) "              Switching to exact harmonic integrator."
+                WRITE(UNIT=msg,FMT=*) "PINT WARNING| PILE Thermostat only avaliable in " // &
+                                      "the exact harmonic integrator. Switching to exact harmonic integrator."
+                CPWARN(msg)
              END IF
              pint_env%harm_integrator = integrate_exact
           END IF
@@ -478,7 +483,8 @@ CONTAINS
           IF (pint_env%nrespa /= 1) THEN
              pint_env%nrespa = 1
              IF (para_env%ionode) THEN
-                WRITE (*,*) "PINT WARNING| Adjusting NRESPA to 1 for exact harmonic integration."
+                WRITE (UNIT=msg,FMT=*) "PINT WARNING| Adjusting NRESPA to 1 for exact harmonic integration."
+                CPWARN(msg)
              END IF
           END IF
           NULLIFY(pint_env%wsinex)
@@ -1214,9 +1220,9 @@ CONTAINS
 
     IF ( done_init .AND. done_quench ) THEN
       msg = "WARNING: exclusive options requested (velocity restart and quenching)"
-      CALL pint_write_line(msg)
+      CPWARN(msg)
       msg = "WARNING: velocity restart took precedence"
-      CALL pint_write_line(msg)
+      CPWARN(msg)
     END IF
 
     IF ( (.NOT. done_init) .AND. (.NOT. done_quench) ) THEN
@@ -1225,11 +1231,11 @@ CONTAINS
         WRITE(stmp2,'(F10.2)') target_t * unit_conv
         msg = "Scaled initial velocities from "//TRIM(ADJUSTL(stmp1))//&
               " to "//TRIM(ADJUSTL(stmp2))//" K as requested."
-        CALL pint_write_line(msg)
+        CPWARN(msg)
       END IF
       IF ( done_sped ) THEN
         msg = "Added random component to the initial centroid velocities."
-        CALL pint_write_line(msg)
+        CPWARN(msg)
       END IF
     END IF
 

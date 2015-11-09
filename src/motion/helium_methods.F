@@ -1554,6 +1554,7 @@ MODULE helium_methods
 
     CHARACTER(LEN=2)                         :: my_element_symbol
     CHARACTER(LEN=2), DIMENSION(:), POINTER  :: element
+    CHARACTER(len=default_string_length)     :: msg
     INTEGER                                  :: i, istat, j, mnum, natoms, &
                                                 nelements
     LOGICAL                                  :: found, my_failure
@@ -1595,9 +1596,9 @@ MODULE helium_methods
         CASE (35)
           my_element_symbol = "CL"
         CASE DEFAULT
-          WRITE(*,*) "Atomic mass number'", mnum, &
+          WRITE(UNIT=msg,FMT=*) "Atomic mass number'", mnum, &
             "' not supported by the HELIUM code."
-          CPABORT("")
+          CPABORT(msg)
       END SELECT
       helium%solute_element(i) = my_element_symbol
       ! check if this element symbol is already present in element
@@ -1637,9 +1638,9 @@ MODULE helium_methods
         helium%solute_number(3) = helium%solute_number(3) + 1
         helium%solute_index(3,helium%solute_number(3)) = i
       CASE DEFAULT
-        WRITE(*,*) "Atom type '", helium%solute_element(i), &
+        WRITE(UNIT=msg,FMT=*) "Atom type '", helium%solute_element(i), &
           "' not supported by the HELIUM code."
-        CPABORT("")
+        CPABORT(msg)
       END SELECT
     END DO
 
