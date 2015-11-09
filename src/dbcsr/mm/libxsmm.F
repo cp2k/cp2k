@@ -4,5 +4,5 @@
 !-----------------------------------------------------------------------------!
 
 #if defined(__LIBXSMM)
-#include "libxsmm.f90"
+#include "libxsmm.f"
 #endif

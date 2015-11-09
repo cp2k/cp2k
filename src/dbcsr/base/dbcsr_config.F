@@ -133,9 +133,6 @@ MODULE dbcsr_config
   ! Use MPI-allocated memory.
   LOGICAL, SAVE :: use_MPI_memory = has_MPI
 
-  ! Whether an accelerator is used.
-  LOGICAL, SAVE :: mm_async = .FALSE.
-
   ! Stack size to use for multiplication parameters
 #if defined(__HAS_smm_vec) || defined (__DBCSR_ACC)
   INTEGER, SAVE :: mm_stack_size = 30000
