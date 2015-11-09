@@ -80,6 +80,13 @@ SUBROUTINE quip_energy_store_force_virial(particle_set, cell, atomic_kind_set, p
 
 #endif
 #ifndef __QUIP
+    MARK_USED(particle_set)
+    MARK_USED(cell)
+    MARK_USED(atomic_kind_set)
+    MARK_USED(potparm)
+    MARK_USED(fist_nonbond_env)
+    MARK_USED(pot_quip)
+    MARK_USED(para_env)
     CALL cp_abort(__LOCATION__,"In order to use QUIP you need to download "//&
          "and install the libAtoms/QUIP library (check CP2K manual for details)")
 #else
@@ -199,6 +206,9 @@ SUBROUTINE quip_add_force_virial(fist_nonbond_env, force, virial)
 #endif
 
 #ifndef __QUIP
+    MARK_USED(fist_nonbond_env)
+    MARK_USED(force)
+    MARK_USED(virial)
     RETURN
 #else
     CALL fist_nonbond_env_get ( fist_nonbond_env, quip_data=quip_data)
