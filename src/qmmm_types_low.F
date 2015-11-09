@@ -161,6 +161,7 @@ MODULE qmmm_types_low
   TYPE add_shell_type
      INTEGER                                                 :: num_mm_atoms
      TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles
+     TYPE(particle_type), DIMENSION(:), POINTER              :: added_cores
      INTEGER,        DIMENSION(:), POINTER                   :: mm_core_index
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_core_chrg
      REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
@@ -683,6 +684,7 @@ SUBROUTINE add_shell_release(added_shells)
      IF (ASSOCIATED(added_shells%added_particles)) THEN
         !XXXFIST should clean up shell particles
         NULLIFY(added_shells%added_particles)
+        NULLIFY(added_shells%added_cores)
         !CALL deallocate_particle_set(added_shells%added_particles)
      END IF
      IF (ASSOCIATED(added_shells%mm_core_index)) THEN
@@ -772,6 +774,7 @@ END SUBROUTINE add_shell_release
 
     NULLIFY(added_shells%mm_core_index,&
          added_shells%added_particles,&
+         added_shells%added_cores,&
          added_shells%mm_core_chrg,&
          added_shells%mm_el_pot_radius,&
          added_shells%mm_el_pot_radius_corr,&

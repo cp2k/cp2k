@@ -514,6 +514,7 @@ CONTAINS
        IF(qmmm_env%qm%added_shells%num_mm_atoms .GT. 0) THEN
           DO ip=1,qmmm_env%qm%added_shells%num_mm_atoms
              qmmm_env%qm%added_shells%added_particles(ip)%r = qmmm_env%qm%added_shells%added_particles(ip)%r - transl_v
+             qmmm_env%qm%added_shells%added_cores(ip)%r = qmmm_env%qm%added_shells%added_cores(ip)%r - transl_v
           END DO
        END IF
        unit_nr=cp_logger_get_default_io_unit()

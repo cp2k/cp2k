@@ -130,13 +130,16 @@ CONTAINS
     REAL(dp)                                 :: qcore, qi, qshell, rc, ri
     TYPE(atomic_kind_type), POINTER          :: my_kind
     TYPE(fist_potential_type), POINTER       :: my_potential
-    TYPE(particle_list_type), POINTER        :: particles, shell_particles
+    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
+                                                shell_particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set, shell_set
+      POINTER                                :: core_set, particle_set, &
+                                                shell_set
     TYPE(shell_kind_type), POINTER           :: shell_kind
 
     NULLIFY(particle_set, my_kind, added_shells)
-    CALL cp_subsys_get(subsys=subsys,particles=particles, shell_particles=shell_particles)
+    CALL cp_subsys_get(subsys=subsys,particles=particles, core_particles=core_particles,&
+         shell_particles=shell_particles)
     particle_set => particles%els
 
     IF (ALL(particle_set(:)%shell_index .EQ. 0)) THEN
@@ -148,9 +151,11 @@ CONTAINS
 
     IF(shell_model) THEN 
        shell_set => shell_particles%els
+       core_set => core_particles%els
        ishell = SIZE(shell_set)
        CALL create_add_shell_type(added_shells, ndim=ishell)
        added_shells%added_particles => shell_set
+       added_shells%added_cores => core_set
     END IF
 
     DO I = 1, SIZE(mm_atom_index)
