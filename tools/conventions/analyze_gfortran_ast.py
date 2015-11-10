@@ -52,18 +52,23 @@ def process_log_file(fn, public_symbols, used_symbols):
     module_name = None
 
     curr_symbol = curr_procedure = stat_var = stat_stm = None
+    skip_until_DT_END = False
 
     for line in lines:
         line = line.strip()
         tokens = line.split()
 
-        if(stat_var):
+        if(skip_until_DT_END):
+            # skip TRANSFERs which are part of READ/WRITE statement
+            assert(tokens[0] in ("DO", "TRANSFER", "END", "DT_END"))
+            if(tokens[0] == "DT_END"):
+                skip_until_DT_END = False
+
+        elif(stat_var):
             if(stat_var in line): # Ok, something was done with stat_var
                 stat_var = stat_stm = None # reset
             elif(line=="ENDIF"):
                 pass # skip, check may happen in outer scope
-            elif(stat_stm=="READ" and line.split()[0] in ("TRANSFER", "DT_END",)):
-                pass # skip lines, they are part of the READ statement
             elif(stat_stm=="ALLOCATE" and line.split()[0] == "ASSIGN"):
                 pass # skip lines, it's part of the ALLOCATE statment
             else:
@@ -123,7 +128,11 @@ def process_log_file(fn, public_symbols, used_symbols):
         elif("STAT=" in line): # catches also IOSTAT
             stat_var = line.split("STAT=",1)[1].split()[0]
             stat_stm = line.split()[0]
+            skip_until_DT_END = stat_stm in ("READ", "WRITE",)
 
+
+    # check for run-away DT_END search
+    assert(skip_until_DT_END==False)
 #===============================================================================
 main()
 
