@@ -26,9 +26,9 @@ MODULE input_cp2k_motion
        do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, &
        fmt_id_xyz, gaussian, helium_cell_shape_cube, &
        helium_cell_shape_octahedron, integrate_exact, integrate_numeric, &
-       ls_2pnt, ls_3pnt, ls_fit, ls_gold, ls_none, numerical, &
-       propagator_pimd, propagator_rpmd, transformation_normal, &
-       transformation_stage
+       ls_2pnt, ls_3pnt, ls_fit, ls_gold, ls_none, matrix_init_cholesky, &
+       matrix_init_diagonal, numerical, propagator_pimd, propagator_rpmd, &
+       transformation_normal, transformation_stage
   USE input_cp2k_constraints,          ONLY: create_constraint_section
   USE input_cp2k_free_energy,          ONLY: create_fe_section
   USE input_cp2k_md,                   ONLY: create_md_section
@@ -1734,6 +1734,48 @@ CONTAINS
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 
+    CALL section_create(subsection,name="PIGLET",&
+         description="Controls the PI Generalized Langevin Equation thermostat."//&
+         " Needs the exact harmonic integrator",&
+         n_keywords=3, n_subsections=2,&
+         repeats=.FALSE.)
+    CALL create_rng_section(subsubsection)
+    CALL section_add_subsection(subsection,subsubsection)
+    CALL section_release(subsubsection)
+    CALL section_create(subsubsection,name="EXTRA_DOF",&
+         description="Additional degrees of freedom to ensure Markovian Dynamics.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="Restart values for additional degrees of freedom"&
+         //" (only for restarts, do not set explicitly)",&
+         repeats=.FALSE.,&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsubsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(subsection,subsubsection)
+    CALL section_release(subsubsection)
+    CALL keyword_create(keyword, name="NEXTRA_DOF", &
+         description="Number of extra degrees of freedom to ensure markovian dynamics", &
+         repeats=.FALSE., default_i_val=8)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="MATRICES_FILE_NAME", &
+         description="Filename containig the raw matrices from "//&
+         "https://epfl-cosmo.github.io/gle4md/index.html?page=matrix", &
+         repeats=.FALSE., default_lc_val="PIGLET.MAT")
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="SMATRIX_INIT",&
+         description="Select algorithm to initialize piglet S-matrices",&
+         usage="SMATRIX_INIT (CHOLESKY|DIAGONAL)",&
+         default_i_val=matrix_init_cholesky,&
+         enum_c_vals=s2a("CHOLESKY","DIAGONAL"),&
+         enum_i_vals=(/matrix_init_cholesky,matrix_init_diagonal/))
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
     CALL section_create( subsection, name="INIT",&
          description="Controls the initialization if the beads are not present",&
          repeats=.FALSE.)
@@ -1771,7 +1813,7 @@ CONTAINS
     CALL keyword_release(keyword)
     CALL keyword_create(keyword,name="THERMOSTAT_SEED",&
          description="Initial seed for the (pseudo)random number "//&
-         "generator that controls the PILE thermostat.",&
+         "generator that controls the PILE and PIGLET thermostats.",&
          usage="THERMOSTAT_SEED <INTEGER>",default_i_val=12345,&
          repeats=.FALSE.)
     CALL section_add_keyword(subsection,keyword)

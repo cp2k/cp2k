@@ -279,6 +279,10 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC               :: integrate_numeric=1,&
                                               integrate_exact=2
 
+  ! piglet S-matrix initialisations
+  INTEGER, PARAMETER, PUBLIC               :: matrix_init_cholesky=1, &
+                                              matrix_init_diagonal=2
+
   ! helium pbc unit cell shapes
   INTEGER, PARAMETER, PUBLIC               :: helium_cell_shape_none=0,&
                                               helium_cell_shape_cube=1,&

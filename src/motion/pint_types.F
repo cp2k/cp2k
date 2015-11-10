@@ -29,12 +29,14 @@ MODULE pint_types
   INTEGER, PARAMETER, PUBLIC :: thermostat_none  = 0, &
                                 thermostat_nose  = 1, &
                                 thermostat_gle   = 2, &
-                                thermostat_pile  = 3
+                                thermostat_pile  = 3, &
+                                thermostat_piglet = 4
 
   PUBLIC :: pint_env_type
   PUBLIC :: normalmode_env_type
   PUBLIC :: staging_env_type
   PUBLIC :: pile_therm_type
+  PUBLIC :: piglet_therm_type
   PUBLIC :: pint_propagator_type
 
   ! ***************************************************************************
@@ -108,7 +110,7 @@ MODULE pint_types
      INTEGER :: first_step, last_step, num_steps, first_propagated_mode
      INTEGER :: pimd_thermostat, harm_integrator, thermostat_rng_seed
      REAL(KIND=dp) :: t_tol, v_tol, kT, beta, dt, &
-          e_gle, e_pile, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
+          e_gle, e_pile, e_piglet, e_pot_h, e_kin_beads, e_pot_t, e_kin_t, t, time_per_step
      TYPE(cp_logger_type), POINTER :: logger
      TYPE(replica_env_type), POINTER :: replicas
      TYPE(section_vals_type), POINTER :: input
@@ -126,7 +128,7 @@ MODULE pint_types
      REAL(KIND=dp), DIMENSION(:), POINTER :: rtmp_ndim, rtmp_natom
      REAL(KIND=dp), DIMENSION(:), POINTER :: iwsinex, wsinex, cosex
      TYPE(pile_therm_type), POINTER :: pile_therm
-
+     TYPE(piglet_therm_type), POINTER :: piglet_therm
      TYPE(pint_propagator_type), POINTER :: propagator
   END TYPE pint_env_type
 
@@ -195,6 +197,40 @@ MODULE pint_types
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: massfact
     TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
   END TYPE pile_therm_type
+
+  ! ***************************************************************************
+  !> \brief data to use the piglet thermostat
+  !> \note                                                                                    
+  !>    ndim          - number of degrees of freedom
+  !>    p             - trotter number
+  !>    nsp1          - number of additional degrees of freedom for Markovian
+  !dynamics + 1
+  !>    thermostat_energy        - energy difference for conxerved quantity
+  !>    a_mat         - A matrices (9,9,P) 
+  !>    c_mat         - C matrices (9,9,P) 
+  !>    gle_t         - Deterministic part of propagator
+  !>    gle_s         - Stochastic part of propagator
+  !>    smalls        - Keeps a copy of momenta and additional degrees of
+  !freedom
+  !>                    to ensure Markovian dynamics
+  !>    temp1         - Big storage array that is needed on the way
+  !>    temp2         - vector to store the random numbers
+  !>    sqrtmass      - contains the squareroot of the dynamical masses
+  !>    gaussian_rng_stream - random number generator
+  !> \author Felix Uhl
+  ! ***************************************************************************
+  TYPE piglet_therm_type
+    INTEGER                              :: ref_count
+    INTEGER                              :: ndim, p, nsp1
+    REAL(KIND=dp)                        :: thermostat_energy
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: a_mat, c_mat
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: gle_s, gle_t
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: smalls
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: temp1
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: temp2
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: sqrtmass
+    TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
+  END TYPE piglet_therm_type
 
   ! ***************************************************************************                                        
   !> \brief data for the use of different Path Integral propagators                                                    

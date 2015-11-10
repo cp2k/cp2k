@@ -83,6 +83,11 @@ MODULE pint_methods
                                              normalmode_env_create,&
                                              normalmode_init_masses,&
                                              normalmode_release
+  USE pint_piglet,                     ONLY: pint_calc_piglet_energy,&
+                                             pint_piglet_create,&
+                                             pint_piglet_init,&
+                                             pint_piglet_release,&
+                                             pint_piglet_step
   USE pint_pile,                       ONLY: pint_calc_pile_energy,&
                                              pint_pile_init,&
                                              pint_pile_release,&
@@ -99,7 +104,7 @@ MODULE pint_methods
   USE pint_types,                      ONLY: &
        e_conserved_id, e_kin_thermo_id, e_kin_virial_id, e_potential_id, &
        pint_env_type, thermostat_gle, thermostat_none, thermostat_nose, &
-       thermostat_pile
+       thermostat_piglet, thermostat_pile
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                              rep_env_create
   USE replica_types,                   ONLY: rep_env_release,&
@@ -155,9 +160,8 @@ CONTAINS
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(section_vals_type), POINTER         :: gle_section, nose_section, &
-                                                pile_section, pint_section, &
-                                                transform_section
+    TYPE(section_vals_type), POINTER :: gle_section, nose_section, &
+      piglet_section, pile_section, pint_section, transform_section
 
     CALL timeset(routineN,handle)
 
@@ -314,6 +318,7 @@ CONTAINS
     pint_env%e_pot_t=0._dp
     pint_env%e_gle=0._dp
     pint_env%e_pile=0._dp
+    pint_env%e_piglet=0._dp
     pint_env%e_kin_t=0._dp
     pint_env%energy(:) = 0.0_dp
 
@@ -448,33 +453,55 @@ CONTAINS
        END IF
     END IF
 
+    !Setup PIGLET thermostat
+    NULLIFY(pint_env%piglet_therm)
+    piglet_section => section_vals_get_subs_vals(input,"MOTION%PINT%PIGLET")
+    CALL section_vals_get(piglet_section, explicit=explicit)
+    IF (explicit) THEN
+       CALL section_vals_val_get(pint_env%input,&
+           "MOTION%PINT%INIT%THERMOSTAT_SEED",&
+           i_val=pint_env%thermostat_rng_seed)
+       IF (pint_env%pimd_thermostat == thermostat_none) THEN
+          pint_env%pimd_thermostat = thermostat_piglet
+          CALL pint_piglet_create(pint_env%piglet_therm, &
+               pint_env, &
+               piglet_section)
+          CALL pint_piglet_init(pint_env%piglet_therm, &
+               pint_env,&
+               piglet_section, &
+               dt=pint_env%dt, para_env=para_env)
+       ELSE
+          CPABORT("PILE thermostat can't be used with another thermostat.")
+       END IF
+    END IF
+
 
     !Initialize integrator scheme 
     CALL section_vals_val_get(pint_section,"HARM_INT",i_val=pint_env%harm_integrator)
        IF (pint_env%harm_integrator == integrate_exact) THEN
           IF (pint_env%pimd_thermostat == thermostat_nose) THEN
-             IF (para_env%ionode) THEN
-                WRITE(UNIT=msg,FMT=*) "PINT WARNING| Nose Thermostat only avaliable in " // & 
-                                      "the numeric harmonic integrator. Switching to numeric harmonic integrator."
-                CPWARN(msg)
-             END IF
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| Nose Thermostat only avaliable in " // & 
+                                   "the numeric harmonic integrator. Switching to numeric harmonic integrator."
+             CPWARN(msg)
              pint_env%harm_integrator = integrate_numeric
           END IF
           IF (pint_env%pimd_thermostat == thermostat_gle) THEN
-             IF (para_env%ionode) THEN
-                WRITE(UNIT=msg,FMT=*) "PINT WARNING| GLE Thermostat only avaliable in " // & 
-                                      "the numeric harmonic integrator. Switching to numeric harmonic integrator."
-                CPWARN(msg)
-             END IF
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| GLE Thermostat only avaliable in " // & 
+                                   "the numeric harmonic integrator. Switching to numeric harmonic integrator."
+             CPWARN(msg)
              pint_env%harm_integrator = integrate_numeric
           END IF
        ELSE IF (pint_env%harm_integrator == integrate_numeric) THEN
           IF (pint_env%pimd_thermostat == thermostat_pile) THEN
-             IF (para_env%ionode) THEN
-                WRITE(UNIT=msg,FMT=*) "PINT WARNING| PILE Thermostat only avaliable in " // &
-                                      "the exact harmonic integrator. Switching to exact harmonic integrator."
-                CPWARN(msg)
-             END IF
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| PILE Thermostat only avaliable in " // &
+                                   "the exact harmonic integrator. Switching to exact harmonic integrator."
+             CPWARN(msg)
+             pint_env%harm_integrator = integrate_exact
+          END IF
+          IF (pint_env%pimd_thermostat == thermostat_piglet) THEN
+             WRITE(UNIT=msg,FMT=*) "PINT WARNING| PIGLET Thermostat only avaliable in " // &
+                                   "the exact harmonic integrator. Switching to exact harmonic integrator."
+             CPWARN(msg)
              pint_env%harm_integrator = integrate_exact
           END IF
        END IF
@@ -482,10 +509,8 @@ CONTAINS
        IF (pint_env%harm_integrator == integrate_exact) THEN
           IF (pint_env%nrespa /= 1) THEN
              pint_env%nrespa = 1
-             IF (para_env%ionode) THEN
-                WRITE (UNIT=msg,FMT=*) "PINT WARNING| Adjusting NRESPA to 1 for exact harmonic integration."
-                CPWARN(msg)
-             END IF
+             WRITE (UNIT=msg,FMT=*) "PINT WARNING| Adjusting NRESPA to 1 for exact harmonic integration."
+             CPWARN(msg)
           END IF
           NULLIFY(pint_env%wsinex)
           ALLOCATE(pint_env%wsinex(pint_env%p))
@@ -602,6 +627,8 @@ CONTAINS
           CALL gle_dealloc(pint_env%gle)
         CASE (thermostat_pile)
           CALL pint_pile_release(pint_env%pile_therm)
+        CASE (thermostat_piglet) 
+          CALL pint_piglet_release(pint_env%piglet_therm)
         END SELECT
 
         DEALLOCATE(pint_env%Q)
@@ -1684,6 +1711,12 @@ CONTAINS
                                first_mode=pint_env%first_propagated_mode,&
                                masses=pint_env%mass_fict,&
                                pile_therm=pint_env%pile_therm)
+       CASE (thermostat_piglet)
+           CALL pint_piglet_step(vold=pint_env%uv, &
+                                 vnew=pint_env%uv_t, &
+                                 first_mode=pint_env%first_propagated_mode,&
+                                 masses=pint_env%mass_fict,&
+                                 piglet_therm=pint_env%piglet_therm)
        CASE DEFAULT
           pint_env%uv_t=pint_env%uv
        END SELECT
@@ -1744,6 +1777,12 @@ CONTAINS
                                first_mode=pint_env%first_propagated_mode,&
                                masses=pint_env%mass_fict,&
                                pile_therm=pint_env%pile_therm)
+       CASE (thermostat_piglet)
+           CALL pint_piglet_step(vold=pint_env%uv_t, &
+                                 vnew=pint_env%uv, &
+                                 first_mode=pint_env%first_propagated_mode,&
+                                 masses=pint_env%mass_fict,&
+                                 piglet_therm=pint_env%piglet_therm)
        CASE DEFAULT
           pint_env%uv=pint_env%uv_t
        END SELECT
@@ -1797,6 +1836,8 @@ CONTAINS
       CALL pint_calc_gle_energy(pint_env)
     CASE (thermostat_pile)
       CALL pint_calc_pile_energy(pint_env)
+    CASE (thermostat_piglet)
+      CALL pint_calc_piglet_energy(pint_env)
     END SELECT
 
     pint_env%energy(e_kin_thermo_id) = &
@@ -1810,7 +1851,7 @@ CONTAINS
       pint_env%e_pot_h + &
       pint_env%e_kin_beads + &
       pint_env%e_pot_t + &
-      pint_env%e_kin_t + pint_env%e_gle + pint_env%e_pile
+      pint_env%e_kin_t + pint_env%e_gle + pint_env%e_pile + pint_env%e_piglet
 
     pint_env%energy(e_potential_id) = &
       pint_env%energy(e_potential_id) / REAL(pint_env%p,dp)
