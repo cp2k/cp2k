@@ -242,10 +242,10 @@ MODULE pint_types
   !> \author Felix Uhl                                                                                                 
   ! ***************************************************************************                                        
   TYPE pint_propagator_type                                                                                            
-    INTEGER                              :: prop_kind                                                                  
-    REAL(KIND=dp)                        :: temp_phys2sim                                                              
-    REAL(KIND=dp)                        :: temp_sim2phys                                                              
-    REAL(KIND=dp)                        :: physpotscale                                                               
+    INTEGER                              :: prop_kind
+    REAL(KIND=dp)                        :: temp_phys2sim
+    REAL(KIND=dp)                        :: temp_sim2phys
+    REAL(KIND=dp)                        :: physpotscale
   END TYPE pint_propagator_type
 
 END MODULE pint_types

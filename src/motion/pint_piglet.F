@@ -233,7 +233,7 @@ MODULE pint_piglet
                 cbrac = INDEX(temp_input,")") -1
                 read_unit = temp_input(obrac:cbrac)
                 DO imode = 1, p
-                   READ(input_unit, default_format,iostat=read_err) temp_input
+                   READ(input_unit, default_format) temp_input
                    DO i = 1, piglet_therm%nsp1
                       READ(input_unit, *,iostat=read_err) &
                           (piglet_therm%a_mat(i,j,imode),j=1,piglet_therm%nsp1)
@@ -254,7 +254,7 @@ MODULE pint_piglet
                 cbrac = INDEX(temp_input,")") -1
                 read_unit = temp_input(obrac:cbrac)
                 DO imode = 1, p
-                   READ(input_unit, default_format,iostat=read_err) temp_input
+                   READ(input_unit, default_format) temp_input
                    DO i = 1, piglet_therm%nsp1
                       READ(input_unit, *,iostat=read_err) &
                           (piglet_therm%c_mat(i,j,imode),j=1,piglet_therm%nsp1)
