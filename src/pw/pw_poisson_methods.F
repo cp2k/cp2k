@@ -318,10 +318,24 @@ CONTAINS
        CASE (PS_IMPLICIT)
 
           IF (has_dielectric .AND. PRESENT(rho_core)) THEN
-             CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
-                                    poisson_env%diel_rs_grid,&
-                                    poisson_env%pw_pools(poisson_env%pw_level)%pool, &
-                                    density, rho_core=rho_core%pw)
+             SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
+             CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
+                CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                        poisson_env%diel_rs_grid,&
+                                        poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                        density, rho_core=rho_core%pw)
+             CASE (NEUMANN_BC, MIXED_BC)
+                CALL dielectric_compute(poisson_env%implicit_env%dielectric, &
+                                        poisson_env%diel_rs_grid,&
+                                        poisson_env%pw_pools(poisson_env%pw_level)%pool, &
+                                        poisson_env%dct_pw_grid, &
+                                        poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
+                                        poisson_env%implicit_env%dct_env%dests_expand, &
+                                        poisson_env%implicit_env%dct_env%srcs_expand, &
+                                        poisson_env%implicit_env%dct_env%flipg_stat, &
+                                        poisson_env%implicit_env%dct_env%bounds_shftd, &
+                                        density, rho_core=rho_core%pw)
+             END SELECT
           END IF
 
           CALL pw_pool_create_pw(pw_pool, rhor, use_data=REALDATA3D, in_space=REALSPACE)

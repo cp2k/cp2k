@@ -7,6 +7,7 @@
 !> \brief the type I Discrete Cosine Transfrom (DCT-I)
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
+!>       11.2015 dealt with periodic grids [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
 MODULE dct
@@ -135,9 +136,9 @@ CONTAINS
     CALL pw_grid_create(dct_pw_grid, pw_grid%para%rs_group, local=.FALSE.)
 
     hmat2 = 0.0_dp
-    hmat2(1,1) = 2*(cell_hmat(1,1) - pw_grid%dr(1))
-    hmat2(2,2) = 2*(cell_hmat(2,2) - pw_grid%dr(2))
-    hmat2(3,3) = 2*(cell_hmat(3,3) - pw_grid%dr(3))
+    hmat2(1,1) = 2*cell_hmat(1,1)
+    hmat2(2,2) = 2*cell_hmat(2,2)
+    hmat2(3,3) = 2*cell_hmat(3,3)
 
     ! uses bounds_local_new that is 2*n-2 in size....this is only rarely fft-able by fftsg, and needs fftw3,
     ! where it might use sizes that are not declared available in fft_get_radix.
@@ -462,7 +463,7 @@ CONTAINS
     lb2_new = bounds_local_new(1,2);    ub2_new = bounds_local_new(2,2)
     lb3_new = bounds_local_new(1,3);    ub3_new = bounds_local_new(2,3)
     ind = INT(0.5*(ub3_new+lb3_new+1))
-    ALLOCATE(catd(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ind))
+    ALLOCATE(catd(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ind-1))
     DO i = 1, 4
        catd(pcs_bnds(1,1,i):pcs_bnds(2,1,i), &
             pcs_bnds(1,2,i):pcs_bnds(2,2,i), &
@@ -473,8 +474,8 @@ CONTAINS
     CALL flipbf(catd, catd_flipdbf, bounds_shftd)
 ! concatenate catd and catd_flipdbf to get cr3d_xpndd
     ALLOCATE(cr3d_xpndd(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new))
-    cr3d_xpndd(:,:,lb3_new:ind) = catd
-    cr3d_xpndd(:,:,ind+1:ub3_new) = catd_flipdbf
+    cr3d_xpndd(:,:,lb3_new:ind-1) = catd
+    cr3d_xpndd(:,:,ind:ub3_new) = catd_flipdbf
 
     pw_expanded%cr3d = cr3d_xpndd
 
@@ -611,7 +612,7 @@ CONTAINS
 !>          as explained in the description of the afore-defined subroutines)
 !> \param cr3d_in input array
 !> \param cr3d_out output array
-!> \param bounds the bounds of the output array
+!> \param bounds global lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -627,10 +628,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'flipud', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, lb1, lb1_new, lb2, &
-                                                lb2_new, lb3, lb3_new, ub1, &
-                                                ub1_new, ub2, ub2_new, ub3, &
-                                                ub3_new
+    INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, &
+      lb3, lb3_glbl, lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, &
+      ub3, ub3_glbl, ub3_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indx
     INTEGER, DIMENSION(2, 3)                 :: bndsl, bndsl_new
 
@@ -640,6 +640,10 @@ CONTAINS
     lb2 = LBOUND(cr3d_in,2);     ub2 = UBOUND(cr3d_in,2)
     lb3 = LBOUND(cr3d_in,3);     ub3 = UBOUND(cr3d_in,3)
 
+    lb1_glbl = bounds(1,1);     ub1_glbl = bounds(2,1)
+    lb2_glbl = bounds(1,2);     ub2_glbl = bounds(2,2)
+    lb3_glbl = bounds(1,3);     ub3_glbl = bounds(2,3)
+
     bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
     bndsl_new = flipud_bounds_local(bndsl, bounds)
 
@@ -647,15 +651,17 @@ CONTAINS
     lb2_new = bndsl_new(1,2);    ub2_new = bndsl_new(2,2)
     lb3_new = bndsl_new(1,3);    ub3_new = bndsl_new(2,3)
 
-    ALLOCATE(indx(ub1_new-lb1_new+1))
     ALLOCATE(cr3d_out(lb1_new : ub1_new, lb2_new : ub2_new, lb3_new : ub3_new))
     cr3d_out = 0.0_dp
 
-    indx(:) = (/ (i, i=2*bounds(2,1) - lb1_new, 2*bounds(2,1) - ub1_new, -1) /)
-
+! set the data at the missing grid points (in a periodic grid) equal to the data at 
+! the last existing grid points
+    ALLOCATE(indx(ub1_new-lb1_new+1))
+    indx(:) = (/ (i, i=2*(ub1_glbl + 1) - lb1_new, 2*(ub1_glbl + 1) - ub1_new, -1) /)
+    IF (lb1_new .EQ. ub1_glbl + 1) indx(1) = indx(2)
     cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(indx, :, :)
-  
-    DEALLOCATE(indx)
+! set the data at the missing grid points (in a periodic grid) equal to 0
+!    IF (lb1_new .EQ. ub1_glbl + 1) cr3d_out(lb1_new:lb1_new,:,:) = 0.0_dp
 
     CALL timestop(handle)
 
@@ -666,7 +672,7 @@ CONTAINS
 !>          as explained in the description of the afore-defined subroutines)
 !> \param cr3d_in input array
 !> \param cr3d_out output array
-!> \param bounds the bounds of the output array
+!> \param bounds global lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -682,10 +688,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fliplr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, lb1, lb1_new, lb2, &
-                                                lb2_new, lb3, lb3_new, ub1, &
-                                                ub1_new, ub2, ub2_new, ub3, &
-                                                ub3_new
+    INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, &
+      lb3, lb3_glbl, lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, &
+      ub3, ub3_glbl, ub3_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indy
     INTEGER, DIMENSION(2, 3)                 :: bndsl, bndsl_new
 
@@ -695,6 +700,10 @@ CONTAINS
     lb2 = LBOUND(cr3d_in,2);     ub2 = UBOUND(cr3d_in,2)
     lb3 = LBOUND(cr3d_in,3);     ub3 = UBOUND(cr3d_in,3)
 
+    lb1_glbl = bounds(1,1);     ub1_glbl = bounds(2,1)
+    lb2_glbl = bounds(1,2);     ub2_glbl = bounds(2,2)
+    lb3_glbl = bounds(1,3);     ub3_glbl = bounds(2,3)
+
     bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
     bndsl_new = fliplr_bounds_local(bndsl, bounds)
 
@@ -702,14 +711,17 @@ CONTAINS
     lb2_new = bndsl_new(1,2);    ub2_new = bndsl_new(2,2)
     lb3_new = bndsl_new(1,3);    ub3_new = bndsl_new(2,3)
 
-    ALLOCATE(indy(ub2_new-lb2_new+1))
     ALLOCATE(cr3d_out(lb1_new : ub1_new, lb2_new : ub2_new, lb3_new : ub3_new))
     cr3d_out = 0.0_dp
 
-    indy(:) = (/ (i, i=2*bounds(2,2) - lb2_new, 2*bounds(2,2) - ub2_new, -1) /)
+! set the data at the missing grid points (in a periodic grid) equal to the data at 
+! the last existing grid points
+    ALLOCATE(indy(ub2_new-lb2_new+1))
+    indy(:) = (/ (i, i=2*(ub2_glbl + 1) - lb2_new, 2*(ub2_glbl + 1) - ub2_new, -1) /)
+    IF (lb2_new .EQ. ub2_glbl + 1) indy(1) = indy(2)
     cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(:, indy, :)
-
-    DEALLOCATE(indy)
+! set the data at the missing grid points (in a periodic grid) equal to 0
+!    IF (lb2_new .EQ. ub2_glbl + 1) cr3d_out(:, lb2_new:lb2_new, :) = 0.0_dp
 
     CALL timestop(handle)
 
@@ -720,7 +732,7 @@ CONTAINS
 !>          as explained in the description of the afore-defined subroutines)
 !> \param cr3d_in input array
 !> \param cr3d_out output array
-!> \param bounds the bounds of the output array
+!> \param bounds global lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -736,10 +748,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'flipbf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, lb1, lb1_new, lb2, &
-                                                lb2_new, lb3, lb3_new, ub1, &
-                                                ub1_new, ub2, ub2_new, ub3, &
-                                                ub3_new
+    INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, &
+      lb3, lb3_glbl, lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, &
+      ub3, ub3_glbl, ub3_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indz
     INTEGER, DIMENSION(2, 3)                 :: bndsl, bndsl_new
 
@@ -749,6 +760,10 @@ CONTAINS
     lb2 = LBOUND(cr3d_in,2);     ub2 = UBOUND(cr3d_in,2)
     lb3 = LBOUND(cr3d_in,3);     ub3 = UBOUND(cr3d_in,3)
 
+    lb1_glbl = bounds(1,1);     ub1_glbl = bounds(2,1)
+    lb2_glbl = bounds(1,2);     ub2_glbl = bounds(2,2)
+    lb3_glbl = bounds(1,3);     ub3_glbl = bounds(2,3)
+
     bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
     bndsl_new = flipbf_bounds_local(bndsl, bounds)
 
@@ -756,14 +771,17 @@ CONTAINS
     lb2_new = bndsl_new(1,2);    ub2_new = bndsl_new(2,2)
     lb3_new = bndsl_new(1,3);    ub3_new = bndsl_new(2,3)
 
-    ALLOCATE(indz(ub3_new-lb3_new+1))
     ALLOCATE(cr3d_out(lb1_new : ub1_new, lb2_new : ub2_new, lb3_new : ub3_new))
     cr3d_out = 0.0_dp
 
-    indz(:) = (/ (i, i=2*bounds(2,3) - lb3_new, 2*bounds(2,3) - ub3_new, -1) /)
+! set the data at the missing grid points (in a periodic grid) equal to the data at 
+! the last existing grid points
+    ALLOCATE(indz(ub3_new-lb3_new+1))
+    indz(:) = (/ (i, i=2*(ub3_glbl + 1) - lb3_new, 2*(ub3_glbl + 1) - ub3_new, -1) /)
+    IF (lb3_new .EQ. ub3_glbl + 1) indz(1) = indz(2)
     cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(:, :, indz)
-
-    DEALLOCATE(indz)
+! set the data at the missing grid points (in a periodic grid) equal to 0
+!    IF (lb3_new .EQ. ub3_glbl + 1) cr3d_out(:,:,lb3_new:lb3_new) = 0.0_dp
 
     CALL timestop(handle)
 
@@ -774,7 +792,7 @@ CONTAINS
 !>          as explained in the description of the afore-defined subroutines)
 !> \param cr3d_in input array
 !> \param cr3d_out output array
-!> \param bounds the bounds of the output array
+!> \param bounds global lower and upper bounds
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
@@ -790,10 +808,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rot180', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, lb1, lb1_new, lb2, &
-                                                lb2_new, lb3, lb3_new, ub1, &
-                                                ub1_new, ub2, ub2_new, ub3, &
-                                                ub3_new
+    INTEGER :: handle, i, lb1, lb1_glbl, lb1_new, lb2, lb2_glbl, lb2_new, &
+      lb3, lb3_glbl, lb3_new, ub1, ub1_glbl, ub1_new, ub2, ub2_glbl, ub2_new, &
+      ub3, ub3_glbl, ub3_new
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: indx, indy
     INTEGER, DIMENSION(2, 3)                 :: bndsl, bndsl_new
 
@@ -803,6 +820,10 @@ CONTAINS
     lb2 = LBOUND(cr3d_in,2);     ub2 = UBOUND(cr3d_in,2)
     lb3 = LBOUND(cr3d_in,3);     ub3 = UBOUND(cr3d_in,3)
 
+    lb1_glbl = bounds(1,1);     ub1_glbl = bounds(2,1)
+    lb2_glbl = bounds(1,2);     ub2_glbl = bounds(2,2)
+    lb3_glbl = bounds(1,3);     ub3_glbl = bounds(2,3)
+
     bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
     bndsl_new = rot180_bounds_local(bndsl, bounds)
 
@@ -810,16 +831,20 @@ CONTAINS
     lb2_new = bndsl_new(1,2);    ub2_new = bndsl_new(2,2)
     lb3_new = bndsl_new(1,3);    ub3_new = bndsl_new(2,3)
 
-    ALLOCATE(indx(ub1_new-lb1_new+1), indy(ub2_new-lb2_new+1))
     ALLOCATE(cr3d_out(lb1_new : ub1_new, lb2_new : ub2_new, lb3_new : ub3_new))
     cr3d_out = 0.0_dp
 
-    indx(:) = (/ (i, i=2*bounds(2,1) - lb1_new, 2*bounds(2,1) - ub1_new, -1) /)
-    indy(:) = (/ (i, i=2*bounds(2,2) - lb2_new, 2*bounds(2,2) - ub2_new, -1) /)
-
+! set the data at the missing grid points (in a periodic grid) equal to the data at 
+! the last existing grid points
+    ALLOCATE(indx(ub1_new-lb1_new+1), indy(ub2_new-lb2_new+1))
+    indx(:) = (/ (i, i=2*(ub1_glbl + 1) - lb1_new    , 2*(ub1_glbl + 1) - ub1_new, -1) /)
+    indy(:) = (/ (i, i=2*(ub2_glbl + 1) - lb2_new    , 2*(ub2_glbl + 1) - ub2_new, -1) /)
+    IF (lb1_new .EQ. ub1_glbl + 1) indx(1) = indx(2)
+    IF (lb2_new .EQ. ub2_glbl + 1) indy(1) = indy(2)
     cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(indx, indy, :)
-
-    DEALLOCATE(indx, indy)
+! set the data at the missing grid points (in a periodic grid) equal to 0
+!    IF (lb1_new .EQ. ub1_glbl + 1) cr3d_out(lb1_new:lb1_new, :, :) = 0.0_dp
+!    IF (lb2_new .EQ. ub2_glbl + 1) cr3d_out(:, lb2_new:lb2_new, :) = 0.0_dp
 
     CALL timestop(handle)
 
@@ -871,7 +896,7 @@ CONTAINS
     bounds_local = pw_grid%bounds_local
 
     ! Note that this is not easily FFT-able ... needed anyway, so link in FFTW.
-    npts_new = 2 * pw_grid%npts - 2
+    npts_new = 2 * pw_grid%npts 
     shift = - npts_new / 2
     shift = shift - bounds(1,:)
     bounds_shftd(:,1) = bounds(:,1) + shift(1) 
@@ -942,7 +967,7 @@ CONTAINS
     bounds_local_new(1,2) = MINVAL(pcs_bnds(1,2,:))    
     bounds_local_new(2,2) = MAXVAL(pcs_bnds(2,2,:))
     bounds_local_new(1,3) = MINVAL(pcs_bnds(1,3,:)) 
-    bounds_local_new(2,3) = 2*MAXVAL(pcs_bnds(2,3,:)) - bounds_local_new(1,3) - 1
+    bounds_local_new(2,3) = 2*(MAXVAL(pcs_bnds(2,3,:)) + 1) - bounds_local_new(1,3) - 1
 
     ALLOCATE(bounds_local_new_all(2,3,group_size))
     CALL mp_allgather(bounds_local_new, bounds_local_new_all, rs_group)
@@ -980,10 +1005,10 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    bndsl_out(1,1) = 2*bounds(2,1) - bndsl_in(2,1)
-    bndsl_out(2,1) = 2*bounds(2,1) - bndsl_in(1,1)
-    IF (bndsl_out(1,1) .EQ. bounds(2,1)) bndsl_out(1,1) = bndsl_out(1,1) + 1
-    IF (bndsl_out(2,1) .EQ. 2*bounds(2,1) - bounds(1,1)) bndsl_out(2,1) = bndsl_out(2,1) - 1 
+    bndsl_out(1,1) = 2*(bounds(2,1) + 1) - bndsl_in(2,1)
+    bndsl_out(2,1) = 2*(bounds(2,1) + 1) - bndsl_in(1,1)
+    IF (bndsl_out(1,1) .EQ. bounds(2,1) + 2) bndsl_out(1,1) = bndsl_out(1,1) - 1
+    IF (bndsl_out(2,1) .EQ. 2*(bounds(2,1) + 1) - bounds(1,1)) bndsl_out(2,1) = bndsl_out(2,1) - 1
 
     bndsl_out(1,2) = bndsl_in(1,2)    
     bndsl_out(2,2) = bndsl_in(2,2)
@@ -1019,10 +1044,10 @@ CONTAINS
     bndsl_out(1,1) = bndsl_in(1,1)    
     bndsl_out(2,1) = bndsl_in(2,1)
 
-    bndsl_out(1,2) = 2*bounds(2,2) - bndsl_in(2,2)
-    bndsl_out(2,2) = 2*bounds(2,2) - bndsl_in(1,2)
-    IF (bndsl_out(1,2) .EQ. bounds(2,1)) bndsl_out(1,2) = bndsl_out(1,2) + 1
-    IF (bndsl_out(2,2) .EQ. 2*bounds(2,2) - bounds(1,2)) bndsl_out(2,2) = bndsl_out(2,2) - 1 
+    bndsl_out(1,2) = 2*(bounds(2,2) + 1) - bndsl_in(2,2)
+    bndsl_out(2,2) = 2*(bounds(2,2) + 1) - bndsl_in(1,2)
+    IF (bndsl_out(1,2) .EQ. bounds(2,2) + 2) bndsl_out(1,2) = bndsl_out(1,2) - 1
+    IF (bndsl_out(2,2) .EQ. 2*(bounds(2,2) + 1) - bounds(1,2)) bndsl_out(2,2) = bndsl_out(2,2) - 1
 
     bndsl_out(1,3) = bndsl_in(1,3)    
     bndsl_out(2,3) = bndsl_in(2,3)
@@ -1058,10 +1083,10 @@ CONTAINS
     bndsl_out(1,2) = bndsl_in(1,2)
     bndsl_out(2,2) = bndsl_in(2,2)
 
-    bndsl_out(1,3) = 2*bounds(2,3) - bndsl_in(2,3)
-    bndsl_out(2,3) = 2*bounds(2,3) - bndsl_in(1,3)
-    IF (bndsl_out(1,3) .EQ. bounds(2,3)) bndsl_out(1,3) = bndsl_out(1,3) + 1
-    IF (bndsl_out(2,3) .EQ. 2*bounds(2,3) - bounds(1,3)) bndsl_out(2,3) = bndsl_out(2,3) - 1
+    bndsl_out(1,3) = 2*(bounds(2,3) + 1) - bndsl_in(2,3)
+    bndsl_out(2,3) = 2*(bounds(2,3) + 1) - bndsl_in(1,3)
+    IF (bndsl_out(1,3) .EQ. bounds(2,3) + 2) bndsl_out(1,3) = bndsl_out(1,3) - 1
+    IF (bndsl_out(2,3) .EQ. 2*(bounds(2,3) + 1) - bounds(1,3)) bndsl_out(2,3) = bndsl_out(2,3) - 1
 
     CALL timestop(handle)
 
@@ -1088,15 +1113,15 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    bndsl_out(1,1) = 2*bounds(2,1) - bndsl_in(2,1)
-    bndsl_out(2,1) = 2*bounds(2,1) - bndsl_in(1,1)
-    IF (bndsl_out(1,1) .EQ. bounds(2,1)) bndsl_out(1,1) = bndsl_out(1,1) + 1
-    IF (bndsl_out(2,1) .EQ. 2*bounds(2,1) - bounds(1,1)) bndsl_out(2,1) = bndsl_out(2,1) - 1
+    bndsl_out(1,1) = 2*(bounds(2,1) + 1) - bndsl_in(2,1)
+    bndsl_out(2,1) = 2*(bounds(2,1) + 1) - bndsl_in(1,1)
+    IF (bndsl_out(1,1) .EQ. bounds(2,1) + 2) bndsl_out(1,1) = bndsl_out(1,1) - 1
+    IF (bndsl_out(2,1) .EQ. 2*(bounds(2,1) + 1) - bounds(1,1)) bndsl_out(2,1) = bndsl_out(2,1) - 1
 
-    bndsl_out(1,2) = 2*bounds(2,2) - bndsl_in(2,2)
-    bndsl_out(2,2) = 2*bounds(2,2) - bndsl_in(1,2)
-    IF (bndsl_out(1,2) .EQ. bounds(2,2)) bndsl_out(1,2) = bndsl_out(1,2) + 1
-    IF (bndsl_out(2,2) .EQ. 2*bounds(2,2) - bounds(1,2)) bndsl_out(2,2) = bndsl_out(2,2) - 1
+    bndsl_out(1,2) = 2*(bounds(2,2) + 1) - bndsl_in(2,2)
+    bndsl_out(2,2) = 2*(bounds(2,2) + 1) - bndsl_in(1,2)
+    IF (bndsl_out(1,2) .EQ. bounds(2,2) + 2) bndsl_out(1,2) = bndsl_out(1,2) - 1
+    IF (bndsl_out(2,2) .EQ. 2*(bounds(2,2) + 1) - bounds(1,2)) bndsl_out(2,2) = bndsl_out(2,2) - 1
 
     bndsl_out(1,3) = bndsl_in(1,3)
     bndsl_out(2,3) = bndsl_in(2,3)

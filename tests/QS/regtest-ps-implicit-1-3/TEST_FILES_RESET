@@ -28,3 +28,8 @@ Ar_mixed_aa_planar-ns_cell.inp
 Ar_mixed_aa_planar.inp
 Ar_mixed_planar.inp
 Ar_mixed_aa_planar-ns_cell.inp
+
+# deal with missing grid points while performing dct
+Ar_mixed_aa_planar.inp
+Ar_mixed_planar.inp
+Ar_mixed_aa_planar-ns_cell.inp

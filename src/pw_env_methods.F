@@ -516,16 +516,25 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
       (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
      CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
-                         my_cell%hmat, pw_env%poisson_env%dct_pw_grid)
+                          my_cell%hmat, pw_env%poisson_env%dct_pw_grid)
   END IF
   ! setup real space grid for finite difference derivatives of dielectric constant function
   IF ( poisson_params%has_dielectric .AND. &
      ((poisson_params%dielectric_params%derivative_method .EQ. derivative_cd3) .OR. &
       (poisson_params%dielectric_params%derivative_method .EQ. derivative_cd5) .OR. &
       (poisson_params%dielectric_params%derivative_method .EQ. derivative_cd7))) THEN
-     CALL setup_diel_rs_grid(pw_env%poisson_env%diel_rs_grid, &
-                         poisson_params%dielectric_params%derivative_method, input, &
-                         pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid)
+
+     SELECT CASE (poisson_params%ps_implicit_params%boundary_condition) 
+     CASE (NEUMANN_BC, MIXED_BC)
+        CALL setup_diel_rs_grid(pw_env%poisson_env%diel_rs_grid, &
+                          poisson_params%dielectric_params%derivative_method, input, &
+                          pw_env%poisson_env%dct_pw_grid)
+     CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
+        CALL setup_diel_rs_grid(pw_env%poisson_env%diel_rs_grid, &
+                          poisson_params%dielectric_params%derivative_method, input, &
+                          pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid)
+     END SELECT
+
   END IF
 
 !
@@ -1011,6 +1020,7 @@ END SUBROUTINE compute_max_radius
     CALL rs_grid_create_descriptor(rs_desc,pw_grid,input_settings,&
                                    border_points=border_points)
     CALL rs_grid_create(diel_rs_grid,rs_desc) 
+!   CALL rs_grid_print(diel_rs_grid,6)
     CALL rs_grid_release_descriptor(rs_desc)
 
     CALL timestop(handle)
