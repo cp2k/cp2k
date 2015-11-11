@@ -200,7 +200,8 @@ if [[ $dir_triplet == *valgrind* ]] ; then
    job_max_time=${job_max_time:-7200}
 else
    valgrindstring=""
-   job_max_time=${job_max_time:-600}
+#1800 for testing on slower hardware (e.g. older ARM) or hyperthreaded systems, normally regtests should be faster
+   job_max_time=${job_max_time:-1800} 
 fi
 
 if [[ $cp2k_version == p* ]] ; then
