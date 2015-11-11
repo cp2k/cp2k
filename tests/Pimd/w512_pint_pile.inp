@@ -9,7 +9,7 @@
     PROC_PER_REPLICA         1
     NUM_STEPS                5
     DT                       0.25
-    NRESPA                   10
+    NRESPA                   10      #produces an intended warning.
     TEMP                     300.0
     TRANSFORMATION           NORMAL
     PROPAGATOR               RPMD

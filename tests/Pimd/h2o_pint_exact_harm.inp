@@ -10,7 +10,7 @@
     PROC_PER_REPLICA         1
     NUM_STEPS                4
     DT                       0.5
-    NRESPA                   2
+    NRESPA                   2  	#produces an intended warning.
     TEMP                    50.0
     TRANSFORMATION           NORMAL
     HARM_INT                 EXACT

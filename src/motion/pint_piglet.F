@@ -186,6 +186,7 @@ MODULE pint_piglet
     failure = .FALSE.
     p=piglet_therm%p
     pint_env%e_piglet = 0.0_dp
+    pint_env%piglet_therm%thermostat_energy = 0.0_dp
     CALL section_vals_val_get(section,"SMATRIX_INIT",i_val=matrix_init)
     !Read the matices
 
