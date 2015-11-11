@@ -590,7 +590,7 @@ END SUBROUTINE create_ewald_section
                         'Dirichlet + periodic boundary conditions', 'homogeneous Neumann BC (zero-average solution)' ), &
          enum_i_vals=(/ PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC, NEUMANN_BC /), &
          description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv. "//&
-                     "Mixed boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
+                     "Mixed and Neumann boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
          usage="BOUNDARY_CONDITIONS <bc_type>", default_i_val=PERIODIC_BC)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
