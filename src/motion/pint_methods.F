@@ -16,6 +16,9 @@
 MODULE pint_methods
 
   USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE bibliography,                    ONLY: Ceriotti2010,&
+                                             Ceriotti2012,&
+                                             cite_reference
   USE cp_external_control,             ONLY: external_control
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_io_unit,&
@@ -439,6 +442,7 @@ CONTAINS
     pile_section => section_vals_get_subs_vals(input,"MOTION%PINT%PILE")
     CALL section_vals_get(pile_section, explicit=explicit)
     IF (explicit) THEN
+       CALL cite_reference(Ceriotti2010)
        CALL section_vals_val_get(pint_env%input,&
            "MOTION%PINT%INIT%THERMOSTAT_SEED",&
             i_val=pint_env%thermostat_rng_seed)
@@ -458,6 +462,7 @@ CONTAINS
     piglet_section => section_vals_get_subs_vals(input,"MOTION%PINT%PIGLET")
     CALL section_vals_get(piglet_section, explicit=explicit)
     IF (explicit) THEN
+       CALL cite_reference(Ceriotti2012)
        CALL section_vals_val_get(pint_env%input,&
            "MOTION%PINT%INIT%THERMOSTAT_SEED",&
            i_val=pint_env%thermostat_rng_seed)

@@ -74,7 +74,7 @@ MODULE bibliography
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
-       Schiffmann2015, Bruck2014, Rappe1992
+       Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, Ceriotti2010
 
 CONTAINS
 
@@ -89,6 +89,32 @@ CONTAINS
 !>       link in the input reference manual.
 ! *****************************************************************************
   SUBROUTINE add_all_references()
+
+    CALL add_reference(key=Ceriotti2012, ISI_record=s2a(&
+         "AU Ceriotti, M",&
+         "   Manolopoulos, D",&
+         "TI Efficient First-Principles Calculation of the Quantum Kinetic Energy and Momentum Distribution of Nuclei",&
+         "SO PHYSICAL REVIEW LETTERS",&
+         "PY 2012",&
+         "VL 109",&
+         "IS 10",&
+         "BP 100604",&
+         "ER"),&
+          DOI="10.1103/PhysRevLett.109.100604")
+
+    CALL add_reference(key=Ceriotti2010, ISI_record=s2a(&
+         "AU Ceriotti, M",&
+         "   Parrinello, M",&
+         "   Markland, T",&
+         "   Manolopoulos, D",&
+         "TI Efficient stochastic thermostatting of path integral molecular dynamics",&
+         "SO JOURNAL OF CHEMICAL PHYSICS",&
+         "PY 2010",&
+         "VL 133",&
+         "IS 12",&
+         "BP 124104",&
+         "ER"),&
+          DOI="10.1063/1.3489925")
 
     CALL add_reference(key=Wellendorff2012, ISI_record=s2a(&
          "AU Wellendorff, J",&

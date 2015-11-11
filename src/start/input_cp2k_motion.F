@@ -10,6 +10,8 @@
 ! *****************************************************************************
 MODULE input_cp2k_motion
   USE bibliography,                    ONLY: Byrd1995,&
+                                             Ceriotti2010,&
+                                             Ceriotti2012,&
                                              Henkelman1999
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
@@ -1713,6 +1715,7 @@ CONTAINS
     CALL section_create(subsection,name="PILE",&
          description="Controls the PI Langevin Equation thermostat."//&
          " Needs the exact harmonic integrator",&
+         citations=(/Ceriotti2010/),&
          n_keywords=2, n_subsections=1,&
          repeats=.FALSE.)
     CALL create_rng_section(subsubsection)
@@ -1737,6 +1740,7 @@ CONTAINS
     CALL section_create(subsection,name="PIGLET",&
          description="Controls the PI Generalized Langevin Equation thermostat."//&
          " Needs the exact harmonic integrator",&
+         citations=(/Ceriotti2012/),&
          n_keywords=3, n_subsections=2,&
          repeats=.FALSE.)
     CALL create_rng_section(subsubsection)
