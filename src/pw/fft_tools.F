@@ -2943,7 +2943,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: coord(2), DIM(2), handle, i, ierr, ix, iz, lg, lmax, m1, m2, &
+    INTEGER :: coord(2), DIM(2), handle, i, ix, iz, lg, lmax, m1, m2, &
       mcx2, mcy3, mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
       nbx, nbz, nm, nmax, nmray, nn, np, nx, ny, nyzray, nz, pos(2)
     INTEGER, DIMENSION(3)                    :: pcoord
@@ -2953,6 +2953,7 @@ CONTAINS
                                                 fft_scratch_last, &
                                                 fft_scratch_new
 #if defined ( __PW_CUDA ) && !defined ( __PW_CUDA_NO_HOSTALLOC )
+    INTEGER                   :: ierr
     INTEGER(KIND=C_SIZE_T)    :: length
     TYPE(C_PTR)               :: cptr_r1buf, cptr_tbuf, &
                                  cptr_p2buf, cptr_p3buf, cptr_p4buf, cptr_p5buf, cptr_p7buf
@@ -3262,10 +3263,8 @@ CONTAINS
              ALLOCATE ( fft_scratch_new%fft_scratch%pzcoord(0:np-1))
              ALLOCATE ( fft_scratch_new%fft_scratch%xzcount(0:np-1), &
                   fft_scratch_new%fft_scratch%yzcount(0:np-1) )
-             CPASSERT(ierr==0)
              ALLOCATE ( fft_scratch_new%fft_scratch%xzdispl(0:np-1), &
                   fft_scratch_new%fft_scratch%yzdispl(0:np-1) )
-             CPASSERT(ierr==0)
              fft_scratch_new%fft_scratch%in=0
              fft_scratch_new%fft_scratch%rsratio=1._dp
              fft_scratch_new%fft_scratch%group = fft_sizes%gs_group
