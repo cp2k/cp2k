@@ -26,16 +26,19 @@ MODULE dirichlet_bc_methods
   USE mathlib,                         ONLY: inv_3x3,&
                                              matvec_3x3,&
                                              vector_product
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
   USE physcon,                         ONLY: angstrom
   USE ps_implicit_types,               ONLY: MIXED_BC,&
                                              MIXED_PERIODIC_BC,&
                                              NEUMANN_BC,&
                                              PERIODIC_BC
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_methods,                      ONLY: pw_zero
+  USE pw_methods,                      ONLY: pw_axpy,&
+                                             pw_zero
   USE pw_poisson_types,                ONLY: pw_poisson_parameter_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
@@ -275,8 +278,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, k, n_tiles, unit_nr
-    REAL(dp)                                 :: tile_volume
+    REAL(dp)                                 :: cyl_maxval, dbc_maxval, &
+                                                tile_volume
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: tile_maxvals
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_type), POINTER                   :: cylinder_pw
     TYPE(tile_p_type), DIMENSION(:), POINTER :: tiles
 
     CALL timeset(routineN,handle)
@@ -289,7 +295,7 @@ CONTAINS
     ENDIF   
 
     SELECT CASE (dirichlet_bc%dbc_geom)
-    CASE (PLANAR, CYLINDRICAL)
+    CASE (PLANAR)
 
       CALL arbitrary_dbc_partition(dirichlet_bc%vertices, n_prtn(1:2), tiles)
       n_tiles = SIZE(tiles)
@@ -297,7 +303,9 @@ CONTAINS
       ALLOCATE(dirichlet_bc%tiles(n_tiles))
       dirichlet_bc%tiles = tiles
       IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
-  
+
+      ALLOCATE(tile_maxvals(n_tiles))
+      tile_maxvals = 0.0_dp
       DO k = 1, n_tiles
          CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
@@ -315,8 +323,75 @@ CONTAINS
          tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
          CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
          dirichlet_bc%tiles(k)%tile%volume = tile_volume
+         tile_maxvals(k) = tile_maxvals(k) + MAXVAL(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
       END DO
+      CALL mp_max(tile_maxvals, pw_pool%pw_grid%para%group)
+      dbc_maxval = MAXVAL(tile_maxvals)
+      IF (ABS(dbc_maxval - 0.99_dp) .LT. small_value) THEN
+         CALL cp_abort(__LOCATION__,&
+              "Inaccurate approximation of unit step function at Dirichlet region. Possible causes are: "//&
+              "relatively small thickness and/or extents, relatively wide smoothing width, over-"//&
+              "partitioning in at least one direction.")
+      END IF
+
+      IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
+
+      DEALLOCATE(tiles)
+
+    CASE (CYLINDRICAL)
+
+      CALL arbitrary_dbc_partition(dirichlet_bc%vertices, n_prtn(1:2), tiles)
+      n_tiles = SIZE(tiles)
+      dirichlet_bc%n_tiles = n_tiles
+      ALLOCATE(dirichlet_bc%tiles(n_tiles))
+      dirichlet_bc%tiles = tiles
+      IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
+
+      CALL pw_pool_create_pw(pw_pool, cylinder_pw, use_data=REALDATA3D, in_space=REALSPACE)
+      CALL pw_zero(cylinder_pw)
+
+      ALLOCATE(tile_maxvals(n_tiles))
+      tile_maxvals = 0.0_dp
+      DO k = 1, n_tiles
+         CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
+         CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
   
+         IF ((unit_nr .GT. 0) .AND. verbose) THEN 
+            WRITE(unit_nr,'(T7,A,I5)') "tile", k
+            DO i = 1, 8
+               WRITE(unit_nr,'(T10,A,I1,3F10.3)') &
+                             "   vertex ", i, angstrom * dirichlet_bc%tiles(k)%tile%vertices(:,i)
+            END DO
+         END IF
+
+         CALL arbitrary_tile_pw_compute(cell_xtnts, x_locl, y_locl, z_locl, dirichlet_bc%tiles(k)%tile%vertices, &
+                                        sigma, dirichlet_bc%tiles(k)%tile%tile_pw)
+         CALL pw_axpy(dirichlet_bc%tiles(k)%tile%tile_pw, cylinder_pw)
+         tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
+         CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
+         dirichlet_bc%tiles(k)%tile%volume = tile_volume
+         tile_maxvals(k) = tile_maxvals(k) + MAXVAL(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
+      END DO
+      CALL mp_max(tile_maxvals, pw_pool%pw_grid%para%group)
+      dbc_maxval = MAXVAL(tile_maxvals)
+      IF (dbc_maxval .LT. 0.99_dp) THEN
+         CALL cp_abort(__LOCATION__,&
+              "Inaccurate approximation of unit step function at Dirichlet region. Possible causes are: "//&
+              "relatively small thickness and/or extents, relatively wide smoothing width, over-"//&
+              "partitioning in at least one direction.")
+      END IF
+
+      cyl_maxval = MAXVAL(cylinder_pw%cr3d)
+      CALL mp_max(cyl_maxval, pw_pool%pw_grid%para%group)
+      IF (cyl_maxval .GT. 1.01_dp) THEN
+         CALL cp_abort(__LOCATION__,&
+              "Inaccurate approximation of unit step function at cylindrical Dirichlet region. "//&
+              "Increase the number of sides (N_SIDES) and/or the base radius. Alternatively, "//&
+              "one can increase DELTA_ALPHA (see the reference manual).")
+      END IF
+
+      CALL pw_pool_give_back_pw(pw_pool, cylinder_pw)
+
       IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
 
       DEALLOCATE(tiles)
@@ -330,6 +405,8 @@ CONTAINS
       dirichlet_bc%tiles = tiles
       IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
   
+      ALLOCATE(tile_maxvals(n_tiles))
+      tile_maxvals = 0.0_dp
       DO k = 1, n_tiles
          CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
@@ -347,7 +424,16 @@ CONTAINS
          tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
          CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
          dirichlet_bc%tiles(k)%tile%volume = tile_volume
+         tile_maxvals(k) = tile_maxvals(k) + MAXVAL(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
       END DO
+      CALL mp_max(tile_maxvals, pw_pool%pw_grid%para%group)
+      dbc_maxval = MAXVAL(tile_maxvals)
+      IF (dbc_maxval .LT. 0.99_dp) THEN
+         CALL cp_abort(__LOCATION__,&
+              "Inaccurate approximation of unit step function at Dirichlet region. Possible causes are: "//&
+              "relatively small thickness and/or extents, relatively wide smoothing width, over-"//&
+              "partitioning in at least one direction.")
+      END IF
   
       IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
 

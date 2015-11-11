@@ -36,3 +36,6 @@ Ar_mixed_periodic_cylindrical.inp
 
 # deal with missing grid points while performing dct
 Ar_neumann.inp                     
+
+# adjust smoothing width
+Ar_mixed_periodic_cuboidal.inp

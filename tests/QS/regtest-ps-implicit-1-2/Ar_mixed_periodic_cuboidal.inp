@@ -36,7 +36,7 @@
             Y_xtnt   0.5 7.5
             Z_xtnt   0.5 7.5
             n_prtn   3 2 1
-            smoothing_width 0.2
+            smoothing_width 0.1
           &END AA_CUBOIDAL
         &END DIRICHLET_BC
       &END IMPLICIT

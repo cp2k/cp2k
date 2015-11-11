@@ -1088,8 +1088,6 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
     TYPE(pw_type), POINTER                   :: pw_in, pw_out, tile_pw
 
-!    TYPE(pw_type), POINTER                   :: pw_in, pw_in_xpndd, pw_out, tile_pw
-
     CALL timeset(routineN,handle)
 
     pw_grid_orig => pw_pool_orig%pw_grid
