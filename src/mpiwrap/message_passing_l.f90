@@ -945,7 +945,7 @@
     INTEGER                                  :: handle, ierr
 #if defined(__parallel)
     INTEGER, PARAMETER :: max_msg=2**25
-    INTEGER                                  :: m1, msglen, step
+    INTEGER                                  :: m1, msglen, step, msglensum
 #endif
 
     ierr = 0
@@ -955,15 +955,17 @@
     t_start = m_walltime ( )
     ! chunk up the call so that message sizes are limited, to avoid overflows in mpich triggered in large rpa calcs
     step=MAX(1,SIZE(msg,2)/MAX(1,SIZE(msg)/max_msg))
+    msglensum=0
     DO m1=LBOUND(msg,2),UBOUND(msg,2), step
        msglen = SIZE(msg,1)*(MIN(UBOUND(msg,2),m1+step-1)-m1+1)
+       msglensum = msglensum + msglen
        IF (msglen>0) THEN
           CALL mpi_allreduce(MPI_IN_PLACE,msg(LBOUND(msg,1),m1),msglen,MPI_INTEGER8,MPI_SUM,gid,ierr)
           IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ "//routineN )
        END IF
     ENDDO
     t_end = m_walltime ( )
-    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglensum*int_8_size)
 #else
     MARK_USED(msg)
     MARK_USED(gid)
