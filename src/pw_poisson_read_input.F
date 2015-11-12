@@ -74,11 +74,11 @@ CONTAINS
     ! because not all solvers support every possible periodicity
     CALL section_vals_val_get(poisson_section,"PERIODIC",i_val=periodic)
     SELECT CASE (params%solver)
-      CASE(pw_poisson_periodic,pw_poisson_analytic,pw_poisson_mt,pw_poisson_multipole)
+      CASE(pw_poisson_periodic,pw_poisson_analytic,pw_poisson_mt,pw_poisson_multipole,&
+           pw_poisson_implicit)
          CALL decode_periodic_green(periodic, params)
       CASE(pw_poisson_wavelet)
          CALL decode_periodic_wavelet(periodic, params)
-      CASE(pw_poisson_implicit)
       CASE(pw_poisson_none)
       CASE default
          CPABORT("")
