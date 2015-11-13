@@ -62,7 +62,7 @@ SE/regtest-3-4
 QS/regtest-ri-mp2                                           libint 
 QS/regtest-hybrid-4                                         libint 
 ATOM/regtest-pseudo
-QS/regtest-pao
+QS/regtest-pao-1
 QS/regtest-kp-2
 QS/regtest-gpw-7
 QS/regtest-nmr-1

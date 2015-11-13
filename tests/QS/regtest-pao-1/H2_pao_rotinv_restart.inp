@@ -18,19 +18,14 @@
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        MAX_PAO 50
+        MAX_PAO 1
         EPS_PAO 5.0E-9
         PARAMETERIZATION ROTINV
         PRECONDITIONER SINV
-        CHECK_GRADIENT_TOL 0.01
-        CHECK_UNITARY_TOL 1.0E-10
+        READ_RESTART H2_pao_rotinv-1_0.pao
         &LINE_SEARCH
           METHOD 3PNT
         &END LINE_SEARCH
-        &PRINT
-          &RESTART ON
-          &END
-        &END PRINT
       &END PAO
     &END
     &XC
@@ -43,14 +38,15 @@
       ABC 4.0 4.0 4.0
       PERIODIC NONE
     &END CELL
+    ! rotate system by a non-trivial angle
     &COORD
-      H       0.72  0.0   0.0
-      H       0.0   0.0   0.0
+      H       0.3452    0.6319    0.0
+      H       0.0       0.0       0.0
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH
       POTENTIAL GTH-PBE
-      PAO_BASIS_SIZE 1
+      PAO_BASIS_SIZE 1 
       PAO_POTENTIAL_MAXL 0
     &END KIND
     &TOPOLOGY

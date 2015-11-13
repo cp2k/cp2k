@@ -22,8 +22,6 @@
         EPS_PAO 5.0E-9
         PARAMETERIZATION ROTINV
         PRECONDITIONER SINV
-        CHECK_GRADIENT_TOL 0.01
-        CHECK_UNITARY_TOL 1.0E-10
         READ_RESTART H2_pao_rotinv-1_0.pao
         &LINE_SEARCH
           METHOD ADAPT
