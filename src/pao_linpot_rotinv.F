@@ -81,12 +81,9 @@ CONTAINS
            li = basis_set%l(ishell,iset)
            lj = basis_set%l(jshell,jset)
 
-           ! calculate the block's number of dimensions
-           IF(li==lj) THEN
-              dim_avail = 2*li+1
-           ELSE
-              dim_avail = (2*li+1) * (2*lj+1)
-           ENDIF
+           !calculate the block's number of dimensions
+           !TODO: this seems to be too large in some cases
+           dim_avail = (2*li+1) * (2*lj+1)
 
            inner:&
            DO lpot=0, pot_maxl
@@ -171,11 +168,7 @@ CONTAINS
         DO jshell=1, ishell
            li = basis_set%l(ishell,iset)
            lj = basis_set%l(jshell,jset)
-           IF(li==lj) THEN
-              dim_avail = 2*li+1
-           ELSE
-              dim_avail = (2*li+1) * (2*lj+1)
-           ENDIF
+           dim_avail = (2*li+1) * (2*lj+1)
 
            inner:&
            DO lpot=0, pot_maxl
@@ -193,8 +186,8 @@ CONTAINS
      ENDDO outer
 
 
-     ! find neighbors
-     ! TODO: this is a quadratic algorithm, use a neighbor-list instead
+     !find neighbors
+     !TODO: this is a quadratic algorithm, use a neighbor-list instead
      ALLOCATE(neighbor_dist(natoms), neighbor_order(natoms))
      DO jatom=1, natoms
         ra = particle_set(iatom)%r

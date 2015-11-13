@@ -91,6 +91,8 @@ MODULE linesearch
 
   TYPE linesearch_type
     PRIVATE
+    REAL(KIND=dp), PUBLIC                          :: step_size = 0.0_dp
+    LOGICAL, PUBLIC                                :: starts = .TRUE.
     TYPE(linesearch_adapt_type), POINTER           :: state_adapt => Null()
     TYPE(linesearch_2pnt_type), POINTER            :: state_2pnt  => Null()
     TYPE(linesearch_3pnt_type), POINTER            :: state_3pnt  => Null()
@@ -98,12 +100,15 @@ MODULE linesearch
     INTEGER                                        :: iw     = -1
     INTEGER                                        :: method = -1
     CHARACTER(LEN=10)                              :: label = ""
-    REAL(KIND=dp)                                  :: init_step_size = 0.0
+    REAL(KIND=dp)                                  :: init_step_size = 0.0_dp
+    REAL(dp)                                       :: eps_step_size = 0.0_dp
+    REAL(dp)                                       :: max_step_size = 0.0_dp
+    REAL(dp)                                       :: tiny_step_size = 0.0_dp
   END TYPE linesearch_type
 
 
   PUBLIC :: linesearch_create_section, linesearch_init, linesearch_finalize
-  PUBLIC :: linesearch_step
+  PUBLIC :: linesearch_step, linesearch_reset
 
 CONTAINS
 
@@ -183,7 +188,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Initialize line search machinery
+!> \brief Initialize linesearch from given input section
 !> \param this ...
 !> \param section ...
 !> \param label ...
@@ -197,38 +202,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'linesearch_init', &
       routineP = moduleN//':'//routineN
 
-    REAL(dp)                                 :: eps_step_size, max_step_size, &
-                                                tiny_step_size
     TYPE(cp_logger_type), POINTER            :: logger
 
      CALL section_vals_val_get(section,"METHOD",i_val=this%method)
      CALL section_vals_val_get(section,"INITIAL_STEP_SIZE",r_val=this%init_step_size)
-     CALL section_vals_val_get(section,"MAX_STEP_SIZE",r_val=max_step_size)
-     CALL section_vals_val_get(section,"TINY_STEP_SIZE",r_val=tiny_step_size)
-     CALL section_vals_val_get(section,"EPS_STEP_SIZE",r_val=eps_step_size)
-
-     SELECT CASE(this%method)
-        CASE(linesearch_method_adapt)
-           ALLOCATE(this%state_adapt)
-           this%state_adapt%last_step_size = this%init_step_size
-        CASE(linesearch_method_2pnt)
-           ALLOCATE(this%state_2pnt)
-           this%state_2pnt%max_step_size = max_step_size
-           this%state_2pnt%last_step_size = this%init_step_size
-        CASE(linesearch_method_3pnt)
-           ALLOCATE(this%state_3pnt)
-           this%state_3pnt%last_step_size = this%init_step_size
-           this%state_3pnt%max_step_size = max_step_size
-           this%state_3pnt%tiny_step_size = tiny_step_size
-        CASE(linesearch_method_gold)
-           ALLOCATE(this%state_gold)
-           this%state_gold%last_step_size = this%init_step_size
-           this%state_gold%eps_step_size = eps_step_size
-        CASE(linesearch_method_none)
-           ! nothing todo
-        CASE DEFAULT
-           CPABORT("unkown method")
-     END SELECT
+     CALL section_vals_val_get(section,"MAX_STEP_SIZE",r_val=this%max_step_size)
+     CALL section_vals_val_get(section,"TINY_STEP_SIZE",r_val=this%tiny_step_size)
+     CALL section_vals_val_get(section,"EPS_STEP_SIZE",r_val=this%eps_step_size)
 
      CPASSERT(LEN_TRIM(label) <= 10)
      this%label = label
@@ -236,7 +216,43 @@ CONTAINS
      this%iw = cp_print_key_unit_nr(logger, section, "PRINT%RUN_INFO",&
                                     extension=".linesearchlog")
 
+     CALL linesearch_init_low(this)
+
   END SUBROUTINE linesearch_init
+
+
+! *****************************************************************************
+!> \brief Helper routine to (re)-initialize line search machinery
+!> \param this ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE linesearch_init_low(this)
+    TYPE(linesearch_type), INTENT(INOUT)     :: this
+
+     SELECT CASE(this%method)
+        CASE(linesearch_method_adapt)
+           ALLOCATE(this%state_adapt)
+           this%state_adapt%last_step_size = this%init_step_size
+        CASE(linesearch_method_2pnt)
+           ALLOCATE(this%state_2pnt)
+           this%state_2pnt%max_step_size = this%max_step_size
+           this%state_2pnt%last_step_size = this%init_step_size
+        CASE(linesearch_method_3pnt)
+           ALLOCATE(this%state_3pnt)
+           this%state_3pnt%last_step_size = this%init_step_size
+           this%state_3pnt%max_step_size = this%max_step_size
+           this%state_3pnt%tiny_step_size = this%tiny_step_size
+        CASE(linesearch_method_gold)
+           ALLOCATE(this%state_gold)
+           this%state_gold%last_step_size = this%init_step_size
+           this%state_gold%eps_step_size = this%eps_step_size
+        CASE(linesearch_method_none)
+           ! nothing todo
+        CASE DEFAULT
+           CPABORT("unkown method")
+     END SELECT
+
+  END SUBROUTINE linesearch_init_low
 
 
 ! *****************************************************************************
@@ -270,22 +286,34 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Reset line search to initial state
+!> \param this ...
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE linesearch_reset(this)
+    TYPE(linesearch_type), INTENT(INOUT)     :: this
+
+     CALL linesearch_finalize(this)
+     CALL linesearch_init_low(this)
+  END SUBROUTINE linesearch_reset
+
+
+! *****************************************************************************
 !> \brief Calculate step length of next line search step.
 !> \param this ...
 !> \param energy ...
 !> \param slope ...
-!> \param step_size ...
-!> \param is_done ...
 !> \author Ole Schuett
 ! *****************************************************************************
-  SUBROUTINE linesearch_step(this, energy, slope, step_size, is_done)
+  SUBROUTINE linesearch_step(this, energy, slope)
     TYPE(linesearch_type), INTENT(INOUT)     :: this
     REAL(KIND=dp), INTENT(IN)                :: energy, slope
-    REAL(KIND=dp), INTENT(OUT)               :: step_size
-    LOGICAL, INTENT(OUT)                     :: is_done
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linesearch_step', &
       routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: is_done
+    REAL(KIND=dp)                            :: step_size
 
     SELECT CASE(this%method)
         CASE(linesearch_method_adapt)
@@ -303,6 +331,8 @@ CONTAINS
            CPABORT("unkown method")
      END SELECT
 
+     this%step_size = step_size
+     this%starts = is_done
   END SUBROUTINE linesearch_step
 
 

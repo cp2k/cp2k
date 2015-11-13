@@ -9,7 +9,8 @@
 ! *****************************************************************************
 MODULE pao_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE linesearch,                      ONLY: linesearch_type
 #include "./base/base_uses.f90"
 
@@ -20,6 +21,17 @@ MODULE pao_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_types'
 
   PUBLIC :: pao_env_type
+  PUBLIC :: mcweeny_history_type, mcweeny_history_p_type
+
+  TYPE mcweeny_history_type
+    TYPE(cp_dbcsr_type)                        :: m
+    INTEGER                                    :: count = -1
+    TYPE(mcweeny_history_type), POINTER        :: next => Null()
+  END TYPE mcweeny_history_type
+
+  TYPE mcweeny_history_p_type
+    TYPE(mcweeny_history_type), POINTER        :: p => Null()
+  END TYPE mcweeny_history_p_type
 
   TYPE pao_env_type
      TYPE(cp_dbcsr_type)              :: matrix_X
@@ -36,10 +48,10 @@ MODULE pao_types
      TYPE(cp_dbcsr_type)              :: matrix_H0
      TYPE(cp_dbcsr_type), DIMENSION(:), POINTER :: matrix_P_guess => Null()
      REAL(KIND=dp)                    :: eps_pao = 0.0_dp
+     REAL(KIND=dp)                    :: eps_preopt = 0.0_dp
      INTEGER                          :: max_pao = -1
+     INTEGER                          :: max_trs4_preopt = -1
      INTEGER                          :: max_outer_pao = -1
-     LOGICAL                          :: line_search_start = .FALSE.
-     REAL(KIND=dp)                    :: line_search_step = 0.0_dp
      INTEGER                          :: parameterization = -1
      INTEGER                          :: cg_init_steps = -1
      INTEGER                          :: istep = -1
@@ -47,14 +59,18 @@ MODULE pao_types
      INTEGER                          :: iw_cg = -1
      INTEGER                          :: last_reset = 0
      REAL(KIND=dp)                    :: energy_prev = 0.0_dp
-     REAL(KIND=dp)                    :: check_gradient_tol = 0.0_dp
      REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
-     REAL(KIND=dp)                    :: check_param_tol = 0.0_dp
+     REAL(KIND=dp)                    :: check_grad_param_tol = 0.0_dp
+     REAL(KIND=dp)                    :: check_grad_mcweeny_tol = 0.0_dp
      TYPE(cp_dbcsr_type)              :: matrix_z2c
      TYPE(cp_dbcsr_type), DIMENSION(:), POINTER :: matrix_V_terms => Null()
      TYPE(cp_dbcsr_type)              :: matrix_precon
      TYPE(cp_dbcsr_type)              :: matrix_precon_inv
      INTEGER                          :: preconditioner = -1
+     CHARACTER(LEN=default_string_length) :: preopt_dm_file = ""
+     TYPE(mcweeny_history_p_type),&
+      DIMENSION(:), POINTER           :: mcweeny_history => Null()
+     REAL(KIND=dp)                    :: step_start_time = 0.0_dp
   END TYPE
 
 END MODULE pao_types

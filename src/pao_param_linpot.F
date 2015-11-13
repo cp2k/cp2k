@@ -16,9 +16,10 @@ MODULE pao_param_linpot
        cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_scale, &
        cp_dbcsr_set
-  USE cp_log_handling,                 ONLY: cp_to_string
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
+  USE message_passing,                 ONLY: mp_sum
   USE pao_input,                       ONLY: pao_fock_param,&
                                              pao_none_precon,&
                                              pao_rotinv_param,&
@@ -226,7 +227,7 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, i, iatom, j, k, &
-                                                natoms, nterms
+                                                natoms, nfiltered, nterms
     INTEGER, DIMENSION(:), POINTER           :: blk_size
     LOGICAL                                  :: found
     REAL(dp)                                 :: s, v, w
@@ -235,8 +236,9 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
                                                 block_precon_inv, term_i, &
                                                 term_j
     TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
-    CALL get_qs_env(qs_env, natom=natoms)
+    CALL get_qs_env(qs_env, natom=natoms, para_env=para_env)
 
     ! collecte nterms for all atoms
     ALLOCATE(blk_size(natoms))
@@ -257,6 +259,7 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
     CALL cp_dbcsr_init(pao%matrix_precon_inv)
     CALL cp_dbcsr_copy(pao%matrix_precon_inv, pao%matrix_precon)
 
+    nfiltered = 0
     CALL cp_dbcsr_iterator_start(iter, pao%matrix_precon)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_precon)
@@ -281,18 +284,19 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
        block_precon = 0.0_dp
        block_precon_inv = 0.0_dp
        DO k=1, nterms
-          IF(ABS(evals(k)) < pao%check_param_tol) THEN
-             CALL cp_abort(__LOCATION__,"Parametrization ill-conditioned. "//&
-                  "Found tiny eigenvalue in linpot overlap matrix:"//cp_to_string(evals(k)))
+          !IF(ABS(evals(k)) < 1e-12_dp) THEN
+          IF(ABS(evals(k)) < 1e-5_dp) THEN ! we ignore tiny eigenvalue
+             nfiltered = nfiltered + 1
+          ELSE
+             v = 1.0_dp/evals(k)
+             w = 1.0_dp/v
+             DO i=1, nterms
+             DO j=1, nterms
+                block_precon(i,j)     = block_precon(i,j)     + v*A(i,k)*A(j,k)
+                block_precon_inv(i,j) = block_precon_inv(i,j) + w*A(i,k)*A(j,k)
+             ENDDO
+             ENDDO
           ENDIF
-          v = 1.0_dp/evals(k)
-          w = 1.0_dp/v
-          DO i=1, nterms
-          DO j=1, nterms
-             block_precon(i,j)     = block_precon(i,j)     + v*A(i,k)*A(j,k)
-             block_precon_inv(i,j) = block_precon_inv(i,j) + w*A(i,k)*A(j,k)
-          ENDDO
-          ENDDO
        ENDDO
 
        ! scale to get line-search steps of order 1
@@ -305,6 +309,11 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
 
+    ! print statistics
+    CALL mp_sum(nfiltered, para_env%group)
+    IF(pao%iw>0) WRITE (pao%iw,*) "PAO| SINV-preconditioner nterm:",SUM(blk_size),&
+                                  "nfiltered: ", nfiltered,&
+                                  "nterms left:", SUM(blk_size) - nfiltered
     DEALLOCATE(blk_size)
 
   END SUBROUTINE build_preconditioner_Sinv
@@ -369,7 +378,6 @@ SUBROUTINE build_preconditioner_none(pao, qs_env)
           vec_G(kterm) = SUM(block_V_term * block_M2)
        ENDDO
 
-       vec_G =  0.5_dp * vec_G ! the 0.5 comes most likely from the symmtry of V
        block_G(:,1) = vec_G
 
        DEALLOCATE(block_M2, vec_G)

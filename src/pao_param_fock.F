@@ -165,10 +165,13 @@ CONTAINS
     ALLOCATE(H_evals(n), H_evecs(n,n), P(n,n), H(n,n))
     H = H0 + X
 
+    IF(MAXVAL(ABS(H-TRANSPOSE(H)))>1e-14_dp) CPABORT("Expect symmetric matrix")
+
     H_evecs = H
     CALL diamat_all(H_evecs, H_evals)
-    P=0.0_dp
-    DO k=1, m ! exploit that the eigenvalues are ordered
+
+    P(:,:) = 0.0_dp
+    DO k=1, m ! First m states have occupation 1, remaining have 0 .
        DO i=1, n
           DO j=1, n
              P(i,j) = P(i,j) + H_evecs(i,k)*H_evecs(j,k)
@@ -192,6 +195,7 @@ CONTAINS
     CALL diamat_all(W_evecs, W_evals)
     Z=0.0_dp
     DO k=1, m
+       IF(W_evals(k) <= 0.0_dp) CYCLE !TODO: is this a clean solution?
        v = 1.0_dp / SQRT(W_evals(k))
        DO i=1, m
           DO j=1, m
@@ -218,7 +222,9 @@ CONTAINS
        ! dZ / dW
        ALLOCATE(D4(m,m), M4(m,m))
        DO i=1, m
+          IF(W_evals(i)<=0.0_dp) CYCLE
           DO j=1, m
+             IF(W_evals(j)<=0.0_dp) CYCLE
              IF(i==j) THEN
                  D4(i,i) = -0.5_dp / (W_evals(i)*SQRT(W_evals(i)))
              ELSE
@@ -237,15 +243,16 @@ CONTAINS
        ALLOCATE(M6(n,m))
        M6 = M3 + M5
 
+       ! dC / dP
        ALLOCATE(M7(n,n))
        M7 = MATMUL(MATMUL(M6, TRANSPOSE(Y)), TRANSPOSE(U0))
 
-       ! dZ / dW
+       ! dP / dX
        ALLOCATE(D8(n,n))
        DO i=1, n
           DO j=1, n
              IF(i==j) THEN
-                 D8(i,i) = 0.0_dp
+                  D8(i,i) = 0.0 ! derivative of step-function
              ELSE
                  nom = 0.0_dp
                  IF(i<=m) nom = nom + 1.0_dp
@@ -307,7 +314,7 @@ CONTAINS
      RFR = REAL(MATMUL(RF, TRANSPOSE(R)))
 
      ! gradient dE/dX has to be (anti)symmetric
-     G = TRANSPOSE(RFR) + REAL(sym,dp) * RFR
+     G = 0.5_dp * (TRANSPOSE(RFR) + REAL(sym,dp) * RFR)
 
      DEALLOCATE(RM, RMR, F, RF, RFR)
   END FUNCTION fold_derivatives

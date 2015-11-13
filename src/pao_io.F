@@ -94,7 +94,7 @@ CONTAINS
        CALL read_restart_header(pao, qs_env, unit_nr)
     ENDIF
 
-    ! TODO: this is a serial algorithm
+    !TODO: this is a serial algorithm
     DO i=1, natoms
        IF(unit_nr>0) THEN
           READ(unit_nr,fmt=*) label, iatom
@@ -277,7 +277,7 @@ CONTAINS
        IF(unit_nr>0)&
           CALL write_restart_header(pao, qs_env, unit_nr)
 
-       ! TODO: this is a serial algorithm
+       !TODO: this is a serial algorithm
        ! write matrix_X
        row_blk_sizes => cp_dbcsr_row_block_sizes(pao%matrix_X)
        col_blk_sizes => cp_dbcsr_col_block_sizes(pao%matrix_X)

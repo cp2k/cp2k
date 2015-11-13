@@ -63,7 +63,6 @@ CONTAINS
        CALL cp_dbcsr_create(pao%matrix_X, template=matrix_s(1)%matrix, matrix_type="N")
        CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
        CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
-
        IF(dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
     ENDIF
 
@@ -151,19 +150,18 @@ CONTAINS
        DO i=1, N
           DO j=1, N
              denom = evals(i) - evals(j)
-             IF(ABS(denom) == 0.0_dp) THEN
-                block_D(i,j) = EXP(evals(i))
-             ELSE
+             IF(i==j) THEN
+                block_D(i,i) = EXP(evals(i)) ! diagonal elements
+             ELSE IF(ABS(denom) > 1e-10_dp) THEN
                 block_D(i,j) = (EXP(evals(i)) - EXP(evals(j))) / denom
+             ELSE
+                block_D(i,j) = 1.0_dp ! limit according to L'Hospital's rule
              ENDIF
           ENDDO
        ENDDO
 
        block_G = fold_derivatives(block_M, block_D, evecs, -1)
        DEALLOCATE(block_D)
-
-       block_G(1:M,1:M) = 0.0_dp
-       block_G(M+1:N,M+1:N) = 0.0_dp
     ENDIF
 
     DEALLOCATE(evals, evecs)

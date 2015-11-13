@@ -17,8 +17,7 @@ MODULE pao_main
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_set, cp_dbcsr_trace, cp_dbcsr_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
   USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                              ls_scf_qs_atomic_guess
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
@@ -29,15 +28,21 @@ MODULE pao_main
   USE linesearch,                      ONLY: linesearch_finalize,&
                                              linesearch_init,&
                                              linesearch_step
+  USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: diamat_all
   USE pao_input,                       ONLY: parse_pao_section
   USE pao_io,                          ONLY: pao_read_restart,&
                                              pao_write_restart
-  USE pao_param,                       ONLY: pao_calc_U,&
-                                             pao_calc_grad,&
+  USE pao_param,                       ONLY: pao_calc_grad,&
                                              pao_param_finalize,&
-                                             pao_param_init
+                                             pao_param_init,&
+                                             pao_update_AB
+  USE pao_preopt,                      ONLY: pao_preopt_run
   USE pao_types,                       ONLY: pao_env_type
+  USE pao_utils,                       ONLY: pao_calc_CG_beta,&
+                                             pao_print_oneliner,&
+                                             pao_print_step_delimiter,&
+                                             pao_test_convegence
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -98,10 +103,10 @@ CONTAINS
        CALL pao_read_restart(pao, qs_env)
     ENDIF
 
-    pao%istep = 0 ! reset counters
+    ! init counters
+    pao%step_start_time = m_walltime()
+    pao%istep = 0
     pao%last_reset = 0
-    pao%line_search_start = .TRUE.
-    pao%line_search_step = 0.0_dp
 
     CALL cp_dbcsr_init(pao%matrix_X_orig)
 
@@ -139,6 +144,8 @@ CONTAINS
 
     section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PAO%LINE_SEARCH")
     CALL linesearch_init(pao%linesearch, section, "PAO|")
+
+    CALL pao_preopt_run(pao, qs_env, ls_scf_env)
 
     CALL timestop(handle)
   END SUBROUTINE pao_init
@@ -203,11 +210,10 @@ CONTAINS
     ls_mstruct => ls_scf_env%ls_mstruct
 
     pao%istep = pao%istep + 1
-    IF(pao%iw>0) WRITE(pao%iw,"(A,I9,A)") " PAO| ========================== STEP: ",&
-                               pao%istep, " ==============================="
+    CALL pao_print_step_delimiter(pao)
 
     IF(pao%istep==1) THEN
-       ! TODO: use ASPC if run as MD
+       !TODO: use ASPC if run as MD
        CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init)
        IF(pao%iw>0) WRITE(pao%iw,'(A,F20.9)') " PAO| Energy from initial atomic guess:",ls_scf_env%energy_init
     ELSE
@@ -270,13 +276,11 @@ CONTAINS
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
 
     CALL get_qs_env(qs_env,&
                     matrix_s=matrix_s,&
-                    para_env=para_env,&
                     natom=natoms)
 
     CALL cp_dbcsr_init(pao%matrix_N)
@@ -389,7 +393,7 @@ CONTAINS
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: beta
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_dbcsr_type)                      :: matrix_M
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_energy_type), POINTER            :: energy
@@ -402,27 +406,27 @@ CONTAINS
     CALL timeset(routineN,handle)
     ls_mstruct => ls_scf_env%ls_mstruct
     pao => ls_scf_env%pao_env
+    CALL get_qs_env(qs_env, energy=energy)
+    pao_is_done = .FALSE.
 
     IF(pao%istep >= pao%max_pao) THEN
-        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| not converged!"
+        CALL pao_print_oneliner(pao, ls_scf_env, energy%total, "SCF")
+        CPWARN("PAO not converged!")
         pao_is_done = .TRUE.
     ELSE
-       CALL get_qs_env(qs_env,&
-                       energy=energy,&
-                       dft_control=dft_control)
 
-       !printing the previous step length (if any), which let to the current energy.
-       IF(pao%line_search_step>0.0_dp .AND. pao%iw>0)&
-          WRITE(pao%iw,*) "PAO| linesearch: ", pao%line_search_start, pao%line_search_step, energy%total
-
-       pao_is_done = .FALSE.
-       IF(pao%line_search_start) THEN
+       IF(pao%linesearch%starts) THEN
           ! store prim. matrix_P before linesearch starts to wander off
           CALL pao_store_P(qs_env, ls_scf_env)
-
           CALL pao_write_restart(pao, qs_env)
 
-          CALL pao_calc_grad(qs_env, ls_scf_env)
+          ! calc new gradient
+          CALL pao_calc_outer_grad_orig(qs_env, ls_scf_env, matrix_M)
+          CALL pao_calc_grad(pao, matrix_M)
+          CALL cp_dbcsr_release(matrix_M)
+
+          ! print info
+          CALL pao_print_oneliner(pao, ls_scf_env, energy%total, "SCF")
 
           ! determine CG mixing factor
           CALL pao_calc_CG_beta(pao, beta)
@@ -436,155 +440,22 @@ CONTAINS
           !backup X
           CALL cp_dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
 
-          CALL pao_test_convegence(pao, ls_scf_env, energy%total, pao_is_done)
+          CALL pao_test_convegence(pao, ls_scf_env, pao%eps_pao, energy%total, pao_is_done)
        ENDIF
 
        IF(.NOT.pao_is_done) THEN
           CALL linesearch_step(pao%linesearch,&
                                energy=energy%total,&
-                               slope=cp_dbcsr_frobenius_norm(pao%matrix_G),&
-                               step_size=pao%line_search_step,&
-                               is_done=pao%line_search_start)
+                               slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
 
           CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
-          CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%line_search_step)
-
+          CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
           CALL pao_update_AB(pao, ls_mstruct)
        ENDIF
     ENDIF
 
     CALL timestop(handle)
   END SUBROUTINE pao_update
-
-
-! *****************************************************************************
-!> \brief Test whether the PAO optimization has reached convergence
-!> \param pao ...
-!> \param ls_scf_env ...
-!> \param new_energy ...
-!> \param is_converged ...
-! *****************************************************************************
-  SUBROUTINE pao_test_convegence(pao, ls_scf_env, new_energy, is_converged)
-    TYPE(pao_env_type), POINTER              :: pao
-    TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
-    REAL(KIND=dp)                            :: new_energy
-    LOGICAL, INTENT(OUT)                     :: is_converged
-
-    REAL(KIND=dp)                            :: energy_diff, loop_eps, norm_G
-
-     is_converged = .FALSE.
-
-     ! print energy improvement
-     energy_diff = new_energy - pao%energy_prev
-     pao%energy_prev = new_energy
-     norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G) ! calc norm before CG mixing
-     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", new_energy
-     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| gradient norm:", norm_G
-
-     IF(pao%istep>1) THEN
-        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
-        IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
-
-        !blk_sizes => cp_dbcsr_col_block_sizes(pao%matrix_G)
-        !loop_eps = norm_G/SUM(blk_sizes**2)
-        loop_eps = ABS(energy_diff) / ls_scf_env%nelectron_total
-        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| loop_eps:", loop_eps
-
-        IF(loop_eps < pao%eps_pao) THEN
-          IF(pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
-          is_converged = .TRUE.
-        ENDIF
-     ENDIF
-  END SUBROUTINE pao_test_convegence
-
-! *****************************************************************************
-!> \brief Conjugate gradient algorithm
-!> \param pao ...
-!> \param beta ...
-! *****************************************************************************
-  SUBROUTINE pao_calc_CG_beta(pao, beta)
-    TYPE(pao_env_type), POINTER              :: pao
-    REAL(KIND=dp), INTENT(OUT)               :: beta
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_CG_beta', &
-      routineP = moduleN//':'//routineN
-
-    REAL(KIND=dp)                            :: trace_G_mix, trace_G_new, &
-                                                trace_G_prev
-
-    beta = 0.0_dp !default
-
-    IF(pao%istep > pao%cg_init_steps) THEN
-       CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G, trace_G_new)
-       CALL cp_dbcsr_trace(pao%matrix_G_prev, pao%matrix_G_prev, trace_G_prev)
-       CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G_prev, trace_G_mix)
-       IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_G_new ", trace_G_new
-       IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_G_prev ", trace_G_prev
-       IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_G_mix ", trace_G_mix
-
-       IF(trace_G_prev/=0.0_dp) THEN
-          beta = (trace_G_new - trace_G_mix) / trace_G_prev  !Polak–Ribiere
-       ENDIF
-
-       IF(beta < 0.0_dp) THEN
-          IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| resetting because beta < 0"
-          beta = 0.0_dp
-       ENDIF
-
-       IF(pao%max_outer_pao>0 .AND. pao%istep-pao%last_reset > pao%max_outer_pao) THEN
-          IF(pao%iw>0) WRITE(pao%iw,*) "PAO|CG| resetting because of MAX_OUTER_PAO"
-          pao%last_reset = pao%istep
-          beta = 0.0_dp
-       ENDIF
-    ENDIF
-
-    IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| beta: ", beta
-
-  END SUBROUTINE pao_calc_CG_beta
-
-
-! *****************************************************************************
-!> \brief Takes current matrix_X and recalculates derived matrices U, A, and B.
-!> \param pao ...
-!> \param ls_mstruct ...
-! *****************************************************************************
-  SUBROUTINE pao_update_AB(pao, ls_mstruct)
-    TYPE(pao_env_type), POINTER              :: pao
-    TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_update_AB', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle
-    TYPE(cp_dbcsr_type)                      :: matrix_tmp
-
-    CALL timeset(routineN,handle)
-
-    CALL pao_calc_U(pao) !update matrix_U = Function of matrix_X
-
-    !update matrix_A
-    CALL cp_dbcsr_init(matrix_tmp)
-    CALL cp_dbcsr_create(matrix_tmp, template=pao%matrix_U)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N_inv, pao%matrix_U, 0.0_dp,&
-                           matrix_tmp)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, pao%matrix_Y,&
-                           0.0_dp, ls_mstruct%matrix_A)
-
-    ! update matrix_B
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, pao%matrix_U, 0.0_dp,&
-                           matrix_tmp)
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp, pao%matrix_Y,&
-                           0.0_dp, ls_mstruct%matrix_B)
-
-    CALL cp_dbcsr_release(matrix_tmp)
-
-    !CALL cp_dbcsr_print(pao%matrix_U, matlab_format=.TRUE.,unit_nr=6)
-    !CALL cp_dbcsr_print(pao%matrix_N_inv, matlab_format=.TRUE.,unit_nr=6)
-    !CALL cp_dbcsr_print(pao%matrix_Y, matlab_format=.TRUE.,unit_nr=6)
-    !CALL cp_dbcsr_print(ls_mstruct%matrix_A, matlab_format=.TRUE.,unit_nr=6)
-
-    CALL timestop(handle)
-  END SUBROUTINE pao_update_AB
 
 
 ! *****************************************************************************
@@ -700,5 +571,101 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE pao_build_selector
+
+
+! *****************************************************************************
+!> \brief Helper routine, calculates partial derivative dE/dU
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param matrix_M ...
+! *****************************************************************************
+   SUBROUTINE pao_calc_outer_grad_orig(qs_env,ls_scf_env,matrix_M)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
+    TYPE(cp_dbcsr_type)                      :: matrix_M
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_outer_grad_orig', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, nspin
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HBP, matrix_HP, matrix_M_pre, &
+      matrix_PHP, matrix_SB, matrix_SBPHP, matrix_tmp
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
+    TYPE(pao_env_type), POINTER              :: pao
+
+    CALL timeset(routineN,handle)
+
+    ls_mstruct => ls_scf_env%ls_mstruct
+    pao => ls_scf_env%pao_env
+
+    CALL get_qs_env(qs_env,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    dft_control=dft_control)
+    nspin = dft_control%nspins
+
+    !TODO: handle openshell case properly
+    IF(nspin /= 1) CPABORT("open shell not yet implemented")
+
+    CALL cp_dbcsr_init(matrix_HB)
+    CALL cp_dbcsr_create(matrix_HB, template=ls_mstruct%matrix_B, matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_ks(1)%matrix, ls_mstruct%matrix_B,&
+                           0.0_dp, matrix_HB)
+
+    CALL cp_dbcsr_init(matrix_HBP)
+    CALL cp_dbcsr_create(matrix_HBP, template=ls_mstruct%matrix_B, matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_HB, ls_scf_env%matrix_p(1),&
+                           0.0_dp, matrix_HBP)
+
+    CALL cp_dbcsr_init(matrix_HP)
+    CALL cp_dbcsr_create(matrix_HP, template=ls_scf_env%matrix_p(1), matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_ks(1), ls_scf_env%matrix_p(1),&
+                          0.0_dp, matrix_HP)
+
+    CALL cp_dbcsr_init(matrix_PHP)
+    CALL cp_dbcsr_create(matrix_PHP, template=ls_scf_env%matrix_p(1), matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), matrix_HP,&
+                           0.0_dp, matrix_PHP)
+
+    CALL cp_dbcsr_init(matrix_SB)
+    CALL cp_dbcsr_create(matrix_SB, template=ls_mstruct%matrix_B, matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s(1)%matrix, ls_mstruct%matrix_B,&
+                           0.0_dp, matrix_SB)
+
+    CALL cp_dbcsr_init(matrix_SBPHP)
+    CALL cp_dbcsr_create(matrix_SBPHP, template=ls_mstruct%matrix_B, matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_SB, matrix_PHP,&
+                           0.0_dp, matrix_SBPHP)
+
+    IF(SIZE(ls_scf_env%matrix_p)==1) CALL cp_dbcsr_scale(matrix_SBPHP, 0.5_dp)
+
+    CALL cp_dbcsr_init(matrix_M_pre)
+    CALL cp_dbcsr_copy(matrix_M_pre, matrix_HBP)
+    CALL cp_dbcsr_add(matrix_M_pre, matrix_SBPHP, 2.0_dp, -2.0_dp)
+
+    CALL cp_dbcsr_init(matrix_tmp)
+    CALL cp_dbcsr_create(matrix_tmp, template=matrix_M_pre, matrix_type="N")
+    CALL cp_dbcsr_multiply("T", "N", 1.0_dp, pao%matrix_N, matrix_M_pre,&
+                           0.0_dp, matrix_tmp)
+
+    CALL cp_dbcsr_init(matrix_M)
+    CALL cp_dbcsr_create(matrix_M, template=matrix_s(1)%matrix, matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_tmp, pao%matrix_Y,&
+                           0.0_dp, matrix_M)
+
+    CALL cp_dbcsr_release(matrix_HB)
+    CALL cp_dbcsr_release(matrix_HBP)
+    CALL cp_dbcsr_release(matrix_HP)
+    CALL cp_dbcsr_release(matrix_PHP)
+    CALL cp_dbcsr_release(matrix_SB)
+    CALL cp_dbcsr_release(matrix_SBPHP)
+    CALL cp_dbcsr_release(matrix_M_pre)
+    CALL cp_dbcsr_release(matrix_tmp)
+
+    CALL timestop(handle)
+  END SUBROUTINE pao_calc_outer_grad_orig
 
 END MODULE pao_main
