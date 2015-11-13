@@ -21,12 +21,12 @@ MODULE dm_ls_scf
                                              cite_reference
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_add_on_diag, cp_dbcsr_arnoldi_extremal, &
-       cp_dbcsr_binary_read, cp_dbcsr_binary_write, cp_dbcsr_checksum, &
-       cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_filter, cp_dbcsr_frobenius_norm, cp_dbcsr_get_occupation, &
-       cp_dbcsr_init, cp_dbcsr_multiply, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
+       cp_dbcsr_add, cp_dbcsr_arnoldi_extremal, cp_dbcsr_binary_read, &
+       cp_dbcsr_binary_write, cp_dbcsr_checksum, cp_dbcsr_copy, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_filter, &
+       cp_dbcsr_get_occupation, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_external_control,             ONLY: external_control
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
@@ -37,11 +37,11 @@ MODULE dm_ls_scf
                                              dm_ls_curvy_optimization
   USE dm_ls_scf_methods,               ONLY: apply_matrix_preconditioner,&
                                              compute_homo_lumo,&
-                                             compute_matrix_preconditioner,&
                                              density_matrix_sign,&
                                              density_matrix_sign_fixed_mu,&
                                              density_matrix_tc2,&
-                                             density_matrix_trs4
+                                             density_matrix_trs4,&
+                                             ls_scf_init_matrix_S
   USE dm_ls_scf_qs,                    ONLY: ls_scf_dm_to_ks,&
                                              ls_scf_init_qs,&
                                              ls_scf_qs_atomic_guess,&
@@ -68,9 +68,7 @@ MODULE dm_ls_scf
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE iterate_matrix,                  ONLY: invert_Hotelling,&
-                                             matrix_sqrt_newton_schulz,&
-                                             purify_mcweeny
+  USE iterate_matrix,                  ONLY: purify_mcweeny
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -578,140 +576,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE ls_scf_store_result
-
-! *****************************************************************************
-!> \brief initialize S matrix related properties (sqrt, inverse...)
-!>        Might be factored-out since this seems common code with the other SCF.
-!> \param matrix_s ...
-!> \param ls_scf_env ...
-!> \par History
-!>       2010.10 created [Joost VandeVondele]
-!> \author Joost VandeVondele
-! *****************************************************************************
-  SUBROUTINE ls_scf_init_matrix_S(matrix_s,ls_scf_env)
-    TYPE(cp_dbcsr_type)                      :: matrix_s
-    TYPE(ls_scf_env_type)                    :: ls_scf_env
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_init_matrix_S', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, unit_nr
-    REAL(KIND=dp)                            :: frob_matrix, frob_matrix_base
-    TYPE(cp_dbcsr_type)                      :: matrix_tmp1, matrix_tmp2
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,handle)
-
-    ! get a useful output_unit
-    logger => cp_get_default_logger()
-    IF (logger%para_env%mepos==logger%para_env%source) THEN
-       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
-    ELSE
-       unit_nr=-1
-    ENDIF
-
-    ! make our own copy of S
-    IF (ls_scf_env%has_unit_metric) THEN
-       CALL cp_dbcsr_set(ls_scf_env%matrix_s,0.0_dp)
-       CALL cp_dbcsr_add_on_diag(ls_scf_env%matrix_s,1.0_dp)
-    ELSE
-       CALL matrix_qs_to_ls(ls_scf_env%matrix_s,matrix_s,ls_scf_env%ls_mstruct,covariant=.TRUE.)
-    ENDIF
-
-    CALL cp_dbcsr_filter(ls_scf_env%matrix_s,ls_scf_env%eps_filter)
-
-    ! needs a preconditioner for S
-    IF (ls_scf_env%has_s_preconditioner) THEN
-       CALL cp_dbcsr_init(ls_scf_env%matrix_bs_sqrt)
-       CALL cp_dbcsr_create(ls_scf_env%matrix_bs_sqrt,template=ls_scf_env%matrix_s,&
-                            matrix_type=dbcsr_type_no_symmetry)
-       CALL cp_dbcsr_init(ls_scf_env%matrix_bs_sqrt_inv)
-       CALL cp_dbcsr_create(ls_scf_env%matrix_bs_sqrt_inv,template=ls_scf_env%matrix_s,&
-                            matrix_type=dbcsr_type_no_symmetry)
-       CALL compute_matrix_preconditioner(ls_scf_env%matrix_s,&
-                            ls_scf_env%s_preconditioner_type, ls_scf_env%ls_mstruct, &
-                            ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv,&
-                            ls_scf_env%eps_filter,ls_scf_env%sign_sqrt_order,&
-                            ls_scf_env%eps_lanczos,ls_scf_env%max_iter_lanczos)
-    ENDIF
-
-    ! precondition S
-    IF (ls_scf_env%has_s_preconditioner) THEN
-       CALL apply_matrix_preconditioner(ls_scf_env%matrix_s,"forward", &
-                            ls_scf_env%matrix_bs_sqrt,ls_scf_env%matrix_bs_sqrt_inv)
-    ENDIF
-
-    ! compute sqrt(S) and inv(sqrt(S))
-    IF (ls_scf_env%use_s_sqrt) THEN
-        CALL cp_dbcsr_init(ls_scf_env%matrix_s_sqrt)
-        CALL cp_dbcsr_init(ls_scf_env%matrix_s_sqrt_inv)
-        CALL cp_dbcsr_create(ls_scf_env%matrix_s_sqrt,template=ls_scf_env%matrix_s,&
-                             matrix_type=dbcsr_type_no_symmetry)
-        CALL cp_dbcsr_create(ls_scf_env%matrix_s_sqrt_inv,template=ls_scf_env%matrix_s,&
-                             matrix_type=dbcsr_type_no_symmetry)
-
-
-        CALL matrix_sqrt_Newton_Schulz(ls_scf_env%matrix_s_sqrt,ls_scf_env%matrix_s_sqrt_inv,&
-                                       ls_scf_env%matrix_s,ls_scf_env%eps_filter,&
-                                       ls_scf_env%sign_sqrt_order, &
-                                       ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
-
-        IF (.TRUE.) THEN
-           CALL cp_dbcsr_init(matrix_tmp1)
-           CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
-                                matrix_type=dbcsr_type_no_symmetry)
-           CALL cp_dbcsr_init(matrix_tmp2)
-           CALL cp_dbcsr_create(matrix_tmp2,template=ls_scf_env%matrix_s,&
-                                matrix_type=dbcsr_type_no_symmetry)
-
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s,&
-                                        0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
-
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_tmp1, ls_scf_env%matrix_s_sqrt_inv, &
-                                        0.0_dp, matrix_tmp2, filter_eps=ls_scf_env%eps_filter)
-
-           frob_matrix_base=cp_dbcsr_frobenius_norm(matrix_tmp2)
-           CALL cp_dbcsr_add_on_diag(matrix_tmp2,-1.0_dp)
-           frob_matrix=cp_dbcsr_frobenius_norm(matrix_tmp2)
-           IF (unit_nr>0) THEN
-              WRITE(unit_nr,*) "Error for (inv(sqrt(S))*S*inv(sqrt(S))-I)",frob_matrix/frob_matrix_base
-           ENDIF
-
-           CALL cp_dbcsr_release(matrix_tmp1)
-           CALL cp_dbcsr_release(matrix_tmp2)
-        ENDIF
-    ENDIF
-
-    ! compute the inverse of S
-    IF (ls_scf_env%needs_s_inv) THEN
-        CALL cp_dbcsr_init(ls_scf_env%matrix_s_inv)
-        CALL cp_dbcsr_create(ls_scf_env%matrix_s_inv,template=ls_scf_env%matrix_s,&
-                             matrix_type=dbcsr_type_no_symmetry)
-        IF (.NOT.ls_scf_env%use_s_sqrt) THEN
-           CALL invert_Hotelling(ls_scf_env%matrix_s_inv,ls_scf_env%matrix_s,ls_scf_env%eps_filter)
-        ELSE
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s_sqrt_inv, &
-                                        0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter)
-        ENDIF
-        IF (.TRUE.) THEN
-           CALL cp_dbcsr_init(matrix_tmp1)
-           CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
-                                matrix_type=dbcsr_type_no_symmetry)
-           CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_inv, ls_scf_env%matrix_s,&
-                                        0.0_dp, matrix_tmp1, filter_eps=ls_scf_env%eps_filter)
-           frob_matrix_base=cp_dbcsr_frobenius_norm(matrix_tmp1)
-           CALL cp_dbcsr_add_on_diag(matrix_tmp1,-1.0_dp)
-           frob_matrix=cp_dbcsr_frobenius_norm(matrix_tmp1)
-           IF (unit_nr>0) THEN
-              WRITE(unit_nr,*) "Error for (inv(S)*S-I)",frob_matrix/frob_matrix_base
-           ENDIF
-           CALL cp_dbcsr_release(matrix_tmp1)
-        ENDIF
-    ENDIF
-
-    CALL timestop(handle)
-
-  END SUBROUTINE ls_scf_init_matrix_s
 
 ! *****************************************************************************
 !> \brief parse the input section, no need to pass it around
