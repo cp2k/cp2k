@@ -2181,9 +2181,9 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, j, l, &
-      n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, nr, output_unit, &
-      print_level, unit_nr
+    INTEGER :: after, boundary_condition, handle, i, iat, id, ikind, img, &
+      iso, ispin, iw, j, l, n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, &
+      nr, output_unit, print_level, unit_nr
     LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
       do_dirichlet_bc_cube, do_kpoints, has_dirichlet_bc, has_implicit_ps, &
       omit_headers, print_it, print_total_density, rho_r_valid, tile_cubes, &
@@ -2728,8 +2728,8 @@ CONTAINS
 
     has_dirichlet_bc = .FALSE.
     IF (has_implicit_ps) THEN
-       IF ((pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_PERIODIC_BC) .OR. &
-           (pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_BC)) THEN
+       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+       IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
           has_dirichlet_bc = .TRUE.
        END IF
     END IF
@@ -2745,7 +2745,8 @@ CONTAINS
        CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
        CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
 
-       SELECT CASE (pw_env%poisson_env%implicit_env%params%boundary_condition)
+       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+       SELECT CASE (boundary_condition)
        CASE (MIXED_PERIODIC_BC)
           CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r%pw)
        CASE (MIXED_BC)
@@ -2771,8 +2772,8 @@ CONTAINS
                                "DFT%PRINT%DIRICHLET_BC_CUBE"),cp_p_file)
     has_dirichlet_bc = .FALSE.
     IF (has_implicit_ps) THEN
-       IF ((pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_PERIODIC_BC) .OR. &
-           (pw_env%poisson_env%implicit_env%params%boundary_condition .EQ. MIXED_BC)) THEN
+       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+       IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
           has_dirichlet_bc = .TRUE.
        END IF
     END IF

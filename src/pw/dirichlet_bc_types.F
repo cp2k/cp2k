@@ -26,6 +26,7 @@ MODULE dirichlet_bc_types
 ! main types
   TYPE :: dirichlet_bc_parameters
      LOGICAL                                  :: verbose_output
+     LOGICAL                                  :: do_dbc_cube = .FALSE.
 
      INTEGER                                  :: n_aa_planar
      INTEGER, DIMENSION(:,:), POINTER         :: aa_planar_nprtn => NULL()
@@ -99,8 +100,10 @@ MODULE dirichlet_bc_types
   PUBLIC dirichlet_bc_type, dirichlet_bc_p_type, tile_type, tile_p_type
   PUBLIC dirichlet_bc_parameters
 
-  PUBLIC dirichlet_boundary_region_release,&
-         dirichlet_bc_parameters_dealloc
+  PUBLIC dbc_release, &
+         dbc_tile_release, &
+         dbc_parameters_dealloc
+
 
 ! parameters
   INTEGER, PARAMETER, PUBLIC           :: AA_PLANAR   = 10, &
@@ -120,50 +123,37 @@ CONTAINS
 ! *****************************************************************************
 !> \brief   releases the defined Dirichlet boundary region 
 !> \param contacts the DBC region to be released  
+!> \param do_dbc_cube ...
 !> \param pw_pool pool of the plane wave grid
 !> \par History
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dirichlet_boundary_region_release(contacts, pw_pool)
+  SUBROUTINE dbc_release(contacts, do_dbc_cube, pw_pool)
 
     TYPE(dirichlet_bc_p_type), &
       DIMENSION(:), INTENT(INOUT), POINTER   :: contacts
+    LOGICAL, INTENT(IN)                      :: do_dbc_cube
     TYPE(pw_pool_type), INTENT(IN), &
       OPTIONAL, POINTER                      :: pw_pool
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'dirichlet_boundary_region_release', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbc_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, k, n_contacts, &
-                                                n_tiles
+    INTEGER                                  :: handle, i, n_contacts
 
     CALL timeset(routineN,handle)
 
     n_contacts = SIZE(contacts)
 
     IF (ASSOCIATED(contacts)) THEN
-       IF (PRESENT(pw_pool)) THEN
+       IF (do_dbc_cube) THEN
           DO i = 1, n_contacts
-             n_tiles = contacts(i)%dirichlet_bc%n_tiles
-             DO k = 1, n_tiles
-                CALL pw_pool_give_back_pw(pw_pool, contacts(i)%dirichlet_bc%tiles(k)%tile%tile_pw)
-                DEALLOCATE(contacts(i)%dirichlet_bc%tiles(k)%tile)
-             END DO
-             DEALLOCATE(contacts(i)%dirichlet_bc%tiles)
-
+             CALL dbc_tile_release(contacts(i)%dirichlet_bc, pw_pool)
              DEALLOCATE(contacts(i)%dirichlet_bc)
           END DO
        ELSE 
           DO i = 1, n_contacts
-             n_tiles = contacts(i)%dirichlet_bc%n_tiles
-             DO k = 1, n_tiles
-                CALL pw_release(contacts(i)%dirichlet_bc%tiles(k)%tile%tile_pw)
-                DEALLOCATE(contacts(i)%dirichlet_bc%tiles(k)%tile)
-             END DO
-             DEALLOCATE(contacts(i)%dirichlet_bc%tiles)
-
              DEALLOCATE(contacts(i)%dirichlet_bc)
           END DO
        END IF
@@ -172,7 +162,48 @@ CONTAINS
 
     CALL timestop(handle)
 
-  END SUBROUTINE dirichlet_boundary_region_release
+  END SUBROUTINE dbc_release
+
+! *****************************************************************************
+!> \brief   releases tiles
+!> \param dbc ...
+!> \param pw_pool pool of the plane wave grid
+!> \par History
+!>       11.2015 created [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE dbc_tile_release(dbc, pw_pool)
+
+    TYPE(dirichlet_bc_type), INTENT(INOUT), &
+      POINTER                                :: dbc
+    TYPE(pw_pool_type), INTENT(IN), &
+      OPTIONAL, POINTER                      :: pw_pool
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbc_tile_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, k, n_tiles
+
+    CALL timeset(routineN,handle)
+
+    n_tiles = dbc%n_tiles
+    IF (PRESENT(pw_pool)) THEN
+       DO k = 1, n_tiles
+          CALL pw_pool_give_back_pw(pw_pool, dbc%tiles(k)%tile%tile_pw)
+          DEALLOCATE(dbc%tiles(k)%tile)
+       END DO
+       DEALLOCATE(dbc%tiles)
+    ELSE 
+       DO k = 1, n_tiles
+          CALL pw_release(dbc%tiles(k)%tile%tile_pw)
+          DEALLOCATE(dbc%tiles(k)%tile)
+       END DO
+       DEALLOCATE(dbc%tiles)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE dbc_tile_release
 
 ! *****************************************************************************
 !> \brief   deallocates dirichlet_bc_parameters type
@@ -181,13 +212,12 @@ CONTAINS
 !>       08.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dirichlet_bc_parameters_dealloc(dbc_params)
+  SUBROUTINE dbc_parameters_dealloc(dbc_params)
 
     TYPE(dirichlet_bc_parameters), &
       INTENT(INOUT)                          :: dbc_params
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'dirichlet_bc_parameters_dealloc', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'dbc_parameters_dealloc', &
       routineP = moduleN//':'//routineN
 
     IF (ASSOCIATED(dbc_params%aa_planar_nprtn))  DEALLOCATE(dbc_params%aa_planar_nprtn)
@@ -226,6 +256,6 @@ CONTAINS
     IF (ASSOCIATED(dbc_params%aa_cuboidal_vD))    DEALLOCATE(dbc_params%aa_cuboidal_vD)
     IF (ASSOCIATED(dbc_params%aa_cuboidal_sigma)) DEALLOCATE(dbc_params%aa_cuboidal_sigma)
 
-  END SUBROUTINE dirichlet_bc_parameters_dealloc
+  END SUBROUTINE dbc_parameters_dealloc
 
 END MODULE dirichlet_bc_types

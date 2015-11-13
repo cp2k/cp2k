@@ -512,9 +512,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
                           dct_pw_grid=dct_pw_grid, use_level=pw_env%auxbas_grid)
   END IF
 
+  IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_PERIODIC_BC) .OR. &
+      (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC)) THEN
+     pw_env%poisson_env%parameters%dbc_params%do_dbc_cube = &
+        BTEST(cp_print_key_should_output(logger%iter_info,input,"DFT%PRINT%DIRICHLET_BC_CUBE"),cp_p_file)
+  END IF
   ! setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT) 
-  IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
-      (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
+  IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC) .OR. &
+      (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC)) THEN
      CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
                           my_cell%hmat, pw_env%poisson_env%dct_pw_grid)
   END IF
@@ -695,7 +700,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
     END DO
   END IF
   CALL cp_print_key_finished_output(iounit,logger,print_section,"")
-
 
   CALL timestop(handle)
 

@@ -13,12 +13,10 @@
 MODULE ps_implicit_types
 
   USE dct,                             ONLY: dct_type
-  USE dielectric_types,                ONLY: dielectric_parameters,&
-                                             dielectric_release,&
+  USE dielectric_types,                ONLY: dielectric_release,&
                                              dielectric_type
-  USE dirichlet_bc_types,              ONLY: dirichlet_bc_p_type,&
-                                             dirichlet_bc_parameters,&
-                                             dirichlet_boundary_region_release
+  USE dirichlet_bc_types,              ONLY: dbc_release,&
+                                             dirichlet_bc_p_type
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_give_back_pw,&
                                              pw_pool_type
@@ -36,14 +34,12 @@ MODULE ps_implicit_types
      INTEGER                           :: max_iter
      REAL(KIND=dp)                     :: tol
      REAL(KIND=dp)                     :: omega
-     TYPE(dielectric_parameters)       :: dielectric_params
-     TYPE(dirichlet_bc_parameters)     :: dbc_params
   END TYPE ps_implicit_parameters
 
   TYPE :: ps_implicit_type
-     TYPE(ps_implicit_parameters)      :: params
+     LOGICAL                           :: do_dbc_cube
      TYPE(dielectric_type), POINTER    :: dielectric
-     TYPE (dct_type)                   :: dct_env
+     TYPE(dct_type)                    :: dct_env
      TYPE(pw_type), POINTER            :: initial_guess  
      TYPE(pw_type), POINTER            :: v_eps 
      TYPE(pw_type), POINTER            :: cstr_charge
@@ -87,13 +83,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: can_give_back
+    LOGICAL                                  :: can_give_back, do_dbc_cube
 
     CALL timeset(routineN,handle)
 
     IF (ASSOCIATED(implicit_env)) THEN
        can_give_back = PRESENT(pw_pool)
        IF (can_give_back) can_give_back = ASSOCIATED(pw_pool)
+       do_dbc_cube = implicit_env%do_dbc_cube 
+
        IF (can_give_back) THEN
           CALL pw_pool_give_back_pw(pw_pool, implicit_env%initial_guess, &
                                     accept_non_compatible=.TRUE.)
@@ -101,13 +99,12 @@ CONTAINS
                                     accept_non_compatible=.TRUE.)
           CALL pw_pool_give_back_pw(pw_pool, implicit_env%cstr_charge, &
                                     accept_non_compatible=.TRUE.)
-          CALL dirichlet_boundary_region_release(implicit_env%contacts, &
-                                                 pw_pool=pw_pool)
+          CALL dbc_release(implicit_env%contacts, do_dbc_cube, pw_pool=pw_pool)
        ELSE
           CALL pw_release(implicit_env%initial_guess)
           CALL pw_release(implicit_env%v_eps)
           CALL pw_release(implicit_env%cstr_charge)
-          CALL dirichlet_boundary_region_release(implicit_env%contacts)
+          CALL dbc_release(implicit_env%contacts, do_dbc_cube)
        END IF
 
        DEALLOCATE(implicit_env%initial_lambda)

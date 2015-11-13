@@ -1404,9 +1404,12 @@ CONTAINS
 
     ! dirichlet type constraints
     CALL cp_print_key_section_create(print_key,"dirichlet_bc_cube",&
-         description="Controls the printing of cube files with Dirichlet type (boundary) regions "//&
-         "defined in the implicit Poisson solver section. Note that the generated cube files are "//&
-         "meant to be used only for visualization purposes and the values have no physical meaning.", &
+         description="Controls the printing of cube files with unit step functions (constraints) "//&
+         "representing Dirichlet-type (boundary) regions defined in the implicit (generalized) Poisson "//&
+         "solver section. The regions remain unchanged throughout the calculations. If the Dirichlet "//&
+         " regions are relatively large and/or the number of partitions is quite high, in order to save memory,"//&
+         " generate the cube files in early steps and perform the rest of the calculations with this keyword"//&
+         " switched off.", &
          print_level=high_print_level,filename="")
 
     CALL keyword_create(keyword, name="TILE_CUBES",&

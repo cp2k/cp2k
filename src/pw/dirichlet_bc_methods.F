@@ -17,8 +17,8 @@ MODULE dirichlet_bc_methods
                                              cp_logger_type
   USE dirichlet_bc_types,              ONLY: &
        AA_CUBOIDAL, AA_PLANAR, CIRCUMSCRIBED, CYLINDRICAL, INSCRIBED, PLANAR, &
-       dirichlet_bc_p_type, dirichlet_bc_parameters_dealloc, &
-       dirichlet_bc_type, tile_p_type, xy_plane, xz_plane, yz_plane
+       dbc_parameters_dealloc, dirichlet_bc_p_type, dirichlet_bc_type, &
+       tile_p_type, xy_plane, xz_plane, yz_plane
   USE erf_fn,                          ONLY: erf
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi,&
@@ -239,7 +239,7 @@ CONTAINS
     END SELECT
 
 ! we won't need parameters anymore so deallocate them 
-    CALL dirichlet_bc_parameters_dealloc(poisson_params%dbc_params)
+    CALL dbc_parameters_dealloc(poisson_params%dbc_params)
 
     CALL timestop(handle)
 

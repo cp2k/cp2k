@@ -23,6 +23,7 @@ MODULE ps_implicit_methods
   USE dielectric_methods,              ONLY: dielectric_create
   USE dielectric_types,                ONLY: dielectric_type
   USE dirichlet_bc_methods,            ONLY: dirichlet_boundary_region_setup
+  USE dirichlet_bc_types,              ONLY: dbc_tile_release
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -101,24 +102,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: boundary_condition, handle, &
+                                                j, n_contacts
     TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
 
     CALL timeset(routineN,handle)
 
     IF (.NOT. ASSOCIATED(ps_implicit_env)) THEN
        ALLOCATE(ps_implicit_env)
-! get a copy of poisson_params%ps_implicit_params
-       ps_implicit_env%params%boundary_condition = poisson_params%ps_implicit_params%boundary_condition
-       ps_implicit_env%params%zero_initial_guess = poisson_params%ps_implicit_params%zero_initial_guess
-       ps_implicit_env%params%max_iter = poisson_params%ps_implicit_params%max_iter
-       ps_implicit_env%params%tol = poisson_params%ps_implicit_params%tol
-       ps_implicit_env%params%omega = poisson_params%ps_implicit_params%omega
-       ps_implicit_env%params%dielectric_params = poisson_params%dielectric_params
-       ps_implicit_env%params%dbc_params = poisson_params%dbc_params
+
+       ps_implicit_env%do_dbc_cube = poisson_params%dbc_params%do_dbc_cube
+       boundary_condition = poisson_params%ps_implicit_params%boundary_condition
+
 ! create dielectric
        NULLIFY(ps_implicit_env%dielectric)
-       SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
+       SELECT CASE (boundary_condition)
        CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
           CALL dielectric_create(ps_implicit_env%dielectric, pw_pool, poisson_params%dielectric_params)
        CASE (NEUMANN_BC, MIXED_BC)
@@ -126,15 +124,18 @@ CONTAINS
           CALL dielectric_create(ps_implicit_env%dielectric, pw_pool_xpndd, poisson_params%dielectric_params)
           CALL pw_pool_release(pw_pool_xpndd)
        END SELECT
+
 ! initial guess
        NULLIFY(ps_implicit_env%initial_guess)
+
 ! v_eps
        NULLIFY(ps_implicit_env%v_eps)
        CALL pw_pool_create_pw(pw_pool, ps_implicit_env%v_eps, use_data=REALDATA3D, in_space=REALSPACE)
        CALL pw_zero(ps_implicit_env%v_eps)
+
 ! constraint charge
        NULLIFY(ps_implicit_env%cstr_charge)
-       SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
+       SELECT CASE (boundary_condition)
        CASE (MIXED_PERIODIC_BC)
           CALL pw_pool_create_pw(pw_pool, ps_implicit_env%cstr_charge, use_data=REALDATA3D, in_space=REALSPACE)
           CALL pw_zero(ps_implicit_env%cstr_charge)
@@ -144,19 +145,29 @@ CONTAINS
           CALL pw_zero(ps_implicit_env%cstr_charge)
           CALL pw_pool_release(pw_pool_xpndd)
        END SELECT
+
 ! initialize energies 
        ps_implicit_env%ehartree = 0.0_dp
        ps_implicit_env%electric_enthalpy = 0.0_dp
-
+! times called
        ps_implicit_env%times_called = 0
+
 ! dct env
-       IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC) .OR. &
-           (poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC)) THEN
+       IF (boundary_condition .EQ. MIXED_BC .OR. boundary_condition .EQ. NEUMANN_BC) THEN
           CALL dct_type_init(pw_pool%pw_grid, ps_implicit_env%dct_env)
        END IF
+
 ! prepare dirichlet bc
        CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%contacts)
        CALL ps_implicit_prepare_blocks(pw_pool, dct_pw_grid, green, poisson_params, ps_implicit_env)
+       ! release tiles if they are not supposed to be written into cube files
+       IF ((boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) .AND. &
+           (.NOT. poisson_params%dbc_params%do_dbc_cube)) THEN
+          n_contacts = SIZE(ps_implicit_env%contacts)
+          DO j = 1 , n_contacts
+             CALL dbc_tile_release(ps_implicit_env%contacts(j)%dirichlet_bc, pw_pool)
+          END DO
+       END IF
 
     END IF
 
