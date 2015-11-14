@@ -351,7 +351,7 @@ CONTAINS
     INTEGER                                  :: acol, arow, group, handle, i, &
                                                 M, N
     LOGICAL                                  :: found
-    REAL(dp)                                 :: delta, delta_max
+    REAL(dp)                                 :: delta_max
     REAL(dp), DIMENSION(:, :), POINTER       :: block_test, block_Y, tmp1, &
                                                 tmp2
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -385,7 +385,7 @@ CONTAINS
     group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_test)))
     CALL mp_max(delta_max, group)
     IF(pao%iw>0) WRITE(pao%iw,*) 'PAO| checked unitaryness, max delta:', delta_max
-    IF(delta > pao%check_unitary_tol)&
+    IF(delta_max > pao%check_unitary_tol)&
        CPABORT("Found bad unitaryness:"//cp_to_string(delta_max))
 
      CALL timestop(handle)
