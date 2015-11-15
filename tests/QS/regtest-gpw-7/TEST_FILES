@@ -6,6 +6,6 @@ si8_broy_kry_r.inp                                     1      3e-11            -
 H2O-meta-mindisp.inp                                   2    1.0E-14            -0.171442928644E+02
 H2O-meta-mindisp2.inp                                  2    1.0E-14            -0.171500041399E+02
 # smearing and g-space mixing with LSD
-si8_broy_lsd.inp                                       1    1.0E-14             -31.14863007675815
+si8_broy_lsd.inp                  1     7e-14             -31.14863007675815
 md-01.inp                                              2    1.0E-14            -0.116386167908E+01
 #EOF

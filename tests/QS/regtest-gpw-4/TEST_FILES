@@ -16,7 +16,7 @@ H2-geo-5.inp                                           1      1E-11             
 # some problems with CU
 Cu.inp                                                 1    1.0E-14             -64.51883511637986
 # test derivatives and keywords
-H2O-debug-1.inp                                        1    1.0E-14              -8.12084591824419
+H2O-debug-1.inp                   1     3e-14              -8.12084591824419
 H2O-debug-2.inp                                        1    1.0E-14             -16.00183627256370
 H2O-debug-3.inp                                        1      4e-14             -15.74262975087415
 H2O-debug-4.inp                                        1      4e-14             -15.74262975087415
@@ -37,7 +37,7 @@ H2O-7.inp                                              1      3e-14             
 #test wavelet based poisson solver for different boundary conditions
 H2O_wavelet_free.inp                                   1      1e-13            -16.594171446977342
 H2O_wavelet_free2.inp                                  1      3e-14            -16.582172771025778
-H2O_wavelet_XZ.inp                                     1    1.0E-14             -16.58705134777258
+H2O_wavelet_XZ.inp                1     3e-14             -16.58705134777258
 #function to compute splined values - distributed grids
 NO2-EFG-1.inp                    19     7e-09            0.28952078662756131
 H2O-8.inp                                              1      2e-13             -16.99998000521669
@@ -67,7 +67,7 @@ H2O-analytic_vee.inp             11     3e-12            -17.165089831978857
 H2O-read_cube.inp                11     3e-12            -17.165069594465521
 # welltempered metadynamics
 2H2O_meta_welltemp.inp                                 1      2e-14            -34.163021551576243
-ND3_meta_welltemp.inp                                  1    1.0E-14             -11.80921591726063
+ND3_meta_welltemp.inp             1     2e-14             -11.80921591726063
 # gapw + npt
 H2O-gapw.inp                                           1      3e-14            -17.138804316237351
 #EOF

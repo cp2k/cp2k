@@ -14,5 +14,5 @@ si8_broy_std_md.inp                                    1      3e-14            -
 si8_broy_dav_md.inp                                    1      1E-13            -31.072835506870771
 si8_broy_davsparse_md.inp                              1      5e-14             -31.06607603273009
 #
-si8_broy_ch.inp                                        1      3e-14             -30.95911274380945
+si8_broy_ch.inp                   1     8e-14             -30.95911274380945
 #EOF

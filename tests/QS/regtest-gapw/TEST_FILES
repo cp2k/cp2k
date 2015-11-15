@@ -20,7 +20,7 @@ OF_gapw_all_lsd_LB.inp                                 1      9e-14            -
 H-gapw-all.inp                                         1      2e-13           -0.49303180665610002
 # test the full_all with LSD and GAPW
 He2-all.inp                                            1      3e-13              -5.00398521082516
-He2-all-md.inp                                         1      2e-13              -5.02915069972336
+He2-all-md.inp                    1     6e-13              -5.02915069972336
 # new option : stride_xyz
 H2O-gapw-gth-pvh.inp                                   1      3e-14            -17.160345064142241
 # localization with non orthorhombic cell

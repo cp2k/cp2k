@@ -25,6 +25,6 @@ H2O-qmmm-gauss-16.inp                                  7    1.0E-14             
 H2O-qmmm-gauss-17.inp                                  7    1.0E-14                 -17.1808263887
 H2O-qmmm-gauss-18.inp                                  7    1.0E-14                 -17.4328106395
 H2O-qmmm-gauss-19.inp                                  7    1.0E-14                 -17.4328106395
-H2O-qmmm-none-force-mixing-1.inp                       1    1.0E-14             -33.47241414134169
-H2O-qmmm-gauss-force-mixing-1.inp                      1    1.0E-14             -50.19552620359779
+H2O-qmmm-none-force-mixing-1.inp    1     4e-14             -33.47241414134169
+H2O-qmmm-gauss-force-mixing-1.inp    1     2e-14             -50.19552620359779
 #EOF

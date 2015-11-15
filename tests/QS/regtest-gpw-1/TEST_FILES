@@ -49,11 +49,11 @@ H2O-none.inp                                           1      3e-14             
 # Test printing of sparse matrices without headers
 H2O-noheader.inp                                       1      3e-14             -17.64549036281212
 # extended pseudopotentials
-h4.t1.inp                                              1    1.0E-14              -2.09271001057167
+h4.t1.inp                         1     4e-14              -2.09271001057167
 h4.t2.inp                                              1      2e-13              -1.16908577342979
 h4.t3.inp                                              1      9e-14              -2.02728809228231
 h4.t4.inp                                              1      5e-14             2.2054533417672202
-h4.t5.inp                                              1    1.0E-14              -2.09271001057167
+h4.t5.inp                         1     4e-14              -2.09271001057167
 h2.t1.inp                                              1      9e-14              -1.13667556231480
 h2.t2.inp                                              1      5e-14            -1.1366755623147999
 # EV93 xc functional
