@@ -62,7 +62,7 @@ CONTAINS
 
     energy_diff = energy - pao%energy_prev
     loop_eps = ABS(energy_diff) / ls_scf_env%nelectron_total
-    IF(pao%iw>0) WRITE (pao%iw,'(A,I6,1X,A8,1X,F20.15,1X,E10.3,1X,F8.3,1X,E10.3,1X,F6.3)')&
+    IF(pao%iw>0) WRITE (pao%iw,'(A,I6,1X,A8,1X,F20.9,1X,E10.3,1X,F8.3,1X,E10.3,1X,F6.3)')&
                  " PAO| step ",&
                  pao%istep,&
                  TRIM(mode),&

@@ -154,7 +154,7 @@ CONTAINS
        END IF
     ENDDO
 
-    CALL pao_write_restart(pao, qs_env)
+    CALL pao_write_restart(pao, qs_env, energy)
 
     CALL pao_preopt_finalize(pao, ls_scf_env, mode)
 

@@ -34,7 +34,6 @@ MODULE pao_io
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -232,10 +231,12 @@ CONTAINS
 !> \brief Writes restart file
 !> \param pao ...
 !> \param qs_env ...
+!> \param energy ...
 ! *****************************************************************************
-  SUBROUTINE pao_write_restart(pao, qs_env)
+  SUBROUTINE pao_write_restart(pao, qs_env, energy)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(dp)                                 :: energy
 
     CHARACTER(len=*), PARAMETER :: &
       printkey_section = 'DFT%LS_SCF%PAO%PRINT%RESTART', &
@@ -275,7 +276,7 @@ CONTAINS
     IF(unit_max>0) THEN
        IF(pao%iw>0) WRITE(pao%iw,'(A,A)') " PAO| Writting restart file."
        IF(unit_nr>0)&
-          CALL write_restart_header(pao, qs_env, unit_nr)
+          CALL write_restart_header(pao, qs_env, energy, unit_nr)
 
        !TODO: this is a serial algorithm
        ! write matrix_X
@@ -316,11 +317,13 @@ CONTAINS
 !> \brief Writes header of restart file
 !> \param pao ...
 !> \param qs_env ...
+!> \param energy ...
 !> \param unit_nr ...
 ! *****************************************************************************
-  SUBROUTINE write_restart_header(pao, qs_env, unit_nr)
+  SUBROUTINE write_restart_header(pao, qs_env, energy, unit_nr)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
+    REAL(dp)                                 :: energy
     INTEGER, INTENT(IN)                      :: unit_nr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_restart_header', &
@@ -337,19 +340,17 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: basis_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
     CALL get_qs_env(qs_env,&
                     cell=cell,&
-                    energy=energy,&
                     particle_set=particle_set,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set)
 
     ! write kinds
-    WRITE(unit_nr, "(A,5X,F20.10)") "Energy", energy%total
+    WRITE(unit_nr, "(A,5X,F20.10)") "Energy", energy
     WRITE(unit_nr, "(A,5X,I0)") "Step", pao%istep
     WRITE(unit_nr,"(A,5X,A10)") "Parametrization", id2str(pao%parameterization)
     WRITE(unit_nr,"(A,5X,A10)") "Preconditioner", id2str(pao%preconditioner)

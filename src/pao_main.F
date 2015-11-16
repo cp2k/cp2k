@@ -74,7 +74,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
+    INTEGER                                  :: handle
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
@@ -135,12 +135,6 @@ CONTAINS
     CALL cp_dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
 
     CALL pao_update_AB(pao, ls_mstruct)
-
-    ALLOCATE(pao%matrix_P_guess(ls_scf_env%nspins))
-    DO ispin=1, ls_scf_env%nspins
-       CALL cp_dbcsr_init(pao%matrix_P_guess(ispin))
-       CALL cp_dbcsr_create(pao%matrix_P_guess(ispin), template=matrix_s(1)%matrix, matrix_type="N")
-    ENDDO
 
     section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PAO%LINE_SEARCH")
     CALL linesearch_init(pao%linesearch, section, "PAO|")
@@ -212,11 +206,11 @@ CONTAINS
     pao%istep = pao%istep + 1
     CALL pao_print_step_delimiter(pao)
 
-    IF(pao%istep==1) THEN
-       !TODO: use ASPC if run as MD
+    IF(.NOT.ASSOCIATED(pao%matrix_P_guess)) THEN
        CALL ls_scf_qs_atomic_guess(qs_env,ls_scf_env%energy_init)
        IF(pao%iw>0) WRITE(pao%iw,'(A,F20.9)') " PAO| Energy from initial atomic guess:",ls_scf_env%energy_init
     ELSE
+       !TODO: use ASPC if run as MD
        pao => ls_scf_env%pao_env
        ls_mstruct => ls_scf_env%ls_mstruct
 
@@ -366,10 +360,12 @@ CONTAINS
     CALL cp_dbcsr_release(ls_mstruct%matrix_A)
     CALL cp_dbcsr_release(ls_mstruct%matrix_B)
 
-    DO ispin=1, SIZE(pao%matrix_P_guess)
-       CALL cp_dbcsr_release(pao%matrix_P_guess(ispin))
-    ENDDO
-    DEALLOCATE(pao%matrix_P_guess)
+    IF(ASSOCIATED(pao%matrix_P_guess)) THEN
+       DO ispin=1, SIZE(pao%matrix_P_guess)
+          CALL cp_dbcsr_release(pao%matrix_P_guess(ispin))
+       ENDDO
+       DEALLOCATE(pao%matrix_P_guess)
+    ENDIF
 
     CALL linesearch_finalize(pao%linesearch)
     !TODO: should finish printkey
@@ -418,7 +414,7 @@ CONTAINS
        IF(pao%linesearch%starts) THEN
           ! store prim. matrix_P before linesearch starts to wander off
           CALL pao_store_P(qs_env, ls_scf_env)
-          CALL pao_write_restart(pao, qs_env)
+          CALL pao_write_restart(pao, qs_env, energy%total)
 
           ! calc new gradient
           CALL pao_calc_outer_grad_orig(qs_env, ls_scf_env, matrix_M)
@@ -480,6 +476,15 @@ CONTAINS
     IF(pao%iw>0) WRITE (pao%iw,*) "PAO| Storing primary density matrix for next PAO interation."
 
     CALL get_qs_env(qs_env, matrix_s=matrix_s)
+
+    !lazy allocation
+    IF(.NOT.ASSOCIATED(pao%matrix_P_guess)) THEN
+       ALLOCATE(pao%matrix_P_guess(ls_scf_env%nspins))
+       DO ispin=1, ls_scf_env%nspins
+          CALL cp_dbcsr_init(pao%matrix_P_guess(ispin))
+          CALL cp_dbcsr_create(pao%matrix_P_guess(ispin), template=matrix_s(1)%matrix, matrix_type="N")
+       ENDDO
+    ENDIF
 
     CALL cp_dbcsr_init(matrix_SB)
     CALL cp_dbcsr_create(matrix_SB, template=ls_mstruct%matrix_B)
