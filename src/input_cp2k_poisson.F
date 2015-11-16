@@ -943,7 +943,7 @@ END SUBROUTINE create_ewald_section
 
     CALL keyword_create(keyword, name="THICKNESS", &
          description="The thickness of the planar Dirichlet region.", &
-         usage="THICKNESS <real>", default_r_val=0.2_dp, unit_str="angstrom")
+         usage="THICKNESS <real>", default_r_val=0.75_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -1012,7 +1012,7 @@ END SUBROUTINE create_ewald_section
 
     CALL keyword_create(keyword, name="THICKNESS", &
          description="The thickness of the planar Dirichlet region.", &
-         usage="THICKNESS <real>", default_r_val=0.2_dp, unit_str="angstrom")
+         usage="THICKNESS <real>", default_r_val=0.75_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -1095,7 +1095,7 @@ END SUBROUTINE create_ewald_section
 
     CALL keyword_create(keyword, name="THICKNESS", &
          description="The thickness of the cylinder.", &
-         usage="THICKNESS <real>", default_r_val=0.2_dp, unit_str="angstrom")
+         usage="THICKNESS <real>", default_r_val=0.75_dp, unit_str="angstrom")
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
