@@ -94,14 +94,14 @@ CONTAINS
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
     CALL PZHEEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv,&
                   work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
-    lwork  = INT(REAL(work(1)))
-    lrwork = INT(REAL(rwork(1))) + 1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
+    lwork  = CEILING(REAL(work(1),KIND=dp))
+    lrwork = CEILING(REAL(rwork(1),KIND=dp)) + 1000000 ! needed to correct for a bug in scalapack, unclear how much the right number is
     liwork = iwork(1)
 #else
     CALL ZHEEVD('V','U',n,m(1,1),SIZE(m,1),eigenvalues(1),&
                 work(1),lwork,rwork(1),lrwork,iwork(1),liwork,info)
-    lwork  = INT(REAL(work(1)))
-    lrwork = INT(REAL(rwork(1)))
+    lwork  = CEILING(REAL(work(1),KIND=dp))
+    lrwork = CEILING(REAL(rwork(1),KIND=dp))
     liwork = iwork(1)
 #endif
 
