@@ -138,9 +138,8 @@ CONTAINS
     eigenvectors%local_data = matrix%local_data
 #endif
 
-    IF (info /= 0) THEN
-       CPABORT("Diagonalisation complex matrix failed")
-    END IF
+    IF (info /= 0) &
+       CPABORT("Diagonalisation of a complex matrix failed")
     DEALLOCATE (iwork)
     DEALLOCATE (rwork)
     DEALLOCATE (work)
