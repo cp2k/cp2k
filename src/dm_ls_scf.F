@@ -232,7 +232,7 @@ CONTAINS
                                dft_control%qs_control%cutoff)
 
     ! initialize PEXSI
-    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+    IF (ls_scf_env%do_pexsi) THEN
       IF(dft_control%qs_control%eps_filter_matrix .NE. 0.0_dp)&
          CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
        CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env%group, ls_scf_env%nspins)
@@ -322,9 +322,6 @@ CONTAINS
     IF (ls_scf_env%do_rho_mixing) THEN
       CALL rho_mixing_ls_init(qs_env, ls_scf_env)
     ENDIF
-
-    ls_scf_env%do_pexsi = ls_scf_env%purification_method .EQ. ls_scf_pexsi &
-                          .AND. .NOT. qs_env%do_transport
 
     IF (ls_scf_env%do_pexsi) THEN
        CALL pexsi_init_scf(ks_env, ls_scf_env%pexsi, matrix_s(1)%matrix)
@@ -674,6 +671,8 @@ CONTAINS
     pexsi_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PEXSI")
     CALL section_vals_get(pexsi_section)
 
+    ls_scf_env%do_pexsi = ls_scf_env%purification_method .EQ. ls_scf_pexsi &
+                          .AND. .NOT. ls_scf_env%do_transport
     IF (ls_scf_env%do_pexsi) THEN
       CALL pexsi_init_read_input(pexsi_section,ls_scf_env%pexsi)
       IF (.NOT. ls_scf_env%restart_write) THEN
