@@ -1079,7 +1079,15 @@ MODULE dbcsr_mm_cannon
           WRITE(*,*)routineN//" Product checksum", cs
        ENDIF
     ENDIF
-    !
+
+    ! This tends to trigger only when all of these conditions are fulfilled:
+    !  - transa=="T"
+    !  - matrix_c contains already blocks and beta is not zero
+    !  - Cuda is enabled
+    !  - multiple OpenMP threads are used
+    IF(matrix_c%m%nblks > SIZE(array_data(matrix_c%m%row_blk_size)) * SIZE(array_data(matrix_c%m%col_blk_size)))&
+       CPABORT("Bug: Matrix contains too many blocks")
+
     IF (.FALSE.) WRITE(*,*)"Finished with one multiplication."
     output_unit = default_output_unit
     CALL timestop(handle)

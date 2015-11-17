@@ -131,8 +131,8 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M1, matrix_M2, &
       matrix_M3, matrix_NHB, matrix_NHBM2, matrix_NPA, matrix_NPAM1, &
-      matrix_NSB, matrix_NSBM3, matrix_PA, matrix_PH, matrix_PHP, matrix_PS, &
-      matrix_PSP, matrix_SB
+      matrix_NSB, matrix_NSBM3, matrix_PA, matrix_PH, matrix_PHP, matrix_PSP, &
+      matrix_SB, matrix_SP
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
     TYPE(pao_env_type), POINTER              :: pao
@@ -171,19 +171,19 @@ CONTAINS
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_PH, ls_scf_env%matrix_p(1),&
                            0.0_dp, matrix_PHP)
 
-    CALL cp_dbcsr_init(matrix_PS)
-    CALL cp_dbcsr_create(matrix_PS, template=ls_scf_env%matrix_s, matrix_type="N")
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), ls_scf_env%matrix_s, &
-                          0.0_dp, matrix_PS)
+    CALL cp_dbcsr_init(matrix_SP)
+    CALL cp_dbcsr_create(matrix_SP, template=ls_scf_env%matrix_s, matrix_type="N")
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s, ls_scf_env%matrix_p(1),&
+                          0.0_dp, matrix_SP)
 
     CALL cp_dbcsr_init(matrix_HPS)
     CALL cp_dbcsr_create(matrix_HPS, template=ls_scf_env%matrix_s, matrix_type="N")
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_ks(1), matrix_PS, &
+    CALL cp_dbcsr_multiply("N", "T", 1.0_dp, ls_scf_env%matrix_ks(1), matrix_SP,&
                           0.0_dp, matrix_HPS)
 
     CALL cp_dbcsr_init(matrix_PSP)
     CALL cp_dbcsr_create(matrix_PSP, template=ls_scf_env%matrix_s, matrix_type="N")
-    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_PS, ls_scf_env%matrix_p(1),&
+    CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), matrix_SP,&
                            0.0_dp, matrix_PSP)
 
     !---------------------------------------------------------------------------
@@ -191,19 +191,19 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_M1)
     CALL cp_dbcsr_create(matrix_M1, template=ls_scf_env%matrix_s, matrix_type="N")
 
-    CALL cp_dbcsr_multiply("N", "N", 3.0_dp, ls_scf_env%matrix_ks(1), matrix_PS,&
+    CALL cp_dbcsr_multiply("N", "T", 3.0_dp, ls_scf_env%matrix_ks(1), matrix_SP,&
                            1.0_dp, matrix_M1)
 
-    CALL cp_dbcsr_multiply("T", "N", 3.0_dp, matrix_PS, ls_scf_env%matrix_ks(1),&
+    CALL cp_dbcsr_multiply("N", "N", 3.0_dp, matrix_SP, ls_scf_env%matrix_ks(1),&
                            1.0_dp, matrix_M1)
 
-    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_HPS, matrix_PS,&
+    CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_HPS, matrix_SP,&
                            1.0_dp, matrix_M1)
 
-    CALL cp_dbcsr_multiply("T", "N", -2.0_dp, matrix_PS, matrix_HPS, &
+    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_SP, matrix_HPS, &
                            1.0_dp, matrix_M1)
 
-    CALL cp_dbcsr_multiply("T", "T", -2.0_dp, matrix_PS, matrix_HPS,&
+    CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_SP, matrix_HPS,&
                            1.0_dp, matrix_M1)
 
 
@@ -214,7 +214,7 @@ CONTAINS
 
     CALL cp_dbcsr_add(matrix_M2, matrix_PSP, 1.0_dp, 3.0_dp)
 
-    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PS, matrix_PSP,&
+    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PSP, matrix_SP,&
                            1.0_dp, matrix_M2)
 
     !---------------------------------------------------------------------------
@@ -224,10 +224,10 @@ CONTAINS
 
     CALL cp_dbcsr_add(matrix_M3, matrix_PHP, 1.0_dp, 3.0_dp)
 
-    CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_PHP, matrix_PS,&
+    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PHP, matrix_SP,&
                            1.0_dp, matrix_M3)
 
-    CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PS, matrix_PHP,&
+    CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_PSP, matrix_PH,&
                            1.0_dp, matrix_M3)
 
 
@@ -297,7 +297,7 @@ CONTAINS
     ! cleanup
     CALL cp_dbcsr_release(matrix_PH)
     CALL cp_dbcsr_release(matrix_PHP)
-    CALL cp_dbcsr_release(matrix_PS)
+    CALL cp_dbcsr_release(matrix_SP)
     CALL cp_dbcsr_release(matrix_HPS)
     CALL cp_dbcsr_release(matrix_PSP)
     CALL cp_dbcsr_release(matrix_M1)
