@@ -323,7 +323,10 @@ CONTAINS
       CALL rho_mixing_ls_init(qs_env, ls_scf_env)
     ENDIF
 
-    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+    ls_scf_env%do_pexsi = ls_scf_env%purification_method .EQ. ls_scf_pexsi &
+                          .AND. .NOT. qs_env%do_transport
+
+    IF (ls_scf_env%do_pexsi) THEN
        CALL pexsi_init_scf(ks_env, ls_scf_env%pexsi, matrix_s(1)%matrix)
     ENDIF
 
@@ -427,7 +430,7 @@ CONTAINS
     CASE(aspc_guess)
        ! purification can't be done on the pexsi matrix, which is not necessarily idempotent,
        ! and not stored in an ortho basis form
-       IF (.NOT.(ls_scf_env%purification_method .EQ. ls_scf_pexsi)) THEN
+       IF (.NOT.(ls_scf_env%do_pexsi)) THEN
          DO ispin=1,SIZE(ls_scf_env%matrix_p)
             ! linear combination of P's is not idempotent. A bit of McWeeny is needed to ensure it is again
             IF(SIZE(ls_scf_env%matrix_p)==1)CALL cp_dbcsr_scale(ls_scf_env%matrix_p(ispin),0.5_dp)
@@ -509,7 +512,7 @@ CONTAINS
           ENDIF
 
           ! perform trs4 once to get a full dm required by other purification methods
-          IF (ls_scf_env%do_transport .OR. ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+          IF (ls_scf_env%do_transport .OR. ls_scf_env%do_pexsi) THEN
              IF (unit_nr>0) THEN
                 WRITE(unit_nr,'(T2,A)') "DM has the sparsity of S! "
                 WRITE(unit_nr,'(T2,A)') "TRS4 will be performed once to prepare "//&
@@ -671,7 +674,7 @@ CONTAINS
     pexsi_section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PEXSI")
     CALL section_vals_get(pexsi_section)
 
-    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+    IF (ls_scf_env%do_pexsi) THEN
       CALL pexsi_init_read_input(pexsi_section,ls_scf_env%pexsi)
       IF (.NOT. ls_scf_env%restart_write) THEN
         ! Turn off S inversion (not used for PEXSI).
@@ -715,7 +718,7 @@ CONTAINS
     END SELECT
 
     ! verify some requirements for the curvy steps
-    IF(ls_scf_env%curvy_steps .AND. ls_scf_env%purification_method .EQ. ls_scf_pexsi)&
+    IF(ls_scf_env%curvy_steps .AND. ls_scf_env%do_pexsi)&
        CPABORT("CURVY_STEPS can not be used together with PEXSI.")
     IF(ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport)&
        CPABORT("CURVY_STEPS can not be used together with TRANSPORT.")
@@ -1062,7 +1065,7 @@ CONTAINS
       ! compute the corresponding new energy KS matrix and new energy
       CALL ls_scf_dm_to_ks(qs_env,ls_scf_env,energy_new,iscf)
 
-      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN 
+      IF (ls_scf_env%do_pexsi) THEN 
         CALL pexsi_to_qs(ls_scf_env, qs_env, kTS = ls_scf_env%pexsi%kTS)
       ENDIF
 
@@ -1090,7 +1093,7 @@ CONTAINS
                                  ls_scf_env%eps_filter)               
       ENDIF
 
-      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+      IF (ls_scf_env%do_pexsi) THEN
         CALL pexsi_set_convergence_tolerance(ls_scf_env%pexsi, energy_diff, &
                                              ls_scf_env%eps_scf*ls_scf_env%nelectron_total, &
                                              ! initialize in second scf step of first SCF cycle:
@@ -1158,7 +1161,7 @@ CONTAINS
     ! compute the matrix_w if associated
     CALL get_qs_env(qs_env,matrix_w=matrix_w)
     IF (ASSOCIATED(matrix_w)) THEN
-      IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) THEN
+      IF (ls_scf_env%do_pexsi) THEN
         CALL pexsi_to_qs(ls_scf_env, qs_env, matrix_w = ls_scf_env%pexsi%matrix_w)
       ELSE
         CALL calculate_w_matrix(matrix_w,ls_scf_env) 
@@ -1208,7 +1211,7 @@ CONTAINS
     ENDDO
     DEALLOCATE(ls_scf_env%matrix_ks)
 
-    IF (ls_scf_env%purification_method .EQ. ls_scf_pexsi) &
+    IF (ls_scf_env%do_pexsi) &
       CALL pexsi_finalize_scf(ls_scf_env%pexsi, ls_scf_env%mu_spin)
 
     CALL timestop(handle)

@@ -137,6 +137,7 @@ MODULE dm_ls_scf_types
      TYPE(mixing_storage_type), POINTER :: mixing_store
 
      LOGICAL :: do_transport
+     LOGICAL :: do_pexsi
 
      TYPE(lib_pexsi_env) :: pexsi
 
