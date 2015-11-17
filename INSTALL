@@ -162,7 +162,7 @@ The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI libr
 and two dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
   * Download PEXSI (www.pexsi.org) and install it and its dependencies by following 
     the instructions in the README.md file distributed with PEXSI.
-  * The version 0.8.0 has been tested with CP2K.
+  * The version 0.9.0 has been tested with CP2K.
   * Building the Fortran interface of PEXSI (provided in the fortran
     subdirectory) is required.
 

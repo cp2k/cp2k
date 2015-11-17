@@ -4,8 +4,9 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Interface to the PEXSI library v0.7.3, providing wrappers for all PEXSI 
-!>        routines that are called inside CP2K.
+!> \brief Interface to the PEXSI library, providing wrappers for all PEXSI 
+!>        routines that are called inside CP2K. Tested for PEXSI versions 
+!>        v0.7.3 - v0.9.0
 !> \par History
 !>       2014.12 created [Patrick Seewald]
 !> \author Patrick Seewald
