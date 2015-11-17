@@ -5,4 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 Ar_1.inp                                               0
 Al_1_4.inp                1 4.0E-12 -8.279219076542510
+H_sym.inp                                              0
 #EOF

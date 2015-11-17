@@ -229,7 +229,7 @@ CONTAINS
        csym%istriz = -1
        IF (symm) csym%istriz = 1
     END IF
-    csym%nkpoint = csym%iq1*csym%iq2*csym%iq3
+    csym%nkpoint = csym%iq1*csym%iq2*csym%iq3 * 8
     nkk = csym%nkpoint
     !..allocate intermediate arrays
     ALLOCATE (rx(3,nat))
