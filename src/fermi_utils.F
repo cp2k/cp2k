@@ -152,7 +152,7 @@ CONTAINS
                tmplog = -LOG(tmp4)
                term1 = tmp2 * ( arg + tmplog )
                term2 = tmp3 * tmplog
-               kTS = kTS + t*maxocc*(term1 + term2)
+               kTS = kTS + t*maxocc*(term1 + term2) * wk(ik)
             ELSE
                arg  = (e(is,ik)-mu)*beta
                tmp  = EXP(arg)
@@ -163,7 +163,7 @@ CONTAINS
                tmplog = -LOG(tmp4)
                term1= tmp2 * tmplog
                term2= tmp3 * (arg + tmplog )
-               kTS = kTS + T*maxocc*(term1 + term2)
+               kTS = kTS + T*maxocc*(term1 + term2) * wk(ik)
             END IF
          END DO
       END DO

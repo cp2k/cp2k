@@ -1,0 +1,162 @@
+@SET f094    0.9795861087155615099
+@SET f096    0.98648482973218809544
+@SET f098    0.99328838837926858307
+@SET f100    1.0000000000000000000
+@SET f102    1.0066227095601130159
+@SET f104    1.0131594038201774399
+@SET f106    1.0196128224222165137
+@SET element Al
+@SET q       q3
+@SET a       4.04021*${f100}
+@SET b       4.04021*${f100}
+@SET c       4.04021*${f100}
+@SET a_ref   4.04021*${f106}
+@SET b_ref   4.04021*${f106}
+@SET c_ref   4.04021*${f106}
+@SET alpha   90.0
+@SET beta    90.0
+@SET gamma   90.0
+@SET natom   4
+@SET cutoff  200.0
+@SET relcut  60.0
+@SET t_elec  600.0
+@SET ncell   1
+@SET nkp     4
+@SET xcf     PBE
+@SET basis   DZVP-MOLOPT-SR-GTH
+@SET bsfile  BASIS_MOLOPT
+
+&GLOBAL
+ PRINT_LEVEL medium
+ PROJECT ${element}
+ RUN_TYPE energy
+&END GLOBAL
+
+#&EXT_RESTART
+# RESTART_FILE_NAME ${element}-1.restart
+#&END EXT_RESTART
+
+&FORCE_EVAL
+ METHOD Quickstep
+ &DFT
+  BASIS_SET_FILE_NAME ${bsfile}
+  POTENTIAL_FILE_NAME GTH_POTENTIALS
+  &KPOINTS
+   SCHEME MONKHORST-PACK ${nkp} ${nkp} ${nkp}
+   SYMMETRY on
+   EPS_GEO 1.0E-8
+   FULL_GRID off
+   VERBOSE on
+   PARALLEL_GROUP_SIZE 0
+  &END KPOINTS
+  &MGRID
+   CUTOFF [Ry] ${cutoff}
+   NGRIDS 5
+   RELATIVE_CUTOFF [Ry] ${relcut}
+  &END MGRID
+  &PRINT
+   &DFT_CONTROL_PARAMETERS
+   &END DFT_CONTROL_PARAMETERS
+   &MO on
+    EIGENVALUES
+    NDIGITS 12
+    OCCUPATION_NUMBERS
+    &EACH
+     QS_SCF 0
+    &END EACH
+   &END MO
+  &END PRINT
+  &QS
+   EPS_DEFAULT 1.0E-10
+   EXTRAPOLATION use_guess
+   EXTRAPOLATION_ORDER 3
+   MAP_CONSISTENT
+  &END QS
+  &SCF
+   ADDED_MOS ${ncell}*${ncell}*${ncell}*${natom}
+   CHOLESKY inverse
+   EPS_SCF 1.0E-8
+   MAX_SCF 300
+   SCF_GUESS atomic
+   &DIAGONALIZATION on
+    ALGORITHM STANDARD
+   &END DIAGONALIZATION
+   &MIXING on
+    ALPHA 0.2
+    BETA  1.5
+    METHOD broyden_mixing
+    NBUFFER 8
+   &END MIXING
+   &OT off
+    MINIMIZER CG
+    PRECONDITIONER FULL_SINGLE_INVERSE
+   &END OT
+   &OUTER_SCF off
+    EPS_SCF 1.0E-7
+    MAX_SCF 50
+   &END OUTER_SCF
+   &PRINT
+    &RESTART
+     ADD_LAST NUMERIC
+     BACKUP_COPIES 0
+     &EACH
+      QS_SCF 1
+     &END EACH
+    &END RESTART
+   &END PRINT
+   &SMEAR on
+    METHOD FERMI_DIRAC
+    ELECTRONIC_TEMPERATURE [K] ${t_elec}
+   &END SMEAR
+  &END SCF
+  &XC
+   &XC_FUNCTIONAL ${xcf}
+   &END XC_FUNCTIONAL
+  &END XC
+ &END DFT
+ &PRINT
+  &GRID_INFORMATION off
+  &END GRID_INFORMATION
+ &END PRINT
+ &SUBSYS
+  &CELL
+   ABC [angstrom] ${a} ${b} ${c}
+   ALPHA_BETA_GAMMA [deg] ${alpha} ${beta} ${gamma}
+   MULTIPLE_UNIT_CELL ${ncell} ${ncell} ${ncell}
+   &CELL_REF
+    ABC [angstrom] ${a_ref} ${b_ref} ${c_ref}
+    ALPHA_BETA_GAMMA [deg] ${alpha} ${beta} ${gamma}
+    MULTIPLE_UNIT_CELL ${ncell} ${ncell} ${ncell}
+   &END CELL_REF
+  &END CELL
+  &COORD
+   SCALED
+   ${element} 0    0    0
+   ${element} 0    1/2  1/2
+   ${element} 1/2  0    1/2
+   ${element} 1/2  1/2  0
+  &END COORD
+  &KIND ${element}
+   BASIS_SET ${basis}
+   POTENTIAL GTH-${xcf}-${q}
+  &END KIND
+  &PRINT
+   &ATOMIC_COORDINATES off
+   &END ATOMIC_COORDINATES
+   &CELL
+   &END CELL
+   &KINDS
+    BASIS_SET
+    POTENTIAL
+   &END KINDS
+   &MOLECULES off
+   &END MOLECULES
+   &SYMMETRY
+   &END SYMMETRY
+  &END PRINT
+  &TOPOLOGY
+   CONNECTIVITY off
+   MULTIPLE_UNIT_CELL ${ncell} ${ncell} ${ncell}
+  &END TOPOLOGY
+ &END SUBSYS
+&END FORCE_EVAL
