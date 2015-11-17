@@ -535,7 +535,7 @@ CONTAINS
        .OR.SIZE(a,1)/=SIZE(bi,1).OR.SIZE(a,2)/=SIZE(bi,2))&
        CPABORT("internal local_data has different sizes")
 
-    br = REAL(a)
+    br = REAL(a,KIND=dp)
     bi = AIMAG(a)
 
     CALL timestop(handle)
