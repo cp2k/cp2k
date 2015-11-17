@@ -173,7 +173,7 @@ CONTAINS
             tot_rho_r,&
             tot_rho_r + &
             REAL(n_electrons,dp)
-       WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.14))")&
+       WRITE (UNIT=output_unit,FMT="((T3,A,T59,F22.14))")&
                "Total energy:",rtp%energy_new
        IF(run_type==ehrenfest)&
             WRITE (UNIT=output_unit,FMT="((T3,A,T61,F20.14))")&
