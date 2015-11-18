@@ -949,7 +949,6 @@ MODULE mp2_cphf
     ! We will need one more hfx calculation for HF gradient part
     mp2_env%not_last_hfx = .FALSE.
     mp2_env%p_screen = restore_p_screen
-    WRITE(*,*)'restore_p_screen=',restore_p_screen
 
     ! release stuff
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw)
