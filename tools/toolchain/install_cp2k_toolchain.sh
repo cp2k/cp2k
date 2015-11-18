@@ -396,10 +396,13 @@ else
    # Here we attempt to determine which libsmm to download, and do that if it exists.
    # We use info on the architecture / core from the openblas build.
 
-   # helper to check if libsmm is available (return 0) or not (return 8)
+   # helper to check if libsmm is available (uses http-redirect to find latest version)
    libsmm_exists() {
-      wget --spider http://www.cp2k.org/static/downloads/libsmm/$1 >& /dev/null
-      echo $?
+       query_url=http://www.cp2k.org/static/downloads/libsmm/$1-latest.a
+       reply_url=`curl $query_url -s -L -I -o /dev/null -w '%{url_effective}'`
+       if [ "$query_url" != "$reply_url" ]; then
+          echo $reply_url | cut -d/ -f7
+       fi
    }
 
    # where is the openblas configuration file, which gives us the core
@@ -410,22 +413,17 @@ else
    fi
    openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
    openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
-   libsmm_libcore=libsmm_dnn_${openblas_libcore}.a
-   tst=`libsmm_exists $libsmm_libcore`
-   if [ "$tst" == "0" ]; then
-      libsmm=$libsmm_libcore
+   libsmm=`libsmm_exists libsmm_dnn_${openblas_libcore}`
+   if [ "$libsmm" != "" ]; then
       echo "An optimized libsmm $libsmm is available"
    else
-      libsmm_arch=libsmm_dnn_${openblas_arch}.a
-      tst=`libsmm_exists $libsmm_arch`
-      if [ "$tst" == "0" ]; then
-         libsmm=$libsmm_arch
+      libsmm=`libsmm_exists libsmm_dnn_${openblas_arch}`
+      if [ "$libsmm" != "" ]; then
          echo "A generic libsmm $libsmm is available."
          echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
       else
          echo "No libsmm is available"
          echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
-         libsmm=""
       fi
    fi
 fi
