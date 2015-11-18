@@ -1141,7 +1141,7 @@ CONTAINS
        nc = 0
        !       Constructs rotation operations.
        CALL rot1(ihc,r)
-       DO n = 1, nr
+       nloop: DO n = 1, nr
           ib(n) = 0
           !         Rotate the A1,2,3 vectors by rotation No. N
           DO k = 1, 3
@@ -1157,12 +1157,11 @@ CONTAINS
                 tr = tr + ABS(vr(i))
              END DO
              !           If VR.ne.0, then XA cannot be a multiple of a lattice vector
-             IF (tr>delta) EXIT
+             IF (tr>delta) CYCLE nloop
           END DO
-          IF (tr>delta) CYCLE
           nc = nc + 1
           ib(nc) = n
-       END DO
+       END DO nloop
        !------------------------------------------------------------------------------!
        !       IHG stands for holohedral group number.
        IF (ihc==0) THEN
@@ -1760,7 +1759,7 @@ CONTAINS
        isc(ia) = 0
     END DO
     !     Now we check if ROT(N)+VR gives a correct symmetry.
-    DO ia = 1, nat
+    ialoop: DO ia = 1, nat
        DO ib = 1, nat
           IF (ty(ia)==ty(ib) .AND. isc(ib)==0) THEN
              xb(1) = rx(1,ia) - x(1,ib)
@@ -1776,14 +1775,13 @@ CONTAINS
                 f0(n,ia) = ib
                 !             IR+VR is the good one: another symmetry operation
                 !             Next atom
-                EXIT
+                CYCLE ialoop
              END IF
           END IF
        END DO
-       IF (oksym) CYCLE
        !       VR is not the correct translation vector
        RETURN
-    END DO
+    END DO ialoop
   END SUBROUTINE checkrlv3
 ! *****************************************************************************
 !> \brief ...
@@ -2325,7 +2323,6 @@ CONTAINS
                                                 ur3, wva(3), wvk(3)
 
 !------------------------------------------------------------------------------!
-!------------------------------------------------------------------------------!
 
     ntot = 0
     DO i = 1, nkpoint
@@ -2430,7 +2427,7 @@ CONTAINS
              proja(3) = proja(3) + wva(k)*a3(k)
           END DO
           !         Now loop over all the rest of the mesh points
-          DO j = (i+1), imesh
+          jloop: DO j = (i+1), imesh
              jplace = j
              CALL mesh(iout,wvk,jplace,igarb0,igarbg,nkpoint,nhash,list, &
                   rlist,delta)
@@ -2446,19 +2443,18 @@ CONTAINS
              !           Check (PROJA - PROJB): Is it integral ?
              DO k = 1, 3
                 diff = proja(k) - projb(k)
-                IF (ABS(REAL(NINT(diff),KIND=dp)-diff)>delta) EXIT
+                IF (ABS(REAL(NINT(diff),KIND=dp)-diff)>delta) CYCLE jloop
              END DO
-             IF (ABS(REAL(NINT(diff),KIND=dp)-diff)>delta) CYCLE
              !           DIFF is integral: remove WVK from mesh:
              CALL remove(wvk,jplace,igarb0,igarbg,nkpoint,nhash,list,rlist, &
                   delta)
              !           If WVK actually removed, increment IREMOV
              IF (jplace>0) iremov = iremov + 1
-          END DO
+          END DO jloop
        END DO
        IF (iremov>0 .AND. iout>0) WRITE (iout,'(A,A,/,A,I6,A,/)') &
             ' K290| Some of these mesh points are related by lattice ', &
-            'translation vectors', 'K K290| ', iremov, &
+            'translation vectors', ' K290| ', iremov, &
             ' of the mesh points removed.'
     END IF
     !------------------------------------------------------------------------------!
@@ -2506,9 +2502,13 @@ CONTAINS
                 !             No symmetrisation -> WVA not in the list
                 GO TO 364
              ELSE
-                !             I think this case is impossible (NC <= NCBRAV)
-                !             Error message
-                GO TO 490
+               ! Find out whether WVA is in the garbage list
+               CALL garbag(wva,igarbage,igarb0,nkpoint,nhash,list,rlist,delta)
+               IF (igarbage==0) THEN
+                 ! I think this case is impossible (NC <= NCBRAV)
+                 ! Error message
+                 GOTO 490
+               END IF
              END IF
           END IF
           !         Find out whether WVA is in the garbage list
@@ -2753,6 +2753,7 @@ CONTAINS
     INTEGER, PARAMETER                       :: nil = 0
 
     INTEGER                                  :: i, ihash, ipoint, j
+    LOGICAL                                  :: lskip
     REAL(KIND=dp)                            :: delta1, rhash
 
     delta1 = 10.0_dp*delta
@@ -2770,30 +2771,31 @@ CONTAINS
           RETURN
        END IF
        !       Compare WVK with this element
+       lskip = .FALSE.
        DO j = 1, 3
-          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) EXIT
+          IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) lskip=.TRUE.
        END DO
-       IF (ABS(wvk(j)-rlist(j,ipoint))>delta1) THEN
+       IF (lskip) THEN
          !       Next element of list
          ihash = ipoint
          ipoint = list(ihash)
-         CYCLE
-       ENDIF
-       !       WVK located, now remove it from the list:
-       list(ihash) = list(ipoint)
-       !       LIST(IHASH) now points to the next element in the list,
-       !       and the present WVK has become garbage.
-       !       Add WVK to the list of garbage:
-       IF (igarb0==0) THEN
-          !         Start up the garbage list:
-          igarb0 = ipoint
        ELSE
-          list(igarbg) = ipoint
+         !       WVK located, now remove it from the list:
+         list(ihash) = list(ipoint)
+         !       LIST(IHASH) now points to the next element in the list,
+         !       and the present WVK has become garbage.
+         !       Add WVK to the list of garbage:
+         IF (igarb0==0) THEN
+            !         Start up the garbage list:
+            igarb0 = ipoint
+         ELSE
+            list(igarbg) = ipoint
+         END IF
+         igarbg = ipoint
+         list(igarbg) = nil
+         iplace = 1
+         RETURN
        END IF
-       igarbg = ipoint
-       list(igarbg) = nil
-       iplace = 1
-       RETURN
     END DO
     !     List too long
     CPABORT("")
@@ -2837,7 +2839,7 @@ CONTAINS
     !     Search for WVK in linked list
     !     Point to the garbage list
     ipoint = igarb0
-    DO i = 1, nmesh
+    nloop: DO i = 1, nmesh
        !       LIST EXHAUSTED
        IF (ipoint==nil) THEN
           !         WVK was not found in the mesh:
@@ -2850,14 +2852,14 @@ CONTAINS
              !       Next element of list
              ihash = ipoint
              ipoint = list(ihash)
-             EXIT
+             CYCLE nloop
           ENDIF
        END DO
        !       WVK was located in the garbage list
        iplace = i
        RETURN
 
-    END DO
+    END DO nloop
     !     List too long
     CPABORT("")
   END SUBROUTINE garbag
@@ -3055,9 +3057,9 @@ CONTAINS
        i1 = nb1 + 1 - n1
        DO n2 = 1, nnb2
           i2 = nb2 + 1 - n2
-          DO n3 = 1, nnb3
+          n3loop: DO n3 = 1, nnb3
              i3 = nb3 + 1 - n3
-             IF (i1==0 .AND. i2==0 .AND. i3==0) CYCLE
+             IF (i1==0 .AND. i2==0 .AND. i3==0) CYCLE n3loop
              DO i = 1, 3
                 bvec(i) = REAL(i1,KIND=dp)*b1(i) + REAL(i2,KIND=dp)*b2(i) + &
                      REAL(i3,KIND=dp)*b3(i)
@@ -3069,9 +3071,8 @@ CONTAINS
                 !             1/2*BVEC is outside the Bz - skip this direction
                 !             The 1.0E-6_dp takes care of single points touching the Bz,
                 !             and of the -(plane)
-                IF (ABS(projct)>0.5E0_dp-delta) EXIT
+                IF (ABS(projct)>0.5E0_dp-delta) CYCLE n3loop
              END DO
-             IF (ABS(projct)>0.5E0_dp-delta) CYCLE
              !           1/2*BVEC further confines the 1Bz - include into RSDIR
              nplane = nplane + 1
              !           PRINT *,NPLANE,' PLANE INCLUDED, I1,2,3 = ',I1,I2,I3
@@ -3083,14 +3084,13 @@ CONTAINS
                    WRITE (iout,'(" TOO MANY PLANES, NRSDIR = ",I5)') nrsdir
                 END IF
                 CPABORT("")
-                RETURN
              ENDIF
              DO i = 1, 3
                 rsdir(i,nplane) = bvec(i)
              END DO
              !           Length squared
              rsdir(4,nplane) = bvec(1)**2 + bvec(2)**2 + bvec(3)**2
-          END DO
+          END DO n3loop
        END DO
     END DO
     !------------------------------------------------------------------------------!
