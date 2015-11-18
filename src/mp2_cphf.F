@@ -148,11 +148,8 @@ MODULE mp2_cphf
       transf_type_out, virtual, virtual_beta
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: alpha_beta, &
-                                                do_dynamic_load_balancing, &
-                                                do_hfx, &
-                                                hfx_treat_lsd_in_core, &
-                                                use_virial
+    LOGICAL :: alpha_beta, do_dynamic_load_balancing, do_hfx, &
+      hfx_treat_lsd_in_core, restore_p_screen, use_virial
     REAL(KIND=dp)                            :: e_hartree, factor, out_alpha, &
                                                 pair_energy, tot_rho_r
     REAL(KIND=dp), ALLOCATABLE, &
@@ -383,12 +380,14 @@ MODULE mp2_cphf
       CALL timestop(handle2)
     END IF
 
-    ! not a good idea having screening on initial P
+    ! set up parameters for P_screening
+    restore_p_screen = qs_env%x_data(1,1)%screening_parameter%do_initial_p_screening
     IF(qs_env%x_data(1,1)%screening_parameter%do_initial_p_screening) THEN
-      CALL cp_warn(__LOCATION__,&
-           "CPHF-like update of the Hartree Fock exchange part requested with the use "//&
-           "of SCREEN_ON_INITIAL_P. This may lead to unphysical results. "//&
-           "Set SCREEN_ON_INITIAL_P to false to avoid possible problems. ")
+      IF (mp2_env%ri_mp2%free_hfx_buffer) THEN
+          mp2_env%p_screen = .FALSE.
+      ELSE
+          mp2_env%p_screen = .TRUE.
+      ENDIF
     END IF
 
     ! update Lagrangian with the CPHF like update, occ-occ block, first call (recompute hfx integrals if needed)
@@ -947,6 +946,10 @@ MODULE mp2_cphf
     DO ispin=1, dft_control%nspins
       CALL cp_dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
     END DO
+    ! We will need one more hfx calculation for HF gradient part
+    mp2_env%not_last_hfx = .FALSE.
+    mp2_env%p_screen = restore_p_screen
+    WRITE(*,*)'restore_p_screen=',restore_p_screen
 
     ! release stuff
     CALL pw_pool_give_back_pw(auxbas_pw_pool,rho_r%pw)

@@ -205,6 +205,9 @@ CONTAINS
     END IF
     CALL zero_qs_force(force)
 
+    ! Set parameter for P screening with MP2
+    IF(ASSOCIATED(qs_env%mp2_env)) qs_env%mp2_env%not_last_hfx = .TRUE.
+
     ! recalculate energy with forces
     CALL qs_energies(qs_env,calc_forces=.TRUE.)
 

@@ -171,6 +171,9 @@ CONTAINS
         mp2_env%ri_opt_param%RI_nset_per_l(ival-1)=tmplist(ival)
       END DO
     END IF
+    ! Set some parameters in case of P screening
+    mp2_env%not_last_hfx = .TRUE.
+    mp2_env%p_screen = .TRUE.
 
     ! print some info about the MP2 parameters
     unit_nr = cp_print_key_unit_nr(logger,mp2_section,"MP2_INFO",&

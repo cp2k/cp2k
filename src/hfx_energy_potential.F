@@ -493,13 +493,22 @@ MODULE hfx_energy_potential
 
     max_am = basis_info%max_am
 
-    do_p_screening = screening_parameter%do_initial_p_screening
-    max_set = basis_info%max_set
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
                     dft_control=dft_control)
 
+    do_p_screening = screening_parameter%do_initial_p_screening
+    ! Special treatment for MP2 with initial density screening
+    IF (do_p_screening) THEN
+       nspins = dft_control%nspins
+       IF (ASSOCIATED(qs_env%mp2_env)) THEN
+          IF ((qs_env%mp2_env%ri_mp2%free_hfx_buffer)) THEN
+            do_p_screening = ((qs_env%mp2_env%p_screen) .AND. (qs_env%mp2_env%not_last_hfx))
+          ENDIF
+       ENDIF
+    ENDIF
+    max_set = basis_info%max_set
     natom = SIZE(particle_set,1)
 
     ! Number of image matrices in k-point calculations (nkimages==1 -> no kpoints)

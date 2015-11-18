@@ -375,6 +375,7 @@ MODULE mp2
       free_hfx_buffer=.TRUE.
       IF(calc_forces.AND.(.NOT.mp2_env%ri_mp2%free_hfx_buffer)) free_hfx_buffer=.FALSE.
     END IF
+
     IF(virial%pv_numer) THEN
       ! in the case of numerical stress we don't have to free the HFX integrals
       free_hfx_buffer=.FALSE.

@@ -162,6 +162,8 @@ MODULE mp2_types
        INTEGER  :: block_size_col
        LOGICAL  :: calc_PQ_cond_num
        LOGICAL  :: hf_fail
+       LOGICAL  :: p_screen
+       LOGICAL  :: not_last_hfx
   END TYPE
 
   TYPE integ_mat_buffer_type
