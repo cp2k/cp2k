@@ -146,20 +146,34 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
+!> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE xsmm_process_mm_stack_d(stack_descr, params,&
        stack_size, a_data, b_data, c_data)
 
 #if defined(__LIBXSMM) && 1
-    USE libxsmm, ONLY: libxsmm_dmm
+    ! Caution: This dependency is ignored by makedep.py, because libxsmm.F is kinda special.
+    USE libxsmm,                           ONLY: libxsmm_function  => libxsmm_dmm_function,&
+                                                 libxsmm_dispatch  => libxsmm_ddispatch_all,&
+                                                 libxsmm_available => libxsmm_davailable,&
+                                                 libxsmm_call_abc  => libxsmm_dcall_abc,&
+                                                 libxsmm_call_prf  => libxsmm_dcall_prf,&
+                                                 libxsmm_mm_abc    => libxsmm_dmm_abc,&
+                                                 libxsmm_mm_prf    => libxsmm_dmm_prf,&
+                                                 LIBXSMM_PREFETCH_DEFAULT => LIBXSMM_PREFETCH,&
+                                                 LIBXSMM_PREFETCH_NONE,&
+                                                 LIBXSMM_ROW_MAJOR,&
+                                                 LIBXSMM_COL_MAJOR,&
+                                                 LIBXSMM_MAX_MNK,&
+                                                 LIBXSMM_FLAGS,&
+                                                 LIBXSMM_JIT
 #endif
 
     INTEGER, INTENT(IN)                       :: stack_size
     TYPE(stack_descriptor_type), INTENT(IN)   :: stack_descr
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
       INTENT(IN)                              :: params
-    REAL(kind=real_8), DIMENSION(*), TARGET, INTENT(IN) :: a_data, &
-                                                 b_data
+    REAL(kind=real_8), DIMENSION(*), TARGET, INTENT(IN) :: a_data, b_data
     REAL(kind=real_8), DIMENSION(*), TARGET, &
       INTENT(INOUT)                           :: c_data
 
@@ -167,29 +181,80 @@
       routineP = moduleN//':'//routineN
 
 #if defined(__LIBXSMM) && 1
-    REAL(kind=real_8), DIMENSION(:,:), POINTER          :: a_ptr, b_ptr, c_ptr
-    INTEGER                                   :: fa, fb, fc, m, n, k, sp
+    REAL(real_8), PARAMETER                  :: one = 1.0_real_8
+    LOGICAL                                   :: processed
+    INTEGER                                   :: fa, fb, fc, pa, pb, pc, m, n, k, sp
+    REAL(real_8), DIMENSION(:,:), POINTER    :: a_ptr, b_ptr, c_ptr
+    TYPE(libxsmm_function)                    :: func
 
-    DO sp = 1, stack_size
-       fa = params(p_a_first,sp)
-       fb = params(p_b_first,sp)
-       fc = params(p_c_first,sp)
-       m = params(p_m,sp)
-       n = params(p_n,sp)
-       k = params(p_k,sp)
-       a_ptr(1:m,1:k) => a_data(fa:fa+(m*k))
-       b_ptr(1:k,1:n) => b_data(fb:fb+(k*n))
-       c_ptr(1:m,1:n) => c_data(fc:fc+(m*n))
+    processed = .FALSE.
 
-       CALL libxsmm_dmm(m, n, k, a_ptr, b_ptr, c_ptr)
-    ENDDO
+    CPASSERT(LIBXSMM_COL_MAJOR==1 .AND. LIBXSMM_ROW_MAJOR==0)
+
+    IF (stack_descr%defined_mnk) THEN
+       m = stack_descr%m
+       n = stack_descr%n
+       k = stack_descr%k
+       IF(m*n*k > LIBXSMM_MAX_MNK) THEN
+          ! blocks are too large for libxsmm, BLAS is more efficient
+          CALL blas_process_mm_stack_d(params, stack_size,a_data, b_data, c_data)
+          processed = .TRUE.
+       ELSE
+          ! try to get a function pointer from libxsmm
+          CALL libxsmm_dispatch(func, m=m, n=n, k=k, alpha=one, beta=one, lda=0, ldb=0, ldc=0,&
+                                flags=LIBXSMM_FLAGS,  prefetch=LIBXSMM_PREFETCH_DEFAULT)
+          IF (LIBXSMM_JIT==1 .OR. libxsmm_available(func)) THEN
+             DO sp = 1, stack_size-1
+                fa = params(p_a_first,sp)
+                fb = params(p_b_first,sp)
+                fc = params(p_c_first,sp)
+                IF (LIBXSMM_PREFETCH_DEFAULT==LIBXSMM_PREFETCH_NONE) THEN ! evals at compile time
+                   CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+                ELSE
+                   pa = params(p_a_first,sp+1) ! prefetch next blocks
+                   pb = params(p_b_first,sp+1)
+                   pc = params(p_c_first,sp+1)
+                   CALL libxsmm_call_prf(func, a=a_data(fa), b=b_data(fb), c=c_data(fc),&
+                                         pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
+                ENDIF
+             ENDDO
+
+             ! handle last stack entry without prefetching
+             fa = params(p_a_first,stack_size)
+             fb = params(p_b_first,stack_size)
+             fc = params(p_c_first,stack_size)
+             CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+             processed = .TRUE.
+          ENDIF
+       ENDIF
+    ENDIF
+
+
+    IF(.NOT.processed) THEN
+       ! Dispatch interface was not used, call regular interface.
+       ! Should only happen for inhomgenous stacks, then prefetching makes no sense.
+       DO sp = 1, stack_size
+          m = params(p_m,sp)
+          n = params(p_n,sp)
+          k = params(p_k,sp)
+          fa = params(p_a_first,sp)
+          fb = params(p_b_first,sp)
+          fc = params(p_c_first,sp)
+          ! somewhat expensive pointer remapping required by libxsmm interface
+          a_ptr(1:m,1:k) => a_data(fa:fa+(m*k))
+          b_ptr(1:k,1:n) => b_data(fb:fb+(k*n))
+          c_ptr(1:m,1:n) => c_data(fc:fc+(m*n))
+          CALL libxsmm_mm_abc(m=m, n=n, k=k, a=a_ptr, b=b_ptr, c=c_ptr,&
+                              flags=LIBXSMM_FLAGS, alpha=one, beta=one)
+       ENDDO
+    ENDIF
 
 #else
+    MARK_USED(stack_descr)
     ! We do not want to abort here, fall back to BLAS.
     CALL blas_process_mm_stack_d(params, stack_size,a_data, b_data, c_data)
 #endif
 
-    MARK_USED(stack_descr)
   END SUBROUTINE xsmm_process_mm_stack_d
 
 ! *****************************************************************************
