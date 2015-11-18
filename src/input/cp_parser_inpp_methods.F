@@ -451,7 +451,7 @@ CONTAINS
        CPASSERT(pos2>0)
        IF(pos2==0) THEN
           WRITE(UNIT=message,FMT="(3A,I6)") &
-               "INPP_@SET: Missing '}' in file: ",&
+               "Missing '}' in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
           CPABORT(TRIM(message))
        ENDIF
@@ -459,10 +459,10 @@ CONTAINS
        pos2=pos1+pos2-2
        varname=input_line(pos1:pos2)
        idx=inpp_find_variable(inpp,varname)
-       CPASSERT(idx>0)
+       CPASSERT(idx>=0)
        IF(idx==0) THEN
           WRITE(UNIT=message,FMT="(5A,I6)") &
-               "INPP_@SET: Variable ${",TRIM(varname),"} not defined in file: ",&
+               "Variable ${",TRIM(varname),"} not defined in file: ",&
                TRIM(input_file_name), "  Line:",input_line_number
           CPABORT(TRIM(message))
        ENDIF
