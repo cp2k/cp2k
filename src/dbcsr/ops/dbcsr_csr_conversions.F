@@ -1370,9 +1370,9 @@ CONTAINS
       DIMENSION(:)                           :: nzval_to_master_c_sp
     COMPLEX(KIND=real_8), ALLOCATABLE, &
       DIMENSION(:)                           :: nzval_to_master_c_dp
-    INTEGER                                  :: handle, i, k, l, m, mynode, &
-                                                numnodes, rowind, tag1, tag2, &
-                                                tag3
+    INTEGER                                  :: handle, i, ii, k, l, m, &
+                                                mynode, numnodes, rowind, &
+                                                tag1, tag2, tag3
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind_to_master, &
                                                 nzerow_to_master, &
                                                 sizes_numrowlocal, &
@@ -1411,28 +1411,29 @@ CONTAINS
 
     ! for each node, send matrix data to node 0 (master) and write data
     DO i=0, numnodes-1
+      ii = i
       IF (mynode .EQ.0) THEN ! allocations for receiving data from node i
-        ALLOCATE(colind_to_master(sizes_nzelocal(i+1)))
-        ALLOCATE(nzerow_to_master(sizes_numrowlocal(i+1)))
+        ALLOCATE(colind_to_master(sizes_nzelocal(ii+1)))
+        ALLOCATE(nzerow_to_master(sizes_numrowlocal(ii+1)))
 
         SELECT CASE (csr_mat%nzval_local%data_type)
           CASE (dbcsr_type_real_4)
             data_format = "(2(I8),E23.6E2)"
-            ALLOCATE(nzval_to_master_r_sp(sizes_nzelocal(i+1)))
+            ALLOCATE(nzval_to_master_r_sp(sizes_nzelocal(ii+1)))
           CASE (dbcsr_type_real_8)
             data_format = "(2(I8),E23.14E3)"
-            ALLOCATE(nzval_to_master_r_dp(sizes_nzelocal(i+1)))
+            ALLOCATE(nzval_to_master_r_dp(sizes_nzelocal(ii+1)))
           CASE (dbcsr_type_complex_4)
             data_format = "(2(I8),2(E23.6E2))"
-            ALLOCATE(nzval_to_master_c_sp(sizes_nzelocal(i+1)))
+            ALLOCATE(nzval_to_master_c_sp(sizes_nzelocal(ii+1)))
           CASE (dbcsr_type_complex_8)
             data_format = "(2(I8),2(E23.14E3))"
-            ALLOCATE(nzval_to_master_c_dp(sizes_nzelocal(i+1)))
+            ALLOCATE(nzval_to_master_c_dp(sizes_nzelocal(ii+1)))
         END SELECT
       ENDIF
 
       IF (mynode .EQ. 0) THEN ! receive at node 0
-        IF (i .EQ. 0) THEN  ! data from node 0, no need for mpi routines
+        IF (ii .EQ. 0) THEN  ! data from node 0, no need for mpi routines
           colind_to_master(:) = csr_mat%colind_local(:)
           nzerow_to_master(:) = csr_mat%nzerow_local(:)
           SELECT CASE (csr_mat%nzval_local%data_type)
@@ -1446,22 +1447,22 @@ CONTAINS
               nzval_to_master_c_dp(:) = csr_mat%nzval_local%c_dp(:)
           END SELECT
         ELSE ! receive data from nodes with rank > 0
-          CALL mp_recv(colind_to_master,i,tag1,csr_mat%mp_group)
-          CALL mp_recv(nzerow_to_master,i,tag2,csr_mat%mp_group)
+          CALL mp_recv(colind_to_master,ii,tag1,csr_mat%mp_group)
+          CALL mp_recv(nzerow_to_master,ii,tag2,csr_mat%mp_group)
           SELECT CASE (csr_mat%nzval_local%data_type)
             CASE (dbcsr_type_real_4)
-              CALL mp_recv(nzval_to_master_r_sp, i, tag3, csr_mat%mp_group)
+              CALL mp_recv(nzval_to_master_r_sp, ii, tag3, csr_mat%mp_group)
             CASE (dbcsr_type_real_8)
-              CALL mp_recv(nzval_to_master_r_dp, i, tag3, csr_mat%mp_group)
+              CALL mp_recv(nzval_to_master_r_dp, ii, tag3, csr_mat%mp_group)
             CASE (dbcsr_type_complex_4)
-              CALL mp_recv(nzval_to_master_c_sp, i, tag3, csr_mat%mp_group)
+              CALL mp_recv(nzval_to_master_c_sp, ii, tag3, csr_mat%mp_group)
             CASE (dbcsr_type_complex_8)
-              CALL mp_recv(nzval_to_master_c_dp, i, tag3, csr_mat%mp_group)
+              CALL mp_recv(nzval_to_master_c_dp, ii, tag3, csr_mat%mp_group)
           END SELECT
         ENDIF
       ENDIF
 
-      IF ((mynode .EQ. i) .AND. (i .NE. 0)) THEN ! send from nodes with rank > 0
+      IF ((mynode .EQ. ii) .AND. (ii .NE. 0)) THEN ! send from nodes with rank > 0
         CALL mp_send(csr_mat%colind_local,0,tag1,csr_mat%mp_group)
         CALL mp_send(csr_mat%nzerow_local,0,tag2,csr_mat%mp_group)
         SELECT CASE (csr_mat%nzval_local%data_type)
@@ -1479,8 +1480,8 @@ CONTAINS
       IF (mynode .EQ. 0) THEN ! write data received at node 0
       !WRITE(unit_nr,"(A27)") "#row ind, col ind, value"
         m = 0
-        DO k=1, sizes_numrowlocal(i+1)
-          rowind = k + SUM(sizes_numrowlocal(1:i)) ! row index: local to global
+        DO k=1, sizes_numrowlocal(ii+1)
+          rowind = k + SUM(sizes_numrowlocal(1:ii)) ! row index: local to global
           DO l=1, nzerow_to_master(k)
             m=m+1
             IF ((.NOT. ut) .OR. (k .LE. colind_to_master(m))) THEN
@@ -1504,7 +1505,7 @@ CONTAINS
 
         DEALLOCATE(colind_to_master)
         DEALLOCATE(nzerow_to_master)
-  
+
         SELECT CASE (csr_mat%nzval_local%data_type)
           CASE (dbcsr_type_real_4)
             DEALLOCATE(nzval_to_master_r_sp)
@@ -1521,7 +1522,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE csr_write
- 
+
 ! *****************************************************************************
 !> \brief Print CSR sparsity
 !> \param csr_mat ...
