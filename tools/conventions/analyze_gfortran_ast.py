@@ -19,7 +19,7 @@ assert(all([x.lower()==x for x in USE_EXCEPTIONS]))
 # precompile regex
 re_symbol    = re.compile(r"^\s*symtree.* symbol: '([^']+)'.*$")
 re_use       = re.compile(r" USE-ASSOC\(([^)]+)\)")
-
+re_conv      = re.compile(r"__(real_[48]_r8|real_4_c8|cmplx1_4_r8_r8)\[\[") # ignores integers
 
 #===============================================================================
 def main():
@@ -130,9 +130,34 @@ def process_log_file(fn, public_symbols, used_symbols):
             stat_stm = line.split()[0]
             skip_until_DT_END = stat_stm in ("READ", "WRITE",)
 
+        elif(re_conv.search(line)):
+            for m in re_conv.finditer(line):
+                args = parse_args(line[m.end():])
+                if(not re.match(r"\((kind = )?[48]\)",args[-1])):
+                    print(loc+': Found lossy conversion %s without KIND argument in "%s"'%(m.group(1),curr_procedure))
 
     # check for run-away DT_END search
     assert(skip_until_DT_END==False)
+
+
+#===============================================================================
+def parse_args(line):
+    assert(line[0] == "(")
+    parentheses = 1
+    args = list()
+    for i in range(1,len(line)):
+        if(line[i]=="("):
+            if(parentheses==1): a = i # begining of argument
+            parentheses += 1
+        elif(line[i]==")"):
+            parentheses -= 1
+            if(parentheses==1): # end of argument
+                args.append(line[a:i+1])
+            if(parentheses==0):
+                return(args)
+
+    raise(Exception("Could not find matching parentheses"))
+
 #===============================================================================
 main()
 
