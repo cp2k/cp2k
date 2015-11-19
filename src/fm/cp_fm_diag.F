@@ -28,7 +28,8 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
                                              cp_fm_upper_to_full
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
-                                             cp_fm_struct_type
+                                             cp_fm_struct_type,&
+                                             cp_fm_struct_get
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_get_info,&
@@ -52,7 +53,7 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
                                              ieee_all
 #endif
 
-#if defined (__ELPA)  || defined(__ELPA2)
+#if defined (__ELPA) || defined(__ELPA2) || defined(__ELPA3)
   USE ELPA2, ONLY: solve_evp_real_2stage
 #endif
 
@@ -111,7 +112,7 @@ CONTAINS
     IF(try_library) THEN
         IF(diag_lib.EQ."ELPA") THEN
 
-#if defined (__ELPA)  || defined (__ELPA2)
+#if defined (__ELPA) || defined (__ELPA2) || defined (__ELPA3)
             diag_type = 3
 #else
           ! ELPA library not linked, switch to SL
@@ -919,10 +920,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2))
+#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2) || defined(__ELPA3))
     INTEGER                                  :: comm_col, comm_row, group, &
-                                                mypcol, &
-                                                myprow, n, n_rows, nblk, neig
+                                                mypcol, myprow, n, &
+                                                n_rows, n_cols, &
+                                                nblk, neig
     LOGICAL                                  :: success
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eval
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
@@ -930,7 +932,7 @@ CONTAINS
 #endif
 
     CALL timeset(routineN,handle)
-#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2))
+#if defined(__SCALAPACK) && (defined(__ELPA) || defined (__ELPA2) || defined (__ELPA3))
 
     success = .TRUE.
 
@@ -953,8 +955,11 @@ CONTAINS
     ! elpa needs the full matrix
     CALL cp_fm_upper_to_full(matrix,eigenvectors)
 
-    n_rows = matrix%matrix_struct%local_leading_dimension
-    nblk = matrix%matrix_struct%nrow_block
+    CALL cp_fm_struct_get(matrix%matrix_struct,&
+       local_leading_dimension=n_rows,&
+       ncol_local=n_cols,&
+       nrow_block=nblk)
+
     neig = SIZE(eigenvalues,1)
     ! the full eigenvalues vector is needed
     ALLOCATE(eval(n))
@@ -962,13 +967,16 @@ CONTAINS
     ! Calculate eigenvalues/eigenvectors
 #if defined (__ELPA)
     CALL solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group)
-
-#else
+#elif defined (__ELPA2)
     success = solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,comm_row,comm_col,group,&
               THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
-     IF(.NOT.success)&
-        CPABORT("ELPA failed to diagonalize a matrix")
+#else
+    success = solve_evp_real_2stage(n,neig,m,n_rows,eval,v,n_rows,nblk,n_cols,comm_row,comm_col,group,&
+              THIS_REAL_ELPA_KERNEL_API=kernel_type,useQR=.FALSE.)
 #endif
+
+    IF(.NOT.success)&
+       CPABORT("ELPA failed to diagonalize a matrix")
 
     eigenvalues(1:neig) = eval(1:neig)
 

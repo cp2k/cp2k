@@ -25,7 +25,7 @@ lapack_ver=3.5.0
 libxc_ver=2.2.2
 libint_ver=1.1.4
 fftw_ver=3.3.4
-elpa_ver=2015.05.001
+elpa_ver=2015.11.001
 cmake_ver=3.1.1
 parmetis_ver=4.0.2
 scotch_ver=6.0.0
@@ -563,7 +563,7 @@ fi
 # Unfortunately, we need two separate include dirs for ELPA w/wo threading.
 P1="-I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules"
 P2="-I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules"
-DFLAGS="${DFLAGS} IF_MPI(-D__ELPA2 IF_OMP(${P1},${P2}),)"
+DFLAGS="${DFLAGS} IF_MPI(-D__ELPA3 IF_OMP(${P1},${P2}),)"
 LIBS="IF_MPI(IF_OMP(-lelpa_openmp,-lelpa),) ${LIBS}"
 
 
