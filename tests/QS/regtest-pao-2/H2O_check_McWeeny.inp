@@ -19,10 +19,8 @@
       EXTRAPOLATION_ORDER  1
       &PAO
         PREOPT_DM_FILE H2O_ref_LS_DM_SPIN_1_RESTART.dm
-        MAX_TRS4_PREOPT 100
-        EPS_PREOPT 1.0E+10 ! quit immediately
-        EPS_PAO    1.0E+10
-        MAX_PAO 110
+        EPS_PREOPT 1.0E-10
+        MAX_PAO    100 ! quit early
         CHECK_GRADIENT_MCWEENY_TOL 1.0E-8
         PARAMETERIZATION EXP
         PRECONDITIONER NONE

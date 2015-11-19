@@ -97,9 +97,6 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%PREOPT_DM_FILE",c_val=pao%preopt_dm_file)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,A)") " PAO|","PREOPT_DM_FILE ",pao%preopt_dm_file
 
-    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%MAX_TRS4_PREOPT",i_val=pao%max_trs4_preopt)
-    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","MAX_TRS4_PREOPT", pao%max_trs4_preopt
-
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%EPS_PREOPT",r_val=pao%eps_preopt)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","EPS_PREOPT", pao%eps_preopt
 
@@ -160,7 +157,7 @@ CONTAINS
     ! Convergence Criteria *****************************************************
     CALL keyword_create(keyword, name="EPS_PAO",&
          description="Convergence criteria for PAO optimization.",&
-         default_r_val=1.e-7_dp)
+         default_r_val=1.e-5_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -199,15 +196,9 @@ CONTAINS
     CALL keyword_release(keyword)
 
     ! Preopt  ******************************************************************
-    CALL keyword_create(keyword, name="MAX_TRS4_PREOPT",&
-         description="Maximum number of TRS pre-optimization steps.",&
-         default_i_val=100)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
     CALL keyword_create(keyword, name="EPS_PREOPT",&
          description="Convergence criteria for pre-optimization.",&
-         default_r_val=1.e-7_dp)
+         default_r_val=1.e-6_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

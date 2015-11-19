@@ -50,7 +50,6 @@ MODULE pao_types
      REAL(KIND=dp)                    :: eps_pao = 0.0_dp
      REAL(KIND=dp)                    :: eps_preopt = 0.0_dp
      INTEGER                          :: max_pao = -1
-     INTEGER                          :: max_trs4_preopt = -1
      INTEGER                          :: max_outer_pao = -1
      INTEGER                          :: parameterization = -1
      INTEGER                          :: cg_init_steps = -1

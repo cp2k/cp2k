@@ -36,9 +36,8 @@ MODULE pao_preopt
                                              pao_preopt_finalize_trs4
   USE pao_types,                       ONLY: pao_env_type
   USE pao_utils,                       ONLY: pao_calc_CG_beta,&
-                                             pao_print_oneliner,&
                                              pao_print_step_delimiter,&
-                                             pao_test_convegence
+                                             pao_test_convergence
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -73,32 +72,23 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_preopt_run', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=10)                        :: mode
     INTEGER                                  :: handle
-    LOGICAL                                  :: preopt_is_done
+    LOGICAL                                  :: is_converged
     REAL(KIND=dp)                            :: beta, energy
     TYPE(cp_dbcsr_type)                      :: matrix_M
 
     IF(LEN_TRIM(pao%preopt_dm_file)==0) RETURN ! preopt disabled
 
     CALL timeset(routineN,handle)
-
     CALL pao_preopt_init(pao, qs_env, ls_scf_env)
 
-    preopt_is_done = .FALSE.
-    mode = "TRS4"
-
-    DO WHILE(.NOT.preopt_is_done)
-       IF(pao%istep+1 >= pao%max_pao) EXIT ! leave the last step for SCF-PAO
+    ! TRS4 optimization =======================================================
+    DO WHILE(pao%istep+2 < pao%max_pao) ! leave a step for McWeeny and SCF
        pao%istep = pao%istep + 1
        CALL pao_print_step_delimiter(pao)
 
        ! calculate new density matrix
-       IF(TRIM(mode) == "TRS4") THEN
-          CALL pao_preopt_dm_trs4(qs_env, ls_scf_env)
-       ELSE
-          CALL pao_preopt_dm_mcweeny(pao, qs_env, ls_scf_env)
-       ENDIF
+       CALL pao_preopt_dm_trs4(qs_env, ls_scf_env)
 
        ! calc energy and check trace_PS
        CALL pao_calc_trace_PH(ls_scf_env, energy)
@@ -106,58 +96,73 @@ CONTAINS
 
        IF(pao%linesearch%starts) THEN
           ! calculate new gradient
-          IF(TRIM(mode) == "TRS4") THEN
-             CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
-          ELSE
-             CALL pao_calc_outer_grad_mcweeny(qs_env, ls_scf_env, matrix_M)
-          ENDIF
+          CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
           CALL pao_calc_grad(pao, matrix_M)
           CALL cp_dbcsr_release(matrix_M)
 
-          ! print info
-          CALL pao_print_oneliner(pao, ls_scf_env, energy, mode)
-
-          ! determine CG mixing factor
+          ! CG algorithm
           CALL pao_calc_CG_beta(pao, beta)
-
-          ! calculate new CG direction matrix_D
           CALL cp_dbcsr_add(pao%matrix_D, pao%matrix_G, beta, 1.0_dp)
-
-          ! backup gradient for calc_CG_beta
           CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_G)
-
-          !backup X
           CALL cp_dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
-
-          IF(TRIM(mode) == "McWeeny") THEN
-             CALL pao_check_grad_mcweeny(pao, qs_env, ls_scf_env)
-             CALL pao_test_convegence(pao, ls_scf_env, pao%eps_preopt, energy, preopt_is_done)
-          ENDIF
+          CALL pao_test_convergence(pao, ls_scf_env, energy, "TRS4", is_converged)
+          IF(is_converged) EXIT
        ENDIF
 
-       IF(.NOT.preopt_is_done) THEN
-          CALL linesearch_step(pao%linesearch,&
-                               energy=energy,&
-                               slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
-          CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
-          CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
-          CALL pao_update_AB(pao, ls_scf_env%ls_mstruct)
-       ENDIF
-
-       ! switch from TRS4 to McWeeny
-       IF(TRIM(mode) == "TRS4" .AND. pao%linesearch%starts .AND. pao%istep>pao%max_trs4_preopt) THEN
-          CALL pao_preopt_finalize_trs4(ls_scf_env)
-          CALL linesearch_reset(pao%linesearch)
-          CALL cp_dbcsr_set(pao%matrix_D, 0.0_dp) ! reset CG
-          CALL cp_dbcsr_set(pao%matrix_G_prev, 0.0_dp)
-          mode = "McWeeny"
-       END IF
+       CALL linesearch_step(pao%linesearch,&
+                            energy=energy,&
+                            slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
+       CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
+       CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
+       CALL pao_update_AB(pao, ls_scf_env%ls_mstruct)
     ENDDO
 
+    ! finalize TRS4
+    CALL pao_preopt_finalize_trs4(ls_scf_env)
+    CALL linesearch_reset(pao%linesearch)
+    CALL cp_dbcsr_set(pao%matrix_D, 0.0_dp) ! reset CG
+    CALL cp_dbcsr_set(pao%matrix_G_prev, 0.0_dp)
+
+    ! McWeeny optimization ====================================================
+    DO WHILE(pao%istep+1 < pao%max_pao) ! leave the last step for SCF
+       pao%istep = pao%istep + 1
+       CALL pao_print_step_delimiter(pao)
+
+       ! calculate new density matrix
+       CALL pao_preopt_dm_mcweeny(pao, qs_env, ls_scf_env)
+
+       ! calc energy and check trace_PS
+       CALL pao_calc_trace_PH(ls_scf_env, energy)
+       CALL pao_check_trace_PS(ls_scf_env)
+
+       IF(pao%linesearch%starts) THEN
+          ! calculate new gradient
+          CALL pao_calc_outer_grad_mcweeny(qs_env, ls_scf_env, matrix_M)
+          CALL pao_calc_grad(pao, matrix_M)
+          CALL cp_dbcsr_release(matrix_M)
+          CALL pao_check_grad_mcweeny(pao, qs_env, ls_scf_env)
+
+          ! CG algorithm
+          CALL pao_calc_CG_beta(pao, beta)
+          CALL cp_dbcsr_add(pao%matrix_D, pao%matrix_G, beta, 1.0_dp)
+          CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_G)
+          CALL cp_dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
+          CALL pao_test_convergence(pao, ls_scf_env, energy, "McWeeny", is_converged)
+          IF(is_converged) EXIT
+       ENDIF
+
+       CALL linesearch_step(pao%linesearch,&
+                            energy=energy,&
+                            slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
+       CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
+       CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
+       CALL pao_update_AB(pao, ls_scf_env%ls_mstruct)
+    ENDDO
+
+    ! finalize pre-optimization
     CALL pao_write_restart(pao, qs_env, energy)
-
-    CALL pao_preopt_finalize(pao, ls_scf_env, mode)
-
+    CALL pao_preopt_finalize_mcweeny(pao)
+    CALL pao_preopt_finalize(pao, ls_scf_env)
     CALL timestop(handle)
   END SUBROUTINE pao_preopt_run
 
@@ -247,12 +252,10 @@ CONTAINS
 !> \brief Finalize the pre-optimization
 !> \param pao ...
 !> \param ls_scf_env ...
-!> \param mode ...
 ! *****************************************************************************
-  SUBROUTINE pao_preopt_finalize(pao, ls_scf_env, mode)
+  SUBROUTINE pao_preopt_finalize(pao, ls_scf_env)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
-    CHARACTER(LEN=10)                        :: mode
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_preopt_finalize', &
       routineP = moduleN//':'//routineN
@@ -260,12 +263,6 @@ CONTAINS
     INTEGER                                  :: handle, ispin
 
     CALL timeset(routineN,handle)
-
-    IF(TRIM(mode) == "TRS4")&
-       CALL pao_preopt_finalize_trs4(ls_scf_env)
-
-    IF(TRIM(mode) == "McWeeny")&
-       CALL pao_preopt_finalize_mcweeny(pao)
 
     CALL cp_dbcsr_release(ls_scf_env%matrix_s)
 

@@ -32,47 +32,10 @@ MODULE pao_utils
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_utils'
 
-  PUBLIC :: fill_randomly, pao_calc_CG_beta, pao_test_convegence
-  PUBLIC :: pao_print_oneliner, pao_print_step_delimiter
+  PUBLIC :: fill_randomly, pao_calc_CG_beta, pao_test_convergence
+  PUBLIC :: pao_print_step_delimiter
 
 CONTAINS
-
-! *****************************************************************************
-!> \brief Print single line summary
-!> \param pao ...
-!> \param ls_scf_env ...
-!> \param energy ...
-!> \param mode ...
-! *****************************************************************************
-  SUBROUTINE pao_print_oneliner(pao, ls_scf_env, energy, mode)
-    TYPE(pao_env_type), POINTER              :: pao
-    TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
-    REAL(KIND=dp), INTENT(IN)                :: energy
-    CHARACTER(LEN=*), INTENT(IN)             :: mode
-
-    REAL(KIND=dp)                            :: delta_t, energy_diff, &
-                                                loop_eps, norm_G, t2
-
-    norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
-
-    t2 = m_walltime()
-    delta_t = t2 - pao%step_start_time
-    pao%step_start_time = t2
-
-
-    energy_diff = energy - pao%energy_prev
-    loop_eps = ABS(energy_diff) / ls_scf_env%nelectron_total
-    IF(pao%iw>0) WRITE (pao%iw,'(A,I6,1X,A8,1X,F20.9,1X,E10.3,1X,F8.3,1X,E10.3,1X,F6.3)')&
-                 " PAO| step ",&
-                 pao%istep,&
-                 TRIM(mode),&
-                 energy,&
-                 norm_G,&
-                 pao%linesearch%step_size,& !prev step, which let to the current energy
-                 loop_eps,&
-                 delta_t
-
-  END SUBROUTINE pao_print_oneliner
 
 
 ! *****************************************************************************
@@ -91,42 +54,60 @@ CONTAINS
 !> \brief Test whether the PAO optimization has reached convergence
 !> \param pao ...
 !> \param ls_scf_env ...
-!> \param threshold ...
 !> \param new_energy ...
+!> \param mode ...
 !> \param is_converged ...
 ! *****************************************************************************
-  SUBROUTINE pao_test_convegence(pao, ls_scf_env, threshold, new_energy, is_converged)
+  SUBROUTINE pao_test_convergence(pao, ls_scf_env, new_energy, mode, is_converged)
     TYPE(pao_env_type), POINTER              :: pao
-    TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
-    REAL(KIND=dp), INTENT(IN)                :: threshold, new_energy
+    TYPE(ls_scf_env_type)                    :: ls_scf_env
+    REAL(KIND=dp), INTENT(IN)                :: new_energy
+    CHARACTER(LEN=*), INTENT(IN)             :: mode
     LOGICAL, INTENT(OUT)                     :: is_converged
 
-    REAL(KIND=dp)                            :: energy_diff, loop_eps, norm_G
+    REAL(KIND=dp)                            :: energy_diff, loop_eps, &
+                                                norm_G, now, threshold, &
+                                                time_diff
 
-     is_converged = .FALSE.
+    IF(TRIM(mode)=="TRS4" .OR. TRIM(mode)=="McWeeny") THEN
+       threshold = pao%eps_preopt
+    ELSE IF(TRIM(mode)=="SCF") THEN
+       threshold = pao%eps_pao
+    ELSE
+       CPABORT("Unknown mode")
+    ENDIF
 
-     ! print energy improvement
-     energy_diff = new_energy - pao%energy_prev
-     pao%energy_prev = new_energy
-     norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G) ! calc norm before CG mixing
-     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", new_energy
-     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| gradient norm:", norm_G
+    is_converged = .FALSE.
 
-     IF(pao%istep>1) THEN
-        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
-        IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
+    ! calculate progress
+    energy_diff = new_energy - pao%energy_prev
+    pao%energy_prev = new_energy
+    now = m_walltime()
+    time_diff = now - pao%step_start_time
+    pao%step_start_time = now
 
-        !blk_sizes => cp_dbcsr_col_block_sizes(pao%matrix_G)
-        !loop_eps = norm_G/SUM(blk_sizes**2)
-        loop_eps = ABS(energy_diff) / ls_scf_env%nelectron_total
-        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| loop_eps:", loop_eps
+    norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
+    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", new_energy
+    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| gradient norm:", norm_G
 
-        IF(loop_eps < threshold) THEN
-          IF(pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
-          is_converged = .TRUE.
-        ENDIF
-     ENDIF
-  END SUBROUTINE pao_test_convegence
+    IF(pao%istep>1) THEN
+       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
+       IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
+
+       loop_eps = norm_G / ls_scf_env%nelectron_total
+       is_converged = (loop_eps < threshold)
+
+       ! print one-liner
+       IF(pao%iw>0) WRITE (pao%iw,'(A,I6,1X,A8,1X,F20.9,1X,E10.3,1X,E10.3,1X,F6.3)')&
+                    " PAO| step ",&
+                    pao%istep,&
+                    TRIM(mode),&
+                    new_energy,&
+                    loop_eps,&
+                    pao%linesearch%step_size,& !prev step, which let to the current energy
+                    time_diff
+    ENDIF
+  END SUBROUTINE pao_test_convergence
 
 
 ! *****************************************************************************

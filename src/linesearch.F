@@ -92,7 +92,7 @@ MODULE linesearch
   TYPE linesearch_type
     PRIVATE
     REAL(KIND=dp), PUBLIC                          :: step_size = 0.0_dp
-    LOGICAL, PUBLIC                                :: starts = .TRUE.
+    LOGICAL, PUBLIC                                :: starts = .FALSE.
     TYPE(linesearch_adapt_type), POINTER           :: state_adapt => Null()
     TYPE(linesearch_2pnt_type), POINTER            :: state_2pnt  => Null()
     TYPE(linesearch_3pnt_type), POINTER            :: state_3pnt  => Null()
@@ -228,6 +228,9 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE linesearch_init_low(this)
     TYPE(linesearch_type), INTENT(INOUT)     :: this
+
+     this%step_size = 0.0_dp
+     this%starts = .TRUE.
 
      SELECT CASE(this%method)
         CASE(linesearch_method_adapt)
@@ -610,6 +613,8 @@ CONTAINS
        this%middle_x = 0.0
        this%right_x  = 0.0
     END IF
+
+    IF(step_size < 1.0e-10) CPABORT("Gradient is wrong.")
 
     this%last_step_size = step_size
   END SUBROUTINE linesearch_adapt

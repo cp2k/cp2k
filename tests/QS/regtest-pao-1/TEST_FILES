@@ -1,13 +1,13 @@
 # All pao methods should reproduce the reference energy
 H2_ref.inp                       11     9e-14             -1.160920966911983
-H2_pao_exp.inp              11  1e-7    -1.160920966911983
-H2_pao_fock.inp                  11     3e-07             -1.160920966911983
-H2_pao_rotinv.inp           11  1e-7    -1.160920966911983
+H2_pao_exp.inp                   11     1e-07             -1.160920966911983
+H2_pao_fock.inp                  11     1e-07             -1.160920966911983
+H2_pao_rotinv.inp                11     1e-07             -1.160920966911983
 #
 # rotated system, energy changes slightly due to grid and cell
 #
-H2_pao_rotinv_restart.inp        11     4e-07             -1.160917387417101
+H2_pao_rotinv_restart.inp        11     1e-07             -1.160917387417101
 H2_ref2.inp                      11     7e-14             -1.160917387417101
 #
-H2_pao_MD.inp                2  1e-7    -0.116085621247E+01
+H2_pao_MD.inp                     2     1e-07             -0.116085621247E+01
 #EOF

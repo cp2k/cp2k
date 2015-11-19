@@ -2,6 +2,6 @@
 H2O_ref.inp                       11     9e-14    -17.202701163892929
 H2O_pao_exp.inp                   11     1e-08    -17.202701163892929
 H2O_pao_fock.inp                  11     1e-08    -17.202701163892929
-H2O_pao_rotinv.inp                11     6e-06    -17.202701163892929
+H2O_pao_rotinv.inp                11     5e-08    -17.202701163892929
 H2O_check_McWeeny.inp              0
 #EOF

@@ -80,6 +80,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: project_name
     INTEGER                                  :: handle, ispin, &
                                                 nelectron_spin_real, nspin
+    LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: homo_spin, lumo_spin, mu_spin
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
@@ -106,7 +107,10 @@ CONTAINS
        CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin),&
                                 ls_scf_env%matrix_s_sqrt_inv,&
                                 nelectron_spin_real, 1.0E-06_dp, homo_spin, lumo_spin, mu_spin, &
-                                dynamic_threshold=.FALSE., eps_lanczos=1.0E-03_dp, max_iter_lanczos=128)
+                                dynamic_threshold=.FALSE., converged=converged,&
+                                max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
+                                eps_lanczos=ls_scf_env%eps_lanczos)
+       IF(.NOT.converged) CPABORT("TRS4 did not converge")
     ENDDO
     CALL timestop(handle)
   END SUBROUTINE pao_preopt_dm_trs4

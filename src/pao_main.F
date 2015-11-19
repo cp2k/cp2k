@@ -40,9 +40,8 @@ MODULE pao_main
   USE pao_preopt,                      ONLY: pao_preopt_run
   USE pao_types,                       ONLY: pao_env_type
   USE pao_utils,                       ONLY: pao_calc_CG_beta,&
-                                             pao_print_oneliner,&
                                              pao_print_step_delimiter,&
-                                             pao_test_convegence
+                                             pao_test_convergence
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -406,7 +405,6 @@ CONTAINS
     pao_is_done = .FALSE.
 
     IF(pao%istep >= pao%max_pao) THEN
-        CALL pao_print_oneliner(pao, ls_scf_env, energy%total, "SCF")
         CPWARN("PAO not converged!")
         pao_is_done = .TRUE.
     ELSE
@@ -421,9 +419,6 @@ CONTAINS
           CALL pao_calc_grad(pao, matrix_M)
           CALL cp_dbcsr_release(matrix_M)
 
-          ! print info
-          CALL pao_print_oneliner(pao, ls_scf_env, energy%total, "SCF")
-
           ! determine CG mixing factor
           CALL pao_calc_CG_beta(pao, beta)
 
@@ -436,7 +431,9 @@ CONTAINS
           !backup X
           CALL cp_dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
 
-          CALL pao_test_convegence(pao, ls_scf_env, pao%eps_pao, energy%total, pao_is_done)
+          ! print info and convergence test
+          CALL pao_test_convergence(pao, ls_scf_env, energy%total, "SCF", pao_is_done)
+          IF(pao_is_done .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
        ENDIF
 
        IF(.NOT.pao_is_done) THEN
