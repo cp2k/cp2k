@@ -219,11 +219,19 @@
                 ENDIF
              ENDDO
 
-             ! handle last stack entry without prefetching
+             ! handle last stack entry without out-of-bounds access
              fa = params(p_a_first,stack_size)
              fb = params(p_b_first,stack_size)
              fc = params(p_c_first,stack_size)
-             CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+             IF (LIBXSMM_PREFETCH_DEFAULT==LIBXSMM_PREFETCH_NONE) THEN ! evals at compile time
+                CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+             ELSE
+                pa = params(p_a_first,stack_size) ! prefetch the same blocks
+                pb = params(p_b_first,stack_size)
+                pc = params(p_c_first,stack_size)
+                CALL libxsmm_call_prf(func, a=a_data(fa), b=b_data(fb), c=c_data(fc),&
+                                      pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
+             ENDIF
              processed = .TRUE.
           ENDIF
        ENDIF
