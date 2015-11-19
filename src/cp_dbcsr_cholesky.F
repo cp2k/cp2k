@@ -116,7 +116,8 @@ CONTAINS
 
 #endif
 
-    CPASSERT(info==0)
+    IF(info/=0) &
+      CPABORT("Cholesky decomposition failed. Matrix ill conditioned ?")
 
     CALL copy_fm_to_dbcsr(fm_matrix, matrix)
 
