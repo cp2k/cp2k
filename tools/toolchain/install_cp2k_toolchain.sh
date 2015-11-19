@@ -43,6 +43,7 @@ lcov_ver=1.11
 #gcc_ver=4.9.3
 #gcc_ver=5.1.0
 gcc_ver=5.2.0
+make_ver=4.1
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -122,6 +123,20 @@ export FCFLAGS="-O2 -g -Wno-error"
 export F90FLAGS="-O2 -g -Wno-error"
 export F77FLAGS="-O2 -g -Wno-error"
 export CXXFLAGS="-O2 -g -Wno-error"
+
+echo "==================== Installing make ================="
+if [ -f make-${make_ver}.tar.gz  ]; then
+   echo "Installation already started, skipping it."
+else
+   wget http://ftp.gnu.org/gnu/make/make-${make_ver}.tar.gz
+   checksum make-${make_ver}.tar.gz
+   tar -xzf make-${make_ver}.tar.gz
+   cd make-${make_ver}
+   ./configure --prefix=${INSTALLDIR} >& config.log
+   make -j $nprocs >& make.log
+   make -j $nprocs install >& install.log
+   cd ..
+fi
 
 echo "==================== Installing binutils ================="
 if [ -f binutils-${binutils_ver}.tar.gz  ]; then
