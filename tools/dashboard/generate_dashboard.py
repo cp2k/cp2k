@@ -69,7 +69,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
     log_index = dict([(r['num'], r) for r in log])
     now = datetime.utcnow().replace(microsecond=0)
 
-    output  = html_header(title="CP2K Dashboard")
+    output  = html_header(title="CP2K Dashboard", rev=trunk_revision)
     output += '<div id="flex-container"><div>\n'
     output += html_svnbox(log)
     output += html_linkbox()
@@ -176,7 +176,7 @@ def gen_archive(config, log, outdir, full_archive=False):
             archive_reports[report['revision']] = report
 
         # generate archive index
-        archive_output = html_header(title=name)
+        archive_output = html_header(title=name, rev=trunk_revision)
         archive_output += '<p>Go back to <a href="../../index.html">main page</a></p>\n'
         if(info_url):
             archive_output += '<p>Get <a href="%s">more information</a></p>\n'%info_url
@@ -344,7 +344,7 @@ def send_notification(report, addressbook, last_ok, svn_log, name, s):
     smtp_conn.quit()
 
 #===============================================================================
-def html_header(title):
+def html_header(title, rev=None):
     output  = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">\n'
     output += '<html><head>\n'
     output += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">\n'
@@ -403,7 +403,7 @@ def html_header(title):
     output += '  width: 15em;\n'
     output += '}\n'
     output += '</style>\n'
-    output += '<title>%s</title>\n'%title
+    output += '<title>%s%s</title>\n'%(title, (" (%d)"%rev if rev else ""))
     output += '</head><body>\n'
     output += '<div class="ribbon"><a href="http://cp2k.org/dev:dashboard">Need Help?</a></div>\n'
     output += '<center><h1>%s</h1></center>\n'%title.upper()
