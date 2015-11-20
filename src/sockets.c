@@ -33,6 +33,7 @@ Functions:
    write_buffer_: Writes a string to the socket.
    read_buffer_: Reads data from the socket.
 */
+#ifndef __NO_IPI_DRIVER
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -163,4 +164,6 @@ void uwait(double *dsec)
    wt.tv_sec = floor(*dsec); wt.tv_nsec=(*dsec-wt.tv_sec)*1000000000;   
    rn = nanosleep(&wt, &rem);
 }
+
+#endif
 

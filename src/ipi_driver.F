@@ -52,6 +52,7 @@ MODULE ipi_driver
 
   PUBLIC :: run_driver
 
+#ifndef __NO_IPI_DRIVER
   INTERFACE writebuffer
       MODULE PROCEDURE writebuffer_s, &
                        writebuffer_d, writebuffer_dv, &
@@ -100,9 +101,11 @@ MODULE ipi_driver
 
     END SUBROUTINE readbuffer_csocket   
   END INTERFACE
+#endif
 
   CONTAINS
   
+#ifndef __NO_IPI_DRIVER
 ! *****************************************************************************
 !> \brief ...
 !> \param psockfd ...
@@ -295,6 +298,7 @@ MODULE ipi_driver
     CALL timestop(handle)
 
   END SUBROUTINE
+#endif
 
 ! *****************************************************************************
 !> \brief ...
@@ -311,6 +315,14 @@ MODULE ipi_driver
 
     CHARACTER(len=*), PARAMETER :: routineN = 'run_driver', &
       routineP = moduleN//':'//routineN
+
+#ifdef __NO_IPI_DRIVER
+    INTEGER                                  :: handle
+    CALL timeset(routineN,handle)
+    CPABORT("CP2K was compiled with the __NO_IPI_DRIVER option!")
+    MARK_USED(globenv)
+    MARK_USED(force_env)
+#else
     INTEGER, PARAMETER                       :: MSGLEN = 12
 
     CHARACTER(len=default_path_length)       :: c_hostname, drv_hostname
@@ -354,10 +366,6 @@ MODULE ipi_driver
     CALL section_vals_val_get(drv_section,"PORT",i_val=drv_port)
     CALL section_vals_val_get(drv_section,"UNIX",l_val=drv_unix)
 
-#ifdef __NO_IPI_DRIVER
-    CPABORT("CP2K was compiled with the __NO_IPI_DRIVER option!")
-#else
-    
     ! opens the socket
     socket=0    
     inet=1
