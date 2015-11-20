@@ -446,18 +446,18 @@ function run_regtest_dir() {
              this_test="RUNTIME FAIL"
            fi 
         fi 
-        #
-        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-        echo ${output_file} >>${error_description_file}
+        # failed starts (farming) are not interesting
         if (( cp2k_exit_status != 43 )); then
+          echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+          echo ${output_file} >>${error_description_file}
           tail -n 100 ${output_file} >>${error_description_file}
           # append an eventual valgrind report to the file
           grep "^==[0-9][0-9]*== " ${output_file} | head -n 20 >> ${error_description_file}
+          echo "EXIT CODE: " $cp2k_exit_status " MEANING: " $this_test >>${error_description_file}
+          echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
+          n_runtime_error=$((n_runtime_error+1))
+          failed_tests="${failed_tests} ${output_file}"
         fi
-        echo "EXIT CODE: " $cp2k_exit_status " MEANING: " $this_test >>${error_description_file}
-        echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >>${error_description_file}
-        n_runtime_error=$((n_runtime_error+1))
-        failed_tests="${failed_tests} ${output_file}"
      else
         # ran but did not end !?
         grep -a "ENDED" ${output_file} &> /dev/null
