@@ -195,7 +195,7 @@
        m = stack_descr%m
        n = stack_descr%n
        k = stack_descr%k
-       IF(m*n*k > LIBXSMM_MAX_MNK) THEN
+       IF(INT(m,KIND=int_8)*INT(n,KIND=int_8)*INT(k,KIND=int_8) > LIBXSMM_MAX_MNK) THEN
           ! blocks are too large for libxsmm, BLAS is more efficient
           CALL blas_process_mm_stack_s(params, stack_size,a_data, b_data, c_data)
           processed = .TRUE.

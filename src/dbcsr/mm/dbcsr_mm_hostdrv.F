@@ -39,6 +39,7 @@ MODULE dbcsr_mm_hostdrv
                                              dbcsr_type_real_8,&
                                              dbcsr_work_type
   USE kinds,                           ONLY: dp,&
+                                             int_8,&
                                              real_4,&
                                              real_8,&
                                              sp
