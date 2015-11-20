@@ -641,7 +641,7 @@ lockfile=${dir_last}/LOCKFILE
 # kills all processes that have a PID of ppid (good for running jobs), removes the lockfile, and exits with code 8
 pgid=`ps -o "%r" $$ | grep "[0-9]"`
 trapcommand="rm -f ${lockfile} ; kill -- -$pgid  >& out.kill ; exit 8"
-trap "$trapcommand" SIGINT SIGTERM SIGKILL SIGPIPE
+trap "$trapcommand" SIGINT SIGTERM SIGKILL SIGPIPE SIGHUP SIGQUIT
 
 if [[ -f ${lockfile} ]]; then
    # the lockfile is touched before the start of any new regtest. If it hasn't been touched
