@@ -19,7 +19,7 @@
       EXTRAPOLATION_ORDER  1
       &PAO
         PREOPT_DM_FILE H2O_ref_LS_DM_SPIN_1_RESTART.dm
-        EPS_PREOPT 1.0E-7
+        EPS_PREOPT 3.0E-7
         EPS_PAO    1.0E-6
         MAX_PAO    1000
         PARAMETERIZATION FOCK
