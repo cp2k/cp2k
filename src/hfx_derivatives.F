@@ -45,7 +45,8 @@ MODULE hfx_derivatives
   USE hfx_pair_list_methods,           ONLY: build_atomic_pair_list,&
                                              build_pair_list,&
                                              build_pair_list_pgf,&
-                                             build_pgf_product_list
+                                             build_pgf_product_list,&
+                                             pgf_product_list_size
   USE hfx_screening_methods,           ONLY: update_pmax_mat
   USE hfx_types,                       ONLY: &
        alloc_containers, dealloc_containers, hfx_basis_info_type, &
@@ -337,6 +338,7 @@ MODULE hfx_derivatives
 !$OMP                                  screen_coeffs_set,&
 !$OMP                                  screen_coeffs_kind,&
 !$OMP                                  screen_coeffs_pgf,&
+!$OMP                                  pgf_product_list_size,&
 !$OMP                                  nkind,&
 !$OMP                                  is_anti_symmetric,&
 !$OMP                                  radii_pgf,&
@@ -639,7 +641,9 @@ MODULE hfx_derivatives
     nneighbors = SIZE(actual_x_data%neighbor_cells)
     ALLOCATE(pgf_list_ij(max_pgf**2))
     ALLOCATE(pgf_list_kl(max_pgf**2))
-    ALLOCATE(pgf_product_list(nneighbors**3))
+    !$OMP ATOMIC READ
+    tmp_i4=pgf_product_list_size
+    ALLOCATE(pgf_product_list(tmp_i4))
     ALLOCATE(nimages(max_pgf**2))
 
 
@@ -1894,7 +1898,9 @@ MODULE hfx_derivatives
     TYPE(hfx_screen_coeff_type), &
       DIMENSION(:, :), POINTER               :: R1_pgf, R2_pgf, pgf1, pgf2
     TYPE(hfx_pgf_list), DIMENSION(*)         :: pgf_list_ij, pgf_list_kl
-    TYPE(hfx_pgf_product_list), DIMENSION(*) :: pgf_product_list
+    TYPE(hfx_pgf_product_list), &
+      ALLOCATABLE, DIMENSION(:), &
+      INTENT(INOUT)                          :: pgf_product_list
     INTEGER, DIMENSION(0:), INTENT(IN)       :: nsgfl_a, nsgfl_b, nsgfl_c, &
                                                 nsgfl_d
     REAL(dp), INTENT(IN) :: sphi_a_ext(sphi_a_u1,sphi_a_u2,sphi_a_u3), &
@@ -1915,9 +1921,9 @@ MODULE hfx_derivatives
     REAL(dp)                                 :: cart_estimate_virial
 
     INTEGER :: ipgf, jpgf, kpgf, la, lb, lc, ld, list_ij, list_kl, lpgf, &
-      max_l, ncoa, ncob, ncoc, ncod, nelements_ij, nelements_kl, nneighbors3, &
-      nproducts, nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, &
-      s_offset_a, s_offset_b, s_offset_c, s_offset_d
+      max_l, ncoa, ncob, ncoc, ncod, nelements_ij, nelements_kl, nproducts, &
+      nsgfla, nsgflb, nsgflc, nsgfld, nsoa, nsob, nsoc, nsod, s_offset_a, &
+      s_offset_b, s_offset_c, s_offset_d
     REAL(dp)                                 :: EtaInv, tmp_max, &
                                                 tmp_max_virial, Zeta_A, &
                                                 Zeta_B, Zeta_C, Zeta_D, &
@@ -1954,8 +1960,7 @@ MODULE hfx_derivatives
         kpgf = pgf_list_kl(list_kl)%ipgf
         lpgf = pgf_list_kl(list_kl)%jpgf
 
-        nneighbors3 = SIZE(neighbor_cells)*pgf_list_ij(list_ij)%nimages*pgf_list_kl(list_kl)%nimages
-        CALL build_pgf_product_list(nneighbors3, pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
+        CALL build_pgf_product_list(pgf_list_ij(list_ij), pgf_list_kl(list_kl), pgf_product_list, &
                                     nproducts, log10_pmax, log10_eps_schwarz, neighbor_cells, cell, &
                                     potential_parameter, max_l, do_periodic) 
         s_offset_a = 0

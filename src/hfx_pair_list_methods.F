@@ -39,7 +39,11 @@ MODULE hfx_pair_list_methods
          build_pair_list_mp2, &
          build_pair_list_pgf, &
          build_pgf_product_list, &
-         build_atomic_pair_list
+         build_atomic_pair_list, &
+         pgf_product_list_size
+
+  ! an initial estimate for the size of the product list
+  INTEGER, SAVE :: pgf_product_list_size=128
 
 !***
 
@@ -47,7 +51,6 @@ MODULE hfx_pair_list_methods
 
 ! *****************************************************************************
 !> \brief ...
-!> \param nneighbors3 ...
 !> \param list1 ...
 !> \param list2 ...
 !> \param product_list ...
@@ -60,14 +63,14 @@ MODULE hfx_pair_list_methods
 !> \param m_max ...
 !> \param do_periodic ...
 ! *****************************************************************************
-  SUBROUTINE build_pgf_product_list(nneighbors3, list1, list2, product_list, nproducts, &
+  SUBROUTINE build_pgf_product_list(list1, list2, product_list, nproducts, &
                                     log10_pmax, log10_eps_schwarz, neighbor_cells,&
                                     cell, potential_parameter, m_max, do_periodic)
 
-    INTEGER                                  :: nneighbors3
     TYPE(hfx_pgf_list)                       :: list1, list2
     TYPE(hfx_pgf_product_list), &
-      DIMENSION(nneighbors3), INTENT(OUT)    :: product_list
+      ALLOCATABLE, DIMENSION(:), &
+      INTENT(INOUT)                          :: product_list
     INTEGER, INTENT(OUT)                     :: nproducts
     REAL(dp), INTENT(IN)                     :: log10_pmax, log10_eps_schwarz
     TYPE(hfx_cell_type), DIMENSION(:), &
@@ -77,13 +80,16 @@ MODULE hfx_pair_list_methods
     INTEGER, INTENT(IN)                      :: m_max
     LOGICAL, INTENT(IN)                      :: do_periodic
 
-    INTEGER                                  :: i, j, k, l, nimages1, nimages2
+    INTEGER                                  :: i, j, k, l, nimages1, &
+                                                nimages2, tmp_i4
     LOGICAL                                  :: use_gamma
     REAL(dp) :: C11(3), Eta, EtaInv, factor, Fm(prim_data_f_size), omega2, &
       omega_corr, omega_corr2, P(3), pgf_max_1, pgf_max_2, PQ(3), Q(3), R, &
       R1, R2, ra(3), rb(3), rc(3), rd(3), Rho, RhoInv, rpq2, S1234, S1234a, &
       S1234b, shift(3), T, temp(3), temp_CC(3), temp_DD(3), tmp, tmp_D(3), &
       W(3), Zeta1, Zeta_C, Zeta_D, ZetapEtaInv
+    TYPE(hfx_pgf_product_list), &
+      ALLOCATABLE, DIMENSION(:)              :: tmp_product_list
 
     nimages1 = list1%nimages
     nimages2 = list2%nimages
@@ -141,6 +147,22 @@ MODULE hfx_pair_list_methods
             IF( rpq2 > (R1 + R2 + potential_parameter%cutoff_radius*2.0_dp)**2) CYCLE
           END IF
           nproducts = nproducts + 1
+
+          ! allocate size as needed,
+          ! updating the global size estimate to make this a rare event in longer simulations
+          IF (nproducts>SIZE(product_list)) THEN
+             !$OMP ATOMIC READ
+             tmp_i4=pgf_product_list_size
+             tmp_i4=MAX(pgf_product_list_size,(3*nproducts+1)/2)
+             !$OMP ATOMIC WRITE
+             pgf_product_list_size=tmp_i4
+             ALLOCATE(tmp_product_list(SIZE(product_list)))
+             tmp_product_list(:)=product_list
+             DEALLOCATE(product_list)
+             ALLOCATE(product_list(tmp_i4))
+             product_list(1:SIZE(tmp_product_list))=tmp_product_list
+             DEALLOCATE(tmp_product_list)
+          ENDIF
 
           T = Rho * rpq2
           SELECT CASE(potential_parameter%potential_type)
