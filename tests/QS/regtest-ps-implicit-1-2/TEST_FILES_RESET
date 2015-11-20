@@ -39,3 +39,7 @@ Ar_neumann.inp
 
 # adjust smoothing width
 Ar_mixed_periodic_cuboidal.inp
+
+# reduce cutoff
+Ar_neumann.inp                     
+

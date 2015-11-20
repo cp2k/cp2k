@@ -13,3 +13,6 @@ H2O_mixed_periodic_cylindrical.inp
 # completely revised constructing dbc
 H2O_mixed_periodic_cuboidal.inp
 H2O_mixed_periodic_cylindrical.inp
+
+# reduce cutoff
+H2O_mixed_periodic_cylindrical.inp

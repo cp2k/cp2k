@@ -1,5 +1,5 @@
-Ar_mixed_aa_planar.inp            1     5e-12            -21.074668152827751
-Ar_mixed_planar.inp               1     4e-12            -21.074667940669535
+Ar_mixed_aa_planar.inp            1     5e-12            -21.074468020161298
+Ar_mixed_planar.inp               1     4e-12            -21.074467624675577
 Ar_mixed_aa_planar-ns_cell.inp                         1      1e-12            -31.316429244024182
 Ar_spatial_dep_dielec.inp                              1      1e-12            -33.088693607109207
 #EOF

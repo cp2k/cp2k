@@ -31,3 +31,7 @@ Ar_mixed_cylindrical.inp
 # deal with missing grid points while perfroming dct
 Ar_mixed_cuboidal.inp
 Ar_mixed_cylindrical.inp
+
+# reduce cutoff
+Ar_mixed_cuboidal.inp
+Ar_mixed_cylindrical.inp

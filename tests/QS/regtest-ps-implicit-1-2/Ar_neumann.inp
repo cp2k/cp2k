@@ -103,10 +103,10 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC 7.0 7.0 7.0
     &END CELL
     &COORD
-     Ar        4.0000000000        4.0000000000        4.0000000000
+     Ar        3.5000000000        3.5000000000        3.5000000000
     &END COORD
     &KIND Ar
       BASIS_SET DZVP-MOLOPT-SR-GTH
