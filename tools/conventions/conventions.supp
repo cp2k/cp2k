@@ -439,3 +439,4 @@ Data file MM_POTENTIAL copied to tests/QMMM/QS
 Data file BASIS_SET copied to tests/QMMM/QS
 Data file POTENTIAL copied to tests/QMMM/QS
 Data file GTH_BASIS_SETS copied to tests/QMMM/QS
+machine.F: Found OPEN statement in procedure "m_cpuinfo"
