@@ -13,7 +13,8 @@
 MODULE machine
   USE ISO_FORTRAN_ENV,                 ONLY: input_unit,&
                                              output_unit
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
                                              int_8
   USE machine_internal,                ONLY: &
        m_abort, m_chdir, m_flush_internal=>m_flush, m_getarg, m_getcwd, &
@@ -37,7 +38,8 @@ MODULE machine
 
   PUBLIC :: m_walltime, m_datum, m_flush, m_flush_internal,&
             m_hostnm, m_getcwd, m_getlog, m_getpid, m_getarg, m_procrun,&
-            m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details, m_energy, m_memory_max
+            m_memory, m_iargc, m_abort, m_chdir, m_mov, m_memory_details,&
+            m_energy, m_memory_max, m_cpuinfo
 
   ! should only be set according to the state in &GLOBAL
   LOGICAL, SAVE, PUBLIC :: flush_should_flush=.FALSE.
@@ -109,6 +111,35 @@ FUNCTION m_walltime() RESULT (wt)
     !$ ENDIF
 END FUNCTION m_walltime
 
+! *****************************************************************************
+!> \brief reads /proc/cpuinfo if it exists (i.e. Linux) to return relevant info
+!> \param model_name as obtained from the 'model name' field, UNKNOWN otherwise
+! *****************************************************************************
+SUBROUTINE m_cpuinfo(model_name)
+    CHARACTER(LEN=default_string_length)     :: model_name
+
+    INTEGER, PARAMETER                       :: bufferlen = 2048 
+
+    CHARACTER(LEN=bufferlen)                 :: buffer
+    INTEGER                                  :: i, icol, iline, imod, stat
+
+    model_name="UNKNOWN"
+    buffer=""
+    OPEN(121245,FILE="/proc/cpuinfo",ACTION="READ",STATUS="OLD",ACCESS="STREAM",IOSTAT=stat)
+    IF (stat==0) THEN
+        DO i=1,bufferlen
+           READ(121245,END=999) buffer(I:I)
+        ENDDO
+999     CLOSE(121245)
+        imod=INDEX(buffer,"model name")
+        IF (imod>0) THEN
+           icol=imod-1+INDEX(buffer(imod:),":")
+           iline=icol-1+INDEX(buffer(icol:),NEW_LINE('A'))
+           IF (iline==icol-1) iline=bufferlen+1
+           model_name=buffer(icol+1:iline-1)
+        ENDIF
+    ENDIF
+END SUBROUTINE m_cpuinfo
 
 ! *****************************************************************************
 !> \brief returns the energy used since some time in the past.

@@ -67,6 +67,7 @@ MODULE environment
                                              int_size,&
                                              print_kind_info
   USE machine,                         ONLY: flush_should_flush,&
+                                             m_cpuinfo,&
                                              m_energy,&
                                              m_flush_internal,&
                                              m_memory_details,&
@@ -484,7 +485,8 @@ CONTAINS
                                                 coord_file_name, &
                                                 mm_potential_file_name, &
                                                 potential_file_name
-    CHARACTER(len=default_string_length)     :: env_num, project_name
+    CHARACTER(len=default_string_length)     :: env_num, model_name, &
+                                                project_name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: trace_routines
     INTEGER :: i_diag, i_fft, iforce_eval, method_name_id, n_rep_val, &
@@ -766,6 +768,10 @@ CONTAINS
             start_section_label//"| Number of threads for this process",&
             num_threads,&
             start_section_label//"| This output is from process",para_env%mepos
+
+       CALL m_cpuinfo(model_name)
+       WRITE (UNIT=output_unit,FMT="(T2,A)")&
+            start_section_label//"| CPU model name : "//TRIM(model_name)
 
        WRITE (UNIT=output_unit,FMT="()")
        WRITE (UNIT=output_unit,FMT="(T2,A)") "MEMORY| system memory details [Kb]"
