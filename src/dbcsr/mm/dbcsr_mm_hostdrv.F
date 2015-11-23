@@ -103,9 +103,10 @@ CONTAINS
 !> \param stack_size ...
 !> \param stack_descr ...
 !> \param success ...
+!> \param used_smm ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_hostdrv_process(this, left, right, params, stack_size, &
-       stack_descr, success)
+       stack_descr, success, used_smm)
     TYPE(dbcsr_mm_hostdrv_type), &
       INTENT(INOUT)                          :: this
     TYPE(dbcsr_type), INTENT(IN)             :: left, right
@@ -113,7 +114,7 @@ CONTAINS
     INTEGER, DIMENSION(1:dbcsr_ps_width, &
       stack_size), INTENT(INOUT)             :: params
     TYPE(stack_descriptor_type), INTENT(IN)  :: stack_descr
-    LOGICAL, INTENT(OUT)                     :: success
+    LOGICAL, INTENT(OUT)                     :: success, used_smm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_hostdrv_process', &
       routineP = moduleN//':'//routineN
@@ -127,6 +128,7 @@ CONTAINS
        CALL timeset (routineN, error_handle)
 
     success = .TRUE. !host driver never failes...hopefully
+    used_smm = .FALSE.
 
     IF (dbg) THEN
        CALL RANDOM_NUMBER (rnd)
@@ -205,16 +207,16 @@ CONTAINS
        SELECT CASE (this%data_area%d%data_type)
        CASE (dbcsr_type_real_4)
           CALL xsmm_process_mm_stack_s (stack_descr, params, stack_size, &
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp)
+               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp, used_smm)
        CASE (dbcsr_type_real_8)
           CALL xsmm_process_mm_stack_d (stack_descr, params, stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
+               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp, used_smm)
        CASE (dbcsr_type_complex_4)
           CALL xsmm_process_mm_stack_c (stack_descr, params, stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp, used_smm)
        CASE (dbcsr_type_complex_8)
-          CALL xsmm_process_mm_stack_z (stack_descr, params, stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
+          CALL xsmm_process_mm_stack_z (stack_descr, params, stack_size, &
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp, used_smm)
        CASE default
           CPABORT("Invalid data type")
        END SELECT

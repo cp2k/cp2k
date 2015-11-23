@@ -47,8 +47,7 @@ MODULE dbcsr_mm_sched
   USE dbcsr_toollib,                   ONLY: sort
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
-  USE kinds,                           ONLY: dp,&
-                                             int_4,&
+  USE kinds,                           ONLY: int_4,&
                                              int_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
@@ -86,11 +85,14 @@ MODULE dbcsr_mm_sched
   ! *****************************************************************************
   TYPE stats_type
     INTEGER(kind=int_8)                              :: cpu_num_stacks = 0
+    INTEGER(kind=int_8)                              :: smm_num_stacks = 0
     INTEGER(kind=int_8)                              :: acc_num_stacks = 0
-    INTEGER(kind=int_8)                              :: acc_flop = 0
     INTEGER(kind=int_8)                              :: cpu_flop = 0
-    INTEGER(kind=int_8)                              :: max_acc_flop = 0
+    INTEGER(kind=int_8)                              :: smm_flop = 0
+    INTEGER(kind=int_8)                              :: acc_flop = 0
     INTEGER(kind=int_8)                              :: max_cpu_flop = 0
+    INTEGER(kind=int_8)                              :: max_smm_flop = 0
+    INTEGER(kind=int_8)                              :: max_acc_flop = 0
     INTEGER(kind=int_8), DIMENSION(:,:), ALLOCATABLE :: num_mnk_stacks
     ! ensure that array-elements are on different cache lines
     INTEGER(kind=int_4), DIMENSION(64)               :: padding
@@ -113,7 +115,7 @@ MODULE dbcsr_mm_sched
   SUBROUTINE stats_init(stats)
     TYPE(stats_type), INTENT(INOUT)          :: stats
 
-    ALLOCATE(stats%num_mnk_stacks(1,7))
+    ALLOCATE(stats%num_mnk_stacks(1,9))
     stats%num_mnk_stacks(1,:) = 0 ! entry for the default stack
   END SUBROUTINE stats_init
 
@@ -324,7 +326,7 @@ MODULE dbcsr_mm_sched
 
     INTEGER                                  :: ithread, sp, stacked_datasize
     INTEGER(kind=int_8)                      :: flop_per_entry, total_flop
-    LOGICAL                                  :: success
+    LOGICAL                                  :: success, used_smm
     TYPE(stats_type), POINTER                :: mystats
 
     IF(stack_fillcount <= 0)&
@@ -409,19 +411,25 @@ MODULE dbcsr_mm_sched
                 params=stack_data,&
                 stack_size=stack_fillcount, &
                 stack_descr=stack_descr,&
-                success=success)
+                success=success,&
+                used_smm=used_smm)
 
-     IF(success) THEN
-        ! update statistics
+     IF(.NOT. success) CPABORT("dbcsr_mm_sched_process_stack failed")
+
+     ! update statistics
+     IF(used_smm) THEN
+        mystats%smm_num_stacks = mystats%smm_num_stacks + 1
+        mystats%smm_flop       = mystats%smm_flop       + total_flop
+        CALL stats_add(mystats,&
+                       m=stack_descr%m, n=stack_descr%n, k=stack_descr%k,&
+                       stacksize_smm=INT(stack_fillcount,kind=int_8))
+     ELSE
         mystats%cpu_num_stacks = mystats%cpu_num_stacks + 1
         mystats%cpu_flop       = mystats%cpu_flop       + total_flop
         CALL stats_add(mystats,&
                        m=stack_descr%m, n=stack_descr%n, k=stack_descr%k,&
                        stacksize_cpu=INT(stack_fillcount,kind=int_8))
-        RETURN
      ENDIF
-
-     CALL dbcsr_abort(routineP,__LINE__,"dbcsr_mm_sched_process_stack failed")
 
   END SUBROUTINE dbcsr_mm_sched_process
 
@@ -433,33 +441,39 @@ MODULE dbcsr_mm_sched
 !> \param n ...
 !> \param k ...
 !> \param stacksize_cpu ...
+!> \param stacksize_smm ...
 !> \param stacksize_acc ...
 !> \param nstacks_cpu ...
+!> \param nstacks_smm ...
 !> \param nstacks_acc ...
 !> \author Ole Schuett
 ! *****************************************************************************
- SUBROUTINE stats_add(stats, m,n,k, stacksize_cpu, stacksize_acc, nstacks_cpu, nstacks_acc)
+ SUBROUTINE stats_add(stats, m,n,k, stacksize_cpu, stacksize_smm, stacksize_acc,&
+                      nstacks_cpu, nstacks_smm, nstacks_acc)
     TYPE(stats_type), INTENT(INOUT)          :: stats
     INTEGER, INTENT(IN)                      :: m, n, k
-    INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_acc, &
-                                                nstacks_cpu, nstacks_acc
+    INTEGER(kind=int_8), OPTIONAL            :: stacksize_cpu, stacksize_smm, &
+                                                stacksize_acc, nstacks_cpu, &
+                                                nstacks_smm, nstacks_acc
 
     INTEGER                                  :: i, s
-    INTEGER(kind=int_8)                      :: my_nstacks_acc, &
-                                                my_nstacks_cpu, &
-                                                my_stacksize_acc, &
-                                                my_stacksize_cpu
+    INTEGER(kind=int_8) :: my_nstacks_acc, my_nstacks_cpu, my_nstacks_smm, &
+      my_stacksize_acc, my_stacksize_cpu, my_stacksize_smm
     INTEGER(kind=int_8), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tmp
 
     my_stacksize_cpu = 0
+    my_stacksize_smm = 0
     my_stacksize_acc = 0
     IF(PRESENT(stacksize_cpu)) my_stacksize_cpu = stacksize_cpu
+    IF(PRESENT(stacksize_smm)) my_stacksize_smm = stacksize_smm
     IF(PRESENT(stacksize_acc)) my_stacksize_acc = stacksize_acc
 
     my_nstacks_cpu = MERGE(1, 0, my_stacksize_cpu>0)
+    my_nstacks_smm = MERGE(1, 0, my_stacksize_smm>0)
     my_nstacks_acc = MERGE(1, 0, my_stacksize_acc>0)
     IF(PRESENT(nstacks_cpu)) my_nstacks_cpu = nstacks_cpu
+    IF(PRESENT(nstacks_smm)) my_nstacks_smm = nstacks_smm
     IF(PRESENT(nstacks_acc)) my_nstacks_acc = nstacks_acc
 
     DO i=1, SIZE(stats%num_mnk_stacks, 1)
@@ -467,27 +481,31 @@ MODULE dbcsr_mm_sched
            stats%num_mnk_stacks(i,2)==n .AND. &
            stats%num_mnk_stacks(i,3)==k) THEN
               stats%num_mnk_stacks(i,4) = stats%num_mnk_stacks(i,4) + my_stacksize_cpu
-              stats%num_mnk_stacks(i,5) = stats%num_mnk_stacks(i,5) + my_stacksize_acc
-              stats%num_mnk_stacks(i,6) = stats%num_mnk_stacks(i,6) + my_nstacks_cpu
-              stats%num_mnk_stacks(i,7) = stats%num_mnk_stacks(i,7) + my_nstacks_acc
+              stats%num_mnk_stacks(i,5) = stats%num_mnk_stacks(i,5) + my_stacksize_smm
+              stats%num_mnk_stacks(i,6) = stats%num_mnk_stacks(i,6) + my_stacksize_acc
+              stats%num_mnk_stacks(i,7) = stats%num_mnk_stacks(i,7) + my_nstacks_cpu
+              stats%num_mnk_stacks(i,8) = stats%num_mnk_stacks(i,8) + my_nstacks_smm
+              stats%num_mnk_stacks(i,9) = stats%num_mnk_stacks(i,9) + my_nstacks_acc
               RETURN
         ENDIF
     END DO
 
     !not found, ok lets grow the list
     s = SIZE(stats%num_mnk_stacks, 1)
-    ALLOCATE(tmp(s,7))
+    ALLOCATE(tmp(s,9))
     tmp(:,:) = stats%num_mnk_stacks(:,:)
     DEALLOCATE(stats%num_mnk_stacks)
-    ALLOCATE(stats%num_mnk_stacks(s+1, 7))
+    ALLOCATE(stats%num_mnk_stacks(s+1, 9))
     stats%num_mnk_stacks(1:s,:) = tmp(:,:)
     stats%num_mnk_stacks(s+1,1) = m
     stats%num_mnk_stacks(s+1,2) = n
     stats%num_mnk_stacks(s+1,3) = k
     stats%num_mnk_stacks(s+1,4) = my_stacksize_cpu
-    stats%num_mnk_stacks(s+1,5) = my_stacksize_acc
-    stats%num_mnk_stacks(s+1,6) = my_nstacks_cpu
-    stats%num_mnk_stacks(s+1,7) = my_nstacks_acc
+    stats%num_mnk_stacks(s+1,5) = my_stacksize_smm
+    stats%num_mnk_stacks(s+1,6) = my_stacksize_acc
+    stats%num_mnk_stacks(s+1,7) = my_nstacks_cpu
+    stats%num_mnk_stacks(s+1,8) = my_nstacks_smm
+    stats%num_mnk_stacks(s+1,9) = my_nstacks_acc
     DEALLOCATE(tmp)
  END SUBROUTINE stats_add
 
@@ -511,8 +529,10 @@ MODULE dbcsr_mm_sched
     DO i=0, nthreads-1
        istats => stats_per_thread(i)
        report%cpu_num_stacks = report%cpu_num_stacks + istats%cpu_num_stacks
+       report%smm_num_stacks = report%smm_num_stacks + istats%smm_num_stacks
        report%acc_num_stacks = report%acc_num_stacks + istats%acc_num_stacks
        report%acc_flop       = report%acc_flop       + istats%acc_flop
+       report%smm_flop       = report%smm_flop       + istats%smm_flop
        report%cpu_flop       = report%cpu_flop       + istats%cpu_flop
 
        DO j=1, SIZE(istats%num_mnk_stacks, 1)
@@ -521,9 +541,11 @@ MODULE dbcsr_mm_sched
                         n=INT(istats%num_mnk_stacks(j,2), kind=int_4),&
                         k=INT(istats%num_mnk_stacks(j,3), kind=int_4),&
                         stacksize_cpu=istats%num_mnk_stacks(j,4),&
-                        stacksize_acc=istats%num_mnk_stacks(j,5),&
-                        nstacks_cpu  =istats%num_mnk_stacks(j,6),&
-                        nstacks_acc  =istats%num_mnk_stacks(j,7))
+                        stacksize_smm=istats%num_mnk_stacks(j,5),&
+                        stacksize_acc=istats%num_mnk_stacks(j,6),&
+                        nstacks_cpu  =istats%num_mnk_stacks(j,7),&
+                        nstacks_smm  =istats%num_mnk_stacks(j,8),&
+                        nstacks_acc  =istats%num_mnk_stacks(j,9))
        END DO
     END DO
     !$OMP END MASTER
@@ -551,12 +573,16 @@ MODULE dbcsr_mm_sched
 
     report%max_acc_flop = report%acc_flop
     CALL mp_max(report%max_acc_flop, group)
+    report%max_smm_flop = report%smm_flop
+    CALL mp_max(report%max_smm_flop, group)
     report%max_cpu_flop = report%cpu_flop
     CALL mp_max(report%max_cpu_flop, group)
 
     CALL mp_sum(report%acc_flop, group)
+    CALL mp_sum(report%smm_flop, group)
     CALL mp_sum(report%cpu_flop, group)
     CALL mp_sum(report%cpu_num_stacks, group)
+    CALL mp_sum(report%smm_num_stacks, group)
     CALL mp_sum(report%acc_num_stacks, group)
 
     ! array mnk_collected is used as a logical-array, allows to use minloc
@@ -581,7 +607,7 @@ MODULE dbcsr_mm_sched
       DO i=1, SIZE(report%num_mnk_stacks, 1)
          IF(ALL(report%num_mnk_stacks(i,1:3)==mnk)) THEN
             IF(i<=SIZE(mnk_collected)) mnk_collected(i) = 1
-            CALL mp_sum(report%num_mnk_stacks(i,4:7), group)
+            CALL mp_sum(report%num_mnk_stacks(i,4:9), group)
          END IF
       END DO
     END DO
@@ -600,51 +626,65 @@ MODULE dbcsr_mm_sched
     INTEGER, INTENT(IN)                      :: output_unit
 
     INTEGER                                  :: i, j
+    INTEGER(KIND=int_8)                      :: total
     INTEGER(KIND=int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: sort_key
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sort_idx
-    REAL(KIND=dp)                            :: percent
 
     IF(output_unit<=0) RETURN
 
-    WRITE (output_unit,"(1X,A,T47,A,T68,A,T77,A)") "COUNTER", "CPU", "ACC", "ACC%"
+    WRITE (output_unit,"(1X,A,T45,A,T57,A,T68,A,T78,A)") "COUNTER", "TOTAL", "BLAS", "SMM", "ACC"
 
     !sorting stat entries by flops per multiplication
     ALLOCATE(sort_key(SIZE(report%num_mnk_stacks,1)-1))
-    sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)*(report%num_mnk_stacks(2:,4)+report%num_mnk_stacks(2:,5))
+    sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)*SUM(report%num_mnk_stacks(2:,4:6))
     ALLOCATE(sort_idx(SIZE(sort_key)))
     CALL sort(sort_key, SIZE(sort_key), sort_idx)
 
     DO i=1, SIZE(sort_idx)
-     j = sort_idx(i)+1
-     percent = 100*REAL(report%num_mnk_stacks(j,5))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(j,4:5))))
-     WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,1X,I20,T76,F5.1)") &
-       " flops",report%num_mnk_stacks(j,1:3),report%num_mnk_stacks(j,4:5)*2*PRODUCT(report%num_mnk_stacks(j,1:3)), percent
+       j = sort_idx(i)+1
+       total = SUM(report%num_mnk_stacks(j,4:6))
+       WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+          " flops",report%num_mnk_stacks(j,1:3),&
+          2*total*PRODUCT(report%num_mnk_stacks(j,1:3)),&
+          100*REAL(report%num_mnk_stacks(j,4:6))/REAL(MAX(INT(1,KIND=int_8),total))
     END DO
 
-    percent = 100*REAL(report%acc_flop)/REAL(MAX(INT(1,KIND=int_8),report%cpu_flop+report%acc_flop))
-    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " flops total",&
-       report%cpu_flop, report%acc_flop, percent
+    total = report%cpu_flop + report%smm_flop + report%acc_flop
+    WRITE (output_unit,"(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+       " flops total", total,&
+       100*REAL(report%cpu_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
+       100*REAL(report%smm_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
+       100*REAL(report%acc_flop)/REAL(MAX(INT(1,KIND=int_8),total))
 
-    WRITE (output_unit,'(A,T30,I20,1X,I20)') " flops max/rank",&
-       report%max_cpu_flop, report%max_acc_flop
+    total = report%max_cpu_flop + report%max_smm_flop + report%max_acc_flop
+    WRITE (output_unit,"(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+       " flops max/rank", total,&
+       100*REAL(report%max_cpu_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
+       100*REAL(report%max_smm_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
+       100*REAL(report%max_acc_flop)/REAL(MAX(INT(1,KIND=int_8),total))
 
-    percent = 100*REAL(report%num_mnk_stacks(1,5))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(1,4:5))))
-    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls inhomo. stacks",&
-       report%num_mnk_stacks(1,4:5), percent
+    total = SUM(report%num_mnk_stacks(1,4:6))
+    WRITE (output_unit,"(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+       " matmuls inhomo. stacks", total,&
+       100*REAL(report%num_mnk_stacks(1,4:6))/REAL(MAX(INT(1,KIND=int_8),total))
 
-    percent = 100*REAL(SUM(report%num_mnk_stacks(:,5)))/REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,4:5))))
-    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " matmuls total",&
-       SUM(report%num_mnk_stacks(:,4)), SUM(report%num_mnk_stacks(:,5)), percent
+    total = SUM(report%num_mnk_stacks(:,4:6))
+    WRITE (output_unit,"(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+       " matmuls total", total,&
+       100*REAL(SUM(report%num_mnk_stacks(:,4:6),DIM=1))/REAL(MAX(INT(1,KIND=int_8),total))
 
-    percent = 100*REAL(report%acc_num_stacks)/REAL(MAX(INT(1,KIND=int_8),report%cpu_num_stacks+report%acc_num_stacks))
-    WRITE (output_unit,'(A,T30,I20,1X,I20,T76,F5.1)') " number of processed stacks",&
-       report%cpu_num_stacks, report%acc_num_stacks, percent
+    total = report%cpu_num_stacks + report%smm_num_stacks + report%acc_num_stacks
+    WRITE (output_unit,"(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+       " number of processed stacks", total,&
+       100*REAL(report%cpu_num_stacks)/REAL(MAX(INT(1,KIND=int_8),total)),&
+       100*REAL(report%smm_num_stacks)/REAL(MAX(INT(1,KIND=int_8),total)),&
+       100*REAL(report%acc_num_stacks)/REAL(MAX(INT(1,KIND=int_8),total))
 
-
-    WRITE (output_unit,'(A,T40,F10.1,11X,F10.1)') " average stack size",&
-       REAL(SUM(report%num_mnk_stacks(:,4))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,6)))),&
-       REAL(SUM(report%num_mnk_stacks(:,5))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,7))))
+    WRITE (output_unit,'(A,T51,F9.1,1X,F9.1,1X,F9.1)') " average stack size",&
+       REAL(SUM(report%num_mnk_stacks(:,4))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,7)))),&
+       REAL(SUM(report%num_mnk_stacks(:,5))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,8)))),&
+       REAL(SUM(report%num_mnk_stacks(:,6))) / REAL(MAX(INT(1,KIND=int_8),SUM(report%num_mnk_stacks(:,9))))
 
   END SUBROUTINE stats_print_report
 

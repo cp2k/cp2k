@@ -146,13 +146,14 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
+!> \param[out] used_smm        Flag to signal if an efficient kernel was used
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE xsmm_process_mm_stack_[nametype1](stack_descr, params,&
-       stack_size, a_data, b_data, c_data)
+       stack_size, a_data, b_data, c_data, used_smm)
 
 #if defined(__LIBXSMM) && [xsmm_supported]
-    ! Caution: This dependency is ignored by makedep.py, because libxsmm.F is kinda special.
+    ! Caution: This dependency is ignored by makedep.py, because libxsmm.F is kinda empty.
     USE libxsmm,                           ONLY: libxsmm_function  => libxsmm_[nametype1]mm_function,&
                                                  libxsmm_dispatch  => libxsmm_[nametype1]dispatch_all,&
                                                  libxsmm_available => libxsmm_[nametype1]available,&
@@ -176,6 +177,7 @@
     [type1], DIMENSION(*), TARGET, INTENT(IN) :: a_data, b_data
     [type1], DIMENSION(*), TARGET, &
       INTENT(INOUT)                           :: c_data
+    LOGICAL, INTENT(OUT)                      :: used_smm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'libxsmm_process_mm_stack_[nametype1]', &
       routineP = moduleN//':'//routineN
@@ -188,6 +190,7 @@
     TYPE(libxsmm_function)                    :: func
 
     processed = .FALSE.
+    used_smm = .FALSE.
 
     CPASSERT(LIBXSMM_COL_MAJOR==1 .AND. LIBXSMM_ROW_MAJOR==0)
 
@@ -203,7 +206,7 @@
           ! try to get a function pointer from libxsmm
           CALL libxsmm_dispatch(func, m=m, n=n, k=k, alpha=one, beta=one, lda=0, ldb=0, ldc=0,&
                                 flags=LIBXSMM_FLAGS,  prefetch=LIBXSMM_PREFETCH_DEFAULT)
-          IF (LIBXSMM_JIT==1 .OR. libxsmm_available(func)) THEN
+          IF (libxsmm_available(func)) THEN
              DO sp = 1, stack_size-1
                 fa = params(p_a_first,sp)
                 fb = params(p_b_first,sp)
@@ -233,6 +236,7 @@
                                       pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
              ENDIF
              processed = .TRUE.
+             used_smm  = .TRUE.
           ENDIF
        ENDIF
     ENDIF
@@ -261,6 +265,7 @@
     MARK_USED(stack_descr)
     ! We do not want to abort here, fall back to BLAS.
     CALL blas_process_mm_stack_[nametype1](params, stack_size,a_data, b_data, c_data)
+    used_smm = .FALSE.
 #endif
 
   END SUBROUTINE xsmm_process_mm_stack_[nametype1]
