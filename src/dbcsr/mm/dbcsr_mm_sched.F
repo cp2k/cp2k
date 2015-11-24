@@ -35,6 +35,8 @@ MODULE dbcsr_mm_sched
                                              dbcsr_mm_accdrv_process,&
                                              dbcsr_mm_accdrv_type
   USE dbcsr_mm_hostdrv,                ONLY: dbcsr_mm_hostdrv_init,&
+                                             dbcsr_mm_hostdrv_lib_finalize,&
+                                             dbcsr_mm_hostdrv_lib_init,&
                                              dbcsr_mm_hostdrv_process,&
                                              dbcsr_mm_hostdrv_type
   USE dbcsr_mm_types,                  ONLY: p_a_first,&
@@ -139,6 +141,7 @@ MODULE dbcsr_mm_sched
 
     CALL stats_init(stats_per_thread(ithread))
     CALL dbcsr_mm_accdrv_lib_init()
+    CALL dbcsr_mm_hostdrv_lib_init()
 
   END SUBROUTINE dbcsr_mm_sched_lib_init
 
@@ -155,6 +158,7 @@ MODULE dbcsr_mm_sched
     TYPE(stats_type)                         :: report
 
    CALL dbcsr_mm_accdrv_lib_finalize()
+   CALL dbcsr_mm_hostdrv_lib_finalize()
 
    ! Collect and output statistics ---------------------------------------------
 

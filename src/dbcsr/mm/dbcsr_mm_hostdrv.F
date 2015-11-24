@@ -57,6 +57,7 @@ MODULE dbcsr_mm_hostdrv
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: int_print = "(10(1X,I7))"
 
+  PUBLIC :: dbcsr_mm_hostdrv_lib_init, dbcsr_mm_hostdrv_lib_finalize
   PUBLIC :: dbcsr_mm_hostdrv_process
   PUBLIC :: dbcsr_mm_hostdrv_type
   PUBLIC :: dbcsr_mm_hostdrv_init
@@ -69,6 +70,36 @@ MODULE dbcsr_mm_hostdrv
   END TYPE dbcsr_mm_hostdrv_type
 
 CONTAINS
+
+! *****************************************************************************
+!> \brief Initialize the library
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_hostdrv_lib_init()
+#if defined(__LIBXSMM)
+    USE libxsmm,                           ONLY:  libxsmm_init
+    !$OMP MASTER
+    CALL libxsmm_init()
+    !$OMP END MASTER
+    !$OMP BARRIER
+#endif
+  END SUBROUTINE dbcsr_mm_hostdrv_lib_init
+
+
+! *****************************************************************************
+!> \brief Finalize the library
+!> \author Ole Schuett
+! *****************************************************************************
+  SUBROUTINE dbcsr_mm_hostdrv_lib_finalize()
+#if defined(__LIBXSMM)
+    USE libxsmm,                           ONLY:  libxsmm_finalize
+    !$OMP MASTER
+    CALL libxsmm_finalize()
+    !$OMP END MASTER
+    !$OMP BARRIER
+#endif
+  END SUBROUTINE dbcsr_mm_hostdrv_lib_finalize
+
 
 ! *****************************************************************************
 !> \brief Initialize the library
@@ -92,6 +123,7 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE dbcsr_mm_hostdrv_init
+
 
 ! *****************************************************************************
 !> \brief Calls the various drivers that process the stack.
