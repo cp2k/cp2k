@@ -6879,8 +6879,7 @@ CONTAINS
     CALL section_release(print_key)
 
     CALL cp_print_key_section_create(print_key,"CURRENT",&
-         description="Print the current during an EMD simulation to cube files."//&
-         "Under development, qualitatively correct, but off by a prefactor.",&
+         description="Print the current during an EMD simulation to cube files.",&
          print_level=high_print_level, common_iter_levels=0,&
          each_iter_names=s2a("MD"),&
          each_iter_values=(/20/), &
