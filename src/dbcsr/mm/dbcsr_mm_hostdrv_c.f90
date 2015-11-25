@@ -185,7 +185,8 @@
 #if defined(__LIBXSMM) && 0
     REAL(real_4), PARAMETER                  :: one = 1.0_real_4
     LOGICAL                                   :: processed
-    INTEGER                                   :: fa, fb, fc, pa, pb, pc, m, n, k, sp
+    INTEGER(int_8)                            :: threshold
+    INTEGER                                   :: fa, fb, fc, m, n, k, pa, pb, pc, sp
     REAL(real_4), DIMENSION(:,:), POINTER    :: a_ptr, b_ptr, c_ptr
     TYPE(libxsmm_function)                    :: func
 
@@ -194,47 +195,63 @@
 
     CPASSERT(LIBXSMM_COL_MAJOR==1 .AND. LIBXSMM_ROW_MAJOR==0)
 
+    ! check whether the matrix stack is homogeneous or not
     IF (stack_descr%defined_mnk) THEN
-       m = stack_descr%m
-       n = stack_descr%n
-       k = stack_descr%k
-       IF(INT(m,KIND=int_8)*INT(n,KIND=int_8)*INT(k,KIND=int_8) > LIBXSMM_MAX_MNK) THEN
-          ! blocks are too large for libxsmm, BLAS is more efficient
-          CALL blas_process_mm_stack_c(params, stack_size,a_data, b_data, c_data)
+       threshold = INT(stack_descr%m, int_8) * &
+                   INT(stack_descr%n, int_8) * &
+                   INT(stack_descr%k, int_8)
+
+       ! check if matrices are too large for LIBXSMM (BLAS is likely more efficient)
+       IF(threshold > LIBXSMM_MAX_MNK) THEN
+          CALL blas_process_mm_stack_c(params, stack_size, a_data, b_data, c_data)
           processed = .TRUE.
+
        ELSE
           ! try to get a function pointer from libxsmm
-          CALL libxsmm_dispatch(func, m=m, n=n, k=k, alpha=one, beta=one, lda=0, ldb=0, ldc=0,&
-                                flags=LIBXSMM_FLAGS,  prefetch=LIBXSMM_PREFETCH_DEFAULT)
+          CALL libxsmm_dispatch(func, &
+               m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
+               alpha=one, beta=one, lda=0, ldb=0, ldc=0, &
+               flags=LIBXSMM_FLAGS,  prefetch=LIBXSMM_PREFETCH_DEFAULT)
+
           IF (libxsmm_available(func)) THEN
+             ! load first stack entry
+             CPASSERT(stack_size > 0)
+             pa = params(p_a_first, 1)
+             pb = params(p_b_first, 1)
+             pc = params(p_c_first, 1)
+
              DO sp = 1, stack_size-1
-                fa = params(p_a_first,sp)
-                fb = params(p_b_first,sp)
-                fc = params(p_c_first,sp)
-                IF (LIBXSMM_PREFETCH_DEFAULT==LIBXSMM_PREFETCH_NONE) THEN ! evals at compile time
-                   CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+                fa = pa; fb = pb; fc = pc
+                ! prefetch next blocks
+                pa = params(p_a_first, sp + 1)
+                pb = params(p_b_first, sp + 1)
+                pc = params(p_c_first, sp + 1)
+
+                ! condition evaluates at compile-time (PARAMETERS)
+                IF (LIBXSMM_PREFETCH_DEFAULT /= LIBXSMM_PREFETCH_NONE) THEN
+                   CALL libxsmm_call_prf(func, &
+                        a=a_data(fa), b=b_data(fb), c=c_data(fc), &
+                        ! provide locations of the next operand set
+                        pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
                 ELSE
-                   pa = params(p_a_first,sp+1) ! prefetch next blocks
-                   pb = params(p_b_first,sp+1)
-                   pc = params(p_c_first,sp+1)
-                   CALL libxsmm_call_prf(func, a=a_data(fa), b=b_data(fb), c=c_data(fc),&
-                                         pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
+                   CALL libxsmm_call_abc(func, &
+                        a=a_data(fa), b=b_data(fb), c=c_data(fc))
                 ENDIF
              ENDDO
 
              ! handle last stack entry without out-of-bounds access
-             fa = params(p_a_first,stack_size)
-             fb = params(p_b_first,stack_size)
-             fc = params(p_c_first,stack_size)
-             IF (LIBXSMM_PREFETCH_DEFAULT==LIBXSMM_PREFETCH_NONE) THEN ! evals at compile time
-                CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+             fa = pa; fb = pb; fc = pc
+
+             ! condition evaluates at compile-time (PARAMETERS)
+             IF (LIBXSMM_PREFETCH_DEFAULT /= LIBXSMM_PREFETCH_NONE) THEN
+                CALL libxsmm_call_prf(func, &
+                     a=a_data(fa), b=b_data(fb), c=c_data(fc), &
+                     ! prefetch same blocks
+                     pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
              ELSE
-                pa = params(p_a_first,stack_size) ! prefetch the same blocks
-                pb = params(p_b_first,stack_size)
-                pc = params(p_c_first,stack_size)
-                CALL libxsmm_call_prf(func, a=a_data(fa), b=b_data(fb), c=c_data(fc),&
-                                      pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
+                CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
              ENDIF
+
              processed = .TRUE.
              used_smm  = .TRUE.
           ENDIF

@@ -93,10 +93,10 @@ CONTAINS
   SUBROUTINE dbcsr_mm_hostdrv_lib_finalize()
 #if defined(__LIBXSMM)
     USE libxsmm,                           ONLY:  libxsmm_finalize
+    !$OMP BARRIER
     !$OMP MASTER
     CALL libxsmm_finalize()
     !$OMP END MASTER
-    !$OMP BARRIER
 #endif
   END SUBROUTINE dbcsr_mm_hostdrv_lib_finalize
 
