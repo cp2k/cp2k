@@ -902,9 +902,10 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="coord",&
-         description="The coordinates for simple systems (like the QM ones)"//&
-         " xyz format by default. More complex systems should be given with"//&
-         " an external pdb file.",&
+         description="The coordinates for simple systems (like small QM cells)"//&
+         " are specified here by default using explicit XYZ coordinates.  "//&
+         " More complex systems should be given via an external coordinate "//&
+         " file in the SUBSYS%TOPOLOGY section.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="UNIT",&
