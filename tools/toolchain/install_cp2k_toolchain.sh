@@ -19,7 +19,7 @@ enable_tsan=false
 mpichoice=mpich
 mpich_ver=3.1.2
 openmpi_ver=1.8.6
-openblas_ver=v0.2.14-0-gd0c51c4
+openblas_ver=0.2.15
 scalapack_ver=2.0.2
 lapack_ver=3.5.0
 libxc_ver=2.2.2
@@ -383,15 +383,14 @@ if [ "x${openblas_ver}" == "x" ]; then
    echo "skipping openblas"
    LIBS="-lreflapack -lrefblas ${LIBS}"
 else
-   if [ -f xianyi-OpenBLAS-${openblas_ver}.zip ]; then
+   if [ -f OpenBLAS-${openblas_ver}.tar.gz ]; then
       echo "Installation already started, skipping it."
    else
-      wget http://www.cp2k.org/static/downloads/xianyi-OpenBLAS-${openblas_ver}.zip
-      checksum xianyi-OpenBLAS-${openblas_ver}.zip
-      unzip xianyi-OpenBLAS-${openblas_ver}.zip >& unzip.log
-      cd xianyi-OpenBLAS-*
-      # we install both the serial and the omp threaded version.
-      # Unfortunately, neither is thread-safe (i.e. the CP2K ssmp and psmp version need to link to something else, the omp version is unused)
+      wget http://www.cp2k.org/static/downloads/OpenBLAS-${openblas_ver}.tar.gz
+      checksum OpenBLAS-${openblas_ver}.tar.gz
+      tar -xzf OpenBLAS-${openblas_ver}.tar.gz
+      cd OpenBLAS-*
+      # we install only the serial version, in principle serial and omp'ed could co-exist
       make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
       make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
       # make clean >& clean.log
@@ -399,8 +398,8 @@ else
       # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
       cd ..
    fi
-   # currently openblas is not thread safe (neither serial nor omp version),
-   LIBS="IF_VALGRIND(-lreflapack -lrefblas, IF_OMP(-lreflapack -lrefblas,-lopenblas_serial)) ${LIBS}"
+   # openblas should be thread safe now (older issue seemed linux kernel or glibc related)
+   LIBS="IF_VALGRIND(-lreflapack -lrefblas, -lopenblas_serial) ${LIBS}"
 fi
 
 echo "================= Installing libsmm ==================="
