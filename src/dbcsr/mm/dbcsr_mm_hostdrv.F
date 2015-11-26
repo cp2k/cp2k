@@ -218,19 +218,19 @@ CONTAINS
        CASE (dbcsr_type_real_4)
           CALL smm_process_mm_stack_s (stack_descr, params, &
                stack_size, &
-               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp)
+               left%data_area%d%r_sp, right%data_area%d%r_sp, this%data_area%d%r_sp, used_smm)
        CASE (dbcsr_type_real_8)
           CALL smm_process_mm_stack_d (stack_descr, params,&
                stack_size,&
-               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp)
+               left%data_area%d%r_dp, right%data_area%d%r_dp, this%data_area%d%r_dp, used_smm)
        CASE (dbcsr_type_complex_4)
           CALL smm_process_mm_stack_c (stack_descr, params,&
                stack_size,&
-               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp)
+               left%data_area%d%c_sp, right%data_area%d%c_sp, this%data_area%d%c_sp, used_smm)
        CASE (dbcsr_type_complex_8)
           CALL smm_process_mm_stack_z (stack_descr, params,&
                stack_size,&
-               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp)
+               left%data_area%d%c_dp, right%data_area%d%c_dp, this%data_area%d%c_dp, used_smm)
        CASE default
           CPABORT("Invalid data type")
        END SELECT

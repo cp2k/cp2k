@@ -93,7 +93,7 @@
 ! *****************************************************************************
   SUBROUTINE smm_process_mm_stack_s(stack_descr, params,&
        stack_size,&
-       a_data, b_data, c_data)
+       a_data, b_data, c_data, used_smm)
     INTEGER, INTENT(IN)                       :: stack_size
     TYPE(stack_descriptor_type), INTENT(IN)   :: stack_descr
     INTEGER, DIMENSION(dbcsr_ps_width,1:stack_size), &
@@ -101,6 +101,7 @@
     REAL(kind=real_4), DIMENSION(*), INTENT(IN)         :: a_data, &
                                                  b_data
     REAL(kind=real_4), DIMENSION(*), INTENT(INOUT)      :: c_data
+    LOGICAL, INTENT(OUT)                      :: used_smm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'smm_process_mm_stack_s', &
       routineP = moduleN//':'//routineN
@@ -108,6 +109,10 @@
 #if defined(__HAS_smm_snn)
 
    INTEGER                                   :: sp
+
+   ! TODO we have no way of knowing which calls to libsmm actually resolve to BLAS
+   ! Fixing this requires an interface change to libsmm.
+   used_smm=.TRUE.
 
 #if defined(__HAS_smm_vec)
     IF(stack_descr%defined_mnk) THEN
@@ -130,6 +135,7 @@
 
 #else
     ! We do not want to abort here, fall back to BLAS.
+    used_smm=.FALSE.
     CALL blas_process_mm_stack_s(params, stack_size,a_data, b_data, c_data)
 #endif
 
