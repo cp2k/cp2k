@@ -641,7 +641,7 @@ MODULE dbcsr_mm_sched
 
     !sorting stat entries by flops per multiplication
     ALLOCATE(sort_key(SIZE(report%num_mnk_stacks,1)-1))
-    sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)*SUM(report%num_mnk_stacks(2:,4:6))
+    sort_key(:) = 2*PRODUCT(report%num_mnk_stacks(2:,1:3), DIM=2)*SUM(report%num_mnk_stacks(2:,4:6),DIM=2)
     ALLOCATE(sort_idx(SIZE(sort_key)))
     CALL sort(sort_key, SIZE(sort_key), sort_idx)
 
@@ -649,7 +649,7 @@ MODULE dbcsr_mm_sched
        j = sort_idx(i)+1
        total = SUM(report%num_mnk_stacks(j,4:6))
        WRITE (output_unit,"(A,I4,' x ',I4,' x ',I4,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
-          " flops",report%num_mnk_stacks(j,1:3),&
+          " flops ",report%num_mnk_stacks(j,1:3),&
           2*total*PRODUCT(report%num_mnk_stacks(j,1:3)),&
           100*REAL(report%num_mnk_stacks(j,4:6))/REAL(MAX(INT(1,KIND=int_8),total))
     END DO
