@@ -1162,14 +1162,9 @@ CONTAINS
 
        ! print warning counter
        IF(iw>0) THEN
-          IF(warning_counter==0) THEN
-             WRITE (iw,"(A)") " There have been no warnings :-)"
-          ELSEIF (warning_counter==1) THEN
-             WRITE (iw,"(A)") " There has been a warning :-/"
-          ELSE
-             WRITE (iw,"(A,I4,A)") " There have been ",warning_counter, " warnings :-("
-          ENDIF
+          WRITE(iw,"(T2,A,I0)") "The number of warnings for this run is : ",warning_counter
           WRITE (iw,*) ""
+          WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
        ENDIF
 
        ! update the runtime enviroment variables
