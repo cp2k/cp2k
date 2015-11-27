@@ -27,6 +27,7 @@ MODULE hirshfeld_methods
                                              int_8
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
+  USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE periodic_table,                  ONLY: get_ptable_info
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -507,9 +508,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'hirshfeld_integration', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, iex, &
-                                                ikind, ithread, j, natom, &
-                                                npme, nthread, numexp
+    INTEGER :: atom_a, cmax_global, handle, i, iatom, iex, ikind, ithread, j, &
+      lmax_global, natom, npme, nthread, numexp, vab_dim_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cores
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: do_force
@@ -521,6 +521,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -548,6 +550,25 @@ CONTAINS
     nthread = 1
     ithread = 0
     ALLOCATE(hab(1,1),pab(1,1))
+
+    ! Array dimensions for integrate_pgf_product_rspace
+    lmax_global=0
+    cmax_global=0
+    vab_dim_max=0
+    ! Update lmax_global depending on calculate_forces etc.
+    IF (do_force) THEN
+       lmax_global=lmax_global+1
+    END IF
+    ! Use the final value of lmax_global to compute the maximum dimension of vab
+    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
+    lmax_global=lmax_global*2
+    ! Get cube_info and use to compute cmax_global
+    cube_info=>pw_env%cube_info
+    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
+       DO i=1,SIZE(cube_info)
+          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
+       END DO
+    END IF
 
     DO ikind=1,SIZE(atomic_kind_set)
       numexp = hirshfeld_env%kind_shape_fn(ikind)%numexp
@@ -589,7 +610,9 @@ CONTAINS
                 rs_v,cell,pw_env%cube_info(1),hab,pab=pab,o1=0,o2=0,&
                 eps_gvg_rspace=eps_rho_rspace,calculate_forces=do_force,&
                 force_a=force_a,force_b=force_b,use_virial=.FALSE.,&
-                use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
+                use_subpatch=.TRUE.,subpatch_pattern=0_int_8,&
+                lmax_global=lmax_global,cmax_global=cmax_global,&
+                vab_dim_max=vab_dim_max)
            fval(atom_a) = fval(atom_a) + hab(1,1)*dvol*coef
            IF(do_force) THEN
               fderiv(:,atom_a) = fderiv(:,atom_a) + force_a(:)*dvol

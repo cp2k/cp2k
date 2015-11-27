@@ -1,11 +1,13 @@
-  SUBROUTINE integrate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds)
+  SUBROUTINE integrate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), lp
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
     INTEGER, INTENT(IN)                      :: cmax
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     INTEGER, INTENT(IN)                      :: map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
@@ -87,17 +89,19 @@
     END DO
 
   END SUBROUTINE integrate_core_default
-  SUBROUTINE integrate_core_0(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_0(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 0
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -161,17 +165,19 @@
     END DO
 
   END SUBROUTINE integrate_core_0
-  SUBROUTINE integrate_core_1(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_1(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 1
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -246,17 +252,19 @@
     END DO
 
   END SUBROUTINE integrate_core_1
-  SUBROUTINE integrate_core_2(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_2(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 2
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -326,17 +334,19 @@
     END DO
 
   END SUBROUTINE integrate_core_2
-  SUBROUTINE integrate_core_3(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_3(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 3
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -417,17 +427,19 @@
     END DO
 
   END SUBROUTINE integrate_core_3
-  SUBROUTINE integrate_core_4(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_4(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 4
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -542,17 +554,19 @@
     END DO
 
   END SUBROUTINE integrate_core_4
-  SUBROUTINE integrate_core_5(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_5(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 5
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -799,17 +813,19 @@
     END DO
 
   END SUBROUTINE integrate_core_5
-  SUBROUTINE integrate_core_6(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_6(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 6
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -1141,17 +1157,19 @@
     END DO
 
   END SUBROUTINE integrate_core_6
-  SUBROUTINE integrate_core_7(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_7(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 7
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -1516,17 +1534,19 @@
     END DO
 
   END SUBROUTINE integrate_core_7
-  SUBROUTINE integrate_core_8(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_8(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 8
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &
@@ -2000,17 +2020,19 @@
     END DO
 
   END SUBROUTINE integrate_core_8
-  SUBROUTINE integrate_core_9(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)
+  SUBROUTINE integrate_core_9(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &
+                                        lp_maximum,cmax_maximum)
     USE kinds,                        ONLY: dp
+    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum
     INTEGER, INTENT(IN)                      :: sphere_bounds(*), cmax, &
                                                 map(-cmax:cmax,1:3), &
                                                 gridbounds(2,3)
     REAL(dp), INTENT(IN) :: grid(gridbounds(1,1):gridbounds(2,1), gridbounds(1&
       ,2):gridbounds(2,2), gridbounds(1,3):gridbounds(2,3))
     INTEGER, PARAMETER                       :: lp = 9
-    REAL(dp), INTENT(IN)                     :: pol_x(0:lp,-cmax:cmax), &
-                                                pol_y(1:2,0:lp,-cmax:0), &
-                                                pol_z(1:2,0:lp,-cmax:0)
+    REAL(dp), INTENT(IN)                     :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum), &
+                                                pol_y(1:2,0:lp_maximum,-cmax_maximum:0), &
+                                                pol_z(1:2,0:lp_maximum,-cmax_maximum:0)
     REAL(dp), INTENT(OUT) :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)
 
     INTEGER                                  :: i, ig, igmax, igmin, j, j2, &

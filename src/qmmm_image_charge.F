@@ -24,6 +24,7 @@ MODULE  qmmm_image_charge
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cube_utils,                      ONLY: cube_info_type
   USE eri_mme_methods,                 ONLY: eri_mme_2c_integrate
   USE input_constants,                 ONLY: calc_always,&
                                              calc_once,&
@@ -40,6 +41,7 @@ MODULE  qmmm_image_charge
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
+  USE orbital_pointers,                ONLY: ncoset
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_methods,                      ONLY: pw_integral_ab,&
@@ -360,15 +362,16 @@ CONTAINS
       routineN = 'integrate_potential_ga_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, atom_ref, &
-                                                handle, iatom, j, k, natom, &
-                                                npme
+    INTEGER :: atom_a, atom_b, atom_ref, cmax_global, handle, i, iatom, j, k, &
+      lmax_global, natom, npme, vab_dim_max
     INTEGER, DIMENSION(:), POINTER           :: cores
     REAL(KIND=dp)                            :: eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
@@ -402,6 +405,20 @@ CONTAINS
     int_res = 0.0_dp
     npme = 0
     cores = 0
+
+    ! Array dimensions for integrate_pgf_product_rspace
+    lmax_global=0
+    cmax_global=0
+    vab_dim_max=0
+    ! look up index for vab_dim_max
+    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
+    ! Get cube_info and use to compute cmax_global
+    cube_info=>pw_env%cube_info
+    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
+       DO i=1,SIZE(cube_info)
+          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
+       END DO
+    END IF
 
     DO iatom = k, natom
        IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
@@ -440,7 +457,8 @@ CONTAINS
           0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
           rs_v,cell,pw_env%cube_info(1),hab,o1=0,o2=0,&
           eps_gvg_rspace=eps_rho_rspace, calculate_forces=.FALSE.,&
-          use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
+          use_subpatch=.TRUE.,subpatch_pattern=0_int_8,&
+          lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
 
      int_res(iatom) = hab(1,1)
 
@@ -479,8 +497,9 @@ CONTAINS
       routineN = 'integrate_potential_devga_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, handle, iatom, j, &
-                                                natom, npme
+    INTEGER                                  :: atom_a, cmax_global, handle, &
+                                                i, iatom, j, lmax_global, &
+                                                natom, npme, vab_dim_max
     INTEGER, DIMENSION(:), POINTER           :: cores
     LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: eps_rho_rspace
@@ -488,6 +507,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(realspace_grid_desc_type), POINTER  :: auxbas_rs_desc
@@ -535,6 +556,28 @@ CONTAINS
     npme = 0
     cores = 0
    
+    ! Array dimensions for integrate_pgf_product_rspace
+    lmax_global=0
+    cmax_global=0
+    vab_dim_max=0
+    ! Update lmax_global based on calculate_forces etc
+    ! use_virial not currently implemented (see CPABORT above)
+    lmax_global=lmax_global+1
+    IF (use_virial) THEN
+       lmax_global=lmax_global+1
+    END IF
+    ! Look up index for vab_dim_max
+    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
+    ! multiply lmax_global by 2 so it can be intent(in) in integrate_pgf_product_rspace
+    lmax_global=lmax_global*2
+    ! Get cube_info and use to compute cmax_global
+    cube_info=>pw_env%cube_info
+    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
+       DO i=1,SIZE(cube_info)
+          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
+       END DO
+    END IF
+
     DO iatom = 1, natom
        IF(rs_v%desc%parallel .AND. .NOT. rs_v%desc%distributed) THEN
           ! replicated realspace grid, split the atoms up between procs
@@ -564,7 +607,8 @@ CONTAINS
           rs_v,cell,pw_env%cube_info(1),hab,pab,o1=0,o2=0,&
           eps_gvg_rspace=eps_rho_rspace, calculate_forces=.TRUE.,&
           force_a=force_a,force_b=force_b,use_subpatch=.TRUE.,&
-          subpatch_pattern=0_int_8)
+          subpatch_pattern=0_int_8,lmax_global=lmax_global,&
+          cmax_global=cmax_global,vab_dim_max=vab_dim_max)
    
      force_a(:)=coeff(iatom)*force_a(:)
      forces(:,iatom) = force_a(:)

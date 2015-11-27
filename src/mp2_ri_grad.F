@@ -37,6 +37,7 @@ MODULE mp2_ri_grad
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi
@@ -168,10 +169,11 @@ MODULE mp2_ri_grad
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: alpha, atom_a, beta, dimen, dir, handle, handle2, handle3, i, &
-      iatom, igrid_level, ikind, iorb, ipgf, iset, itmp(2), L_counter, lb(3), &
-      LLL, location(3), my_P_end, my_P_size, my_P_start, na1, na2, natom, &
-      ncoa, nkind, nseta, offset, sgfa, tp(3), ub(3), virtual, virtual_beta
+    INTEGER :: alpha, atom_a, beta, cmax_global, dimen, dir, handle, handle2, &
+      handle3, i, iatom, igrid_level, ikind, iorb, ipgf, iset, itmp(2), &
+      L_counter, lb(3), LLL, lmax_global, location(3), my_P_end, my_P_size, &
+      my_P_start, na1, na2, natom, ncoa, nkind, nseta, offset, sgfa, tp(3), &
+      ub(3), vab_dim_max, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: comp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
@@ -200,6 +202,8 @@ MODULE mp2_ri_grad
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: L1_mu_i, L1_mu_i_beta, &
                                                 L2_nu_a, L2_nu_a_beta
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -357,6 +361,34 @@ MODULE mp2_ri_grad
                                in_space=RECIPROCALSPACE)
       END DO
     END IF
+
+    ! Array dimensions for integrate_pgf_product_rspace
+    lmax_global=0
+    cmax_global=0
+    vab_dim_max=0
+    ! Loop over kinds to obtain maximum of la_lmax 
+    DO ikind=1, nkind
+      CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX")
+      CPASSERT(ASSOCIATED(basis_set_a))
+      lmax_global=MAX(MAXVAL(basis_set_a%lmax(:)),lmax_global)
+    END DO
+    ! update lmax_global according to compute_forces etc
+    lmax_global=lmax_global+1
+    IF (use_virial) THEN
+       lmax_global=lmax_global+1
+    END IF
+    ! Use lmax_global to calculate the maximum dimension of vab
+    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
+    ! Find maximum for cmax using the known cube information
+    cube_info=>pw_env_sub%cube_info
+    DO i=1,SIZE(cube_info)
+       IF (ASSOCIATED(pw_env_sub%cube_info(1)%ub_cube)) THEN
+          cmax_global=MAX(MAXVAL(pw_env_sub%cube_info(i)%ub_cube(:,:)),cmax_global)
+       END IF
+    END DO
+    ! lmax_global is multiplied by 2 here as lp must be 2*lmax_global
+    lmax_global=lmax_global*2    
+
 
     ! start main loop over auxiliary basis functions
     CALL timeset(routineN//"_loop",handle2)
@@ -557,7 +589,8 @@ MODULE mp2_ri_grad
                                                eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
-                                               use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b)
+                                               use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
+                                               lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
 
            END DO
 
@@ -839,7 +872,8 @@ MODULE mp2_ri_grad
                                                eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
                                                calculate_forces=.TRUE.,&
                                                force_a=force_a, force_b=force_b, &
-                                               use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b)
+                                               use_virial=use_virial,my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
+                                               lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
 
            END DO
 

@@ -375,11 +375,12 @@ MODULE qs_rho0_ggrid
     CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: auxbas_grid, bo(2), handle, i, iat, iatom, ic, icg, ico, ig1, &
-      ig2, igrid, ii, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, &
-      ispin, j, l0_ikind, llmax, lmax0, lshell, lx, ly, lz, m1, m2, &
-      max_iso_not0_local, max_s_harm, maxl, maxso, mepos, n1, n2, nat, &
-      nch_ik, nch_max, ncurr, nset, nsotot, nspins, num_pe
+    INTEGER :: auxbas_grid, bo(2), cmax_global, handle, i, iat, iatom, ic, &
+      icg, ico, ig1, ig2, igrid, ii, ikind, ipgf1, ipgf2, is, iset1, iset2, &
+      iso, iso1, iso2, ispin, j, l0_ikind, llmax, lmax0, lmax_global, lshell, &
+      lx, ly, lz, m1, m2, max_iso_not0_local, max_s_harm, maxl, maxso, mepos, &
+      n1, n2, nat, nch_ik, nch_max, ncurr, nset, nsotot, nspins, num_pe, &
+      vab_dim_max
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
@@ -552,6 +553,34 @@ MODULE qs_rho0_ggrid
 
     grid_distributed = rs_v%desc%distributed
 
+    ! Array dimensions for integrate_pgf_product_rspace
+    lmax_global=0
+    cmax_global=0
+    vab_dim_max=0
+    ! Get lmax_global from the maximum value of l0_ikind 
+    DO ikind = 1,SIZE(atomic_kind_set,1)
+      CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=ikind,l0_ikind=l0_ikind)
+       lmax_global=MAX(lmax_global,l0_ikind)
+    END DO
+    ! Update lmax_global depending on calculate_forces etc
+    IF (calculate_forces) THEN
+       lmax_global=lmax_global+1
+       IF (use_virial) THEN
+          lmax_global=lmax_global+1
+       END IF
+    END IF
+    ! Compute vab_dim_max using final value of lmax_global
+    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
+    ! Multiply lmax_global by 2 prior to integrate_pgf_product_rspace
+    lmax_global=lmax_global*2
+    ! Get cube_info and use to compute cmax_global
+    cube_info=>pw_env%cube_info
+    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
+       DO i=1,SIZE(cube_info)
+          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
+       END DO
+    END IF
+
     DO ikind = 1,SIZE(atomic_kind_set,1)
       NULLIFY(orb_basis_set,atom_list,harmonics)
       CALL get_atomic_kind(atomic_kind_set(ikind),atom_list=atom_list, natom=nat)
@@ -615,7 +644,8 @@ MODULE qs_rho0_ggrid
              hdab=hdab,hadb=hadb,&
              collocate_rho0=.TRUE.,rpgf0_s=rpgf0,&
              use_virial=use_virial,  my_virial_a=my_virial_a, my_virial_b=my_virial_b,&
-             a_hdab=a_hdab,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
+             a_hdab=a_hdab,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,&
+             lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
 
           ! Convert from cartesian to spherical
           DO lshell = 0,l0_ikind

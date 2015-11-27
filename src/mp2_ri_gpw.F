@@ -42,6 +42,7 @@ MODULE mp2_ri_gpw
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cube_utils,                      ONLY: cube_info_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
   USE kinds,                           ONLY: dp,&
                                              int_8
@@ -901,20 +902,19 @@ MODULE mp2_ri_gpw
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: debug = .FALSE.
 
-    INTEGER :: best_group_size, color_exc, color_L, comm_exc, comm_exchange, &
-      comm_L, dir, group_size, handle, handle2, handle3, i, i_bf, i_counter, &
-      i_counter_diff_bf, i_counter_diff_bf_at_any_atom, i_counter_diff_sets, &
-      i_global, iatom, igrid_level, igroup, iiB, ikind, info_chol, inode, &
-      ipgf, iproc, iset, itmp(2), j, j_global, j_ref_atom, j_ref_bf, &
-      j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, lb(3), LLL, &
-      location(3), m, my_group_L_q_end, my_group_L_q_size, &
+    INTEGER :: best_group_size, cmax_global, color_exc, color_L, comm_exc, &
+      comm_exchange, comm_L, dir, group_size, handle, handle2, handle3, i, &
+      i_bf, i_counter, i_counter_diff_bf, i_counter_diff_bf_at_any_atom, &
+      i_counter_diff_sets, i_global, iatom, igrid_level, igroup, iiB, ikind, &
+      info_chol, inode, ipgf, iproc, iset, itmp(2), j, j_global, j_ref_atom, &
+      j_ref_bf, j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, lb(3), LLL, &
+      lmax_global, location(3), m, my_group_L_q_end, my_group_L_q_size, &
       my_group_L_q_start, my_group_pot_end, my_group_pot_size, &
-      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b, ncol_local, &
-      nkind
-    INTEGER :: nrow_local, nseta, nsetb, nsgf, offset, offsetb, proc_receive, &
-      proc_receive_static, proc_send, proc_send_static, proc_shift, &
-      rec_L_end, rec_L_size, rec_L_start, sgfa, sgfb, strat_group_size, &
-      sub_sub_color, tp(3), ub(3)
+      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a
+    INTEGER :: ncoa_b, ncol_local, nkind, nrow_local, nseta, nsetb, nsgf, &
+      offset, offsetb, proc_receive, proc_receive_static, proc_send, &
+      proc_send_static, proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, &
+      sgfb, strat_group_size, sub_sub_color, tp(3), ub(3), vab_dim_max
     INTEGER, ALLOCATABLE, DIMENSION(:) :: diffbf_atom_arbitr_atom, &
       diffbf_noinbas, diffbfatanyatom_noinbas, ends_array_pot, kind_of, &
       proc_map, sizes_array_pot, starts_array_pot, sub_ends_array, &
@@ -950,6 +950,8 @@ MODULE mp2_ri_gpw
     TYPE(cp_fm_type), POINTER                :: fm_matrix_L_diag
     TYPE(cp_para_env_type), POINTER          :: para_env_exc, &
                                                 para_env_exchange
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
@@ -985,10 +987,27 @@ MODULE mp2_ri_gpw
 
     CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
 
+    ! Array dimensions for integrate_pgf_product_rspace
+    lmax_global=0
+    cmax_global=0
+    vab_dim_max=0
+    ! Obtain maximum of la_max
     DO ikind=1, nkind
       CALL get_qs_kind(qs_kind=qs_kind_set(ikind),basis_set=basis_set_a,basis_type="RI_AUX")
       CPASSERT(ASSOCIATED(basis_set_a))
+      lmax_global=MAX(MAXVAL(basis_set_a%lmax(:)),lmax_global)
     END DO
+    ! Use the maximum value of lmax_global to calculate the maximum dimension of vab
+    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
+    !Find cmax using the known cube information
+    cube_info=>pw_env_sub%cube_info
+    DO i=1,SIZE(cube_info)
+       IF (ASSOCIATED(pw_env_sub%cube_info(1)%ub_cube)) THEN
+          cmax_global=MAX(MAXVAL(pw_env_sub%cube_info(i)%ub_cube(:,:)),cmax_global)
+       END IF
+    END DO
+    ! lmax_global is multiplied by 2 here as lp must be 2*lmax_global
+    lmax_global=lmax_global*2    
 
     dimen_RI=0
     DO iatom=1, natom
@@ -1544,7 +1563,8 @@ MODULE mp2_ri_gpw
                                                  o2=0,&
                                                  map_consistent=.TRUE.,&
                                                  eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
-                                                 calculate_forces=.FALSE.)
+                                                 calculate_forces=.FALSE.,lmax_global=lmax_global,&
+                                                 cmax_global=cmax_global,vab_dim_max=vab_dim_max)
              END DO
   
             CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
@@ -1949,7 +1969,8 @@ MODULE mp2_ri_gpw
                                                  o2=0,&
                                                  map_consistent=.TRUE.,&
                                                  eps_gvg_rspace=dft_control%qs_control%eps_gvg_rspace,&
-                                                 calculate_forces=.FALSE.)
+                                                 calculate_forces=.FALSE.,lmax_global=lmax_global,&
+                                                 cmax_global=cmax_global,vab_dim_max=vab_dim_max)
              END DO
            
              CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
