@@ -119,6 +119,7 @@ CONTAINS
     CALL cp_csr_destroy(transport_env%p_matrix)
     CALL cp_dbcsr_release(transport_env%template_matrix_sym)
     CALL cp_dbcsr_release(transport_env%template_matrix_nosym)
+    CALL cp_dbcsr_release(transport_env%csr_sparsity)
 
     transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 
