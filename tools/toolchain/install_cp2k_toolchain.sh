@@ -305,6 +305,9 @@ export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -f
 export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 export LDFLAGS=" $TSANFLAGS"
 
+# Flags which both gfortran and gcc understand.
+BASEFLAGS="IF_OMP(-fopenmp,) -I\$(CP2KINSTALLDIR)/include"
+
 if [ "$mpichoice" == "openmpi" ]; then
    echo "=================== Installing openmpi ====================="
    if [ -f openmpi-${openmpi_ver}.tar.gz ]; then
@@ -490,6 +493,8 @@ EOF
    cp libscalapack.a ${INSTALLDIR}/lib/
    cd ..
 fi
+
+
 DFLAGS="${DFLAGS} IF_MPI(-D__SCALAPACK,)"
 LIBS="IF_MPI(-lscalapack,) ${LIBS}"
 
@@ -574,12 +579,12 @@ else
    make install >& install.log
    cd ..
 fi
+DFLAGS="${DFLAGS} IF_MPI(-D__ELPA3,)"
 # Unfortunately, we need two separate include dirs for ELPA w/wo threading.
 P1="-I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules"
 P2="-I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules"
-DFLAGS="${DFLAGS} IF_MPI(-D__ELPA3 IF_OMP(${P1},${P2}),)"
+BASEFLAGS="${BASEFLAGS} IF_MPI(IF_OMP(${P1},${P2}),)"
 LIBS="IF_MPI(IF_OMP(-lelpa_openmp,-lelpa),) ${LIBS}"
-
 
 if  [ "x${pexsi_ver}" == "x" ]; then
    echo "Skipping PEXSI build and dependencies"
@@ -776,14 +781,15 @@ cd ${INSTALLDIR}/arch
 # standart libs
 LIBS="${LIBS} -lstdc++ "
 
-# Flags which both gfortran and gcc understand.
-BASEFLAGS="IF_OMP(-fopenmp,)"
+# we always want good line information and backtraces
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
-#BASEFLAGS="${BASEFLAGS} IF_VALGRIND(-mno-avx,)" #not supported by valgrind 3.10.1
 #For gcc 6.0 use -O1 -coverage -fkeep-static-functions -D__NO_ABORT
 BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -ffast-math))"
-BASEFLAGS="${BASEFLAGS} IF_DEBUG(-fsanitize=leak -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math -D__HAS_IEEE_EXCEPTIONS,)"
-BASEFLAGS="${BASEFLAGS} \$(PROFOPT)"
+# those flags that do not influence code generation are used always, the others if debug
+FCDEBFLAGS="IF_DEBUG(-fsanitize=leak -fcheck='bounds,do,recursion,pointer' -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math,) -std=f2003 -fimplicit-none "
+DFLAGS="${DFLAGS} IF_DEBUG(-D__HAS_IEEE_EXCEPTIONS,)"
+# profile based optimization, see http://www.cp2k.org/howto:pgo
+BASEFLAGS="${BASEFLAGS} IF_DEBUG(,\$(PROFOPT))"
 
 # Special flags for gfortran
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
@@ -795,11 +801,11 @@ WFLAGSWARN="-Wuse-without-only"
 WFLAGSWARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 # combine warn/error flags
 WFLAGS="$WFLAGSERROR $WFLAGSWARN IF_WARNALL(${WFLAGSWARNALL},)"
-FCFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include -std=f2003 -fimplicit-none -ffree-form IF_DEBUG(-fcheck='bounds,do,recursion,pointer',) ${WFLAGS} \$(DFLAGS)"
+FCFLAGS="${BASEFLAGS} -ffree-form \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
 LDFLAGS="-L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)"
 
 # Spcial flags for gcc (currently none)
-CFLAGS="${BASEFLAGS} -I\$(CP2KINSTALLDIR)/include \$(DFLAGS)"
+CFLAGS="${BASEFLAGS} \$(DFLAGS)"
 
 # CUDA stuff
 LIBS="${LIBS} IF_CUDA(-lcudart -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt,),)"
