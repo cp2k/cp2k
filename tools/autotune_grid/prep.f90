@@ -10,6 +10,13 @@
 !   where p is center of the product gaussian, and lp = la_max + lb_max
 !   (current implementation is l**7)
 !
+    lp=la_max_local+lb_max_local
+    ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)) 
+    ALLOCATE(alpha(0:lp,0:la_max_local,0:lb_max_local,3))
+
+    ALLOCATE(pol_z(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_x(0:lp,-cmax:cmax))
 
 !
 !   compute polynomial expansion coefs -> (x-a)**lxa (x-b)**lxb -> sum_{ls} alpha(ls,lxa,lxb,1)*(x-p)**ls

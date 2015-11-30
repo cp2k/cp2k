@@ -19,7 +19,7 @@ CONTAINS
     REAL                                    :: t1,t2,time
     INTEGER, DIMENSION(:), ALLOCATABLE      :: r
 
-    INTEGER :: i,j, lmax_global
+    INTEGER :: i,j
 
     ALLOCATE(r(SIZE(p)))
 
@@ -31,20 +31,12 @@ CONTAINS
     CALL CPU_TIME(t1)
 
     CALL sort_z(rs_grids,p,r)
-
-    ! Find lmax_global over all p values
-    lmax_global=0
-    DO i=1,SIZE(p) 
-       lmax_global=MAX(p(i)%la_max,lmax_global)
-    END DO 
-
     DO i=1,SIZE(p) 
        j=r(i)
        CALL collocate_pgf_product_rspace(p(j)%la_max,p(j)%zeta,p(j)%la_min, &
                                          p(j)%lb_max,p(j)%zetb,p(j)%lb_min, &
                                          p(j)%ra,p(j)%rab,p(j)%rab2, &
-                                         rs_grids(p(j)%igrid),cube_info(p(j)%igrid),&
-                                         l_info,eps_rho_rspace,lmax_global)
+                                         rs_grids(p(j)%igrid),cube_info(p(j)%igrid),l_info,eps_rho_rspace)
     ENDDO
 
     CALL CPU_TIME(t2)
@@ -78,7 +70,7 @@ CONTAINS
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2, &
                                           rsgrid,cube_info,l_info,&
-                                          eps_rho_rspace,lmax_global)
+                                          eps_rho_rspace)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -91,7 +83,6 @@ CONTAINS
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
-    INTEGER, INTENT(IN)                      :: lmax_global
 
     INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
       jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
@@ -114,10 +105,11 @@ CONTAINS
 
     INTEGER :: lxp,lyp,lzp,lp,iaxis,lxpm,lypm
     REAL(kind=dp) :: p_ele,ax,ay,az
-    REAL(kind=dp), DIMENSION(0:lmax_global*2,0:lmax_global,0:lmax_global,3) :: alpha
-    REAL(kind=dp), DIMENSION(((lmax_global*2+1)*(lmax_global*2+2)*(lmax_global*2+3))/6) :: coef_xyz
-    REAL(kind=dp), DIMENSION(((lmax_global*2+1)*(lmax_global*2+2))/2) :: coef_xyt
-    REAL(kind=dp), DIMENSION(0:lmax_global*2) :: coef_xtt
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
+
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
@@ -211,13 +203,11 @@ CONTAINS
       END IF
     ENDDO
 
-    ! Allocate scratch arrays here
-    lp=la_max_local+lb_max_local
-    ALLOCATE(pol_z(1:2,0:lp,-cmax:0))
-    ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
-    ALLOCATE(pol_x(0:lp,-cmax:cmax))
-
     INCLUDE 'prep.f90'
+
+    ALLOCATE(coef_xyt(((lp+1)*(lp+2))/2))
+    ALLOCATE(coef_xtt(0:lp))
+
 
 !
 !   compute P_{lxp,lyp,lzp} given P_{lxa,lya,lza,lxb,lyb,lzb} and alpha(ls,lxa,lxb,1)

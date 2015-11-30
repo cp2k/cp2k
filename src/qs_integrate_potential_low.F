@@ -15,7 +15,8 @@ MODULE qs_integrate_potential_low
                                              int_8
   USE mathconstants,                   ONLY: fac
   USE orbital_pointers,                ONLY: coset,&
-                                             current_maxl
+                                             current_maxl,&
+                                             ncoset
   USE realspace_grid_types,            ONLY: realspace_grid_type
 #include "./base/base_uses.f90"
 
@@ -68,9 +69,6 @@ CONTAINS
 !> \param a_hdab ...
 !> \param use_subpatch ...
 !> \param subpatch_pattern ...
-!> \param lmax_global an upper bound for lmax, used for automatic scratch arrays
-!> \param cmax_global an upper bound for cmax, used for automatic scratch arrays
-!> \param vab_dim_max an upper bound used for the automatic vab scratch array
 ! *****************************************************************************
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
@@ -80,8 +78,7 @@ CONTAINS
                                             calculate_forces,hdab,hadb,force_a,force_b,&
                                             compute_tau,map_consistent,&
                                             collocate_rho0,rpgf0_s,use_virial,my_virial_a,&
-                                            my_virial_b,a_hdab,use_subpatch,subpatch_pattern,&
-                                            lmax_global,cmax_global,vab_dim_max)
+                                            my_virial_b,a_hdab,use_subpatch,subpatch_pattern)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -111,8 +108,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:,:), OPTIONAL, POINTER  :: a_hdab
     LOGICAL, OPTIONAL                        :: use_subpatch
     INTEGER(KIND=int_8), INTENT(IN), OPTIONAL :: subpatch_pattern
-    INTEGER, INTENT(IN)                      :: lmax_global,cmax_global, &
-                                                vab_dim_max
 
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
@@ -138,13 +133,14 @@ CONTAINS
 
     INTEGER :: lxp,lyp,lzp,lp,iaxis
     INTEGER,       ALLOCATABLE, DIMENSION(:,:) :: map
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
-    REAL(kind=dp), DIMENSION(((lmax_global+1)*(lmax_global+2)*(lmax_global+3))/6) :: coef_xyz
-    REAL(kind=dp), DIMENSION(1:2,0:lmax_global,-cmax_global:0) :: pol_z
-    REAL(kind=dp), DIMENSION(1:2,0:lmax_global,-cmax_global:0) :: pol_y
-    REAL(kind=dp), DIMENSION(0:lmax_global,-cmax_global:cmax_global) :: pol_x
-    REAL(kind=dp), DIMENSION(vab_dim_max,vab_dim_max) :: vab
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
+
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
 
     subpatch_integrate = .FALSE.
@@ -241,6 +237,7 @@ CONTAINS
 
     ng(:) = rsgrid%desc%npts(:)
     grid => rsgrid%r(:,:,:)
+    ALLOCATE(vab(ncoset(la_max_local),ncoset(lb_max_local)))
     vab=0.0_dp
 
     ! the likely call is integrate_ortho
@@ -343,6 +340,7 @@ CONTAINS
         END DO
       END DO
     END DO
+    DEALLOCATE(vab)
 
 
   CONTAINS
@@ -399,15 +397,24 @@ CONTAINS
     ENDDO
 
     lp=la_max_local+lb_max_local
+    ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
+    ALLOCATE(pol_z(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_y(1:2,0:lp,-cmax:0))
+    ALLOCATE(pol_x(0:lp,-cmax:cmax))
 
 #include "prep.f90"
 
     CALL call_integrate()
 
+
     CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, & 
-                                  lb_min_local, current_maxl, vab_dim_max, vab_dim_max)
+                                  lb_min_local, current_maxl, ncoset(la_max_local), ncoset(lb_max_local))
     
+    DEALLOCATE(coef_xyz)
+    DEALLOCATE(pol_z)
+    DEALLOCATE(pol_y)
+    DEALLOCATE(pol_x)
     DEALLOCATE(map)
     END SUBROUTINE integrate_ortho
 
@@ -419,39 +426,38 @@ CONTAINS
 
       SELECT CASE(lp)
       CASE(0)
-      CALL integrate_core_0(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_0(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(1)
-      CALL integrate_core_1(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_1(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(2)
-      CALL integrate_core_2(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_2(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(3)
-      CALL integrate_core_3(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_3(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(4)
-      CALL integrate_core_4(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_4(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(5)
-      CALL integrate_core_5(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_5(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(6)
-      CALL integrate_core_6(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_6(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(7)
-      CALL integrate_core_7(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_7(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(8)
-      CALL integrate_core_8(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_8(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE(9)
-      CALL integrate_core_9(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global), pol_y(1,0,-cmax_global),pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_9(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax), pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))
       CASE DEFAULT
-      CALL integrate_core_default(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax_global),pol_y(1,0,-cmax_global),&
-                             pol_z(1,0,-cmax_global), &
-                             map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1),lmax_global,cmax_global)
+      CALL integrate_core_default(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax),pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
+                             map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1))
       END SELECT
 
 
@@ -484,6 +490,7 @@ CONTAINS
 !
 
       lp=la_max_local+lb_max_local
+      ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
       ALLOCATE(coef_ijk(((lp+1)*(lp+2)*(lp+3))/6))
       ALLOCATE(coef_xyt(((lp+1)*(lp+2))/2))
       ALLOCATE(coef_xtt(0:lp))
@@ -674,7 +681,9 @@ CONTAINS
 
       CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, & 
-                                  lb_min_local, current_maxl, vab_dim_max, vab_dim_max)
+                                  lb_min_local, current_maxl, ncoset(la_max_local), & 
+                                  ncoset(lb_max_local))
+
 
       ! deallocation needed to pass around a pgi bug..
       DEALLOCATE(hmatgridp)
@@ -683,6 +692,7 @@ CONTAINS
       DEALLOCATE(coef_xtt)
       DEALLOCATE(coef_xyt)
       DEALLOCATE(coef_ijk)
+      DEALLOCATE(coef_xyz)
     END SUBROUTINE integrate_general_opt
 
 ! *****************************************************************************
@@ -717,11 +727,14 @@ CONTAINS
             periodic=periodic,gdim=ng,local_bounds=local_b,local_shift=local_s,&
             scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
+        ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3)
         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
-                                  current_maxl, vab_dim_max, vab_dim_max)
+                                  current_maxl, ncoset(la_max_local), & 
+                                  ncoset(lb_max_local))
 
+        DEALLOCATE(coef_xyz)
     END SUBROUTINE
 
 ! *****************************************************************************
@@ -756,13 +769,14 @@ CONTAINS
             periodic=periodic,gdim=ng,local_bounds=local_b,&
             scale=rsgrid%desc%ngpts/ABS(cell%deth))
         ! defaults: local_shift=(/0,0,0/),poly_shift=(/0.0_dp,0.0_dp,0.0_dp/),scale=1.0_dp,
+        ALLOCATE(coef_xyz(((lp+1)*(lp+2)*(lp+3))/6))
         CALL poly_d32cp2k(coef_xyz,lp,poly_d3)
-
         CALL call_to_xyz_to_vab(prefactor, coef_xyz, lp, la_max_local, lb_max_local, &
                                   rp, ra, rab, vab, coset, la_min_local, lb_min_local, &
-                                current_maxl, vab_dim_max, vab_dim_max)
+                                current_maxl, ncoset(la_max_local), ncoset(lb_max_local))
 
 
+        DEALLOCATE(coef_xyz)
     END SUBROUTINE
 
 ! *****************************************************************************

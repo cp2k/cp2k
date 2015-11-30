@@ -20,7 +20,6 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE      :: r
 
     INTEGER :: i,j,k,l,m
-    INTEGER :: lmax_global, cmax_global, vab_dim_max
 
     ALLOCATE(r(SIZE(p)))
 
@@ -36,31 +35,13 @@ CONTAINS
 
     CALL CPU_TIME(t1)
 
-    ! Compute array dimensions for integrate_pgf_product_rspace
-    lmax_global=0
-    cmax_global=0
-    vab_dim_max=0
-    ! Find maximum value of lmax over all p
-    DO i=1,SIZE(p)
-       lmax_global=MAX(p(i)%la_max,lmax_global)
-    END DO
-    ! Use final value of lmax_global to compute maximum dimension of vab
-    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
-    lmax_global=lmax_global*2    
-    ! Find maximum for cmax using the known cube information
-    DO i=1,SIZE(cube_info)
-       IF (ASSOCIATED(cube_info(1)%ub_cube)) THEN
-          cmax_global=MAX(MAXVAL(cube_info(i)%ub_cube(:,:)),cmax_global)
-       END IF
-    END DO
-
     DO i=1,SIZE(p) 
        j=i
        CALL integrate_pgf_product_rspace(p(j)%la_max,p(j)%zeta,p(j)%la_min, &
                                          p(j)%lb_max,p(j)%zetb,p(j)%lb_min, &
                                          p(j)%ra,p(j)%rab,p(j)%rab2, &
                                          rs_grids(p(j)%igrid),cube_info(p(j)%igrid),l_info,eps_rho_rspace,&
-                                         intsum,lmax_global,cmax_global,vab_dim_max)
+                                         intsum)
        p(j)%intsum=intsum
     ENDDO
 
@@ -74,9 +55,7 @@ CONTAINS
                                           ra,rab,rab2, &
                                           rsgrid,cube_info,l_info,&
                                           eps_rho_rspace,&
-                                          intsum,&
-                                          lmax_global,cmax_global,&
-                                          vab_dim_max)
+                                          intsum)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -90,8 +69,6 @@ CONTAINS
     TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
     REAL(KIND=dp), INTENT(OUT)               :: intsum
-    INTEGER, INTENT(IN)                      :: lmax_global, cmax_global, &
-                                                vab_dim_max
 
     INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
       jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
@@ -114,17 +91,17 @@ CONTAINS
                                                 poly(:,:), polz(:,:), pzyx(:)
 
     INTEGER :: lxp,lyp,lzp,lp,iaxis
-    REAL(kind=dp), DIMENSION(((lmax_global+1)*(lmax_global+2)*(lmax_global+3))/6) :: coef_xyz
-    REAL(kind=dp), DIMENSION(1:2,0:lmax_global,-cmax_global:0) :: pol_z
-    REAL(kind=dp), DIMENSION(1:2,0:lmax_global,-cmax_global:0) :: pol_y
-    REAL(kind=dp), DIMENSION(0:lmax_global,-cmax_global:cmax_global) :: pol_x
-    REAL(kind=dp), DIMENSION(vab_dim_max,vab_dim_max) :: vab
-
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: alpha
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyz
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xyt
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: coef_xtt
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: coef_ttz
     REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:,:) :: coef_tyz
+
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_z
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:,:) :: pol_y
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: pol_x
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:,:) :: vab
     REAL(KIND=dp) :: t_exp_1,t_exp_2,t_exp_min_1,t_exp_min_2,t_exp_plus_1,t_exp_plus_2
 
 
@@ -216,22 +193,19 @@ CONTAINS
       END IF
     ENDDO
 
-    ! Allocate scratch arrays here
-    lp=la_max_local+lb_max_local
-    ALLOCATE(alpha(0:lp,0:la_max_local,0:lb_max_local,3))
-
     INCLUDE 'prep.f90'
 
     INCLUDE 'call_integrate.f90'
 
 !    CALL integrate_core_default(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax),pol_y(1,0,-cmax),pol_z(1,0,-cmax), &
-!                                map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1),lmax_global,cmax_global)
+!                                map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1))
 
     !
     !   compute v_{lxa,lya,lza,lxb,lyb,lzb} given v_{lxp,lyp,lzp} and alpha(ls,lxa,lxb,1)
     !   use a three step procedure
     !
 
+    ALLOCATE(vab(ncoset(la_max_local),ncoset(lb_max_local)))
     ALLOCATE(coef_ttz(0:la_max_local,0:lb_max_local))
     ALLOCATE(coef_tyz(0:la_max_local,0:lb_max_local,0:la_max_local,0:lb_max_local))
 

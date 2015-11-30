@@ -470,28 +470,26 @@ CONTAINS
 SUBROUTINE integrate_generate_stub(iunit,lp)
   INTEGER, INTENT(IN) :: iunit,lp
 
-write(iunit,'(A,I0,A)')"  SUBROUTINE integrate_core_",lp,"(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &"
-write(iunit,'(A)')"                                        lp_maximum,cmax_maximum)"
+write(iunit,'(A,I0,A)')"  SUBROUTINE integrate_core_",lp,"(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)"
 write(iunit,'(A)')""
 write(iunit,'(A)')"    IMPLICIT NONE"
 write(iunit,'(A)')""
-write(iunit,'(A)')"    INTEGER, INTENT(IN)          :: lp_maximum, cmax_maximum"
 write(iunit,'(A)')"  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )"
 write(iunit,'(A,I0)')"    INTEGER, PARAMETER      :: lp=",lp
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: cmax"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: gridbounds(2,3)"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: sphere_bounds(*)"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_y(1:2,0:lp_maximum,-cmax_maximum:0)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_z(1:2,0:lp_maximum,-cmax_maximum:0)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)"
 write(iunit,'(A)')"    REAL(KIND=dp), INTENT(OUT)   :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)"
 write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: grid(gridbounds(1,1):gridbounds(2,1), & "
 write(iunit,'(A)')"                                    gridbounds(1,2):gridbounds(2,2), &"
 write(iunit,'(A)')"                                    gridbounds(1,3):gridbounds(2,3))"
 write(iunit,'(A)')" CALL integrate_core_default(grid,coef_xyz,pol_x,pol_y, &"
 write(iunit,'(A)')                      "pol_z,map,sphere_bounds, &"
-write(iunit,'(I0,A)') lp,",cmax,gridbounds,lp_maximum,cmax_maximum)"
+write(iunit,'(I0,A)') lp,",cmax,gridbounds)"
 write(iunit,'(A,I0,A)')"END SUBROUTINE integrate_core_",lp," "
 
 END SUBROUTINE integrate_generate_stub
@@ -501,21 +499,19 @@ SUBROUTINE integrate_generate_specialized(iunit,lp,options)
   INTEGER, INTENT(IN) :: iunit,lp
   TYPE (option_type)  :: options
 
-write(iunit,'(A,I0,A)')"  SUBROUTINE integrate_core_",lp,"(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds, &"
-write(iunit,'(A)')"                                        lp_maximum,cmax_maximum)"
+write(iunit,'(A,I0,A)')"  SUBROUTINE integrate_core_",lp,"(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,cmax,gridbounds)"
 write(iunit,'(A)')""
 write(iunit,'(A)')"    IMPLICIT NONE"
 write(iunit,'(A)')""
-write(iunit,'(A)')"    INTEGER, INTENT(IN)          :: lp_maximum, cmax_maximum"
 write(iunit,'(A)')"  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )"
 write(iunit,'(A,I0)')"    INTEGER, PARAMETER      :: lp=",lp
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: cmax"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: gridbounds(2,3)"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: sphere_bounds(*)"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_y(1:2,0:lp_maximum,-cmax_maximum:0)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_z(1:2,0:lp_maximum,-cmax_maximum:0)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)"
 write(iunit,'(A)')"    REAL(KIND=dp), INTENT(OUT)   :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)"
 write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: grid(gridbounds(1,1):gridbounds(2,1), & "
 write(iunit,'(A)')"                                    gridbounds(1,2):gridbounds(2,2), &"
@@ -761,21 +757,19 @@ SUBROUTINE integrate_generate_default(iunit)
   IMPLICIT NONE
   INTEGER, INTENT(IN) :: iunit 
 
-write(iunit,'(A)')"  SUBROUTINE integrate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds, &"
-write(iunit,'(A)')"                                        lp_maximum,cmax_maximum)"
+write(iunit,'(A)')"  SUBROUTINE integrate_core_default(grid,coef_xyz,pol_x,pol_y,pol_z,map,sphere_bounds,lp,cmax,gridbounds)"
 write(iunit,'(A)')""
 write(iunit,'(A)')"    IMPLICIT NONE"
 write(iunit,'(A)')""
-write(iunit,'(A)')"    INTEGER, INTENT(IN)                      :: lp_maximum, cmax_maximum"
 write(iunit,'(A)')"  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: lp"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: cmax"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: gridbounds(2,3)"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: sphere_bounds(*)"
 write(iunit,'(A)')"    INTEGER, INTENT(IN)     :: map(-cmax:cmax,1:3)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_x(0:lp_maximum,-cmax_maximum:cmax_maximum)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_y(1:2,0:lp_maximum,-cmax_maximum:0)"
-write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_z(1:2,0:lp_maximum,-cmax_maximum:0)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_x(0:lp,-cmax:cmax)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_y(1:2,0:lp,-cmax:0)"
+write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: pol_z(1:2,0:lp,-cmax:0)"
 write(iunit,'(A)')"    REAL(KIND=dp), INTENT(OUT)   :: coef_xyz(((lp+1)*(lp+2)*(lp+3))/6)"
 write(iunit,'(A)')"    REAL(KIND=dp), INTENT(IN)    :: grid(gridbounds(1,1):gridbounds(2,1), & "
 write(iunit,'(A)')"                                    gridbounds(1,2):gridbounds(2,2), &"
@@ -871,11 +865,11 @@ SUBROUTINE integrate_generate_case_statement(iunit,lmax)
       write(iunit,'(A,I0,A)')" CASE(",lp,")"
       write(iunit,'(A,I0,A)')" CALL integrate_core_",lp,"(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax),"//&
                                                  " pol_y(1,0,-cmax),pol_z(1,0,-cmax), &"
-      write(iunit,'(A)')"                        map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1),lmax_global,cmax_global)"
+      write(iunit,'(A)')"                        map(-cmax,1),sphere_bounds(1),cmax,gridbounds(1,1))"
    ENDDO
    write(iunit,'(A)')"  CASE DEFAULT"
    write(iunit,'(A)')" CALL integrate_core_default(grid(1,1,1),coef_xyz(1),pol_x(0,-cmax),pol_y(1,0,-cmax),pol_z(1,0,-cmax), &"
-   write(iunit,'(A)')"                        map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1),lmax_global,cmax_global)"
+   write(iunit,'(A)')"                        map(-cmax,1),sphere_bounds(1),lp,cmax,gridbounds(1,1))"
    write(iunit,'(A)')"  END SELECT"
 END SUBROUTINE integrate_generate_case_statement
 

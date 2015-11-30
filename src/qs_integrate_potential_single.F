@@ -36,7 +36,6 @@ MODULE qs_integrate_potential_single
                                              pbc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cube_utils,                      ONLY: cube_info_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
@@ -115,8 +114,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_scp_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, cmax_global, handle, i, iatom, ii, ikind, j, jj, l, &
-      lmax_global, lmaxscp, natom_of_kind, ni, nj, npme, vab_dim_max
+    INTEGER                                  :: atom_a, handle, i, iatom, ii, &
+                                                ikind, j, jj, l, lmaxscp, &
+                                                natom_of_kind, ni, nj, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: defined, use_virial
     REAL(KIND=dp)                            :: alpha, dvol, eps_rho_rspace, &
@@ -127,8 +127,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -164,36 +162,6 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     dvol = scp_pot%pw%pw_grid%dvol
-
-    ! Array dimensions for integrate_pgf_product_rspace
-    lmax_global=0
-    cmax_global=0
-    vab_dim_max=0
-    ! Get lmax_global from max of lmaxscp over all of atomic_kind_set
-    DO ikind=1,SIZE(atomic_kind_set)
-       CALL get_qs_kind(qs_kind_set(ikind),scptb_parameter=scptb_kind)
-       CALL get_scptb_parameter(scptb_kind,defined=defined,lmaxscp=lmaxscp)
-       IF (.NOT.defined) CYCLE
-       lmax_global=MAX(lmaxscp,lmax_global)
-    END DO 
-    ! Update lmax_global depending on calculate_forces & use_virial. 
-    IF (calculate_forces) THEN
-       lmax_global=lmax_global+1
-       IF (use_virial) THEN
-          lmax_global=lmax_global+1
-       END IF
-    END IF
-    ! Compute vab_dim_max using final lmax_global and multiply lmax_global x 2 
-    ! prior to call to integrate_pgf_product_rspace
-    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
-    lmax_global=lmax_global*2
-    ! Get cube_info and use to compute cmax_global
-    cube_info=>pw_env%cube_info
-    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
-       DO i=1,SIZE(cube_info)
-          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
-       END DO
-    END IF
 
     DO ikind=1,SIZE(atomic_kind_set)
 
@@ -260,8 +228,7 @@ CONTAINS
               eps_gvg_rspace=eps_rho_rspace,&
               calculate_forces=calculate_forces,force_a=force_a,&
               force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,&
-              lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
+              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
          DO l=0,lmaxscp
             pp = (2._dp*l+3._dp)/2._dp
@@ -306,8 +273,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_ppl_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, cmax_global, handle, i, iatom, ikind, j, lmax_global, &
-      lppl, n, natom_of_kind, ni, npme, vab_dim_max
+    INTEGER                                  :: atom_a, handle, iatom, ikind, &
+                                                j, lppl, n, natom_of_kind, &
+                                                ni, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -318,8 +286,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
@@ -354,34 +320,6 @@ CONTAINS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-    ! Array dimensions for integrate_pgf_product_rspace
-    lmax_global=0
-    cmax_global=0
-    vab_dim_max=0
-    ! Get lmax_global from maximum of 2*lppl-2 over all of the atomic_kind_set
-    DO ikind=1,SIZE(atomic_kind_set)
-       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
-       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
-       CALL get_potential(potential=gth_potential,nexp_ppl=lppl)
-       lmax_global=MAX((2*lppl-2),lmax_global)
-    END DO
-    ! Update lmax_global depending on use_virial. 
-    lmax_global=lmax_global+1
-    IF (use_virial) THEN
-       lmax_global=lmax_global+1
-    END IF
-    ! Compute vab_dim_max using final lmax_global and multiply lmax_global x 2 
-    ! prior to call to integrate_pgf_product_rspace
-    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
-    lmax_global=lmax_global*2
-    ! Get cube_info and use to compute cmax_global
-    cube_info=>pw_env%cube_info
-    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
-       DO i=1,SIZE(cube_info)
-          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
-       END DO
-    END IF
 
     DO ikind=1,SIZE(atomic_kind_set)
 
@@ -487,8 +425,7 @@ CONTAINS
               eps_gvg_rspace=eps_rho_rspace,&
               calculate_forces=.TRUE.,force_a=force_a,&
               force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,&
-              lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
+              my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
          force(ikind)%gth_ppl(:,iatom) =&
            force(ikind)%gth_ppl(:,iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -523,11 +460,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_rho_nlcc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, cmax_global, handle, i, iatom, iexp_nlcc, ikind, &
-      ithread, j, lmax_global, n, natom, nc, nexp_nlcc, ni, npme, nthread, &
-      vab_dim_max
-    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, mylmax, &
-                                                nct_nlcc
+    INTEGER                                  :: atom_a, handle, iatom, &
+                                                iexp_nlcc, ikind, ithread, j, &
+                                                n, natom, nc, nexp_nlcc, ni, &
+                                                npme, nthread
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, cores, nct_nlcc
     LOGICAL                                  :: nlcc, use_virial
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
@@ -537,8 +474,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(particle_type), DIMENSION(:), &
@@ -553,7 +488,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    NULLIFY(pw_env,cores,mylmax)
+    NULLIFY(pw_env,cores)
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_grid=rs_v)
@@ -574,36 +509,7 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-    ! Array dimensions for integrate_pgf_product_rspace
-    lmax_global=0
-    cmax_global=0
-    vab_dim_max=0
-    ! la_max = 2*nc-2 which depends on nct_nlcc. Thus get lmax_global from maximum of 
-    ! all values of nct_nlcc 
-    DO ikind=1,SIZE(atomic_kind_set)
-       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
-       IF (.NOT.ASSOCIATED(gth_potential)) CYCLE
-       CALL get_potential(potential=gth_potential,nlcc_present=nlcc,nct_nlcc=mylmax)
-       lmax_global=MAX(MAXVAL(2*mylmax-2),lmax_global)
-    END DO
-    ! Update lmax_global depending on use_virial 
-    lmax_global=lmax_global+1
-    IF (use_virial) THEN
-       lmax_global=lmax_global+1
-    END IF
-    ! compute vab_dim_max using final lmax_global and multiply lmax_global by 2 
-    ! prior to call to integrate_pgf_product_rspace
-    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
-    lmax_global=lmax_global*2
-    ! Get cube_info and use to compute cmax_global
-    cube_info=>pw_env%cube_info
-    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
-       DO i=1,SIZE(cube_info)
-          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
-       END DO
-    END IF
-
-    DO ikind=1,SIZE(atomic_kind_set)
+   DO ikind=1,SIZE(atomic_kind_set)
 
       CALL get_atomic_kind(atomic_kind_set(ikind),natom=natom,atom_list=atom_list)
       CALL get_qs_kind(qs_kind_set(ikind),gth_potential=gth_potential)
@@ -718,8 +624,7 @@ CONTAINS
                 eps_gvg_rspace=eps_rho_rspace,&
                 calculate_forces=.TRUE.,force_a=force_a,&
                 force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-                my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,&
-                lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
+                my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
            force(ikind)%gth_nlcc(:,iatom) =&
              force(ikind)%gth_nlcc(:,iatom) + force_a(:)*rho_rspace%pw%pw_grid%dvol
@@ -756,8 +661,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'integrate_v_core_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, cmax_global, handle, i, iatom, ikind, j, lmax_global, &
-      natom, natom_of_kind, npme, vab_dim_max
+    INTEGER                                  :: atom_a, handle, iatom, ikind, &
+                                                j, natom, natom_of_kind, npme
     INTEGER, DIMENSION(:), POINTER           :: atom_list, cores
     LOGICAL                                  :: paw_atom, skip_fcore, &
                                                 use_virial
@@ -770,8 +675,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atprop_type), POINTER               :: atprop
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -826,27 +729,6 @@ CONTAINS
         use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
         eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-        ! Array dimensions for integrate_pgf_product_rspace 
-        lmax_global=0
-        cmax_global=0
-        vab_dim_max=0
-        ! Update lmax_global depending on the value of 
-        ! use_virial
-        lmax_global=lmax_global+1
-        IF (use_virial) THEN
-           lmax_global=lmax_global+1
-        END IF
-        ! Use the final value of lmax_global to compute the maximum dimension of vab
-        vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
-        lmax_global=lmax_global*2
-        ! Get cube_info and use to compute cmax_global
-        cube_info=>pw_env%cube_info
-        IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
-           DO i=1,SIZE(cube_info)
-             cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
-           END DO
-        END IF
 
         DO ikind=1,SIZE(atomic_kind_set)
 
@@ -905,8 +787,7 @@ CONTAINS
                  eps_gvg_rspace=eps_rho_rspace,&
                  calculate_forces=.TRUE.,force_a=force_a,&
                  force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-                 my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8,&
-                 lmax_global=lmax_global,cmax_global=cmax_global,vab_dim_max=vab_dim_max)
+                 my_virial_b=my_virial_b,use_subpatch=.TRUE.,subpatch_pattern=0_int_8)
 
             IF (ASSOCIATED(force)) THEN
                force(ikind)%rho_core(:,iatom) =&
@@ -955,13 +836,12 @@ CONTAINS
       routineN = 'integrate_v_rspace_one_center', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, cmax_global, dir, group_size, handle, i, iatom, &
-      igrid_level, ikind, ipgf, iset, lmax_global, m1, maxco, maxsgf_set, &
-      my_pos, na1, natom_of_kind, ncoa, nkind, nseta, offset, sgfa, &
-      vab_dim_max
+    INTEGER :: atom_a, dir, group_size, handle, i, iatom, igrid_level, ikind, &
+      ipgf, iset, m1, maxco, maxsgf_set, my_pos, na1, natom_of_kind, ncoa, &
+      nkind, nseta, offset, sgfa
     INTEGER, DIMENSION(3)                    :: lb, location, tp, ub
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
-                                                mylmax, npgfa, nsgf_seta
+                                                npgfa, nsgf_seta
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: map_consistent, map_it_here, &
                                                 use_virial
@@ -975,8 +855,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: lri_basis_set
@@ -994,8 +872,8 @@ CONTAINS
 
     NULLIFY(atomic_kind_set, qs_kind_set, atom_list, cell, dft_control,&
             first_sgfa, gridlevel_info, hab, la_max, la_min, lri_basis_set,&
-            mylmax, npgfa, nsgf_seta, pab, para_env, particle_set, pw_env,& 
-            rpgfa, rs_grid, rs_v, virial, set_radius_a, sphi_a,  work_f,&
+            npgfa, nsgf_seta, pab, para_env, particle_set, pw_env, rpgfa, &
+            rs_grid, rs_v, virial, set_radius_a, sphi_a,  work_f,&
             work_i, zeta)
 
 
@@ -1034,35 +912,6 @@ CONTAINS
     offset = 0           
     my_pos=v_rspace%pw%pw_grid%para%my_pos           
     group_size=v_rspace%pw%pw_grid%para%group_size   
-
-    ! Array dimensions for integrate_pgf_product_rspace
-    lmax_global=0
-    cmax_global=0
-    vab_dim_max=0
-    ! la_max = la_max(iset) thus find maximum lmax over all ikinds
-    DO ikind=1,nkind
-       CALL get_qs_kind(qs_kind_set(ikind),basis_set=lri_basis_set,basis_type="LRI")
-       CALL get_gto_basis_set(gto_basis_set=lri_basis_set,lmax=mylmax)
-       lmax_global=MAX(MAXVAL(mylmax),lmax_global)
-    END DO
-    ! Update lmax_global depending on calculate_forces & use_virial
-    IF (calculate_forces) THEN
-       lmax_global=lmax_global+1
-       IF (use_virial) THEN
-          lmax_global=lmax_global+1
-       END IF
-    END IF
-    ! compute vab_dim_max using final lmax_global and multiply lmax_global x 2 
-    ! prior to call to integrate_pgf_product_rspace
-    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
-    lmax_global=lmax_global*2
-    ! Get cube_info and use to compute cmax_global
-    cube_info=>pw_env%cube_info
-    IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
-       DO i=1,SIZE(cube_info)
-          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
-       END DO
-    END IF
 
     DO ikind=1,nkind
 
@@ -1156,8 +1005,7 @@ CONTAINS
                            cube_info=pw_env%cube_info(igrid_level),&
                            hab=hab,o1=na1,o2=0, eps_gvg_rspace=eps_rho_rspace,&
                            calculate_forces=calculate_forces,&
-                           map_consistent=map_consistent,lmax_global=lmax_global,&
-                           cmax_global=cmax_global,vab_dim_max=vab_dim_max)
+                           map_consistent=map_consistent)
                    ELSE
                       CALL integrate_pgf_product_rspace(la_max=la_max(iset),&
                            zeta=zeta(ipgf,iset),la_min=la_min(iset),&
@@ -1170,8 +1018,7 @@ CONTAINS
                            force_a=force_a,force_b=force_b,&
                            use_virial=use_virial,&
                            my_virial_a=my_virial_a,my_virial_b=my_virial_b,&
-                           map_consistent=map_consistent,lmax_global=lmax_global,&
-                           cmax_global=cmax_global,vab_dim_max=vab_dim_max)
+                           map_consistent=map_consistent)
                    ENDIF
                 ENDIF               
              ENDDO

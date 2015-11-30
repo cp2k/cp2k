@@ -152,12 +152,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: my_basis_type
-    INTEGER :: atom_a, atom_b, bcol, brow, cmax_global, handle, i, iatom, &
-      igrid_level, ikind, ikind_old, ilevel, img, ipair, ipgf, ipgf_new, &
-      iset, iset_new, iset_old, itask, ithread, jatom, jkind, jkind_old, &
-      jpgf, jpgf_new, jset, jset_new, jset_old, lmax_global, maxco, maxpgf, &
-      maxset, maxsgf_set, na1, na2, natom, nb1, nb2, ncoa, ncob, nimages, &
-      nkind, nseta, nsetb, nthread, offs_dv, sgfa, sgfb, vab_dim_max
+    INTEGER :: atom_a, atom_b, bcol, brow, handle, i, iatom, igrid_level, &
+      ikind, ikind_old, ilevel, img, ipair, ipgf, ipgf_new, iset, iset_new, &
+      iset_old, itask, ithread, jatom, jkind, jkind_old, jpgf, jpgf_new, &
+      jset, jset_new, jset_old, maxco, maxpgf, maxset, maxsgf_set, na1, na2, &
+      natom, nb1, nb2, ncoa, ncob, nimages, nkind, nseta, nsetb, nthread, &
+      offs_dv, sgfa, sgfb
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: atom_pair_recv, atom_pair_send
     INTEGER(kind=int_8), DIMENSION(:, :), &
@@ -165,8 +165,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: block_touched
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
-                                                lb_min, mylmax, npgfa, npgfb, &
-                                                nsgfa, nsgfb
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL :: atom_pair_changed, atom_pair_done, distributed_grids, do_kp, &
       found, h_duplicated, map_consistent, my_compute_tau, my_force_adm, &
@@ -225,7 +225,7 @@ CONTAINS
        CPASSERT(PRESENT(hmat_kp))
     END IF
 
-    NULLIFY(pw_env, rs_descs, tasks, dist_ab, admm_env, mylmax)
+    NULLIFY(pw_env, rs_descs, tasks, dist_ab, admm_env)
 
     debug_count=debug_count+1
 
@@ -423,12 +423,6 @@ CONTAINS
     natom = SIZE( particle_set )
     maxset=0
     maxpgf=0
-
-    ! Array dimensions for integrate_pgf_product_rspace
-    lmax_global=0
-    vab_dim_max=0
-    cmax_global=0
-    ! Use existing loop to find max of lmax across all kinds
     DO ikind=1,nkind
        CALL get_qs_kind(qs_kind_set(ikind),&
             softb = my_gapw, &
@@ -437,35 +431,10 @@ CONTAINS
        IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-            npgf=npgfa, nset=nseta, lmax=mylmax )
+            npgf=npgfa, nset=nseta )
 
        maxset=MAX(nseta,maxset)
        maxpgf=MAX(MAXVAL(npgfa),maxpgf)
-       lmax_global=MAX(MAXVAL(mylmax),lmax_global)
-    END DO
-
-    ! Update lmax_global depending on the values of calculate_forces, 
-    ! use_virial and my_compute_tau 
-    IF (calculate_forces) THEN
-       lmax_global=lmax_global+1
-       IF (use_virial) THEN
-          lmax_global=lmax_global+1
-       END IF
-    END IF
-    IF (my_compute_tau) THEN
-       lmax_global=lmax_global+1
-    END IF
-    ! Now use the final value of lmax_global to calculate the maximum dimension of vab
-    vab_dim_max=MAX(ncoset(lmax_global),vab_dim_max)
-
-    ! lmax_global is multiplied by 2 here as lp must be 2*lmax_global inside integrate_pgf_product_rspace
-    lmax_global=lmax_global*2    
-
-    ! Find maximum for cmax using the known cube information
-    DO i=1,SIZE(cube_info)
-       IF (ASSOCIATED(pw_env%cube_info(1)%ub_cube)) THEN
-          cmax_global=MAX(MAXVAL(pw_env%cube_info(i)%ub_cube(:,:)),cmax_global)
-       END IF
     END DO
 
     IF (distributed_grids .AND. pab_required) THEN
@@ -483,7 +452,7 @@ CONTAINS
 !$omp shared(pab_required,calculate_forces,ncoset,rs_v,cube_info,my_compute_tau), &
 !$omp shared(map_consistent,eps_gvg_rspace,force,virial,cell,atom_of_kind,dist_ab), &
 !$omp shared(gridlevel_info,task_list,block_touched,nthread,qs_kind_set), &
-!$omp shared(nimages,do_kp,lmax_global,cmax_global,vab_dim_max), &
+!$omp shared(nimages,do_kp), &
 !$omp private(ithread,work,hab,hdab,hadb,pab,iset_old,jset_old), &
 !$omp private(ikind_old,jkind_old,iatom,jatom,iset,jset,ikind,jkind,ilevel,ipgf,jpgf), &
 !$omp private(img,brow,bcol,orb_basis_set,first_sgfa,la_max,la_min,npgfa,nseta,nsgfa), &
@@ -709,9 +678,7 @@ CONTAINS
                   force_a=force_a,force_b=force_b,&
                   compute_tau=my_compute_tau,map_consistent=map_consistent,&
                   use_virial=use_virial,my_virial_a=my_virial_a,&
-                  my_virial_b=my_virial_b,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),&
-                  lmax_global=lmax_global,cmax_global=cmax_global,&
-                  vab_dim_max=vab_dim_max)
+                  my_virial_b=my_virial_b,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask))
           ELSE
              rab_inv=-rab
              CALL integrate_pgf_product_rspace(&
@@ -725,9 +692,7 @@ CONTAINS
                   force_a=force_b,force_b=force_a,&
                   compute_tau=my_compute_tau,map_consistent=map_consistent,&
                   use_virial=use_virial,my_virial_a=my_virial_b,&
-                  my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),&
-                  lmax_global=lmax_global,cmax_global=cmax_global,&
-                  vab_dim_max=vab_dim_max)
+                  my_virial_b=my_virial_a,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask))
           END IF
        ELSE
           IF (iatom <= jatom) THEN
@@ -741,9 +706,7 @@ CONTAINS
                   calculate_forces=calculate_forces,&
                   force_a=force_a,force_b=force_b,&
                   compute_tau=my_compute_tau,&
-                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),&
-                  lmax_global=lmax_global,cmax_global=cmax_global,&
-                  vab_dim_max=vab_dim_max)
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask))
           ELSE
              rab_inv=-rab
              CALL integrate_pgf_product_rspace(&
@@ -756,9 +719,7 @@ CONTAINS
                   calculate_forces=calculate_forces,&
                   force_a=force_b,force_b=force_a, &
                   compute_tau=my_compute_tau,&
-                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask),&
-                  lmax_global=lmax_global,cmax_global=cmax_global,&
-                  vab_dim_max=vab_dim_max)
+                  map_consistent=map_consistent,use_subpatch=use_subpatch,subpatch_pattern=tasks(6,itask))
           END IF
        END IF
 
