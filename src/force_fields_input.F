@@ -38,6 +38,7 @@ MODULE force_fields_input
                                              do_ff_charmm,&
                                              do_ff_g87,&
                                              do_ff_g96,&
+                                             do_ff_opls,&
                                              do_ff_undef,&
                                              legendre_data_type
   USE force_field_types,               ONLY: force_field_type,&
@@ -49,6 +50,7 @@ MODULE force_fields_input
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: invert_matrix
   USE memory_utilities,                ONLY: reallocate
   USE pair_potential_types,            ONLY: &
@@ -1806,6 +1808,19 @@ INTEGER::i
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=torsion_k(start+isec))
        CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=torsion_phi0(start+isec))
        CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=torsion_m(start+isec))
+       ! Modify parameterisation for OPLS case
+       IF (torsion_kind(start+isec) .EQ. do_ff_opls) THEN
+          IF (torsion_phi0(start+isec) .NE. 0.0_dp) THEN
+             CALL cp_warn(__LOCATION__,"PHI0 parameter was non-zero "//&
+                          "for an OPLS-type TORSION.  It will be ignored.")
+          ENDIF
+          IF (MODULO(torsion_m(start+isec), 2) .EQ. 0) THEN
+             ! For even M, negate the cosine using a Pi phase factor
+             torsion_phi0(start+isec) = pi
+          ENDIF
+          ! the K parameter appears as K/2 in the OPLS parameterisation
+          torsion_k(start+isec) = torsion_k(start+isec) * 0.5_dp
+       END IF
     END DO
   END SUBROUTINE read_torsions_section
 

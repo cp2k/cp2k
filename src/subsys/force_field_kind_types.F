@@ -34,7 +34,8 @@ MODULE force_field_kind_types
                                               do_ff_mm3=11,&
                                               do_ff_mm4=12,&
                                               do_ff_fues=13,&
-                                              do_ff_legendre=14
+                                              do_ff_legendre=14,&
+                                              do_ff_opls=15
 
 ! *** Define the derived structure types ***
 

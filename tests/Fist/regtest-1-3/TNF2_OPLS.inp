@@ -1,0 +1,257 @@
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+#####################################################
+      &BOND
+        ATOMS   C F
+        KIND    CHARMM
+        K       [kjmol*angstrom^-2] 1848.5
+        R0      [angstrom] 1.323
+      &END BOND
+      &BOND
+        ATOMS   C S
+        KIND    CHARMM
+        K       [kjmol*angstrom^-2] 985.
+        R0      [angstrom] 1.818
+      &END BOND
+      &BOND
+        ATOMS   S O
+        KIND    CHARMM
+        K       [kjmol*angstrom^-2] 2665.5
+        R0      [angstrom] 1.442
+      &END BOND
+      &BOND
+        ATOMS   S N
+        KIND    CHARMM
+        K       [kjmol*angstrom^-2] 1556.5
+        R0      [angstrom] 1.570
+      &END BOND
+#####################################################
+      &BEND
+        ATOMS   F C F
+        K       [kjmol*rad^-2] 390.5
+        THETA0  [deg] 107.1
+      &END BEND
+      &BEND
+        ATOMS   F C S
+        K       [kjmol*rad^-2] 347.
+        THETA0  [deg] 111.8
+      &END BEND
+      &BEND
+        ATOMS   C S O
+        K       [kjmol*rad^-2] 435.
+        THETA0  [deg] 102.6
+      &END BEND
+      &BEND
+        ATOMS   O S O
+        K       [kjmol*rad^-2] 484.5
+        THETA0  [deg] 118.5
+      &END BEND
+      &BEND
+        ATOMS   S N S
+        K       [kjmol*rad^-2] 335.5
+        THETA0  [deg] 125.6
+      &END BEND
+      &BEND
+        ATOMS   O S N
+        K       [kjmol*rad^-2] 394.5
+        THETA0  [deg] 113.6
+      &END BEND
+      &BEND
+        ATOMS   N S C
+        K       [kjmol*rad^-2] 408.
+        THETA0  [deg] 100.2
+      &END BEND
+#####################################################
+      &TORSION
+        ATOMS   F C S O
+        K       [kjmol] .725500
+        M       3
+        KIND    OPLS
+      &END TORSION
+      &TORSION
+        ATOMS   S N S O
+        K       [kjmol] -0.0075
+        M       3
+        KIND    OPLS
+      &END TORSION
+      &TORSION
+        ATOMS   F C S N
+        K       [kjmol] .661
+        M       3
+        KIND    OPLS
+      &END TORSION
+      &TORSION
+        ATOMS   S N S C
+        K       [kjmol] 16.3865
+        M       1
+        KIND    OPLS
+      &END TORSION
+      &TORSION
+        ATOMS   S N S C
+        K       [kjmol] -5.21
+        M       2
+        KIND    OPLS
+      &END TORSION
+      &TORSION
+        ATOMS   S N S C
+        K       [kjmol] -1.5975
+        M       3
+        KIND    OPLS
+      &END TORSION
+#####################################################
+      &CHARGE
+        ATOM F
+        CHARGE -0.16
+      &END CHARGE
+      &CHARGE
+        ATOM C
+        CHARGE 0.35
+      &END CHARGE
+      &CHARGE
+        ATOM S
+        CHARGE 1.02
+      &END CHARGE
+      &CHARGE
+        ATOM O
+        CHARGE -0.53
+      &END CHARGE
+      &CHARGE
+        ATOM N
+        CHARGE -0.66
+      &END CHARGE
+#####################################################
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS       F C
+          EPSILON [kjmol] .98982054939266642808
+          SIGMA   [angstrom]   3.225
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       F F
+          EPSILON [kjmol] .88700000000000000000
+          SIGMA   [angstrom]   2.95
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       C C 
+          EPSILON  [kjmol] 1.10456000000000000000
+          SIGMA    [angstrom]   3.50
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       F S
+          EPSILON  [kjmol] 1.92644958407947961536
+          SIGMA    [angstrom]   3.250
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       F O
+          EPSILON  [kjmol] 1.76562020831208204652
+          SIGMA    [angstrom]   2.955
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       C S
+          EPSILON  [kjmol] 2.14976255433012880448
+          SIGMA    [angstrom]   3.525
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       C O
+          EPSILON  [kjmol] 1.97028992627988635308
+          SIGMA    [angstrom]   3.230
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       S S
+          EPSILON [kjmol] 4.18400000000000000000
+          SIGMA    [angstrom]   3.55
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       S O
+          EPSILON  [kjmol] 3.83469934153904691748
+          SIGMA    [angstrom]   3.255
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       O O
+          EPSILON  [kjmol] 3.51456000000000000000
+          SIGMA    [angstrom]   2.96
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       N N
+          EPSILON  [kjmol] 2.84512000000000000000
+          SIGMA    [angstrom]   3.25
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       N C
+          EPSILON  [kjmol] 1.77273961630014914040
+          SIGMA    [angstrom]   3.375
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       N F
+          EPSILON  [kjmol] 1.58859102351738095168
+          SIGMA    [angstrom]   3.10
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       N S
+          EPSILON  [kjmol] 3.45021478751685834808
+          SIGMA    [angstrom]   3.40
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       N O
+          EPSILON  [kjmol] 3.16217408553039660128
+          SIGMA    [angstrom]   3.105
+          RCUT           9.0
+        &END LENNARD-JONES
+      &END NONBONDED
+#####################################################
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+    &TOPOLOGY
+      COORDINATE XYZ
+      COORD_FILE_NAME ../sample_xyz/TNF2.xyz
+      CONNECTIVITY GENERATE
+      &GENERATE
+        CREATE_MOLECULES
+        REORDER
+      &END
+      &DUMP_PDB
+      &END
+      &DUMP_PSF
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT TNF2
+  RUN_TYPE GEO_OPT
+  PRINT_LEVEL LOW
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1000
+    MINIMIZER BFGS
+  &END
+&END MOTION

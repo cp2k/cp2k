@@ -1,5 +1,6 @@
 # complex torsion potential
 TNF2.inp                                               7    1.0E-14                  -0.0277253995
+TNF2_OPLS.inp                                          7    1.0E-14                  -0.0322667243
 # isolated system
 H+.inp                                                11      3e-11              0.016349647995117
 ef.inp                                                11    1.0E-14              0.000237442973528

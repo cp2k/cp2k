@@ -25,8 +25,8 @@ MODULE input_cp2k_mm
   USE force_field_kind_types,          ONLY: &
        do_ff_amber, do_ff_charmm, do_ff_cubic, do_ff_fues, do_ff_g87, &
        do_ff_g96, do_ff_harmonic, do_ff_legendre, do_ff_mixed_bend_stretch, &
-       do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_quartic, &
-       do_ff_undef
+       do_ff_mm2, do_ff_mm3, do_ff_mm4, do_ff_morse, do_ff_opls, &
+       do_ff_quartic, do_ff_undef
   USE input_constants,                 ONLY: use_mom_ref_coac,&
                                              use_mom_ref_com,&
                                              use_mom_ref_user,&
@@ -469,15 +469,17 @@ CONTAINS
     CALL keyword_create(keyword=keyword, name="KIND",&
          description="Define the kind of torsion potential",&
          usage="KIND CHARMM",&
-         enum_c_vals=s2a("CHARMM","G87","G96","AMBER"),&
+         enum_c_vals=s2a("CHARMM","G87","G96","AMBER", "OPLS"),&
          enum_desc=s2a("Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]",&
                        "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]",&
                        "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]",&
-                       "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]"),&
+                       "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]",&
+                       "Functional Form: K / 2 * [ 1 + (-1)^(M-1) * cos[M*PHI]]"),&
          enum_i_vals=(/ do_ff_charmm,&
                         do_ff_g87,&
                         do_ff_g96,&
-                        do_ff_amber/),&
+                        do_ff_amber,&
+                        do_ff_opls/),&
          default_i_val=do_ff_charmm)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
@@ -492,7 +494,7 @@ CONTAINS
     CALL keyword_create(keyword, name="PHI0",&
          description="Defines the phase of the potential.",&
          usage="PHI0 {real}",  type_of_var=real_t,&
-         n_var=1, unit_str="rad")
+         n_var=1, unit_str="rad", default_r_val=0.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
