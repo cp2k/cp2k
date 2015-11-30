@@ -39,8 +39,8 @@ MODULE dbcsr_csr_conversions
        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
        dbcsr_get_num_blocks, dbcsr_get_nze, dbcsr_has_symmetry, dbcsr_init, &
        dbcsr_is_initialized, dbcsr_name, dbcsr_nblkcols_total, &
-       dbcsr_nblkrows_total, dbcsr_nfullrows_local, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_valid_index
+       dbcsr_nblkrows_total, dbcsr_nfullrows_local, dbcsr_nfullrows_total, &
+       dbcsr_release, dbcsr_row_block_sizes, dbcsr_valid_index
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_group,&
                                              dbcsr_mp_mynode,&
                                              dbcsr_mp_new,&
@@ -923,25 +923,26 @@ CONTAINS
 !> \param[in] numnodes        number of nodes to use for distributing CSR matrix
 !>                            (optional, default is number of nodes used for 
 !>                            DBCSR matrix)
+!> \param[in] start_cut_row ...
+!> \param[in] end_cut_row ...
 !> \par History
 !>      10.2014 created [Patrick Seewald]
 !> \author Patrick Seewald
 ! *****************************************************************************
   SUBROUTINE csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, csr_sparsity, &
-                                   numnodes)
+                                   numnodes, start_cut_row, end_cut_row)
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER, INTENT(IN)                      :: dist_format
     TYPE(dbcsr_obj), INTENT(IN), OPTIONAL    :: csr_sparsity
-    INTEGER, INTENT(IN), OPTIONAL            :: numnodes
+    INTEGER, INTENT(IN), OPTIONAL            :: numnodes, start_cut_row, &
+                                                end_cut_row
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'csr_create_from_dbcsr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dbcsr_numnodes, handle, &
-                                                nblkcols_total, &
-                                                nblkrows_total, nblks_local, &
-                                                num_p
+    INTEGER :: dbcsr_numnodes, end_cutout, handle, nblkcols_total, &
+      nblkrows_total, nblks_local, num_p, start_cutout
     LOGICAL                                  :: equal_dist, floor_dist
     TYPE(dbcsr_obj)                          :: brd_mat, csr_sparsity_brd, &
                                                 csr_sparsity_nosym, &
@@ -1006,10 +1007,22 @@ CONTAINS
       num_p = dbcsr_numnodes
     ENDIF
 
+    IF (PRESENT(start_cut_row)) THEN
+       start_cutout = start_cut_row
+    ELSE
+       start_cutout = 0 
+    END IF
+
+    IF (PRESENT(end_cut_row)) THEN
+       end_cutout = end_cut_row
+    ELSE
+       end_cutout = dbcsr_nfullrows_total(dbcsr_mat_nosym) 
+    END IF
+
     CALL dbcsr_create_brd (dbcsr_mat_nosym, brd_mat, equal_dist, floor_dist,&
-                           num_p)
+                           num_p, start_cutout, end_cutout)
     CALL dbcsr_create_brd (csr_sparsity_nosym, csr_sparsity_brd, equal_dist, floor_dist,&
-                           num_p)
+                           num_p, start_cutout, end_cutout)
 
     ! Create CSR matrix from BRD matrix
     CALL csr_create_from_brd(brd_mat, csr_mat, csr_sparsity_brd)
@@ -1582,17 +1595,21 @@ CONTAINS
 !> \param[in] equal_dist       see documentation of csr_create_from_dbcsr
 !> \param[in] floor_dist       see documentation of csr_create_from_dbcsr
 !> \param[in] numnodes         number of nodes to use for block row distribution
+!> \param[in] start_cut_row ...
+!> \param[in] end_cut_row ...
 !> \par History
 !>      04.2013 created [Hossein Bani-Hashemian]
 !>      11.2014 modified [Patrick Seewald]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE dbcsr_create_brd (dbcsr_mat, brd_mat, equal_dist, floor_dist, numnodes)
+  SUBROUTINE dbcsr_create_brd (dbcsr_mat, brd_mat, equal_dist, floor_dist, numnodes, &
+                               start_cut_row, end_cut_row)
 
     TYPE(dbcsr_obj), INTENT(IN)              :: dbcsr_mat
     TYPE(dbcsr_obj), INTENT(OUT)             :: brd_mat
     LOGICAL, INTENT(IN)                      :: equal_dist, floor_dist
-    INTEGER, INTENT(IN)                      :: numnodes
+    INTEGER, INTENT(IN)                      :: numnodes, start_cut_row, &
+                                                end_cut_row
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_create_brd', &
       routineP = moduleN//':'//routineN
@@ -1639,9 +1656,9 @@ CONTAINS
 
       ! Calculate the number of rows a processor can hold
       IF (floor_dist) THEN
-        nfullrows_local = FLOOR(REAL(nfullrows_total)/numnodes)
+        nfullrows_local = FLOOR(REAL(end_cut_row-start_cut_row)/numnodes)
       ELSE 
-        nfullrows_local = CEILING(REAL(nfullrows_total)/numnodes)
+        nfullrows_local = CEILING(REAL(end_cut_row-start_cut_row)/numnodes)
       ENDIF
 
       ! allocate maximum amount of memory possibly needed
@@ -1650,7 +1667,7 @@ CONTAINS
 
       k=0 ! counter for block rows
       m=0 ! node counter
-      node_size = nfullrows_local ! space available on current node in number of rows
+      node_size = nfullrows_local + start_cut_row ! space available on current node in number of rows
       IF (node_size .GT. 0) THEN
         DO l=1,nblkrows_total
           split_row = row_blk_size(l) ! size of current block row (number of rows)
@@ -1662,7 +1679,7 @@ CONTAINS
             split_row = split_row - node_size ! size of remaining part of block rows
             node_size = nfullrows_local ! space available on next node
             IF(floor_dist .AND. (m .EQ. numnodes - 1)) THEN ! send all remaining rows to last node
-              node_size = nfullrows_total-(numnodes - 1) * node_size
+              node_size = nfullrows_total-(numnodes - 1) * node_size - start_cut_row
             ENDIF
           ENDDO
           IF (split_row .GT. 0) THEN ! enough space left on next node for remaining rows

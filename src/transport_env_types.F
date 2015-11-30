@@ -41,17 +41,17 @@ MODULE transport_env_types
   TYPE, BIND(C) :: cp2k_transport_parameters
      INTEGER(C_INT)  :: n_occ
      INTEGER(C_INT)  :: n_atoms
+     REAL(C_DOUBLE)  :: energy_diff
      REAL(C_DOUBLE)  :: evoltfactor
      INTEGER(C_INT)  :: method
-     INTEGER(C_INT)  :: bandwidth
-     INTEGER(C_INT)  :: n_cells
+     INTEGER(C_INT)  :: injection_method
+     INTEGER(C_INT)  :: linear_solver
      INTEGER(C_INT)  :: n_abscissae
      INTEGER(C_INT)  :: n_kpoint
      INTEGER(C_INT)  :: num_interval
      INTEGER(C_INT)  :: num_contacts
-     INTEGER(C_INT)  :: ndof
      INTEGER(C_INT)  :: tasks_per_point
-     INTEGER(C_INT)  :: cores_per_node
+     INTEGER(C_INT)  :: cutout(2)
      REAL(C_DOUBLE)  :: colzero_threshold
      REAL(C_DOUBLE)  :: eps_limit
      REAL(C_DOUBLE)  :: eps_decay
@@ -61,10 +61,11 @@ MODULE transport_env_types
      REAL(C_DOUBLE)  :: energy_interval
      REAL(C_DOUBLE)  :: min_interval
      REAL(C_DOUBLE)  :: temperature
+     TYPE(C_PTR)     :: contacts_data
   END TYPE cp2k_transport_parameters
 
   TYPE transport_env_type
-     TYPE(C_FUNPTR)                   :: ext_c_method_ptr
+     TYPE(C_FUNPTR)                   :: ext_c_method_ptr = C_NULL_FUNPTR
      TYPE(cp2k_transport_parameters)  :: params 
      TYPE(cp_dbcsr_type)              :: template_matrix_sym
      TYPE(cp_dbcsr_type)              :: template_matrix_nosym
@@ -74,6 +75,7 @@ MODULE transport_env_types
      TYPE(csr_type)                   :: p_matrix
      LOGICAL                          :: csr_screening
      INTEGER                          :: row_dist
+     INTEGER, DIMENSION(:), POINTER   :: contacts_data => NULL()
   END TYPE transport_env_type
 
 ! DO NOT change the ORDERING or the NAMES in the following data type
@@ -122,6 +124,8 @@ CONTAINS
     CALL cp_dbcsr_release(transport_env%csr_sparsity)
 
     transport_env%ext_c_method_ptr = C_NULL_FUNPTR
+
+    IF (ASSOCIATED(transport_env%contacts_data)) DEALLOCATE(transport_env%contacts_data)
 
     DEALLOCATE(transport_env)
 

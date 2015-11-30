@@ -16,15 +16,17 @@ MODULE input_cp2k_transport
   USE cp_dbcsr_interface,              ONLY: csr_dbcsr_blkrow_dist,&
                                              csr_eqrow_ceil_dist,&
                                              csr_eqrow_floor_dist
-  USE input_constants,                 ONLY: do_transport,&
-                                             exper_code,&
-                                             misc_method,&
-                                             scalapack_diagonalization
+  USE input_constants,                 ONLY: &
+       exper_code, injmethod_beyn, injmethod_evp, injsign_negative, &
+       injsign_positive, linsolver_mumps, linsolver_splitsolve, &
+       linsolver_superlu, misc_method, negf_transport, scalapack_diag
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
   USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
                                              section_create,&
+                                             section_release,&
                                              section_type
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -50,39 +52,28 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"TRANSPORT",&
          description="Specifies the parameters for transport, sets parameters for the OMEN code, "//&
                      "see also http://www.nano-tcad.ethz.ch/ ",&
          citations=(/Bruck2014/),&
-         n_keywords=19, n_subsections=0, repeats=.FALSE.)
+         n_keywords=19, n_subsections=1, repeats=.FALSE.)
 
     NULLIFY (keyword)
 
     CALL keyword_create(keyword, name="DENSITY_MATRIX_CONSTRUCTION_METHOD",&
          description="Method used for constructing the density matrix",&
          usage="DENSITY_MATRIX_CONSTRUCTION_METHOD DIAG",&
-         default_i_val=scalapack_diagonalization,&
+         default_i_val=scalapack_diag,&
          enum_c_vals=s2a( "DIAG", "TRANSPORT", "EXPER", "MISC"),&
          enum_desc=s2a("diagonalization using ScaLapack routines",&
                        "transport code",&
                        "experimental code",&
                        "miscellaneous method"),&
-         enum_i_vals=(/scalapack_diagonalization, do_transport, exper_code, misc_method/))
+         enum_i_vals=(/scalapack_diag, negf_transport, exper_code, misc_method/))
     CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="BANDWIDTH",&
-         description="The number of neighboring unit cells that one unit cell interacts with.",&
-         usage="BANDWIDTH <integer>", default_i_val=2)
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="N_CELLS",&
-         description="The number of unit cells.",&
-         usage="N_CELLS <integer>", default_i_val=5)
-    CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="N_ABSCISSAE",&
@@ -103,27 +94,9 @@ CONTAINS
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="NUM_CONTACTS",&
-         description="The number of contacts.",&
-         usage="NUM_CONTACTS <integer>", default_i_val=2)
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="N_DOF",&
-         description="Number of degrees of freedom for the contact unit cell.",&
-         usage="N_DOF <integer>", default_i_val=0)
-    CALL section_add_keyword(section, keyword)
-    CALL keyword_release(keyword)
-
     CALL keyword_create(keyword, name="TASKS_PER_POINT",&
          description="Minimum number of tasks per energy point.",&
          usage="TASKS_PER_POINT <integer>", default_i_val=1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="CORES_PER_NODE",&
-         description="Number of cores per node.",&
-         usage="CORES_PER_NODE <integer>", default_i_val=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -140,7 +113,8 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="EPS_DECAY",&
-         description="The smallest imaginary part that a decaying eigenvalue may have not to be considered as propagating.",&
+         description="The smallest imaginary part that a decaying eigenvalue may have not to be "//&
+         "considered as propagating.",&
          usage="EPS_DECAY <real>", default_r_val=1.0E-6_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
@@ -198,7 +172,95 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="LINEAR_SOLVER",&
+         description="Solver to solve the linear system of equations.",&
+         usage="LINEAR_SOLVER <solver>", &
+         default_i_val=linsolver_splitsolve,&
+         enum_c_vals=s2a( "SplitSolve", "SuperLU", "MUMPS"),&
+         enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps/))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="INJECTION_METHOD",&
+         description="Method to solve the eigenvalue problem for the open boundary conditions.",&
+         usage="INJECTION_METHOD <method>", &
+         default_i_val=injmethod_beyn,&
+         enum_c_vals=s2a( "EVP", "BEYN"),&
+         enum_desc=s2a("Full eigenvalue solver.",&
+                       "Beyn eigenvalue solver."),&
+         enum_i_vals=(/injmethod_evp, injmethod_beyn/))
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CUTOUT", &
+         description="Degrees of freedom at the beginning and the end of the structure where the "//&
+         "density should not be changed.", &
+         usage="CUTOUT <integer> <integer>", &
+         n_var=2, default_i_vals=(/0, 0/))
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    NULLIFY(subsection)
+
+    CALL create_contact_section(subsection)
+    CALL section_add_subsection(section, subsection)
+    CALL section_release(subsection)
 
   END SUBROUTINE create_transport_section
+
+! *****************************************************************************
+!> \brief Creates the section for creating contacts.
+!> \param[inout] section the section to be created
+! *****************************************************************************
+  SUBROUTINE create_contact_section(section)
+    TYPE(section_type), POINTER              :: section
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_contact_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+
+    CPASSERT(.NOT.ASSOCIATED(section))
+    CALL section_create(section,name="CONTACT", &
+         description="Parameters for defining device contacts.",&
+         n_keywords=5, n_subsections=0, repeats=.TRUE.)
+
+    NULLIFY(keyword)
+
+    CALL keyword_create(keyword, name="BANDWIDTH",&
+         description="The number of neighboring unit cells that one unit cell interacts with.",&
+         usage="BANDWIDTH <integer>", default_i_val=2)
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="N_DOF",&
+         description="Number of degrees of freedom for the contact unit cell.",&
+         usage="N_DOF <integer>", default_i_val=0)
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="START",&
+         description="Start index of the contact unit cell.",&
+         usage="START <integer>", default_i_val=0)
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="INJECTION_SIGN",&
+         description="Contact unit cell interacts with unit cells to the right (positive) or "//&
+         "to the left (negative).",&
+         usage="INJECTION_SIGN <integer>", &
+         default_i_val=injsign_positive,&
+         enum_c_vals=s2a( "POISTIVE", "NEGATIVE"),&
+         enum_i_vals=(/injsign_positive, injsign_negative/))
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="N_OCC",&
+         description="Number of electrons per unit cell including doping.",&
+         usage="N_OCC <integer>", default_i_val=0)
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+  END SUBROUTINE create_contact_section
 
 END MODULE input_cp2k_transport

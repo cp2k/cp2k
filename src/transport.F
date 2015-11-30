@@ -33,7 +33,8 @@ MODULE transport
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -127,24 +128,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'transport_init_read_input', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    TYPE(section_vals_type), POINTER         :: transport_section
+    INTEGER                                  :: handle, i, n_contacts
+    INTEGER, DIMENSION(:), POINTER           :: i_vals
+    LOGICAL                                  :: contact_explicit
+    TYPE(section_vals_type), POINTER         :: contact_section, &
+                                                transport_section
 
     CALL timeset(routineN,handle)
 
     transport_section => section_vals_get_subs_vals(input,"DFT%TRANSPORT")
+    contact_section => section_vals_get_subs_vals(transport_section, "CONTACT")
+    CALL section_vals_get(contact_section, explicit=contact_explicit, n_repetition=n_contacts)
     
+    NULLIFY(i_vals)
 ! read from input
     CALL section_vals_val_get(transport_section,"DENSITY_MATRIX_CONSTRUCTION_METHOD",i_val=transport_env%params%method)
-    CALL section_vals_val_get(transport_section,"BANDWIDTH",i_val=transport_env%params%bandwidth)
-    CALL section_vals_val_get(transport_section,"N_CELLS",i_val=transport_env%params%n_cells)
+    CALL section_vals_val_get(transport_section,"INJECTION_METHOD",i_val=transport_env%params%injection_method)
+    CALL section_vals_val_get(transport_section,"LINEAR_SOLVER",i_val=transport_env%params%linear_solver)
     CALL section_vals_val_get(transport_section,"N_ABSCISSAE",i_val=transport_env%params%n_abscissae)
     CALL section_vals_val_get(transport_section,"N_KPOINTS",i_val=transport_env%params%n_kpoint)
     CALL section_vals_val_get(transport_section,"NUM_INTERVAL",i_val=transport_env%params%num_interval)
-    CALL section_vals_val_get(transport_section,"NUM_CONTACTS",i_val=transport_env%params%num_contacts)
-    CALL section_vals_val_get(transport_section,"N_DOF",i_val=transport_env%params%ndof)
     CALL section_vals_val_get(transport_section,"TASKS_PER_POINT",i_val=transport_env%params%tasks_per_point)
-    CALL section_vals_val_get(transport_section,"CORES_PER_NODE",i_val=transport_env%params%cores_per_node)
     CALL section_vals_val_get(transport_section,"COLZERO_THRESHOLD",r_val=transport_env%params%colzero_threshold)
     CALL section_vals_val_get(transport_section,"EPS_LIMIT",r_val=transport_env%params%eps_limit)
     CALL section_vals_val_get(transport_section,"EPS_DECAY",r_val=transport_env%params%eps_decay)
@@ -157,6 +161,29 @@ CONTAINS
     CALL section_vals_val_get(transport_section,"TEMPERATURE",r_val=transport_env%params%temperature)
     CALL section_vals_val_get(transport_section,"ROW_DISTRIBUTION",i_val=transport_env%row_dist)
     CALL section_vals_val_get(transport_section,"CSR_SCREENING",l_val=transport_env%csr_screening)
+    CALL section_vals_val_get(transport_section,"CUTOUT",i_vals=i_vals)
+    transport_env%params%cutout = i_vals
+
+    IF (contact_explicit) THEN
+       transport_env%params%num_contacts = n_contacts
+       ALLOCATE(transport_env%contacts_data(5*n_contacts)) 
+       DO i = 1, n_contacts
+          CALL section_vals_val_get(contact_section,"BANDWIDTH",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+1))
+          CALL section_vals_val_get(contact_section,"N_DOF",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+2))
+          CALL section_vals_val_get(contact_section,"START",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+3))
+          CALL section_vals_val_get(contact_section,"INJECTION_SIGN",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+4))
+          CALL section_vals_val_get(contact_section,"N_OCC",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+5))
+       END DO
+       transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1)) 
+    ELSE
+       transport_env%params%num_contacts = 0
+       transport_env%params%contacts_data = C_NULL_PTR
+    END IF
 
     CALL timestop(handle)
 
@@ -226,7 +253,9 @@ CONTAINS
                                   transport_env%s_matrix, &
                                   transport_env%row_dist, &
                                   csr_sparsity = transport_env%csr_sparsity, &
-                                  numnodes = transport_env%params%tasks_per_point)
+                                  numnodes = transport_env%params%tasks_per_point, &
+                                  start_cut_row = transport_env%params%cutout(1),&
+                                  end_cut_row = transport_env%params%cutout(2))
 
     CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr)
 
@@ -247,17 +276,20 @@ CONTAINS
 !> \param[inout] matrix_p       DBCSR density matrix
 !> \param[in]    nelectron_spin number of electrons 
 !> \param[in]    natoms         number of atoms 
+!> \param[in]    energy_diff    scf energy difference
 !> \par History
 !>       12.2012 created [Hossein Bani-Hashemian]
 !>       12.2014 revised [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-   SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, nelectron_spin, natoms)
+   SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, &
+                                  nelectron_spin, natoms, energy_diff)
 
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s, matrix_ks
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     INTEGER, INTENT(IN)                      :: nelectron_spin, natoms
+    REAL(dp), INTENT(IN)                     :: energy_diff
 
     CHARACTER(len=*), PARAMETER :: routineN = 'external_scf_method', &
       routineP = moduleN//':'//routineN
@@ -277,6 +309,7 @@ CONTAINS
 
     transport_env%params%n_occ = nelectron_spin
     transport_env%params%n_atoms = natoms
+    transport_env%params%energy_diff = energy_diff
     transport_env%params%evoltfactor = evolt
 
     CALL csr_interop_nullify(s_mat)
@@ -289,7 +322,7 @@ CONTAINS
     CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_ks)
     CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%ks_matrix, ks_mat)
 
-    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_s)
+    CALL cp_dbcsr_copy_into_existing(transport_env%template_matrix_sym, matrix_p)
     CALL convert_dbcsr_to_csr_interop(transport_env%template_matrix_sym, transport_env%p_matrix, p_mat)
 
     CALL c_method(transport_env%params, s_mat, ks_mat, p_mat)

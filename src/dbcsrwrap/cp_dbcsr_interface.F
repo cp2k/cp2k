@@ -2355,25 +2355,30 @@ CONTAINS
 !> \param dist_format ...
 !> \param csr_sparsity ...
 !> \param numnodes ...
+!> \param start_cut_row ...
+!> \param end_cut_row ...
 ! *****************************************************************************
-  SUBROUTINE cp_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, csr_sparsity, numnodes)
+  SUBROUTINE cp_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, csr_sparsity, numnodes,&
+                                      start_cut_row, end_cut_row)
 
     TYPE(cp_dbcsr_type), INTENT(IN)          :: dbcsr_mat
     TYPE(csr_type), INTENT(OUT)              :: csr_mat
     INTEGER                                  :: dist_format
     TYPE(cp_dbcsr_type), INTENT(IN), &
       OPTIONAL                               :: csr_sparsity
-    INTEGER, INTENT(IN), OPTIONAL            :: numnodes
+    INTEGER, INTENT(IN), OPTIONAL            :: numnodes, start_cut_row, &
+                                                end_cut_row
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_csr_create_from_dbcsr', &
       routineP = moduleN//':'//routineN
 
     IF (PRESENT(csr_sparsity)) THEN
       CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
-                                 csr_sparsity%matrix, numnodes)
+                                 csr_sparsity%matrix, numnodes, start_cut_row, end_cut_row)
     ELSE
       CALL csr_create_from_dbcsr(dbcsr_mat%matrix, csr_mat, dist_format, &
-                                 numnodes=numnodes)
+                                 numnodes=numnodes, &
+                                 start_cut_row=start_cut_row, end_cut_row=end_cut_row)
     ENDIF
   
   END SUBROUTINE cp_csr_create_from_dbcsr
