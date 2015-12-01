@@ -199,8 +199,7 @@ if [ -f gcc-${gcc_ver}.tar.gz -o -f gcc-${gcc_ver}.zip ]; then
 else
    if [ "${gcc_ver}" == "master" ]; then
       # no check since this follows the gcc trunk svn repo and changes constantly
-      wget -O gcc-master.zip https://github.com/gcc-mirror/gcc/archive/master.zip
-      unzip -q gcc-master.zip 
+      svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master >& svn-gcc.log
    else
       wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
       checksum gcc-${gcc_ver}.tar.gz
