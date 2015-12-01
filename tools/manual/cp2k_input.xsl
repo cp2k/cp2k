@@ -23,7 +23,7 @@
    <h2>Version information</h2>
    <p>
     This HTML manual refers to
-    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="https://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
     and was generated automatically from a CP2K executable
     compiled on <xsl:value-of select="COMPILE_DATE"/> using the
     <big class="tt">--xml</big> command line option (see
@@ -226,7 +226,7 @@
    </td>
    <td align="center">
     Input reference of
-    <a href="http://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
+    <a href="https://sourceforge.net/p/cp2k/code/{substring-after(/CP2K_INPUT/COMPILE_REVISION,':')}/tree{$release_path}/cp2k/src" target="_blank"><xsl:value-of select="/CP2K_INPUT/CP2K_VERSION"/> (Revision <xsl:value-of select="/CP2K_INPUT/COMPILE_REVISION"/>)</a>
    </td>
    <td align="right">
     <xsl:call-template name="searchform"/>
@@ -242,7 +242,7 @@
  <table class="default" summary="footer">
   <tr>
    <td align="left">
-    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="http://www.cp2k.org">CP2K home page</a>
+    Back to the <a href="{$root}index.html">main page</a> of this manual or the <a href="https://www.cp2k.org">CP2K home page</a>
    </td>
    <td align="right">
     (Last update:
@@ -253,11 +253,11 @@
 </xsl:template>
 
 <xsl:template name="searchform">
- <form method="get" action="http://www.google.com/search">
+ <form method="get" action="https://www.google.com/search">
   <input type="text" name="q" maxlength="255"/>
   <input type="submit" value="Search this manual (Google)"/>
-  <input type="hidden" name="domains" value="http://manual.cp2k.org/{$version}/"/>
-  <input type="radio" style="visibility:hidden" name="sitesearch" value="http://manual.cp2k.org/{$version}/" checked="checked"/>
+  <input type="hidden" name="domains" value="https://manual.cp2k.org/{$version}/"/>
+  <input type="radio" style="visibility:hidden" name="sitesearch" value="https://manual.cp2k.org/{$version}/" checked="checked"/>
  </form>
 </xsl:template>
 
@@ -729,7 +729,7 @@
        <li><big class="tt">java -jar saxon8.jar -o index.html cp2k_input.xml cp2k_input.xsl</big></li>
       </ul>
       which can be downloaded from
-      <a href="http://sourceforge.net/projects/saxon">http://sourceforge.net/projects/saxon</a>.<br/>
+      <a href="https://sourceforge.net/projects/saxon">https://sourceforge.net/projects/saxon</a>.<br/>
       The latter choice might be more convenient, if you have the Java Runtime Environment 1.5 or higher installed anyway.<br/>
       You may check your installed Java version with:
       <ul class="none">
@@ -757,12 +757,12 @@
  <xsl:param name="root"/>
  <xsl:if test="$add_edit_links = 'yes'">
   <!-- <span style="position:relative;">
-  <a title="Edit this text" href="{concat('http://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">
+  <a title="Edit this text" href="{concat('https://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">
   <img src="{concat($root,'edit.png')}" style="height:25px; position:absolute; top:-22px; left:5px;"/>
   </a>
   </span> -->
   <span style="font-size: small;">
-   &#160;[<a title="Edit this text" href="{concat('http://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">Edit</a>]
+   &#160;[<a title="Edit this text" href="{concat('https://manual.cp2k.org/edit.php?txt_id=',$txt_id)}">Edit</a>]
   </span>
  </xsl:if>
 </xsl:template>

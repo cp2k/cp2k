@@ -196,7 +196,7 @@ def gen_archive(config, log, outdir, full_archive=False):
                 report = archive_reports[r]
                 archive_output += status_cell(report['status'], report['url'])
                 archive_output += '<td align="left">%s</td>'%report['summary']
-                url_list += "http://dashboard.cp2k.org/archive/%s/%s.gz\n"%(s, report['url'])
+                url_list += "https://dashboard.cp2k.org/archive/%s/%s.gz\n"%(s, report['url'])
             else:
                 archive_output += 2*'<td></td>'
             svn_rev = log_index[r]
@@ -330,7 +330,7 @@ def send_notification(report, addressbook, last_ok, svn_log, name, s):
     msg_txt += "   report summary: %s\n"%report['summary']
     msg_txt += "   last OK rev:    %d\n\n"%last_ok
     msg_txt += "For more information visit:\n"
-    msg_txt += "   http://dashboard.cp2k.org/archive/%s/index.html \n\n"%s
+    msg_txt += "   https://dashboard.cp2k.org/archive/%s/index.html \n\n"%s
     msg_txt += "Sincerely,\n"
     msg_txt += "  your CP2K Dashboard ;-)\n"
 
@@ -406,7 +406,7 @@ def html_header(title, rev=None):
     output += '</style>\n'
     output += '<title>%s%s</title>\n'%(title, (" (%d)"%rev if rev else ""))
     output += '</head><body>\n'
-    output += '<div class="ribbon"><a href="http://cp2k.org/dev:dashboard">Need Help?</a></div>\n'
+    output += '<div class="ribbon"><a href="https://cp2k.org/dev:dashboard">Need Help?</a></div>\n'
     output += '<center><h1>%s</h1></center>\n'%title.upper()
     return(output)
 
@@ -415,7 +415,7 @@ def html_linkbox():
     output  = '<div class="sidebox">\n'
     output += '<h2>More...</h2>\n'
     output += '<a href="regtest_survey.html">Regtest Survey</a><br>\n'
-    output += '<a href="http://www.cp2k.org/static/coverage/">Test Coverage</a><br>\n'
+    output += '<a href="https://www.cp2k.org/static/coverage/">Test Coverage</a><br>\n'
     output += '</div>\n'
     return(output)
 
@@ -425,7 +425,7 @@ def html_svnbox(log):
     output  = '<div class="sidebox">\n'
     output += '<h2>Recent Commits</h2>\n'
     for r in log[0:10]:
-        url = "http://sourceforge.net/p/cp2k/code/%d/"%r['num']
+        url = "https://sourceforge.net/p/cp2k/code/%d/"%r['num']
         msg = r['msg'].split("\n")[0]
         if(len(msg) > 27):
             msg = msg[:26] + "..."
@@ -463,7 +463,7 @@ def svn_log(limit=None):
         cmd = "svn log --limit %d svn://svn.code.sf.net/p/cp2k/code --xml"%limit
     else:
         # our server is much faster, but might be 5 minutes old
-        cmd = "svn log http://svn.cp2k.org/cp2k --xml"
+        cmd = "svn log https://svn.cp2k.org/cp2k --xml"
     log_xml = check_output(cmd.split())
     dom = minidom.parseString(log_xml)
     revisions = []
@@ -495,7 +495,7 @@ def status_cell(status, report_url, uptodate=True):
 def revision_cell(rev, trunk_rev):
     if(rev == None):
         return('<td>N/A</td>')
-    rev_url = "http://sourceforge.net/p/cp2k/code/%d/"%rev
+    rev_url = "https://sourceforge.net/p/cp2k/code/%d/"%rev
     rev_delta = "(%d)"%(rev - trunk_rev) if(trunk_rev) else ""
     output = '<td align="left"><a href="%s">%s</a> %s</td>'%(rev_url, rev, rev_delta)
     return(output)
