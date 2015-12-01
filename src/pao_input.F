@@ -100,6 +100,9 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%EPS_PREOPT",r_val=pao%eps_preopt)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","EPS_PREOPT", pao%eps_preopt
 
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%SEED",i_val=pao%random_seed)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","SEED", pao%random_seed
+
   END SUBROUTINE parse_pao_section
 
 ! *****************************************************************************
@@ -233,6 +236,12 @@ CONTAINS
          description="Check if rotation matrix is unitary."//&
          " Negative values mean don't check at all.",&
          default_r_val=-1.0_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="SEED",&
+         description="Initial seed used for the pseudo random number generator.",&
+         default_i_val=42)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

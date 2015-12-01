@@ -57,6 +57,7 @@ MODULE pao_types
      INTEGER                          :: iw = -1
      INTEGER                          :: iw_cg = -1
      INTEGER                          :: last_reset = 0
+     INTEGER                          :: random_seed = 0
      REAL(KIND=dp)                    :: energy_prev = 0.0_dp
      REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
      REAL(KIND=dp)                    :: check_grad_param_tol = 0.0_dp

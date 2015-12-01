@@ -77,7 +77,7 @@ CONTAINS
     CALL cp_dbcsr_init(pao%matrix_U0)
     CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
     CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
-    CALL fill_randomly(pao%matrix_U0)
+    CALL fill_randomly(pao%matrix_U0, pao%random_seed)
 
     ! make a copy of the atomic guess
     CALL cp_dbcsr_init(pao%matrix_H0)

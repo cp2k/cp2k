@@ -158,15 +158,18 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Fills a DBCSR matrix with random noise.
 !> \param matrix ...
+!> \param seed ...
 ! *****************************************************************************
-  SUBROUTINE fill_randomly(matrix)
+  SUBROUTINE fill_randomly(matrix, seed)
     TYPE(cp_dbcsr_type)                      :: matrix
+    INTEGER                                  :: seed
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fill_randomly', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, i, j
     REAL(dp), DIMENSION(:, :), POINTER       :: block
+    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
@@ -176,7 +179,11 @@ CONTAINS
     CALL cp_dbcsr_iterator_start(iter, matrix)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block)
-       CALL create_rng_stream(rng_stream, name="pao")
+       ! a "unique" reproducible seed for each block
+       initial_seed(1,:) = REAL(seed*arow,KIND=dp)
+       initial_seed(2,:) = REAL(seed*acol,KIND=dp)
+       initial_seed(3,:) = REAL(seed*SIZE(block),KIND=dp)
+       CALL create_rng_stream(rng_stream, seed=initial_seed, name="pao")
        DO i=1, SIZE(block, 1)
           DO j=1, SIZE(block, 2)
              block(i,j) = next_random_number(rng_stream)
