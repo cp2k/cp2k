@@ -1,11 +1,11 @@
 ====== How to compile the CP2K code ======
 
 This document is maintained in the svn-repository as cp2k/INSTALL .
-A nicely rendered version of it can be found at http://cp2k.org/howto:compile .
+A nicely rendered version of it can be found at https://cp2k.org/howto:compile .
 
 =====  1. Acquire the code: =====
 
-see  http://www.cp2k.org/download
+see  https://www.cp2k.org/download
 
 For users, the preferred method is to download a release.
 For developers, the preferred method is to download it from the SVN.
@@ -14,18 +14,18 @@ For developers, the preferred method is to download it from the SVN.
 Sub-points here discuss prerequisites needed to build CP2K.
 Some of these can be conveniently installed by a script see: cp2k/tools/toolchain
 Copies of the recommended versions of 3rd party software can be
-downloaded from http://www.cp2k.org/static/downloads/ .
+downloaded from https://www.cp2k.org/static/downloads/ .
 
 ==== 2a. GNU make (required, build system) ====
 GNU make should be on your system (gmake or make on linux) and used for
-the build, go to http://www.gnu.org/software/make/make.html
-download from http://ftp.gnu.org/pub/gnu/make/
+the build, go to https://www.gnu.org/software/make/make.html
+download from https://ftp.gnu.org/pub/gnu/make/
 also python (2.X) is required for building.
 
 ==== 2b. Python (required, build system) ====
 python 2.x is needed to run the dependency generator.
 On most system python is already installed.
-For more information visit: http://www.python.org/
+For more information visit: https://www.python.org/
 
 
 ==== 2c. Fortran and C Compiler (required, build system) ====
@@ -111,7 +111,7 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
     source (see tools/build_libsmm/README).  Usually only the double
     precision real and perhaps complex is needed.  Link to the generated
     libraries. For a couple of architectures prebuild libsmm are
-    available at http://www.cp2k.org/static/downloads/libsmm/ .
+    available at https://www.cp2k.org/static/downloads/libsmm/ .
   * Add -D__HAS_smm_dnn to the defines to make the code use the double
     precision real library.  Similarly use -D__HAS_smm_snn for single
     precision real and -D__HAS_smm_znn / -D__HAS_smm_cnn for
@@ -193,7 +193,7 @@ For more information see http://www.libatoms.org/ .
 CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMED 2.x (-D__PLUMED2).
 Note that the code can only be built for one of these libraries at a time.
 
-See http://cp2k.org/howto:install_with_plumed for full instructions.
+See https://cp2k.org/howto:install_with_plumed for full instructions.
 
 ===== 3. Compile =====
 
@@ -201,7 +201,7 @@ See http://cp2k.org/howto:install_with_plumed for full instructions.
 The location of compiler and libraries needs to be specified. Examples
 for a number of common architectures examples can be found in cp2k/arch/*.*
 The names of these files match architecture.version (e.g., Linux-x86-64-gfortran.sopt).
-Alternatively http://dashboard.cp2k.org/ provides sample arch files
+Alternatively https://dashboard.cp2k.org/ provides sample arch files
 as part of the testing reports (click on the status field, search for 'ARCH-file').
 
 Conventionally, there are six versions:
@@ -295,16 +295,16 @@ should work if you can locally execute CP2K without the need for e.g. batch subm
 
 In the other case, you might need to configure the underlying testing script as described more systematically at
 
-http://cp2k.org/dev:regtesting
+https://www.cp2k.org/dev:regtesting
 
 ===== 6. Talk to us ====
 In any case please tell us your comments, praise, criticism, thanks, ...
-see http://www.cp2k.org/
+see https://www.cp2k.org/
 
 ===== 7. Manual =====
-A reference manual of CP2K can be found on the web: http://manual.cp2k.org/
+A reference manual of CP2K can be found on the web: https://manual.cp2k.org/
 or can be generated using the cp2k executable, see
-http://manual.cp2k.org/trunk/generate_manual_howto.html
+https://manual.cp2k.org/trunk/generate_manual_howto.html
 
 ===== 8. Happy computing! =====
 

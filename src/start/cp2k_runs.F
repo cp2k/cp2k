@@ -954,7 +954,7 @@ CONTAINS
 
     CALL section_describe_index_html(root_section,"InputReference",unit_nr)
 
-    WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
+    WRITE(unit_nr,FMT='(A)') '</UL><BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
     WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
 
     CALL close_file(unit_nr)
@@ -967,7 +967,7 @@ CONTAINS
     WRITE(unit_nr,FMT='(A)') "<H1>CP2K references</H1>"
     CALL print_all_references(sorted=.TRUE.,cited_only=.FALSE.,&
                        FORMAT=print_format_html,unit=unit_nr)
-    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
+    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
     WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
     CALL close_file(unit_nr)
 
@@ -977,7 +977,7 @@ CONTAINS
     WRITE(unit_nr,FMT='(A)') "<HTML><BODY><HEAD><TITLE>The cp2k units list</TITLE>"
     WRITE(unit_nr,FMT='(A)') "<H1>CP2K Available Units of Measurement</H1>"
     CALL print_all_units(unit_nr=unit_nr)
-    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A>'
+    WRITE(unit_nr,FMT='(A)') '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A>'
     WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
     CALL close_file(unit_nr)
   END SUBROUTINE write_cp2k_html_manual

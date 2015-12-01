@@ -460,8 +460,8 @@ CONTAINS
           WRITE(unit_nr,FMT='(A)') "None"
        ENDIF
        WRITE(unit_nr,FMT='(A)') &
-            '<BR><hr>Back to the <A HREF="http://www.cp2k.org/">CP2K homepage</A> or '// &
-            'the latest version of <A HREF="http://manual.cp2k.org/trunk/">this manual</A>'
+            '<BR><hr>Back to the <A HREF="https://www.cp2k.org/">CP2K homepage</A> or '// &
+            'the latest version of <A HREF="https://manual.cp2k.org/trunk/">this manual</A>'
        WRITE(unit_nr,FMT='(A)') "</BODY></HTML>"
        CALL close_file(unit_nr)
        DO isub=1,section%n_subsections

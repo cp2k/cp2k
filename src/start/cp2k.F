@@ -27,10 +27,10 @@
 !>    Foundation, Inc., 51 Franklin Street, Fifth Floor,
 !>    Boston, MA  02110-1301, USA.
 !> \par
-!>    See also http://www.fsf.org/licensing/licenses/gpl.html
+!>    See also https://www.fsf.org/licensing/licenses/gpl.html
 !> \par
 !>    CP2K, including its sources and pointers to the authors
-!>    can be found at  http://www.cp2k.org/
+!>    can be found at  https://www.cp2k.org/
 !> \note
 !>       should be kept as lean as possible.
 !>       see cp2k_run for more comments
@@ -199,7 +199,7 @@ PROGRAM cp2k
            REPEAT(" ",l)//" [-o] <output_file>",&
            REPEAT(" ",l)//" [-r|-run] [--xml]"
          WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,/,T2,A,/,/,(T3,A))")&
-           "starts the CP2K program, see <http://www.cp2k.org/>",&
+           "starts the CP2K program, see <https://www.cp2k.org/>",&
            "The easiest way is "//TRIM(arg_att)//" <input_file>",&
            "The following options can be used:",&
            "-i <input_file>   : provides an input file name, if it is the last",&
