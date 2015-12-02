@@ -970,8 +970,12 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-! work storage
+    ! test for full kpoint grid 
+    IF(.NOT.kpoint%full_grid)&
+       CALL cp_abort(__LOCATION__,"k-points need FULL_GRID currently. "//&
+                  "Reduced grids not yet working correctly")
 
+    ! work storage
     ALLOCATE(rpmat,cpmat)
     CALL cp_dbcsr_init(rpmat)
     CALL cp_dbcsr_init(cpmat)

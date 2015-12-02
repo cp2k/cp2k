@@ -45,7 +45,7 @@
    SCHEME MONKHORST-PACK ${nkp} ${nkp} ${nkp}
    SYMMETRY on
    EPS_GEO 1.0E-8
-   FULL_GRID off
+   FULL_GRID on 
    VERBOSE on
    PARALLEL_GROUP_SIZE 0
   &END KPOINTS

@@ -3,4 +3,13 @@ c_1.inp
 c_2.inp   
 c_3.inp  
 c_4.inp 
-#
+# disable FULL_GRID
+c_1.inp
+c_2.inp
+c_3.inp
+c_4.inp
+c_5.inp
+c_6.inp
+c_gapw.inp
+c_gapwxc.inp
+cn_1.inp
