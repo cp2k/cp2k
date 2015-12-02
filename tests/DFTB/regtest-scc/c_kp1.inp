@@ -35,7 +35,7 @@
        SCHEME  MONKHORST-PACK  4 4 4 
        SYMMETRY ON
        EPS_GEO 1.e-8
-       FULL_GRID OFF
+       FULL_GRID ON
        VERBOSE F
     &END KPOINTS
   &END DFT
