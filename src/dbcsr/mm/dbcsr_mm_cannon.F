@@ -2850,10 +2850,11 @@ MODULE dbcsr_mm_cannon
       left_data_win, left_max_data_size, left_max_meta_size, &
       left_meta_offset, left_meta_size, left_meta_win, left_myfirstvcol, &
       left_myfirstvrow, left_mypcol, left_myprow, left_npcols, left_nprows, &
-      left_row_mult, left_row_nimages, metronome, min_nimages, mynode, &
-      nblkrows_total, nblkrows_used, nsteps_k, nthreads, numnodes, nvirt_k, &
-      recv_coli, recv_p, recv_pcol, recv_prow, recv_rowi, recv_vcol, recv_vrow
-    INTEGER :: right_col_mult, right_col_nimages, right_data_size, &
+      left_row_mult, left_row_nimages, meta_size_image, metronome, &
+      min_nimages, mynode, nblkrows_total, nblkrows_used, nsteps_k, nthreads, &
+      numnodes, nvirt_k, recv_coli, recv_p, recv_pcol, recv_prow, recv_rowi, &
+      recv_vcol
+    INTEGER :: recv_vrow, right_col_mult, right_col_nimages, right_data_size, &
       right_data_win, right_max_data_size, right_max_meta_size, &
       right_meta_offset, right_meta_size, right_meta_win, right_myfirstvcol, &
       right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
@@ -3370,7 +3371,7 @@ MODULE dbcsr_mm_cannon
 !$omp         right_max_meta_size,left_max_meta_size,&
 !$omp         right_data_size,left_data_size,right_meta_size,left_meta_size,&
 !$omp         size_threads_index,left_max_meta_size_merged,right_max_meta_size_merged) &
-!$omp private (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol)
+!$omp private (metronome,v_ki,v_ci,v_ri,recv_vrow,recv_vcol,meta_size_image)
        DO metronome = 1, nsteps_k-1
           !
 !$omp master
@@ -3421,6 +3422,7 @@ MODULE dbcsr_mm_cannon
              ENDIF
              !
              ! resize buffers taking in account filtering
+             meta_size_image = 0
              DO v_ci = 0, right_col_nimages-1
                 CALL image_calculator (right_set%image_dist,&
                      vprow=recv_vrow, vpcol=recv_vcol,&
@@ -3430,13 +3432,16 @@ MODULE dbcsr_mm_cannon
                      shifting='R')
                 IF (right_recv_filtered(v_ki,v_ci,metronome).GE.left_row_nimages.OR.&
                     right_refs(imeta_size,recv_vrow,recv_vcol).EQ.0) THEN
-                   right_meta_size = right_meta_size + dbcsr_num_slots
+                   meta_size_image = meta_size_image + dbcsr_num_slots
                 ELSE
                    right_data_size = right_data_size + right_refs(idata_size,recv_vrow,recv_vcol)
-                   right_meta_size = right_meta_size + right_refs(imeta_size,recv_vrow,recv_vcol)
+                   meta_size_image = meta_size_image + right_refs(imeta_size,recv_vrow,recv_vcol)
                 ENDIF
              ENDDO
-             right_max_meta_size_merged(v_ki) = MAX(right_max_meta_size_merged(v_ki),right_meta_size)
+             right_meta_size = right_meta_size + meta_size_image
+             right_max_meta_size_merged(v_ki) = MAX(right_max_meta_size_merged(v_ki),meta_size_image)
+             !
+             meta_size_image = 0
              DO v_ri = 0, left_row_nimages-1
                 CALL image_calculator (left_set%image_dist,&
                      vprow=recv_vrow,vpcol=recv_vcol,&
@@ -3446,13 +3451,14 @@ MODULE dbcsr_mm_cannon
                      shifting='L')
                 IF (left_recv_filtered(v_ri,v_ki,metronome).GE.right_col_nimages.OR.&
                     left_refs(imeta_size,recv_vrow,recv_vcol).EQ.0) THEN
-                   left_meta_size = left_meta_size + dbcsr_num_slots+size_threads_index
+                   meta_size_image = meta_size_image + dbcsr_num_slots+size_threads_index
                 ELSE
                    left_data_size = left_data_size + left_refs(idata_size,recv_vrow,recv_vcol)
-                   left_meta_size = left_meta_size + left_refs(imeta_size,recv_vrow,recv_vcol)
+                   meta_size_image = meta_size_image + left_refs(imeta_size,recv_vrow,recv_vcol)
                 ENDIF
              ENDDO
-             left_max_meta_size_merged(v_ki) = MAX(left_max_meta_size_merged(v_ki),left_meta_size)
+             left_meta_size = left_meta_size + meta_size_image
+             left_max_meta_size_merged(v_ki) = MAX(left_max_meta_size_merged(v_ki),meta_size_image)
           ENDDO
 !$omp end do
 !$omp master
