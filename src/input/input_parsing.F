@@ -46,16 +46,14 @@ MODULE input_parsing
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_describe,&
                                              keyword_type
-  USE input_section_types,             ONLY: section_describe,&
-                                             section_get_keyword,&
-                                             section_get_keyword_index,&
-                                             section_get_subsection_index,&
-                                             section_type,&
-                                             section_vals_add_values,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: &
+       section_describe, section_get_keyword, section_get_keyword_index, &
+       section_get_subsection_index, section_type, section_typo_match, &
+       section_vals_add_values, section_vals_type, typo_match_section, &
+       typo_matching_line, typo_matching_rank
   USE input_val_types,                 ONLY: &
        char_t, enum_t, integer_t, lchar_t, logical_t, no_t, real_t, &
-       val_create, val_type, val_write
+       val_create, val_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              max_line_length
@@ -91,8 +89,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=max_line_length)           :: token
-    INTEGER                                  :: desc_level, handle, ik, irs, &
-                                                is, nsub, output_unit
+    INTEGER                                  :: desc_level, handle, ik, &
+                                                imatch, irs, is, nsub, &
+                                                output_unit
     LOGICAL                                  :: at_end, compatible_end, &
                                                 failure, root_sect, &
                                                 skip_description, skip_help, &
@@ -193,12 +192,22 @@ CONTAINS
           END IF
           is=section_get_subsection_index(section,token(2:))
           IF (is>0) THEN
-             !              PRINT *,"parsing subsection "//TRIM(section%subsections(is)%section%name)&
-             !                   //" of section "// TRIM(section%name)
              CALL section_vals_parse(section_vals%subs_vals(is,irs)%section_vals,&
                   default_units=default_units,parser=parser)
           ELSE
-             ! this should be an error (failure)
+             ! unknown subsection
+             IF (output_unit>0) THEN
+                WRITE(output_unit,*)
+                WRITE(output_unit,'(T2,A)') "Possible matches for unknown subsection "
+                WRITE(output_unit,*)
+                WRITE(output_unit,'(T2,A)') TRIM(token(2:))
+                WRITE(output_unit,*)
+                CALL section_typo_match(typo_match_section,TRIM(section%name),TRIM(token(2:)),"",&
+                                        typo_matching_rank,typo_matching_line,bonus=0)
+                DO imatch=1,SIZE(typo_matching_rank)
+                   WRITE(output_unit,'(T2,A,1X,I0)') TRIM(typo_matching_line(imatch))//" score: ",typo_matching_rank(imatch)
+                ENDDO
+             ENDIF
              CALL cp_abort(__LOCATION__,&
                   "unknown subsection "//TRIM(token(2:))//" of section "&
                   //TRIM(section%name))
@@ -249,6 +258,18 @@ CONTAINS
                 parser%icol=parser%icol1-1 ! re-read also the actual token
                 ik=0
                 IF (.NOT.ASSOCIATED(section%keywords(0)%keyword)) THEN
+                   IF (output_unit>0) THEN
+                      WRITE(output_unit,*)
+                      WRITE(output_unit,'(T2,A)') "Possible matches for unknown keyword "
+                      WRITE(output_unit,*)
+                      WRITE(output_unit,'(T2,A)') TRIM(token)
+                      WRITE(output_unit,*)
+                      CALL section_typo_match(typo_match_section,TRIM(section%name),TRIM(token),"",&
+                                              typo_matching_rank,typo_matching_line,bonus=0)
+                      DO imatch=1,SIZE(typo_matching_rank)
+                         WRITE(output_unit,'(T2,A,1X,I0)') TRIM(typo_matching_line(imatch))//" score: ",typo_matching_rank(imatch)
+                      ENDDO
+                   ENDIF
                    CALL cp_abort(__LOCATION__,&
                         "found an unknown keyword "//TRIM(token)//&
                         " in section "//TRIM(section%name))
@@ -270,18 +291,6 @@ CONTAINS
                    IF (.NOT.ASSOCIATED(last_val)) THEN
                       section_vals%values(ik,irs)%list => new_val
                    ELSE
-                      IF (.NOT. keyword%repeats) THEN
-                         PRINT *, "Keyword "//TRIM(token)//&
-                              " in section "//TRIM(section%name)//" should not repeat."
-                         PRINT *, "new_val="
-                         CALL val_write(el,6,keyword%unit)
-                         PRINT *,"old_val="
-                         DO
-                            CALL val_write(last_val%first_el,6,keyword%unit)
-                            IF (.not.ASSOCIATED(last_val%rest)) EXIT
-                            last_val => last_val%rest
-                         END DO
-                      END IF
                       IF(.NOT.keyword%repeats)&
                          CALL cp_abort(__LOCATION__,&
                               "Keyword "//TRIM(token)//&

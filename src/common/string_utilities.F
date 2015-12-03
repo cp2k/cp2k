@@ -104,7 +104,7 @@ CONTAINS
 !> \par History
 !>      02.2006 created [Joost VandeVondele]
 !> \note
-!>     could maybe be made a bit smarter
+!>     could maybe be made a bit smarter (levenstein distance ?)
 ! *****************************************************************************
   FUNCTION typo_match(string,typo_string) RESULT(match)
     CHARACTER(LEN=*), INTENT(IN)             :: string, typo_string
@@ -144,6 +144,10 @@ CONTAINS
           IF (pattern_match(string=typo_string,pattern=tmp2)) match=match+1
        ENDDO
     ENDDO
+    IF (match>0) THEN
+       ! bonus points for small differences in length
+       IF (ABS(LEN_TRIM(string)-LEN_TRIM(typo_string))<3) match=match+2
+    ENDIF
 
   END FUNCTION typo_match
 

@@ -22,7 +22,8 @@ MODULE input_cp2k_read
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_create,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             typo_match_section
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -66,8 +67,10 @@ CONTAINS
     CALL parser_create(cpparser,initial_variables=initial_variables,file_name=file_path, &
          para_env=para_env)
     CALL cp_unit_set_create(default_units, "OUTPUT")
+    typo_match_section=>input_declaration
     CALL section_vals_parse(res,cpparser,root_section=.FALSE.,&
          default_units=default_units)
+    typo_match_section=>NULL()
     CALL cp_unit_set_release(default_units)
     CALL parser_release(cpparser)
     CALL timestop(handle)

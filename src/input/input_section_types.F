@@ -75,6 +75,7 @@ MODULE input_section_types
             section_get_ivals,&
             section_get_rval,&
             section_get_lval
+  PUBLIC :: section_typo_match, typo_match_section, typo_matching_rank, typo_matching_line
 
 ! *****************************************************************************
 !> \brief represent a pointer to a section (to make arrays of pointers)
@@ -133,6 +134,11 @@ MODULE input_section_types
      TYPE(cp_sll_val_p_type), DIMENSION(:,:), POINTER   :: values
      TYPE(section_vals_p_type), DIMENSION(:,:), POINTER :: subs_vals
   END TYPE section_vals_type
+  
+  TYPE(section_type), POINTER, SAVE                                :: typo_match_section=>NULL()
+  INTEGER, PARAMETER                                               :: n_typo_matches=5
+  INTEGER, DIMENSION(n_typo_matches)                               :: typo_matching_rank=0
+  CHARACTER(LEN=default_string_length*5), DIMENSION(n_typo_matches):: typo_matching_line=""
 
 CONTAINS
 
@@ -1797,31 +1803,36 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param section ...
+!> \param section_name ...
 !> \param unknown_string ...
 !> \param location_string ...
 !> \param matching_rank ...
 !> \param matching_string ...
+!> \param bonus ...
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,&
-       matching_rank,matching_string)
+  RECURSIVE SUBROUTINE section_typo_match(section,section_name,unknown_string,location_string,&
+       matching_rank,matching_string,bonus)
 
     TYPE(section_type), POINTER              :: section
-    CHARACTER(LEN=*)                         :: unknown_string, &
+    CHARACTER(LEN=*)                         :: section_name, unknown_string, &
                                                 location_string
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: matching_rank
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(INOUT)                          :: matching_string
+    INTEGER, INTENT(IN)                      :: bonus
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_typo_match', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=LEN(matching_string(1)))   :: line
-    INTEGER                                  :: i, imatch, imax, irank
+    INTEGER                                  :: i, imatch, imax, irank, &
+                                                newbonus
 
     IF (ASSOCIATED(section)) THEN
        CPASSERT(section%ref_count>0)
        imatch=typo_match(TRIM(section%name),TRIM(unknown_string))
        IF (imatch>0) THEN
+          imatch=imatch+bonus
           WRITE(line,'(T2,A)') " subsection "//TRIM(section%name)//" in section "//TRIM(location_string)
           imax=SIZE(matching_rank,1)
           irank=imax+1
@@ -1836,16 +1847,22 @@ CONTAINS
           ENDIF
        END IF
 
+       IF (section_name==section%name) THEN
+          newbonus=10
+       ELSE
+          newbonus=0
+       ENDIF
+
        DO i=-1,section%n_keywords
           IF (ASSOCIATED(section%keywords(i)%keyword)) THEN
              CALL keyword_typo_match(section%keywords(i)%keyword,unknown_string,location_string// &
-                  "%"//TRIM(section%name),matching_rank,matching_string)
+                  "%"//TRIM(section%name),matching_rank,matching_string,newbonus)
           END IF
        END DO
 
        DO i=1,section%n_subsections
-          CALL section_typo_match(section%subsections(i)%section,unknown_string,&
-               location_string//"%"//TRIM(section%name),matching_rank,matching_string)
+          CALL section_typo_match(section%subsections(i)%section,section_name,unknown_string,&
+               location_string//"%"//TRIM(section%name),matching_rank,matching_string,newbonus)
        END DO
 
     END IF

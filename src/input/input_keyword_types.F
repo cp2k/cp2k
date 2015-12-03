@@ -962,8 +962,9 @@ CONTAINS
 !> \param location_string ...
 !> \param matching_rank ...
 !> \param matching_string ...
+!> \param bonus ...
 ! *****************************************************************************
-  SUBROUTINE keyword_typo_match(keyword,unknown_string,location_string,matching_rank,matching_string)
+  SUBROUTINE keyword_typo_match(keyword,unknown_string,location_string,matching_rank,matching_string,bonus)
 
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(LEN=*)                         :: unknown_string, &
@@ -971,6 +972,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: matching_rank
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(INOUT)                          :: matching_string
+    INTEGER, INTENT(IN)                      :: bonus
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'keyword_typo_match', &
       routineP = moduleN//':'//routineN
@@ -985,6 +987,7 @@ CONTAINS
     DO i=1,SIZE(keyword%names)
        imatch=typo_match(TRIM(keyword%names(i)),TRIM(unknown_string))
        IF (imatch>0) THEN
+          imatch=imatch+bonus
           WRITE(line,'(T2,A)') " keyword "//TRIM(keyword%names(i))//" in section "//TRIM(location_string)
           imax=SIZE(matching_rank,1)
           irank=imax+1
@@ -1003,6 +1006,7 @@ CONTAINS
           DO j=1,SIZE(keyword%enum%c_vals)
              imatch=typo_match(TRIM(keyword%enum%c_vals(j)),TRIM(unknown_string))
              IF (imatch>0) THEN
+                imatch=imatch+bonus
                 WRITE(line,'(T2,A)')        " enum "//TRIM(keyword%enum%c_vals(j))//&
                      " in section "//TRIM(location_string)// &
                      " for keyword "//TRIM(keyword%names(i))
