@@ -415,7 +415,7 @@ else
    # helper to check if libsmm is available (uses http-redirect to find latest version)
    libsmm_exists() {
        query_url=https://www.cp2k.org/static/downloads/libsmm/$1-latest.a
-       reply_url=`curl $query_url -s -L -I -o /dev/null -w '%{url_effective}'`
+       reply_url=`python -c "import urllib2; print(urllib2.urlopen('$query_url').geturl())"`
        if [ "$query_url" != "$reply_url" ]; then
           echo $reply_url | cut -d/ -f7
        fi
@@ -452,10 +452,11 @@ if [ "$libsmm" != "" ]; then
       wget https://www.cp2k.org/static/downloads/libsmm/$libsmm
       checksum $libsmm
       cp $libsmm ${INSTALLDIR}/lib/
-      ln -s ${INSTALLDIR}/lib/$libsmm ${INSTALLDIR}/lib/libsmm_dnn.a
    fi
+   tmp=${libsmm#lib}
+   libname=${tmp%.a}
    DFLAGS="${DFLAGS} IF_VALGRIND(,-D__HAS_smm_dnn)"
-   LIBS="IF_VALGRIND(,-lsmm_dnn) ${LIBS}"
+   LIBS="IF_VALGRIND(,-l${libname}) ${LIBS}"
 fi
 
 
