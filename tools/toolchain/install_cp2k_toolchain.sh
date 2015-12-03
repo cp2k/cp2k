@@ -194,7 +194,7 @@ else
 fi
 
 echo "==================== Installing gcc ======================"
-if [ -f gcc-${gcc_ver}.tar.gz -o -f gcc-${gcc_ver}.zip ]; then
+if [ -f gcc-${gcc_ver}.tar.gz -o -d gcc-master ]; then
    echo "Installation already started, skipping it."
 else
    if [ "${gcc_ver}" == "master" ]; then
