@@ -17,9 +17,10 @@ MODULE input_cp2k_transport
                                              csr_eqrow_ceil_dist,&
                                              csr_eqrow_floor_dist
   USE input_constants,                 ONLY: &
-       exper_code, injmethod_beyn, injmethod_evp, injsign_negative, &
-       injsign_positive, linsolver_mumps, linsolver_splitsolve, &
-       linsolver_superlu, misc_method, negf_transport, scalapack_diag
+       injmethod_beyn, injmethod_evp, injsign_negative, injsign_positive, &
+       linsolver_mumps, linsolver_splitsolve, linsolver_superlu, &
+       transport_diagscalapack, transport_localscf, transport_negf, &
+       transport_transmission, transport_writeout
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -63,16 +64,18 @@ CONTAINS
 
     NULLIFY (keyword)
 
-    CALL keyword_create(keyword, name="DENSITY_MATRIX_CONSTRUCTION_METHOD",&
-         description="Method used for constructing the density matrix",&
-         usage="DENSITY_MATRIX_CONSTRUCTION_METHOD DIAG",&
-         default_i_val=scalapack_diag,&
-         enum_c_vals=s2a( "DIAG", "TRANSPORT", "EXPER", "MISC"),&
-         enum_desc=s2a("diagonalization using ScaLapack routines",&
-                       "transport code",&
-                       "experimental code",&
-                       "miscellaneous method"),&
-         enum_i_vals=(/scalapack_diag, negf_transport, exper_code, misc_method/))
+    CALL keyword_create(keyword, name="TRANSPORT_METHOD",&
+         description="Preferred method for transport calculations.",&
+         usage="TRANSPORT_METHOD <method>",&
+         default_i_val=transport_negf,&
+         enum_c_vals=s2a( "DIAG", "TRANSPORT", "LOCAL_SCF", "TRANSMISSION", "WRITEOUT"),&
+         enum_desc=s2a("standard diagonalization using ScaLapack routines",&
+         "self-consistent CP2K and OMEN transport calculations",&
+         "CP2K valence Hamiltonian + OMEN self-consistent calculations on conduction electrons",&
+         "self-consistent transmission calculations without applied bias voltage",&
+         "write out the Hamiltonian and overlap matrices"),&
+         enum_i_vals=(/transport_diagscalapack, transport_negf, transport_localscf, & 
+                       transport_transmission, transport_writeout/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -108,14 +111,14 @@ CONTAINS
 
     CALL keyword_create(keyword, name="EPS_LIMIT",&
          description="The smallest eigenvalue that is kept.",&
-         usage="EPS_LIMIT <real>", default_r_val=1.0E-6_dp)
+         usage="EPS_LIMIT <real>", default_r_val=1.0E-4_dp)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="EPS_DECAY",&
          description="The smallest imaginary part that a decaying eigenvalue may have not to be "//&
          "considered as propagating.",&
-         usage="EPS_DECAY <real>", default_r_val=1.0E-6_dp)
+         usage="EPS_DECAY <real>", default_r_val=1.0E-4_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -127,19 +130,19 @@ CONTAINS
 
     CALL keyword_create(keyword, name="EPS_MU",&
          description="Accuracy to which the Fermi level should be determined.",&
-         usage="EPS_MU <real>", default_r_val=0.0_dp)
+         usage="EPS_MU <real>", default_r_val=1.0E-6_dp)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="EPS_EIGVAL_DEGEN",&
          description="Filter for degenerate bands in the injection vector.",&
-         usage="EPS_EIGVAL_DEGEN <real>", default_r_val=1.0E-4_dp)
+         usage="EPS_EIGVAL_DEGEN <real>", default_r_val=1.0E-6_dp)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="ENERGY_INTERVAL",&
          description="Average distance for big intervals in energy vector.",&
-         usage="ENERGY_INTERVAL <real>", default_r_val=1.0E-2_dp)
+         usage="ENERGY_INTERVAL <real>", default_r_val=1.0E-3_dp)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -162,20 +165,20 @@ CONTAINS
                        "Each task holds ceiling(N/TASKS_PER_POINT) rows for a total of N matrix rows",&
                        "Each task holds floor(N/TASKS_PER_POINT) rows for a total of N matrix rows"),&
          enum_i_vals=(/csr_dbcsr_blkrow_dist,csr_eqrow_ceil_dist,csr_eqrow_floor_dist/),&
-         default_i_val=csr_dbcsr_blkrow_dist)
+         default_i_val=csr_eqrow_ceil_dist)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="CSR_SCREENING",&
          description="Whether distance screening should be applied to improve sparsity of CSR matrices.",&
-         default_l_val=.FALSE., lone_keyword_l_val = .TRUE.)
+         default_l_val=.TRUE., lone_keyword_l_val = .TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="LINEAR_SOLVER",&
          description="Solver to solve the linear system of equations.",&
          usage="LINEAR_SOLVER <solver>", &
-         default_i_val=linsolver_splitsolve,&
+         default_i_val=linsolver_superlu,&
          enum_c_vals=s2a( "SplitSolve", "SuperLU", "MUMPS"),&
          enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps/))
     CALL section_add_keyword(section,keyword)
@@ -223,7 +226,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONTACT", &
          description="Parameters for defining device contacts.",&
-         n_keywords=5, n_subsections=0, repeats=.TRUE.)
+         n_keywords=6, n_subsections=0, repeats=.TRUE.)
 
     NULLIFY(keyword)
 
@@ -250,14 +253,22 @@ CONTAINS
          "to the left (negative).",&
          usage="INJECTION_SIGN <integer>", &
          default_i_val=injsign_positive,&
-         enum_c_vals=s2a( "POISTIVE", "NEGATIVE"),&
+         enum_c_vals=s2a( "POSITIVE", "NEGATIVE"),&
+         enum_desc=s2a("When the contact unit cell is at the upper left corner of the Hamiltonian.",&
+                       "When the contact unit cell is at the lower right corner of the Hamiltonian."),&
          enum_i_vals=(/injsign_positive, injsign_negative/))
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="N_OCC",&
+    CALL keyword_create(keyword, name="INJECTING_CONTACT",&
+         description="whether or not the contact can inject electrons.",&
+         default_l_val=.TRUE., lone_keyword_l_val = .TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="N_ELEC",&
          description="Number of electrons per unit cell including doping.",&
-         usage="N_OCC <integer>", default_i_val=0)
+         usage="N_ELEC <real>", default_r_val=0.0_dp)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 

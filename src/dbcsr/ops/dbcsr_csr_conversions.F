@@ -1014,7 +1014,7 @@ CONTAINS
     END IF
 
     IF (PRESENT(end_cut_row)) THEN
-       end_cutout = end_cut_row
+       end_cutout = dbcsr_nfullrows_total(dbcsr_mat_nosym) - end_cut_row
     ELSE
        end_cutout = dbcsr_nfullrows_total(dbcsr_mat_nosym) 
     END IF
@@ -1668,6 +1668,7 @@ CONTAINS
       k=0 ! counter for block rows
       m=0 ! node counter
       node_size = nfullrows_local + start_cut_row ! space available on current node in number of rows
+      IF (numnodes .EQ. 1) node_size = nfullrows_total
       IF (node_size .GT. 0) THEN
         DO l=1,nblkrows_total
           split_row = row_blk_size(l) ! size of current block row (number of rows)
@@ -1681,6 +1682,7 @@ CONTAINS
             IF(floor_dist .AND. (m .EQ. numnodes - 1)) THEN ! send all remaining rows to last node
               node_size = nfullrows_total-(numnodes - 1) * node_size - start_cut_row
             ENDIF
+            IF (numnodes .EQ. 1) node_size = nfullrows_total
           ENDDO
           IF (split_row .GT. 0) THEN ! enough space left on next node for remaining rows
             k = k + 1

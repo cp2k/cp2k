@@ -906,15 +906,16 @@ MODULE input_constants
                                               dispersion_d3 =200
 
   ! Transport section
-  INTEGER, PARAMETER, PUBLIC               :: linsolver_splitsolve = 11,&
+  INTEGER, PARAMETER, PUBLIC               :: transport_writeout      = 0,&
+                                              transport_diagscalapack = 1,&
+                                              transport_localscf      = 2,&
+                                              transport_negf          = 3,&
+                                              transport_transmission  = 4,&
+                                              linsolver_splitsolve = 11,&
                                               linsolver_superlu    = 12,&
                                               linsolver_mumps      = 13,& 
-                                              injmethod_evp  = 21,&
-                                              injmethod_beyn = 22,& 
-                                              misc_method    = 0,&
-                                              scalapack_diag = 1,&
-                                              exper_code     = 2,&
-                                              negf_transport = 3,&
+                                              injmethod_evp    = 21,&
+                                              injmethod_beyn   = 22,& 
                                               injsign_positive =  1,&
                                               injsign_negative = -1
 

@@ -130,7 +130,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, n_contacts
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: contact_explicit
+    LOGICAL                                  :: contact_explicit, injecting
     TYPE(section_vals_type), POINTER         :: contact_section, &
                                                 transport_section
 
@@ -142,7 +142,7 @@ CONTAINS
     
     NULLIFY(i_vals)
 ! read from input
-    CALL section_vals_val_get(transport_section,"DENSITY_MATRIX_CONSTRUCTION_METHOD",i_val=transport_env%params%method)
+    CALL section_vals_val_get(transport_section,"TRANSPORT_METHOD",i_val=transport_env%params%method)
     CALL section_vals_val_get(transport_section,"INJECTION_METHOD",i_val=transport_env%params%injection_method)
     CALL section_vals_val_get(transport_section,"LINEAR_SOLVER",i_val=transport_env%params%linear_solver)
     CALL section_vals_val_get(transport_section,"N_ABSCISSAE",i_val=transport_env%params%n_abscissae)
@@ -166,7 +166,8 @@ CONTAINS
 
     IF (contact_explicit) THEN
        transport_env%params%num_contacts = n_contacts
-       ALLOCATE(transport_env%contacts_data(5*n_contacts)) 
+       ALLOCATE(transport_env%contacts_data(5*n_contacts))
+       ALLOCATE(transport_env%contacts_nelec(n_contacts))
        DO i = 1, n_contacts
           CALL section_vals_val_get(contact_section,"BANDWIDTH",i_rep_section=i,&
                                                 i_val=transport_env%contacts_data((i-1)*5+1))
@@ -176,13 +177,21 @@ CONTAINS
                                                 i_val=transport_env%contacts_data((i-1)*5+3))
           CALL section_vals_val_get(contact_section,"INJECTION_SIGN",i_rep_section=i,&
                                                 i_val=transport_env%contacts_data((i-1)*5+4))
-          CALL section_vals_val_get(contact_section,"N_OCC",i_rep_section=i,&
-                                                i_val=transport_env%contacts_data((i-1)*5+5))
+          CALL section_vals_val_get(contact_section,"INJECTING_CONTACT",i_rep_section=i,l_val=injecting)
+          IF (injecting) THEN 
+             transport_env%contacts_data((i-1)*5+5) = 1
+          ELSE 
+             transport_env%contacts_data((i-1)*5+5) = 0
+          END IF
+          CALL section_vals_val_get(contact_section,"N_ELEC",i_rep_section=i,&
+                                                r_val=transport_env%contacts_nelec(i))
        END DO
        transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1)) 
+       transport_env%params%contacts_nelec = C_LOC(transport_env%contacts_nelec(1)) 
     ELSE
        transport_env%params%num_contacts = 0
-       transport_env%params%contacts_data = C_NULL_PTR
+       transport_env%params%contacts_data  = C_NULL_PTR
+       transport_env%params%contacts_nelec = C_NULL_PTR
     END IF
 
     CALL timestop(handle)

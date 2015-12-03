@@ -62,6 +62,7 @@ MODULE transport_env_types
      REAL(C_DOUBLE)  :: min_interval
      REAL(C_DOUBLE)  :: temperature
      TYPE(C_PTR)     :: contacts_data
+     TYPE(C_PTR)     :: contacts_nelec
   END TYPE cp2k_transport_parameters
 
   TYPE transport_env_type
@@ -75,7 +76,8 @@ MODULE transport_env_types
      TYPE(csr_type)                   :: p_matrix
      LOGICAL                          :: csr_screening
      INTEGER                          :: row_dist
-     INTEGER, DIMENSION(:), POINTER   :: contacts_data => NULL()
+     INTEGER, DIMENSION(:), POINTER   :: contacts_data  => NULL()
+     REAL(dp), DIMENSION(:), POINTER  :: contacts_nelec => NULL()
   END TYPE transport_env_type
 
 ! DO NOT change the ORDERING or the NAMES in the following data type
@@ -125,7 +127,8 @@ CONTAINS
 
     transport_env%ext_c_method_ptr = C_NULL_FUNPTR
 
-    IF (ASSOCIATED(transport_env%contacts_data)) DEALLOCATE(transport_env%contacts_data)
+    IF (ASSOCIATED(transport_env%contacts_data))  DEALLOCATE(transport_env%contacts_data)
+    IF (ASSOCIATED(transport_env%contacts_nelec)) DEALLOCATE(transport_env%contacts_nelec)
 
     DEALLOCATE(transport_env)
 
