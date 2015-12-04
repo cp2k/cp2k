@@ -13,18 +13,19 @@
     &LS_SCF
       MAX_SCF     25
       EPS_SCF     1.0E-8
+      EPS_FILTER  1.0E-8
       S_PRECONDITIONER  NONE
       REPORT_ALL_SPARSITIES OFF
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        MAX_PAO 1
-        EPS_PAO 1.0E-5
+        READ_RESTART H2O_pao_rotinv-1_0.pao
+        PREOPT_DM_FILE H2O_ref2_LS_DM_SPIN_1_RESTART.dm
+        EPS_PAO    5.0E-7
+        MAX_PAO    1
         PARAMETERIZATION ROTINV
-        PRECONDITIONER SINV
-        READ_RESTART H2_pao_rotinv-1_0.pao
         &LINE_SEARCH
-          METHOD 3PNT
+          METHOD ADAPT
         &END LINE_SEARCH
       &END PAO
     &END
@@ -38,16 +39,23 @@
       ABC 4.0 4.0 4.0
       PERIODIC NONE
     &END CELL
-    ! rotate system by a non-trivial angle
     &COORD
-      H       0.3452    0.6319    0.0
-      H       0.0       0.0       0.0
+      ! rotated by 42 radians :-)
+      O   2.77080   -4.05878   4.1629480502
+      H   3.46436   -3.52495   4.5850871241
+      H   2.33835   -3.46159   3.5277353471 
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH
       POTENTIAL GTH-PBE
-      PAO_BASIS_SIZE 1 
       PAO_POTENTIAL_MAXL 0
+      PAO_BASIS_SIZE 4
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-MOLOPT-SR-GTH
+      POTENTIAL GTH-PBE
+      PAO_POTENTIAL_MAXL 1
+      PAO_BASIS_SIZE 4
     &END KIND
     &TOPOLOGY
        &CENTER_COORDINATES
@@ -56,6 +64,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2_pao_rotinv
+  PROJECT H2O_pao_rotinv_restart
   RUN_TYPE ENERGY
 &END GLOBAL

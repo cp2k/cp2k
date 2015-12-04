@@ -15,11 +15,14 @@ MODULE pao_param_fock
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE pao_types,                       ONLY: pao_env_type
-  USE pao_utils,                       ONLY: fill_randomly
+  USE parallel_rng_types,              ONLY: create_rng_stream,&
+                                             delete_rng_stream,&
+                                             next_random_number,&
+                                             rng_stream_type
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -318,5 +321,47 @@ CONTAINS
 
      DEALLOCATE(RM, RMR, F, RF, RFR)
   END FUNCTION fold_derivatives
+
+
+! *****************************************************************************
+!> \brief Fills a DBCSR matrix with random noise.
+!> \param matrix ...
+!> \param seed ...
+! *****************************************************************************
+  SUBROUTINE fill_randomly(matrix, seed)
+    TYPE(cp_dbcsr_type)                      :: matrix
+    INTEGER                                  :: seed
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'fill_randomly', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: acol, arow, handle, i, j
+    REAL(dp), DIMENSION(:, :), POINTER       :: block
+    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(rng_stream_type), POINTER           :: rng_stream
+
+    NULLIFY(rng_stream)
+    CALL timeset(routineN,handle)
+
+    CALL cp_dbcsr_iterator_start(iter, matrix)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block)
+       ! a "unique" reproducible seed for each block
+       initial_seed(1,:) = REAL(seed*arow,KIND=dp)
+       initial_seed(2,:) = REAL(seed*acol,KIND=dp)
+       initial_seed(3,:) = REAL(seed*SIZE(block),KIND=dp)
+       CALL create_rng_stream(rng_stream, seed=initial_seed, name="pao")
+       DO i=1, SIZE(block, 1)
+          DO j=1, SIZE(block, 2)
+             block(i,j) = next_random_number(rng_stream)
+          ENDDO
+       ENDDO
+       CALL delete_rng_stream(rng_stream)
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    CALL timestop(handle)
+  END SUBROUTINE fill_randomly
 
 END MODULE pao_param_fock

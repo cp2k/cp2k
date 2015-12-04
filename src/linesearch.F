@@ -614,8 +614,6 @@ CONTAINS
        this%right_x  = 0.0
     END IF
 
-    IF(step_size < 1.0e-10) CPABORT("Gradient is wrong.")
-
     this%last_step_size = step_size
   END SUBROUTINE linesearch_adapt
 

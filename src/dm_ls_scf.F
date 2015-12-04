@@ -79,7 +79,6 @@ MODULE dm_ls_scf
                                              molecule_type
   USE pao_main,                        ONLY: pao_finalize,&
                                              pao_init,&
-                                             pao_scf_init,&
                                              pao_update
   USE particle_types,                  ONLY: particle_type
   USE pexsi_methods,                   ONLY: density_matrix_pexsi,&
@@ -142,9 +141,8 @@ CONTAINS
     pao_is_done = .FALSE.
     DO WHILE(.NOT. pao_is_done)
         CALL ls_scf_init_scf(qs_env, ls_scf_env)
-        CALL pao_scf_init(qs_env, ls_scf_env)
-        CALL ls_scf_main(qs_env, ls_scf_env)
         CALL pao_update(qs_env, ls_scf_env, pao_is_done)
+        CALL ls_scf_main(qs_env, ls_scf_env)
         CALL ls_scf_post(qs_env, ls_scf_env)
      END DO
 
