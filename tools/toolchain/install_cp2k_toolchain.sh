@@ -42,7 +42,7 @@ lcov_ver=1.11
 #gcc_ver=4.9.2
 #gcc_ver=4.9.3
 #gcc_ver=5.1.0
-gcc_ver=5.2.0
+gcc_ver=5.3.0
 make_ver=4.1
 
 # parse options
@@ -243,15 +243,12 @@ cat << EOF > ${INSTALLDIR}/lsan.supp
 leak:__cp_fm_types_MOD_cp_fm_write_unformatted
 # leaks related to PEXSI
 leak:PPEXSIDFTDriver
+EOF
+cat << EOF > ${INSTALLDIR}/tsan.supp
 # tsan bugs likely related to gcc
 # PR66756
 deadlock:_gfortran_st_open
 mutex:_gfortran_st_open
-# PR66761
-race:do_spin
-race:gomp_team_end
-#PR67303
-race:gomp_iter_guided_next
 # bugs related to removing/filtering blocks in DBCSR.. to be fixed
 race:__dbcsr_block_access_MOD_dbcsr_remove_block
 race:__dbcsr_operations_MOD_dbcsr_filter_anytype
@@ -284,7 +281,7 @@ else
 fi
 export CP2KINSTALLDIR=${INSTALLDIR}
 export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
-export TSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
+export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
 export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
 export CC=gcc
 export CXX=g++
