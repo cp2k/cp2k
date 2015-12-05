@@ -33,8 +33,8 @@
   &END
   &PRINT
     &FIT_KGPOT
-      NUM_GAUSSIAN  3
-      NUM_POLYNOM   2
+      NUM_GAUSSIAN  2
+      NUM_POLYNOM   1
     &END
   &END PRINT
 &END ATOM
