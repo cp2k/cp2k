@@ -476,6 +476,8 @@ CONTAINS
 
     converged = inner_loop_converged .AND. outer_loop_converged
 
+    IF (.NOT. converged) CPWARN("SCF run NOT converged")
+
     ! if needed copy mo_coeff dbcsr->fm for later use in post_scf!fm->dbcsr
     DO ispin=1,SIZE(mos)!fm -> dbcsr
        IF(mos(ispin)%mo_set%use_mo_coeff_b) THEN!fm->dbcsr

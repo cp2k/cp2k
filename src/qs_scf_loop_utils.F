@@ -526,9 +526,12 @@ CONTAINS
         inner_loop_converged=.TRUE.
         exit_inner_loop = .TRUE.
      ELSE IF (should_stop .OR.  scf_env%iter_count >= scf_control%max_scf) THEN
-        CPWARN("SCF run NOT converged")
         inner_loop_converged=.FALSE.
         exit_inner_loop = .TRUE.
+        IF (output_unit>0) THEN
+           WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
+                "Leaving inner SCF loop after reaching ",scf_env%iter_count, " steps."
+        END IF
      END IF
 
   END SUBROUTINE qs_scf_check_inner_exit
