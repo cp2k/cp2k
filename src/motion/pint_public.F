@@ -27,6 +27,7 @@ MODULE pint_public
 
   PUBLIC :: pint_com_pos
   PUBLIC :: pint_levy_walk
+  PUBLIC :: pint_calc_centroid
 
   CONTAINS
 
@@ -267,5 +268,36 @@ MODULE pint_public
 
     RETURN
   END SUBROUTINE pint_levy_walk
+
+  ! ***************************************************************************
+  !> \brief  Calculate the centroid
+  !> \param  pint_env path integral environment
+  !> \date   2013-02-10
+  !> \author lwalewski
+  ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+! *****************************************************************************
+  SUBROUTINE pint_calc_centroid(pint_env)
+
+    TYPE(pint_env_type), POINTER             :: pint_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_calc_centroid', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ia, ib
+    REAL(KIND=dp)                            :: invp
+
+    invp = 1.0_dp / pint_env%p
+    pint_env%centroid(:) = 0.0_dp
+    DO ia = 1, pint_env%ndim
+      DO ib = 1, pint_env%p
+        pint_env%centroid(ia) = pint_env%centroid(ia) + pint_env%x(ib,ia)
+      END DO
+      pint_env%centroid(ia) = pint_env%centroid(ia) * invp
+    END DO
+
+  END SUBROUTINE pint_calc_centroid
 
 END MODULE pint_public

@@ -12,13 +12,12 @@ MODULE helium_interactions
 
   USE helium_common,                   ONLY: helium_eval_expansion,&
                                              helium_pbc
-  USE helium_types,                    ONLY: e_id_interact,&
-                                             e_id_kinetic,&
-                                             e_id_potential,&
-                                             e_id_thermo,&
-                                             e_id_total,&
-                                             e_id_virial,&
-                                             helium_solvent_type
+  USE helium_types,                    ONLY: &
+       e_id_interact, e_id_kinetic, e_id_potential, e_id_thermo, e_id_total, &
+       e_id_virial, helium_solvent_type, hid_chlorine, hid_hydrogen, &
+       hid_oxygen, int_arr_ptr
+  USE input_constants,                 ONLY: helium_solute_intpot_mwater,&
+                                             helium_solute_intpot_none
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: angstrom,&
                                              kelvin
@@ -35,7 +34,8 @@ MODULE helium_interactions
 
   PUBLIC :: helium_calc_energy
   PUBLIC :: helium_solute_e_f
-  PUBLIC :: helium_bead_solute_e
+  PUBLIC :: helium_bead_solute_e_f
+  PUBLIC :: helium_intpot_scan
 
   CONTAINS
 
@@ -161,21 +161,18 @@ vkin = 0.0_dp
    RETURN
   END SUBROUTINE helium_calc_energy
 
+
 ! ***************************************************************************
-!> \brief  Calculate helium-solute interaction energy and forces contribution
-!>         from one helium bead of one helium particle and the corresponding
-!>         solute time slice.
-!> \param pint_env ...
+!> \brief Calculate general helium-solute interaction energy (and forces)
+!>        between one helium bead and the corresponding solute time slice.
+!> \param pint_env           path integral environment
 !> \param helium ...
-!> \param helium_part_index ...
-!> \param helium_slice_index ...
-!> \param helium_r_opt ...
-!> \param energy ...
-!> \param force ...
-!> \date   2009-12-11
+!> \param helium_part_index  helium particle index
+!> \param helium_slice_index helium time slice index
+!> \param helium_r_opt       explicit helium bead coordinates (optional)
+!> \param energy             calculated energy
+!> \param force              calculated force (if requested)
 !> \author Lukasz Walewski
-!> \note   This is a stub, Lennard-Jones potential with no warranty. It should
-!>         be replaced with realistic potential for real-world simulations.
 ! *****************************************************************************
   SUBROUTINE helium_bead_solute_e_f(pint_env, helium, helium_part_index, &
     helium_slice_index, helium_r_opt, energy, force)
@@ -188,24 +185,14 @@ vkin = 0.0_dp
       INTENT(IN), OPTIONAL                   :: helium_r_opt
     REAL(KIND=dp), INTENT(OUT)               :: energy
     REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: force
+      INTENT(OUT), OPTIONAL, POINTER         :: force
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_bead_solute_e_f', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: hbeads, hi, i, ig, &
-                                                num_chlorine, num_hydrogen, &
-                                                num_oxygen, qi
-    REAL(KIND=dp)                            :: d, d2, dd, ep, eps, s1, s2, &
-                                                sig
-    REAL(KIND=dp), DIMENSION(3)              :: dr, helium_r, solute_r
-
-    CPASSERT(ASSOCIATED(helium))
-    CPASSERT(ASSOCIATED(pint_env))
-
-    num_chlorine = helium%solute_number(1)
-    num_oxygen   = helium%solute_number(2)
-    num_hydrogen = helium%solute_number(3)
+    INTEGER                                  :: hbeads, hi, qi
+    REAL(KIND=dp), DIMENSION(3)              :: helium_r
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_force
 
     hbeads = helium%beads
     ! helium bead index that is invariant wrt the rotations
@@ -220,77 +207,46 @@ vkin = 0.0_dp
       helium_r(:) = helium%pos(:,helium_part_index,helium_slice_index)
     END IF
 
-    energy = 0.0_dp
-    force(:,:) = 0.0_dp
+    SELECT CASE (helium%solute_interaction)
 
-    sig = 2.69_dp     ! 1.4 Angstrom
-    eps = 60.61e-6_dp ! 19 K
-    s1 = 0.0_dp
-    DO i = 1, num_hydrogen
-      ig = helium%solute_index(3,i)-1 ! global hydrogen index (3 == H)
-      solute_r(1) = pint_env%x(qi,3*ig+1)
-      solute_r(2) = pint_env%x(qi,3*ig+2)
-      solute_r(3) = pint_env%x(qi,3*ig+3)
-      dr(:) = solute_r(:) - helium_r(:)
-      CALL helium_pbc( helium, dr )
-      d2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
-      d = SQRT(d2)
-      dd = (sig/d)**6
-      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
-      s1 = s1 + ep
-      s2 = 24.0_dp*eps*dd*(2.0_dp*dd-1.0_dp)/d2
-      force(qi,3*ig+1) = force(qi,3*ig+1) + s2*dr(1)
-      force(qi,3*ig+2) = force(qi,3*ig+2) + s2*dr(2)
-      force(qi,3*ig+3) = force(qi,3*ig+3) + s2*dr(3)
-    END DO ! i = 1, num_hydrogen
-    energy = energy + s1
 
-    sig = 5.01_dp     ! 2.6 Angstrom
-    eps = 79.17e-6_dp ! 25 K
-    s1 = 0.0_dp
-    DO i = 1, num_chlorine
-      ig = helium%solute_index(1,i)-1 ! global chlorine index (1 == Cl)
-      solute_r(1) = pint_env%x(qi,3*ig+1)
-      solute_r(2) = pint_env%x(qi,3*ig+2)
-      solute_r(3) = pint_env%x(qi,3*ig+3)
-      dr(:) = solute_r(:) - helium_r(:)
-      CALL helium_pbc( helium, dr )
-      d2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
-      d = SQRT(d2)
-      dd = (sig/d)**6
-      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
-      s1 = s1 + ep
-      s2 = 24.0_dp*eps*dd*(2.0_dp*dd-1.0_dp)/d2
-      force(qi,3*ig+1) = force(qi,3*ig+1) + s2*dr(1)
-      force(qi,3*ig+2) = force(qi,3*ig+2) + s2*dr(2)
-      force(qi,3*ig+3) = force(qi,3*ig+3) + s2*dr(3)
-    END DO ! i = 1, num_chlorine
-    energy = energy + s1
+      CASE (helium_solute_intpot_mwater)
+        IF (PRESENT(force)) THEN
+          force(:,:) = 0.0_dp
+          my_force => force(qi,:)
+          CALL helium_intpot_model_water( &
+            pint_env%x(qi,:), &
+            helium%solute_i, &
+            helium, &
+            helium_r,&
+            energy, &
+            my_force &
+          )
+        ELSE
+          CALL helium_intpot_model_water( &
+          pint_env%x(qi,:), &
+          helium%solute_i, &
+          helium, &
+          helium_r,&
+          energy &
+          )
+        END IF
 
-    sig = 5.01_dp     ! 2.6 Angstrom
-    eps = 104.5e-6_dp ! 33 K
-    s1 = 0.0_dp
-    DO i = 1, num_oxygen
-      ig = helium%solute_index(2,i)-1 ! global oxygen index (2 == O)
-      solute_r(1) = pint_env%x(qi,3*ig+1)
-      solute_r(2) = pint_env%x(qi,3*ig+2)
-      solute_r(3) = pint_env%x(qi,3*ig+3)
-      dr(:) = solute_r(:) - helium_r(:)
-      CALL helium_pbc( helium, dr )
-      d2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
-      d = SQRT(d2)
-      dd = (sig/d)**6
-      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
-      s1 = s1 + ep
-      s2 = 24.0_dp*eps*dd*(2.0_dp*dd-1.0_dp)/d2
-      force(qi,3*ig+1) = force(qi,3*ig+1) + s2*dr(1)
-      force(qi,3*ig+2) = force(qi,3*ig+2) + s2*dr(2)
-      force(qi,3*ig+3) = force(qi,3*ig+3) + s2*dr(3)
-    END DO ! i = 1, num_chlorine
-    energy = energy + s1
+      CASE (helium_solute_intpot_none)
+        energy = 0.0_dp
+        IF (PRESENT(force)) THEN
+          force(:,:) = 0.0_dp
+        END IF
+
+
+
+      CASE DEFAULT
+
+    END SELECT
 
     RETURN
   END SUBROUTINE helium_bead_solute_e_f
+
 
 ! ***************************************************************************
 !> \brief Calculate total helium-solute interaction energy and forces.
@@ -308,7 +264,7 @@ vkin = 0.0_dp
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_solute_e_f', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ibead, ipart, j
+    INTEGER                                  :: ia, ib, jb, jc
     REAL(KIND=dp)                            :: my_energy
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: force
 
@@ -320,14 +276,14 @@ vkin = 0.0_dp
 
     ! calculate the total interaction energy and gradients between the
     ! solute and the helium, sum over all beads of all He particles
-    DO ipart = 1, helium%atoms
-      DO ibead = 1, helium%beads
-        CALL helium_bead_solute_e_f(pint_env, helium, ipart, &
-          ibead, energy=my_energy, force=helium%rtmp_p_ndim_2d)
-        energy = energy + my_energy
-        DO i = 1, pint_env%p
-          DO j = 1, pint_env%ndim
-            force(i,j) = force(i,j) + helium%rtmp_p_ndim_2d(i,j)
+    DO ia = 1, helium%atoms
+      DO ib = 1, helium%beads
+        CALL helium_bead_solute_e_f(pint_env, helium, ia, ib, &
+          energy=my_energy, force=helium%rtmp_p_ndim_2d)
+          energy = energy + my_energy
+        DO jb = 1, pint_env%p
+          DO jc = 1, pint_env%ndim
+            force(jb,jc) = force(jb,jc) + helium%rtmp_p_ndim_2d(jb,jc)
           END DO
         END DO
       END DO
@@ -336,113 +292,6 @@ vkin = 0.0_dp
     RETURN
   END SUBROUTINE helium_solute_e_f
 
-! ***************************************************************************
-!> \brief  Calculate helium-solute interaction energy contribution from one
-!>         helium bead of one helium particle and the corresponding solute
-!>         time slice.
-!> \param pint_env ...
-!> \param helium ...
-!> \param helium_part_index ...
-!> \param helium_slice_index ...
-!> \param helium_r_opt ...
-!> \param energy ...
-!> \date   2009-12-11
-!> \author Lukasz Walewski
-!> \note   This is a stub, Lennard-Jones potential with no warranty. It should
-!>         be replaced with realistic potential for real-world simulations.
-! *****************************************************************************
-  SUBROUTINE helium_bead_solute_e(pint_env, helium, helium_part_index, &
-    helium_slice_index, helium_r_opt, energy)
-
-    TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(helium_solvent_type), POINTER       :: helium
-    INTEGER, INTENT(IN)                      :: helium_part_index, &
-                                                helium_slice_index
-    REAL(KIND=dp), DIMENSION(3), &
-      INTENT(IN), OPTIONAL                   :: helium_r_opt
-    REAL(KIND=dp), INTENT(OUT)               :: energy
-
-    INTEGER                                  :: hbeads, hi, i, ig, &
-                                                num_chlorine, num_hydrogen, &
-                                                num_oxygen, qi
-    REAL(KIND=dp)                            :: d, d2, dd, ep, eps, s1, sig
-    REAL(KIND=dp), DIMENSION(3)              :: dr, helium_r, solute_r
-
-    num_chlorine = helium%solute_number(1)
-    num_oxygen   = helium%solute_number(2)
-    num_hydrogen = helium%solute_number(3)
-
-    hbeads = helium%beads
-    ! helium bead index that is invariant wrt the rotations
-    hi = MOD(helium_slice_index-1+hbeads+helium%relrot,hbeads) + 1
-    ! solute bead index that belongs to hi helium index
-    qi = ((hi-1)*pint_env%p)/hbeads+1
-
-    ! coordinates of the helium bead
-    IF (PRESENT(helium_r_opt)) THEN
-      helium_r(:) = helium_r_opt(:)
-    ELSE
-      helium_r(:) = helium%pos(:,helium_part_index,helium_slice_index)
-    END IF
-
-    energy = 0.0_dp
-
-    sig = 2.69_dp     ! 1.4 Angstrom
-    eps = 60.61e-6_dp ! 19 K
-    s1 = 0.0_dp
-    DO i = 1, num_hydrogen
-      ig = helium%solute_index(3,i)-1 ! global hydrogen index (3 == H)
-      solute_r(1) = pint_env%x(qi,3*ig+1)
-      solute_r(2) = pint_env%x(qi,3*ig+2)
-      solute_r(3) = pint_env%x(qi,3*ig+3)
-      dr(:) = solute_r(:) - helium_r(:)
-      CALL helium_pbc( helium, dr )
-      d2 = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
-      d = SQRT(d2)
-      dd = (sig/d)**6
-      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
-      s1 = s1 + ep
-    END DO ! i = 1, num_hydrogen
-    energy = energy + s1
-
-    sig = 5.01_dp     ! 2.6 Angstrom
-    eps = 79.17e-6_dp ! 25 K
-    s1 = 0.0_dp
-    DO i = 1, num_chlorine
-      ig = helium%solute_index(1,i)-1 ! global chlorine index (1 == Cl)
-      solute_r(1) = pint_env%x(qi,3*ig+1)
-      solute_r(2) = pint_env%x(qi,3*ig+2)
-      solute_r(3) = pint_env%x(qi,3*ig+3)
-      dr(:) = solute_r(:) - helium_r(:)
-      CALL helium_pbc( helium, dr )
-      d2 = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
-      d = SQRT(d2)
-      dd = (sig/d)**6
-      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
-      s1 = s1 + ep
-    END DO ! i = 1, num_chlorine
-    energy = energy + s1
-
-    sig = 5.01_dp     ! 2.6 Angstrom
-    eps = 104.5e-6_dp ! 33 K
-    s1 = 0.0_dp
-    DO i = 1, num_oxygen
-      ig = helium%solute_index(2,i)-1 ! global oxygen index (2 == O)
-      solute_r(1) = pint_env%x(qi,3*ig+1)
-      solute_r(2) = pint_env%x(qi,3*ig+2)
-      solute_r(3) = pint_env%x(qi,3*ig+3)
-      dr(:) = solute_r(:) - helium_r(:)
-      CALL helium_pbc( helium, dr )
-      d2 = dr(1)*dr(1)+dr(2)*dr(2)+dr(3)*dr(3)
-      d = SQRT(d2)
-      dd = (sig/d)**6
-      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
-      s1 = s1 + ep
-    END DO ! i = 1, num_oxygen
-    energy = energy + s1
-
-    RETURN
-  END SUBROUTINE helium_bead_solute_e
 
 ! ***************************************************************************
 !> \brief Calculate total helium-solute interaction energy.
@@ -457,21 +306,228 @@ vkin = 0.0_dp
     TYPE(helium_solvent_type), POINTER       :: helium
     REAL(KIND=dp), INTENT(OUT)               :: energy
 
-    INTEGER                                  :: ibead, ipart
+    INTEGER                                  :: ia, ib
     REAL(KIND=dp)                            :: my_energy
 
     energy = 0.0_dp
 
-    DO ipart = 1, helium%atoms
-      DO ibead = 1, helium%beads
-        CALL helium_bead_solute_e(pint_env, helium, ipart, &
-          ibead, energy=my_energy)
+    DO ia = 1, helium%atoms
+      DO ib = 1, helium%beads
+        CALL helium_bead_solute_e_f(pint_env, helium, ia, ib, energy=my_energy)
         energy = energy + my_energy
       END DO
     END DO
 
     RETURN
   END SUBROUTINE helium_solute_e
+
+
+! ***************************************************************************
+!> \brief Calculate l-th Legendre polynomial P_{l}(x) at point x
+!> \param x ...
+!> \param n ...
+!> \retval Pl ...
+! *****************************************************************************
+  FUNCTION Pl(x,n)
+    REAL(KIND=dp), INTENT(IN)                :: x
+    INTEGER, INTENT(IN)                      :: n
+    REAL(KIND=dp)                            :: Pl
+
+    INTEGER                                  :: k
+    REAL(KIND=dp)                            :: pln(0:n)
+
+    pln(0) = 1.0_dp
+    pln(1) = x
+
+    IF (n <= 1) THEN
+      Pl = pln(n)
+    ELSE
+      DO k=1,n-1
+        pln(k+1) = ((2.0*k+1.0)*x*pln(k) - REAL(k,dp)*pln(k-1))/(REAL(k+1,dp))
+      END DO
+      Pl = pln(n)
+    END IF
+    RETURN
+  END FUNCTION Pl
+
+
+! ***************************************************************************
+!> \brief  Scan the helium-solute interaction energy within the periodic cell
+!> \param pint_env ...
+!> \param helium ...
+!> \date   2014-01-22
+!> \author Lukasz Walewski
+! *****************************************************************************
+  SUBROUTINE helium_intpot_scan(pint_env, helium)
+
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(helium_solvent_type), POINTER       :: helium
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'helium_intpot_scan', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ic, ix, iy, iz, nbin
+    LOGICAL                                  :: wrapped
+    REAL(KIND=dp)                            :: delr, my_en, ox, oy, oz
+    REAL(kind=dp), DIMENSION(3)              :: pbc1, pbc2, pos
+
+    CALL timeset(routineN,handle)
+
+    nbin = helium%rho_nbin
+    delr = helium%rho_delr
+    ox = helium%center(1) - helium%rho_maxr / 2.0_dp
+    oy = helium%center(2) - helium%rho_maxr / 2.0_dp
+    oz = helium%center(3) - helium%rho_maxr / 2.0_dp
+
+    DO ix = 1, nbin
+      DO iy = 1, nbin
+        DO iz = 1, nbin
+
+          ! put the probe in the center of the current voxel
+          pos(:) = (/ox+(ix-0.5_dp)*delr, oy+(iy-0.5_dp)*delr, oz+(iz-0.5_dp)*delr/)
+
+          ! calc interaction energy for the current probe position
+          helium%pos(:,1,1) = pos(:)
+          CALL helium_bead_solute_e_f(pint_env,helium,1,1,energy=my_en)
+
+          ! check if the probe fits within the unit cell
+          pbc1(:) = pos(:) - helium%center
+          pbc2(:) = pbc1(:)
+          CALL helium_pbc( helium, pbc2 )
+          wrapped = .FALSE.
+          DO ic = 1, 3
+            IF (ABS(pbc1(ic)-pbc2(ic)) .GT. 10.0_dp * EPSILON(0.0_dp)) THEN
+              wrapped = .TRUE.
+            END IF
+          END DO
+
+          ! set the interaction energy value
+          IF (wrapped) THEN
+            helium%rho_inst(1,ix,iy,iz) = 0.0_dp
+          ELSE
+            helium%rho_inst(1,ix,iy,iz) = my_en
+          END IF
+
+        END DO
+      END DO
+    END DO
+
+    CALL timestop(handle)
+
+    RETURN
+  END SUBROUTINE helium_intpot_scan
+
+
+! ***************************************************************************
+!> \brief Calculate model helium-solute interaction energy and forces 
+!>        between one helium bead and the corresponding solute time 
+!>        slice asuming water solute.
+!> \param solute_x  solute positions ARR(3*NATOMS)
+!> \param solute_i  solute indices, mapping from instances of a given element
+!>        to global atom indices
+!> \param helium    only needed for helium_pbc call at the moment
+!> \param helium_x  helium bead position ARR(3)
+!> \param energy    calculated interaction energy
+!> \param force ...
+!> \author Felix Uhl
+! *****************************************************************************
+  SUBROUTINE helium_intpot_model_water(solute_x, solute_i, helium, helium_x, energy, force)
+
+
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: solute_x
+    TYPE(int_arr_ptr), DIMENSION(:), &
+      INTENT(IN)                             :: solute_i
+    TYPE(helium_solvent_type), POINTER       :: helium
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: helium_x
+    REAL(KIND=dp), INTENT(OUT)               :: energy
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(OUT), OPTIONAL, POINTER         :: force
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'helium_intpot_model_water', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ig, num_chlorine, &
+                                                num_hydrogen, num_oxygen
+    REAL(KIND=dp)                            :: d, d2, dd, ep, eps, s1, s2, &
+                                                sig
+    REAL(KIND=dp), DIMENSION(3)              :: dr, solute_r
+
+      IF (ASSOCIATED(solute_i(hid_chlorine)%iap)) THEN
+        num_chlorine = SIZE(solute_i(hid_chlorine)%iap)
+      ELSE
+        num_chlorine = 0
+      END IF
+
+      IF (ASSOCIATED(solute_i(hid_oxygen)%iap)) THEN
+        num_oxygen = SIZE(solute_i(hid_oxygen)%iap)
+      ELSE
+        num_oxygen = 0
+      END IF
+
+      IF (ASSOCIATED(solute_i(hid_hydrogen)%iap)) THEN
+        num_hydrogen = SIZE(solute_i(hid_hydrogen)%iap)
+      ELSE
+        num_hydrogen = 0
+      END IF
+       
+      energy = 0.0_dp
+      IF (PRESENT(force)) THEN
+          force(:) = 0.0_dp
+      END IF
+
+      sig = 2.69_dp     ! 1.4 Angstrom
+      eps = 60.61e-6_dp ! 19 K
+      s1 = 0.0_dp
+      DO i = 1, num_hydrogen
+      ig = solute_i(hid_hydrogen)%iap(i)-1 ! global hydrogen index (3 == H)
+      solute_r(1) = solute_x(3*ig+1)
+      solute_r(2) = solute_x(3*ig+2)
+      solute_r(3) = solute_x(3*ig+3)
+      dr(:) = solute_r(:) - helium_x(:)
+      CALL helium_pbc( helium, dr )
+      d2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
+      d = SQRT(d2)
+      dd = (sig/d)**6
+      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
+      s1 = s1 + ep
+      s2 = 24.0_dp*eps*dd*(2.0_dp*dd-1.0_dp)/d2
+      IF (PRESENT(force)) THEN
+          force(3*ig+1) = force(3*ig+1) + s2*dr(1)
+          force(3*ig+2) = force(3*ig+2) + s2*dr(2)
+          force(3*ig+3) = force(3*ig+3) + s2*dr(3)
+      END IF
+      END DO ! i = 1, num_hydrogen
+      energy = energy + s1
+
+      sig = 5.01_dp     ! 2.6 Angstrom
+      eps = 104.5e-6_dp ! 33 K
+      s1 = 0.0_dp
+      DO i = 1, num_oxygen
+      ig = solute_i(hid_oxygen)%iap(i)-1 ! global oxygen index (2 == O)
+      solute_r(1) = solute_x(3*ig+1)
+      solute_r(2) = solute_x(3*ig+2)
+      solute_r(3) = solute_x(3*ig+3)
+      dr(:) = solute_r(:) - helium_x(:)
+      CALL helium_pbc( helium, dr )
+      d2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
+      d = SQRT(d2)
+      dd = (sig/d)**6
+      ep = 4.0_dp*eps*dd*(dd-1.0_dp)
+      s1 = s1 + ep
+      s2 = 24.0_dp*eps*dd*(2.0_dp*dd-1.0_dp)/d2
+      IF (PRESENT(force)) THEN
+          force(3*ig+1) = force(3*ig+1) + s2*dr(1)
+          force(3*ig+2) = force(3*ig+2) + s2*dr(2)
+          force(3*ig+3) = force(3*ig+3) + s2*dr(3)
+      END IF
+      END DO ! i = 1, num_chlorine
+      energy = energy + s1
+
+      RETURN
+
+END SUBROUTINE helium_intpot_model_water
+
+
 
 ! ***************************************************************************
 !> \brief Helium-helium pair interaction potential.
@@ -497,6 +553,11 @@ vkin = 0.0_dp
           ((0.1781_dp*x2+0.4253785_dp)*x2+1.3732412_dp)*x2*x2*x2)
     RETURN
   END FUNCTION helium_vij
+
+
+#if 0
+
+  ! this block is currently turned off
 
 ! ***************************************************************************
 !> \brief Helium-helium pair interaction potential's derivative.
@@ -529,5 +590,225 @@ vkin = 0.0_dp
            r*kelvin )
     RETURN
   END FUNCTION helium_d_vij
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param n ...
+!> \param i ...
+!> \retval res ...
+! *****************************************************************************
+  FUNCTION helium_atom_action(helium,n,i) RESULT(res)
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    INTEGER, INTENT(IN)                      :: n, i
+    REAL(KIND=dp)                            :: res
+
+    INTEGER                                  :: c, j
+    REAL(KIND=dp)                            :: r(3), rp(3), s, t
+
+    s = 0.0_dp
+    t = 0.0_dp
+    IF (n < helium%beads) THEN
+      DO c = 1, 3
+        r(c) = helium%pos(c,i,n) - helium%pos(c,i,n+1)
+      END DO
+      CALL helium_pbc( helium, r )
+      t = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
+      DO j = 1, i-1
+        DO c = 1, 3
+          r(c)  = helium%pos(c,i,n) - helium%pos(c,j,n)
+          rp(c) = helium%pos(c,i,n+1) - helium%pos(c,j,n+1)
+        END DO
+        CALL helium_pbc( helium, r )
+        CALL helium_pbc( helium, rp )
+        s = s + helium_eval_expansion(helium,r,rp,helium%uij,1)
+      END DO
+      DO j = i+1, helium%atoms
+        DO c = 1, 3
+          r(c)  = helium%pos(c,i,n) - helium%pos(c,j,n)
+          rp(c) = helium%pos(c,i,n+1) - helium%pos(c,j,n+1)
+        END DO
+        CALL helium_pbc( helium, r )
+        CALL helium_pbc( helium, rp )
+        s = s + helium_eval_expansion(helium,r,rp,helium%uij,1)
+      END DO
+    ELSE
+      DO c = 1, 3
+        r(c) = helium%pos(c,i,n) - helium%pos(c,helium%permutation(i),1)
+      END DO
+      CALL helium_pbc( helium, r )
+      t = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
+      DO j = 1, i-1
+        DO c = 1, 3
+          r(c)  = helium%pos(c,i,n) - helium%pos(c,j,n)
+          rp(c) = helium%pos(c,helium%permutation(i),1) - helium%pos(c,helium%permutation(j),1)
+        END DO
+        CALL helium_pbc( helium, r )
+        CALL helium_pbc( helium, rp )
+        s = s + helium_eval_expansion(helium,r,rp,helium%uij,1)
+      END DO
+      DO j = i+1, helium%atoms
+        DO c = 1, 3
+          r(c)  = helium%pos(c,i,n) - helium%pos(c,j,n)
+          rp(c) = helium%pos(c,helium%permutation(i),1) - helium%pos(c,helium%permutation(j),1)
+        END DO
+        CALL helium_pbc( helium, r )
+        CALL helium_pbc( helium, rp )
+        s = s + helium_eval_expansion(helium,r,rp,helium%uij,1)
+      END DO
+    END IF
+    t = t / (2.0_dp*helium%tau*helium%hb2m)
+    s = s * 0.5_dp
+    res = s+t
+    RETURN
+
+  END FUNCTION helium_atom_action
+
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param n ...
+!> \retval res ...
+! *****************************************************************************
+  FUNCTION helium_link_action(helium,n) RESULT(res)
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    INTEGER, INTENT(IN)                      :: n
+    REAL(KIND=dp)                            :: res
+
+    INTEGER                                  :: c, i, j
+    REAL(KIND=dp)                            :: r(3), rp(3), s, t
+
+    s = 0.0_dp
+    t = 0.0_dp
+    IF (n < helium%beads) THEN
+      DO i = 1, helium%atoms
+        DO c = 1, 3
+          r(c) = helium%pos(c,i,n) - helium%pos(c,i,n+1)
+        END DO
+        CALL helium_pbc( helium, r )
+        t = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
+        DO j = 1, i-1
+          DO c = 1, 3
+            r(c)  = helium%pos(c,i,n) - helium%pos(c,j,n)
+            rp(c) = helium%pos(c,i,n+1) - helium%pos(c,j,n+1)
+          END DO
+          CALL helium_pbc( helium, r )
+          CALL helium_pbc( helium, rp )
+          s = s + helium_eval_expansion(helium,r,rp,helium%uij,1)
+        END DO
+      END DO
+    ELSE
+      DO i = 1, helium%atoms
+        DO c = 1, 3
+          r(c) = helium%pos(c,i,n) - helium%pos(c,helium%permutation(i),1)
+        END DO
+        CALL helium_pbc( helium, r )
+        t = r(1)*r(1) + r(2)*r(2) + r(3)*r(3)
+        DO j = 1, i-1
+          DO c = 1, 3
+            r(c)  = helium%pos(c,i,n) - helium%pos(c,j,n)
+            rp(c) = helium%pos(c,helium%permutation(i),1) - helium%pos(c,helium%permutation(j),1)
+          END DO
+          CALL helium_pbc( helium, r )
+          CALL helium_pbc( helium, rp )
+          s = s + helium_eval_expansion(helium,r,rp,helium%uij,1)
+        END DO
+      END DO
+    END IF
+    t = t / (2.0_dp*helium%tau*helium%hb2m)
+    res = s+t
+    RETURN
+
+  END FUNCTION helium_link_action
+
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \retval res ...
+! *****************************************************************************
+  FUNCTION helium_total_action(helium) RESULT(res)
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    REAL(KIND=dp)                            :: res
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: s
+
+    s = 0.0_dp
+    DO i = 1, helium%beads
+      s = s + helium_link_action(helium,i)
+    END DO
+    res = s
+    RETURN
+
+  END FUNCTION helium_total_action
+
+! *****************************************************************************
+!> \brief ...
+!> \param helium ...
+!> \param part ...
+!> \param ref_bead ...
+!> \param delta_bead ...
+!> \param d ...
+! *****************************************************************************
+  SUBROUTINE helium_delta_pos(helium,part,ref_bead,delta_bead,d)
+
+    TYPE(helium_solvent_type), POINTER       :: helium
+    INTEGER, INTENT(IN)                      :: part, ref_bead, delta_bead
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: d
+
+    INTEGER                                  :: b, bead, db, nbead, np, p
+    REAL(KIND=dp), DIMENSION(3)              :: r
+
+    b = helium%beads
+
+    d(:) = 0.0_dp
+    IF (delta_bead > 0) THEN
+      bead = ref_bead
+      p = part
+      db = delta_bead
+      DO
+        IF (db < 1) EXIT
+        nbead = bead + 1
+        np = p
+        IF (nbead > b) THEN
+          nbead = nbead - b
+          np = helium%permutation(np)
+        END IF
+        r(:) = helium%pos(:,p,bead) - helium%pos(:,np,nbead)
+        CALL helium_pbc( helium, r )
+        d(:) = d(:) + r(:)
+        bead = nbead
+        p = np
+        db = db-1
+      END DO
+    ELSEIF ( delta_bead < 0) THEN
+      bead = ref_bead
+      p = part
+      db = delta_bead
+      DO
+        IF (db >= 0) EXIT
+        nbead = bead - 1
+        np = p
+        IF (nbead < 1) THEN
+          nbead = nbead + b
+          np = helium%iperm(np)
+        END IF
+        r(:) = helium%pos(:,p,bead) - helium%pos(:,np,nbead)
+        CALL helium_pbc( helium, r )
+        d(:) = d(:) + r(:)
+        bead = nbead
+        p = np
+        db = db + 1
+      END DO
+    END IF
+    RETURN
+  END SUBROUTINE helium_delta_pos
+
+#endif
+
 
 END MODULE helium_interactions

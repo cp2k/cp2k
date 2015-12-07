@@ -1,7 +1,5 @@
-#CPQA DEPENDS water-in-helium.inp
-
 &GLOBAL
-  PROJECT_NAME               water-in-helium-restart
+  PROJECT_NAME               water-in-helium-lastforce
   RUN_TYPE                   PINT
   PRINT_LEVEL                MEDIUM
 &END GLOBAL
@@ -22,6 +20,7 @@
     &HELIUM
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
+      GET_FORCES             LAST
       NATOMS                32
       NBEADS                16
       INOROT               200
@@ -66,16 +65,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-
-&EXT_RESTART
-  RESTART_FILE_NAME          water-in-helium-1.restart
-  RESTART_DEFAULT            F
-  RESTART_COUNTERS
-  RESTART_PINT_POS
-  RESTART_PINT_VEL
-  RESTART_PINT_NOSE
-  RESTART_HELIUM_POS
-  RESTART_HELIUM_PERMUTATION
-  RESTART_HELIUM_RNG
-  RESTART_HELIUM_FORCE
-&END EXT_RESTART

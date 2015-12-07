@@ -27,9 +27,14 @@ MODULE input_cp2k_motion
        default_minimization_method_id, default_ts_method_id, do_mc_gemc_npt, &
        do_mc_gemc_nvt, do_mc_traditional, do_mc_virial, fmt_id_pdb, &
        fmt_id_xyz, gaussian, helium_cell_shape_cube, &
-       helium_cell_shape_octahedron, integrate_exact, integrate_numeric, &
-       ls_2pnt, ls_3pnt, ls_fit, ls_gold, ls_none, matrix_init_cholesky, &
-       matrix_init_diagonal, numerical, propagator_pimd, propagator_rpmd, &
+       helium_cell_shape_octahedron, helium_forces_average, &
+       helium_forces_last, helium_mdist_exponential, helium_mdist_gaussian, &
+       helium_mdist_linear, helium_mdist_quadratic, helium_mdist_singlev, &
+       helium_mdist_uniform, helium_sampling_ceperley, &
+       helium_solute_intpot_mwater, helium_solute_intpot_none, &
+       integrate_exact, integrate_numeric, ls_2pnt, ls_3pnt, ls_fit, ls_gold, &
+       ls_none, matrix_init_cholesky, matrix_init_diagonal, numerical, &
+       perm_cycle, perm_plain, propagator_pimd, propagator_rpmd, &
        transformation_normal, transformation_stage
   USE input_cp2k_constraints,          ONLY: create_constraint_section
   USE input_cp2k_free_energy,          ONLY: create_fe_section
@@ -51,6 +56,7 @@ MODULE input_cp2k_motion
                                              section_release,&
                                              section_type
   USE input_val_types,                 ONLY: integer_t,&
+                                             logical_t,&
                                              real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
@@ -1922,15 +1928,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, subsection, &
-                                                subsubsection
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     CPASSERT(.NOT.ASSOCIATED(section))
 
     CALL section_create(section,name="HELIUM",&
          description="The section that controls optional helium solvent"// &
          " environment (highly experimental, not for general use yet)",&
-         n_keywords=11, n_subsections=4, repeats=.FALSE.)
+         n_keywords=28, n_subsections=9, repeats=.FALSE.)
 
     NULLIFY(keyword)
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -1942,6 +1947,14 @@ CONTAINS
     CALL keyword_create(keyword, name="HELIUM_ONLY",&
          description="Simulate helium solvent only, "//&
          "disregard solute entirely",&
+         repeats=.FALSE., default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="INTERACTION_POT_SCAN",&
+         description="Scan solute-helium interaction potential, "//&
+         "cubefile parameters set in subsection RHO",&
          repeats=.FALSE., default_l_val=.FALSE.,&
          lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(section,keyword)
@@ -1960,6 +1973,29 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="GET_FORCES",&
+         description="Get average MC forces or last MC forces to propagate MD",&
+         usage="GET_FORCES (AVERAGE|LAST)",&
+         default_i_val=helium_forces_average,&
+         enum_c_vals=s2a("AVERAGE","LAST"),&
+         enum_i_vals=(/helium_forces_average,helium_forces_last/))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="SOLUTE_INTERACTION", &
+         description="Interaction potential between helium and the solute",&
+         usage="SOLUTE_INTERACTION (NONE | MWATER)",&
+         default_i_val=helium_solute_intpot_none,&
+         enum_c_vals=s2a("NONE", "MWATER"),&
+         enum_i_vals=(/&
+           helium_solute_intpot_none, &
+           helium_solute_intpot_mwater/), &
+         enum_desc=s2a(&
+           "No interaction with solute", &
+           "Test interaction with wrong Water"))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="NATOMS", &
          description="Number of helium atoms",&
          repeats=.FALSE., default_i_val=64)
@@ -1972,15 +2008,19 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="INOROT", &
-         description="Number of MC iterations at the same time slice(s)",&
-         repeats=.FALSE., default_i_val=10000)
+    CALL keyword_create(keyword, name="N_INNER", &
+         variants=s2a("INOROT"),&
+         description="Number of MC iterations at the same time slice(s) "//&
+           "(number of inner MC loop iterations)",&
+         repeats=.FALSE., default_i_val=6600)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="IROT", &
-         description="how often to reselect the time slice(s) to work on",&
-         repeats=.FALSE., default_i_val=10000)
+    CALL keyword_create(keyword, name="N_OUTER", &
+         variants=s2a("IROT"),&
+         description="how often to reselect the time slice(s) to work on "//&
+           "(number of outer MC loop iterations)",&
+         repeats=.FALSE., default_i_val=300)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -1997,12 +2037,42 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="SAMPLING_METHOD",&
+         description="Choose between Ceperley or other not implemented algorithms",&
+         usage="SAMPLING_METHOD (CEPERLEY)",&
+         default_i_val=helium_sampling_ceperley,&
+         enum_c_vals=s2a("CEPERLEY"),&
+         enum_i_vals=(/helium_sampling_ceperley/))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     NULLIFY(subsection)
     CALL section_create(subsection,name="M-SAMPLING",&
          description="Permutation cycle length sampling settings",&
-         n_keywords=2, n_subsections=0, repeats=.FALSE.)
+         n_keywords=3, n_subsections=0, repeats=.FALSE.)
+    CALL keyword_create(keyword, name="DISTRIBUTION-TYPE", &
+         description="Distribution from which the cycle length m is sampled",&
+         usage="DISTRIBUTION-TYPE (SINGLEV|UNIFORM|LINEAR|QUADRATIC|EXPONENTIAL|GAUSSIAN)",&
+         default_i_val=helium_mdist_uniform,&
+         enum_c_vals=s2a(&
+           "SINGLEV",&
+           "UNIFORM",&
+           "LINEAR",&
+           "QUADRATIC",&
+           "EXPONENTIAL",&
+           "GAUSSIAN"),&
+         enum_i_vals=(/&
+           helium_mdist_singlev,&
+           helium_mdist_uniform,&
+           helium_mdist_linear,&
+           helium_mdist_quadratic,&
+           helium_mdist_exponential,&
+           helium_mdist_gaussian/))
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
     CALL keyword_create(keyword, name="M-VALUE", &
-         description="Value of m treated in a special way",&
+         description="Value of m treated in a special way "//&
+           "(specific behavior depends on the distribution type chosen)",&
          repeats=.FALSE.,&
          default_i_val=1)
     CALL section_add_keyword(subsection,keyword)
@@ -2039,6 +2109,14 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="DROPLET_RADIUS", &
+         description="Reject a move if any of the new positions does not lie within"//&
+         "  this range from the center of gravity",&
+         repeats=.FALSE.,type_of_var=real_t,default_r_val=HUGE(1.0_dp),&
+         unit_str="angstrom")
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="DENSITY", &
          description="trial density of helium for determining the helium "//&
          "box size",&
@@ -2062,27 +2140,42 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL section_create(subsection,name="RDF",&
-         description="Radial distribution function generation settings",&
-         n_keywords=2, n_subsections=0, repeats=.FALSE.)
+         description="Radial distribution settings",&
+         n_keywords=4, n_subsections=0, repeats=.FALSE.)
+
+    CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+         description="Whether or not to actually calculate this property",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="MAXR", &
          description="Maximum RDF range, defaults to unit cell size",&
          repeats=.FALSE.,type_of_var=real_t,&
          unit_str="angstrom")
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="NBIN", &
          description="Number of bins",&
          repeats=.FALSE.,&
-         default_i_val=700)
+         default_i_val=250)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CENTERS_FILE_NAME",&
+         description="Calculate RDFs wrt centers read from a file",&
+         repeats=.FALSE., default_lc_val="centers.xyz")
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 
     NULLIFY(subsection)
     CALL section_create(subsection,name="RHO",&
-         description="Density distribution settings",&
-         n_keywords=2, n_subsections=0, repeats=.FALSE.)
+         description="Spatial distribution settings",&
+         n_keywords=10, n_subsections=0, repeats=.FALSE.)
     CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
          description="Whether or not to actually calculate densities "//&
          "(requires significant amount of memory, depending on the value of NBIN)",&
@@ -2090,33 +2183,80 @@ CONTAINS
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
     CALL keyword_create(keyword, name="NBIN", &
-         description="Number of bins",&
+         description="Number of grid points in each direction for density binning",&
          repeats=.FALSE.,&
          default_i_val=100)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="IWEIGHT", &
-         description="Weight the restarted density should be given " // &
-         "(number of MC steps used to average the restarted density, " // &
-         "negative value - the same weight as the run-time density, " // &
-         "usually should not be changed)",&
-         repeats=.FALSE.,&
-         default_i_val=-1)
+    !
+    CALL keyword_create(keyword, name="MIN_CYCLE_LENGTHS_WDG",&
+         description="Density of winding paths "// &
+         "not shorter than the given length", &
+         repeats=.FALSE.,usage="<INT> <INT> .. <INT>",&
+         type_of_var=integer_t, n_var=-1)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
-
-    NULLIFY(subsubsection)
-    CALL section_create(subsubsection,name="CUBE_DATA",&
-         description="Density data used for restarts",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE.)
-    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-         description="Cubefile data", &
-         repeats=.TRUE., usage="{Real} ...",&
-         type_of_var=real_t, n_var=-1)
-    CALL section_add_keyword(subsubsection,keyword)
+    !
+    CALL keyword_create(keyword, name="MIN_CYCLE_LENGTHS_NON",&
+         description="Density of non-winding paths "// &
+         "not shorter than the given length", &
+         repeats=.FALSE.,usage="<INT> <INT> .. <INT>",&
+         type_of_var=integer_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
-    CALL section_add_subsection(subsection,subsubsection)
-    CALL section_release(subsubsection)
+    !
+    CALL keyword_create(keyword, name="MIN_CYCLE_LENGTHS_ALL",&
+         description="Density of all paths "// &
+         "not shorter than the given length", &
+         repeats=.FALSE.,usage="<INT> <INT> .. <INT>",&
+         type_of_var=integer_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    !
+    CALL keyword_create(keyword, name="ATOM_NUMBER",&
+         description="Atom number density",&
+         repeats=.FALSE.,&
+         type_of_var=logical_t,&
+         default_l_val=.TRUE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    !
+    CALL keyword_create(keyword, name="PROJECTED_AREA_2",&
+         description="Projected area squared density, A*A(r)",&
+         repeats=.FALSE.,&
+         type_of_var=logical_t,&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    !
+    CALL keyword_create(keyword, name="WINDING_NUMBER_2",&
+         description="Winding number squared density, W*W(r)",&
+         repeats=.FALSE.,&
+         type_of_var=logical_t,&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    !
+    CALL keyword_create(keyword, name="WINDING_CYCLE_2",&
+         description="Winding number squared density, W^2(r)",&
+         repeats=.FALSE.,&
+         type_of_var=logical_t,&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    !
+    CALL keyword_create(keyword, name="MOMENT_OF_INERTIA",&
+         description="Moment of inertia density",&
+         repeats=.FALSE.,&
+         type_of_var=logical_t,&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
 
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
@@ -2131,8 +2271,57 @@ CONTAINS
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
          description="Specify particle index permutation for every "// &
-         "helium atom",repeats=.TRUE.,usage="{Integer} ...",&
+         "helium atom",repeats=.TRUE.,usage="<INT> <INT> .. <INT>",&
          type_of_var=integer_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
+    CALL section_create(subsection,name="AVERAGES",&
+         description="Average properties (used for restarts)",&
+         n_keywords=7, n_subsections=0, repeats=.FALSE.)
+    CALL keyword_create(keyword, name="PROJECTED_AREA",&
+         description="Projected area vector for all environments", &
+         repeats=.TRUE.,usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="PROJECTED_AREA_2",&
+         description="Projected area vector squared for all environments", &
+         repeats=.TRUE.,usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="WINDING_NUMBER_2",&
+         description="Winding number vector squared for all environments", &
+         repeats=.TRUE.,usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="MOMENT_OF_INERTIA",&
+         description="Moment of inertia vector for all environments", &
+         repeats=.TRUE.,usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="RDF",&
+         description="Radial distributions averaged over all environments", &
+         repeats=.TRUE.,usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="RHO",&
+         description="Spatial distributions averaged over all environments", &
+         repeats=.TRUE.,usage="<REAL> <REAL> .. <REAL>",&
+         type_of_var=real_t, n_var=-1)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="IWEIGHT", &
+         description="Weight for the restarted quantities " // &
+         "(number of MC steps used to calculate the accumulated averages)", &
+         repeats=.FALSE.,&
+         default_i_val=0)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
     CALL section_add_subsection(section,subsection)
@@ -2141,11 +2330,11 @@ CONTAINS
     CALL section_create(subsection,name="FORCE",&
          description="Forces exerted by the helium on the solute system"//&
          " (used for restarts)",&
-         n_keywords=0, n_subsections=0, repeats=.FALSE.)
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
     CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
          description="Number of real values should be 3 * "//&
          "<num_solute_atoms> * <num_solute_beads>", repeats=.TRUE., &
-         usage="{Real} ...", type_of_var=real_t, &
+         usage="<REAL> <REAL> .. <REAL>", type_of_var=real_t, &
          n_var=-1)
     CALL section_add_keyword(subsection,keyword)
     CALL keyword_release(keyword)
@@ -2167,7 +2356,7 @@ CONTAINS
 
     CALL section_create(subsection,name="PRINT",&
          description="The section that controls the output of the helium code",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+         n_keywords=15, n_subsections=0, repeats=.FALSE.)
 
     ! *************************************************************************
     !> Printkeys for properites output
@@ -2180,38 +2369,35 @@ CONTAINS
     ! Properties printed at LOW print level
     !
     CALL cp_print_key_section_create(print_key,"ENERGY",&
-         description="Controls the output of the helium energies"//&
+         description="Controls the output of helium energies"//&
          " (averaged over MC step)", &
          print_level=low_print_level,common_iter_levels=1)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
-
-    CALL cp_print_key_section_create(print_key,"SDENSITY",&
-         description="Controls the output of the helium superfluid density",&
+    !
+    CALL cp_print_key_section_create(print_key,"PROJECTED_AREA_2_AVG",&
+         description="Controls the output of the average projected area squared vector",&
+         print_level=low_print_level,common_iter_levels=1)
+    CALL section_add_subsection(subsection,print_key)
+    CALL section_release(print_key)
+    !
+    CALL cp_print_key_section_create(print_key,"WINDING_NUMBER_2_AVG",&
+         description="Controls the output of the average winding number vector squared",&
+         print_level=low_print_level,common_iter_levels=1)
+    CALL section_add_subsection(subsection,print_key)
+    CALL section_release(print_key)
+    !
+    CALL cp_print_key_section_create(print_key,"MOMENT_OF_INERTIA_AVG",&
+         description="Controls the output of the average moment of inertia vector",&
          print_level=low_print_level,common_iter_levels=1)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
 
+
     ! Properties printed at MEDIUM print level
     !
-    CALL cp_print_key_section_create(print_key,"COORDINATES",&
-         description="Controls the output of helium coordinates",&
-         print_level=medium_print_level,common_iter_levels=1)
-    CALL keyword_create(keyword, name="FORMAT",&
-         description="Output file format for the coordinates",&
-         usage="FORMAT (PDB|XYZ)",&
-         default_i_val=fmt_id_pdb,&
-         enum_c_vals=s2a("PDB","XYZ"),&
-         enum_i_vals= (/fmt_id_pdb,fmt_id_xyz/),&
-         enum_desc=s2a( "Bead coordinates and connectivity is written in PDB format",&
-                        "Only bead coordinates are written in XYZ format"))
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL section_add_subsection(subsection,print_key)
-    CALL section_release(print_key)
-
     CALL cp_print_key_section_create(print_key,"RDF",&
-         description="Controls the output of the helium radial distribution function",&
+         description="Controls the output of helium radial distribution functions",&
          print_level=medium_print_level,common_iter_levels=1)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
@@ -2230,7 +2416,25 @@ CONTAINS
     CALL keyword_release(keyword)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
-
+    !
+    CALL cp_print_key_section_create(print_key,"PROJECTED_AREA",&
+         description="Controls the output of the projected area vector",&
+         print_level=medium_print_level,common_iter_levels=1)
+    CALL section_add_subsection(subsection,print_key)
+    CALL section_release(print_key)
+    !
+    CALL cp_print_key_section_create(print_key,"WINDING_NUMBER",&
+         description="Controls the output of the winding number vector",&
+         print_level=medium_print_level,common_iter_levels=1)
+    CALL section_add_subsection(subsection,print_key)
+    CALL section_release(print_key)
+    !
+    CALL cp_print_key_section_create(print_key,"MOMENT_OF_INERTIA",&
+         description="Controls the output of the moment of inertia vector",&
+         print_level=medium_print_level,common_iter_levels=1)
+    CALL section_add_subsection(subsection,print_key)
+    CALL section_release(print_key)
+    !
     CALL cp_print_key_section_create(print_key,"PLENGTH",&
          description="Controls the output of the helium permutation length",&
          print_level=medium_print_level,common_iter_levels=1)
@@ -2239,15 +2443,37 @@ CONTAINS
 
     ! Properties printed at HIGH print level
     !
-    CALL cp_print_key_section_create(print_key,"ACCEPTS",&
-         description="Controls the output of the helium acceptance data",&
+    CALL cp_print_key_section_create(print_key,"COORDINATES",&
+         description="Controls the output of helium coordinates",&
          print_level=high_print_level,common_iter_levels=1)
+    CALL keyword_create(keyword, name="FORMAT",&
+         description="Output file format for the coordinates",&
+         usage="FORMAT (PDB|XYZ)",&
+         default_i_val=fmt_id_pdb,&
+         enum_c_vals=s2a("PDB","XYZ"),&
+         enum_i_vals= (/fmt_id_pdb,fmt_id_xyz/),&
+         enum_desc=s2a( "Bead coordinates and connectivity is written in PDB format",&
+                        "Only bead coordinates are written in XYZ format"))
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
-
+    !
     CALL cp_print_key_section_create(print_key,"PERM",&
          description="Controls the output of the helium permutation state",&
          print_level=high_print_level,common_iter_levels=1)
+   CALL keyword_create(keyword, name="FORMAT",&
+         description="Output format for the permutation",&
+         usage="FORMAT (CYCLE|PLAIN)",&
+         default_i_val=perm_cycle,&
+         enum_c_vals=s2a("CYCLE","PLAIN"),&
+         enum_i_vals= (/perm_cycle,perm_plain/),&
+         enum_desc=s2a( &
+           "Cycle notation with winding cycles enclosed"//&
+           " in '[...]' and non-winding ones enclosed in '(...)'",&
+           "Plain permutation output, i.e. P(1) ... P(N)"))
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
 
@@ -2259,14 +2485,14 @@ CONTAINS
 
     ! Properties printed at DEBUG print level
     !
-    CALL cp_print_key_section_create(print_key,"FORCES_INST",&
-         description="Controls the output of the instantaneous helium forces on the solute",&
+    CALL cp_print_key_section_create(print_key,"ACCEPTS",&
+         description="Controls the output of the helium acceptance data",&
          print_level=debug_print_level,common_iter_levels=1)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
-
-    CALL cp_print_key_section_create(print_key,"WNUMBER",&
-         description="Controls the output of the helium winding number",&
+    !
+    CALL cp_print_key_section_create(print_key,"FORCES_INST",&
+         description="Controls the output of the instantaneous helium forces on the solute",&
          print_level=debug_print_level,common_iter_levels=1)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)

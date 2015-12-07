@@ -26,6 +26,8 @@ MODULE pint_methods
                                              cp_to_string
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
@@ -43,6 +45,8 @@ MODULE pint_methods
                                              gle_init,&
                                              gle_thermo_create
   USE global_types,                    ONLY: global_environment_type
+  USE helium_interactions,             ONLY: helium_intpot_scan
+  USE helium_io,                       ONLY: helium_write_cubefile
   USE helium_methods,                  ONLY: helium_create,&
                                              helium_init,&
                                              helium_release
@@ -62,7 +66,8 @@ MODULE pint_methods
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_flush,&
+                                             m_walltime
   USE mathconstants,                   ONLY: twopi
   USE mathlib,                         ONLY: gcd
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
@@ -339,6 +344,7 @@ CONTAINS
          pint_env%uv_new(pint_env%p,pint_env%ndim),     &
          pint_env%uf(pint_env%p,pint_env%ndim),         &
          pint_env%uf_h(pint_env%p,pint_env%ndim),       &
+         pint_env%centroid(pint_env%ndim),              &
          pint_env%rtmp_ndim(pint_env%ndim),             &
          pint_env%rtmp_natom(pint_env%ndim/3),          &
          STAT=stat)
@@ -354,6 +360,7 @@ CONTAINS
     pint_env%uv_new   = 0._dp
     pint_env%uf       = 0._dp
     pint_env%uf_h     = 0._dp
+    pint_env%centroid(:) = 0.0_dp
     pint_env%rtmp_ndim= 0._dp
     pint_env%rtmp_natom= 0._dp
     pint_env%time_per_step = 0.0_dp
@@ -610,6 +617,7 @@ CONTAINS
         DEALLOCATE(pint_env%uv_new)
         DEALLOCATE(pint_env%uf)
         DEALLOCATE(pint_env%uf_h)
+        DEALLOCATE(pint_env%centroid)
         DEALLOCATE(pint_env%rtmp_ndim)
         DEALLOCATE(pint_env%rtmp_natom)
         DEALLOCATE(pint_env%propagator)
@@ -731,13 +739,13 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_pint_run', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: helium_only_mid = 1, &
-                                                solute_only_mid = 2, &
-                                                solute_with_helium_mid = 3
+    INTEGER, PARAMETER :: helium_only_mid = 1, int_pot_scan_mid = 4, &
+      solute_only_mid = 2, solute_with_helium_mid = 3
 
+    CHARACTER(len=default_string_length)     :: stmp
     INTEGER                                  :: handle, mode
     LOGICAL                                  :: explicit, helium_only, &
-                                                solvent_present
+                                                int_pot_scan, solvent_present
     TYPE(helium_solvent_type), POINTER       :: helium
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(section_vals_type), POINTER         :: helium_section
@@ -770,13 +778,31 @@ CONTAINS
       helium_only = .FALSE.
     END IF
 
-    ! pick the mode of operation
+    ! check wheather to perform solute-helium interaction pot scan
+    IF (solvent_present) THEN
+      CALL section_vals_val_get(helium_section,"INTERACTION_POT_SCAN",&
+        l_val=int_pot_scan)
+    ELSE
+      int_pot_scan = .FALSE.
+    END IF
+
+    ! input consistency check
+    IF (helium_only .AND. int_pot_scan) THEN
+      stmp = "Options HELIUM_ONLY and INTERACTION_POT_SCAN are exclusive"
+      CPABORT(stmp)
+    END IF
+
+    ! select mode of operation
     mode = 0
     IF (solvent_present) THEN
       IF (helium_only) THEN
         mode = helium_only_mid
       ELSE
-       mode = solute_with_helium_mid
+        IF (int_pot_scan) THEN
+          mode = int_pot_scan_mid
+        ELSE
+          mode = solute_with_helium_mid
+        END IF
       END IF
     ELSE
       mode = solute_only_mid
@@ -797,6 +823,17 @@ CONTAINS
       CALL pint_create(pint_env,input,input_declaration,para_env)
       CALL pint_init(pint_env)
       CALL pint_do_run(pint_env,globenv)
+      CALL pint_release(pint_env)
+
+    CASE (int_pot_scan_mid)
+      CALL pint_create(pint_env,input,input_declaration,para_env)
+! TODO only initialization of positions is necessary, but rep_env_calc_e_f called
+! from within pint_init_f does something to the replica environments which can not be
+! avoided (has something to do with f_env_add_defaults) so leaving for now..
+      CALL pint_init(pint_env)
+      CALL helium_create(helium,input,solute=pint_env)
+      CALL pint_run_scan(pint_env, globenv, helium)
+      CALL helium_release(helium)
       CALL pint_release(pint_env)
 
     CASE (solute_with_helium_mid)
@@ -1491,6 +1528,19 @@ CONTAINS
     CALL cp_iterate(pint_env%logger%iter_info,iter_nr=pint_env%first_step)
     pint_env%iter = pint_env%first_step
 
+    IF (PRESENT(helium)) THEN
+      IF (ASSOCIATED(helium)) THEN
+        ! set the properties accumulated over the whole MC process to 0
+        helium%proarea%accu(:) = 0.0_dp
+        helium%prarea2%accu(:) = 0.0_dp
+        helium%wnmber2%accu(:) = 0.0_dp
+        helium%mominer%accu(:) = 0.0_dp
+        IF (helium%rho_present) THEN
+          helium%rho_accu(:,:,:,:) = 0.0_dp
+        END IF
+      END IF
+    END IF
+
     ! write the properties at 0-th step
     CALL pint_calc_energy(pint_env)
     CALL pint_write_ener(pint_env)
@@ -1539,6 +1589,73 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_do_run
 
+  ! ***************************************************************************
+  !> \brief  Performs a scan of the helium-solute interaction energy
+  !> \author Lukasz Walewski
+  !> \date   2013-11-26
+  ! ***************************************************************************
+! *****************************************************************************
+!> \brief ...
+!> \param pint_env ...
+!> \param globenv ...
+!> \param helium ...
+! *****************************************************************************
+  SUBROUTINE pint_run_scan(pint_env, globenv, helium)
+    TYPE(pint_env_type), POINTER             :: pint_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(helium_solvent_type), POINTER       :: helium
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pint_run_scan', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: comment
+    INTEGER                                  :: unit_nr
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: DATA
+    TYPE(section_vals_type), POINTER         :: print_key
+
+    NULLIFY(pint_env%logger, print_key)
+    pint_env%logger => cp_get_default_logger()
+    print_key => section_vals_get_subs_vals(helium%input, &
+      "MOTION%PINT%HELIUM%PRINT%RHO")
+
+    ! perform the actual scan wrt the COM of the solute
+    helium%rho_inst(1,:,:,:) = 0.0_dp
+    CALL helium_intpot_scan(pint_env, helium)
+
+    ! output the interaction potential into a cubefile
+    IF (pint_env%logger%para_env%ionode) THEN
+
+      unit_nr=cp_print_key_unit_nr( &
+        pint_env%logger, &
+        print_key, &
+        middle_name="helium-pot", &
+        extension=".cube", &
+        file_position="REWIND", &
+        do_backup=.FALSE.)
+
+      comment = "Solute - helium interaction potential"
+      NULLIFY(DATA)
+      DATA => helium%rho_inst(1,:,:,:)
+      CALL helium_write_cubefile( &
+        unit_nr, &
+        comment, &
+        helium%center-0.5_dp*(helium%rho_maxr-helium%rho_delr), &
+        helium%rho_delr, &
+        helium%rho_nbin, &
+        DATA )
+
+      CALL m_flush(unit_nr)
+      CALL cp_print_key_finished_output(unit_nr,pint_env%logger,print_key)
+
+    END IF
+
+    ! output solute positions
+    CALL pint_write_centroids(pint_env)
+    CALL pint_write_trajectory(pint_env)
+
+    RETURN
+  END SUBROUTINE pint_run_scan
 
 ! ***************************************************************************
 !> \brief  Does an MD step (and nrespa harmonic evaluations)

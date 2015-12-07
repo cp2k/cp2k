@@ -74,7 +74,9 @@ MODULE bibliography
        Khaliullin2007, Khaliullin2008, Merlot2014, Lin2009, Lin2013,   &
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
-       Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012, Ceriotti2010
+       Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012,             &
+       Ceriotti2010, Walewski2014
+
 
 CONTAINS
 
@@ -2377,6 +2379,31 @@ CONTAINS
          "AR 041108(R)",&
          "ER"),&
          DOI="10.1103/PhysRevB.87.041108")
+
+    CALL add_reference(key=Walewski2014, ISI_record=s2a(&
+         "PT J",&
+         "AU Walewski, L",&
+         "   Forbert, H",&
+         "   Marx, D",&
+         "AF Walewski, Lukasz",&
+         "   Forbert, Harald",&
+         "   Marx, Dominik",&
+         "TI Reactive path integral quantum simulations of molecules solvated in",&
+         "   superfluid helium",&
+         "SO COMPUTER PHYSICS COMMUNICATIONS",&
+         "DE Cryochemistry; Superfluidity; Helium; Solvation; Path integrals",&
+         "NR 153",&
+         "SN 0010-4655",&
+         "PD MAR",&
+         "PY 2014",&
+         "VL 185",&
+         "IS 3",&
+         "BP 884",&
+         "EP 899",&
+         "DI 10.1016/j.cpc.2013.12.011",&
+         "UT WOS:000331919100022",&
+         "ER"),&
+         DOI="10.1016/j.cpc.2013.12.011")
 
     CALL add_reference(key=Delben2013, ISI_record=s2a(&
          "PT J",&

@@ -288,6 +288,41 @@ MODULE input_constants
                                               helium_cell_shape_cube=1,&
                                               helium_cell_shape_octahedron=2
 
+  ! helium-solute interaction potentials
+  INTEGER, PARAMETER, PUBLIC               :: helium_solute_intpot_none=0,&
+                                              helium_solute_intpot_mwater=1
+
+  ! helium force selection
+  INTEGER, PARAMETER, PUBLIC               :: helium_forces_average = 0, &
+                                              helium_forces_last = 1
+  ! superfluid density, estimators
+  INTEGER, PARAMETER, PUBLIC               :: estimator_none=1,&
+                                              estimator_parea=2,&
+                                              estimator_wnumber=3, &
+                                              estimator_pcycle=4, &
+                                              estimator_weighted=5, &
+                                              estimator_normalization=6
+
+  ! superfluid density, denominator selector
+  INTEGER, PARAMETER, PUBLIC               :: denominator_unity=1,&
+                                              denominator_natoms=2,&
+                                              denominator_inertia=3,&
+                                              denominator_rperp2=4
+
+  ! helium-sampling algorithms
+  INTEGER, PARAMETER, PUBLIC               :: helium_sampling_ceperley=0
+
+  ! distribution types for sampling path lengths
+  INTEGER, PARAMETER, PUBLIC               :: helium_mdist_singlev=1,&
+                                              helium_mdist_uniform=2,&
+                                              helium_mdist_linear=3,&
+                                              helium_mdist_quadratic=4,&
+                                              helium_mdist_exponential=5,&
+                                              helium_mdist_gaussian=6
+
+  INTEGER, PARAMETER, PUBLIC               :: perm_plain=1,&
+                                              perm_cycle=2
+
   ! Free Energy methods
   INTEGER, PARAMETER, PUBLIC               :: do_fe_meta=0,&
                                               do_fe_ui=1,&

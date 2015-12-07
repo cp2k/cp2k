@@ -122,7 +122,7 @@ MODULE pint_types
      REAL(KIND=dp), DIMENSION(:), POINTER :: mass,e_pot_bead
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: x,v,f,mass_beads,&
           mass_fict,ux,ux_t,uv,uv_t,uv_new,uf,uf_h, external_f
-
+      REAL(KIND=dp), DIMENSION(:), POINTER :: centroid
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: tx,tv,tv_t,tv_old,tv_new,tf
      REAL(KIND=dp), DIMENSION(:), POINTER :: Q ! dim p, make it (p,ndim)?
      REAL(KIND=dp), DIMENSION(:), POINTER :: rtmp_ndim, rtmp_natom
