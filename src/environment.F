@@ -1012,6 +1012,9 @@ CONTAINS
 
     IF(n==0) THEN
       walltime = -1.0_dp
+    ELSE IF(INDEX(txt,":")==0) THEN
+      READ(txt(1:n), FMT=*, IOSTAT=ierr) walltime
+      IF(ierr/=0) CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
     ELSE
       READ(txt(1:n), FMT="(I2,A1,I2,A1,I2)", IOSTAT=ierr) hours, c1, minutes, c2, seconds
       IF(n/=8 .OR. ierr/=0 .OR. c1.NE.":" .OR. c2.NE.":")&
