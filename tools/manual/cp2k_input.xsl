@@ -276,7 +276,7 @@
    <xsl:result-document href="{$section_filename}" method="html" indent="yes" format="html">
    <html>
     <head>
-     <title>Input section <xsl:value-of select="NAME"/></title>
+     <title><xsl:value-of select="replace($local_path,'/',' / ')" /></title>
      <xsl:call-template name="head">
       <xsl:with-param name="root" select="$root"/>
      </xsl:call-template>

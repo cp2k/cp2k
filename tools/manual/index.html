@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- author: Ole Schuett -->
+<title>CP2K Input Reference Manual</title>
+<link rel="shortcut icon" href="/trunk/favicon.png" type="image/png">
+<style type="text/css">
+.linkbox {
+  width: 15em;
+  height: 12.5em;
+  background: #f7f7f0;
+  border: 1px solid gray;
+  padding: 0.5em;
+  margin: 1em;
+  font-size: 70%;
+  display: inline-block;
+}
+.linkbox h2 {
+  margin: 0 0 0.5em 0;
+}
+.linkbox p {
+  margin: 0.5em;
+}
+a:link, a:visited {
+  color: black;
+  text-decoration: none;
+}
+#flex-container {
+  display: -webkit-flex; /* Safari */
+  display: flex;
+  -webkit-flex-flow: row wrap; /* Safari */
+  flex-flow:         row wrap;
+  -webkit-justify-content: center; /* Safari */
+  justify-content:         center;
+}
+</style>
+</head>
+<body>
+
+<!-- Branch Selector ******************************************************* -->
+<div style="float:right;">
+<select id="branch_selector">
+<option value="trunk">SVN Trunk</option>
+<option value="cp2k-2_6-branch" selected>Version 2.6</option>
+<option value="cp2k-2_5-branch">Version 2.5</option>
+<option value="cp2k-2_4-branch">Version 2.4</option>
+<option value="cp2k-2_3-branch">Version 2.3</option>
+<option value="cp2k-2_2-branch">Version 2.2</option>
+<option value="cp2k-2_1-branch">Version 2.1</option>
+</select>
+</div>
+
+<!-- Logo ****************************************************************** -->
+<center>
+<p style="margin:20px;"><a href="trunk/index.html" title="Goto full index">
+<img width="200px" src="cp2k_manual_logo.png" alt="Logo"></a><p>
+</center>
+
+<!-- Search Box ************************************************************ -->
+<center>
+<div id="searchbox-container" style="width:600px;">
+<div id="searchbox"><!--empty dummy --></div>
+</div>
+</center>
+
+<!-- Search Results ******************************************************** -->
+<div id="searchresults-container" style="min-height:100px">
+<div id="searchresults"><!--empty dummy --></div>
+</div>
+
+<!-- Shortcut Links ******************************************************** -->
+<div id="flex-container">
+
+<div class="linkbox">
+<h2><a href="/trunk/CP2K_INPUT.html">CP2K_INPUT</a></h2>
+<p><a href="/trunk/CP2K_INPUT/TEST.html">TEST</a></p>
+<p><a href="/trunk/CP2K_INPUT/ATOM.html">ATOM</a></p>
+<p><a href="/trunk/CP2K_INPUT/GLOBAL.html">GLOBAL</a></p>
+<p><a href="/trunk/CP2K_INPUT/FARMING.html">FARMING</a></p>
+<p><a href="/trunk/CP2K_INPUT/EXT_RESTART.html">EXT_RESTART</a></p>
+<p><a href="/trunk/CP2K_INPUT/VIBRATIONAL_ANALYSIS.html">VIBRATIONAL_ANALYSIS</a></p>
+</div>
+
+<div class="linkbox">
+<h2><a href="/trunk/CP2K_INPUT/MOTION.html">MOTION</a></h2>
+<p><a href="/trunk/CP2K_INPUT/MOTION/MD.html">MD</a></p>
+<p><a href="/trunk/CP2K_INPUT/MOTION/MC.html">MC</a></p>
+<p><a href="/trunk/CP2K_INPUT/MOTION/GEO_OPT.html">GEO_OPT</a></p>
+<p><a href="/trunk/CP2K_INPUT/MOTION/CELL_OPT.html">CELL_OPT</a></p>
+<p><a href="/trunk/CP2K_INPUT/MOTION/BAND.html">BAND</a></p>
+<p><a href="/trunk/CP2K_INPUT/MOTION/PRINT.html">PRINT</a></p>
+</div>
+
+<div class="linkbox">
+<h2><a href="/trunk/CP2K_INPUT/FORCE_EVAL.html">FORCE_EVAL</a></h2>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/MM.html">MM</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/EIP.html">EIP</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/QMMM.html">QMMM</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/MIXED.html">MIXED</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/SUBSYS.html">SUBSYS</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/PROPERTIES.html">PROPERTIES</a></p>
+</div>
+
+<div class="linkbox">
+<h2><a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT.html">DFT</a></h2>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT/QS.html">QS</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT/SCF.html">SCF</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT/LS_SCF.html">LS_SCF</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT/KPOINTS.html">KPOINTS</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT/PRINT.html">PRINT</a></p>
+<p><a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT/XC.html">XC</a> /
+<a href="/trunk/CP2K_INPUT/FORCE_EVAL/DFT/XC/WF_CORRELATION.html">WF_CORRELATION</a></p>
+</div>
+
+<div class="linkbox">
+<h2>Misc...</h2>
+<p><a href="https://manual.cp2k.org/trunk/units.html">Units</a></p>
+<p><a href="https://manual.cp2k.org/trunk/references.html">References</a></p>
+</div>
+
+</div> <!-- end flex-container -->
+
+<!-- Java Script *********************************************************** -->
+<script type="text/javascript">
+  (function() {
+    var set_focus = function(){
+       var inputs = document.getElementsByName("search");
+       if(inputs.length>0){
+          inputs[0].focus();
+       //}else{
+       //   window.setTimeout(set_focus, 200    ); // wait a litle longer
+       }
+    }
+
+    var change_branch = function(){
+        // get current branch and update cookie
+       var branch = document.getElementById("branch_selector").value;
+       document.cookie = "branch="+branch+"; expires=Fri, 31-Dec-9999 23:59:59 UTC; path=/";
+
+       // update shortcut links
+       var links = document.getElementsByTagName("A");
+       var i;
+       for (i = 0; i < links.length; i++) {
+          var parts = links[i].pathname.split("/");
+          parts[1] = branch;
+          links[i].pathname = parts.join("/");
+       }
+
+       // rebuild searchbox
+       var container = document.getElementById("searchbox-container");
+       var old_elem = document.getElementById("searchbox");
+       container.removeChild(old_elem);
+       var new_elem = document.createElement('div');
+       new_elem.setAttribute("id", "searchbox");
+       new_elem.setAttribute("class", "gcse-searchbox");
+       new_elem.setAttribute("data-as_oq", branch); // here it happens
+       container.appendChild(new_elem);
+
+       // rebuild searchresult
+       var container = document.getElementById("searchresults-container");
+       var old_elem = document.getElementById("searchresults");
+       container.removeChild(old_elem);
+       var new_elem = document.createElement('div');
+       new_elem.setAttribute("id", "searchresults");
+       new_elem.setAttribute("class", "gcse-searchresults");
+       container.appendChild(new_elem);
+
+       // run google's javascript
+       var cx = '000324016156316545387:ddjlujwfaba';
+       var gcse = document.createElement('script');
+       gcse.type = 'text/javascript';
+       gcse.async = true;
+       gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+       var s = document.getElementsByTagName('script')[0];
+       s.parentNode.insertBefore(gcse, s);
+
+       // set focus once new searchbar is instantiated
+       window.setTimeout(set_focus, 500);
+    };
+
+    // initial setup
+    if(document.cookie.indexOf("branch=") >= 0){
+       var branch = document.cookie.split("=")[1];
+       document.getElementById("branch_selector").value = branch;
+    }
+    document.getElementById("branch_selector").addEventListener("change", change_branch);
+    document.addEventListener("DOMContentLoaded", change_branch);
+  })();
+</script>
+</body></html>
