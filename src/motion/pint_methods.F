@@ -1593,9 +1593,9 @@ CONTAINS
 !> \brief  Performs a scan of the helium-solute interaction energy
 !> \param pint_env ...
 !> \param helium ...
-!> \author Lukasz Walewski
 !> \date   2013-11-26
-! ***************************************************************************
+!> \author Lukasz Walewski
+! *****************************************************************************
   SUBROUTINE pint_run_scan(pint_env, helium)
     TYPE(pint_env_type), POINTER             :: pint_env
     TYPE(helium_solvent_type), POINTER       :: helium

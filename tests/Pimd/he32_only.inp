@@ -18,6 +18,7 @@
       MAX_PERM_CYCLE         4
       PERIODIC               T
       CELL_SHAPE             OCTAHEDRON
+      PRESAMPLE              T
     &END HELIUM
   &END PINT
 &END MOTION

@@ -18,6 +18,7 @@
       NNOS                   3
     &END NOSE
     &HELIUM
+      PRESAMPLE              T
       SOLUTE_INTERACTION     MWATER
       POTENTIAL_FILE_NAME    lj-test-pot.dat
       NATOMS                32

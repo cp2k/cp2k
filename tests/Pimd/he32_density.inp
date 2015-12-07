@@ -8,6 +8,7 @@
   &PINT
     NUM_STEPS                5
     &HELIUM
+      PRESAMPLE              T
       HELIUM_ONLY
       POTENTIAL_FILE_NAME    lj-test-pot.dat
       NATOMS                32
