@@ -12,6 +12,7 @@ MODULE pao_main
        cp_dbcsr_add, cp_dbcsr_copy, cp_dbcsr_create, cp_dbcsr_frobenius_norm, &
        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_release, &
        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type
+  USE cp_external_control,             ONLY: external_control
   USE dm_ls_scf_qs,                    ONLY: ls_scf_qs_atomic_guess
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                              ls_scf_env_type
@@ -153,7 +154,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, icycle
-    LOGICAL                                  :: cycle_converged
+    LOGICAL                                  :: cycle_converged, should_stop
     REAL(KIND=dp)                            :: beta, energy
     TYPE(cp_dbcsr_type)                      :: matrix_M
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
@@ -176,7 +177,7 @@ CONTAINS
     cycle_converged = .FALSE.
     icycle = 0
 
-    DO WHILE(pao%istep < pao%max_pao)
+    DO WHILE(.TRUE.)
        pao%istep = pao%istep + 1
 
        IF(pao%iw>0) WRITE(pao%iw,"(A,I9,A)") " PAO| ======================= Iteration: ",&
@@ -211,27 +212,29 @@ CONTAINS
 
           ! print info and convergence test
           CALL pao_test_convergence(pao, ls_scf_env, energy, icycle, cycle_converged)
-          IF(cycle_converged) EXIT
+          IF(cycle_converged) THEN
+             pao_is_done = icycle < 3
+             IF(pao_is_done .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
+             EXIT
+          ENDIF
        ENDIF
 
+       ! check for early abort without convergence?
+       CALL external_control(should_stop,"PAO",start_time=qs_env%start_time,target_time=qs_env%target_time)
+       IF (should_stop .OR. pao%istep >= pao%max_pao) THEN
+          CPWARN("PAO not converged!")
+          pao_is_done = .TRUE.
+          EXIT
+       ENDIF
+
+       ! perform line-search step
        CALL linesearch_step(pao%linesearch,&
                             energy=energy,&
                             slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
-
        CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
        CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
        CALL pao_update_AB(pao, ls_mstruct)
     ENDDO
-
-    IF(cycle_converged .AND. icycle<3) THEN ! step_size criterium needs two cycles
-       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
-       pao_is_done = .TRUE.
-    ELSE IF(.NOT. cycle_converged) THEN
-       CPWARN("PAO not converged!")
-       pao_is_done = .TRUE.
-    ELSE
-       pao_is_done = .FALSE.
-    ENDIF
 
     CALL pao_write_restart(pao, qs_env, energy)
 

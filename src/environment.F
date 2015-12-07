@@ -1002,30 +1002,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_get_walltime', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=100)                       :: ctmp
-    INTEGER                                  :: ierr, itmp
+    CHARACTER(LEN=1)                         :: c1, c2
+    CHARACTER(LEN=100)                       :: txt
+    INTEGER                                  :: hours, ierr, minutes, n, &
+                                                seconds
 
-    CALL section_vals_val_get(section, keyword_name, c_val=ctmp)
+    CALL section_vals_val_get(section, keyword_name, c_val=txt)
+    n = LEN_TRIM(txt)
 
-    IF(ctmp == "") THEN
+    IF(n==0) THEN
       walltime = -1.0_dp
     ELSE
-      IF(INDEX(ctmp,":",BACK=.TRUE.).GT.0)THEN
-        walltime = 0
-        ! read seconds
-        READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)+1:),FMT=*,IOSTAT=ierr) walltime
-        CPASSERT(ierr==0)
-        ! read minutes
-        READ(ctmp(INDEX(ctmp,":",BACK=.TRUE.)-2:INDEX(ctmp,":",BACK=.TRUE.)-1),FMT=*,IOSTAT=ierr) itmp
-        walltime = walltime + REAL(60*itmp,KIND=dp)
-        ! read hours
-        READ(ctmp(1:INDEX(ctmp,":")-1),FMT=*,IOSTAT=ierr) itmp
-        CPASSERT(ierr==0)
-        walltime = walltime + REAL(3600*itmp,KIND=dp)
-      ELSE
-        READ(ctmp,FMT=*,IOSTAT=ierr) walltime
-        CPASSERT(ierr==0)
-      END IF
+      READ(txt(1:n), FMT="(I2,A1,I2,A1,I2)", IOSTAT=ierr) hours, c1, minutes, c2, seconds
+      IF(n/=8 .OR. ierr/=0 .OR. c1.NE.":" .OR. c2.NE.":")&
+         CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
+      walltime = 3600.0_dp*REAL(hours,dp) + 60.0_dp*REAL(minutes,dp) + REAL(seconds,dp)
     END IF
   END SUBROUTINE cp2k_get_walltime
 
