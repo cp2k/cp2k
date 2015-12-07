@@ -832,7 +832,7 @@ CONTAINS
 ! avoided (has something to do with f_env_add_defaults) so leaving for now..
       CALL pint_init(pint_env)
       CALL helium_create(helium,input,solute=pint_env)
-      CALL pint_run_scan(pint_env, globenv, helium)
+      CALL pint_run_scan(pint_env, helium)
       CALL helium_release(helium)
       CALL pint_release(pint_env)
 
@@ -1589,20 +1589,15 @@ CONTAINS
     RETURN
   END SUBROUTINE pint_do_run
 
-  ! ***************************************************************************
-  !> \brief  Performs a scan of the helium-solute interaction energy
-  !> \author Lukasz Walewski
-  !> \date   2013-11-26
-  ! ***************************************************************************
-! *****************************************************************************
-!> \brief ...
+! ***************************************************************************
+!> \brief  Performs a scan of the helium-solute interaction energy
 !> \param pint_env ...
-!> \param globenv ...
 !> \param helium ...
-! *****************************************************************************
-  SUBROUTINE pint_run_scan(pint_env, globenv, helium)
+!> \author Lukasz Walewski
+!> \date   2013-11-26
+! ***************************************************************************
+  SUBROUTINE pint_run_scan(pint_env, helium)
     TYPE(pint_env_type), POINTER             :: pint_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(helium_solvent_type), POINTER       :: helium
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_run_scan', &
