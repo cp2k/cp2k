@@ -154,7 +154,7 @@ extern "C" int pw_cuda_init () {
        printf("Please ensure that CUFFT is patched (libcufft.so.x.y.z, libcufftw.so.x,y,z; x.y.z >= 7.0.35).\n");
 #else
        printf("CUFFT 7.0 disabled due to an unresolved bug.\n");
-       printf("Please upgrade to CUDA 7.5 or later or apply CUFFT patch.\n");
+       printf("Please upgrade to CUDA 7.5 or later or apply CUFFT patch (see -D__HAS_PATCHED_CUFFT_70).\n");
        return -1;
 #endif
     }
