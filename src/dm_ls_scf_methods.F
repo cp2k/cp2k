@@ -132,7 +132,7 @@ CONTAINS
                                        ls_scf_env%sign_sqrt_order, &
                                        ls_scf_env%eps_lanczos, ls_scf_env%max_iter_lanczos)
 
-        IF (.TRUE.) THEN
+        IF (ls_scf_env%check_s_inv) THEN
            CALL cp_dbcsr_init(matrix_tmp1)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
                                 matrix_type=dbcsr_type_no_symmetry)
@@ -169,7 +169,7 @@ CONTAINS
            CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s_sqrt_inv, ls_scf_env%matrix_s_sqrt_inv, &
                                         0.0_dp, ls_scf_env%matrix_s_inv, filter_eps=ls_scf_env%eps_filter)
         ENDIF
-        IF (.TRUE.) THEN
+        IF (ls_scf_env%check_s_inv) THEN
            CALL cp_dbcsr_init(matrix_tmp1)
            CALL cp_dbcsr_create(matrix_tmp1,template=ls_scf_env%matrix_s,&
                                 matrix_type=dbcsr_type_no_symmetry)

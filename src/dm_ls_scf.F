@@ -622,6 +622,7 @@ CONTAINS
     CALL section_vals_val_get(ls_scf_section,"MATRIX_CLUSTER_TYPE",i_val=ls_scf_env%ls_mstruct%cluster_type)
     CALL section_vals_val_get(ls_scf_section,"SINGLE_PRECISION_MATRICES",l_val=ls_scf_env%ls_mstruct%single_precision)
     CALL section_vals_val_get(ls_scf_section,"S_INVERSION",i_val=ls_scf_env%s_inversion_type)
+    CALL section_vals_val_get(ls_scf_section,"CHECK_S_INV",l_val=ls_scf_env%check_s_inv)
     CALL section_vals_val_get(ls_scf_section,"REPORT_ALL_SPARSITIES",l_val=ls_scf_env%report_all_sparsities)
     CALL section_vals_val_get(ls_scf_section,"PERFORM_MU_SCAN",l_val=ls_scf_env%perform_mu_scan)
     CALL section_vals_val_get(ls_scf_section,"PURIFICATION_METHOD",i_val=ls_scf_env%purification_method)
