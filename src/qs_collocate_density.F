@@ -994,8 +994,6 @@ CONTAINS
       cores = 0
 
       DO iatom = 1, natom
-         atom_a = atom_list(iatom)
-         ra(:) = pbc(particle_set(atom_a)%r,cell)
          IF(rs_rho%desc%parallel .AND. .NOT. rs_rho%desc%distributed) THEN
             ! replicated realspace grid, split the atoms up between procs
             IF (MODULO(iatom,rs_rho%desc%group_size) == rs_rho % desc % my_pos ) THEN
