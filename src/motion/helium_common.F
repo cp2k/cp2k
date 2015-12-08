@@ -104,7 +104,7 @@ MODULE helium_common
       CASE (helium_cell_shape_octahedron)
         CALL helium_pbc_trocta_opt( helium, r )
       CASE DEFAULT
-        ! we should never get here
+        CPABORT("we should never get here")
     END SELECT
 
     RETURN
