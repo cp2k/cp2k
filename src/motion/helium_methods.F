@@ -846,6 +846,10 @@ MODULE helium_methods
       CALL helium_write_line("Permutation state initialized as identity.")
     END IF
 
+    ! Specify if forces should be obtained as AVG or LAST
+    CALL section_vals_val_get(helium_section, "GET_FORCES",&
+                              i_val=helium%get_helium_forces)
+
     ! init/restore coordinates
     NULLIFY(sec)
     sec => section_vals_get_subs_vals(helium_section,"COORD")
@@ -860,6 +864,17 @@ MODULE helium_methods
     END DO
     helium%work=helium%pos
     
+    ! init center of mass
+    IF (helium%solute_present) THEN
+      helium%center(:) = pint_com_pos(pint_env)
+    ELSE
+      IF (helium%periodic) THEN
+        helium%center(:) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+      ELSE
+        helium%center(:) = helium_com(helium)
+      END IF
+    END IF
+
     ! Optional helium coordinate presampling:
     CALL section_vals_val_get(helium_section,"PRESAMPLE",&
          l_val=presample)
@@ -873,21 +888,6 @@ MODULE helium_methods
       helium%num_accepted(:,:) = 0.0_dp
       coords_presampled = .TRUE.
       CALL helium_write_line("Bead coordinates pre-sampled.")
-    END IF
-
-    ! Specify if forces should be obtained as AVG or LAST
-    CALL section_vals_val_get(helium_section, "GET_FORCES",&
-                              i_val=helium%get_helium_forces)
-
-    ! init center of mass
-    IF (helium%solute_present) THEN
-      helium%center(:) = pint_com_pos(pint_env)
-    ELSE
-      IF (helium%periodic) THEN
-        helium%center(:) = (/0.0_dp, 0.0_dp, 0.0_dp/)
-      ELSE
-        helium%center(:) = helium_com(helium)
-      END IF
     END IF
 
     IF ( helium%solute_present ) THEN
