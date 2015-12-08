@@ -37,30 +37,28 @@ a:link, a:visited {
 </head>
 <body>
 
-<!-- Branch Selector ******************************************************* -->
-<div style="float:right;">
-<select id="branch_selector">
-<option value="trunk">SVN Trunk</option>
-<option value="cp2k-2_6-branch" selected>Version 2.6</option>
-<option value="cp2k-2_5-branch">Version 2.5</option>
-<option value="cp2k-2_4-branch">Version 2.4</option>
-<option value="cp2k-2_3-branch">Version 2.3</option>
-<option value="cp2k-2_2-branch">Version 2.2</option>
-<option value="cp2k-2_1-branch">Version 2.1</option>
-</select>
-</div>
-
 <!-- Logo ****************************************************************** -->
 <center>
-<p style="margin:20px;"><a href="trunk/index.html" title="Goto full index">
-<img width="200px" src="cp2k_manual_logo.png" alt="Logo"></a><p>
+<p style="margin:20px;"><img width="200px" src="cp2k_manual_logo.png" alt="Logo"></p>
 </center>
 
-<!-- Search Box ************************************************************ -->
+<!-- Search Box and Controls *********************************************** -->
 <center>
 <div id="searchbox-container" style="width:600px;">
 <div id="searchbox"><!--empty dummy --></div>
 </div>
+<select id="branch_selector" style="height:25px;margin:2px;">
+  <option value="trunk">SVN Trunk</option>
+  <option value="cp2k-2_6-branch" selected>Version 2.6</option>
+  <option value="cp2k-2_5-branch">Version 2.5</option>
+  <option value="cp2k-2_4-branch">Version 2.4</option>
+  <option value="cp2k-2_3-branch">Version 2.3</option>
+  <option value="cp2k-2_2-branch">Version 2.2</option>
+  <option value="cp2k-2_1-branch">Version 2.1</option>
+</select>
+<a class="button" href="/trunk/index.html">
+  <button style="height:25px;margin:2px;">Browse Tree</button>
+</a>
 </center>
 
 <!-- Search Results ******************************************************** -->
@@ -72,6 +70,8 @@ a:link, a:visited {
 <div id="flex-container">
 
 <div class="linkbox">
+<div style="position:relative;width:0;height:0;font:small sans-serif;color:gray;">
+<div style="position:absolute;top:-30px;width:100px;">Quick Links:</div></div>
 <h2><a href="/trunk/CP2K_INPUT.html">CP2K_INPUT</a></h2>
 <p><a href="/trunk/CP2K_INPUT/TEST.html">TEST</a></p>
 <p><a href="/trunk/CP2K_INPUT/ATOM.html">ATOM</a></p>
@@ -114,8 +114,8 @@ a:link, a:visited {
 
 <div class="linkbox">
 <h2>Misc...</h2>
-<p><a href="https://manual.cp2k.org/trunk/units.html">Units</a></p>
-<p><a href="https://manual.cp2k.org/trunk/references.html">References</a></p>
+<p><a href="/trunk/units.html">Units</a></p>
+<p><a href="/trunk/references.html">References</a></p>
 </div>
 
 </div> <!-- end flex-container -->
