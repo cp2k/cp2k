@@ -886,6 +886,17 @@ MODULE helium_methods
       helium%energy_avrg(:) = 0.0_dp
       helium%plength_avrg(:) = 0.0_dp
       helium%num_accepted(:,:) = 0.0_dp
+      ! Reset properties accumulated over presample:
+      helium%proarea%accu(:) = 0.0_dp
+      helium%prarea2%accu(:) = 0.0_dp
+      helium%wnmber2%accu(:) = 0.0_dp
+      helium%mominer%accu(:) = 0.0_dp
+      IF (helium%rho_present) THEN
+        helium%rho_accu(:,:,:,:) = 0.0_dp
+      END IF
+      IF (helium%rdf_present) THEN
+        helium%rdf_accu(:,:,:) = 0.0_dp
+      END IF
       coords_presampled = .TRUE.
       CALL helium_write_line("Bead coordinates pre-sampled.")
     END IF

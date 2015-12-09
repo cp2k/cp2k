@@ -1538,6 +1538,9 @@ CONTAINS
         IF (helium%rho_present) THEN
           helium%rho_accu(:,:,:,:) = 0.0_dp
         END IF
+        IF (helium%rdf_present) THEN
+          helium%rdf_accu(:,:,:) = 0.0_dp
+        END IF
       END IF
     END IF
 

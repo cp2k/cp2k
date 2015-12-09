@@ -267,7 +267,7 @@ MODULE helium_sampling
     nsteps = helium%current_step-helium%first_step
     iweight = helium%averages_iweight
     rweight = REAL(iweight,dp)
-    rtmp = 1.0_dp / (REAL(nsteps+iweight,dp))
+    rtmp = 1.0_dp / (REAL(MAX(1,nsteps+iweight),dp))
     helium%proarea%ravr(:) = (helium%proarea%accu(:)+rweight*helium%proarea%rstr(:))*rtmp
     helium%prarea2%ravr(:) = (helium%prarea2%accu(:)+rweight*helium%prarea2%rstr(:))*rtmp
     helium%wnmber2%ravr(:) = (helium%wnmber2%accu(:)+rweight*helium%wnmber2%rstr(:))*rtmp
