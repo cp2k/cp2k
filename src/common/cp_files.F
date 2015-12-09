@@ -15,7 +15,8 @@ MODULE cp_files
 
   USE kinds,                           ONLY: default_path_length
   USE machine,                         ONLY: default_input_unit,&
-                                             default_output_unit
+                                             default_output_unit,&
+                                             m_getcwd
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -328,7 +329,7 @@ CONTAINS
     CHARACTER(LEN=11) :: access_string, action_string, current_action, &
       current_form, form_string, pad_string, position_string, status_string
     CHARACTER(LEN=2*default_path_length)     :: message
-    CHARACTER(LEN=default_path_length)       :: real_file_name
+    CHARACTER(LEN=default_path_length)       :: cwd, iomsgstr, real_file_name
     INTEGER                                  :: debug_unit, istat
     LOGICAL                                  :: exists, get_a_new_unit, &
                                                 is_open
@@ -443,6 +444,7 @@ CONTAINS
                 POSITION=TRIM(position_string),&
                 ACTION=TRIM(action_string),&
                 PAD=TRIM(pad_string),&
+                IOMSG=iomsgstr,&
                 IOSTAT=istat)
        ELSE
           OPEN (UNIT=unit_number,&
@@ -452,12 +454,16 @@ CONTAINS
                 FORM=TRIM(form_string),&
                 POSITION=TRIM(position_string),&
                 ACTION=TRIM(action_string),&
+                IOMSG=iomsgstr,&
                 IOSTAT=istat)
        END IF
        IF (istat /= 0) THEN
+          CALL m_getcwd(cwd)
           WRITE (UNIT=message,FMT="(A,I0,A,I0,A)")&
-            "An error occurred opening the file <"//TRIM(ADJUSTL(real_file_name))//&
-            "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
+            "An error occurred opening the file '"//TRIM(ADJUSTL(real_file_name))//&
+            "' (UNIT = ",unit_number,", IOSTAT = ",istat,"). "//TRIM(iomsgstr)//". "//&
+            "Current working directory: "//TRIM(cwd)
+              
           CPABORT(TRIM(message))
        END IF
     END IF
