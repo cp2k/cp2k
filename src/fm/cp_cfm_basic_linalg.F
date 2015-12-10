@@ -28,7 +28,7 @@ MODULE cp_cfm_basic_linalg
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_basic_linalg'
 
   PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_gemm, cp_cfm_lu_decompose,&
-            cp_cfm_column_scale, cp_cfm_schur_product,&
+            cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product,&
             cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply,&
             cp_cfm_triangular_invert
 
@@ -443,16 +443,21 @@ CONTAINS
     COMPLEX(KIND=dp), DIMENSION(:), &
       INTENT(in)                             :: scaling
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_column_scale', &
+      routineP = moduleN//':'//routineN
+
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
     INTEGER                                  :: k, mypcol, myprow, n, npcol, &
-                                                nprow
+                                                nprow, handle
 #if defined(__SCALAPACK)
     INTEGER                                  :: icol_global, icol_local, &
                                                 ipcol, iprow, irow_local
 #else
     INTEGER                                  :: i
 #endif
+
+    CALL timeset(routineN,handle)
 
     myprow=matrixa%matrix_struct%context%mepos(1)
     mypcol=matrixa%matrix_struct%context%mepos(2)
@@ -478,7 +483,44 @@ CONTAINS
     END DO
 #endif
 
+    CALL timestop(handle)
+
   END SUBROUTINE cp_cfm_column_scale
+
+! *****************************************************************************
+!> \brief scales a matrix
+!>      matrix_a = alpha * matrix_b
+!> \param alpha ...
+!> \param matrix_a ...
+!> \note
+!>      use cp_fm_set_all to zero (avoids problems with nan)
+! *****************************************************************************
+  SUBROUTINE cp_cfm_scale(alpha, matrix_a)
+    COMPLEX(KIND=dp), INTENT(IN)             :: alpha
+    TYPE(cp_cfm_type), POINTER               :: matrix_a
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_scale', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp), DIMENSION(:, :), &
+      POINTER                                :: a
+    INTEGER                                  :: handle, size_a
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(a)
+
+    CPASSERT(ASSOCIATED(matrix_a))
+    CPASSERT(matrix_a%ref_count>0)
+
+    a => matrix_a%local_data
+    size_a = SIZE(a,1)*SIZE(a,2)
+
+    CALL ZSCAL(size_a, alpha, a, 1)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_scale
 
 ! *****************************************************************************
 !> \brief computs the the solution to A*b=A_general using lu decomposition

@@ -184,7 +184,7 @@ CONTAINS
 
       IF(.NOT. ASSOCIATED(scf_env)) THEN
         CALL qs_scf_env_initialize(qs_env,scf_env)
-!       Moved here from qs_scf_env_initialize to be able to have more scf_env
+        ! Moved here from qs_scf_env_initialize to be able to have more scf_env
         CALL set_qs_env(qs_env,scf_env=scf_env)
         CALL scf_env_release(scf_env)
         CALL get_qs_env(qs_env=qs_env,scf_env=scf_env)

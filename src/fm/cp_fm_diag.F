@@ -23,6 +23,9 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
+                                             cp_fm_gemm,&
+                                             cp_fm_scale,&
+                                             cp_fm_column_scale,&
                                              cp_fm_triangular_multiply,&
                                              cp_fm_triangular_invert,&
                                              cp_fm_upper_to_full
@@ -33,6 +36,7 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_fm_get_info,&
+                                             cp_fm_set_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -77,6 +81,7 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
             cp_fm_syevd,&
             cp_fm_syevx,&
             cp_fm_geeig,&
+            cp_fm_geeig_canon,&
             diag_init
 
 CONTAINS
@@ -1413,7 +1418,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-
     CALL cp_fm_get_info(amatrix,nrow_global=nao)
     nmo = SIZE(eigenvalues)
     ! Cholesky decompose S=U(T)U
@@ -1433,5 +1437,88 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_geeig
+
+! *****************************************************************************
+!> \brief General Eigenvalue Problem  AX = BXE
+!>        Use canonical diagonalization : U*s**(-1/2)
+!> \param amatrix ...
+!> \param bmatrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \param work ...
+!> \param epseig ...
+! *****************************************************************************
+ SUBROUTINE cp_fm_geeig_canon(amatrix,bmatrix,eigenvectors,eigenvalues,work,epseig)
+
+    TYPE(cp_fm_type), POINTER                :: amatrix, bmatrix, eigenvectors
+    REAL(KIND=dp), DIMENSION(:)              :: eigenvalues
+    TYPE(cp_fm_type), POINTER                :: work
+    REAL(KIND=dp), INTENT(IN)                :: epseig
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geeig_canon', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, icol, irow, nao, &
+                                                nc, ncol, nmo, nx
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: seigval
+
+    CALL timeset(routineN,handle)
+
+    ! Test sizees
+    CALL cp_fm_get_info(amatrix,nrow_global=nao)
+    nmo = SIZE(eigenvalues)
+    ALLOCATE(seigval(nao))
+
+    ! Diagonalize -S matrix, this way the NULL space is at the end of the spectrum
+    CALL cp_fm_scale(-1.0_dp, bmatrix)
+    CALL choose_eigv_solver(matrix=bmatrix,eigenvectors=work,eigenvalues=seigval)
+    seigval(:) = -seigval(:)
+    nc=nao
+    DO i=1,nao
+       IF (seigval(i) < epseig) THEN
+          nc = i-1
+          EXIT
+       END IF
+    END DO
+    CPASSERT(nc/=0)
+
+    IF(nc/=nao) THEN
+       IF(nc < nmo) THEN
+          ! Copy NULL space definition to last vectors of eigenvectors (if needed)
+          ncol = nmo - nc
+          CALL cp_fm_to_fm(work,eigenvectors,ncol,nc+1,nc+1)
+       END IF
+       ! Set NULL space in eigenvector matrix of S to zero
+       DO icol=nc+1,nao
+          DO irow=1,nao
+             CALL cp_fm_set_element(work,irow,icol,0.0_dp)
+          END DO
+       END DO
+       ! Set small eigenvalues to a dummy save value
+       seigval(nc+1:nao) = 1.0_dp
+    END IF
+    ! calculate U*s**(-1/2)
+    seigval(:) = 1.0_dp/SQRT(seigval(:))
+    CALL cp_fm_column_scale(work,seigval)
+    ! Reduce to get U^(-T) * H * U^(-1)
+    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,work,amatrix,0.0_dp,bmatrix)
+    CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,bmatrix,work,0.0_dp,amatrix)
+    IF(nc/=nao) THEN
+       ! set diagonal values to save large value
+       DO icol=nc+1,nao
+          CALL cp_fm_set_element(amatrix,icol,icol,10000.0_dp)
+       END DO
+    END IF
+    ! Diagonalize
+    CALL choose_eigv_solver(matrix=amatrix,eigenvectors=bmatrix,eigenvalues=eigenvalues)
+    nx = MIN(nc,nmo)
+    ! Restore vectors C = U^(-1) * C*
+    CALL cp_fm_gemm("N","N",nao,nx,nc,1.0_dp,work,bmatrix,0.0_dp,eigenvectors)
+
+    DEALLOCATE(seigval)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_fm_geeig_canon
 
 END MODULE cp_fm_diag

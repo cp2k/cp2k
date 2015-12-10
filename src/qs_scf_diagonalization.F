@@ -13,7 +13,8 @@
 MODULE qs_scf_diagonalization
   USE cp_array_utils_r,                ONLY: cp_1d_r_p_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_add_fm
-  USE cp_cfm_diag,                     ONLY: cp_cfm_geeig
+  USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
+                                             cp_cfm_geeig_canon
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                              cp_cfm_release,&
                                              cp_cfm_to_fm,&
@@ -34,7 +35,8 @@ MODULE qs_scf_diagonalization
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
-                                             cp_fm_geeig
+                                             cp_fm_geeig,&
+                                             cp_fm_geeig_canon
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_give_back_fm
@@ -340,8 +342,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: kp_range
     INTEGER, DIMENSION(:, :), POINTER        :: kp_dist
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL                                  :: do_level_shift, my_kpgrp, &
-                                                use_real_wfn
+    LOGICAL                                  :: my_kpgrp, use_real_wfn
     REAL(kind=dp), DIMENSION(:), POINTER     :: eigenvalues
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: xkp
     TYPE(cp_cfm_type), POINTER               :: cksmat, cmos, csmat, cwork
@@ -364,10 +365,6 @@ CONTAINS
     nspin = SIZE(matrix_ks,1)
     NULLIFY(fmdummy)
 
-    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-                      ((scf_control%density_guess == core_guess).OR.&
-                       (scf_env%iter_count > 1)))
-
     IF(scf_env%mixing_method ==0) THEN
        scf_env%iter_method = "NoMix/Diag."
     ELSE IF(scf_env%mixing_method ==1) THEN
@@ -377,9 +374,6 @@ CONTAINS
        scf_env%iter_param = scf_env%mixing_store%alpha
        scf_env%iter_method = TRIM(scf_env%mixing_store%iter_method)//"/Diag."
     END IF
-
-    ! We always do Cholesky
-    CPASSERT(scf_env%cholesky_method>cholesky_off)
 
     NULLIFY(sab_nl)
     CALL get_kpoint_info(kpoints,nkp=nkp,xkp=xkp,use_real_wfn=use_real_wfn,kp_range=kp_range,&
@@ -494,11 +488,21 @@ CONTAINS
           kp => kpoints%kp_env(ikpgr)%kpoint_env
           IF(use_real_wfn) THEN
              CALL get_mo_set(kp%mos(1,ispin)%mo_set,mo_coeff=mo_coeff,eigenvalues=eigenvalues)
-             CALL cp_fm_geeig(rksmat,rsmat,mo_coeff,eigenvalues,fmlocal)
+             IF(scf_env%cholesky_method == cholesky_off) THEN
+                CALL cp_fm_geeig_canon(rksmat,rsmat,mo_coeff,eigenvalues,fmlocal,&
+                     scf_control%eps_eigval)
+             ELSE
+                CALL cp_fm_geeig(rksmat,rsmat,mo_coeff,eigenvalues,fmlocal)
+             END IF
           ELSE
              CALL get_mo_set(kp%mos(1,ispin)%mo_set,mo_coeff=rmos,eigenvalues=eigenvalues)
              CALL get_mo_set(kp%mos(2,ispin)%mo_set,mo_coeff=imos)
-             CALL cp_cfm_geeig(cksmat,csmat,cmos,eigenvalues,cwork)
+             IF(scf_env%cholesky_method == cholesky_off) THEN
+                CALL cp_cfm_geeig_canon(cksmat,csmat,cmos,eigenvalues,cwork,&
+                     scf_control%eps_eigval)
+             ELSE
+                CALL cp_cfm_geeig(cksmat,csmat,cmos,eigenvalues,cwork)
+             END IF
              ! copy eigenvalues to imag set (keep them in sync)
              kp%mos(2,ispin)%mo_set%eigenvalues=eigenvalues
              ! split real and imaginary part of mos
@@ -954,7 +958,6 @@ END SUBROUTINE diag_subspace_allocate
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: homo, ispin, nmo, nspin
-    LOGICAL                                  :: do_level_shift
     REAL(kind=dp)                            :: diis_error, eps_iter
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -977,10 +980,6 @@ END SUBROUTINE diag_subspace_allocate
     ELSE
       diis_step = .FALSE.
     END IF
-
-    do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-                      ((scf_control%density_guess == core_guess).OR.&
-                       (scf_env%iter_count > 1)))
 
     eps_iter = scf_control%diagonalization%eps_iter
     IF (diis_step) THEN
