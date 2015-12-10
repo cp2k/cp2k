@@ -124,6 +124,7 @@ cp_error_handling.F: Found CALL mp_abort in procedure "cp_abort_handler"
 cp_files.F: Found CLOSE statement in procedure "close_file"
 cp_files.F: Found OPEN statement in procedure "open_file"
 cp_fm_basic_linalg.F: Found CALL cp_fm_gemm in procedure "cp_complex_fm_gemm"
+cp_fm_diag.F: Found CALL cp_fm_gemm in procedure "cp_fm_geeig_canon"
 cp_fm_diag.F: Unused parameter ‘vl’ declared at (1) [-Wunused-parameter]
 cp_fm_diag.F: Unused parameter ‘vu’ declared at (1) [-Wunused-parameter]
 cp_gemm_interface.F: Found CALL cp_fm_gemm in procedure "cp_gemm"
