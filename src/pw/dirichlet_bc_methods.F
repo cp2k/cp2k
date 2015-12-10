@@ -278,8 +278,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, k, n_tiles, unit_nr
-    REAL(dp)                                 :: cyl_maxval, dbc_maxval, &
-                                                tile_volume
+    REAL(dp)                                 :: cyl_maxval, tile_volume
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: tile_maxvals
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: cylinder_pw
@@ -323,16 +322,7 @@ CONTAINS
          tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
          CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
          dirichlet_bc%tiles(k)%tile%volume = tile_volume
-         tile_maxvals(k) = tile_maxvals(k) + MAXVAL(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
       END DO
-      CALL mp_max(tile_maxvals, pw_pool%pw_grid%para%group)
-      dbc_maxval = MAXVAL(tile_maxvals)
-      IF (ABS(dbc_maxval - 0.99_dp) .LT. small_value) THEN
-         CALL cp_abort(__LOCATION__,&
-              "Inaccurate approximation of unit step function at Dirichlet region. Possible causes are: "//&
-              "relatively small thickness and/or extents, relatively wide smoothing width, over-"//&
-              "partitioning in at least one direction.")
-      END IF
 
       IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
 
@@ -350,8 +340,6 @@ CONTAINS
       CALL pw_pool_create_pw(pw_pool, cylinder_pw, use_data=REALDATA3D, in_space=REALSPACE)
       CALL pw_zero(cylinder_pw)
 
-      ALLOCATE(tile_maxvals(n_tiles))
-      tile_maxvals = 0.0_dp
       DO k = 1, n_tiles
          CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
@@ -370,16 +358,7 @@ CONTAINS
          tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
          CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
          dirichlet_bc%tiles(k)%tile%volume = tile_volume
-         tile_maxvals(k) = tile_maxvals(k) + MAXVAL(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
       END DO
-      CALL mp_max(tile_maxvals, pw_pool%pw_grid%para%group)
-      dbc_maxval = MAXVAL(tile_maxvals)
-      IF (dbc_maxval .LT. 0.99_dp) THEN
-         CALL cp_abort(__LOCATION__,&
-              "Inaccurate approximation of unit step function at Dirichlet region. Possible causes are: "//&
-              "relatively small thickness and/or extents, relatively wide smoothing width, over-"//&
-              "partitioning in at least one direction.")
-      END IF
 
       cyl_maxval = MAXVAL(cylinder_pw%cr3d)
       CALL mp_max(cyl_maxval, pw_pool%pw_grid%para%group)
@@ -405,8 +384,6 @@ CONTAINS
       dirichlet_bc%tiles = tiles
       IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr,'(T7,A,I5)') "number of partitions : ", n_tiles
   
-      ALLOCATE(tile_maxvals(n_tiles))
-      tile_maxvals = 0.0_dp
       DO k = 1, n_tiles
          CALL pw_pool_create_pw(pw_pool, dirichlet_bc%tiles(k)%tile%tile_pw, use_data=REALDATA3D, in_space=REALSPACE)
          CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
@@ -424,16 +401,7 @@ CONTAINS
          tile_volume = SUM(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
          CALL mp_sum(tile_volume, pw_pool%pw_grid%para%group)
          dirichlet_bc%tiles(k)%tile%volume = tile_volume
-         tile_maxvals(k) = tile_maxvals(k) + MAXVAL(dirichlet_bc%tiles(k)%tile%tile_pw%cr3d)
       END DO
-      CALL mp_max(tile_maxvals, pw_pool%pw_grid%para%group)
-      dbc_maxval = MAXVAL(tile_maxvals)
-      IF (dbc_maxval .LT. 0.99_dp) THEN
-         CALL cp_abort(__LOCATION__,&
-              "Inaccurate approximation of unit step function at Dirichlet region. Possible causes are: "//&
-              "relatively small thickness and/or extents, relatively wide smoothing width, over-"//&
-              "partitioning in at least one direction.")
-      END IF
   
       IF ((unit_nr .GT. 0) .AND. verbose) WRITE(unit_nr, '(T3,A)') REPEAT('=', 78) 
 
