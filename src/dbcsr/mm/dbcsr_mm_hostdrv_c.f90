@@ -160,20 +160,20 @@
 
 #if defined(__LIBXSMM) && 0
     ! Caution: This dependency is ignored by makedep.py, because libxsmm.F is kinda empty.
-    USE libxsmm,                           ONLY: libxsmm_function  => libxsmm_cmm_function,&
-                                                 libxsmm_dispatch  => libxsmm_cdispatch_all,&
-                                                 libxsmm_available => libxsmm_cavailable,&
-                                                 libxsmm_call_abc  => libxsmm_ccall_abc,&
-                                                 libxsmm_call_prf  => libxsmm_ccall_prf,&
-                                                 libxsmm_mm_abc    => libxsmm_cmm_abc,&
-                                                 libxsmm_mm_prf    => libxsmm_cmm_prf,&
-                                                 LIBXSMM_PREFETCH_DEFAULT => LIBXSMM_PREFETCH,&
+    USE libxsmm,                           ONLY: libxsmm_function  => libxsmm_cmmfunction,&
+                                                 libxsmm_dispatch  => libxsmm_cmmdispatch,&
+                                                 libxsmm_available => libxsmm_cmmavailable,&
+                                                 libxsmm_call      => libxsmm_cmmcall,&
+                                                 libxsmm_gemm      => libxsmm_cgemm,&
                                                  LIBXSMM_PREFETCH_NONE,&
+                                                 LIBXSMM_PREFETCH,&
                                                  LIBXSMM_ROW_MAJOR,&
                                                  LIBXSMM_COL_MAJOR,&
                                                  LIBXSMM_MAX_MNK,&
-                                                 LIBXSMM_FLAGS,&
-                                                 LIBXSMM_JIT
+                                                 LIBXSMM_FLAGS
+
+    INTEGER, PARAMETER :: LIBXSMM_DEFAULT_PREFETCH = LIBXSMM_PREFETCH
+    INTEGER, PARAMETER :: LIBXSMM_DEFAULT_FLAGS = LIBXSMM_FLAGS
 #endif
 
     INTEGER, INTENT(IN)                       :: stack_size
@@ -199,7 +199,7 @@
     processed = .FALSE.
     used_smm = .FALSE.
 
-    CPASSERT(LIBXSMM_COL_MAJOR==1 .AND. LIBXSMM_ROW_MAJOR==0)
+    CPASSERT(LIBXSMM_COL_MAJOR/=0 .AND. LIBXSMM_ROW_MAJOR==0)
 
     ! check whether the matrix stack is homogeneous or not
     IF (stack_descr%defined_mnk) THEN
@@ -215,9 +215,8 @@
        ELSE
           ! try to get a function pointer from libxsmm
           CALL libxsmm_dispatch(func, &
-               m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, &
-               alpha=one, beta=one, lda=0, ldb=0, ldc=0, &
-               flags=LIBXSMM_FLAGS,  prefetch=LIBXSMM_PREFETCH_DEFAULT)
+               m=stack_descr%m, n=stack_descr%n, k=stack_descr%k, alpha=one, beta=one, &
+               flags=LIBXSMM_DEFAULT_FLAGS, prefetch=LIBXSMM_DEFAULT_PREFETCH)
 
           IF (libxsmm_available(func)) THEN
              ! load first stack entry
@@ -234,13 +233,13 @@
                 pc = params(p_c_first, sp + 1)
 
                 ! condition evaluates at compile-time (PARAMETERS)
-                IF (LIBXSMM_PREFETCH_DEFAULT /= LIBXSMM_PREFETCH_NONE) THEN
-                   CALL libxsmm_call_prf(func, &
+                IF (LIBXSMM_DEFAULT_PREFETCH /= LIBXSMM_PREFETCH_NONE) THEN
+                   CALL libxsmm_call(func, &
                         a=a_data(fa), b=b_data(fb), c=c_data(fc), &
                         ! provide locations of the next operand set
                         pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
                 ELSE
-                   CALL libxsmm_call_abc(func, &
+                   CALL libxsmm_call(func, &
                         a=a_data(fa), b=b_data(fb), c=c_data(fc))
                 ENDIF
              ENDDO
@@ -249,13 +248,14 @@
              fa = pa; fb = pb; fc = pc
 
              ! condition evaluates at compile-time (PARAMETERS)
-             IF (LIBXSMM_PREFETCH_DEFAULT /= LIBXSMM_PREFETCH_NONE) THEN
-                CALL libxsmm_call_prf(func, &
+             IF (LIBXSMM_DEFAULT_PREFETCH /= LIBXSMM_PREFETCH_NONE) THEN
+                CALL libxsmm_call(func, &
                      a=a_data(fa), b=b_data(fb), c=c_data(fc), &
                      ! prefetch same blocks
                      pa=a_data(pa), pb=b_data(pb), pc=c_data(pc))
              ELSE
-                CALL libxsmm_call_abc(func, a=a_data(fa), b=b_data(fb), c=c_data(fc))
+                CALL libxsmm_call(func, &
+                     a=a_data(fa), b=b_data(fb), c=c_data(fc))
              ENDIF
 
              processed = .TRUE.
@@ -279,8 +279,8 @@
           a_ptr(1:m,1:k) => a_data(fa:fa+(m*k))
           b_ptr(1:k,1:n) => b_data(fb:fb+(k*n))
           c_ptr(1:m,1:n) => c_data(fc:fc+(m*n))
-          CALL libxsmm_mm_abc(m=m, n=n, k=k, a=a_ptr, b=b_ptr, c=c_ptr,&
-                              flags=LIBXSMM_FLAGS, alpha=one, beta=one)
+          CALL libxsmm_gemm(m=m, n=n, k=k, a=a_ptr, b=b_ptr, c=c_ptr, &
+                            alpha=one, beta=one)
        ENDDO
     ENDIF
 
