@@ -119,8 +119,11 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
   * Add -D__HAS_smm_vec to enable the new vectorized interfaces of libsmm.
 
 ==== 2i. libxsmm (optional, improved performance for matrix multiplication) ====
-  * A library for small matrix multiplies which is provided by Intel: https://github.com/hfp/libxsmm/
-  * Add -D__LIBXSMM to enable it.
+  * An experimental library for small matrix multiplies which is provided by Intel: https://github.com/hfp/libxsmm/
+  * Add -D__LIBXSMM to enable it (with suitable include and library paths)
+  * Right now (version 1.0.2-95) LIBXSMM is known to potentially lead to wrong results/segfaults,
+    these circumstances are rare, but they currently can not be excluded
+    (requires satisfactory resolution of https://github.com/hfp/libxsmm/issues/15).
 
 ==== 2j. CUDA (optional, improved performance on GPU systems) ====
   * -D__ACC needed to switch on the accelerator support
@@ -253,6 +256,7 @@ The following flags should be present (or not) in the arch file, partially depen
   * -D__PILAENV_BLOCKSIZE : can be used to specify the blocksize (e.g. -D__PILAENV_BLOCKSIZE=1024),
     which is a hack to overwrite (if the linker allows this) the PILAENV function provided by Scalapack.
     This can lead to much improved PDGEMM performance. The optimal value depends on hardware (GPU?) and precise problem.
+    Alternatively, Cray provides an environment variable to this effect (e.g. export LIBSCI_ACC_PILAENV=4000)
   * -D__STATM_RESIDENT or -D__STATM_TOTAL toggles memory usage reporting between resident memory and total memory
   * -D__CRAY_PM_ACCEL_ENERGY or -D__CRAY_PM_ENERGY switch on energy profiling on Cray systems 
   * -D__NO_ABORT to avoid calling abort, but STOP instead (useful for coverage testing, and to avoid core dumps on some systems)
