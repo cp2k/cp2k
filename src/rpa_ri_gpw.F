@@ -2548,14 +2548,14 @@ MODULE rpa_ri_gpw
                                                         omega,contour_def_offset,e_fermi,&
                                                         mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
                                                         contour_def_start,contour_def_end,n_global,jquad,&
-                                                        num_integ_points,m_global,homo,nm_global,&
+                                                        num_integ_points,m_global,nm_global,&
                                                         alpha_beta_case=.TRUE.,alpha=.TRUE.)
 
                 CALL contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq_beta,wj,vec_W_gw_beta,Eigenval_beta,&
                                                         omega,contour_def_offset,e_fermi,&
                                                         mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
                                                         contour_def_start,contour_def_end,n_global_beta,jquad,&
-                                                        num_integ_points,m_global_beta,homo_beta,nm_global,&
+                                                        num_integ_points,m_global_beta,nm_global,&
                                                         alpha_beta_case=.TRUE.,beta=.TRUE.)
 
               ELSE
@@ -2564,7 +2564,7 @@ MODULE rpa_ri_gpw
                                                         omega,contour_def_offset,e_fermi,&
                                                         mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
                                                         contour_def_start,contour_def_end,n_global,jquad,&
-                                                        num_integ_points,m_global,homo,nm_global)
+                                                        num_integ_points,m_global,nm_global)
               END IF
 
   
@@ -2670,7 +2670,7 @@ MODULE rpa_ri_gpw
 
             CALL compute_z_and_m_contour_def(vec_gw_energ,z_value,m_value,&
                                              vec_Sigma_c_gw_real_freq,contour_def_offset,&
-                                             n_level_gw,index_contour_def,unit_nr)
+                                             n_level_gw,index_contour_def)
 
             index_contour_def=index_contour_def+1
 
@@ -2692,7 +2692,7 @@ MODULE rpa_ri_gpw
   
               CALL compute_z_and_m_contour_def(vec_gw_energ_beta,z_value_beta,m_value_beta,&
                                                vec_Sigma_c_gw_real_freq_beta,contour_def_offset,&
-                                               n_level_gw,index_contour_def,unit_nr)
+                                               n_level_gw,index_contour_def)
   
               index_contour_def=index_contour_def+1
   
@@ -3895,18 +3895,17 @@ MODULE rpa_ri_gpw
 !> \param contour_def_offset ...
 !> \param n_level_gw ...
 !> \param index_contour_def ...
-!> \param unit_nr ...
 ! *****************************************************************************
     SUBROUTINE compute_z_and_m_contour_def(vec_gw_energ,z_value,m_value,&
                                            vec_Sigma_c_gw_real_freq,contour_def_offset,&
-                                           n_level_gw,index_contour_def,unit_nr)
+                                           n_level_gw,index_contour_def)
 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, z_value, &
                                                 m_value, &
                                                 vec_Sigma_c_gw_real_freq
     REAL(KIND=dp)                            :: contour_def_offset
     INTEGER                                  :: n_level_gw, &
-                                                index_contour_def, unit_nr
+                                                index_contour_def
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_z_and_m_contour_def', &
       routineP = moduleN//':'//routineN
@@ -4194,7 +4193,6 @@ MODULE rpa_ri_gpw
 !> \param jquad ...
 !> \param num_integ_points ...
 !> \param m_global ...
-!> \param homo ...
 !> \param nm_global ...
 !> \param alpha_beta_case ...
 !> \param alpha ...
@@ -4204,7 +4202,7 @@ MODULE rpa_ri_gpw
                                                   omega,contour_def_offset,e_fermi,&
                                                   mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
                                                   contour_def_start,contour_def_end,n_global,jquad,&
-                                                  num_integ_points,m_global,homo,nm_global,&
+                                                  num_integ_points,m_global,nm_global,&
                                                   alpha_beta_case,alpha,beta)
 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_Sigma_c_gw_real_freq, wj, &
@@ -4216,7 +4214,7 @@ MODULE rpa_ri_gpw
                                                 residue_from_jquad, &
                                                 alpha_beta_from_jquad
     INTEGER :: contour_def_start, contour_def_end, n_global, jquad, &
-      num_integ_points, m_global, homo, nm_global
+      num_integ_points, m_global, nm_global
     LOGICAL, OPTIONAL                        :: alpha_beta_case, alpha, beta
 
     CHARACTER(LEN=*), PARAMETER :: &
