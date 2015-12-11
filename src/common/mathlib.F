@@ -55,7 +55,7 @@ MODULE mathlib
             reflect_vector,&
             dotprod_3d,&
             transpose_3d,&
-            expint
+            expint, abnormal_value
 
   INTERFACE det_3x3
     MODULE PROCEDURE det_3x3_1,det_3x3_2
@@ -78,6 +78,27 @@ MODULE mathlib
   END INTERFACE
 
 CONTAINS
+
+
+! *****************************************************************************
+!> \brief determins if a value is not normal (e.g. for Inf and Nan)
+!>        based on IO to work also under optimization.
+!> \param a input value
+!> \retval abnormal_value TRUE for NaN and Inf
+! *****************************************************************************
+  LOGICAL FUNCTION abnormal_value(a)
+    REAL(KIND=dp) :: a
+    CHARACTER(LEN=32) :: buffer
+
+    abnormal_value=.FALSE.
+    ! the function should work when compiled witht -ffast-math and similar
+    ! unfortunately, that option asserts that all numbers are normals,
+    ! which the compiler uses to optimize the function to .FALSE. if based on the IEEE module
+    ! therefore, pass this to the Fortran runtime/printf, if things are NaN or Inf, error out.
+    WRITE(buffer,*) a
+    IF (INDEX(buffer,"N").NE.0 .OR. INDEX(buffer,"n").NE.0) abnormal_value=.TRUE.
+
+  END FUNCTION abnormal_value
 
 ! *****************************************************************************
 !> \brief  Calculation of the angle between the vectors a and b.

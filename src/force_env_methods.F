@@ -90,6 +90,7 @@ MODULE force_env_methods
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_memory
+  USE mathlib,                         ONLY: abnormal_value
   USE message_passing,                 ONLY: mp_sum,&
                                              mp_sync
   USE metadynamics_types,              ONLY: meta_env_retain,&
@@ -277,16 +278,21 @@ CONTAINS
        CALL rescale_forces(force_env)
     END IF
 
+    CALL force_env_get(force_env, potential_energy=e_pot)
+
     ! Print always Energy in the same format for all methods
     output_unit = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%PROGRAM_RUN_INFO",&
       extension=".Log")
     IF (output_unit > 0) THEN
-       CALL force_env_get(force_env, potential_energy=e_pot)
        WRITE(output_unit,'(/,T2,"ENERGY| Total FORCE_EVAL ( ",A," ) energy (a.u.): ",T55,F26.15,/)')&
             ADJUSTR(TRIM(use_prog_name(force_env%in_use))),e_pot
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,force_env%force_env_section,&
                                       "PRINT%PROGRAM_RUN_INFO")
+
+    ! terminate the run if the value of the potential is abnormal
+    IF(abnormal_value(e_pot)) &
+           CPABORT("Potential energy is abnormal value (NaN/Inf).")
 
     ! Print forces, if requested
     print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&

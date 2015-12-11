@@ -80,6 +80,7 @@ MODULE qs_ks_methods
                                              lri_kind_type
   USE lri_forces,                      ONLY: calculate_lri_forces
   USE lri_ks_methods,                  ONLY: calculate_lri_ks_matrix
+  USE mathlib,                         ONLY: abnormal_value
   USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -785,6 +786,9 @@ CONTAINS
                    energy%efield + energy%efield_core + energy%ee +&
                    energy%ee_core + energy%exc_aux_fit + energy%image_charge +&
                    energy%sccs_pol + energy%sccs_mpc
+
+    IF(abnormal_value(energy%total)) &
+      CPABORT("KS energy is abnormal value (NaN/Inf).")
 
     ! Print detailed energy
     IF (my_print) THEN
