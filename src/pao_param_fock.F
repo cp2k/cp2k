@@ -26,7 +26,6 @@ MODULE pao_param_fock
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_initial_guess,                ONLY: calculate_atomic_fock_matrix
   USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
 
@@ -52,11 +51,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_fock', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: acol, arow, handle
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_H0
+    INTEGER                                  :: handle
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -82,27 +79,6 @@ CONTAINS
     CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
     CALL fill_randomly(pao%matrix_U0, pao%random_seed)
 
-    ! make a copy of the atomic guess
-    CALL cp_dbcsr_init(pao%matrix_H0)
-    CALL cp_dbcsr_create(pao%matrix_H0, template=matrix_s(1)%matrix)
-    CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_H0)
-
-    ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), it's not rotationally invariant
-    ! getting H0 directly from the atomic code
-    CALL calculate_atomic_fock_matrix(pao%matrix_H0,&
-                                      particle_set,&
-                                      atomic_kind_set,&
-                                      qs_kind_set,&
-                                      output_unit=pao%iw)
-
-    ! symmetrize matrix_H0 exactly
-    CALL cp_dbcsr_iterator_start(iter, pao%matrix_H0)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_H0)
-       block_H0 = 0.5_dp*( block_H0 + TRANSPOSE(block_H0) )
-    END DO
-    CALL cp_dbcsr_iterator_stop(iter)
-
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_fock
 
@@ -118,7 +94,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CALL cp_dbcsr_release(pao%matrix_U0)
-    CALL cp_dbcsr_release(pao%matrix_H0)
 
   END SUBROUTINE pao_param_finalize_fock
 
@@ -127,15 +102,15 @@ CONTAINS
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
 !> \param iatom ...
-!> \param X ...
+!> \param V ...
 !> \param U ...
 !> \param M1 ...
 !> \param G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_fock(pao, iatom, X, U, M1, G)
+  SUBROUTINE pao_calc_U_fock(pao, iatom, V, U, M1, G)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER                                  :: iatom
-    REAL(dp), DIMENSION(:, :), POINTER       :: X, U
+    REAL(dp), DIMENSION(:, :), POINTER       :: V, U
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: M1, G
 
@@ -144,44 +119,36 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k, m, n
     LOGICAL                                  :: found
-    REAL(dp)                                 :: denom, nom, v
-    REAL(dp), DIMENSION(:), POINTER          :: H_evals, W_evals
-    REAL(dp), DIMENSION(:, :), POINTER       :: C, D4, D8, H, H0, H_evecs, &
-                                                M2, M3, M4, M5, M6, M7, P, &
-                                                U0, W, W_evecs, Y, Z
+    REAL(dp)                                 :: denom, invsqrt, nom
+    REAL(dp), DIMENSION(:), POINTER          :: V_evals, W_evals
+    REAL(dp), DIMENSION(:, :), POINTER       :: C, D4, D8, M2, M3, M4, M5, &
+                                                M6, M7, P, U0, V_evecs, W, &
+                                                W_evecs, Y, Z
 
     CALL timeset(routineN,handle)
 
-    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=H0, found=found)
-    CPASSERT(ASSOCIATED(H0))
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=U0, found=found)
     CPASSERT(ASSOCIATED(U0))
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=Y, found=found)
     CPASSERT(ASSOCIATED(Y))
 
-    IF(MAXVAL(ABS(X-TRANSPOSE(X)))>1e-14_dp) CPABORT("Expect symmetric matrix")
-    n = SIZE(X, 1)
+    IF(MAXVAL(ABS(V-TRANSPOSE(V)))>1e-14_dp) CPABORT("Expect symmetric matrix")
+    n = SIZE(V, 1)
     m = SIZE(Y, 2)
     IF(SIZE(Y, 1) /= n) CPABORT("strange size of block Y")
 
-    ! calculate P-block from H-block
-    ALLOCATE(H_evals(n), H_evecs(n,n), P(n,n), H(n,n))
-    H = H0 + X
-
-    IF(MAXVAL(ABS(H-TRANSPOSE(H)))>1e-14_dp) CPABORT("Expect symmetric matrix")
-
-    H_evecs = H
-    CALL diamat_all(H_evecs, H_evals)
-
+    ! calculate P = sign(V)
+    ALLOCATE(V_evals(n), V_evecs(n,n), P(n,n))
+    V_evecs = V
+    CALL diamat_all(V_evecs, V_evals)
     P(:,:) = 0.0_dp
     DO k=1, m ! First m states have occupation 1, remaining have 0 .
        DO i=1, n
           DO j=1, n
-             P(i,j) = P(i,j) + H_evecs(i,k)*H_evecs(j,k)
+             P(i,j) = P(i,j) + V_evecs(i,k)*V_evecs(j,k)
           ENDDO
        ENDDO
     ENDDO
-
     IF(MAXVAL(ABS(P-TRANSPOSE(P)))>1e-14_dp) CPABORT("block P not symmetric")
 
     ! Apply projector P onto random matrix U0
@@ -199,10 +166,10 @@ CONTAINS
     Z=0.0_dp
     DO k=1, m
        IF(W_evals(k) <= 0.0_dp) CYCLE !TODO: is this a clean solution?
-       v = 1.0_dp / SQRT(W_evals(k))
+       invsqrt = 1.0_dp / SQRT(W_evals(k))
        DO i=1, m
           DO j=1, m
-             Z(i,j) = Z(i,j) + v * W_evecs(i,k)*W_evecs(j,k)
+             Z(i,j) = Z(i,j) + invsqrt * W_evecs(i,k)*W_evecs(j,k)
           ENDDO
        ENDDO
     ENDDO
@@ -250,7 +217,7 @@ CONTAINS
        ALLOCATE(M7(n,n))
        M7 = MATMUL(MATMUL(M6, TRANSPOSE(Y)), TRANSPOSE(U0))
 
-       ! dP / dX
+       ! dP / dV
        ALLOCATE(D8(n,n))
        DO i=1, n
           DO j=1, n
@@ -260,7 +227,7 @@ CONTAINS
                  nom = 0.0_dp
                  IF(i<=m) nom = nom + 1.0_dp
                  IF(j<=m) nom = nom - 1.0_dp
-                 denom = H_evals(i) - H_evals(j)
+                 denom = V_evals(i) - V_evals(j)
                  IF(nom==0.0_dp) THEN ! avoid division by zero if denom==0 too.
                     D8(i,j) = 0.0_dp
                  ELSE
@@ -271,13 +238,13 @@ CONTAINS
        ENDDO
 
        ! the final gradient
-       G = fold_derivatives(M7, D8, H_evecs, +1)
+       G = fold_derivatives(M7, D8, V_evecs, +1)
 
        DEALLOCATE(M2, M3, M4, M5, M6, M7)
        DEALLOCATE(D4, D8)
     ENDIF
 
-    DEALLOCATE(H, H_evals, H_evecs, W_evals, W_evecs)
+    DEALLOCATE(V_evals, V_evecs, W_evals, W_evecs)
     DEALLOCATE(Z, P, C, W)
 
     CALL timestop(handle)

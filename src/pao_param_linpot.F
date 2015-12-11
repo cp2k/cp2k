@@ -120,7 +120,7 @@ CONTAINS
           IF(kterm <= nterms) THEN
             CALL linpot_calc_term(pao, qs_env, iatom, kterm, block_V_term)
             block_V_term = block_V_term / SQRT(SUM(block_V_term*block_V_term))
-            block_X(kterm,1) = ABS(SUM(block_V_term * block_H)) ! seems like a good initial guess
+            block_X(kterm,1) = SUM(block_V_term * block_H) ! seems like a good initial guess
           ENDIF
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
