@@ -7,6 +7,7 @@
 !> \brief Rountines to calculate RI-RPA energy
 !> \par History
 !>      06.2012 created [Mauro Del Ben]
+!>      04.2015 GW routines added [Jan Wilhelm]
 ! *****************************************************************************
 MODULE rpa_ri_gpw
   USE bibliography,                    ONLY: DelBen2013,&
@@ -15,7 +16,8 @@ MODULE rpa_ri_gpw
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_syrk,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -29,6 +31,7 @@ MODULE rpa_ri_gpw
                                              cp_fm_indxg2p,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
@@ -526,7 +529,7 @@ MODULE rpa_ri_gpw
         ! go with clenshaw-curtius/minimax quadrature
         CALL rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
                                  homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
+                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,integ_group_size,&
                                  fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                  my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                  stop_crit,check_fit,fermi_level_offset,crossing_search,&
@@ -547,7 +550,7 @@ MODULE rpa_ri_gpw
         ! here, we also do the quasi-particle-energy correction for G0W0
         CALL rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
                                  homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
+                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,integ_group_size,&
                                  fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                  my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                  stop_crit,check_fit,fermi_level_offset,crossing_search,&
@@ -1465,6 +1468,7 @@ MODULE rpa_ri_gpw
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
+!> \param integ_group_size ...
 !> \param fm_mat_S ...
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
@@ -1496,7 +1500,7 @@ MODULE rpa_ri_gpw
 ! *****************************************************************************
     SUBROUTINE rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
                                    homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                   Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
+                                   Eigenval,num_integ_points,num_integ_group,color_rpa_group,integ_group_size,&
                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                    my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                    stop_crit,check_fit,fermi_level_offset,crossing_search,&
@@ -1513,7 +1517,8 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: num_integ_points, &
                                                 num_integ_group, &
-                                                color_rpa_group
+                                                color_rpa_group, &
+                                                integ_group_size
     TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
                                                 fm_mat_Q, fm_mat_S_gw, &
                                                 fm_mat_R_gw
@@ -1546,32 +1551,35 @@ MODULE rpa_ri_gpw
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vec_Sigma_c_gw, &
                                                 vec_Sigma_c_gw_beta
-    INTEGER :: avirt, count_ev_sc_GW, gw_corr_lev_tot, handle, handle2, &
-      handle3, i_global, ierr, iiB, info_chol, iocc, iquad, iter_ev_sc, &
-      j_global, jjB, jquad, m_global, m_global_beta, my_num_dgemm_call, &
-      n_global, n_global_beta, n_level_gw, n_level_gw_ref, ncol_local, &
-      nm_global, nmo, nrow_local, num_fit_points, num_var, number_of_rec, &
-      number_of_rec_beta, number_of_send, number_of_send_beta
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_rec_size, &
-                                                map_rec_size_beta, &
-                                                map_send_size, &
-                                                map_send_size_beta, &
-                                                RPA_proc_map
+    INTEGER :: avirt, contour_def_end, contour_def_level_tot, &
+      contour_def_start, count_ev_sc_GW, gw_corr_lev_tot, handle, handle2, &
+      handle3, i_ener, i_global, i_mo, ierr, iiB, index_contour_def, &
+      info_chol, iocc, iquad, iter_ev_sc, j_global, j_mo, jjB, jquad, &
+      m_global, m_global_beta, my_num_dgemm_call, n_global, n_global_beta, &
+      n_level_gw, n_level_gw_ref, ncol_local, nm_global, nmo, nrow_local, &
+      num_fit_points, num_real_freq_cont_def, num_residues, num_var, &
+      number_of_rec, number_of_rec_beta, number_of_send, number_of_send_beta
+    INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, &
+      map_rec_size, map_rec_size_beta, map_send_size, map_send_size_beta, &
+      mo_from_jquad, residue_from_jquad, RPA_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_size_source, &
                                                 local_size_source_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: first_cycle, my_open_shell
-    REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, e_fermi, E_Range, &
-      eigen_diff, Emax, Emax_beta, Emin, Emin_beta, FComega, my_flop_rate, &
-      omega, omega_i, omega_old, sign_occ_virt, t_end, t_start
+    LOGICAL                                  :: do_contour_def, first_cycle, &
+                                                my_open_shell
+    REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, &
+      det, e_fermi, E_Range, eigen_diff, Emax, Emax_beta, Emin, Emin_beta, &
+      FComega, my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, t_end, &
+      t_start
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, &
       Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, Lambda_Im, &
-      Lambda_Re, m_value, m_value_beta, Q_log, tj, trace_Qomega, &
+      Lambda_Re, m_value, m_value_beta, Q_log, real_freq, tj, trace_Qomega, &
       vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
       vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_omega_fit_gw_sign, &
-      vec_omega_gw, vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
-    TYPE(cp_fm_type), POINTER                :: fm_mat_S_gw_work, &
-                                                fm_mat_S_gw_work_beta
+      vec_omega_gw, vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, &
+      vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
+    TYPE(cp_fm_type), POINTER :: fm_mat_S_contour_def, &
+      fm_mat_S_contour_def_beta, fm_mat_S_gw_work, fm_mat_S_gw_work_beta
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_rec_beta, &
                                                 buffer_send, buffer_send_beta
@@ -1586,6 +1594,8 @@ MODULE rpa_ri_gpw
        PRESENT(fm_mat_S_beta).AND.&
        PRESENT(fm_mat_Q_gemm_beta).AND.&
        PRESENT(fm_mat_Q_beta)) my_open_shell=.TRUE.
+
+    do_contour_def = .FALSE.
 
     ALLOCATE(tj(num_integ_points))
     tj=0.0_dp
@@ -1682,10 +1692,10 @@ MODULE rpa_ri_gpw
     ELSE
       alpha=4.0_dp
     END IF
-  
+
     IF(my_do_gw) THEN
-      nmo=homo+virtual
-      gw_corr_lev_tot=gw_corr_lev_occ+gw_corr_lev_virt
+      nmo = homo+virtual
+      gw_corr_lev_tot = gw_corr_lev_occ+gw_corr_lev_virt
 
       ALLOCATE(Eigenval_scf(nmo))
       Eigenval_scf(:) = Eigenval(:)
@@ -1789,6 +1799,51 @@ MODULE rpa_ri_gpw
       END DO
   
       DEALLOCATE(vec_omega_gw)
+
+      ! check if we want to do the contour deformation technique instead of analytical continuation
+      contour_def_start = mp2_env%ri_g0w0%contour_def_start
+      contour_def_end   = mp2_env%ri_g0w0%contour_def_end
+
+      IF(contour_def_start>0 .AND. contour_def_end>=contour_def_start) THEN
+        do_contour_def = .TRUE.
+      END IF
+      contour_def_offset = mp2_env%ri_g0w0%contour_def_offset
+
+      IF(do_contour_def) THEN
+
+        ! check range
+        IF(contour_def_start<homo-gw_corr_lev_occ+1) THEN
+          contour_def_start = homo-gw_corr_lev_occ+1
+        END IF
+
+        IF(contour_def_end>homo+gw_corr_lev_virt) THEN
+          contour_def_end = homo+gw_corr_lev_virt
+        END IF
+
+        contour_def_level_tot = contour_def_end-contour_def_start+1
+
+        num_real_freq_cont_def = 2*contour_def_level_tot
+
+        ! set up array for the self-energy as function of real energy. one energy is slightly 
+        ! above and one below the DFT MO energy => the space is 2* number of levels which are 
+        ! treated by contour deformation technique
+        ALLOCATE(vec_Sigma_c_gw_real_freq(num_real_freq_cont_def))
+
+        IF(my_open_shell) THEN
+          ALLOCATE(vec_Sigma_c_gw_real_freq_beta(num_real_freq_cont_def))
+        END IF
+
+        NULLIFY(fm_mat_S_contour_def)
+        CALL cp_fm_create(fm_mat_S_contour_def,fm_mat_S%matrix_struct)
+        CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_S_contour_def)
+  
+        IF(my_open_shell) THEN
+          NULLIFY(fm_mat_S_contour_def_beta)
+          CALL cp_fm_create(fm_mat_S_contour_def_beta,fm_mat_S_beta%matrix_struct)
+          CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_S_contour_def_beta)
+        END IF
+
+      END IF
  
       ! arrays storing the complex fit parameters a_0, a_1, b_1, a_2, b_2, ...
       num_var=2*num_poles+1
@@ -1857,17 +1912,139 @@ MODULE rpa_ri_gpw
         END IF
       END IF
 
-      DO jquad=1, num_integ_points
+      num_residues = 0
+
+      ! get the energies for evaluating the residues
+      IF(do_contour_def) THEN
+        vec_Sigma_c_gw_real_freq = 0.0_dp
+        IF(my_open_shell) THEN
+          vec_Sigma_c_gw_real_freq_beta = 0.0_dp
+        END IF
+
+       ! determine how many residues we need for the contour deformation technique
+        DO i_mo=contour_def_start,contour_def_end
+          IF(i_mo<=homo) THEN
+            DO j_mo=1,homo
+              IF(Eigenval(i_mo)-contour_def_offset<Eigenval(j_mo)) THEN
+                num_residues = num_residues+1
+              END IF
+            END DO
+          ELSE
+            DO j_mo=homo+1,nmo
+              IF(Eigenval(i_mo)+contour_def_offset>Eigenval(j_mo)) THEN
+                num_residues = num_residues+1
+              END IF
+            END DO
+          END IF
+        END DO
+
+        ! add residues for beta
+        IF(my_open_shell) THEN
+          DO i_mo=contour_def_start,contour_def_end
+            IF(i_mo<=homo_beta) THEN
+              DO j_mo=1,homo_beta
+                IF(Eigenval_beta(i_mo)-contour_def_offset<Eigenval_beta(j_mo)) THEN
+                  num_residues = num_residues+1
+                END IF
+              END DO
+            ELSE
+              DO j_mo=homo_beta+1,nmo
+                IF(Eigenval_beta(i_mo)+contour_def_offset>Eigenval_beta(j_mo)) THEN
+                  num_residues = num_residues+1
+                END IF
+              END DO
+            END IF
+          END DO
+        END IF
+
+        ! allocate real frequencies of the residues
+        ALLOCATE(real_freq(num_residues))
+
+        ! for getting the MO to which the residue is beloning
+        ALLOCATE(mo_from_jquad(num_residues))
+
+        ! for getting the residue (connected with the MO m)
+        ALLOCATE(residue_from_jquad(num_residues))
+
+        ! for spin information
+        ALLOCATE(alpha_beta_from_jquad(num_residues))
+
+        i_ener=0
+        ! determine which residue number belongs to which MO, residue and energy
+        DO i_mo=contour_def_start,contour_def_end
+          IF(i_mo<=homo) THEN
+            DO j_mo=1,homo
+              IF(Eigenval(i_mo)-contour_def_offset<Eigenval(j_mo)) THEN
+                i_ener = i_ener+1
+                mo_from_jquad(i_ener) = i_mo
+                residue_from_jquad(i_ener) = j_mo
+                real_freq(i_ener) = Eigenval(j_mo)-Eigenval(i_mo)
+                alpha_beta_from_jquad(i_ener) = 1
+              END IF
+            END DO
+          ELSE
+            DO j_mo=homo+1,nmo
+              IF(Eigenval(i_mo)+contour_def_offset>Eigenval(j_mo)) THEN
+                i_ener = i_ener+1
+                mo_from_jquad(i_ener) = i_mo
+                residue_from_jquad(i_ener) = j_mo
+                real_freq(i_ener) = Eigenval(j_mo)-Eigenval(i_mo)
+                alpha_beta_from_jquad(i_ener) = 1
+              END IF
+            END DO
+          END IF
+        END DO
+
+        ! residues for beta
+        IF(my_open_shell) THEN
+
+          DO i_mo=contour_def_start,contour_def_end
+            IF(i_mo<=homo_beta) THEN
+              DO j_mo=1,homo_beta
+                IF(Eigenval_beta(i_mo)-contour_def_offset<Eigenval_beta(j_mo)) THEN
+                  i_ener = i_ener+1
+                  mo_from_jquad(i_ener) = i_mo
+                  residue_from_jquad(i_ener) = j_mo
+                  real_freq(i_ener) = Eigenval_beta(j_mo)-Eigenval_beta(i_mo)
+                  alpha_beta_from_jquad(i_ener) = 2
+                END IF
+              END DO
+            ELSE
+              DO j_mo=homo_beta+1,nmo
+                IF(Eigenval_beta(i_mo)+contour_def_offset>Eigenval_beta(j_mo)) THEN
+                  i_ener = i_ener+1
+                  mo_from_jquad(i_ener) = i_mo
+                  residue_from_jquad(i_ener) = j_mo
+                  real_freq(i_ener) = Eigenval_beta(j_mo)-Eigenval_beta(i_mo)
+                  alpha_beta_from_jquad(i_ener) = 2
+                END IF
+              END DO
+            END IF
+          END DO
+
+        END IF
+
+      END IF
+
+      DO jquad=1, num_integ_points+num_residues
         IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
   
         CALL timeset(routineN//"_RPA_matrix_operations",handle3)
+
+        IF(jquad<=num_integ_points) THEN
         
-        IF(do_minimax_quad) THEN
-          omega=tj(jquad)
+          IF(do_minimax_quad) THEN
+            omega=tj(jquad)
+          ELSE
+            omega=a_scaling/TAN(tj(jquad))
+          END IF
+
         ELSE
-          omega=a_scaling/TAN(tj(jquad))
+          ! we do contour deformation for GW, where we have a real frequency
+          omega=real_freq(jquad-num_integ_points)
+
         END IF
-  
+
         !XXX ! copy fm_mat_S into fm_mat_G
         !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G)
   
@@ -1890,9 +2067,10 @@ MODULE rpa_ri_gpw
 
 
         ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
-        IF(first_cycle .AND. my_do_gw .AND. count_ev_sc_GW/=1) THEN
+        IF(first_cycle .AND. count_ev_sc_GW>1) THEN
           !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old)
+          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,fm_mat_S,virtual,&
+          !$OMP             homo,omega_old,do_contour_def,fm_mat_S_contour_def)
           DO jjB=1, ncol_local
             j_global=col_indices(jjB)
             DO iiB=1, nrow_local
@@ -1902,16 +2080,18 @@ MODULE rpa_ri_gpw
               avirt=i_global-(iocc-1)*virtual
               eigen_diff=Eigenval_last(avirt+homo)-Eigenval_last(iocc)
 
-              fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)/&
-                                           SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
-
+              ! for the contour deformation, we have the original B-matrix 
+              IF(do_contour_def) THEN
+                fm_mat_S%local_data(iiB,jjB)=fm_mat_S_contour_def%local_data(iiB,jjB)
+              ELSE
+                fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)/&
+                                             SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
+              END IF
 
             END DO
           END DO
 
         END IF
-
-
 
         ! update G matrix with the new value of omega
         IF(first_cycle) THEN
@@ -1938,7 +2118,8 @@ MODULE rpa_ri_gpw
           ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
           !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
           !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
-          !$OMP                    fm_mat_S,virtual,homo,omega,omega_old)
+          !$OMP                    fm_mat_S,virtual,homo,omega,omega_old,real_freq,jquad,&
+          !$OMP                    num_integ_points,integ_group_size,fm_mat_S_contour_def)
           DO jjB=1, ncol_local
             j_global=col_indices(jjB)
             DO iiB=1, nrow_local
@@ -1947,31 +2128,53 @@ MODULE rpa_ri_gpw
               iocc=MAX(1,i_global-1)/virtual+1
               avirt=i_global-(iocc-1)*virtual
               eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
-  
-              fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
-                                           SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
-  
+
+              IF(jquad<=num_integ_points) THEN
+
+                fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
+                                             SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
+
+              ELSE
+
+                ! reset
+                fm_mat_S%local_data(iiB,jjB)=fm_mat_S_contour_def%local_data(iiB,jjB)
+
+                ! update
+                fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2-omega**2)
+
+              END IF
             END DO
           END DO
         END IF
-  
+
         ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
         t_start=m_walltime()
         SELECT CASE(mm_style)
         CASE(wfc_mm_style_gemm)
            ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
-           CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
-                           matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
-                           matrix_c=fm_mat_Q_gemm)
+           IF(jquad<=num_integ_points) THEN
+             ! RPA for imaginary frequencies
+             CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
+                          matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
+                          matrix_c=fm_mat_Q_gemm)
+           ELSE
+             ! GW contour deformation for real frequencies with fm_mat_S_contour_def
+             CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
+                          matrix_a=fm_mat_S,matrix_b=fm_mat_S_contour_def,beta=0.0_dp,&
+                          matrix_c=fm_mat_Q_gemm)
+           END IF
         CASE(wfc_mm_style_syrk)
            ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
            CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
                            ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm)
+           IF(jquad>num_integ_points) THEN
+             CPABORT("GW contour deformation does not work with wfc_mm_style_syrk.")
+           END IF
         CASE DEFAULT
            CPABORT("")
         END SELECT
         t_end=m_walltime()
-  
+
         actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)
         actual_flop_rate=actual_flop_rate/(MAX(0.01_dp,t_end-t_start))
         IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
@@ -2001,7 +2204,37 @@ MODULE rpa_ri_gpw
                               ncol_local=ncol_local,&
                               row_indices=row_indices,&
                               col_indices=col_indices)
-  
+ 
+          ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
+          IF(first_cycle .AND. count_ev_sc_GW>1) THEN
+            !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last_beta,&
+            !$OMP                    fm_mat_S_beta,virtual_beta,homo_beta,omega_old,do_contour_def,&
+            !$OMP                    fm_mat_S_contour_def_beta)
+            DO jjB=1, ncol_local
+              j_global=col_indices(jjB)
+              DO iiB=1, nrow_local
+                i_global=row_indices(iiB)
+
+                iocc=MAX(1,i_global-1)/virtual_beta+1
+                avirt=i_global-(iocc-1)*virtual_beta
+                eigen_diff=Eigenval_last_beta(avirt+homo_beta)-Eigenval_last_beta(iocc)
+
+                ! for the contour deformation, the last omega was a residue, so negative sign
+                IF(do_contour_def) THEN
+                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_contour_def_beta%local_data(iiB,jjB)
+                ELSE
+                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)/&
+                                               SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
+                END IF
+
+              END DO
+            
+            END DO
+
+          END IF
+
+ 
           ! update G matrix with the new value of omega
           IF(first_cycle) THEN
             !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
@@ -2023,8 +2256,9 @@ MODULE rpa_ri_gpw
             END DO
           ELSE
             !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,&
-            !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega,omega_old)
+            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,jquad,num_integ_points,&
+            !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega,omega_old, &
+            !$OMP                    integ_group_size,fm_mat_S_contour_def_beta)
             DO jjB=1, ncol_local
               j_global=col_indices(jjB)
               DO iiB=1, nrow_local
@@ -2033,10 +2267,22 @@ MODULE rpa_ri_gpw
                 iocc=MAX(1,i_global-1)/virtual_beta+1
                 avirt=i_global-(iocc-1)*virtual_beta
                 eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
-  
-                fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
-                                                  SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
-  
+
+                IF(jquad<=num_integ_points) THEN
+
+                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
+                                                    SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
+
+                ELSE
+
+                  ! reset
+                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_contour_def_beta%local_data(iiB,jjB)
+
+                  ! update
+                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2-omega**2)
+
+                END IF
+
               END DO
             END DO
           END IF
@@ -2044,9 +2290,15 @@ MODULE rpa_ri_gpw
           t_start=m_walltime()
           SELECT CASE(mm_style)
           CASE(wfc_mm_style_gemm)
-             CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
-                             matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
-                             matrix_c=fm_mat_Q_gemm_beta)
+            IF(jquad<=num_integ_points) THEN
+              CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
+                           matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
+                           matrix_c=fm_mat_Q_gemm_beta)
+            ELSE
+              CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
+                           matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_contour_def_beta,beta=0.0_dp,&
+                           matrix_c=fm_mat_Q_gemm_beta)
+            END IF
           CASE(wfc_mm_style_syrk)
              CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia_beta,alpha=alpha,matrix_a=fm_mat_S_beta,&
                              ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm_beta)
@@ -2091,40 +2343,44 @@ MODULE rpa_ri_gpw
           END DO
         END DO
         CALL mp_sum(trace_Qomega,para_env_RPA%group)
-  
-        ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
-        CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
-        CPASSERT(info_chol==0)
-  
-        ! get info of cholesky_decomposed(fm_mat_Q)
-        CALL cp_fm_get_info(matrix=fm_mat_Q,&
-                            nrow_local=nrow_local,&
-                            ncol_local=ncol_local,&
-                            row_indices=row_indices,&
-                            col_indices=col_indices)
-  
-        Q_log=0.0_dp
-        !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
-        !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
-        DO jjB=1, ncol_local
-          j_global=col_indices(jjB)
-          DO iiB=1, nrow_local
-            i_global=row_indices(iiB)
-            IF(j_global==i_global.AND.i_global<=dimen_RI) THEN
-              Q_log(i_global)=2.0_dp*LOG(fm_mat_Q%local_data(iiB,jjB))
-            END IF
+
+        IF(jquad<=num_integ_points) THEN
+ 
+          ! calculate Trace(Log(Matrix)) as Log(DET(Matrix)) via cholesky decomposition
+          CALL cp_fm_cholesky_decompose(matrix=fm_mat_Q, n=dimen_RI, info_out=info_chol)
+          CPASSERT(info_chol==0)
+    
+          ! get info of cholesky_decomposed(fm_mat_Q)
+          CALL cp_fm_get_info(matrix=fm_mat_Q,&
+                              nrow_local=nrow_local,&
+                              ncol_local=ncol_local,&
+                              row_indices=row_indices,&
+                              col_indices=col_indices)
+    
+          Q_log=0.0_dp
+          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
+          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Q_log,fm_mat_Q,dimen_RI)
+          DO jjB=1, ncol_local
+            j_global=col_indices(jjB)
+            DO iiB=1, nrow_local
+              i_global=row_indices(iiB)
+              IF(j_global==i_global.AND.i_global<=dimen_RI) THEN
+                Q_log(i_global)=2.0_dp*LOG(fm_mat_Q%local_data(iiB,jjB))
+              END IF
+            END DO
           END DO
-        END DO
-        CALL mp_sum(Q_log,para_env_RPA%group)
-  
-        FComega=0.0_dp
-        DO iiB=1, dimen_RI
-          IF(MODULO(iiB,para_env_RPA%num_pe)/=para_env_RPA%mepos) CYCLE 
-          ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
-          FComega=FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
-        END DO
-  
-        Erpa=Erpa+FComega*wj(jquad)
+          CALL mp_sum(Q_log,para_env_RPA%group)
+    
+          FComega=0.0_dp
+          DO iiB=1, dimen_RI
+            IF(MODULO(iiB,para_env_RPA%num_pe)/=para_env_RPA%mepos) CYCLE 
+            ! FComega=FComega+(LOG(Q_log(iiB))-trace_Qomega(iiB))/2.0_dp
+            FComega=FComega+(Q_log(iiB)-trace_Qomega(iiB))/2.0_dp
+          END DO
+
+          Erpa=Erpa+FComega*wj(jquad)
+
+        END IF
   
         ! save omega and reset the first_cycle flag
         first_cycle=.FALSE.
@@ -2135,11 +2391,22 @@ MODULE rpa_ri_gpw
         ! the actual G0W0 calculation
         IF(my_do_gw) THEN
           CALL timeset(routineN//"_G0W0_matrix_operations",handle2)
-  
-          ! calculate [1+Q(iw')]^-1
-          CALL cp_fm_cholesky_invert(fm_mat_Q)
-          ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
-          CALL cp_fm_upper_to_full(fm_mat_Q,fm_mat_R_gw) 
+
+          IF(jquad<=num_integ_points) THEN
+
+            ! calculate [1+Q(iw')]^-1
+            CALL cp_fm_cholesky_invert(fm_mat_Q)
+            ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
+            CALL cp_fm_upper_to_full(fm_mat_Q,fm_mat_R_gw)
+
+          ELSE
+
+            ! inverted matrix is written to fm_mat_R_gw
+            CALL cp_fm_invert(fm_mat_Q,fm_mat_R_gw,det)
+
+            CALL cp_fm_to_fm(source=fm_mat_R_gw,destination=fm_mat_Q)
+
+          END IF
   
           ! subtract 1 from the diagonal to get rid of exchange self-energy
           !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
@@ -2209,71 +2476,108 @@ MODULE rpa_ri_gpw
               m_global_beta=nm_global-(n_global_beta-1)*nmo
               n_global_beta=n_global_beta+homo_beta-gw_corr_lev_occ_beta
             END IF
- 
-            DO iquad=1,num_fit_points
-             
-              ! for occ orbitals, we compute the self-energy for negative frequencies
-              IF(n_global<=homo) THEN
-                sign_occ_virt = -1.0_dp
-              ELSE
-                sign_occ_virt = 1.0_dp
-              END IF
-  
-              omega_i=vec_omega_fit_gw(iquad)*sign_occ_virt
 
-              ! set the Fermi energy for occ orbitals slightly above the HOMO and 
-              ! for virt orbitals slightly below the LUMO
-              IF(n_global<=homo) THEN
-                e_fermi = Eigenval(homo) + fermi_level_offset
-              ELSE
-                e_fermi = Eigenval(homo+1) - fermi_level_offset
-              END IF
- 
-              ! update the self-energy (use that vec_W_gw(iw) is symmetric), divide the integration
-              ! weight by 2, because the integration is from -infty to +infty and not just 0 to +infty
-              ! as for RPA, also we need for virtual orbitals a complex conjugate
-              vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ,iquad) = &
-                vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ,iquad) - &
-                0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw(nm_global)/(im_unit*(omega+omega_i)+e_fermi-Eigenval(m_global)) - &
-                0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw(nm_global)/(im_unit*(-omega+omega_i)+e_fermi-Eigenval(m_global))
+            ! compute self-energy for imaginary frequencies
+            IF(jquad<=num_integ_points) THEN
 
-              ! the same for beta
-              IF(my_open_shell) THEN
+              DO iquad=1,num_fit_points
+               
                 ! for occ orbitals, we compute the self-energy for negative frequencies
-                IF(n_global_beta<=homo_beta) THEN
+                IF(n_global<=homo) THEN
                   sign_occ_virt = -1.0_dp
                 ELSE
                   sign_occ_virt = 1.0_dp
                 END IF
-  
+    
                 omega_i=vec_omega_fit_gw(iquad)*sign_occ_virt
   
                 ! set the Fermi energy for occ orbitals slightly above the HOMO and 
                 ! for virt orbitals slightly below the LUMO
-                IF(n_global_beta<=homo_beta) THEN
-                  e_fermi = Eigenval_beta(homo_beta) + fermi_level_offset
+                IF(n_global<=homo) THEN
+                  e_fermi = Eigenval(homo) + fermi_level_offset
                 ELSE
-                  e_fermi = Eigenval_beta(homo_beta+1) - fermi_level_offset
+                  e_fermi = Eigenval(homo+1) - fermi_level_offset
                 END IF
- 
+   
                 ! update the self-energy (use that vec_W_gw(iw) is symmetric), divide the integration
                 ! weight by 2, because the integration is from -infty to +infty and not just 0 to +infty
                 ! as for RPA, also we need for virtual orbitals a complex conjugate
-                vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta,iquad) = &
-                  vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta,iquad) - &
-                  0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw_beta(nm_global)/ &
-                  (im_unit*(omega+omega_i)+e_fermi-Eigenval_beta(m_global)) - &
-                  0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw_beta(nm_global)/ &
-                  (im_unit*(-omega+omega_i)+e_fermi-Eigenval_beta(m_global))
+                vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ,iquad) = &
+                  vec_Sigma_c_gw(n_global-homo+gw_corr_lev_occ,iquad) - &
+                  0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw(nm_global)/(im_unit*(omega+omega_i)+e_fermi-Eigenval(m_global)) - &
+                  0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw(nm_global)/(im_unit*(-omega+omega_i)+e_fermi-Eigenval(m_global))
+  
+                ! the same for beta
+                IF(my_open_shell) THEN
+                  ! for occ orbitals, we compute the self-energy for negative frequencies
+                  IF(n_global_beta<=homo_beta) THEN
+                    sign_occ_virt = -1.0_dp
+                  ELSE
+                    sign_occ_virt = 1.0_dp
+                  END IF
+    
+                  omega_i=vec_omega_fit_gw(iquad)*sign_occ_virt
+    
+                  ! set the Fermi energy for occ orbitals slightly above the HOMO and 
+                  ! for virt orbitals slightly below the LUMO
+                  IF(n_global_beta<=homo_beta) THEN
+                    e_fermi = Eigenval_beta(homo_beta) + fermi_level_offset
+                  ELSE
+                    e_fermi = Eigenval_beta(homo_beta+1) - fermi_level_offset
+                  END IF
+   
+                  ! update the self-energy (use that vec_W_gw(iw) is symmetric), divide the integration
+                  ! weight by 2, because the integration is from -infty to +infty and not just 0 to +infty
+                  ! as for RPA, also we need for virtual orbitals a complex conjugate
+                  vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta,iquad) = &
+                    vec_Sigma_c_gw_beta(n_global_beta-homo_beta+gw_corr_lev_occ_beta,iquad) - &
+                    0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw_beta(nm_global)/ &
+                    (im_unit*(omega+omega_i)+e_fermi-Eigenval_beta(m_global)) - &
+                    0.5_dp/pi*wj(jquad)/2.0_dp*vec_W_gw_beta(nm_global)/ &
+                    (im_unit*(-omega+omega_i)+e_fermi-Eigenval_beta(m_global))
+                END IF
+              END DO ! iquad
+            END IF ! check imaginary frequency
+
+
+            IF(do_contour_def) THEN
+
+              IF(my_open_shell) THEN
+
+                CALL contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq,wj,vec_W_gw,Eigenval,&
+                                                        omega,contour_def_offset,e_fermi,&
+                                                        mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
+                                                        contour_def_start,contour_def_end,n_global,jquad,&
+                                                        num_integ_points,m_global,homo,nm_global,&
+                                                        alpha_beta_case=.TRUE.,alpha=.TRUE.)
+
+                CALL contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq_beta,wj,vec_W_gw_beta,Eigenval_beta,&
+                                                        omega,contour_def_offset,e_fermi,&
+                                                        mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
+                                                        contour_def_start,contour_def_end,n_global_beta,jquad,&
+                                                        num_integ_points,m_global_beta,homo_beta,nm_global,&
+                                                        alpha_beta_case=.TRUE.,beta=.TRUE.)
+
+              ELSE
+
+                CALL contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq,wj,vec_W_gw,Eigenval,&
+                                                        omega,contour_def_offset,e_fermi,&
+                                                        mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
+                                                        contour_def_start,contour_def_end,n_global,jquad,&
+                                                        num_integ_points,m_global,homo,nm_global)
               END IF
-            END DO
-          END DO
+
+  
+            END IF ! contour deformation
+
+          END DO ! iiB
+
           CALL timestop(handle2)
 
-        END IF 
+        END IF ! GW
   
-      END DO
-  
+      END DO ! jquad
+ 
       CALL mp_sum(Erpa,para_env%group)
       Erpa=Erpa/(pi*2.0_dp)
       IF(do_minimax_quad) Erpa=Erpa/2.0_dp
@@ -2293,6 +2597,16 @@ MODULE rpa_ri_gpw
 
         IF(my_open_shell) THEN
           CALL mp_sum(vec_Sigma_c_gw_beta,para_env%group)
+        END IF
+
+        IF(do_contour_def) THEN
+
+          CALL mp_sum(vec_Sigma_c_gw_real_freq,para_env%group)
+
+          IF(my_open_shell) THEN
+            CALL mp_sum(vec_Sigma_c_gw_real_freq_beta,para_env%group)
+          END IF
+
         END IF
 
         CALL mp_sync(para_env%group)
@@ -2319,7 +2633,6 @@ MODULE rpa_ri_gpw
 
         END DO ! n_level_gw 
 
- 
         CALL mp_sum(vec_gw_energ_error_fit,para_env%group)
         CALL mp_sum(vec_gw_energ,para_env%group)
         CALL mp_sum(z_value,para_env%group)
@@ -2332,6 +2645,68 @@ MODULE rpa_ri_gpw
           CALL mp_sum(m_value_beta,para_env%group)
         END IF
 
+        ! in case we do the contour deformation technique, we transfer vec_Sigma_c_gw_real_freq to
+        ! vec_gw_energ and we compute the z-value, m-value
+        ! the results from the analytic continuation are therefore overwritten
+        IF(do_contour_def) THEN
+
+          IF(unit_nr>0) THEN
+            WRITE(unit_nr,*) ''
+            WRITE(unit_nr,'(T3,A,I4,A,I3)') 'The following MOs have been corrected by contour deformation: MO', &
+                                            contour_def_start, '  -  MO', contour_def_end
+            WRITE(unit_nr,*) ''
+          END IF
+
+          index_contour_def=1
+
+          ! only correct levels for which contour deformation is enabled
+          DO n_level_gw=contour_def_start-(homo-gw_corr_lev_occ), contour_def_end-(homo-gw_corr_lev_occ)
+
+            ! reset the values from analytic continuation
+            vec_gw_energ(n_level_gw) = 0.0_dp
+            vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
+            z_value(n_level_gw) = 0.0_dp
+            m_value(n_level_gw) = 0.0_dp
+
+            CALL compute_z_and_m_contour_def(vec_gw_energ,z_value,m_value,&
+                                             vec_Sigma_c_gw_real_freq,contour_def_offset,&
+                                             n_level_gw,index_contour_def,unit_nr)
+
+            index_contour_def=index_contour_def+1
+
+          END DO
+
+          ! the same for beta
+          IF(my_open_shell) THEN
+
+            index_contour_def=1
+  
+            ! only correct levels for which contour deformation is enabled
+            DO n_level_gw=contour_def_start-(homo_beta-gw_corr_lev_occ_beta), contour_def_end-(homo_beta-gw_corr_lev_occ_beta)
+  
+              ! reset the values from analytic continuation
+              vec_gw_energ_beta(n_level_gw) = 0.0_dp
+              vec_gw_energ_error_fit_beta(n_level_gw) = 0.0_dp
+              z_value_beta(n_level_gw) = 0.0_dp
+              m_value_beta(n_level_gw) = 0.0_dp
+  
+              CALL compute_z_and_m_contour_def(vec_gw_energ_beta,z_value_beta,m_value_beta,&
+                                               vec_Sigma_c_gw_real_freq_beta,contour_def_offset,&
+                                               n_level_gw,index_contour_def,unit_nr)
+  
+              index_contour_def=index_contour_def+1
+  
+            END DO
+
+          END IF
+
+          DEALLOCATE(real_freq)
+          DEALLOCATE(mo_from_jquad)
+          DEALLOCATE(residue_from_jquad)
+          DEALLOCATE(alpha_beta_from_jquad)
+
+        END IF
+ 
 
         ! print the quasiparticle energies and update Eigenval in case you do eigenvalue self-consistent GW
         IF(my_open_shell) THEN
@@ -2401,6 +2776,14 @@ MODULE rpa_ri_gpw
         DEALLOCATE(vec_gw_energ_error_fit_beta)
         DEALLOCATE(Eigenval_last_beta)
         DEALLOCATE(Eigenval_scf_beta)
+      END IF
+      IF(do_contour_def) THEN
+        DEALLOCATE(vec_Sigma_c_gw_real_freq)
+        CALL cp_fm_release(fm_mat_S_contour_def)
+        IF(my_open_shell) THEN
+          DEALLOCATE(vec_Sigma_c_gw_real_freq_beta)
+          CALL cp_fm_release(fm_mat_S_contour_def_beta)
+        END IF
       END IF
     END IF
   
@@ -2786,52 +3169,52 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp)                            :: first_deriv_beta, &
                                                 left_term_beta, omega
 
-      left_term=ZERO
-      first_deriv=ZERO
-      left_term_beta=ZERO
-      first_deriv_beta=ZERO
-      DO jquad=1, num_integ_points
-        ! parallelize over integration points
-        IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
-        omega=a_scaling*cottj(jquad)
+    left_term=ZERO
+    first_deriv=ZERO
+    left_term_beta=ZERO
+    first_deriv_beta=ZERO
+    DO jquad=1, num_integ_points
+      ! parallelize over integration points
+      IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
+      omega=a_scaling*cottj(jquad)
 
-        DO iiB=1, nrow_local
-          ! parallelize over ia elements in the para_env_row group
-          IF(MODULO(iiB,para_env_row%num_pe)/=para_env_row%mepos) CYCLE
-          ! calculate left_term
-          left_term=left_term+wj(jquad)*&
-                    (LOG(ONE+(M_ia(iiB)-D_ia(iiB)**2)/(omega**2+D_ia(iiB)**2))-&
-                    (M_ia(iiB)-D_ia(iiB)**2)/(omega**2+D_ia(iiB)**2))
-          first_deriv=first_deriv+wj(jquad)*cottj(jquad)**2*&
-                      ((-M_ia(iiB)+D_ia(iiB)**2)**2/((omega**2+D_ia(iiB)**2)**2*(omega**2+M_ia(iiB))))
-        END DO
-
-        IF(my_open_shell) THEN
-          DO iiB=1, nrow_local_beta
-            ! parallelize over ia elements in the para_env_row group
-            IF(MODULO(iiB,para_env_row_beta%num_pe)/=para_env_row_beta%mepos) CYCLE
-            ! calculate left_term
-            left_term_beta=left_term_beta+wj(jquad)*&
-                      (LOG(ONE+(M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))-&
-                      (M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))
-            first_deriv_beta=first_deriv_beta+wj(jquad)*cottj(jquad)**2*&
-                             ((-M_ia_beta(iiB)+D_ia_beta(iiB)**2)**2/((omega**2+D_ia_beta(iiB)**2)**2*(omega**2+M_ia_beta(iiB))))
-          END DO
-        END IF
-
+      DO iiB=1, nrow_local
+        ! parallelize over ia elements in the para_env_row group
+        IF(MODULO(iiB,para_env_row%num_pe)/=para_env_row%mepos) CYCLE
+        ! calculate left_term
+        left_term=left_term+wj(jquad)*&
+                  (LOG(ONE+(M_ia(iiB)-D_ia(iiB)**2)/(omega**2+D_ia(iiB)**2))-&
+                  (M_ia(iiB)-D_ia(iiB)**2)/(omega**2+D_ia(iiB)**2))
+        first_deriv=first_deriv+wj(jquad)*cottj(jquad)**2*&
+                    ((-M_ia(iiB)+D_ia(iiB)**2)**2/((omega**2+D_ia(iiB)**2)**2*(omega**2+M_ia(iiB))))
       END DO
-    
-      ! sum the contribution from all proc, starting form the row group
-      CALL mp_sum(left_term,para_env%group)
-      CALL mp_sum(first_deriv,para_env%group)
 
       IF(my_open_shell) THEN
-        CALL mp_sum(left_term_beta,para_env%group)
-        CALL mp_sum(first_deriv_beta,para_env%group)
-
-        left_term=left_term+left_term_beta
-        first_deriv=first_deriv+first_deriv_beta
+        DO iiB=1, nrow_local_beta
+          ! parallelize over ia elements in the para_env_row group
+          IF(MODULO(iiB,para_env_row_beta%num_pe)/=para_env_row_beta%mepos) CYCLE
+          ! calculate left_term
+          left_term_beta=left_term_beta+wj(jquad)*&
+                    (LOG(ONE+(M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))-&
+                    (M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))
+          first_deriv_beta=first_deriv_beta+wj(jquad)*cottj(jquad)**2*&
+                           ((-M_ia_beta(iiB)+D_ia_beta(iiB)**2)**2/((omega**2+D_ia_beta(iiB)**2)**2*(omega**2+M_ia_beta(iiB))))
+        END DO
       END IF
+
+    END DO
+  
+    ! sum the contribution from all proc, starting form the row group
+    CALL mp_sum(left_term,para_env%group)
+    CALL mp_sum(first_deriv,para_env%group)
+
+    IF(my_open_shell) THEN
+      CALL mp_sum(left_term_beta,para_env%group)
+      CALL mp_sum(first_deriv_beta,para_env%group)
+
+      left_term=left_term+left_term_beta
+      first_deriv=first_deriv+first_deriv_beta
+    END IF
 
     END SUBROUTINE calculate_objfunc
 
@@ -2871,69 +3254,69 @@ MODULE rpa_ri_gpw
     INTEGER                                  :: handle, num_var
     REAL(KIND=dp)                            :: chi2, chi2_sum
 
-      CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
-      num_var=2*num_poles+1
-      ALLOCATE(Lambda_tmp(num_var))
-      Lambda_tmp=(0.0_dp,0.0_dp)
-      chi2_sum=0.0_dp
-      re_unit=(1.0_dp,0.0_dp)
-      im_unit=(0.0_dp,1.0_dp)
+    num_var=2*num_poles+1
+    ALLOCATE(Lambda_tmp(num_var))
+    Lambda_tmp=(0.0_dp,0.0_dp)
+    chi2_sum=0.0_dp
+    re_unit=(1.0_dp,0.0_dp)
+    im_unit=(0.0_dp,1.0_dp)
 
-      !test
-      Lambda_tmp(:) = Lambda(:)
-      CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
-                     num_fit_points,n_level_gw)
+    !test
+    Lambda_tmp(:) = Lambda(:)
+    CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
+                   num_fit_points,n_level_gw)
 
-      ! Fitting parameters with offset h
-      Lambda_tmp(:) = Lambda(:)
-      IF(MODULO(i,2)==0) THEN
-        Lambda_tmp(i/2)=Lambda_tmp(i/2)+h*re_unit
-      ELSE
-        Lambda_tmp((i+1)/2)=Lambda_tmp((i+1)/2)+h*im_unit
-      END IF
-      IF(MODULO(j,2)==0) THEN
-        Lambda_tmp(j/2)=Lambda_tmp(j/2)+h*re_unit
-      ELSE
-        Lambda_tmp((j+1)/2)=Lambda_tmp((j+1)/2)+h*im_unit
-      END IF
-      CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
-                     num_fit_points,n_level_gw)
-      chi2_sum=chi2_sum+chi2
+    ! Fitting parameters with offset h
+    Lambda_tmp(:) = Lambda(:)
+    IF(MODULO(i,2)==0) THEN
+      Lambda_tmp(i/2)=Lambda_tmp(i/2)+h*re_unit
+    ELSE
+      Lambda_tmp((i+1)/2)=Lambda_tmp((i+1)/2)+h*im_unit
+    END IF
+    IF(MODULO(j,2)==0) THEN
+      Lambda_tmp(j/2)=Lambda_tmp(j/2)+h*re_unit
+    ELSE
+      Lambda_tmp((j+1)/2)=Lambda_tmp((j+1)/2)+h*im_unit
+    END IF
+    CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
+                   num_fit_points,n_level_gw)
+    chi2_sum=chi2_sum+chi2
 
-      IF(MODULO(i,2)==0) THEN
-        Lambda_tmp(i/2)=Lambda_tmp(i/2)-2.0_dp*h*re_unit
-      ELSE
-        Lambda_tmp((i+1)/2)=Lambda_tmp((i+1)/2)-2.0_dp*h*im_unit
-      END IF
-      CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
-                     num_fit_points,n_level_gw)
-      chi2_sum=chi2_sum-chi2
+    IF(MODULO(i,2)==0) THEN
+      Lambda_tmp(i/2)=Lambda_tmp(i/2)-2.0_dp*h*re_unit
+    ELSE
+      Lambda_tmp((i+1)/2)=Lambda_tmp((i+1)/2)-2.0_dp*h*im_unit
+    END IF
+    CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
+                   num_fit_points,n_level_gw)
+    chi2_sum=chi2_sum-chi2
 
-      IF(MODULO(j,2)==0) THEN
-        Lambda_tmp(j/2)=Lambda_tmp(j/2)-2.0_dp*h*re_unit
-      ELSE
-        Lambda_tmp((j+1)/2)=Lambda_tmp((j+1)/2)-2.0_dp*h*im_unit
-      END IF
-      CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
-                     num_fit_points,n_level_gw)
-      chi2_sum=chi2_sum+chi2
+    IF(MODULO(j,2)==0) THEN
+      Lambda_tmp(j/2)=Lambda_tmp(j/2)-2.0_dp*h*re_unit
+    ELSE
+      Lambda_tmp((j+1)/2)=Lambda_tmp((j+1)/2)-2.0_dp*h*im_unit
+    END IF
+    CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
+                   num_fit_points,n_level_gw)
+    chi2_sum=chi2_sum+chi2
 
-      IF(MODULO(i,2)==0) THEN
-        Lambda_tmp(i/2)=Lambda_tmp(i/2)+2.0_dp*h*re_unit
-      ELSE
-        Lambda_tmp((i+1)/2)=Lambda_tmp((i+1)/2)+2.0_dp*h*im_unit
-      END IF
-      CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
-                     num_fit_points,n_level_gw)
-      chi2_sum=chi2_sum-chi2
+    IF(MODULO(i,2)==0) THEN
+      Lambda_tmp(i/2)=Lambda_tmp(i/2)+2.0_dp*h*re_unit
+    ELSE
+      Lambda_tmp((i+1)/2)=Lambda_tmp((i+1)/2)+2.0_dp*h*im_unit
+    END IF
+    CALL calc_chi2(chi2,Lambda_tmp,Sigma_c,vec_omega_fit_gw,num_poles,&
+                   num_fit_points,n_level_gw)
+    chi2_sum=chi2_sum-chi2
 
-      ! Second derivative with symmetric difference quotient
-      N_ij = 1.0_dp/2.0_dp*chi2_sum/(4.0_dp*h*h)
+    ! Second derivative with symmetric difference quotient
+    N_ij = 1.0_dp/2.0_dp*chi2_sum/(4.0_dp*h*h)
 
-      DEALLOCATE(Lambda_tmp)
+    DEALLOCATE(Lambda_tmp)
 
-      CALL timestop(handle)
+    CALL timestop(handle)
 
     END SUBROUTINE calc_mat_N 
 
@@ -2964,21 +3347,21 @@ MODULE rpa_ri_gpw
     COMPLEX(KIND=dp)                         :: func_val, im_unit
     INTEGER                                  :: handle, iii, jjj, kkk
 
-      CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
-      im_unit = (0.0_dp, 1.0_dp)
-      chi2 = 0.0_dp
-      DO kkk=1,num_fit_points
-        func_val=Lambda(1)
-        DO iii=1, num_poles
-          jjj=iii*2
-          ! calculate value of the fit function
-          func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw(kkk)-Lambda(jjj+1))
-        END DO
-        chi2 = chi2 + (ABS(Sigma_c(n_level_gw,kkk)-func_val))**2
+    im_unit = (0.0_dp, 1.0_dp)
+    chi2 = 0.0_dp
+    DO kkk=1,num_fit_points
+      func_val=Lambda(1)
+      DO iii=1, num_poles
+        jjj=iii*2
+        ! calculate value of the fit function
+        func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw(kkk)-Lambda(jjj+1))
       END DO
+      chi2 = chi2 + (ABS(Sigma_c(n_level_gw,kkk)-func_val))**2
+    END DO
 
-      CALL timestop(handle)
+    CALL timestop(handle)
 
     END SUBROUTINE calc_chi2
 
@@ -3009,23 +3392,23 @@ MODULE rpa_ri_gpw
     COMPLEX(KIND=dp)                         :: func_val, im_unit
     INTEGER                                  :: handle, iii, jjj, kkk
 
-      CALL timeset(routineN,handle)
+    CALL timeset(routineN,handle)
 
-      im_unit = (0.0_dp, 1.0_dp)
-      max_dev = 0.0_dp
-      DO kkk=1,num_fit_points
-        func_val=Lambda(1)
-        DO iii=1, num_poles
-          jjj=iii*2
-          ! calculate value of the fit function
-          func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw(kkk)-Lambda(jjj+1))
-        END DO
-        IF(ABS(Sigma_c(n_level_gw,kkk)-func_val)>max_dev) THEN
-          max_dev = ABS(Sigma_c(n_level_gw,kkk)-func_val)
-        END IF
+    im_unit = (0.0_dp, 1.0_dp)
+    max_dev = 0.0_dp
+    DO kkk=1,num_fit_points
+      func_val=Lambda(1)
+      DO iii=1, num_poles
+        jjj=iii*2
+        ! calculate value of the fit function
+        func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw(kkk)-Lambda(jjj+1))
       END DO
+      IF(ABS(Sigma_c(n_level_gw,kkk)-func_val)>max_dev) THEN
+        max_dev = ABS(Sigma_c(n_level_gw,kkk)-func_val)
+      END IF
+    END DO
 
-      CALL timestop(handle)
+    CALL timestop(handle)
 
     END SUBROUTINE calc_max_dev
 
@@ -3114,10 +3497,8 @@ MODULE rpa_ri_gpw
                                                 vec_b_gw, vec_b_gw_copy
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_A_gw, mat_B_gw
-    INTEGER                                  :: handle4, ierr, iii, iiter, &
-                                                info, integ_range, jjj, &
-                                                jquad, kkk, n_level_gw_ref, &
-                                                num_var, xpos
+    INTEGER :: handle, handle4, ierr, iii, iiter, info, integ_range, jjj, &
+      jquad, kkk, n_level_gw_ref, num_var, xpos
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     LOGICAL                                  :: could_exit
     REAL(KIND=dp) :: chi2, chi2_old, e_fermi, gw_energ, Ldown, Lup, &
@@ -3128,376 +3509,422 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_N_gw
 
-      im_unit = (0.0_dp, 1.0_dp)
-      re_unit = (1.0_dp, 0.0_dp)
+    CALL timeset(routineN,handle)
 
-      num_var=2*num_poles+1
-      ALLOCATE(Lambda(num_var))
-      Lambda=(0.0_dp,0.0_dp)
-      ALLOCATE(Lambda_without_offset(num_var))
-      Lambda_without_offset=(0.0_dp,0.0_dp)
-      ALLOCATE(Lambda_Re(num_var))
-      Lambda_Re=0.0_dp
-      ALLOCATE(Lambda_Im(num_var))
-      Lambda_Im=0.0_dp
+    im_unit = (0.0_dp, 1.0_dp)
+    re_unit = (1.0_dp, 0.0_dp)
 
-      ALLOCATE(vec_omega_fit_gw_sign(num_fit_points))
+    num_var=2*num_poles+1
+    ALLOCATE(Lambda(num_var))
+    Lambda=(0.0_dp,0.0_dp)
+    ALLOCATE(Lambda_without_offset(num_var))
+    Lambda_without_offset=(0.0_dp,0.0_dp)
+    ALLOCATE(Lambda_Re(num_var))
+    Lambda_Re=0.0_dp
+    ALLOCATE(Lambda_Im(num_var))
+    Lambda_Im=0.0_dp
 
-      IF(n_level_gw<=gw_corr_lev_occ) THEN
-        sign_occ_virt = -1.0_dp
-      ELSE
-        sign_occ_virt = 1.0_dp
-      END IF
+    ALLOCATE(vec_omega_fit_gw_sign(num_fit_points))
 
-      DO jquad=1,num_fit_points
-        vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
+    IF(n_level_gw<=gw_corr_lev_occ) THEN
+      sign_occ_virt = -1.0_dp
+    ELSE
+      sign_occ_virt = 1.0_dp
+    END IF
+
+    DO jquad=1,num_fit_points
+      vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
+    END DO
+
+    ! initial guess
+    range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/(num_poles-1)
+    DO iii=1,num_poles
+      Lambda_Im(2*iii+1)=vec_omega_fit_gw_sign(1)+(iii-1)*range_step
+    END DO
+    range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/num_poles
+    DO iii=1,num_poles
+      Lambda_Re(2*iii+1)=ABS(vec_omega_fit_gw_sign(1)+(iii-0.5_dp)*range_step)
+    END DO
+
+    DO iii=1,num_var
+      Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
+    END DO
+
+    CALL calc_chi2(chi2_old,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                   num_fit_points,n_level_gw)
+
+
+    ALLOCATE(mat_A_gw(num_poles+1,num_poles+1))
+    ALLOCATE(vec_b_gw(num_poles+1))
+    ALLOCATE(ipiv(num_poles+1))
+    mat_A_gw=(0.0_dp,0.0_dp)
+    vec_b_gw=0.0_dp
+    
+    DO iii=1, num_poles+1
+      mat_A_gw(iii,1)=(1.0_dp,0.0_dp)
+    END DO
+    integ_range=num_fit_points/num_poles
+    DO kkk=1,num_poles+1
+      xpos=(kkk-1)*integ_range+1
+      xpos=MIN(xpos,num_fit_points)
+      ! calculate coefficient at this point
+      DO iii=1, num_poles 
+        jjj=iii*2
+        func_val=(1.0_dp,0.0_dp)/(im_unit*vec_omega_fit_gw_sign(xpos)-&
+                 CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1),KIND=dp))
+        mat_A_gw(kkk,iii+1)=func_val
       END DO
+      vec_b_gw(kkk)=vec_Sigma_c_gw(n_level_gw,xpos)
+    END DO
 
-      ! initial guess
-      range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/(num_poles-1)
-      DO iii=1,num_poles
-        Lambda_Im(2*iii+1)=vec_omega_fit_gw_sign(1)+(iii-1)*range_step
-      END DO
-      range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/num_poles
-      DO iii=1,num_poles
-        Lambda_Re(2*iii+1)=ABS(vec_omega_fit_gw_sign(1)+(iii-0.5_dp)*range_step)
-      END DO
+    ! Solve system of linear equations
+    CALL ZGETRF(num_poles+1,num_poles+1,mat_A_gw,num_poles+1,ipiv,info)
+    CPASSERT(info==0)
 
+    CALL ZGETRS('N',num_poles+1,1,mat_A_gw,num_poles+1,ipiv,vec_b_gw,num_poles+1,info)
+    CPASSERT(info==0)
+
+    Lambda_Re(1)=REAL(vec_b_gw(1))
+    Lambda_Im(1)=AIMAG(vec_b_gw(1))
+    DO iii=1,num_poles
+      jjj=iii*2
+      Lambda_Re(jjj)=REAL(vec_b_gw(iii+1))
+      Lambda_Im(jjj)=AIMAG(vec_b_gw(iii+1))
+    END DO
+
+    DEALLOCATE(mat_A_gw)
+    DEALLOCATE(vec_b_gw)
+    DEALLOCATE(ipiv)
+
+    ALLOCATE(mat_A_gw(num_var*2,num_var*2))
+    ALLOCATE(mat_B_gw(num_fit_points,num_var*2))
+    ALLOCATE(dLambda(num_fit_points))
+    ALLOCATE(dLambda_2(num_fit_points))
+    ALLOCATE(vec_b_gw(num_var*2))
+    ALLOCATE(vec_b_gw_copy(num_var*2))
+    ALLOCATE(ipiv(num_var*2))
+
+    ScalParam=0.01_dp
+    Ldown=1.5_dp
+    Lup=10.0_dp
+    could_exit=.FALSE.
+
+    ! iteration loop for fitting
+    DO iiter=1, max_iter_fit
+
+      CALL timeset(routineN//"_fit_loop_1",handle4)
+
+      ! calc delta lambda
       DO iii=1,num_var
         Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
       END DO
+      dLambda=(0.0_dp,0.0_dp)
 
-      CALL calc_chi2(chi2_old,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                     num_fit_points,n_level_gw)
-
-
-      ALLOCATE(mat_A_gw(num_poles+1,num_poles+1))
-      ALLOCATE(vec_b_gw(num_poles+1))
-      ALLOCATE(ipiv(num_poles+1))
-      mat_A_gw=(0.0_dp,0.0_dp)
-      vec_b_gw=0.0_dp
-      
-      DO iii=1, num_poles+1
-        mat_A_gw(iii,1)=(1.0_dp,0.0_dp)
-      END DO
-      integ_range=num_fit_points/num_poles
-      DO kkk=1,num_poles+1
-        xpos=(kkk-1)*integ_range+1
-        xpos=MIN(xpos,num_fit_points)
-        ! calculate coefficient at this point
-        DO iii=1, num_poles 
-          jjj=iii*2
-          func_val=(1.0_dp,0.0_dp)/(im_unit*vec_omega_fit_gw_sign(xpos)-&
-                   CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1),KIND=dp))
-          mat_A_gw(kkk,iii+1)=func_val
-        END DO
-        vec_b_gw(kkk)=vec_Sigma_c_gw(n_level_gw,xpos)
-      END DO
-
-      ! Solve system of linear equations
-      CALL ZGETRF(num_poles+1,num_poles+1,mat_A_gw,num_poles+1,ipiv,info)
-      CPASSERT(info==0)
-
-      CALL ZGETRS('N',num_poles+1,1,mat_A_gw,num_poles+1,ipiv,vec_b_gw,num_poles+1,info)
-      CPASSERT(info==0)
-
-      Lambda_Re(1)=REAL(vec_b_gw(1))
-      Lambda_Im(1)=AIMAG(vec_b_gw(1))
-      DO iii=1,num_poles
-        jjj=iii*2
-        Lambda_Re(jjj)=REAL(vec_b_gw(iii+1))
-        Lambda_Im(jjj)=AIMAG(vec_b_gw(iii+1))
-      END DO
-
-      DEALLOCATE(mat_A_gw)
-      DEALLOCATE(vec_b_gw)
-      DEALLOCATE(ipiv)
-
-      ALLOCATE(mat_A_gw(num_var*2,num_var*2))
-      ALLOCATE(mat_B_gw(num_fit_points,num_var*2))
-      ALLOCATE(dLambda(num_fit_points))
-      ALLOCATE(dLambda_2(num_fit_points))
-      ALLOCATE(vec_b_gw(num_var*2))
-      ALLOCATE(vec_b_gw_copy(num_var*2))
-      ALLOCATE(ipiv(num_var*2))
-
-      ScalParam=0.01_dp
-      Ldown=1.5_dp
-      Lup=10.0_dp
-      could_exit=.FALSE.
-
-      ! iteration loop for fitting
-      DO iiter=1, max_iter_fit
-
-        CALL timeset(routineN//"_fit_loop_1",handle4)
-
-        ! calc delta lambda
-        DO iii=1,num_var
-          Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
-        END DO
-        dLambda=(0.0_dp,0.0_dp)
-
-        DO kkk=1,num_fit_points
-          func_val=Lambda(1)
-          DO iii=1,num_poles
-            jjj=iii*2
-            func_val=func_val+Lambda(jjj)/(vec_omega_fit_gw_sign(kkk)*im_unit-Lambda(jjj+1))
-          END DO
-          dLambda(kkk)=vec_Sigma_c_gw(n_level_gw,kkk)-func_val
-        END DO
-        rho1=SUM(dLambda*dLambda)
-
-        ! fill matrix
-        mat_B_gw=(0.0_dp,0.0_dp)
-        DO iii=1,num_fit_points
-          mat_B_gw(iii,1)=1.0_dp
-          mat_B_gw(iii,num_var+1)=im_unit
-        END DO
+      DO kkk=1,num_fit_points
+        func_val=Lambda(1)
         DO iii=1,num_poles
           jjj=iii*2
-          DO kkk=1,num_fit_points
-            mat_B_gw(kkk,jjj)=1.0_dp/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
-            mat_B_gw(kkk,jjj+num_var)=im_unit/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
-            mat_B_gw(kkk,jjj+1)=Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
-            mat_B_gw(kkk,jjj+1+num_var)=(-Lambda_Im(jjj)+im_unit*Lambda_Re(jjj))/&
-                                        (im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
-          END DO
+          func_val=func_val+Lambda(jjj)/(vec_omega_fit_gw_sign(kkk)*im_unit-Lambda(jjj+1))
         END DO
+        dLambda(kkk)=vec_Sigma_c_gw(n_level_gw,kkk)-func_val
+      END DO
+      rho1=SUM(dLambda*dLambda)
 
-        CALL timestop(handle4)
-
-        CALL timeset(routineN//"_fit_matmul_1",handle4)
-
-        one  = (1.0_dp, 0.0_dp)
-        zero = (0.0_dp, 0.0_dp)
-        CALL zgemm('C','N',num_var*2,num_var*2,num_fit_points,one,mat_B_gw,num_fit_points,mat_B_gw,num_fit_points,&
-                   zero,mat_A_gw,num_var*2)
-        CALL timestop(handle4)
-
-        CALL timeset(routineN//"_fit_zgemv_1",handle4)
-        CALL zgemv('C',num_fit_points,num_var*2,one,mat_B_gw,num_fit_points,dLambda,1,&
-                   zero,vec_b_gw,1)
-
-        CALL timestop(handle4)
-
-        ! scale diagonal elements of a_mat
-        DO iii=1, num_var*2
-          mat_A_gw(iii,iii)=mat_A_gw(iii,iii)+ScalParam*mat_A_gw(iii,iii)
+      ! fill matrix
+      mat_B_gw=(0.0_dp,0.0_dp)
+      DO iii=1,num_fit_points
+        mat_B_gw(iii,1)=1.0_dp
+        mat_B_gw(iii,num_var+1)=im_unit
+      END DO
+      DO iii=1,num_poles
+        jjj=iii*2
+        DO kkk=1,num_fit_points
+          mat_B_gw(kkk,jjj)=1.0_dp/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+          mat_B_gw(kkk,jjj+num_var)=im_unit/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+          mat_B_gw(kkk,jjj+1)=Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
+          mat_B_gw(kkk,jjj+1+num_var)=(-Lambda_Im(jjj)+im_unit*Lambda_Re(jjj))/&
+                                      (im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
         END DO
-
-        ! solve linear system
-        ierr=0
-        ipiv=0
-
-        CALL timeset(routineN//"_fit_lin_eq_2",handle4)
-
-        CALL ZGETRF(2*num_var,2*num_var,mat_A_gw,2*num_var,ipiv,info)
-        CPASSERT(info==0)
-
-        CALL ZGETRS('N',2*num_var,1,mat_A_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
-        CPASSERT(info==0)
-
-        CALL timestop(handle4)
-
-        DO iii=1, num_var
-          Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)+vec_b_gw(iii)+vec_b_gw(iii+num_var)
-        END DO
-
-        ! calculate chi2
-        CALL calc_chi2(chi2,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                       num_fit_points,n_level_gw)
-
-        IF(chi2<chi2_old) THEN
-          ScalParam=MAX(ScalParam/Ldown,1E-12_dp)
-          DO iii=1, num_var
-            Lambda_Re(iii)=Lambda_Re(iii)+REAL(vec_b_gw(iii)+vec_b_gw(iii+num_var))
-            Lambda_Im(iii)=Lambda_Im(iii)+AIMAG(vec_b_gw(iii)+vec_b_gw(iii+num_var))
-          END DO
-          IF(chi2_old/chi2-1.0_dp<stop_crit) could_exit=.TRUE.
-          chi2_old=chi2
-        ELSE
-          ScalParam=ScalParam*Lup
-        END IF
-        IF(ScalParam>100.0_dp .AND. could_exit) EXIT
-
-        IF(ScalParam>1E+10_dp) ScalParam=1E-4_dp
-
-        n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
-        IF(iiter==max_iter_fit) THEN
-          WRITE(MO_number, "(I3)")  n_level_gw_ref
-          CALL cp_warn(__LOCATION__,&
-               "The fit for corrected level n ="// MO_number// " did not converge. "//&
-               "For levels close to HOMO or LUMO, this is normally no issue. "//&
-               "To avoid this warning, you can (1) increase the "//&
-               "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
-               "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
-               "or  you can (3) decrease "//&
-               "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
-
-        END IF
-
       END DO
 
-      ! change a_0 [Lambda(1)], so that Sigma(i0) = Fit(i0) 
+      CALL timestop(handle4)
+
+      CALL timeset(routineN//"_fit_matmul_1",handle4)
+
+      one  = (1.0_dp, 0.0_dp)
+      zero = (0.0_dp, 0.0_dp)
+      CALL zgemm('C','N',num_var*2,num_var*2,num_fit_points,one,mat_B_gw,num_fit_points,mat_B_gw,num_fit_points,&
+                 zero,mat_A_gw,num_var*2)
+      CALL timestop(handle4)
+
+      CALL timeset(routineN//"_fit_zgemv_1",handle4)
+      CALL zgemv('C',num_fit_points,num_var*2,one,mat_B_gw,num_fit_points,dLambda,1,&
+                 zero,vec_b_gw,1)
+
+      CALL timestop(handle4)
+
+      ! scale diagonal elements of a_mat
+      DO iii=1, num_var*2
+        mat_A_gw(iii,iii)=mat_A_gw(iii,iii)+ScalParam*mat_A_gw(iii,iii)
+      END DO
+
+      ! solve linear system
+      ierr=0
+      ipiv=0
+
+      CALL timeset(routineN//"_fit_lin_eq_2",handle4)
+
+      CALL ZGETRF(2*num_var,2*num_var,mat_A_gw,2*num_var,ipiv,info)
+      CPASSERT(info==0)
+
+      CALL ZGETRS('N',2*num_var,1,mat_A_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
+      CPASSERT(info==0)
+
+      CALL timestop(handle4)
+
+      DO iii=1, num_var
+        Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)+vec_b_gw(iii)+vec_b_gw(iii+num_var)
+      END DO
+
+      ! calculate chi2
+      CALL calc_chi2(chi2,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                     num_fit_points,n_level_gw)
+
+      IF(chi2<chi2_old) THEN
+        ScalParam=MAX(ScalParam/Ldown,1E-12_dp)
+        DO iii=1, num_var
+          Lambda_Re(iii)=Lambda_Re(iii)+REAL(vec_b_gw(iii)+vec_b_gw(iii+num_var))
+          Lambda_Im(iii)=Lambda_Im(iii)+AIMAG(vec_b_gw(iii)+vec_b_gw(iii+num_var))
+        END DO
+        IF(chi2_old/chi2-1.0_dp<stop_crit) could_exit=.TRUE.
+        chi2_old=chi2
+      ELSE
+        ScalParam=ScalParam*Lup
+      END IF
+      IF(ScalParam>100.0_dp .AND. could_exit) EXIT
+
+      IF(ScalParam>1E+10_dp) ScalParam=1E-4_dp
+
+      n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
+      IF(iiter==max_iter_fit) THEN
+        WRITE(MO_number, "(I3)")  n_level_gw_ref
+        CALL cp_warn(__LOCATION__,&
+             "The fit for corrected level n ="// MO_number// " did not converge. "//&
+             "For levels close to HOMO or LUMO, this is normally no issue. "//&
+             "To avoid this warning, you can (1) increase the "//&
+             "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
+             "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
+             "or  you can (3) decrease "//&
+             "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
+
+      END IF
+
+    END DO
+
+    ! change a_0 [Lambda(1)], so that Sigma(i0) = Fit(i0) 
+    func_val=Lambda(1)
+    DO iii=1, num_poles
+      jjj=iii*2
+      ! calculate value of the fit function
+      func_val=func_val+Lambda(jjj)/(-Lambda(jjj+1))
+    END DO
+
+    Lambda_Re(1) = Lambda_Re(1) - REAL(func_val) + REAL(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+    Lambda_Im(1) = Lambda_Im(1) - AIMAG(func_val) + AIMAG(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+
+    Lambda_without_offset(:) = Lambda(:)
+
+    DO iii=1, num_var
+      Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii),KIND=dp)
+    END DO
+
+    ! print self_energy and fit on the imaginary frequency axis if required
+    IF(check_fit .AND. unit_nr>0) THEN
+
+      WRITE(unit_nr,*) ' '
+      WRITE(unit_nr,'(T3,A,I5)') 'Check the GW fit for molecular orbital', n_level_gw_ref
+      WRITE(unit_nr,'(T3,A)')    '-------------------------------------------'
+      WRITE(unit_nr,*)
+      WRITE(unit_nr,'(T3,5A)') '  omega (i*eV)    ', 'Re(fit) (eV)    ', &
+                 'Im(fit) (eV)  ', 'Re(Sig_c) (eV)  ', &
+                 'Im(Sig_c) (eV)'
+
+      DO kkk=1, num_fit_points
+        func_val=Lambda(1)
+        DO iii=1, num_poles
+          jjj=iii*2
+          ! calculate value of the fit function
+          func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+        END DO
+        WRITE(unit_nr,'(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*27.211_dp, REAL(func_val)*27.211_dp, &
+                   AIMAG(func_val)*27.211_dp, REAL(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp, &
+                   AIMAG(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp
+      END DO
+
+      WRITE(unit_nr,*) ' '
+
+    END IF
+
+    ! correct the electronic levels 
+    IF(n_level_gw<=gw_corr_lev_occ) THEN
+      e_fermi = Eigenval(homo) + fermi_level_offset
+    ELSE
+      e_fermi = Eigenval(homo+1) - fermi_level_offset
+    END IF
+
+    ! either Z-shot or no crossing search for evaluating Sigma_c 
+    IF(crossing_search==ri_rpa_g0w0_crossing_none ) THEN
+
+      ! calculate func val on the real axis 
+      ! gw_energ = only correlation part of the self energy
       func_val=Lambda(1)
       DO iii=1, num_poles
         jjj=iii*2
-        ! calculate value of the fit function
-        func_val=func_val+Lambda(jjj)/(-Lambda(jjj+1))
+        func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
       END DO
 
-      Lambda_Re(1) = Lambda_Re(1) - REAL(func_val) + REAL(vec_Sigma_c_gw(n_level_gw,num_fit_points))
-      Lambda_Im(1) = Lambda_Im(1) - AIMAG(func_val) + AIMAG(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+      gw_energ = REAL(func_val)
+      vec_gw_energ(n_level_gw) = gw_energ
 
-      Lambda_without_offset(:) = Lambda(:)
-
-      DO iii=1, num_var
-        Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii),KIND=dp)
+    ELSE IF(crossing_search==ri_rpa_g0w0_crossing_z_shot) THEN
+      ! calculate Sigma_c_fit(e_n) and Z
+      func_val=Lambda(1)
+      z_value(n_level_gw)=1.0_dp
+      DO iii=1, num_poles
+        jjj=iii*2
+        z_value(n_level_gw)=z_value(n_level_gw)+REAL(Lambda(jjj)/&
+                            (Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))**2)
+        func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
       END DO
+      ! m is the slope of the correl self-energy
+      m_value(n_level_gw)=1.0_dp-z_value(n_level_gw)
+      z_value(n_level_gw)=1.0_dp/z_value(n_level_gw)
+      gw_energ = REAL(func_val)
+      vec_gw_energ(n_level_gw) = gw_energ
 
-      ! print self_energy and fit on the imaginary frequency axis if required
-      IF(check_fit .AND. unit_nr>0) THEN
+    END IF
 
-        WRITE(unit_nr,*) ' '
-        WRITE(unit_nr,'(T3,A,I5)') 'Check the GW fit for molecular orbital', n_level_gw_ref
-        WRITE(unit_nr,'(T3,A)')    '-------------------------------------------'
-        WRITE(unit_nr,*)
-        WRITE(unit_nr,'(T3,5A)') '  omega (i*eV)    ', 'Re(fit) (eV)    ', &
-                   'Im(fit) (eV)  ', 'Re(Sig_c) (eV)  ', &
-                   'Im(Sig_c) (eV)'
+    !   --------------------------------------------
+    !  | calculate statistical error due to fitting |
+    !   --------------------------------------------
 
-        DO kkk=1, num_fit_points
-          func_val=Lambda(1)
-          DO iii=1, num_poles
-            jjj=iii*2
-            ! calculate value of the fit function
-            func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
-          END DO
-          WRITE(unit_nr,'(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*27.211_dp, REAL(func_val)*27.211_dp, &
-                     AIMAG(func_val)*27.211_dp, REAL(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp, &
-                     AIMAG(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp
-        END DO
+    ! estimate the statistical error of the calculated Sigma_c(i*omega) 
+    ! by sqrt(chi2/n), where n is the number of fit points
 
-        WRITE(unit_nr,*) ' '
+    CALL calc_chi2(chi2,Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                   num_fit_points,n_level_gw)
 
-      END IF
-
-      ! correct the electronic levels 
-      IF(n_level_gw<=gw_corr_lev_occ) THEN
-        e_fermi = Eigenval(homo) + fermi_level_offset
-      ELSE
-        e_fermi = Eigenval(homo+1) - fermi_level_offset
-      END IF
-
-      ! either Z-shot or no crossing search for evaluating Sigma_c 
-      IF(crossing_search==ri_rpa_g0w0_crossing_none ) THEN
-
-        ! calculate func val on the real axis 
-        ! gw_energ = only correlation part of the self energy
-        func_val=Lambda(1)
-        DO iii=1, num_poles
-          jjj=iii*2
-          func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
-        END DO
-
-        gw_energ = REAL(func_val)
-        vec_gw_energ(n_level_gw) = gw_energ
-
-      ELSE IF(crossing_search==ri_rpa_g0w0_crossing_z_shot) THEN
-        ! calculate Sigma_c_fit(e_n) and Z
-        func_val=Lambda(1)
-        z_value(n_level_gw)=1.0_dp
-        DO iii=1, num_poles
-          jjj=iii*2
-          z_value(n_level_gw)=z_value(n_level_gw)+REAL(Lambda(jjj)/&
-                              (Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))**2)
-          func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
-        END DO
-        ! m is the slope of the correl self-energy
-        m_value(n_level_gw)=1.0_dp-z_value(n_level_gw)
-        z_value(n_level_gw)=1.0_dp/z_value(n_level_gw)
-        gw_energ = REAL(func_val)
-        vec_gw_energ(n_level_gw) = gw_energ
-
-      END IF
-
-      !   --------------------------------------------
-      !  | calculate statistical error due to fitting |
-      !   --------------------------------------------
-
-      ! estimate the statistical error of the calculated Sigma_c(i*omega) 
-      ! by sqrt(chi2/n), where n is the number of fit points
-
-      CALL calc_chi2(chi2,Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                     num_fit_points,n_level_gw)
-
-      ! Estimate the statistical error of every fit point
-      stat_error = SQRT(chi2/num_fit_points)
+    ! Estimate the statistical error of every fit point
+    stat_error = SQRT(chi2/num_fit_points)
 
 
-      ! allocate N array containing the second derivatives of chi^2
-      ALLOCATE(vec_N_gw(num_var*2))
-      vec_N_gw = 0.0_dp
+    ! allocate N array containing the second derivatives of chi^2
+    ALLOCATE(vec_N_gw(num_var*2))
+    vec_N_gw = 0.0_dp
 
-      ALLOCATE(mat_N_gw(num_var*2,num_var*2))
-      mat_N_gw = 0.0_dp
+    ALLOCATE(mat_N_gw(num_var*2,num_var*2))
+    mat_N_gw = 0.0_dp
 
-      DO iii=1,num_var*2
-          CALL calc_mat_N(vec_N_gw(iii),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
-                              iii,iii,num_poles,num_fit_points,n_level_gw,0.001_dp)
+    DO iii=1,num_var*2
+        CALL calc_mat_N(vec_N_gw(iii),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
+                            iii,iii,num_poles,num_fit_points,n_level_gw,0.001_dp)
+    END DO
+
+    DO iii=1,num_var*2
+      DO jjj=1,num_var*2
+        CALL calc_mat_N(mat_N_gw(iii,jjj),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
+                        iii,jjj,num_poles,num_fit_points,n_level_gw,0.001_dp)
       END DO
+    END DO
 
-      DO iii=1,num_var*2
-        DO jjj=1,num_var*2
-          CALL calc_mat_N(mat_N_gw(iii,jjj),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
-                          iii,jjj,num_poles,num_fit_points,n_level_gw,0.001_dp)
-        END DO
-      END DO
+    CALL DGETRF(2*num_var,2*num_var,mat_N_gw,2*num_var,ipiv,info)
+    CPASSERT(info==0)
 
-      CALL DGETRF(2*num_var,2*num_var,mat_N_gw,2*num_var,ipiv,info)
-      CPASSERT(info==0)
-
-      ! vec_b_gw is only working array
-      CALL DGETRI(2*num_var,mat_N_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
-      CPASSERT(info==0)
+    ! vec_b_gw is only working array
+    CALL DGETRI(2*num_var,mat_N_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
+    CPASSERT(info==0)
 
 
-      ALLOCATE(stat_errors(2*num_var))
-      stat_errors=0.0_dp
+    ALLOCATE(stat_errors(2*num_var))
+    stat_errors=0.0_dp
 
-      DO iii=1,2*num_var
-        stat_errors(iii)=SQRT(ABS(mat_N_gw(iii,iii)))*stat_error
-      END DO
+    DO iii=1,2*num_var
+      stat_errors(iii)=SQRT(ABS(mat_N_gw(iii,iii)))*stat_error
+    END DO
 
-      ! Compute error of Sigma_c on real axis according to error propagation 
+    ! Compute error of Sigma_c on real axis according to error propagation 
 
-      vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
+    vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
 
-      DO kkk=1,num_poles
-        vec_gw_energ_error_fit(n_level_gw) = vec_gw_energ_error_fit(n_level_gw) + &
-                  (stat_errors(4*kkk-1)+stat_errors(4*kkk))*&
-                  ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1)) - &
-                       1.0_dp/(-Lambda(2*kkk+1)) ) + &
-                  (stat_errors(4*kkk+1)+stat_errors(4*kkk+2))*ABS(Lambda(2*kkk))* &
-                  ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1))**2 - &
-                       1.0_dp/(-Lambda(2*kkk+1))**2 )
-      END DO
+    DO kkk=1,num_poles
+      vec_gw_energ_error_fit(n_level_gw) = vec_gw_energ_error_fit(n_level_gw) + &
+                (stat_errors(4*kkk-1)+stat_errors(4*kkk))*&
+                ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1)) - &
+                     1.0_dp/(-Lambda(2*kkk+1)) ) + &
+                (stat_errors(4*kkk+1)+stat_errors(4*kkk+2))*ABS(Lambda(2*kkk))* &
+                ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1))**2 - &
+                     1.0_dp/(-Lambda(2*kkk+1))**2 )
+    END DO
 
-      DEALLOCATE(mat_N_gw)
-      DEALLOCATE(vec_N_gw)
-      DEALLOCATE(mat_A_gw)
-      DEALLOCATE(mat_B_gw)
-      DEALLOCATE(stat_errors)
-      DEALLOCATE(dLambda)
-      DEALLOCATE(dLambda_2)
-      DEALLOCATE(vec_b_gw)
-      DEALLOCATE(vec_b_gw_copy)
-      DEALLOCATE(ipiv)
-      DEALLOCATE(vec_omega_fit_gw_sign)
-      DEALLOCATE(Lambda)
-      DEALLOCATE(Lambda_without_offset)
-      DEALLOCATE(Lambda_Re)
-      DEALLOCATE(Lambda_Im)
+    DEALLOCATE(mat_N_gw)
+    DEALLOCATE(vec_N_gw)
+    DEALLOCATE(mat_A_gw)
+    DEALLOCATE(mat_B_gw)
+    DEALLOCATE(stat_errors)
+    DEALLOCATE(dLambda)
+    DEALLOCATE(dLambda_2)
+    DEALLOCATE(vec_b_gw)
+    DEALLOCATE(vec_b_gw_copy)
+    DEALLOCATE(ipiv)
+    DEALLOCATE(vec_omega_fit_gw_sign)
+    DEALLOCATE(Lambda)
+    DEALLOCATE(Lambda_without_offset)
+    DEALLOCATE(Lambda_Re)
+    DEALLOCATE(Lambda_Im)
+
+    CALL timestop(handle)
+
+    END SUBROUTINE 
+
+! *****************************************************************************
+!> \brief ... 
+!> \param vec_gw_energ ...
+!> \param z_value ...
+!> \param m_value ...
+!> \param vec_Sigma_c_gw_real_freq ...
+!> \param contour_def_offset ...
+!> \param n_level_gw ...
+!> \param index_contour_def ...
+!> \param unit_nr ...
+! *****************************************************************************
+    SUBROUTINE compute_z_and_m_contour_def(vec_gw_energ,z_value,m_value,&
+                                           vec_Sigma_c_gw_real_freq,contour_def_offset,&
+                                           n_level_gw,index_contour_def,unit_nr)
+
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, z_value, &
+                                                m_value, &
+                                                vec_Sigma_c_gw_real_freq
+    REAL(KIND=dp)                            :: contour_def_offset
+    INTEGER                                  :: n_level_gw, &
+                                                index_contour_def, unit_nr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_z_and_m_contour_def', &
+      routineP = moduleN//':'//routineN
+
+    REAL(KIND=dp)                            :: derivative
+
+! average of Sigma_c(e_n+delta) and Sigma_c(e_n-delta)
+
+    vec_gw_energ(n_level_gw) = 0.5_dp*(vec_Sigma_c_gw_real_freq(2*index_contour_def-1) &
+                               +vec_Sigma_c_gw_real_freq(2*index_contour_def))
+
+    derivative = 0.5_dp*(vec_Sigma_c_gw_real_freq(2*index_contour_def) &
+                 -vec_Sigma_c_gw_real_freq(2*index_contour_def-1)) &
+                 /contour_def_offset
+
+    z_value(n_level_gw) = 1.0_dp/(1.0_dp-derivative)
+
+    m_value(n_level_gw) = derivative
 
     END SUBROUTINE 
 
@@ -3544,204 +3971,393 @@ MODULE rpa_ri_gpw
       routineP = moduleN//':'//routineN
 
     CHARACTER(4)                             :: occ_virt
-    INTEGER                                  :: n_level_gw, n_level_gw_ref
+    INTEGER                                  :: handle, n_level_gw, &
+                                                n_level_gw_ref
     LOGICAL                                  :: do_closed_shell, my_do_alpha, &
                                                 my_do_beta
     REAL(KIND=dp)                            :: eigen_diff
 
-      IF(PRESENT(do_alpha)) THEN
-        my_do_alpha = do_alpha
-      ELSE 
-        my_do_alpha = .FALSE.
+    CALL timeset(routineN,handle)
+
+    IF(PRESENT(do_alpha)) THEN
+      my_do_alpha = do_alpha
+    ELSE 
+      my_do_alpha = .FALSE.
+    END IF
+
+    IF(PRESENT(do_beta)) THEN
+      my_do_beta = do_beta
+    ELSE
+      my_do_beta = .FALSE.
+    END IF
+
+    do_closed_shell = .NOT. (my_do_alpha .OR. my_do_beta)
+
+    Eigenval_last(:) = Eigenval(:)
+
+
+    IF(unit_nr>0 ) THEN
+
+      WRITE(unit_nr,*) ' '
+
+      IF(do_closed_shell) THEN
+        WRITE(unit_nr,'(T3,A)') 'GW quasiparticle energies'
+        WRITE(unit_nr,'(T3,A)') '-------------------------'
+      ELSE IF(my_do_alpha) THEN
+        WRITE(unit_nr,'(T3,A)') 'GW quasiparticle energies of alpha spins'
+        WRITE(unit_nr,'(T3,A)') '----------------------------------------'
+      ELSE IF(my_do_beta) THEN
+        WRITE(unit_nr,'(T3,A)') 'GW quasiparticle energies of beta spins'
+        WRITE(unit_nr,'(T3,A)') '---------------------------------------'
       END IF
 
-      IF(PRESENT(do_beta)) THEN
-        my_do_beta = do_beta
-      ELSE
-        my_do_beta = .FALSE.
-      END IF
+    END IF
 
-      do_closed_shell = .NOT. (my_do_alpha .OR. my_do_beta)
-
-      Eigenval_last(:) = Eigenval(:)
+    IF(unit_nr>0 .AND. (.NOT. print_gw_details) ) THEN
+      WRITE(unit_nr,*) ' '
+      WRITE(unit_nr,'(T5,A)') 'Molecular orbital        MO energy after SCF (eV)        G0W0 QP energy (eV)'
+    END IF
 
 
-      IF(unit_nr>0 ) THEN
+    IF(unit_nr>0 .AND. print_gw_details) THEN
+      WRITE(unit_nr,'(T3,A)') ' '
+      WRITE(unit_nr,'(T3,A)') 'The GW quasiparticle energies are calculated according to: '
+    END IF
 
-        WRITE(unit_nr,*) ' '
 
-        IF(do_closed_shell) THEN
-          WRITE(unit_nr,'(T3,A)') 'GW quasiparticle energies'
-          WRITE(unit_nr,'(T3,A)') '-------------------------'
-        ELSE IF(my_do_alpha) THEN
-          WRITE(unit_nr,'(T3,A)') 'GW quasiparticle energies of alpha spins'
-          WRITE(unit_nr,'(T3,A)') '----------------------------------------'
-        ELSE IF(my_do_beta) THEN
-          WRITE(unit_nr,'(T3,A)') 'GW quasiparticle energies of beta spins'
-          WRITE(unit_nr,'(T3,A)') '---------------------------------------'
-        END IF
+    IF(crossing_search==ri_rpa_g0w0_crossing_none) THEN
 
-      END IF
-
-      IF(unit_nr>0 .AND. (.NOT. print_gw_details) ) THEN
-        WRITE(unit_nr,*) ' '
-        WRITE(unit_nr,'(T5,A)') 'Molecular orbital        MO energy after SCF (eV)        G0W0 QP energy (eV)'
-      END IF
-
+      DO n_level_gw=1,gw_corr_lev_tot
+        n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
+        Eigenval(n_level_gw_ref)=Eigenval_scf(n_level_gw_ref) + vec_gw_energ(n_level_gw) + &
+                                 vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)
+      END DO
 
       IF(unit_nr>0 .AND. print_gw_details) THEN
         WRITE(unit_nr,'(T3,A)') ' '
-        WRITE(unit_nr,'(T3,A)') 'The GW quasiparticle energies are calculated according to: '
+        WRITE(unit_nr,'(T3,A)') 'E_GW = E_SCF +  Sigc(E_SCF) + Sigx - vxc'
+        WRITE(unit_nr,'(T3,A)') ' '
+        WRITE(unit_nr,'(T3,A)') 'The energy unit of the following table is eV. ΔSigc_fit is a very conservative'
+        WRITE(unit_nr,'(T3,A)') 'estimate of the statistical error of the correlation self-energy caused by the'
+        WRITE(unit_nr,'(T3,A)') 'fitting.'
+        WRITE(unit_nr,'(T3,A)') ' '
+        WRITE(unit_nr,'(T14,2A)') 'MO        E_SCF         Sigc', &
+                   '    ΔSigc_fit     Sigx-vxc         E_GW'
       END IF
 
+      DO n_level_gw=1,gw_corr_lev_tot
+        n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
+        IF(n_level_gw<=gw_corr_lev_occ) THEN
+          occ_virt = 'occ'
+        ELSE
+          occ_virt = 'vir'
+        END IF
 
-      IF(crossing_search==ri_rpa_g0w0_crossing_none) THEN
-
-        DO n_level_gw=1,gw_corr_lev_tot
-          n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
-          Eigenval(n_level_gw_ref)=Eigenval_scf(n_level_gw_ref) + vec_gw_energ(n_level_gw) + &
-                                   vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)
-        END DO
+        IF(unit_nr>0 .AND. (.NOT. print_gw_details)) THEN
+          WRITE(unit_nr,'(T5,I9,3A,2F27.3)') &
+                     n_level_gw_ref, ' ( ',  occ_virt, ')     ', &
+                     Eigenval_last(n_level_gw_ref)*27.211_dp, &
+                     Eigenval(n_level_gw_ref)*27.211_dp
+        END IF
 
         IF(unit_nr>0 .AND. print_gw_details) THEN
-          WRITE(unit_nr,'(T3,A)') ' '
-          WRITE(unit_nr,'(T3,A)') 'E_GW = E_SCF +  Sigc(E_SCF) + Sigx - vxc'
-          WRITE(unit_nr,'(T3,A)') ' '
-          WRITE(unit_nr,'(T3,A)') 'The energy unit of the following table is eV. ΔSigc_fit is a very conservative'
-          WRITE(unit_nr,'(T3,A)') 'estimate of the statistical error of the correlation self-energy caused by the'
-          WRITE(unit_nr,'(T3,A)') 'fitting.'
-          WRITE(unit_nr,'(T3,A)') ' '
-          WRITE(unit_nr,'(T14,2A)') 'MO        E_SCF         Sigc', &
-                     '    ΔSigc_fit     Sigx-vxc         E_GW'
+          WRITE(unit_nr,'(T4,I4,3A,5F13.3)') &
+                     n_level_gw_ref, ' ( ',  occ_virt, ')', &
+                     Eigenval_last(n_level_gw_ref)*27.211_dp, &
+                     vec_gw_energ(n_level_gw)*27.211_dp, &
+                     vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
+                     vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp,&
+                     Eigenval(n_level_gw_ref)*27.211_dp
+        END IF
+      END DO
+
+
+    ! z-shot
+    ELSE
+
+      DO n_level_gw=1,gw_corr_lev_tot
+        n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
+        Eigenval(n_level_gw_ref)=(Eigenval_scf(n_level_gw_ref)-&
+                    m_value(n_level_gw)*Eigenval(n_level_gw_ref)+&
+                    vec_gw_energ(n_level_gw) + &
+                    vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))*&
+                    z_value(n_level_gw)
+      END DO
+
+      IF(unit_nr >0 .AND. print_gw_details) THEN
+        WRITE(unit_nr,'(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
+        WRITE(unit_nr,'(T3,A)') ' '
+        WRITE(unit_nr,'(T3,A)') 'The energy unit of the following table is eV. ΔSigc_fit is a very conservative'
+        WRITE(unit_nr,'(T3,2A)') 'estimate of the statistical error of the fitting.'
+        WRITE(unit_nr,'(T3,A)') ' '
+        WRITE(unit_nr,'(T13,2A)') 'MO      E_SCF       Sigc', &
+                   '  ΔSigc_fit   Sigx-vxc          Z       E_GW'
+      END IF
+
+      DO n_level_gw=1,gw_corr_lev_tot
+        n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
+        IF(n_level_gw<=gw_corr_lev_occ) THEN
+          occ_virt = 'occ'
+        ELSE
+          occ_virt = 'vir'
         END IF
 
-        DO n_level_gw=1,gw_corr_lev_tot
-          n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
-          IF(n_level_gw<=gw_corr_lev_occ) THEN
-            occ_virt = 'occ'
-          ELSE
-            occ_virt = 'vir'
-          END IF
-
-          IF(unit_nr>0 .AND. (.NOT. print_gw_details)) THEN
-            WRITE(unit_nr,'(T5,I9,3A,2F27.3)') &
-                       n_level_gw_ref, ' ( ',  occ_virt, ')     ', &
-                       Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                       Eigenval(n_level_gw_ref)*27.211_dp
-          END IF
-
-          IF(unit_nr>0 .AND. print_gw_details) THEN
-            WRITE(unit_nr,'(T4,I4,3A,5F13.3)') &
-                       n_level_gw_ref, ' ( ',  occ_virt, ')', &
-                       Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                       vec_gw_energ(n_level_gw)*27.211_dp, &
-                       vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
-                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp,&
-                       Eigenval(n_level_gw_ref)*27.211_dp
-          END IF
-        END DO
-
-
-      ! z-shot
-      ELSE
-
-        DO n_level_gw=1,gw_corr_lev_tot
-          n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
-          Eigenval(n_level_gw_ref)=(Eigenval_scf(n_level_gw_ref)-&
-                      m_value(n_level_gw)*Eigenval(n_level_gw_ref)+&
-                      vec_gw_energ(n_level_gw) + &
-                      vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))*&
-                      z_value(n_level_gw)
-        END DO
-
-        IF(unit_nr >0 .AND. print_gw_details) THEN
-          WRITE(unit_nr,'(T3,A)') 'E_GW = E_SCF + Z * ( Sigc(E_SCF) + Sigx - vxc )'
-          WRITE(unit_nr,'(T3,A)') ' '
-          WRITE(unit_nr,'(T3,A)') 'The energy unit of the following table is eV. ΔSigc_fit is a very conservative'
-          WRITE(unit_nr,'(T3,2A)') 'estimate of the statistical error of the fitting.'
-          WRITE(unit_nr,'(T3,A)') ' '
-          WRITE(unit_nr,'(T13,2A)') 'MO      E_SCF       Sigc', &
-                     '  ΔSigc_fit   Sigx-vxc          Z       E_GW'
+        IF(unit_nr>0 .AND. (.NOT. print_gw_details)) THEN
+          WRITE(unit_nr,'(T5,I9,3A,2F27.3)') &
+                     n_level_gw_ref, ' ( ',  occ_virt, ')     ', &
+                     Eigenval_last(n_level_gw_ref)*27.211_dp, &
+                     Eigenval(n_level_gw_ref)*27.211_dp
         END IF
 
-        DO n_level_gw=1,gw_corr_lev_tot
-          n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
-          IF(n_level_gw<=gw_corr_lev_occ) THEN
-            occ_virt = 'occ'
-          ELSE
-            occ_virt = 'vir'
-          END IF
+        IF(unit_nr>0 .AND. print_gw_details) THEN
+          WRITE(unit_nr,'(T3,I4,3A,6F11.3)') &
+                     n_level_gw_ref, ' ( ',  occ_virt, ')', &
+                     Eigenval_last(n_level_gw_ref)*27.211_dp, &
+                     vec_gw_energ(n_level_gw)*27.211_dp, &
+                     vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
+                     vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp,&
+                     z_value(n_level_gw),&
+                     Eigenval(n_level_gw_ref)*27.211_dp
+        END IF
+      END DO
 
-          IF(unit_nr>0 .AND. (.NOT. print_gw_details)) THEN
-            WRITE(unit_nr,'(T5,I9,3A,2F27.3)') &
-                       n_level_gw_ref, ' ( ',  occ_virt, ')     ', &
-                       Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                       Eigenval(n_level_gw_ref)*27.211_dp
-          END IF
+    END IF ! z-shot vs. no crossing
 
-          IF(unit_nr>0 .AND. print_gw_details) THEN
-            WRITE(unit_nr,'(T3,I4,3A,6F11.3)') &
-                       n_level_gw_ref, ' ( ',  occ_virt, ')', &
-                       Eigenval_last(n_level_gw_ref)*27.211_dp, &
-                       vec_gw_energ(n_level_gw)*27.211_dp, &
-                       vec_gw_energ_error_fit(n_level_gw)*27.211_dp, &
-                       vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)*27.211_dp,&
-                       z_value(n_level_gw),&
-                       Eigenval(n_level_gw_ref)*27.211_dp
-          END IF
-        END DO
+    IF(unit_nr>0) THEN
+      WRITE(unit_nr,*) ' '
+    END IF
 
-      END IF ! z-shot vs. no crossing
+    ! for eigenvalue self-consistent GW, all eigenvalues have to be corrected
+    ! 1) the occupied; check if there are occupied MOs not being corrected by GW
+    IF(gw_corr_lev_occ<homo .AND. gw_corr_lev_occ>0) THEN
 
-      IF(unit_nr>0) THEN
-        WRITE(unit_nr,*) ' '
-      END IF
+      ! calculate average GW correction for occupied orbitals 
+      eigen_diff=0.0_dp
 
-      ! for eigenvalue self-consistent GW, all eigenvalues have to be corrected
-      ! 1) the occupied; check if there are occupied MOs not being corrected by GW
-      IF(gw_corr_lev_occ<homo .AND. gw_corr_lev_occ>0) THEN
+      DO n_level_gw=1,gw_corr_lev_occ
+        n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
+        eigen_diff = eigen_diff + Eigenval(n_level_gw_ref) - Eigenval_last(n_level_gw_ref)
+      END DO
+      eigen_diff=eigen_diff/gw_corr_lev_occ
 
-        ! calculate average GW correction for occupied orbitals 
-        eigen_diff=0.0_dp
+      ! correct the eigenvalues of the occupied orbitals which have not been corrected by GW
+      DO n_level_gw=1,homo-gw_corr_lev_occ
+        Eigenval(n_level_gw) = Eigenval(n_level_gw) + eigen_diff
+      END DO
 
-        DO n_level_gw=1,gw_corr_lev_occ
-          n_level_gw_ref = n_level_gw + homo - gw_corr_lev_occ
-          eigen_diff = eigen_diff + Eigenval(n_level_gw_ref) - Eigenval_last(n_level_gw_ref)
-        END DO
-        eigen_diff=eigen_diff/gw_corr_lev_occ
+    END IF
 
-        ! correct the eigenvalues of the occupied orbitals which have not been corrected by GW
-        DO n_level_gw=1,homo-gw_corr_lev_occ
-          Eigenval(n_level_gw) = Eigenval(n_level_gw) + eigen_diff
-        END DO
+    ! 2) the virtual: check if there are virtual orbitals not being corrected by GW
+    IF(gw_corr_lev_virt<nmo-homo .AND. gw_corr_lev_virt>0) THEN
 
-      END IF
+      ! calculate average GW correction for virtual orbitals 
+      eigen_diff=0.0_dp
+      DO n_level_gw=1,gw_corr_lev_virt
+        n_level_gw_ref = n_level_gw + homo
+        eigen_diff = eigen_diff + Eigenval(n_level_gw_ref) - Eigenval_last(n_level_gw_ref)
+      END DO
+      eigen_diff=eigen_diff/gw_corr_lev_virt
 
-      ! 2) the virtual: check if there are virtual orbitals not being corrected by GW
-      IF(gw_corr_lev_virt<nmo-homo .AND. gw_corr_lev_virt>0) THEN
+      ! correct the eigenvalues of the virtual orbitals which have not been corrected by GW
+      DO n_level_gw=homo+gw_corr_lev_virt+1,nmo
+        Eigenval(n_level_gw) = Eigenval(n_level_gw) + eigen_diff
+      END DO
 
-        ! calculate average GW correction for virtual orbitals 
-        eigen_diff=0.0_dp
-        DO n_level_gw=1,gw_corr_lev_virt
-          n_level_gw_ref = n_level_gw + homo
-          eigen_diff = eigen_diff + Eigenval(n_level_gw_ref) - Eigenval_last(n_level_gw_ref)
-        END DO
-        eigen_diff=eigen_diff/gw_corr_lev_virt
+    END IF
 
-        ! correct the eigenvalues of the virtual orbitals which have not been corrected by GW
-        DO n_level_gw=homo+gw_corr_lev_virt+1,nmo
-          Eigenval(n_level_gw) = Eigenval(n_level_gw) + eigen_diff
-        END DO
+    IF((gw_corr_lev_occ==0 .OR. gw_corr_lev_virt==0) .AND. count_ev_sc_GW>1) THEN
+      CALL cp_warn(__LOCATION__,&
+           "Please increase for eigenvalue-self-consistent GW, the number of "//&
+           "corrected occupied and/or virtual orbitals above 0.")
+    END IF
 
-      END IF
-
-      IF((gw_corr_lev_occ==0 .OR. gw_corr_lev_virt==0) .AND. count_ev_sc_GW>1) THEN
-        CALL cp_warn(__LOCATION__,&
-             "Please increase for eigenvalue-self-consistent GW, the number of "//&
-             "corrected occupied and/or virtual orbitals above 0.")
-      END IF
-
+    CALL timestop(handle)
 
     END SUBROUTINE print_and_update_for_ev_sc
+
+! *****************************************************************************
+!> \brief Do the numerical integration for the contour deformation technique:
+!>        First, numerical integration on the imag. freq. axis, then residues 
+!> \param vec_Sigma_c_gw_real_freq ...
+!> \param wj ...
+!> \param vec_W_gw ...
+!> \param Eigenval ...
+!> \param omega ...
+!> \param contour_def_offset ...
+!> \param e_fermi ...
+!> \param mo_from_jquad ...
+!> \param residue_from_jquad ...
+!> \param alpha_beta_from_jquad ...
+!> \param contour_def_start ...
+!> \param contour_def_end ...
+!> \param n_global ...
+!> \param jquad ...
+!> \param num_integ_points ...
+!> \param m_global ...
+!> \param homo ...
+!> \param nm_global ...
+!> \param alpha_beta_case ...
+!> \param alpha ...
+!> \param beta ...
+! *****************************************************************************
+    SUBROUTINE contour_def_integrate_and_residues(vec_Sigma_c_gw_real_freq,wj,vec_W_gw,Eigenval,&
+                                                  omega,contour_def_offset,e_fermi,&
+                                                  mo_from_jquad,residue_from_jquad,alpha_beta_from_jquad,&
+                                                  contour_def_start,contour_def_end,n_global,jquad,&
+                                                  num_integ_points,m_global,homo,nm_global,&
+                                                  alpha_beta_case,alpha,beta)
+
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_Sigma_c_gw_real_freq, wj, &
+                                                vec_W_gw
+    REAL(KIND=dp), DIMENSION(:)              :: Eigenval
+    REAL(KIND=dp)                            :: omega, contour_def_offset, &
+                                                e_fermi
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: mo_from_jquad, &
+                                                residue_from_jquad, &
+                                                alpha_beta_from_jquad
+    INTEGER :: contour_def_start, contour_def_end, n_global, jquad, &
+      num_integ_points, m_global, homo, nm_global
+    LOGICAL, OPTIONAL                        :: alpha_beta_case, alpha, beta
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'contour_def_integrate_and_residues', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, index_contour_def, m_level_of_real_energy, &
+      n_level_of_real_energy, spin, spin_of_residue
+    LOGICAL                                  :: my_alpha, my_alpha_beta_case, &
+                                                my_beta
+    REAL(KIND=dp)                            :: real_energy
+
+    CALL timeset(routineN,handle)
+
+    my_alpha_beta_case = .FALSE.
+    IF(PRESENT(alpha_beta_case)) my_alpha_beta_case = alpha_beta_case 
+
+    my_alpha = .FALSE.
+    IF(PRESENT(alpha)) my_alpha = alpha   
+
+    my_beta = .FALSE.
+    IF(PRESENT(beta)) my_beta = beta   
+
+    spin = 1
+    IF(my_alpha_beta_case) THEN
+      IF(my_alpha) spin = 1
+      IF(my_beta)  spin = 2
+    END IF
+
+    ! check whether we apply contour deformation to the level n_global
+    IF(contour_def_start<=n_global .AND. n_global<=contour_def_end) THEN
+
+      ! check whether we do integration over imag. frequencies or we compute the residues
+      IF(jquad<=num_integ_points) THEN
+
+        ! do the integration on the imaginary frequency axis, first for energy slightly below e_n
+        real_energy = Eigenval(n_global)-contour_def_offset
+
+        index_contour_def = 2*(n_global-contour_def_start+1)-1
+
+        CALL numerical_integrate_contour_def(vec_Sigma_c_gw_real_freq(index_contour_def),vec_W_gw(nm_global),&
+                                             wj(jquad),omega,real_energy,Eigenval(m_global))
+
+        ! now, for energy slightly above e_n
+        real_energy = Eigenval(n_global)+contour_def_offset
+
+        index_contour_def = 2*(n_global-contour_def_start+1)
+
+        CALL numerical_integrate_contour_def(vec_Sigma_c_gw_real_freq(index_contour_def),vec_W_gw(nm_global),&
+                                             wj(jquad),omega,real_energy,Eigenval(m_global))
+
+      ! residues
+      ELSE
+
+        ! for jquad > num_integ_points, we add the residue, but only for a single MO n and for a single residue m
+        n_level_of_real_energy = mo_from_jquad     (jquad-num_integ_points)
+        m_level_of_real_energy = residue_from_jquad(jquad-num_integ_points)
+
+        spin_of_residue = 1
+        IF(my_alpha_beta_case) THEN
+          spin_of_residue = alpha_beta_from_jquad(jquad-num_integ_points)
+        END IF
+
+        ! only add residue to a specific level
+        IF(n_level_of_real_energy == n_global .AND. &
+           m_level_of_real_energy == m_global .AND. &
+           spin == spin_of_residue) THEN
+
+          ! add residue, first for energy slightly below e_n
+          index_contour_def = 2*(n_global-contour_def_start+1)-1
+
+          IF(e_fermi-Eigenval(n_global) < omega .AND. omega < -contour_def_offset) THEN
+            ! update for residue
+            vec_Sigma_c_gw_real_freq(index_contour_def) = &
+              vec_Sigma_c_gw_real_freq(index_contour_def) &
+              + vec_W_gw(nm_global)
+          ELSE IF (-contour_def_offset < omega .AND. omega < e_fermi-Eigenval(n_global)) THEN
+            vec_Sigma_c_gw_real_freq(index_contour_def) = &
+              vec_Sigma_c_gw_real_freq(index_contour_def) &
+              - vec_W_gw(nm_global)
+          END IF
+
+          ! add residue, first for energy slightly above e_n
+          index_contour_def = 2*(n_global-contour_def_start+1)
+
+          IF(e_fermi-Eigenval(n_global) < omega .AND. omega < contour_def_offset) THEN
+            ! update for residue
+            vec_Sigma_c_gw_real_freq(index_contour_def) = &
+              vec_Sigma_c_gw_real_freq(index_contour_def) &
+              + vec_W_gw(nm_global)
+          ELSE IF (contour_def_offset < omega .AND. omega < e_fermi-Eigenval(n_global)) THEN
+            vec_Sigma_c_gw_real_freq(index_contour_def) = &
+              vec_Sigma_c_gw_real_freq(index_contour_def) &
+              - vec_W_gw(nm_global)
+          END IF
+
+        END IF ! check whether we have the right residue
+
+      END IF ! imag. frequency / real frequency
+
+    END IF ! check contour deformation for n_global 
+
+    CALL timestop(handle)
+
+    END SUBROUTINE
+
+! *****************************************************************************
+!> \brief ... 
+!> \param Sigma_c_to_update ...
+!> \param W_gw_element ...
+!> \param weight ...
+!> \param omega ...
+!> \param real_energy ...
+!> \param eigenval ...
+! *****************************************************************************
+    SUBROUTINE numerical_integrate_contour_def(Sigma_c_to_update, W_gw_element,&
+                                               weight,omega,real_energy,eigenval)
+
+    REAL(KIND=dp)                            :: Sigma_c_to_update, &
+                                                W_gw_element, weight, omega, &
+                                                real_energy, eigenval
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'numerical_integrate_contour_def', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: im_unit
+    INTEGER                                  :: handle
+
+    CALL timeset(routineN,handle)
+
+    im_unit = (0.0_dp, 1.0_dp)
+
+    Sigma_c_to_update = Sigma_c_to_update - &
+      REAL( &
+      0.5_dp/pi*weight/2.0_dp*W_gw_element/(im_unit*omega+real_energy-eigenval) + &
+      0.5_dp/pi*weight/2.0_dp*W_gw_element/(-im_unit*omega+real_energy-eigenval) &
+      )
+
+    CALL timestop(handle)
+
+    END SUBROUTINE 
 
 END MODULE rpa_ri_gpw

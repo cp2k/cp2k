@@ -117,6 +117,8 @@ MODULE mp2_types
        INTEGER                  :: iter_ev_sc
        LOGICAL                  :: hf_like_ev_start, print_gw_details
        REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) ::vec_Sigma_x_minus_vxc_gw
+       INTEGER                  :: contour_def_start, contour_def_end
+       REAL(KIND=dp)            :: contour_def_offset
   END TYPE
 
   TYPE ri_basis_opt

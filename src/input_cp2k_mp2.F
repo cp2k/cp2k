@@ -628,23 +628,21 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="FERMI_LEVEL_OFFSET",&
-          description="Fermi level for occ. orbitals: e_HOMO + FERMI_LEVEL_OFFSET; "//&
-                      "Fermi level for virt. orbitals: e_LUMO - FERMI_LEVEL_OFFSET. "//&
-                      "In case e_homo + FERMI_LEVEL_OFFSET < e_lumo - FERMI_LEVEL_OFFSET,"//&
-                      "we set Fermi level = (e_HOMO+e_LUMO)/2",&
-          usage="FERMI_LEVEL_OFFSET 1.0E-2",&
-          default_r_val=2.0E-2_dp)
+         description="Fermi level for occ. orbitals: e_HOMO + FERMI_LEVEL_OFFSET; "//&
+                     "Fermi level for virt. orbitals: e_LUMO - FERMI_LEVEL_OFFSET. "//&
+                     "In case e_homo + FERMI_LEVEL_OFFSET < e_lumo - FERMI_LEVEL_OFFSET,"//&
+                     "we set Fermi level = (e_HOMO+e_LUMO)/2",&
+         usage="FERMI_LEVEL_OFFSET 1.0E-2",&
+         default_r_val=2.0E-2_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="CUTOFF_RADIUS",&
-          description="Cutoff radius for the truncated Coulomb potential in GW in Angstrom. "//&
-                      "The cell length seems to be a good choice for the truncation.",&
-          usage="CUTOFF_RADIUS 6.0",&
-          default_r_val=10.0_dp,&
-          unit_str="angstrom")
-
-
+         description="Cutoff radius for the truncated Coulomb potential in GW in Angstrom. "//&
+                     "The cell length seems to be a good choice for the truncation.",&
+         usage="CUTOFF_RADIUS 6.0",&
+         default_r_val=10.0_dp,&
+         unit_str="angstrom")
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -679,6 +677,32 @@ CONTAINS
          usage="PRINT_GW_DETAILS",&
          default_l_val=.FALSE.,&
          lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CONTOUR_DEF_START",&
+         variants=(/"CD_START"/),&
+         description="Number of the lowest MO for which contour deformation (CD) is enabled and "//&
+                     "analytic continuation is disabled. If negative, CD is disabled.",&
+         usage="CD_START 1",&
+         default_i_val=-1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CONTOUR_DEF_END",&
+         variants=(/"CD_END"/),&
+         description="Number of the highest MO for which contour deformation (CD) is enabled and "//&
+                     "analytic continuation is disabled. If negative, CD is disabled.",&
+         usage="CD_END 100",&
+         default_i_val=-1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CONTOUR_DEF_OFFSET",&
+         variants=(/"CD_OFFSET"/),&
+         description="Offset for computing the Z-factor in the contour deformation technique.",&
+         usage="CONTOUR_DEF_OFFSET 1.0E-2",&
+         default_r_val=2.0E-2_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
