@@ -529,7 +529,7 @@ MODULE rpa_ri_gpw
         ! go with clenshaw-curtius/minimax quadrature
         CALL rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
                                  homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,integ_group_size,&
+                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
                                  fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                  my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                  stop_crit,check_fit,fermi_level_offset,crossing_search,&
@@ -550,7 +550,7 @@ MODULE rpa_ri_gpw
         ! here, we also do the quasi-particle-energy correction for G0W0
         CALL rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
                                  homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,integ_group_size,&
+                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
                                  fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                  my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                  stop_crit,check_fit,fermi_level_offset,crossing_search,&
@@ -1468,7 +1468,6 @@ MODULE rpa_ri_gpw
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
-!> \param integ_group_size ...
 !> \param fm_mat_S ...
 !> \param fm_mat_Q_gemm ...
 !> \param fm_mat_Q ...
@@ -1500,7 +1499,7 @@ MODULE rpa_ri_gpw
 ! *****************************************************************************
     SUBROUTINE rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
                                    homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                   Eigenval,num_integ_points,num_integ_group,color_rpa_group,integ_group_size,&
+                                   Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
                                    fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
                                    my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
                                    stop_crit,check_fit,fermi_level_offset,crossing_search,&
@@ -1517,8 +1516,7 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: num_integ_points, &
                                                 num_integ_group, &
-                                                color_rpa_group, &
-                                                integ_group_size
+                                                color_rpa_group
     TYPE(cp_fm_type), POINTER                :: fm_mat_S, fm_mat_Q_gemm, &
                                                 fm_mat_Q, fm_mat_S_gw, &
                                                 fm_mat_R_gw
@@ -2119,7 +2117,7 @@ MODULE rpa_ri_gpw
           !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
           !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
           !$OMP                    fm_mat_S,virtual,homo,omega,omega_old,real_freq,jquad,&
-          !$OMP                    num_integ_points,integ_group_size,fm_mat_S_contour_def)
+          !$OMP                    num_integ_points,fm_mat_S_contour_def)
           DO jjB=1, ncol_local
             j_global=col_indices(jjB)
             DO iiB=1, nrow_local
@@ -2258,7 +2256,7 @@ MODULE rpa_ri_gpw
             !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
             !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,jquad,num_integ_points,&
             !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega,omega_old, &
-            !$OMP                    integ_group_size,fm_mat_S_contour_def_beta)
+            !$OMP                    fm_mat_S_contour_def_beta)
             DO jjB=1, ncol_local
               j_global=col_indices(jjB)
               DO iiB=1, nrow_local
@@ -3904,8 +3902,7 @@ MODULE rpa_ri_gpw
                                                 m_value, &
                                                 vec_Sigma_c_gw_real_freq
     REAL(KIND=dp)                            :: contour_def_offset
-    INTEGER                                  :: n_level_gw, &
-                                                index_contour_def
+    INTEGER                                  :: n_level_gw, index_contour_def
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_z_and_m_contour_def', &
       routineP = moduleN//':'//routineN
