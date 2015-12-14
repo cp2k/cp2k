@@ -1082,6 +1082,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     a => matrix_lu%local_data
     n = matrix_lu%matrix_struct%nrow_global
     ALLOCATE(ipivot(n+matrix_a%matrix_struct%nrow_block))
+    ipivot(:)=0
 #if defined(__SCALAPACK)
     ALLOCATE(ferr(n))
     ALLOCATE(berr(n))
