@@ -1566,7 +1566,7 @@ MODULE rpa_ri_gpw
     LOGICAL                                  :: do_contour_def, first_cycle, &
                                                 my_open_shell
     REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, &
-      det, e_fermi, E_Range, eigen_diff, Emax, Emax_beta, Emin, Emin_beta, &
+      e_fermi, E_Range, eigen_diff, Emax, Emax_beta, Emin, Emin_beta, &
       FComega, my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, t_end, &
       t_start
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, &
@@ -2400,7 +2400,7 @@ MODULE rpa_ri_gpw
           ELSE
 
             ! inverted matrix is written to fm_mat_R_gw
-            CALL cp_fm_invert(fm_mat_Q,fm_mat_R_gw,det)
+            CALL cp_fm_invert(fm_mat_Q,fm_mat_R_gw)
 
             CALL cp_fm_to_fm(source=fm_mat_R_gw,destination=fm_mat_Q)
 

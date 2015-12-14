@@ -1044,6 +1044,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !> \param matrix_inverse ...
 !> \param det_a ...
 !> \author Florian Schiffmann(02.2007)
+!> \note of Jan Wilhelm (12.2015)
+!>      - computation of determinant corrected
+!>      - determinant only computed if det_a is present
 ! *****************************************************************************
   SUBROUTINE cp_fm_invert(matrix_a,matrix_inverse,det_a)
 
@@ -1059,7 +1062,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_fm_type), POINTER                :: matrix_B, matrix_lu
 #if defined(__SCALAPACK)
-    INTEGER                                  :: i, info, liwork, lwork
+    INTEGER                                  :: i, info, liwork, lwork, group, exponent_of_minus_one
     INTEGER, DIMENSION(9)                    :: desca
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     REAL(KIND=dp)                            :: alpha, beta
@@ -1092,25 +1095,36 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     liwork=3*n
     desca(:) = matrix_lu%matrix_struct%descriptor(:)
     CALL pdgetrf(n,n,a(1,1),1,1,desca,ipivot,info)
-    ALLOCATE(diag(n))
-    diag(:)=0.0_dp
-    DO i=1,n
-       CALL cp_fm_get_element(matrix_lu,i,i,diag(i)) !  not completely optimal in speed i would say
-    ENDDO
-    determinant=1.0_dp
-    DO i=1,n
-       IF(ipivot(i)==i)THEN
-          determinant=determinant*diag(i)
-       ELSE
-          determinant=determinant*diag(i)*(-1.0_dp)
-       END IF
-    ENDDO
-    DEALLOCATE(diag)
+
+    IF(PRESENT(det_a)) THEN
+
+      ALLOCATE(diag(n))
+      diag(:)=0.0_dp
+      DO i=1,n
+         CALL cp_fm_get_element(matrix_lu,i,i,diag(i)) !  not completely optimal in speed i would say
+      ENDDO
+  
+      exponent_of_minus_one = 0
+      determinant=1.0_dp
+      DO i=1,n
+         determinant=determinant*diag(i)
+         IF(ipivot(i).NE.i)THEN
+            exponent_of_minus_one = exponent_of_minus_one + 1
+         END IF
+      ENDDO
+      DEALLOCATE(diag)
+  
+      group = matrix_lu%matrix_struct%para_env%group
+      CALL mp_sum(exponent_of_minus_one,group)
+  
+      determinant=determinant*(-1.0_dp)**exponent_of_minus_one
+
+    END IF
 
     alpha=0.0_dp
     beta=1.0_dp
-   CALL cp_fm_set_all(matrix_inverse,alpha,beta)
-   CALL pdgetrs('N',n,n,matrix_lu%local_data,1,1,desca,ipivot,matrix_inverse%local_data,1,1,desca,info)
+    CALL cp_fm_set_all(matrix_inverse,alpha,beta)
+    CALL pdgetrs('N',n,n,matrix_lu%local_data,1,1,desca,ipivot,matrix_inverse%local_data,1,1,desca,info)
 !   CALL cp_fm_set_all(matrix_B,alpha,beta)
 !    DO iter=1,10
 !       CALL pdgerfs('N',n,n,matrix_a%local_data,1,1,desca,matrix_lu%local_data,&
