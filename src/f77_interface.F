@@ -414,7 +414,6 @@ CONTAINS
 !>      something went wrong
 !> \param f_env_id the f_env from where to take the defaults
 !> \param f_env will contain the f_env corresponding to f_env_id
-!> \param failure will be set to true if something went wrong
 !> \param handle ...
 !> \author fawzi
 !> \note

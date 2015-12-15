@@ -181,8 +181,8 @@ CONTAINS
                                                 new_env_id, prog_name_id, &
                                                 run_type_id
     INTEGER(KIND=int_8)                      :: m_memory_max_mpi
-    LOGICAL                                  :: echo_input, &
-                                                I_was_ionode, was_present
+    LOGICAL                                  :: echo_input, I_was_ionode, &
+                                                was_present
     TYPE(cp_logger_type), POINTER            :: logger, sublogger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control

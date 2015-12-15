@@ -160,8 +160,7 @@ CONTAINS
     INTEGER                                  :: handle, iat, ibead, idim, &
                                                 idir, ierr, itmp, nrep, prep, &
                                                 stat
-    LOGICAL                                  :: explicit, ltmp, &
-                                                wrong_input
+    LOGICAL                                  :: explicit, ltmp, wrong_input
     REAL(kind=dp)                            :: dt, mass, omega
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
     TYPE(cp_subsys_type), POINTER            :: subsys

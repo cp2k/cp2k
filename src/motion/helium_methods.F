@@ -1087,8 +1087,9 @@ MODULE helium_methods
     REAL(KIND=dp), DIMENSION(:), POINTER     :: message
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f
 
-    ! assign the pointer to the memory location of the input structure, where
-    ! the forces are stored
+! assign the pointer to the memory location of the input structure, where
+! the forces are stored
+
     NULLIFY(message)
     CALL section_vals_val_get( helium%input, &
          "MOTION%PINT%HELIUM%FORCE%_DEFAULT_KEYWORD_", &
@@ -2321,7 +2322,8 @@ MODULE helium_methods
     TYPE(f_env_type), POINTER                :: my_f_env
     TYPE(particle_list_type), POINTER        :: my_particles
 
-    ! set up my_particles structure
+! set up my_particles structure
+
     NULLIFY(my_f_env, my_subsys, my_particles)
     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id, &
       f_env=my_f_env)
@@ -2446,7 +2448,8 @@ MODULE helium_methods
     TYPE(cell_type), POINTER                 :: my_cell
     TYPE(f_env_type), POINTER                :: my_f_env
 
-    ! get the cell structure from pint_env
+! get the cell structure from pint_env
+
     NULLIFY(my_f_env, my_cell)
     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id, &
       f_env=my_f_env)

@@ -300,8 +300,7 @@ MODULE replica_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, in_use, stat
-    LOGICAL                                  :: do_kpoints, &
-                                                has_unit_metric
+    LOGICAL                                  :: do_kpoints, has_unit_metric
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control

@@ -99,7 +99,6 @@ MODULE glbopt_worker
     REAL(kind=dp)                            :: dist_in_angstrom
     TYPE(section_vals_type), POINTER         :: glbopt_section
 
-
         worker%root_section => root_section
         worker%id = worker_id
         worker%iw = iw

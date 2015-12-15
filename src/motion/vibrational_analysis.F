@@ -97,8 +97,8 @@ CONTAINS
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
       nRotTrM, nvib, output_unit, prep, proc_dist_type
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
-    LOGICAL :: calc_intens, calc_thchdata, do_mode_tracking, &
-      keep_rotations, row_force, something_frozen
+    LOGICAL :: calc_intens, calc_thchdata, do_mode_tracking, keep_rotations, &
+      row_force, something_frozen
     REAL(KIND=dp)                            :: dx, inertia(3), &
                                                 minimum_energy, norm, &
                                                 tc_press, tc_temp, tmp

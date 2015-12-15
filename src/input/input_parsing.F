@@ -58,7 +58,6 @@ MODULE input_parsing
                                              dp,&
                                              max_line_length
   USE string_utilities,                ONLY: uppercase
-  USE termination,                     ONLY: print_message
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -93,8 +92,7 @@ CONTAINS
                                                 imatch, irs, is, nsub, &
                                                 output_unit
     LOGICAL                                  :: at_end, compatible_end, &
-                                                root_sect, &
-                                                whole_section
+                                                root_sect, whole_section
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, &
                                                 previous_last, previous_list
     TYPE(keyword_type), POINTER              :: keyword
