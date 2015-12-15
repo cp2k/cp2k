@@ -623,9 +623,6 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(helium)) THEN
       helium%ref_count=helium%ref_count-1
@@ -814,12 +811,10 @@ MODULE helium_methods
 
     INTEGER                                  :: handle, i
     LOGICAL                                  :: coords_presampled, explicit, &
-                                                failure, presample
+                                                presample
     TYPE(section_vals_type), POINTER         :: helium_section, sec
 
     CALL timeset(routineN,handle)
-
-    failure = .FALSE.
 
     NULLIFY(helium_section)
     helium_section => section_vals_get_subs_vals(helium%input, &
@@ -944,10 +939,7 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia, ib, ic
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r1, r2
-
-    failure=.FALSE.
 
     DO ia = 1, helium%atoms
       DO ic = 1, 3
@@ -992,14 +984,11 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart, offset
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :, :), POINTER     :: m
     REAL(KIND=dp), DIMENSION(:), POINTER     :: message
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: f
     TYPE(cp_logger_type), POINTER            :: logger
-
-    failure=.FALSE.
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1071,10 +1060,6 @@ MODULE helium_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_force_init', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
     IF ( helium%solute_present ) THEN
       helium%force_avrg(:,:) = 0.0_dp
       helium%force_inst(:,:) = 0.0_dp
@@ -1098,12 +1083,9 @@ MODULE helium_methods
 
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen
-    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(:, :), POINTER        :: m
     REAL(KIND=dp), DIMENSION(:), POINTER     :: message
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: f
-
-    failure=.FALSE.
 
     ! assign the pointer to the memory location of the input structure, where
     ! the forces are stored
@@ -1160,9 +1142,6 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ia
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     DO ia = 1, helium%atoms
       helium%permutation(ia) = ia
@@ -1194,10 +1173,7 @@ MODULE helium_methods
     INTEGER                                  :: actlen, ia, ic, msglen, &
                                                 num_env_restart, offset
     INTEGER, DIMENSION(:), POINTER           :: message
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-
-    failure=.FALSE.
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1403,11 +1379,8 @@ MODULE helium_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: rank
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
-
-    failure=.FALSE.
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -1493,15 +1466,13 @@ MODULE helium_methods
     CHARACTER(len=default_string_length)     :: err_str, stmp
     INTEGER                                  :: actlen, msglen, &
                                                 num_env_restart, offset, rank
-    LOGICAL                                  :: failure, lbf
+    LOGICAL                                  :: lbf
     LOGICAL, DIMENSION(3, 2)                 :: m
     REAL(KIND=dp)                            :: bf, bu
     REAL(KIND=dp), DIMENSION(3, 2)           :: bg, cg, f, ig
     REAL(KIND=dp), DIMENSION(:), POINTER     :: message
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(rng_stream_type), POINTER           :: next_rngs, prev_rngs
-
-    failure=.FALSE.
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -2344,18 +2315,16 @@ MODULE helium_methods
     CHARACTER(len=default_path_length)       :: msg_str
     INTEGER                                  :: cur_eid, i, j, mnum, natoms
     INTEGER, DIMENSION(hid_num)              :: el_counts
-    LOGICAL                                  :: found, my_failure
+    LOGICAL                                  :: found
     REAL(KIND=dp)                            :: mass
     TYPE(cp_subsys_type), POINTER            :: my_subsys
     TYPE(f_env_type), POINTER                :: my_f_env
     TYPE(particle_list_type), POINTER        :: my_particles
 
-    my_failure=.FALSE.
-
     ! set up my_particles structure
     NULLIFY(my_f_env, my_subsys, my_particles)
     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id, &
-      f_env=my_f_env, failure=my_failure)
+      f_env=my_f_env)
     CALL force_env_get(force_env=my_f_env%force_env, subsys=my_subsys)
     CALL cp_subsys_get(my_subsys, particles=my_particles)
     CALL f_env_rm_defaults(my_f_env)
@@ -2473,16 +2442,14 @@ MODULE helium_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_set_solute_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: my_failure, my_orthorhombic
+    LOGICAL                                  :: my_orthorhombic
     TYPE(cell_type), POINTER                 :: my_cell
     TYPE(f_env_type), POINTER                :: my_f_env
-
-    my_failure=.FALSE.
 
     ! get the cell structure from pint_env
     NULLIFY(my_f_env, my_cell)
     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id, &
-      f_env=my_f_env,failure=my_failure)
+      f_env=my_f_env)
     CALL force_env_get(force_env=my_f_env%force_env, cell=my_cell)
     CALL f_env_rm_defaults(my_f_env)
 

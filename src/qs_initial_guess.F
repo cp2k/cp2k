@@ -1053,15 +1053,12 @@ CONTAINS
 
     INTEGER                                  :: handle, icol, ikind, irow
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: block
     TYPE(atom_matrix_type), ALLOCATABLE, &
       DIMENSION(:)                           :: fmat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(qs_kind_type), POINTER              :: qs_kind
-
-    failure = .FALSE.
 
     CALL timeset(routineN,handle)
 

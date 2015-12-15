@@ -424,10 +424,9 @@ CONTAINS
 !>      f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
 ! *****************************************************************************
-  SUBROUTINE f_env_add_defaults(f_env_id,f_env,failure, handle)
+  SUBROUTINE f_env_add_defaults(f_env_id,f_env, handle)
     INTEGER, INTENT(in)                      :: f_env_id
     TYPE(f_env_type), POINTER                :: f_env
-    LOGICAL, INTENT(out)                     :: failure
     INTEGER, INTENT(out), OPTIONAL           :: handle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
@@ -436,7 +435,6 @@ CONTAINS
     INTEGER                                  :: f_env_pos, ierr
     TYPE(cp_logger_type), POINTER            :: logger
 
-    failure = .FALSE.
     NULLIFY(f_env)
     f_env_pos = get_pos_of_env(f_env_id)
     IF (f_env_pos<1) THEN
@@ -898,15 +896,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: env_pos, i
-    LOGICAL                                  :: failure
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: root_section
 
-    failure = .FALSE.
     NULLIFY(f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     env_pos=get_pos_of_env(env_id)
     n_f_envs=n_f_envs-1
     DO i=env_pos,n_f_envs
@@ -943,13 +939,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_natom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     n_atom = 0
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     n_atom = force_env_get_natom(f_env%force_env)
     CALL f_env_rm_defaults(f_env,ierr)
 
@@ -971,13 +965,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_nparticle', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     n_particle = 0
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     n_particle = force_env_get_nparticle(f_env%force_env)
     CALL f_env_rm_defaults(f_env,ierr)
 
@@ -1001,13 +993,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell_full
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     NULLIFY (cell_full)
     CALL force_env_get(f_env%force_env,cell=cell_full)
     CPASSERT(ASSOCIATED(cell_full))
@@ -1037,14 +1027,13 @@ CONTAINS
     INTEGER                                  :: ierr
 
     INTEGER                                  :: nres
-    LOGICAL                                  :: exist_res, failure
+    LOGICAL                                  :: exist_res
     TYPE(cp_result_type), POINTER            :: results
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env, subsys, results)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
 
     CALL force_env_get(f_env%force_env, subsys=subsys)
     CALL cp_subsys_get(subsys, results=results)
@@ -1083,12 +1072,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_force', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     CALL force_env_get_frc(f_env%force_env,frc,n_el)
     CALL f_env_rm_defaults(f_env,ierr)
 
@@ -1111,17 +1098,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_stress_tensor', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(virial_type), POINTER               :: virial
 
-    failure = .FALSE.
     NULLIFY (f_env, subsys, virial, cell)
     stress_tensor(:,:) = 0.0_dp
 
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     CALL force_env_get(f_env%force_env, subsys=subsys, cell=cell)
     CALL cp_subsys_get(subsys, virial=virial)
     IF(virial%pv_availability) THEN
@@ -1149,12 +1134,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_pos', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     CALL force_env_get_pos(f_env%force_env,pos,n_el)
     CALL f_env_rm_defaults(f_env,ierr)
 
@@ -1178,12 +1161,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_vel', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     CALL force_env_get_vel(f_env%force_env,vel,n_el)
     CALL f_env_rm_defaults(f_env,ierr)
 
@@ -1205,14 +1186,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_cell', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env, cell, subsys)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     NULLIFY (cell)
     CALL force_env_get(f_env%force_env,cell=cell)
     CPASSERT(ASSOCIATED(cell))
@@ -1242,13 +1221,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_pos', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     NULLIFY (subsys)
     CALL force_env_get(f_env%force_env,subsys=subsys)
     CALL unpack_subsys_particles(subsys=subsys,r=new_pos)
@@ -1274,13 +1251,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_vel', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     NULLIFY (subsys)
     CALL force_env_get(f_env%force_env,subsys=subsys)
     CALL unpack_subsys_particles(subsys=subsys,v=new_vel)
@@ -1305,13 +1280,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_energy_force', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     logger => cp_get_default_logger()
     CALL cp_iterate(logger%iter_info) ! add one to the iteration count
     CALL force_env_calc_energy_force(f_env%force_env,calc_force=calc_force)
@@ -1335,12 +1308,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'get_energy', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY (f_env)
-    CALL f_env_add_defaults(env_id,f_env,failure)
+    CALL f_env_add_defaults(env_id,f_env)
     CALL force_env_get(f_env%force_env,potential_energy=e_pot)
     CALL f_env_rm_defaults(f_env,ierr)
 
@@ -1502,12 +1473,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'do_shake', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     NULLIFY(f_env)
-    CALL f_env_add_defaults(f_env_id,f_env,failure)
+    CALL f_env_add_defaults(f_env_id,f_env)
     CALL force_env_shake(f_env%force_env,&
          dt=dt,shake_tol=shake_tol)
     CALL f_env_rm_defaults(f_env,ierr)

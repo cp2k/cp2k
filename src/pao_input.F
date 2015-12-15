@@ -135,11 +135,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'create_pao_section', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: printkey, subsection
 
-    failure=.FALSE.
     NULLIFY (keyword, subsection, printkey)
 
     CPASSERT(.NOT.ASSOCIATED(section))

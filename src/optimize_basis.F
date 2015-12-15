@@ -349,7 +349,6 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: main_dir
     INTEGER                                  :: bas_id, handle, icalc, ierr, &
                                                 mp_id, set_id, stat
-    LOGICAL                                  :: failure
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -361,7 +360,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(matrix_s, blacs_env, ks_env)
 
     mp_id=opt_bas%opt_id
@@ -390,7 +388,7 @@ CONTAINS
 
        ! some weirdness with the default stacks defaults have to be addded to get the 
        ! correct default program name this causes trouble with the timer stack if kept
-       CALL f_env_add_defaults(f_env_id(icalc), f_env, failure)
+       CALL f_env_add_defaults(f_env_id(icalc), f_env)
        force_env => f_env%force_env
        CALL force_env_get(force_env,qs_env=qs_env)
        CALL allocate_mo_sets(qs_env)

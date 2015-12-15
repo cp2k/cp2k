@@ -233,7 +233,7 @@ CONTAINS
     INTEGER, DIMENSION(6)                    :: nr_of_job
     INTEGER, DIMENSION(:), POINTER           :: tree_elem_counters, &
                                                 tree_elem_heads
-    LOGICAL                                  :: external_stop, failure, flag, &
+    LOGICAL                                  :: external_stop, flag, &
                                                 l_update_tree
     REAL(KIND=dp)                            :: run_time_start
     REAL(KIND=dp), DIMENSION(4)              :: worker_timings_aver
@@ -243,7 +243,6 @@ CONTAINS
     TYPE(global_tree_type), POINTER          :: gt_elem_tmp
     TYPE(tree_type), POINTER                 :: init_conf
 
-    failure = .FALSE.
     external_stop = .FALSE.
     restarted_elem_nr = 0
     NULLIFY(init_conf, worker_info, ana_worker_info, gt_elem_tmp, tree_elem_counters)
@@ -305,16 +304,6 @@ CONTAINS
        CALL cp_abort(__LOCATION__,&
             "receiving start configuration failed, received stat "//&
             cp_to_string(stat))
-    IF(failure)THEN
-      CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_w, &
-                            worker_info=worker_info, &
-                            tmc_params=tmc_env%params)
-      CALL stop_whole_group(para_env=tmc_env%tmc_comp_set%para_env_m_ana, &
-                            worker_info=ana_worker_info, &
-                            tmc_params=tmc_env%params)
-      CALL timestop(handle)
-      RETURN
-    END IF
     ! get the atom names from first energy worker
     CALL communicate_atom_types(atoms=tmc_env%params%atoms, &
            source=1,&

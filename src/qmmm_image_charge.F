@@ -645,14 +645,12 @@ CONTAINS
 
     INTEGER                                  :: handle, j, k, natom, &
                                                 output_unit, stat
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: input
 
     CALL timeset(routineN,handle)
     NULLIFY(input, logger)
 
-    failure=.FALSE.
     logger => cp_get_default_logger()
 
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
@@ -733,7 +731,6 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, iatom_ref, &
                                                 natom
-    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: int_res
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -743,8 +740,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(pw_env, auxbas_pw_pool, poisson_env, para_env, int_res)
-
-    failure = .FALSE.
 
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
     ALLOCATE(int_res(natom))
@@ -815,7 +810,6 @@ CONTAINS
 
     INTEGER                                  :: atom_a, handle, iatom, natom
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: la_max, la_min
-    LOGICAL                                  :: failure
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zeta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ra
@@ -823,7 +817,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
     NULLIFY(para_env)
-    failure = .FALSE.
 
     natom=SIZE(qmmm_env%image_charge_pot%image_mm_list)
     ALLOCATE(la_min(natom),la_max(natom))

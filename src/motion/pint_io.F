@@ -118,7 +118,7 @@ MODULE pint_io
     INTEGER                                  :: handle, handle1, iat, ib, id, &
                                                 idim, idir, ierr, outformat, &
                                                 should_output, unit_nr
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(kind=dp)                            :: nb, ss, unit_conv, vv
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -129,13 +129,8 @@ MODULE pint_io
 
     CALL timeset(routineN,handle1)
     
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF (failure) THEN
-      CALL timestop(handle1)
-      RETURN
-    END IF
 
     sect_path(pos_id) = "MOTION%PINT%PRINT%CENTROID_POS"
     sect_path(vel_id) = "MOTION%PINT%PRINT%CENTROID_VEL"
@@ -192,7 +187,7 @@ MODULE pint_io
 
       NULLIFY(f_env,cell,subsys)
       CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-           f_env=f_env,failure=failure, handle=handle)
+           f_env=f_env, handle=handle)
       CALL force_env_get(force_env=f_env%force_env,&
            cell=cell, subsys=subsys)
       CALL cp_subsys_get(subsys,particles=particles)
@@ -284,7 +279,7 @@ MODULE pint_io
                                                 idim, idir, ierr, &
                                                 imag_stride, outformat, &
                                                 should_output, unit_nr
-    LOGICAL                                  :: failure, new_file
+    LOGICAL                                  :: new_file
     REAL(kind=dp)                            :: unit_conv
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
@@ -295,13 +290,8 @@ MODULE pint_io
 
     CALL timeset(routineN,handle1)
 
-    failure = .FALSE.
     CPASSERT(ASSOCIATED(pint_env))
     CPASSERT(pint_env%ref_count>0)
-    IF (failure) THEN
-      CALL timestop(handle1)
-      RETURN
-    END IF
 
     sect_path(pos_id) = "MOTION%PRINT%TRAJECTORY"
     sect_path(vel_id) = "MOTION%PRINT%VELOCITIES"
@@ -351,7 +341,7 @@ MODULE pint_io
 
       NULLIFY(f_env,cell,subsys)
       CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-           f_env=f_env,failure=failure, handle=handle)
+           f_env=f_env, handle=handle)
       CALL force_env_get(force_env=f_env%force_env,&
            cell=cell, subsys=subsys)
       CALL cp_subsys_get(subsys,particles=particles)

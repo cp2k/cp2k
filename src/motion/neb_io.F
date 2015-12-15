@@ -415,15 +415,13 @@ CONTAINS
                                                 replica_proj_name
     INTEGER                                  :: handle, handle2, i, ierr, j, &
                                                 lp, unit_nr
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger, sub_logger
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(section_vals_type), POINTER         :: root_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
-         failure=failure, handle=handle2)
+         handle=handle2)
     logger => cp_get_default_logger()
     CALL force_env_get(f_env%force_env,root_section=root_section)
     j    = irep + (rep_env%local_rep_indices(1)-1)
@@ -538,15 +536,13 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: replica_proj_name
     INTEGER                                  :: handle2, ierr, irep, n_rep, &
                                                 n_rep_neb, output_unit
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     n_rep_neb = neb_env%number_of_replica
     n_rep     = rep_env%nrep
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id, f_env=f_env,&
-         failure=failure, handle=handle2)
+                            handle=handle2)
     logger => cp_get_default_logger()
     output_unit = logger%default_global_unit_nr
     IF (output_unit > 0) THEN

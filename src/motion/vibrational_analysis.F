@@ -97,7 +97,7 @@ CONTAINS
       iparticle1, iparticle2, iseq, iw, j, k, natoms, ncoord, nrep, nres, &
       nRotTrM, nvib, output_unit, prep, proc_dist_type
     INTEGER, DIMENSION(:), POINTER           :: Clist, Mlist
-    LOGICAL :: calc_intens, calc_thchdata, do_mode_tracking, failure, &
+    LOGICAL :: calc_intens, calc_thchdata, do_mode_tracking, &
       keep_rotations, row_force, something_frozen
     REAL(KIND=dp)                            :: dx, inertia(3), &
                                                 minimum_energy, norm, &
@@ -154,8 +154,7 @@ CONTAINS
     CALL rep_env_create(rep_env, para_env=para_env, input=input,&
           input_declaration=input_declaration,nrep=nrep,prep=prep,row_force=row_force)
     IF (ASSOCIATED(rep_env)) THEN
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            failure=failure)
+       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
        CALL force_env_get(f_env%force_env,subsys=subsys)
        particles => subsys%particles%els
        ! Decide which kind of Vibrational Analysis to perform

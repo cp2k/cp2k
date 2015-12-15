@@ -524,16 +524,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, ierr, j, n_el
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: md_section, root_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-         failure=failure, handle=handle2)
+         handle=handle2)
     logger => cp_get_default_logger()
     CALL force_env_get(f_env%force_env,globenv=globenv,&
          root_section=root_section)
@@ -602,16 +601,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, ierr, j, n_el
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: geoopt_section, root_section
 
     CALL timeset(routineN,handle)
-    failure = .FALSE.
     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-         failure=failure, handle=handle2)
+         handle=handle2)
     logger => cp_get_default_logger()
     CALL force_env_get(f_env%force_env,globenv=globenv,&
          root_section=root_section)

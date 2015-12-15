@@ -93,8 +93,7 @@ CONTAINS
                                                 imatch, irs, is, nsub, &
                                                 output_unit
     LOGICAL                                  :: at_end, compatible_end, &
-                                                failure, root_sect, &
-                                                skip_description, skip_help, &
+                                                root_sect, &
                                                 whole_section
     TYPE(cp_sll_val_type), POINTER           :: last_val, new_val, &
                                                 previous_last, previous_list
@@ -106,7 +105,6 @@ CONTAINS
 
     NULLIFY(previous_list,previous_last)
 
-    failure=.FALSE.
     root_sect=.TRUE.
     IF (PRESENT(root_section)) root_sect=root_section
 
@@ -132,8 +130,6 @@ CONTAINS
     IF(.NOT.section%repeats.AND.SIZE(section_vals%values,2)/=0)&
        CALL cp_abort(__LOCATION__, "Section "//TRIM(section%name)//&
          " should not repeat "//TRIM(parser_location(parser)))
-    skip_description=.TRUE.
-    skip_help=.TRUE.
     CALL section_vals_add_values(section_vals)
     irs=SIZE(section_vals%values,2)
 
@@ -151,7 +147,7 @@ CONTAINS
        section_vals%values(-1,irs)%list => new_val
        NULLIFY(el)
     END IF
-    DO WHILE (.NOT.failure)
+    DO WHILE (.TRUE.)
        CALL parser_get_object(parser,token,newline=.TRUE.,&
             lower_to_upper=.TRUE.,at_end=at_end)
        IF (at_end) THEN
@@ -161,7 +157,6 @@ CONTAINS
                   TRIM(section%name)//" "//TRIM(parser_location(parser)))
           EXIT
        END IF
-       IF (failure) EXIT
        IF (token(1:1)==parser%section_character) THEN
           IF (token=="&END") THEN
              ! end of section
@@ -185,7 +180,6 @@ CONTAINS
                 CALL cp_abort(__LOCATION__,&
                      "non-compatible end of section "//TRIM(section%name)//" "//&
                      TRIM(parser_location(parser)))
-                skip_description=.TRUE.
              END IF
              !              RETURN
              EXIT
@@ -215,7 +209,6 @@ CONTAINS
              DO WHILE (nSub>0)
                 CALL parser_get_object(parser,token,newline=.TRUE.,&
                      lower_to_upper=.TRUE.)
-                IF (failure) EXIT
                 IF (token(1:1)==parser%section_character) THEN
                    IF (token=="&END") THEN
                       nSub=nSub-1
@@ -228,7 +221,6 @@ CONTAINS
        ELSE ! token is a keyword
           IF (token=="DESCRIBE") THEN
              IF (output_unit>0) WRITE(output_unit,"(/,' ****** DESCRIPTION ******',/)")
-             skip_description=.TRUE.
              desc_level=3
              IF (parser_test_next_token(parser)=="INT") THEN
                 CALL parser_get_object(parser,desc_level)
@@ -284,7 +276,7 @@ CONTAINS
                      n_var=keyword%n_var,default_value=keyword%lone_keyword_value,&
                      enum=keyword%enum,unit=keyword%unit,&
                      default_units=default_units,parser=parser)
-                IF (.NOT.failure.AND.ASSOCIATED(el)) THEN
+                IF (ASSOCIATED(el)) THEN
                    NULLIFY(new_val)
                    CALL cp_sll_val_create(new_val,el)
                    last_val => section_vals%values(ik,irs)%list
@@ -311,23 +303,6 @@ CONTAINS
           END IF
        END IF
     END DO
-    IF (failure.AND.(output_unit>0)) THEN
-       IF (.NOT.skip_help) THEN
-          CALL print_message(&
-               ' You can have a description of the input by using the keyword '//&
-               'DESCRIBE in the CP2K section optionally followed by the level of output (1-4).',&
-               output_unit,0,0,0)
-          CALL print_message(&
-               ' Putting the keyword DESCRIBE in a subsection describes '//&
-               'just that section and all its subsections. '//&
-               'If you just want the description of some keywords you can '//&
-               'just add their name to the DESCRIBE directive.',&
-               output_unit,0,0,0)
-       END IF
-       IF (.NOT.skip_description) THEN
-          CALL section_describe(section,output_unit,3)
-       END IF
-    END IF
     CALL timestop(handle)
   END SUBROUTINE section_vals_parse
 
@@ -363,7 +338,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: c_val_p
     INTEGER                                  :: handle, i, i_val
     INTEGER, DIMENSION(:), POINTER           :: i_val_p
-    LOGICAL                                  :: check, failure, l_val
+    LOGICAL                                  :: check, l_val
     LOGICAL, DIMENSION(:), POINTER           :: l_val_p
     REAL(kind=dp)                            :: r_val
     REAL(kind=dp), DIMENSION(:), POINTER     :: r_val_p
@@ -374,7 +349,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure=.FALSE.
     CPASSERT(.NOT.ASSOCIATED(val))
     SELECT CASE(type_of_var)
     CASE(no_t)
@@ -400,8 +374,7 @@ CONTAINS
              CALL parser_get_object(parser,l_val)
              CALL cp_create(l_first,l_val)
              l_last => l_first
-             DO WHILE(parser_test_next_token(parser)/="EOL"&
-                  .AND..NOT.failure)
+             DO WHILE(parser_test_next_token(parser)/="EOL")
                 CALL parser_get_object(parser,l_val)
                 CALL cp_create(l_new,l_val)
                 l_last%rest => l_new
@@ -442,7 +415,7 @@ CONTAINS
              CALL parser_get_object(parser,i_val)
              CALL cp_create(i_first,i_val)
              i_last => i_first
-             DO WHILE(parser_test_next_token(parser)/="EOL".AND..NOT.failure)
+             DO WHILE(parser_test_next_token(parser)/="EOL")
                 CALL parser_get_object(parser,i_val)
                 CALL cp_create(i_new,i_val)
                 i_last%rest => i_new
@@ -483,7 +456,7 @@ CONTAINS
              CALL get_r_val(r_val, parser, unit, default_units, c_val)
              CALL cp_create(r_first,r_val)
              r_last => r_first
-             DO WHILE(parser_test_next_token(parser)/="EOL".AND..NOT.failure)
+             DO WHILE(parser_test_next_token(parser)/="EOL")
                 CALL get_r_val(r_val, parser, unit, default_units, c_val)
                 CALL cp_create(r_new,r_val)
                 r_last%rest => r_new
@@ -527,8 +500,7 @@ CONTAINS
              CALL parser_get_object(parser,c_val)
              CALL cp_create(c_first,c_val)
              c_last => c_first
-             DO WHILE(parser_test_next_token(parser)/="EOL"&
-                  .AND..NOT.failure)
+             DO WHILE(parser_test_next_token(parser)/="EOL")
                 CALL parser_get_object(parser,c_val)
                 CALL cp_create(c_new,c_val)
                 c_last%rest => c_new
@@ -565,8 +537,7 @@ CONTAINS
           CALL parser_get_object(parser,c_val,string_length=LEN(c_val))
           CALL cp_create(c_first,c_val)
           c_last => c_first
-          DO WHILE(parser_test_next_token(parser)/="EOL"&
-               .AND..NOT.failure)
+          DO WHILE(parser_test_next_token(parser)/="EOL")
              CALL parser_get_object(parser,c_val,string_length=LEN(c_val))
              CALL cp_create(c_new,c_val)
              c_last%rest => c_new
@@ -601,7 +572,7 @@ CONTAINS
              CALL parser_get_object(parser,c_val)
              CALL cp_create(i_first,enum_c2i(enum,c_val))
              i_last => i_first
-             DO WHILE(parser_test_next_token(parser)/="EOL".AND..NOT.failure)
+             DO WHILE(parser_test_next_token(parser)/="EOL")
                 CALL parser_get_object(parser,c_val)
                 CALL cp_create(i_new,enum_c2i(enum,c_val))
                 i_last%rest => i_new

@@ -181,7 +181,7 @@ CONTAINS
                                                 new_env_id, prog_name_id, &
                                                 run_type_id
     INTEGER(KIND=int_8)                      :: m_memory_max_mpi
-    LOGICAL                                  :: echo_input, failure, &
+    LOGICAL                                  :: echo_input, &
                                                 I_was_ionode, was_present
     TYPE(cp_logger_type), POINTER            :: logger, sublogger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -192,7 +192,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
                                                 root_section
 
-    failure = .FALSE.
     cp2k_run_OK = .FALSE.
     was_present = .FALSE.
     NULLIFY(para_env, f_env, dft_control)
@@ -282,8 +281,7 @@ CONTAINS
             owns_out_unit=.FALSE.,&
             input=input_file,ierr=ierr)
        CPASSERT(ierr==0)
-       CALL f_env_add_defaults(new_env_id,f_env,&
-            failure=failure,handle=f_env_handle)
+       CALL f_env_add_defaults(new_env_id,f_env,handle=f_env_handle)
        force_env => f_env%force_env
        CALL force_env_get(force_env,globenv=globenv)
        CALL globenv_retain(globenv)

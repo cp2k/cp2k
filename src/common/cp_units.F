@@ -173,9 +173,7 @@ CONTAINS
     INTEGER                                  :: i_high, i_low, i_unit, &
                                                 len_string, next_power
     INTEGER, DIMENSION(cp_unit_max_kinds)    :: kind_id, power, unit_id
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     unit_id=cp_units_none
     kind_id=cp_ukind_none
     power=0
@@ -194,7 +192,7 @@ CONTAINS
             string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
        i_high=i_high+1
     END DO
-    DO WHILE(.NOT.failure)
+    DO WHILE(.TRUE.)
        IF (i_high<=i_low.OR.i_low>len_string) EXIT
        i_unit=i_unit+1
        IF (i_unit>cp_unit_max_kinds) THEN
@@ -463,9 +461,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, max_kind, max_pos
-    LOGICAL                                  :: failure, repeat
+    LOGICAL                                  :: repeat
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(unit))
     CPASSERT(SIZE(kind_id)<=cp_unit_max_kinds)
     CPASSERT(SIZE(unit_id)<=cp_unit_max_kinds)
@@ -542,9 +539,6 @@ CONTAINS
           unit%power(max_pos)=unit%power(i)
           unit%power(i)=max_kind
        END IF
-       ! check unit
-       failure=failure.OR..NOT.cp_basic_unit_check(basic_kind=unit%kind_id(i),&
-            basic_unit=unit%unit_id(i))
     END DO
   END SUBROUTINE cp_unit_create2
 
@@ -587,100 +581,6 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_unit_release
-
-! *****************************************************************************
-!> \brief controls that the kind and contains meaningful information
-!> \param basic_kind the kind of the unit
-!> \param basic_unit the unit to check
-!> \retval res ...
-!> \author fawzi
-! *****************************************************************************
-  FUNCTION cp_basic_unit_check(basic_kind,basic_unit)&
-       RESULT(res)
-    INTEGER, INTENT(in)                      :: basic_kind, basic_unit
-    LOGICAL                                  :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_check', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
-
-    SELECT CASE(basic_kind)
-    CASE(cp_ukind_undef)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_none)
-       CASE default
-          CPABORT("unknown undef unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_energy)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_hartree, cp_units_wavenum, cp_units_joule, cp_units_kcalmol,&
-            cp_units_kjmol, cp_units_Ry, cp_units_eV, cp_units_keV, cp_units_au, cp_units_k,&
-            cp_units_jmol, cp_units_none)
-       CASE default
-          CPABORT("unknown energy unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_length)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_bohr, cp_units_angstrom, cp_units_au, cp_units_none, cp_units_m,&
-            cp_units_pm, cp_units_nm)
-       CASE default
-          CPABORT("unknown length unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_temperature)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_k,cp_units_au,cp_units_none)
-       CASE default
-          CPABORT("unknown temperature unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_pressure)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_bar,cp_units_atm,cp_units_kbar,cp_units_Pa,cp_units_MPa,cp_units_GPa,cp_units_au,cp_units_none)
-       CASE default
-          CPABORT("unknown pressure unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_angle)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_rad, cp_units_deg,cp_units_none)
-       CASE default
-          CPABORT("unknown angle unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_time)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_s, cp_units_fs, cp_units_ps, cp_units_au, cp_units_wn, cp_units_none)
-       CASE default
-          CPABORT("unknown time unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_mass)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_kg, cp_units_amu, cp_units_m_e, cp_units_au, cp_units_none)
-       CASE default
-          CPABORT("unknown mass unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_potential)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_volt, cp_units_au, cp_units_none)
-       CASE default
-          CPABORT("unknown potential unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_force)
-       SELECT CASE (basic_unit)
-       CASE(cp_units_Newton, cp_units_mNewton, cp_units_au, cp_units_none)
-       CASE default
-          CPABORT("unknown force unit:"//TRIM(cp_to_string(basic_unit)))
-       END SELECT
-    CASE(cp_ukind_none)
-       IF(basic_unit/=cp_units_none)&
-            CALL cp_abort(__LOCATION__,&
-                 "if the kind of the unit is none also unit must be undefined,not:"&
-                 //TRIM(cp_to_string(basic_unit)))
-    CASE default
-       CPABORT("unknown kind of unit:"//TRIM(cp_to_string(basic_kind)))
-    END SELECT
-    res=.not.failure
-  END FUNCTION cp_basic_unit_check
 
 ! *****************************************************************************
 !> \brief converts a value to the internal cp2k units

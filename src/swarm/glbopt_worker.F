@@ -96,11 +96,9 @@ MODULE glbopt_worker
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
-    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dist_in_angstrom
     TYPE(section_vals_type), POINTER         :: glbopt_section
 
-    failure = .FALSE.
 
         worker%root_section => root_section
         worker%id = worker_id
@@ -116,8 +114,7 @@ MODULE glbopt_worker
 
 
       ! ======= More setup stuff =======
-      CALL f_env_add_defaults(worker%f_env_id, worker%f_env,failure)
-      IF(failure) CPABORT("f_env_add_defaults failed")
+      CALL f_env_add_defaults(worker%f_env_id, worker%f_env)
       worker%force_env => worker%f_env%force_env
       CALL force_env_get(worker%force_env, globenv=worker%globenv, subsys=worker%subsys)
 

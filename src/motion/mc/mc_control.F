@@ -372,10 +372,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: f_env_id, ierr, output_unit
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
 
-    failure = .FALSE.
     output_unit = cp_logger_get_default_unit_nr()
     CALL create_force_env(f_env_id, &
                           input_declaration=input_declaration,&
@@ -383,8 +381,7 @@ CONTAINS
                           output_unit=output_unit,&
                           mpi_comm=para_env%group)
 
-    CALL f_env_add_defaults(f_env_id, f_env,failure)
-    IF(failure) CPABORT("mc_create_force_env: f_env_add_defaults failed")
+    CALL f_env_add_defaults(f_env_id, f_env)
     force_env => f_env%force_env
     CALL force_env_retain(force_env)
     CALL f_env_rm_defaults(f_env)

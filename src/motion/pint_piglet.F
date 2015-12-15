@@ -101,9 +101,6 @@ MODULE pint_piglet
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ndim, p
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     NULLIFY(piglet_therm)
     ALLOCATE(piglet_therm)
@@ -176,14 +173,13 @@ MODULE pint_piglet
                                                 input_unit, isp, j, &
                                                 matrix_init, ns, obrac, p, &
                                                 read_err
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     REAL(KIND=dp), DIMENSION(:), POINTER     :: smallstmp
     REAL(KIND=dp), DIMENSION(piglet_therm%&
       nsp1, piglet_therm%nsp1)               :: Mtmp, tmpmatrix
     TYPE(section_vals_type), POINTER         :: rng_section, smalls_section
 
-    failure = .FALSE.
     p=piglet_therm%p
     pint_env%e_piglet = 0.0_dp
     pint_env%piglet_therm%thermostat_energy = 0.0_dp
@@ -548,10 +544,6 @@ MODULE pint_piglet
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_piglet_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(piglet_therm)) THEN
       piglet_therm%ref_count=piglet_therm%ref_count-1

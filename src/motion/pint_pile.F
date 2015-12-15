@@ -63,12 +63,10 @@ MODULE pint_pile
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: i, j, p
-    LOGICAL                                  :: explicit, failure
+    LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: dti2, ex
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(section_vals_type), POINTER         :: rng_section
-
-    failure = .FALSE.
 
     pint_env%e_pile = 0.0_dp
     ALLOCATE(pile_therm)
@@ -184,10 +182,6 @@ MODULE pint_pile
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pint_pile_release', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
 
     IF (ASSOCIATED(pile_therm)) THEN
       pile_therm%ref_count=pile_therm%ref_count-1

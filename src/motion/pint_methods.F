@@ -160,7 +160,7 @@ CONTAINS
     INTEGER                                  :: handle, iat, ibead, idim, &
                                                 idir, ierr, itmp, nrep, prep, &
                                                 stat
-    LOGICAL                                  :: explicit, failure, ltmp, &
+    LOGICAL                                  :: explicit, ltmp, &
                                                 wrong_input
     REAL(kind=dp)                            :: dt, mass, omega
     REAL(kind=dp), DIMENSION(3, 2)           :: seed
@@ -173,7 +173,6 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    failure = .FALSE.
     NULLIFY(f_env,subsys,particles, nose_section, gle_section)
 
     CPASSERT(.NOT.ASSOCIATED(pint_env))
@@ -380,7 +379,7 @@ CONTAINS
     END IF
     ALLOCATE(pint_env%mass(pint_env%ndim))
     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-         f_env=f_env,failure=failure)
+         f_env=f_env)
     CALL force_env_get(force_env=f_env%force_env,subsys=subsys)
     CALL cp_subsys_get(subsys,particles=particles)
 
@@ -1916,7 +1915,7 @@ CONTAINS
     ! the number of force evaluations done so far
 !TODO make this check valid if we start from ITERATION != 0
 !     CALL f_env_add_defaults(f_env_id=pint_env%replicas%f_env_id,&
-!          f_env=f_env,new_error=new_error, failure=failure)
+!          f_env=f_env,new_error=new_error)
 !     NULLIFY(logger)
 !     logger => cp_error_get_logger(new_error)
 !     IF(logger%iter_info%iteration(2)/=pint_env%iter+1)&

@@ -688,10 +688,8 @@ CONTAINS
     INTEGER                                  :: counter, donor_acceptor, &
                                                 handle, k, mol, nr_mol
     INTEGER, DIMENSION(:), POINTER           :: mol_arr
-    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: rnd
 
-    failure = .FALSE.
     NULLIFY(mol_arr)
 
     CPASSERT(ASSOCIATED(elem))
@@ -747,16 +745,16 @@ CONTAINS
     counter = counter-k+1
 
     ! check if loop is minimum size of 6 molecules
-    IF(counter.LT.6)&
+    IF(counter.LT.6) THEN
        CALL cp_warn(__LOCATION__,&
             "short proton loop with"//cp_to_string(counter)//&
             "molecules.")
-    IF(failure) THEN
-      tmp_chr=""
-      WRITE(tmp_chr, *) mol_arr(1:counter)
-      CPWARN("selected molecules:"//TRIM(tmp_chr))
-      short_loop = .TRUE.
-    END IF
+       tmp_chr=""
+       WRITE(tmp_chr, *) mol_arr(1:counter)
+       CPWARN("selected molecules:"//TRIM(tmp_chr))
+       short_loop = .TRUE.
+    ENDIF
+
     ! rotate the molecule along the not involved O-H bond 
     !   (about the angle in of the neighboring chain elements)
     CALL rotate_molecules_in_chain(tmc_params=tmc_params, elem=elem, &

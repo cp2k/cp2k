@@ -300,7 +300,7 @@ MODULE replica_methods
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, in_use, stat
-    LOGICAL                                  :: do_kpoints, failure, &
+    LOGICAL                                  :: do_kpoints, &
                                                 has_unit_metric
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
@@ -309,13 +309,11 @@ MODULE replica_methods
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(replica_env_type), POINTER          :: rep_env
 
-    failure = .FALSE.
     rep_env => rep_envs_get_rep_env(rep_env_id,ierr=stat)
     IF(.NOT.ASSOCIATED(rep_env))&
        CPABORT("could not find rep_env with id_nr"//cp_to_string(rep_env_id))
     NULLIFY(qs_env,dft_control,subsys)
-    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-         failure=failure)
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
     logger => cp_get_default_logger()
     logger%iter_info%iteration(1)=rep_env%my_rep_group
     CALL cp_add_iter_level(iteration_info=logger%iter_info,&
@@ -421,15 +419,12 @@ MODULE replica_methods
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_low', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(replica_env_type), POINTER          :: rep_env
 
-    failure = .FALSE.
     rep_env => rep_envs_get_rep_env(rep_env_id, ierr)
     IF (ASSOCIATED(rep_env)) THEN
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            failure=failure)
+       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
        CALL rep_env_calc_e_f_int(rep_env,calc_f/=0)
        CALL f_env_rm_defaults(f_env,ierr)
     ELSE
@@ -455,13 +450,11 @@ MODULE replica_methods
 
     INTEGER                                  :: i, ierr, irep, md_iter, &
                                                 my_calc_f, ndim
-    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    failure = .FALSE.
     NULLIFY(f_env,qs_env,subsys)
     CPASSERT(ASSOCIATED(rep_env))
     CPASSERT(rep_env%ref_count>0)
@@ -470,8 +463,7 @@ MODULE replica_methods
        IF (.NOT.calc_f) my_calc_f=0
     END IF
 
-    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-         failure=failure)
+    CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
     logger => cp_get_default_logger()
     !     md_iter=logger%iter_info%iteration(2)+1
     md_iter=logger%iter_info%iteration(2)
@@ -489,8 +481,7 @@ MODULE replica_methods
        logger%iter_info%iteration(2)=md_iter
 
        IF (rep_env%keep_wf_history) THEN
-          CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-               failure=failure)
+          CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
           CALL force_env_get(f_env%force_env,qs_env=qs_env)
           CALL set_qs_env(qs_env,&
                wf_history=rep_env%wf_history(i)%wf_history)
@@ -498,8 +489,7 @@ MODULE replica_methods
           CPASSERT(ierr==0)
        END IF
 
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            failure=failure)
+       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
        CALL force_env_get(f_env%force_env, subsys=subsys)
        CALL cp_subsys_set(subsys, results=rep_env%results(irep)%results)
        CALL f_env_rm_defaults(f_env,ierr)

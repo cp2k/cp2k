@@ -99,7 +99,7 @@ CONTAINS
     INTEGER                                  :: handle, ierr, iw, iw2, nrep, &
                                                 output_unit, prep, &
                                                 proc_dist_type
-    LOGICAL                                  :: check, failure, row_force
+    LOGICAL                                  :: check, row_force
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env
@@ -111,7 +111,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER :: diis_section, force_env_section, &
       md_section, motion_section, neb_section, print_section
 
-    failure = .FALSE.
     CALL timeset(routineN,handle)
     NULLIFY(logger, subsys, f_env, rep_env)
     NULLIFY(forces, coords, vels, neb_env)
@@ -142,8 +141,7 @@ CONTAINS
     IF (output_unit>0) WRITE(output_unit,'(T2,"NEB|",A)')" Replica_env Setup. END"
     IF (ASSOCIATED(rep_env)) THEN
        CPASSERT(SIZE(rep_env%local_rep_indices)==1)
-       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
-            failure=failure)
+       CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env)
        CALL force_env_get(f_env%force_env,subsys=subsys)
        particle_set => subsys%particles%els
        ! Read NEB controlling parameters
