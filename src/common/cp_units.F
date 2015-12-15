@@ -173,9 +173,7 @@ CONTAINS
     INTEGER                                  :: i_high, i_low, i_unit, &
                                                 len_string, next_power
     INTEGER, DIMENSION(cp_unit_max_kinds)    :: kind_id, power, unit_id
-    LOGICAL                                  :: failure
 
-    failure = .FALSE.
     unit_id=cp_units_none
     kind_id=cp_ukind_none
     power=0
@@ -194,7 +192,7 @@ CONTAINS
             string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
        i_high=i_high+1
     END DO
-    DO WHILE(.NOT.failure)
+    DO
        IF (i_high<=i_low.OR.i_low>len_string) EXIT
        i_unit=i_unit+1
        IF (i_unit>cp_unit_max_kinds) THEN
@@ -463,9 +461,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, j, max_kind, max_pos
-    LOGICAL                                  :: failure, repeat
+    LOGICAL                                  :: repeat
 
-    failure = .FALSE.
     CPASSERT(.NOT.ASSOCIATED(unit))
     CPASSERT(SIZE(kind_id)<=cp_unit_max_kinds)
     CPASSERT(SIZE(unit_id)<=cp_unit_max_kinds)
@@ -543,8 +540,8 @@ CONTAINS
           unit%power(i)=max_kind
        END IF
        ! check unit
-       failure=failure.OR..NOT.cp_basic_unit_check(basic_kind=unit%kind_id(i),&
-            basic_unit=unit%unit_id(i))
+       CALL cp_basic_unit_check(basic_kind=unit%kind_id(i),&
+                                basic_unit=unit%unit_id(i))
     END DO
   END SUBROUTINE cp_unit_create2
 
@@ -592,20 +589,13 @@ CONTAINS
 !> \brief controls that the kind and contains meaningful information
 !> \param basic_kind the kind of the unit
 !> \param basic_unit the unit to check
-!> \retval res ...
 !> \author fawzi
 ! *****************************************************************************
-  FUNCTION cp_basic_unit_check(basic_kind,basic_unit)&
-       RESULT(res)
+  SUBROUTINE cp_basic_unit_check(basic_kind,basic_unit)
     INTEGER, INTENT(in)                      :: basic_kind, basic_unit
-    LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_basic_unit_check', &
       routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-    failure = .FALSE.
 
     SELECT CASE(basic_kind)
     CASE(cp_ukind_undef)
@@ -679,8 +669,7 @@ CONTAINS
     CASE default
        CPABORT("unknown kind of unit:"//TRIM(cp_to_string(basic_kind)))
     END SELECT
-    res=.not.failure
-  END FUNCTION cp_basic_unit_check
+  END SUBROUTINE cp_basic_unit_check
 
 ! *****************************************************************************
 !> \brief converts a value to the internal cp2k units
