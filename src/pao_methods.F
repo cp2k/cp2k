@@ -509,7 +509,7 @@ CONTAINS
        IF(ls_scf_env%nspins==1) nelectron_spin_real = nelectron_spin_real/2
        CALL density_matrix_trs4(ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin),&
                                 ls_scf_env%matrix_s_sqrt_inv,&
-                                nelectron_spin_real, 1.0E-6_dp, homo_spin, lumo_spin, mu_spin, &
+                                nelectron_spin_real, ls_scf_env%eps_filter, homo_spin, lumo_spin, mu_spin, &
                                 dynamic_threshold=.FALSE., converged=converged,&
                                 max_iter_lanczos=ls_scf_env%max_iter_lanczos,&
                                 eps_lanczos=ls_scf_env%eps_lanczos)
