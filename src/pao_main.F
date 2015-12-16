@@ -13,6 +13,7 @@ MODULE pao_main
        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_release, &
        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
+  USE dm_ls_scf_methods,               ONLY: ls_scf_init_matrix_S
   USE dm_ls_scf_qs,                    ONLY: ls_scf_qs_atomic_guess
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                              ls_scf_env_type
@@ -156,7 +157,9 @@ CONTAINS
     INTEGER                                  :: handle, icycle
     LOGICAL                                  :: cycle_converged, should_stop
     REAL(KIND=dp)                            :: beta, energy
-    TYPE(cp_dbcsr_type)                      :: matrix_M
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(cp_dbcsr_type)                      :: matrix_M, matrix_X_start
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
     TYPE(pao_env_type), POINTER              :: pao
 
@@ -173,6 +176,11 @@ CONTAINS
     CALL linesearch_reset(pao%linesearch)
     CALL cp_dbcsr_set(pao%matrix_D, 0.0_dp)
     CALL cp_dbcsr_set(pao%matrix_G_prev, 0.0_dp)
+
+    IF (pao%mixing /= 1.0_dp) THEN
+       CALL cp_dbcsr_init(matrix_X_start)
+       CALL cp_dbcsr_copy(matrix_X_start, pao%matrix_X)
+    ENDIF
 
     cycle_converged = .FALSE.
     icycle = 0
@@ -217,6 +225,13 @@ CONTAINS
              IF(pao_is_done .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
              EXIT
           ENDIF
+         
+          ! if we have reached the maximum number of cycles exit in order 
+          ! to restart with a fresh hamiltonian
+          IF (icycle >= pao%max_cycles) THEN
+             IF (pao%iw>0) WRITE(pao%iw,*) "PAO| CG not yet converged after ", icycle , " cylces."
+             EXIT
+          ENDIF
        ENDIF
 
        ! check for early abort without convergence?
@@ -235,6 +250,19 @@ CONTAINS
        CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
        CALL pao_update_AB(pao, ls_mstruct)
     ENDDO
+ 
+    IF (pao%mixing /= 1.0_dp) THEN
+       CALL cp_dbcsr_add(pao%matrix_X,matrix_X_start,pao%mixing,1.0_dp-pao%mixing)
+
+       ! update matrices to match the new X
+       CALL pao_update_AB(pao, ls_mstruct)
+       CALL cp_dbcsr_release(ls_scf_env%matrix_s_inv)
+       CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt)
+       CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt_inv)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s)
+       CALL ls_scf_init_matrix_s(matrix_s(1)%matrix, ls_scf_env)
+       CALL cp_dbcsr_release(matrix_X_start)
+    ENDIF
 
     CALL pao_write_restart(pao, qs_env, energy)
 

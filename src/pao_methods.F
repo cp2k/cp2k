@@ -282,13 +282,13 @@ CONTAINS
 
     IF(pao%istep>1) THEN
        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
-       IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
+       ! IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
 
        loop_eps = norm_G / ls_scf_env%nelectron_total
        IF(loop_eps < pao%eps_pao) &
          is_converged = .TRUE.
 
-       ! save guard agains noisy gradient
+       ! safeguard against noisy gradient
        IF(icycle > 1 .AND. pao%linesearch%step_size < pao%min_step) &
          is_converged = .TRUE.
 

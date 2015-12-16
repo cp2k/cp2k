@@ -29,7 +29,9 @@ MODULE pao_types
      REAL(KIND=dp)                    :: check_grad_full_tol = 0.0_dp
      REAL(KIND=dp)                    :: eps_pao = 0.0_dp
      REAL(KIND=dp)                    :: min_step = 0.0_dp
+     REAL(KIND=dp)                    :: mixing = 1.0_dp
      INTEGER                          :: max_pao = -1
+     INTEGER                          :: max_cycles = -1
      INTEGER                          :: max_outer_pao = -1
      INTEGER                          :: parameterization = -1
      INTEGER                          :: cg_init_steps = -1
