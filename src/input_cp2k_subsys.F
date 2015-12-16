@@ -1199,6 +1199,12 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="LMAX_DFTB",&
+         description="The maximum l-quantum number of the DFTB basis for this kind.",&
+         usage="LMAX_DFTB 1", default_i_val=-1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="MAO",&
          description="The number of MAOs (Modified Atomic Orbitals) for this kind.",&
          usage="MAO 4", default_i_val=-1)

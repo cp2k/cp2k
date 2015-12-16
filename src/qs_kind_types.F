@@ -138,6 +138,7 @@ MODULE qs_kind_types
      LOGICAL                                :: paw_atom = .FALSE.        ! needs atomic rho1
      LOGICAL                                :: gpw_type_forced = .FALSE. ! gpw atom even if with hard exponents
      LOGICAL                                :: ghost = .FALSE.
+     INTEGER                                :: lmax_dftb = -1
      REAL(KIND = dp)                        :: dudq_dftb3 = 0.0_dp
      INTEGER, DIMENSION(:,:), POINTER       :: addel  => Null()
      INTEGER, DIMENSION(:,:), POINTER       :: laddel => Null()
@@ -299,6 +300,7 @@ CONTAINS
 !> \param zeff ...
 !> \param elec_conf ...
 !> \param mao ...
+!> \param lmax_dftb ...
 !> \param alpha_core_charge ...
 !> \param ccore_charge ...
 !> \param core_charge ...
@@ -349,7 +351,7 @@ CONTAINS
        basis_set, basis_type, ncgf, nsgf, &
        all_potential, tnadd_potential, gth_potential, &
        se_parameter, dftb_parameter, scptb_parameter, &
-       dftb3_param, zeff, elec_conf, mao,&
+       dftb3_param, zeff, elec_conf, mao, lmax_dftb, &
        alpha_core_charge, ccore_charge, core_charge, core_charge_radius,&
        soft_basis_set, hard_basis_set, paw_proj_set, softb, &
        paw_atom, hard_radius, hard0_radius, max_rad_local, &
@@ -380,7 +382,7 @@ CONTAINS
       POINTER                                :: scptb_parameter
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: dftb3_param, zeff
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
-    INTEGER, INTENT(OUT), OPTIONAL           :: mao
+    INTEGER, INTENT(OUT), OPTIONAL           :: mao, lmax_dftb
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, core_charge, &
                                                 core_charge_radius
@@ -656,6 +658,8 @@ CONTAINS
     IF (PRESENT(reltmat)) reltmat => qs_kind%reltmat
 
     IF (PRESENT(mao))  mao  = qs_kind%mao
+
+    IF (PRESENT(lmax_dftb))  lmax_dftb  = qs_kind%lmax_dftb
 
     IF (PRESENT(pao_basis_size)) pao_basis_size = qs_kind%pao_basis_size
     IF (PRESENT(pao_potential_maxl)) pao_potential_maxl = qs_kind%pao_potential_maxl
@@ -1414,6 +1418,8 @@ CONTAINS
        ! DFTB3 param
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
                 keyword_name="DFTB3_PARAM",r_val=qs_kind%dudq_dftb3)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+                keyword_name="LMAX_DFTB",i_val=qs_kind%lmax_dftb)
 
        ! MAOS
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&

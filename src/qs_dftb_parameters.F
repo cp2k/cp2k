@@ -261,6 +261,9 @@ CONTAINS
             IF ( ABS(uwork(k)) >= 1.e-12_dp ) n_urpoly = k
           END DO
         END IF
+! Polynomials of length 1 are not allowed, it seems we should use spline after all
+! This is creative guessing!
+        IF ( n_urpoly < 2 ) n_urpoly = 0
       END IF
 
       CALL mp_bcast(n_urpoly,para_env%source,para_env%group)
@@ -299,27 +302,37 @@ CONTAINS
       ! In the DFTB-Slako convention they are on orbital 10 (s-s-sigma),
       ! 7 (p-p-sigma) and 3 (d-d-sigma).
       !
-      lmax=0
-      DO l=0,3
-        SELECT CASE (l)
-          CASE DEFAULT
-            CPABORT("")
-          CASE (0)
-            lp = 10
-          CASE (1)
-            lp = 7
-          CASE (2)
-            lp = 3
-          CASE (3)
-            lp = 3 ! this is wrong but we don't allow f anyway
-        END SELECT
-        ! Technical note: In some slako files dummies are included in the
-        ! first matrix elements, so remove them.
-        IF ( (ABS(skself(l)) > 0._dp) .OR. &
-             (SUM(ABS(fmat(ngrd/10:ngrd,lp))) > 0._dp) ) lmax=l
-      END DO
-      ! l=2 (d) is maximum
-      lmax = MIN ( 2, lmax )
+      ! We also allow lmax to be set in the input (in KIND)
+      !
+      CALL get_qs_kind(qs_kind_set(ikind),lmax_dftb=lmax)
+      IF ( lmax < 0 ) THEN
+        lmax=0
+        DO l=0,3
+          SELECT CASE (l)
+            CASE DEFAULT
+              CPABORT("")
+            CASE (0)
+              lp = 10
+            CASE (1)
+              lp = 7
+            CASE (2)
+              lp = 3
+            CASE (3)
+              lp = 3 ! this is wrong but we don't allow f anyway
+          END SELECT
+          ! Technical note: In some slako files dummies are included in the
+          ! first matrix elements, so remove them.
+          IF ( (ABS(skself(l)) > 0._dp) .OR. &
+               (SUM(ABS(fmat(ngrd/10:ngrd,lp))) > 0._dp) ) lmax=l
+        END DO
+        ! l=2 (d) is maximum
+        lmax = MIN(2,lmax)
+      END IF
+      IF ( lmax > 2 ) THEN
+        CALL cp_abort(__LOCATION__,"Maximum L allowed is d. "//&
+               "Use KIND/LMAX_DFTB to set smaller values if needed.")
+      END IF
+      !
       CALL set_dftb_atom_param(dftb_parameter=dftb_atom_a,&
          lmax=lmax, natorb=(lmax+1)**2)
 
@@ -461,6 +474,9 @@ CONTAINS
               IF ( ABS(uwork(k)) >= 1.e-12_dp ) n_urpoly = k
             END DO
           END IF
+! Polynomials of length 1 are not allowed, it seems we should use spline after all
+! This is creative guessing!
+          IF ( n_urpoly < 2 ) n_urpoly = 0
         END IF
 
         CALL mp_bcast(n_urpoly,para_env%source,para_env%group)

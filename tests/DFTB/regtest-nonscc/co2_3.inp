@@ -1,0 +1,49 @@
+#CPQA INCLUDE DFTB/nonscc/nonscc_parameter
+#CPQA INCLUDE uff_table
+#CPQA INCLUDE DFTB/nonscc/hh
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD DFTB
+      &DFTB
+        SELF_CONSISTENT    F
+        &PARAMETER
+          PARAM_FILE_PATH  DFTB/nonscc
+          SK_FILE   O O   oo
+          SK_FILE   C C   cc
+          SK_FILE   C O   co
+          SK_FILE   O C   oc
+        &END PARAMETER
+      &END DFTB
+    &END QS
+    &SCF
+      SCF_GUESS NONE
+      &MIXING
+          METHOD DIRECT_P_MIXING
+          ALPHA   1.
+      &END
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &KIND O
+      LMAX_DFTB 1
+    &END KIND
+    &KIND C
+      LMAX_DFTB 1
+    &END KIND
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      C  0.0   0.0    0.0
+      O  0.0  0.0  +1.2
+      O   0.0  0.0  -1.2
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT coo
+  RUN_TYPE ENERGY_FORCE
+  PRINT_LEVEL HIGH
+&END GLOBAL
