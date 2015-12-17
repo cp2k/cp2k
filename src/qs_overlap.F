@@ -422,60 +422,12 @@ CONTAINS
      END DO
      CALL neighbor_list_iterator_release(nl_iterator)
 
-     logger => cp_get_default_logger()
-     output_unit = cp_print_key_unit_nr(logger,qs_input,"DFT%PRINT%OVERLAP_CONDITION",&
-                                       extension=".Log")
-     ! parameters for matrix condition test
-     threshold=1.0E-6_dp
-     maxiter=1000
-     eps_ev=1.0E8_dp
-
-     IF (output_unit > 0) THEN
-        WRITE(output_unit,'(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
-     END IF
-
      IF(dokp) THEN
         DO i = 1,maxs
            DO ic=1,nimg
               CALL cp_dbcsr_finalize(matrixkp_s(i,ic)%matrix)
               CALL cp_dbcsr_filter(matrixkp_s(i,ic)%matrix, &
                    dft_control%qs_control%eps_filter_matrix)
-           
-              IF (cp_dbcsr_get_matrix_type(matrixkp_s(i,ic)%matrix) .NE. dbcsr_type_antisymmetric) THEN
-                 IF (cp_print_key_should_output(logger%iter_info,qs_input,&
-                                                "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
-                    CALL cp_dbcsr_arnoldi_extremal(matrixkp_s(i,ic)%matrix, max_ev, min_ev,&
-                                                   threshold=threshold, max_iter=maxiter,&
-                                                   converged=converged)
-                    IF (output_unit > 0) THEN
-                       IF (min_ev .NE. 0) THEN
-                          WRITE(output_unit,&
-                                '(T4,A,I3,A,I3,A,T23,ES11.3E3,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
-                                "matrix_s(",i,",",ic,"):",&
-                                max_ev/min_ev, &
-                                "max/min ev: ",max_ev," / ",min_ev
-                       ELSE
-                          WRITE(output_unit,&
-                                '(T4,A,I3,A,I3,A,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
-                                "matrix_s(",i,",",ic,")",&
-                                "max/min ev: ",max_ev," / ",min_ev
-                       ENDIF
-                    ENDIF
-
-                    IF (converged) THEN
-                       IF (min_ev .EQ. 0) THEN
-                          CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-                       ELSE IF ( (max_ev / min_ev) .GT. eps_ev) THEN
-                          CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-                       END IF
-                    END IF
-                 END IF
-              ELSE
-                 IF (output_unit > 0) THEN
-                    WRITE(output_unit,'(T4,A,I3,A,I3,A)') &
-                          "matrix_s(",i,",",ic,"): antisymmetric - eigenvalues not available"
-                 END IF
-              END IF
            ENDDO
         ENDDO
      ELSE
@@ -483,45 +435,52 @@ CONTAINS
            CALL cp_dbcsr_finalize(matrix_s(i)%matrix)
            CALL cp_dbcsr_filter(matrix_s(i)%matrix, &
                 dft_control%qs_control%eps_filter_matrix)
-           IF (cp_dbcsr_get_matrix_type(matrix_s(i)%matrix) .NE. dbcsr_type_antisymmetric) THEN
-              IF (cp_print_key_should_output(logger%iter_info,qs_input,&
-                                             "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
-                 CALL cp_dbcsr_arnoldi_extremal(matrix_s(i)%matrix, max_ev, min_ev,&
-                                                threshold=threshold, max_iter=maxiter,&
-                                                converged=converged)
-                    IF (output_unit > 0) THEN
-                       IF (min_ev .NE. 0) THEN
-                          WRITE(output_unit,&
-                                '(T4,A,I3,A,T23,ES11.3E3,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
-                                "matrix_s(",i,"):",&
-                                max_ev/min_ev, &
-                                "max/min ev: ",max_ev," / ",min_ev
-                       ELSE
-                          WRITE(output_unit,&
-                                '(T4,A,I3,A,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
-                                "matrix_s(",i,")",&
-                                "max/min ev: ",max_ev," / ",min_ev
-                       ENDIF
-                    ENDIF
+        ENDDO
+
+        logger => cp_get_default_logger()
+        output_unit = cp_print_key_unit_nr(logger,qs_input,"DFT%PRINT%OVERLAP_CONDITION",&
+                                       extension=".Log")
+        IF (cp_print_key_should_output(logger%iter_info,qs_input,&
+                                          "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+           IF (cp_dbcsr_get_matrix_type(matrix_s(1)%matrix) .NE. dbcsr_type_antisymmetric) THEN
+              ! parameters for matrix condition test
+              threshold=1.0E-6_dp
+              maxiter=1000
+              eps_ev=1.0E8_dp
+
+              CALL cp_dbcsr_arnoldi_extremal(matrix_s(1)%matrix, max_ev, min_ev,&
+                                             threshold=threshold, max_iter=maxiter,&
+                                             converged=converged)
+              IF (output_unit > 0) THEN
+                 WRITE(output_unit,'(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
+                 IF (min_ev .NE. 0) THEN
+                    WRITE(output_unit,&
+                          '(T4,T23,ES11.3E3,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
+                          max_ev/min_ev, &
+                          "max/min ev: ",max_ev," / ",min_ev
+                 ELSE
+                    WRITE(output_unit,&
+                          '(T4,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
+                          "max/min ev: ",max_ev," / ",min_ev
+                 ENDIF
+              ENDIF
    
-                 IF (converged) THEN
-                    IF (min_ev .EQ. 0) THEN
-                       CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-                    ELSE IF ( (max_ev / min_ev) .GT. eps_ev) THEN
-                       CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
-                    END IF
+              IF (converged) THEN
+                 IF (min_ev .EQ. 0) THEN
+                    CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
+                 ELSE IF ( (max_ev / min_ev) .GT. eps_ev) THEN
+                    CPWARN("Ill-conditioned S matrix: basis set is overcomplete.")
                  END IF
               END IF
            ELSE
               IF (output_unit > 0) THEN
-                 WRITE(output_unit,'(T4,A,I3,A)') &
-                       "matrix_s(",i,"): antisymmetric - eigenvalues not available"
+                 WRITE(output_unit,'(T4,A)') &
+                       "S matrix antisymmetric - eigenvalues not available"
               END IF
            END IF
-        ENDDO
+        END IF
+        CALL cp_print_key_finished_output(output_unit,logger,qs_input,"DFT%PRINT%OVERLAP_CONDITION")
      END IF
-
-     CALL cp_print_key_finished_output(output_unit,logger,qs_input,"DFT%PRINT%OVERLAP_CONDITION")
 
      ! *** Release work storage ***
      DEALLOCATE (atom_of_kind)
