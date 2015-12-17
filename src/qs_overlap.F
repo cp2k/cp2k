@@ -442,7 +442,11 @@ CONTAINS
                                        extension=".Log")
         IF (cp_print_key_should_output(logger%iter_info,qs_input,&
                                           "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
-           IF (cp_dbcsr_get_matrix_type(matrix_s(1)%matrix) .NE. dbcsr_type_antisymmetric) THEN
+           IF (output_unit > 0) THEN
+              WRITE(output_unit,'(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
+           END IF
+
+           IF (cp_dbcsr_get_matrix_type(matrix_s(1)%matrix) .EQ. dbcsr_type_symmetric) THEN
               ! parameters for matrix condition test
               threshold=1.0E-6_dp
               maxiter=1000
@@ -452,15 +456,14 @@ CONTAINS
                                              threshold=threshold, max_iter=maxiter,&
                                              converged=converged)
               IF (output_unit > 0) THEN
-                 WRITE(output_unit,'(/,T2,A)') "OVERLAP MATRIX CONDITION NUMBER"
                  IF (min_ev .NE. 0) THEN
                     WRITE(output_unit,&
-                          '(T4,T23,ES11.3E3,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
+                          '(T4,ES11.3E3,T21,A,ES11.3E3,T43,A,ES11.3E3)') &
                           max_ev/min_ev, &
                           "max/min ev: ",max_ev," / ",min_ev
                  ELSE
                     WRITE(output_unit,&
-                          '(T4,T40,A,ES11.3E3,T62,A,ES11.3E3)') &
+                          '(T21,A,ES11.3E3,T43,A,ES11.3E3)') &
                           "max/min ev: ",max_ev," / ",min_ev
                  ENDIF
               ENDIF
@@ -475,7 +478,7 @@ CONTAINS
            ELSE
               IF (output_unit > 0) THEN
                  WRITE(output_unit,'(T4,A)') &
-                       "S matrix antisymmetric - eigenvalues not available"
+                       "S matrix is not symmetric - eigenvalues not available"
               END IF
            END IF
         END IF
