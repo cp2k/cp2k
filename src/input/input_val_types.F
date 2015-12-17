@@ -704,11 +704,11 @@ END SUBROUTINE val_write
             DO i=1,SIZE(val%r_val)
               value = cp_unit_from_cp2k(value=val%r_val(i),&
                                         unit_str=cp_unit_desc(unit=unit))
-              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8E3)") value
+              WRITE (UNIT=string(17*i-16:),FMT="(ES17.8E3)") value
             END DO
           ELSE
             DO i=1,SIZE(val%r_val)
-              WRITE (UNIT=string(16*i-15:),FMT="(ES16.8E3)") val%r_val(i)
+              WRITE (UNIT=string(17*i-16:),FMT="(ES17.8E3)") val%r_val(i)
             END DO
           END IF
         ELSE
