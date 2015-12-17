@@ -183,7 +183,8 @@ CONTAINS
                                  basis_type_a="ORB",&
                                  basis_type_b="ORB", &
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
-                                 matrixkp_p=matrix_w)
+                                 matrixkp_p=matrix_w,&
+                                 qs_input=qs_env%input)
        ! T matrix
        CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&
@@ -204,7 +205,8 @@ CONTAINS
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_type_a="ORB",&
                                  basis_type_b="ORB", &
-                                 sab_nl=sab_orb)
+                                 sab_nl=sab_orb,&
+                                 qs_input=qs_env%input)
        ! T matrix
        CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
                                  matrix_name="KINETIC ENERGY MATRIX",&

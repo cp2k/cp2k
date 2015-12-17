@@ -151,7 +151,7 @@ MODULE  rt_propagation_utils
           CALL build_dftb_overlap(qs_env,nder,s_derivs)
        ELSE
           CALL build_overlap_matrix(ks_env,nderivative=nder,matrix_s=s_derivs,&
-               basis_type_a="ORB",basis_type_b="ORB",sab_nl=sab_orb)
+               basis_type_a="ORB",basis_type_b="ORB",sab_nl=sab_orb,qs_input=qs_env%input)
        END IF        
 
        NULLIFY(tmp_mat2)

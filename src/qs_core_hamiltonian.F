@@ -301,7 +301,7 @@ CONTAINS
                                  basis_type_a="ORB",&
                                  basis_type_b="ORB", &
                                  sab_nl=sab_orb,calculate_forces=.TRUE.,&
-                                 matrixkp_p=matrix_w)
+                                 matrixkp_p=matrix_w,qs_input=qs_env%input)
        ! T matrix
        IF (.NOT.ofdft) &
           CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
@@ -316,7 +316,7 @@ CONTAINS
                                  matrix_name="OVERLAP MATRIX",&
                                  basis_type_a="ORB",&
                                  basis_type_b="ORB", &
-                                 sab_nl=sab_orb)
+                                 sab_nl=sab_orb,qs_input=qs_env%input)
        ! T matrix
        IF (.NOT.ofdft) &
           CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
@@ -334,7 +334,7 @@ CONTAINS
                                    matrix_name="AUX_FIT_OVERLAP",&
                                    basis_type_a="AUX_FIT",&
                                    basis_type_b="AUX_FIT", &
-                                   sab_nl=sab_aux_fit)
+                                   sab_nl=sab_aux_fit,qs_input=qs_env%input)
          CALL set_ks_env(ks_env,matrix_s_aux_fit=matrix_s_aux_fit)
          CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
                                         sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
@@ -342,7 +342,7 @@ CONTAINS
                                    matrix_name="MIXED_OVERLAP",&
                                    basis_type_a="AUX_FIT",&
                                    basis_type_b="ORB", &
-                                   sab_nl=sab_aux_fit_vs_orb)
+                                   sab_nl=sab_aux_fit_vs_orb,qs_input=qs_env%input)
          CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
        END IF
     END IF

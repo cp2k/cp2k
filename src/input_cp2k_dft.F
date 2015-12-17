@@ -1259,6 +1259,13 @@ CONTAINS
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
 
+    CALL cp_print_key_section_create(print_key,"OVERLAP_CONDITION",&
+         description="Controls the the checking and printing of and estimate "//&
+                     "of the overlap matrix condition number", &
+         print_level=medium_print_level,filename="__STD_OUT__")
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+
     CALL cp_print_key_section_create(print_key,&
          name="E_DENSITY_CUBE",&
          description="Controls the printing of cube files with "//&

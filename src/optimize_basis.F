@@ -282,7 +282,7 @@ CONTAINS
         CALL get_qs_env(qs_env, ks_env=ks_env)
         CALL update_basis_set(opt_bas,bas_id,qs_env)
         CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,force_env_section=qs_env%input)
-        CALL calculate_overlap(ks_env,"S_AB_AUX")
+        CALL calculate_overlap(ks_env,"S_AB_AUX",qs_env%input)
         CALL get_qs_env(qs_env,&
                         matrix_ks=matrix_ks,&
                         matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb,&
@@ -396,7 +396,7 @@ CONTAINS
        CALL get_qs_env(qs_env, ks_env=ks_env)
        CALL build_qs_neighbor_lists(qs_env,para_env,molecular=.FALSE.,&
                                     force_env_section=qs_env%input)
-       CALL calculate_overlap(ks_env,"S_AB")
+       CALL calculate_overlap(ks_env,"S_AB",qs_env%input)
        CALL get_qs_env(qs_env, matrix_s=matrix_s, blacs_env=blacs_env)
        CALL calculate_overlap_inverse(matrix_s(1)%matrix,matrix_s_inv(icalc)%matrix,&
                                       para_env,blacs_env)
