@@ -44,6 +44,7 @@ lcov_ver=1.11
 #gcc_ver=5.1.0
 gcc_ver=5.3.0
 make_ver=4.1
+xsmm_ver=
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -56,6 +57,8 @@ while [ $# -ge 1 ]; do
       enable_tsan=true;;
    --enable-gcc-trunk)
       gcc_ver=master;;
+   --enable-libxsmm-trunk)
+      xsmm_ver=master;;
    -help|-h|--help)
       echo "Usage: install_cp2k_toolchain.sh [OPTIONS]"
       echo "Installs a well defined development environment for CP2K"
@@ -273,6 +276,12 @@ then
 else
     export LD_LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib:\${LD_LIBRARY_PATH}
 fi
+if [ -z "\${LIBRARY_PATH}" ]
+then
+    export LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib
+else
+    export LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib:\${LIBRARY_PATH}
+fi
 if [ -z "\${PATH}" ]
 then
     export PATH=${INSTALLDIR}/bin:${INSTALLDIR}/usr/bin
@@ -399,6 +408,14 @@ else
    fi
    # openblas should be thread safe now (older issue seemed linux kernel or glibc related)
    LIBS="IF_VALGRIND(-lreflapack -lrefblas, -lopenblas_serial) ${LIBS}"
+   # where is the openblas configuration file, which gives us the core
+   openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
+   if [ ! -f "$openblas_conf" ]; then
+      echo "Could not find OpenBLAS' Makefile.conf: $openblas_conf"
+      exit 1
+   fi
+   openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
+   openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
 fi
 
 echo "================= Installing libsmm ==================="
@@ -418,14 +435,6 @@ else
        fi
    }
 
-   # where is the openblas configuration file, which gives us the core
-   openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
-   if [ ! -f "$openblas_conf" ]; then
-      echo "Could not find OpenBLAS' Makefile.conf: $openblas_conf"
-      exit 1
-   fi
-   openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
-   openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
    libsmm=`libsmm_exists libsmm_dnn_${openblas_libcore}`
    if [ "$libsmm" != "" ]; then
       echo "An optimized libsmm $libsmm is available"
@@ -456,6 +465,34 @@ if [ "$libsmm" != "" ]; then
    LIBS="IF_VALGRIND(,-l${libname}) ${LIBS}"
 fi
 
+if [ "x${xsmm_ver}" != "x" ]; then
+   echo "================= Installing libxsmm ====================="
+   if [ "$openblas_arch" == "x86_64" ]; then
+      if [ -f libxsmm-${xsmm_ver}.tar.gz -o -d libxsmm-${xsmm_ver} ]; then
+         echo "Installation already started, skipping it."
+      else
+         # master has been tested at rev 1.0.2-157, just prior to the 1.1 release
+         if [ "$xsmm_ver" == "master" ]; then
+           wget https://github.com/hfp/libxsmm/archive/master.zip
+           mv master.zip libxsmm-master.zip
+           unzip libxsmm-master.zip  >& unzip.log
+         else
+           wget https://www.cp2k.org/static/downloads/libxsmm-${xsmm_ver}.tgz
+           checksum libxsmm-${xsmm_ver}.tgz
+           tar -xzf libxsmm-${xsmm_ver}.tgz
+         fi
+         cd libxsmm-${xsmm_ver}
+         # we rely on the jit, but as it is not available for SSE, we also generate a subset statically
+         make -j $nprocs CXX=g++ CC=gcc FC=gfortran MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" SSE=1 JIT=1 PREFETCH=1 OPENBLAS=1 BLAS_THREADS=_serial PREFIX=${INSTALLDIR} >& make.log
+         make -j $nprocs CXX=g++ CC=gcc FC=gfortran MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" SSE=1 JIT=1 PREFETCH=1 OPENBLAS=1 BLAS_THREADS=_serial PREFIX=${INSTALLDIR} install >& install.log
+         cd ..
+      fi
+      LIBS="-lxsmm ${LIBS}"
+      DFLAGS="-D__LIBXSMM ${DFLAGS}"
+   else
+      echo "libxsmm not supported on arch $openblas_arch !"  
+   fi
+fi
 
 echo "================= Installing scalapack ==================="
 if [ -f scalapack-${scalapack_ver}.tgz ]; then
