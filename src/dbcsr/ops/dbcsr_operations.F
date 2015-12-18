@@ -56,6 +56,7 @@ MODULE dbcsr_operations
                                              dbcsr_unimplemented_error_nr,&
                                              dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_index_checksum,&
+                                             dbcsr_index_compact,&
                                              dbcsr_repoint_index
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
@@ -2280,7 +2281,8 @@ CONTAINS
     INTEGER                                  :: blk, blk_nze, col, col_size, &
                                                 handle, my_method, row, &
                                                 row_size
-    LOGICAL                                  :: gt0, my_filter_diag, tr
+    LOGICAL                                  :: gt0, my_filter_diag, &
+                                                reshuffle, tr
     REAL(KIND=real_4)                        :: nrm_s, sdot
     REAL(KIND=real_4), DIMENSION(:), POINTER :: data_s
     REAL(KIND=real_8)                        :: ddot, my_absolute, nrm_d
@@ -2297,6 +2299,8 @@ CONTAINS
     IF(PRESENT(use_absolute)) my_absolute = dbcsr_maxabs(matrix)
     my_filter_diag = .TRUE.
     IF(PRESENT(filter_diag)) my_filter_diag = filter_diag
+    reshuffle = .TRUE.
+    IF(PRESENT(quick)) reshuffle = .NOT. quick
 
     SELECT CASE (eps%data_type)
     CASE (dbcsr_type_real_4)
@@ -2315,7 +2319,7 @@ CONTAINS
 
        !$OMP PARALLEL DEFAULT(NONE) PRIVATE(iter,row,col,data_s,data_d,data_c,data_z,tr, &
        !$OMP                                blk,row_size,col_size,blk_nze,nrm_d,nrm_s) &
-       !$OMP                        SHARED(my_method,quick,my_absolute,eps,matrix)
+       !$OMP                        SHARED(my_method,reshuffle,my_absolute,eps,matrix)
 
        CALL dbcsr_iterator_start(iter, matrix, contiguous_pointers=.TRUE.)
        DO WHILE (dbcsr_iterator_blocks_left(iter))
@@ -2395,13 +2399,10 @@ CONTAINS
           END SELECT
        ENDDO
        CALL dbcsr_iterator_stop(iter)
-       IF (PRESENT (quick)) THEN
-          CALL dbcsr_finalize (matrix, reshuffle=.NOT. quick)
-       ELSE
-          CALL dbcsr_finalize (matrix, reshuffle=.TRUE.)
-       ENDIF
-
+       CALL dbcsr_finalize (matrix, reshuffle=reshuffle)
        !$OMP END PARALLEL
+
+       IF (reshuffle) CALL dbcsr_index_compact(matrix)
 
     ENDIF
     CALL timestop(handle)
