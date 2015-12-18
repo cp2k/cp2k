@@ -156,7 +156,7 @@ CONTAINS
 
     INTEGER                                  :: handle, icycle
     LOGICAL                                  :: cycle_converged, should_stop
-    REAL(KIND=dp)                            :: beta, energy
+    REAL(KIND=dp)                            :: beta, energy, nrm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type)                      :: matrix_M, matrix_X_start
@@ -177,7 +177,10 @@ CONTAINS
     CALL cp_dbcsr_set(pao%matrix_D, 0.0_dp)
     CALL cp_dbcsr_set(pao%matrix_G_prev, 0.0_dp)
 
-    IF (pao%mixing /= 1.0_dp) THEN
+    ! only perform mixing if the pao%matrix_X is non-zero
+    ! useful if started from a reference DM.
+    nrm=cp_dbcsr_frobenius_norm(pao%matrix_X)
+    IF (pao%mixing /= 1.0_dp .AND. nrm /= 0.0_dp) THEN
        CALL cp_dbcsr_init(matrix_X_start)
        CALL cp_dbcsr_copy(matrix_X_start, pao%matrix_X)
     ENDIF
@@ -251,7 +254,7 @@ CONTAINS
        CALL pao_update_AB(pao, ls_mstruct)
     ENDDO
  
-    IF (pao%mixing /= 1.0_dp) THEN
+    IF (pao%mixing /= 1.0_dp  .AND. nrm /= 0.0_dp) THEN
        CALL cp_dbcsr_add(pao%matrix_X,matrix_X_start,pao%mixing,1.0_dp-pao%mixing)
 
        ! update matrices to match the new X
