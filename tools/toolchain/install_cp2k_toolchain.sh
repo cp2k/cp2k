@@ -475,9 +475,8 @@ if [ "x${xsmm_ver}" != "x" ]; then
       else
          # master has been tested at rev 1.0.2-157, just prior to the 1.1 release
          if [ "$xsmm_ver" == "master" ]; then
-           wget https://github.com/hfp/libxsmm/archive/master.zip
-           mv master.zip libxsmm-master.zip
-           unzip libxsmm-master.zip  >& unzip.log
+           wget -O libxsmm-master.zip https://github.com/hfp/libxsmm/archive/master.zip
+           unzip libxsmm-master.zip  >& libxsmm-unzip.log
          else
            wget https://www.cp2k.org/static/downloads/libxsmm-${xsmm_ver}.tgz
            checksum libxsmm-${xsmm_ver}.tgz
