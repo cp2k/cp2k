@@ -119,11 +119,9 @@ Note Do **NOT** use libinit-1.1.3, which was buggy.
   * Add -D__HAS_smm_vec to enable the new vectorized interfaces of libsmm.
 
 ==== 2i. libxsmm (optional, improved performance for matrix multiplication) ====
-  * An experimental library for small matrix multiplies which is provided by Intel: https://github.com/hfp/libxsmm/
+  * A library for small matrix multiplications which is provided by Intel: https://github.com/hfp/libxsmm/
   * Add -D__LIBXSMM to enable it (with suitable include and library paths)
-  * Right now (version 1.0.2-95) LIBXSMM is known to potentially lead to wrong results/segfaults,
-    these circumstances are rare, but they currently can not be excluded
-    (requires satisfactory resolution of https://github.com/hfp/libxsmm/issues/15).
+  * The latest tested version is version 1.0.2-189 (just prior to the 1.1 release), earlier versions are not recommended.
 
 ==== 2j. CUDA (optional, improved performance on GPU systems) ====
   * -D__ACC needed to switch on the accelerator support
