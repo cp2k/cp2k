@@ -45,7 +45,7 @@ MODULE cp2k_info
   CHARACTER(LEN=*), PARAMETER :: compile_revision = "unknown"
 #endif
 
-  CHARACTER(LEN=*), PARAMETER :: version_nr      = "2.7"
+  CHARACTER(LEN=*), PARAMETER :: version_nr      = "4.0"
   CHARACTER(LEN=*), PARAMETER :: cp2k_year       = "2015"
   CHARACTER(LEN=*), PARAMETER :: cp2k_version    = "CP2K version "//TRIM(version_nr)
   CHARACTER(LEN=*), PARAMETER :: cp2k_home       = "https://www.cp2k.org/"
