@@ -44,7 +44,7 @@ lcov_ver=1.11
 #gcc_ver=5.1.0
 gcc_ver=5.3.0
 make_ver=4.1
-xsmm_ver=
+xsmm_ver=1.1
 
 # parse options
 while [ $# -ge 1 ]; do
@@ -71,6 +71,7 @@ while [ $# -ge 1 ]; do
       echo "                            This is not for normal (production) use, but suitable for"
       echo "                            finding/testing/debugging threading issues during development."
       echo "  --enable-gcc-trunk        use a non-released, development version of gcc for testing."
+      echo "  --enable-libxsmm-trunk    use github master of libxsmm for testing."
       echo ""
       echo "For more information visit: <https://www.cp2k.org/>"
       exit 0;;
@@ -478,9 +479,9 @@ if [ "x${xsmm_ver}" != "x" ]; then
            wget -O libxsmm-master.zip https://github.com/hfp/libxsmm/archive/master.zip
            unzip libxsmm-master.zip  >& libxsmm-unzip.log
          else
-           wget https://www.cp2k.org/static/downloads/libxsmm-${xsmm_ver}.tgz
-           checksum libxsmm-${xsmm_ver}.tgz
-           tar -xzf libxsmm-${xsmm_ver}.tgz
+           wget https://www.cp2k.org/static/downloads/libxsmm-${xsmm_ver}.tar.gz
+           checksum libxsmm-${xsmm_ver}.tar.gz
+           tar -xzf libxsmm-${xsmm_ver}.tar.gz
          fi
          cd libxsmm-${xsmm_ver}
          # we rely on the jit, but as it is not available for SSE, we also generate a subset statically
