@@ -70,7 +70,7 @@ def make_plan(triples, param_fn):
 def gen_library(plan):
     header  = "/*****************************************************************************\n"
     header += " *  CP2K: A general program to perform molecular dynamics simulations        *\n"
-    header += " *  Copyright (C) 2000 - 2015  CP2K developers group                         *\n"
+    header += " *  Copyright (C) 2000 - 2016  CP2K developers group                         *\n"
     header += " *****************************************************************************/\n"
 
     for i in get_includes(plan):
