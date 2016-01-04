@@ -169,22 +169,22 @@ MODULE mp2_gpw
       gw_corr_lev_occ, gw_corr_lev_occ_beta, gw_corr_lev_virt, &
       gw_corr_lev_virt_beta, handle, homo, homo_beta, i, i_multigrid, &
       local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, &
-      n_multigrid, natom, nelectron, nelectron_beta, nkind, nmo, nspins
+      n_multigrid, nelectron, nelectron_beta, nmo, nspins, ri_metric, &
+      ri_metric_gw
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_all, &
       ends_B_virtual, ends_B_virtual_beta, sizes_array, sizes_B_all, &
       sizes_B_virtual, sizes_B_virtual_beta, starts_array, starts_B_all, &
       starts_B_virtual, starts_B_virtual_beta
-    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
-    LOGICAL :: blacs_repeatable, my_do_gw, my_do_ri_mp2, my_do_ri_rpa, &
-      my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
+    LOGICAL :: blacs_repeatable, do_im_time, my_do_gw, my_do_ri_mp2, &
+      my_do_ri_rpa, my_do_ri_sos_laplace_mp2, skip_load_balance_distributed
     REAL(KIND=dp) :: cutoff_old, Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_d2_AB, &
-      Emp2_d_AB, Emp2_EX_BB, eps_gvg_rspace_old, eps_pgf_orb_old, &
-      eps_rho_rspace_old, progression_factor, relative_cutoff_old, subcells
+      Emp2_d_AB, Emp2_EX_BB, eps_gvg_rspace_old, eps_mp2_old, &
+      eps_pgf_orb_old, eps_rho_rspace_old, progression_factor, &
+      relative_cutoff_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: e_cutoff_old, Eigenval, &
                                                 Eigenval_beta
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: my_Lrows
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_C_beta, BIb_C_gw, &
                                                 BIb_C_gw_beta
@@ -195,19 +195,19 @@ MODULE mp2_gpw
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mat_B_munu, matrix_s
     TYPE(cp_dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, &
-      mo_coeff_gw, mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
-      mo_coeff_v_beta
+      mo_coeff_b, mo_coeff_gw, mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, &
+      mo_coeff_v, mo_coeff_v_beta
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_beta
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
-    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist_sub
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_1d_type), POINTER      :: local_molecules_sub, &
-                                                local_particles_sub
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d_sub
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom2d
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -239,11 +239,14 @@ MODULE mp2_gpw
     my_do_ri_sos_laplace_mp2=.FALSE.
     IF(PRESENT(do_ri_sos_laplace_mp2)) my_do_ri_sos_laplace_mp2=do_ri_sos_laplace_mp2
 
+    ! check if we want to do imaginary time 
+    do_im_time = mp2_env%ri_rpa%do_im_time
+
     ! Get the number of spins
     nspins=SIZE(mos_mp2)
 
     ! ... setup needed to be able to qs_integrate in a subgroup.
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_s=matrix_s, mos=mos)
     CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nelectron=nelectron,&
                     eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
                     mo_coeff=mo_coeff,nao=dimen)
@@ -252,6 +255,8 @@ MODULE mp2_gpw
                       eigenvalues=mo_eigenvalues_beta,homo=homo_beta,&
                       mo_coeff=mo_coeff_beta)
     ENDIF
+
+    CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff_b=mo_coeff_b)
 
     ! a para_env
     color_sub=para_env%mepos/mp2_env%mp2_num_proc
@@ -303,80 +308,23 @@ MODULE mp2_gpw
                     molecule_kind_set=molecule_kind_set,&
                     dft_control=dft_control)
 
-    ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
-    eps_pgf_orb_old=dft_control%qs_control%eps_pgf_orb
-    eps_rho_rspace_old=dft_control%qs_control%eps_rho_rspace
-    eps_gvg_rspace_old=dft_control%qs_control%eps_gvg_rspace
-    ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
-    dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
-    dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
-    dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
-    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set, qs_kind_set)
+    CALL create_mat_munu(mat_munu,qs_env,mp2_env,dft_control,atomic_kind_set,qs_kind_set,&
+                         atom2d,molecule_kind_set,&
+                         molecule_set,sab_orb_sub,particle_set,cell,blacs_env_sub,&
+                         eps_pgf_orb_old,eps_rho_rspace_old,eps_gvg_rspace_old,&
+                         unit_nr)
 
-    ! get a distribution_1d
-    NULLIFY(local_particles_sub,local_molecules_sub)
-    CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set,&
-                                 particle_set=particle_set,&
-                                 local_particles=local_particles_sub,&
-                                 molecule_kind_set=molecule_kind_set,&
-                                 molecule_set=molecule_set,&
-                                 local_molecules=local_molecules_sub,&
-                                 force_env_section=qs_env%input)
 
-    ! get a distribution_2d
-    NULLIFY(distribution_2d_sub)
-    CALL distribute_molecules_2d(cell=cell,&
-                                 atomic_kind_set=atomic_kind_set,&
-                                 qs_kind_set=qs_kind_set,&
-                                 particle_set=particle_set,&
-                                 molecule_kind_set=molecule_kind_set,&
-                                 molecule_set=molecule_set,&
-                                 distribution_2d=distribution_2d_sub,&
-                                 blacs_env=blacs_env_sub,&
-                                 force_env_section=qs_env%input)
-
-    ! Build the sub  orbital-orbital overlap neighbor lists
-    NULLIFY(sab_orb_sub)
-    CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells)
-    nkind = SIZE(atomic_kind_set)
-    ALLOCATE (orb_present(nkind))
-    ALLOCATE (orb_radius(nkind))
-    orb_radius(:) = 0.0_dp
-    ALLOCATE (pair_radius(nkind,nkind))
-    ALLOCATE (atom2d(nkind))
-
-    CALL atom2d_build(atom2d,orb_radius,orb_present,local_particles_sub,distribution_2d_sub,&
-                      atomic_kind_set,qs_kind_set,molecule_set,molecule_only=.FALSE.,dftb=.FALSE.,&
-                      particle_set=particle_set)
-    CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius)
-    CALL build_neighbor_lists(sab_orb_sub,particle_set,atom2d,cell,pair_radius,&
-                              mic=.FALSE.,subcells=subcells,molecular=.FALSE.,name="sab_orb_sub")
-    CALL atom2d_cleanup(atom2d)
-    DEALLOCATE (atom2d)
-    DEALLOCATE(orb_present,orb_radius,pair_radius)
-
-    ! a dbcsr_dist
-    ALLOCATE(dbcsr_dist_sub)
-    CALL cp_dbcsr_dist2d_to_dist (distribution_2d_sub, dbcsr_dist_sub, unit_nr)
-
-    ! build a dbcsr matrix the hard way
-    natom = SIZE(particle_set)
-    ALLOCATE (row_blk_sizes(natom))
-    CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes)
-    ALLOCATE(mat_munu%matrix)
-    CALL cp_dbcsr_init(mat_munu%matrix)
-    CALL cp_dbcsr_create(matrix=mat_munu%matrix,&
-               name="(ai|munu)",&
-               dist=dbcsr_dist_sub, matrix_type=dbcsr_type_symmetric,&
-               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-               nze=0)
-    CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub)
-    DEALLOCATE(row_blk_sizes)
+    ! check which RI metric we want to have
+    ri_metric = mp2_env%ri_metric
 
     ! check if we want to do ri-g0w0 on top of ri-rpa
-    my_do_gw=mp2_env%ri_rpa%do_ri_g0w0
-    gw_corr_lev_occ=mp2_env%ri_g0w0%corr_mos_occ
-    gw_corr_lev_virt=mp2_env%ri_g0w0%corr_mos_virt
+    my_do_gw         = mp2_env%ri_rpa%do_ri_g0w0
+    gw_corr_lev_occ  = mp2_env%ri_g0w0%corr_mos_occ
+    gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
+
+    ! check Coulomb metric for GW matrix elements B^nm_P
+    ri_metric_gw     = mp2_env%ri_g0w0%ri_metric
 
     ! and the array of mos
     ALLOCATE(Eigenval(dimen))
@@ -467,12 +415,14 @@ MODULE mp2_gpw
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                                    atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mo_coeff_b,matrix_s,&
+                                   mp2_env%mp2_gpw%eps_filter,unit_nr,&
                                    mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,blacs_env_sub,my_do_gw,&
                                    starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
-                                   mp2_env%ri_g0w0%cutoff_rad_gw,mp2_env%ri_g0w0%do_truncation,&
                                    BIb_C_beta,BIb_C_gw_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
-                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta)
+                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta,&
+                                   do_im_time=do_im_time,mat_B_munu=mat_B_munu,ri_metric=ri_metric,&
+                                   ri_metric_gw=ri_metric_gw,my_Lrows=my_Lrows)
       ELSE
         ! closed shell case (RI)
         CALL mp2_ri_gpw_compute_in(BIb_C,BIb_C_gw,ends_array,ends_B_virtual,sizes_array,&
@@ -480,10 +430,13 @@ MODULE mp2_gpw
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                                    atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mp2_env%mp2_gpw%eps_filter,unit_nr,&
+                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mo_coeff_b,matrix_s,&
+                                   mp2_env%mp2_gpw%eps_filter,unit_nr,&
                                    mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,blacs_env_sub,my_do_gw,&
                                    starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
-                                   mp2_env%ri_g0w0%cutoff_rad_gw,mp2_env%ri_g0w0%do_truncation)
+                                   do_im_time=do_im_time,mat_B_munu=mat_B_munu,ri_metric=ri_metric,&
+                                   ri_metric_gw=ri_metric_gw,my_Lrows=my_Lrows)
+
       END IF
     ELSE
       ! Canonical MP2-GPW
@@ -572,43 +525,71 @@ MODULE mp2_gpw
     END IF
 
     IF(.NOT.calc_forces) THEN
-      ! release stuff
+
       CALL cp_dbcsr_release(mat_munu%matrix)
       DEALLOCATE(mat_munu%matrix)
-
-      CALL cp_dbcsr_distribution_release(dbcsr_dist_sub)
-      DEALLOCATE(dbcsr_dist_sub)
-
+  
       DO i=1,SIZE(sab_orb_sub)
          CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
       END DO
       DEALLOCATE(sab_orb_sub)
 
-      CALL distribution_2d_release(distribution_2d_sub)
-
-      CALL distribution_1d_release(local_particles_sub)
-      CALL distribution_1d_release(local_molecules_sub)
     END IF
 
     ! decide if to doing RI-RPA or RI-MP2
     IF(my_do_ri_rpa.OR.my_do_ri_sos_laplace_mp2) THEN
+
+      IF(do_im_time) THEN
+
+        ! for imaginary time, we need a non-sparse dbcsr matrix mat_munu
+
+        eps_mp2_old = mp2_env%mp2_gpw%eps_grid
+        mp2_env%mp2_gpw%eps_grid = 1.0E-290_dp
+
+        CALL create_mat_munu(mat_munu,qs_env,mp2_env,dft_control,atomic_kind_set,qs_kind_set,&
+                             atom2d,molecule_kind_set,&
+                             molecule_set,sab_orb_sub,particle_set,cell,blacs_env_sub,&
+                             eps_pgf_orb_old,eps_rho_rspace_old,eps_gvg_rspace_old,&
+                             unit_nr)
+
+        mp2_env%mp2_gpw%eps_grid = eps_mp2_old
+
+      END IF
+
       ! RI-RPA
       IF(nspins==2) THEN
         CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,ends_B_all,sizes_array,sizes_B_virtual,sizes_B_all,&
-                               starts_array,starts_B_virtual,starts_B_all,&
+                               starts_array,starts_B_virtual,starts_B_all,mo_coeff,&
                                Eigenval,nmo,homo,dimen_RI,gw_corr_lev_occ,gw_corr_lev_virt,&
                                unit_nr,my_do_ri_sos_laplace_mp2,my_do_gw,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
                                ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta,&
-                               BIb_C_gw_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta)
+                               mo_coeff_beta,BIb_C_gw_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,&
+                               do_im_time=do_im_time,mat_munu=mat_munu,mat_B_munu=mat_B_munu,my_Lrows=my_Lrows,&
+                               eps_filter=mp2_env%mp2_gpw%eps_filter)
       ELSE
         CALL rpa_ri_compute_en(Emp2,mp2_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,ends_B_all,sizes_array,sizes_B_virtual,sizes_B_all,&
-                               starts_array,starts_B_virtual,starts_B_all,&
+                               starts_array,starts_B_virtual,starts_B_all,mo_coeff,&
                                Eigenval,nmo,homo,dimen_RI,gw_corr_lev_occ,gw_corr_lev_virt,&
-                               unit_nr,my_do_ri_sos_laplace_mp2,my_do_gw)
+                               unit_nr,my_do_ri_sos_laplace_mp2,my_do_gw,do_im_time=do_im_time,&
+                               mat_munu=mat_munu,mat_B_munu=mat_B_munu,my_Lrows=my_Lrows,&
+                               eps_filter=mp2_env%mp2_gpw%eps_filter)
       END IF
+
+      IF(do_im_time) THEN
+
+        CALL cp_dbcsr_release(mat_munu%matrix)
+        DEALLOCATE(mat_munu%matrix)
+  
+        DO i=1,SIZE(sab_orb_sub)
+           CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
+        END DO
+        DEALLOCATE(sab_orb_sub)
+
+      END IF
+
     ELSE
       IF(my_do_ri_mp2) THEN
         ! RI-MP2-GPW compute energy
@@ -709,19 +690,11 @@ MODULE mp2_gpw
 
           CALL cp_dbcsr_release(mat_munu%matrix)
           DEALLOCATE(mat_munu%matrix)
-
-          CALL cp_dbcsr_distribution_release(dbcsr_dist_sub)
-          DEALLOCATE(dbcsr_dist_sub)
-
+    
           DO i=1,SIZE(sab_orb_sub)
              CALL deallocate_neighbor_list_set(sab_orb_sub(i)%neighbor_list_set)
           END DO
           DEALLOCATE(sab_orb_sub)
-
-          CALL distribution_2d_release(distribution_2d_sub)
-
-          CALL distribution_1d_release(local_particles_sub)
-          CALL distribution_1d_release(local_molecules_sub)
 
         END IF
       END IF
@@ -1579,6 +1552,95 @@ MODULE mp2_gpw
 
 ! *****************************************************************************
 !> \brief ...
+!> \param para_env_sub ...
+!> \param dimen ...
+!> \param my_I_occupied_start ...
+!> \param my_I_occupied_end ...
+!> \param my_I_batch_size ...
+!> \param my_A_virtual_start ...
+!> \param my_A_virtual_end ...
+!> \param my_A_batch_size ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param my_Cocc ...
+!> \param my_Cvirt ...
+! *****************************************************************************
+  SUBROUTINE grep_occ_virt_wavefunc(para_env_sub,dimen,&
+                                    my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
+                                    my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
+                                    mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt)
+
+    TYPE(cp_para_env_type), POINTER          :: para_env_sub
+    INTEGER :: dimen, my_I_occupied_start, my_I_occupied_end, &
+      my_I_batch_size, my_A_virtual_start, my_A_virtual_end, my_A_batch_size
+    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: my_Cocc, my_Cvirt
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_occ_virt_wavefunc', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: blk, col, col_offset, &
+                                                col_size, handle, i, &
+                                                i_global, j, j_global, row, &
+                                                row_offset, row_size
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
+    TYPE(cp_dbcsr_iterator)                  :: iter
+
+    CALL timeset(routineN,handle)
+
+    ALLOCATE(my_Cocc(dimen,my_I_batch_size))
+    my_Cocc=0.0_dp
+
+    ALLOCATE(my_Cvirt(dimen,my_A_batch_size))
+    my_Cvirt=0.0_dp
+
+    ! accumulate data from mo_coeff_o into Cocc
+    CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+      DO j=1,col_size
+        j_global=col_offset+j-1
+        IF(j_global>=my_I_occupied_start.AND.j_global<=my_I_occupied_end) THEN
+          DO i=1,row_size
+            i_global=row_offset+i-1
+            my_Cocc(i_global,j_global-my_I_occupied_start+1)=data_block(i,j)
+          END DO
+        END IF
+      END DO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)   
+
+    CALL mp_sum(my_Cocc,para_env_sub%group)
+
+    ! accumulate data from mo_coeff_o into Cocc
+    CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
+    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
+       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
+            row_size=row_size, col_size=col_size, &
+            row_offset=row_offset, col_offset=col_offset)
+      DO j=1,col_size
+        j_global=col_offset+j-1
+        IF(j_global>=my_A_virtual_start.AND.j_global<=my_A_virtual_end) THEN
+          DO i=1,row_size
+            i_global=row_offset+i-1
+            my_Cvirt(i_global,j_global-my_A_virtual_start+1)=data_block(i,j)
+          END DO
+        END IF
+      END DO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    CALL mp_sum(my_Cvirt,para_env_sub%group) 
+
+    CALL timestop(handle)
+
+  END SUBROUTINE grep_occ_virt_wavefunc
+
+! *****************************************************************************
+!> \brief ...
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_sub ...
@@ -1593,10 +1655,11 @@ MODULE mp2_gpw
 !> \param my_do_gw ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
+!> \param only_mo_coeff_all ...
 ! *****************************************************************************
   SUBROUTINE replicate_mat_to_subgroup(mp2_env,para_env,para_env_sub,mo_coeff,dimen,homo,mat_munu,&
                                        mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,my_do_gw,&
-                                       gw_corr_lev_occ,gw_corr_lev_virt)
+                                       gw_corr_lev_occ,gw_corr_lev_virt,only_mo_coeff_all) 
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -1607,6 +1670,7 @@ MODULE mp2_gpw
     LOGICAL                                  :: my_do_gw
     INTEGER                                  :: gw_corr_lev_occ, &
                                                 gw_corr_lev_virt
+    LOGICAL, OPTIONAL                        :: only_mo_coeff_all
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'replicate_mat_to_subgroup', &
       routineP = moduleN//':'//routineN
@@ -1622,12 +1686,16 @@ MODULE mp2_gpw
                                                 rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices, col_indices_rec, &
                                                 row_indices, row_indices_rec
+    LOGICAL                                  :: my_only_mo_coeff_all
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C, Cgw, Cocc, Cvirt, rec_C
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block, local_C, &
                                                 local_C_internal
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_coeff
+
+    my_only_mo_coeff_all = .FALSE.
+    IF(PRESENT(only_mo_coeff_all)) my_only_mo_coeff_all=only_mo_coeff_all
 
     CALL timeset(routineN,handle)
 
@@ -1766,33 +1834,41 @@ MODULE mp2_gpw
     ALLOCATE(Cvirt(my_mu_size,virtual))
     Cvirt(1:my_mu_size,1:virtual)=C(1:my_mu_size,homo+1:dimen)
 
-    ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
-    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_o,Cocc,&
-                                homo,blk,row,col,row_size,col_size,row_offset,&
-                                col_offset,i_global,j_global,my_mu_start,my_mu_end,&
-                                mat_munu,iter,&
-                                data_block,ends_array,proc_map, &
-                                sizes_array,starts_array)
-
-    CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_v,Cvirt,&
-                                virtual,blk,row,col,row_size,col_size,row_offset,&
-                                col_offset,i_global,j_global,my_mu_start,my_mu_end,&
-                                mat_munu,iter,&
-                                data_block,ends_array,proc_map, &
-                                sizes_array,starts_array)
-    IF (my_do_gw) THEN
-
-      ! also cut levels homo-gw_corr_lev_occ+1, ..., lumo+gw_corr_lev_virt-1 of C
-      ALLOCATE(Cgw(my_mu_size,gw_corr_lev_occ+gw_corr_lev_virt))
-      Cgw(1:my_mu_size,1:(gw_corr_lev_occ+gw_corr_lev_virt))=&
-                             C(1:my_mu_size,homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt)
-      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_gw,Cgw,&
-                                  gw_corr_lev_occ+gw_corr_lev_virt,&
-                                  blk,row,col,row_size,col_size,row_offset,&
+    IF(.NOT. my_only_mo_coeff_all) THEN
+      ! create and fill mo_coeff_o, mo_coeff_v and mo_coeff_all
+      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_o,Cocc,&
+                                  homo,blk,row,col,row_size,col_size,row_offset,&
                                   col_offset,i_global,j_global,my_mu_start,my_mu_end,&
                                   mat_munu,iter,&
                                   data_block,ends_array,proc_map, &
                                   sizes_array,starts_array)
+  
+      CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_v,Cvirt,&
+                                  virtual,blk,row,col,row_size,col_size,row_offset,&
+                                  col_offset,i_global,j_global,my_mu_start,my_mu_end,&
+                                  mat_munu,iter,&
+                                  data_block,ends_array,proc_map, &
+                                  sizes_array,starts_array)
+    ELSE
+      DEALLOCATE(Cocc,Cvirt)
+    END IF
+
+    IF (my_do_gw .OR. my_only_mo_coeff_all) THEN
+
+      IF(my_do_gw) THEN
+        ! also cut levels homo-gw_corr_lev_occ+1, ..., lumo+gw_corr_lev_virt-1 of C
+        ALLOCATE(Cgw(my_mu_size,gw_corr_lev_occ+gw_corr_lev_virt))
+        Cgw(1:my_mu_size,1:(gw_corr_lev_occ+gw_corr_lev_virt))=&
+                               C(1:my_mu_size,homo-gw_corr_lev_occ+1:homo+gw_corr_lev_virt)
+        CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_gw,Cgw,&
+                                    gw_corr_lev_occ+gw_corr_lev_virt,&
+                                    blk,row,col,row_size,col_size,row_offset,&
+                                    col_offset,i_global,j_global,my_mu_start,my_mu_end,&
+                                    mat_munu,iter,&
+                                    data_block,ends_array,proc_map, &
+                                    sizes_array,starts_array)
+      END IF
+
       ! all levels
       CALL build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_all,C,&
                                   dimen,blk,row,col,row_size,col_size,row_offset,&
@@ -1814,95 +1890,6 @@ MODULE mp2_gpw
     CALL timestop(handle)
 
   END SUBROUTINE replicate_mat_to_subgroup
-
-! *****************************************************************************
-!> \brief ...
-!> \param para_env_sub ...
-!> \param dimen ...
-!> \param my_I_occupied_start ...
-!> \param my_I_occupied_end ...
-!> \param my_I_batch_size ...
-!> \param my_A_virtual_start ...
-!> \param my_A_virtual_end ...
-!> \param my_A_batch_size ...
-!> \param mo_coeff_o ...
-!> \param mo_coeff_v ...
-!> \param my_Cocc ...
-!> \param my_Cvirt ...
-! *****************************************************************************
-  SUBROUTINE grep_occ_virt_wavefunc(para_env_sub,dimen,&
-                                    my_I_occupied_start,my_I_occupied_end,my_I_batch_size,&
-                                    my_A_virtual_start,my_A_virtual_end,my_A_batch_size,&
-                                    mo_coeff_o,mo_coeff_v,my_Cocc,my_Cvirt)
-
-    TYPE(cp_para_env_type), POINTER          :: para_env_sub
-    INTEGER :: dimen, my_I_occupied_start, my_I_occupied_end, &
-      my_I_batch_size, my_A_virtual_start, my_A_virtual_end, my_A_batch_size
-    TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: my_Cocc, my_Cvirt
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_occ_virt_wavefunc', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: blk, col, col_offset, &
-                                                col_size, handle, i, &
-                                                i_global, j, j_global, row, &
-                                                row_offset, row_size
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
-    TYPE(cp_dbcsr_iterator)                  :: iter
-
-    CALL timeset(routineN,handle)
-
-    ALLOCATE(my_Cocc(dimen,my_I_batch_size))
-    my_Cocc=0.0_dp
-
-    ALLOCATE(my_Cvirt(dimen,my_A_batch_size))
-    my_Cvirt=0.0_dp
-
-    ! accumulate data from mo_coeff_o into Cocc
-    CALL cp_dbcsr_iterator_start(iter, mo_coeff_o)
-    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-            row_size=row_size, col_size=col_size, &
-            row_offset=row_offset, col_offset=col_offset)
-      DO j=1,col_size
-        j_global=col_offset+j-1
-        IF(j_global>=my_I_occupied_start.AND.j_global<=my_I_occupied_end) THEN
-          DO i=1,row_size
-            i_global=row_offset+i-1
-            my_Cocc(i_global,j_global-my_I_occupied_start+1)=data_block(i,j)
-          END DO
-        END IF
-      END DO
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)   
-
-    CALL mp_sum(my_Cocc,para_env_sub%group)
-
-    ! accumulate data from mo_coeff_o into Cocc
-    CALL cp_dbcsr_iterator_start(iter, mo_coeff_v)
-    DO WHILE (cp_dbcsr_iterator_blocks_left (iter))
-       CALL cp_dbcsr_iterator_next_block(iter, row, col, data_block,blk,&
-            row_size=row_size, col_size=col_size, &
-            row_offset=row_offset, col_offset=col_offset)
-      DO j=1,col_size
-        j_global=col_offset+j-1
-        IF(j_global>=my_A_virtual_start.AND.j_global<=my_A_virtual_end) THEN
-          DO i=1,row_size
-            i_global=row_offset+i-1
-            my_Cvirt(i_global,j_global-my_A_virtual_start+1)=data_block(i,j)
-          END DO
-        END IF
-      END DO
-    ENDDO
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    CALL mp_sum(my_Cvirt,para_env_sub%group) 
-
-    CALL timestop(handle)
-
-  END SUBROUTINE grep_occ_virt_wavefunc
 
 ! *****************************************************************************
 !> \brief Encapsulate the building of dbcsr_matrices mo_coeff_(v,o,all)
@@ -1929,7 +1916,7 @@ MODULE mp2_gpw
 !> \param proc_map ...
 !> \param sizes_array ...
 !> \param starts_array ...
-!> \author Jan Wilhelm
+!> \author Jan Wilhelm, Code by Mauro Del Ben
 ! *****************************************************************************
   SUBROUTINE build_mo_coeff_v_o_all(mp2_env,para_env_sub,mo_coeff_to_build,Cread,&
                                     number_of_level,blk,row,col,row_size,col_size,row_offset,&
@@ -2031,5 +2018,160 @@ MODULE mp2_gpw
     CALL timestop(handle)
 
   END SUBROUTINE build_mo_coeff_v_o_all  
+
+
+! *****************************************************************************
+!> \brief Encapsulate the building of dbcsr_matrix mat_munu
+!> \param mat_munu ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param dft_control ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+!> \param atom2d ...
+!> \param molecule_kind_set ...
+!> \param molecule_set ...
+!> \param sab_orb_sub ...
+!> \param particle_set ...
+!> \param cell ...
+!> \param blacs_env_sub ...
+!> \param eps_pgf_orb_old ...
+!> \param eps_rho_rspace_old ...
+!> \param eps_gvg_rspace_old ...
+!> \param unit_nr ...
+!> \author Jan Wilhelm, code by Mauro Del Ben
+! *****************************************************************************
+  SUBROUTINE create_mat_munu(mat_munu,qs_env,mp2_env,dft_control,atomic_kind_set,qs_kind_set,&
+                             atom2d,molecule_kind_set,&
+                             molecule_set,sab_orb_sub,particle_set,cell,blacs_env_sub,&
+                             eps_pgf_orb_old,eps_rho_rspace_old,eps_gvg_rspace_old,&
+                             unit_nr)
+
+    TYPE(cp_dbcsr_p_type)                    :: mat_munu
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(mp2_type), POINTER                  :: mp2_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+    TYPE(local_atoms_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atom2d
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_type), DIMENSION(:), &
+      POINTER                                :: molecule_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb_sub
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
+    REAL(kind=dp)                            :: eps_pgf_orb_old, &
+                                                eps_rho_rspace_old, &
+                                                eps_gvg_rspace_old
+    INTEGER                                  :: unit_nr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mat_munu', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, natom, nkind
+    INTEGER, DIMENSION(:), POINTER           :: row_blk_sizes
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: orb_present
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: pair_radius
+    REAL(kind=dp)                            :: subcells
+    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist_sub
+    TYPE(distribution_1d_type), POINTER      :: local_molecules_sub, &
+                                                local_particles_sub
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d_sub
+
+    CALL timeset(routineN,handle)
+
+    ! re-init the radii to be able to generate pair lists with MP2-appropriate screening
+    eps_pgf_orb_old=dft_control%qs_control%eps_pgf_orb
+    eps_rho_rspace_old=dft_control%qs_control%eps_rho_rspace
+    eps_gvg_rspace_old=dft_control%qs_control%eps_gvg_rspace
+
+    ! hack hack hack XXXXXXXXXXXXXXX ... to be fixed
+    dft_control%qs_control%eps_pgf_orb   =mp2_env%mp2_gpw%eps_grid
+    dft_control%qs_control%eps_rho_rspace=mp2_env%mp2_gpw%eps_grid
+    dft_control%qs_control%eps_gvg_rspace=mp2_env%mp2_gpw%eps_grid
+    CALL init_interaction_radii(dft_control%qs_control,atomic_kind_set, qs_kind_set)
+
+    ! get a distribution_1d
+    NULLIFY(local_particles_sub,local_molecules_sub)
+    CALL distribute_molecules_1d(atomic_kind_set=atomic_kind_set,&
+                                 particle_set=particle_set,&
+                                 local_particles=local_particles_sub,&
+                                 molecule_kind_set=molecule_kind_set,&
+                                 molecule_set=molecule_set,&
+                                 local_molecules=local_molecules_sub,&
+                                 force_env_section=qs_env%input)
+
+    ! get a distribution_2d
+    NULLIFY(distribution_2d_sub)
+    CALL distribute_molecules_2d(cell=cell,&
+                                 atomic_kind_set=atomic_kind_set,&
+                                 qs_kind_set=qs_kind_set,&
+                                 particle_set=particle_set,&
+                                 molecule_kind_set=molecule_kind_set,&
+                                 molecule_set=molecule_set,&
+                                 distribution_2d=distribution_2d_sub,&
+                                 blacs_env=blacs_env_sub,&
+                                 force_env_section=qs_env%input)
+
+    ! Build the sub  orbital-orbital overlap neighbor lists
+    NULLIFY(sab_orb_sub)
+    CALL section_vals_val_get(qs_env%input,"DFT%SUBCELLS",r_val=subcells)
+    nkind = SIZE(atomic_kind_set)
+    ALLOCATE (orb_present(nkind))
+    ALLOCATE (orb_radius(nkind))
+    ALLOCATE (pair_radius(nkind,nkind))
+    ALLOCATE (atom2d(nkind))
+
+    CALL atom2d_build(atom2d,orb_radius,orb_present,local_particles_sub,distribution_2d_sub,&
+                      atomic_kind_set,qs_kind_set,molecule_set,molecule_only=.FALSE.,dftb=.FALSE.,&
+                      particle_set=particle_set)
+    CALL pair_radius_setup(orb_present,orb_present,orb_radius,orb_radius,pair_radius)
+
+    CALL build_neighbor_lists(sab_orb_sub,particle_set,atom2d,cell,pair_radius,&
+                              mic=.FALSE.,subcells=subcells,molecular=.FALSE.,name="sab_orb_sub")
+    CALL atom2d_cleanup(atom2d)
+    DEALLOCATE (atom2d)
+    DEALLOCATE(orb_present,orb_radius,pair_radius)
+
+    ! a dbcsr_dist
+    ALLOCATE(dbcsr_dist_sub)
+    CALL cp_dbcsr_dist2d_to_dist (distribution_2d_sub, dbcsr_dist_sub, unit_nr)
+
+    ! build a dbcsr matrix the hard way
+    natom = SIZE(particle_set)
+    ALLOCATE (row_blk_sizes(natom))
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=row_blk_sizes)
+    NULLIFY(mat_munu%matrix)
+    ALLOCATE(mat_munu%matrix)
+    CALL cp_dbcsr_init(mat_munu%matrix)
+    CALL cp_dbcsr_create(matrix=mat_munu%matrix,&
+               name="(ai|munu)",&
+               dist=dbcsr_dist_sub, matrix_type=dbcsr_type_symmetric,&
+               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+               nze=0)
+    CALL cp_dbcsr_alloc_block_from_nbl(mat_munu%matrix,sab_orb_sub)
+
+    DEALLOCATE(row_blk_sizes)
+
+    CALL cp_dbcsr_distribution_release(dbcsr_dist_sub)
+    DEALLOCATE(dbcsr_dist_sub)
+
+    CALL distribution_2d_release(distribution_2d_sub)
+
+    CALL distribution_1d_release(local_particles_sub)
+    CALL distribution_1d_release(local_molecules_sub)
+
+
+    CALL timestop(handle)
+
+  END SUBROUTINE create_mat_munu
 
 END MODULE mp2_gpw

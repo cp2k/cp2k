@@ -16,6 +16,11 @@ MODULE rpa_ri_gpw
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
+  USE cp_dbcsr_interface,              ONLY: &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
+       cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_syrk,&
@@ -25,19 +30,16 @@ MODULE rpa_ri_gpw
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
-                                             cp_fm_indxg2l,&
-                                             cp_fm_indxg2p,&
-                                             cp_fm_release,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
-                                             cp_fm_type
+  USE cp_fm_types,                     ONLY: &
+       cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, &
+       cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_element, &
+       cp_fm_to_fm, cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_none,&
+  USE input_constants,                 ONLY: ri_rpa_g0w0_crossing_newton,&
+                                             ri_rpa_g0w0_crossing_none,&
                                              ri_rpa_g0w0_crossing_z_shot,&
                                              wfc_mm_style_gemm,&
                                              wfc_mm_style_syrk
@@ -50,7 +52,8 @@ MODULE rpa_ri_gpw
   USE message_passing,                 ONLY: &
        mp_bcast, mp_comm_split_direct, mp_irecv, mp_isend, mp_min, &
        mp_sendrecv, mp_sum, mp_sync, mp_wait, mp_waitall
-  USE minimax,                         ONLY: check_range
+  USE minimax,                         ONLY: check_range,&
+                                             get_minimax_coeff
   USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff
   USE mp2_laplace,                     ONLY: laplace_minimax_approx
   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
@@ -58,6 +61,8 @@ MODULE rpa_ri_gpw
   USE rpa_communication,               ONLY: fm_redistribute,&
                                              initialize_buffer,&
                                              release_buffer
+  USE rpa_im_time,                     ONLY: compute_fm_mat_Q_omega,&
+                                             fill_fm_with_2d_array
   USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -90,6 +95,7 @@ MODULE rpa_ri_gpw
 !> \param starts_array ...
 !> \param starts_B_virtual ...
 !> \param starts_B_all ...
+!> \param mo_coeff ...
 !> \param Eigenval ...
 !> \param nmo ...
 !> \param homo ...
@@ -105,18 +111,25 @@ MODULE rpa_ri_gpw
 !> \param ends_B_virtual_beta ...
 !> \param sizes_B_virtual_beta ...
 !> \param starts_B_virtual_beta ...
+!> \param mo_coeff_beta ...
 !> \param BIb_C_gw_beta ...
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
+!> \param do_im_time ...
+!> \param mat_munu ...
+!> \param mat_B_munu ...
+!> \param my_Lrows ...
+!> \param eps_filter ...
 ! *****************************************************************************
   SUBROUTINE rpa_ri_compute_en(Erpa,mp2_env,BIb_C,BIb_C_gw,para_env,para_env_sub,color_sub,&
                                ends_array,ends_B_virtual,ends_B_all,sizes_array,sizes_B_virtual,sizes_B_all,&
-                               starts_array,starts_B_virtual,starts_B_all,&
+                               starts_array,starts_B_virtual,starts_B_all,mo_coeff,&
                                Eigenval,nmo,homo,dimen_RI,gw_corr_lev_occ,gw_corr_lev_virt,&
                                unit_nr,do_ri_sos_laplace_mp2,my_do_gw,&
                                BIb_C_beta,homo_beta,Eigenval_beta,&
                                ends_B_virtual_beta,sizes_B_virtual_beta, starts_B_virtual_beta,&
-                               BIb_C_gw_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta)
+                               mo_coeff_beta,BIb_C_gw_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,&
+                               do_im_time,mat_munu,mat_B_munu,my_Lrows,eps_filter)
     REAL(KIND=dp)                            :: Erpa
     TYPE(mp2_type), POINTER                  :: mp2_env
     REAL(KIND=dp), ALLOCATABLE, &
@@ -126,6 +139,7 @@ MODULE rpa_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
       ends_B_all, sizes_array, sizes_B_virtual, sizes_B_all, starts_array, &
       starts_B_virtual, starts_B_all
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
     INTEGER                                  :: nmo, homo, dimen_RI, &
                                                 gw_corr_lev_occ, &
@@ -140,10 +154,18 @@ MODULE rpa_ri_gpw
       OPTIONAL                               :: ends_B_virtual_beta, &
                                                 sizes_B_virtual_beta, &
                                                 starts_B_virtual_beta
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff_beta
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :), OPTIONAL           :: BIb_C_gw_beta
     INTEGER, OPTIONAL                        :: gw_corr_lev_occ_beta, &
                                                 gw_corr_lev_virt_beta
+    LOGICAL, OPTIONAL                        :: do_im_time
+    TYPE(cp_dbcsr_p_type)                    :: mat_munu
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mat_B_munu
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :), OPTIONAL              :: my_Lrows
+    REAL(KIND=dp), OPTIONAL                  :: eps_filter
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_ri_compute_en', &
       routineP = moduleN//':'//routineN
@@ -164,7 +186,7 @@ MODULE rpa_ri_gpw
       sizes_ia, sizes_ia_beta, sizes_nm_gw, starts_ia, starts_ia_beta, &
       starts_nm_gw, sub_proc_map
     LOGICAL                                  :: check_fit, do_minimax_quad, &
-                                                my_open_shell, &
+                                                my_do_im_time, my_open_shell, &
                                                 skip_integ_group_opt
     REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emax_beta, &
       Emin, Emin_beta, ext_scaling, fermi_level_offset, mem_for_iaK, &
@@ -173,10 +195,14 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_C_2D, BIb_C_2D_beta, &
                                                 BIb_C_2D_gw, BIb_C_2D_gw_beta
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: fm_mat_Q_omega
     TYPE(cp_fm_type), POINTER :: fm_mat_Q, fm_mat_Q_beta, fm_mat_Q_gemm, &
       fm_mat_Q_gemm_beta, fm_mat_R_gw, fm_mat_R_gw_beta, fm_mat_R_gw_gemm, &
       fm_mat_R_gw_gemm_beta, fm_mat_S, fm_mat_S_beta, fm_mat_S_gw, &
-      fm_mat_S_gw_beta
+      fm_mat_S_gw_beta, fm_mo_coeff_occ, fm_mo_coeff_occ_beta, &
+      fm_mo_coeff_virt, fm_mo_coeff_virt_beta, fm_scaled_dm_occ, &
+      fm_scaled_dm_virt
     TYPE(cp_para_env_type), POINTER          :: para_env_RPA
 
     CALL timeset(routineN,handle)
@@ -191,6 +217,9 @@ MODULE rpa_ri_gpw
        PRESENT(starts_B_virtual_beta).AND.&
        PRESENT(homo_beta).AND.&
        PRESENT(Eigenval_beta)) my_open_shell=.TRUE.
+
+    my_do_im_time = .FALSE.
+    IF(PRESENT(do_im_time)) my_do_im_time = do_im_time
 
     virtual=nmo-homo
 
@@ -238,92 +267,102 @@ MODULE rpa_ri_gpw
 
     ngroup=para_env%num_pe/para_env_sub%num_pe
 
-    ! Calculate available memory and create integral group according to that
-    ! mem_for_iaK is the memory needed for storing the 3 centre integrals
-    mem_for_iaK=REAL(homo,KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
-    mem_for_QK=REAL(dimen_RI,KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
+    ! for imaginary time, we have other memory
+    IF(my_do_im_time) THEN
 
-    IF(my_open_shell) THEN
-      virtual_beta=nmo-homo_beta
-      mem_for_iaK=mem_for_iaK+REAL(homo_beta,KIND=dp)*virtual_beta*dimen_RI*8.0_dp/(1024_dp**2)
-      mem_for_QK=mem_for_QK*2.0_dp
-    END IF
+      integ_group_size=ngroup
+      best_num_integ_point=num_integ_points
 
-    CALL m_memory(mem)
-    mem_real=(mem+1024*1024-1)/(1024*1024)
-    ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
-    ! has not been given back to the OS yet. 
-    CALL mp_min(mem_real,para_env%group)
+    ELSE
 
-    mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
- 
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:',&
-                                                        mem_min, ' MiB'
+      ! Calculate available memory and create integral group according to that
+      ! mem_for_iaK is the memory needed for storing the 3 centre integrals
+      mem_for_iaK=REAL(homo,KIND=dp)*virtual*dimen_RI*8.0_dp/(1024_dp**2)
+      mem_for_QK=REAL(dimen_RI,KIND=dp)*dimen_RI*8.0_dp/(1024_dp**2)
+  
+      IF(my_open_shell) THEN
+        virtual_beta=nmo-homo_beta
+        mem_for_iaK=mem_for_iaK+REAL(homo_beta,KIND=dp)*virtual_beta*dimen_RI*8.0_dp/(1024_dp**2)
+        mem_for_QK=mem_for_QK*2.0_dp
+      END IF
+  
+      CALL m_memory(mem)
+      mem_real=(mem+1024*1024-1)/(1024*1024)
+      ! mp_min .... a hack.. it should be mp_max, but as it turns out, on some processes the previously freed memory (hfx)
+      ! has not been given back to the OS yet. 
+      CALL mp_min(mem_real,para_env%group)
+  
+      mem_min=2.0_dp*REAL(homo,KIND=dp)*MAXVAL(sizes_B_virtual)*MAXVAL(sizes_array)*8.0_dp/(1024**2)
    
-    mem_real=allowed_memory-mem_real
-    mem_real=MAX(mem_real,mem_min)
-
-    IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:',&
-                                                        mem_real, ' MiB'
-    
-    mem_per_group=mem_real*para_env_sub%num_pe
-
-    needed_mem=mem_for_iaK*2.0_dp+mem_for_QK*3.0_dp
-
-    ! here we try to find the best rpa/lapleca group size
-    skip_integ_group_opt=.FALSE.
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'RI_INFO| Minimum required memory per MPI process:',&
+                                                          mem_min, ' MiB'
      
-    IF(input_integ_group_size>0) THEN
-      IF(MOD(input_integ_group_size,para_env_sub%num_pe)==0) THEN
-        best_integ_group_size=input_integ_group_size/para_env_sub%num_pe
-        IF(MOD(ngroup,best_integ_group_size)==0) THEN
-          num_integ_group=ngroup/best_integ_group_size
-          IF((num_integ_points>num_integ_group).AND.MOD(num_integ_points,num_integ_group)==0) THEN
-            best_num_integ_point=num_integ_points/num_integ_group
-            skip_integ_group_opt=.TRUE.
-          ELSE 
-            IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'NUM_QUAD_POINTS not multiple of the number of INTEG_GROUP'
+      mem_real=allowed_memory-mem_real
+      mem_real=MAX(mem_real,mem_min)
+  
+      IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T68,F9.2,A4)') 'RI_INFO| Available memory per MPI process:',&
+                                                          mem_real, ' MiB'
+      
+      mem_per_group=mem_real*para_env_sub%num_pe
+  
+      needed_mem=mem_for_iaK*2.0_dp+mem_for_QK*3.0_dp
+  
+      ! here we try to find the best rpa/lapleca group size
+      skip_integ_group_opt=.FALSE.
+       
+      IF(input_integ_group_size>0) THEN
+        IF(MOD(input_integ_group_size,para_env_sub%num_pe)==0) THEN
+          best_integ_group_size=input_integ_group_size/para_env_sub%num_pe
+          IF(MOD(ngroup,best_integ_group_size)==0) THEN
+            num_integ_group=ngroup/best_integ_group_size
+            IF((num_integ_points>num_integ_group).AND.MOD(num_integ_points,num_integ_group)==0) THEN
+              best_num_integ_point=num_integ_points/num_integ_group
+              skip_integ_group_opt=.TRUE.
+            ELSE 
+              IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'NUM_QUAD_POINTS not multiple of the number of INTEG_GROUP'
+            END IF
+          ELSE
+            IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Total number of groups not multiple of SIZE_INTEG_GROUP'
           END IF
         ELSE
-          IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'Total number of groups not multiple of SIZE_INTEG_GROUP'
+          IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'SIZE_INTEG_GROUP not multiple of GROUP_SIZE'
         END IF
-      ELSE
-        IF (unit_nr>0) WRITE(unit_nr,'(T3,A)') 'SIZE_INTEG_GROUP not multiple of GROUP_SIZE'
       END IF
+  
+      IF(.NOT.skip_integ_group_opt) THEN
+         best_integ_group_size=ngroup
+         best_num_integ_point=num_integ_points
+  
+         min_integ_group_size=MAX(1,ngroup/num_integ_points)
+  
+        integ_group_size=min_integ_group_size-1
+        DO iiB=min_integ_group_size+1, ngroup
+          integ_group_size=integ_group_size+1
+  
+          ! check that the ngroup is a multiple of  integ_group_size
+          IF(MOD(ngroup,integ_group_size)/=0) CYCLE
+  
+          ! check for memory 
+          avail_mem=integ_group_size*mem_per_group
+          IF(avail_mem<needed_mem) CYCLE
+          
+          ! check the number of integration points is a multiple of the  number of integ_group
+          num_integ_group=ngroup/integ_group_size
+          IF(num_integ_points<num_integ_group) CYCLE
+          IF(MOD(num_integ_points,num_integ_group)/=0) CYCLE
+  
+          ! if all the test passed then decide
+          IF((num_integ_points/num_integ_group)<best_num_integ_point) THEN 
+            best_num_integ_point=num_integ_points/num_integ_group
+            best_integ_group_size=integ_group_size
+          END IF
+  
+        END DO
+      END IF
+  
+      integ_group_size=best_integ_group_size
+
     END IF
-
-    IF(.NOT.skip_integ_group_opt) THEN
-       best_integ_group_size=ngroup
-       best_num_integ_point=num_integ_points
-
-       min_integ_group_size=MAX(1,ngroup/num_integ_points)
-
-      integ_group_size=min_integ_group_size-1
-      DO iiB=min_integ_group_size+1, ngroup
-        integ_group_size=integ_group_size+1
-
-        ! check that the ngroup is a multiple of  integ_group_size
-        IF(MOD(ngroup,integ_group_size)/=0) CYCLE
-
-        ! check for memory 
-        avail_mem=integ_group_size*mem_per_group
-        IF(avail_mem<needed_mem) CYCLE
-        
-        ! check the number of integration points is a multiple of the  number of integ_group
-        num_integ_group=ngroup/integ_group_size
-        IF(num_integ_points<num_integ_group) CYCLE
-        IF(MOD(num_integ_points,num_integ_group)/=0) CYCLE
-
-        ! if all the test passed then decide
-        IF((num_integ_points/num_integ_group)<best_num_integ_point) THEN 
-          best_num_integ_point=num_integ_points/num_integ_group
-          best_integ_group_size=integ_group_size
-        END IF
-
-      END DO
-    END IF
-
-    integ_group_size=best_integ_group_size
 
     IF (unit_nr>0) THEN
       IF(do_ri_sos_laplace_mp2) THEN 
@@ -341,7 +380,7 @@ MODULE rpa_ri_gpw
          IF(do_minimax_quad) THEN
            WRITE (UNIT=unit_nr,FMT="(T3,A)")&
                                    "INTEG_INFO| MINIMAX quadrature"
-         ELSE
+         ELSE 
            WRITE (UNIT=unit_nr,FMT="(T3,A)")&
                                    "INTEG_INFO| Clenshaw-Curtius quadrature"
          END IF
@@ -362,21 +401,26 @@ MODULE rpa_ri_gpw
     my_group_L_start=starts_array(color_sub)
     my_group_L_end=ends_array(color_sub)
 
-    my_B_virtual_start=starts_B_virtual(para_env_sub%mepos)
-    my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
-    my_B_size=sizes_B_virtual(para_env_sub%mepos)
+    ! reordering is not necessary for imaginary time
+    IF(.NOT. my_do_im_time) THEN
 
-    IF(my_open_shell) THEN
-      my_B_virtual_start_beta=starts_B_virtual_beta(para_env_sub%mepos)
-      my_B_virtual_end_beta=ends_B_virtual_beta(para_env_sub%mepos)
-      my_B_size_beta=sizes_B_virtual_beta(para_env_sub%mepos)
-      my_homo_beta=homo_beta
-    ELSE
-      my_B_virtual_start_beta=my_B_virtual_start
-      my_B_virtual_end_beta=my_B_virtual_end
-      my_B_size_beta=my_B_size
-      my_homo_beta=homo
-    END IF
+      my_B_virtual_start=starts_B_virtual(para_env_sub%mepos)
+      my_B_virtual_end=ends_B_virtual(para_env_sub%mepos)
+      my_B_size=sizes_B_virtual(para_env_sub%mepos)
+  
+      IF(my_open_shell) THEN
+        my_B_virtual_start_beta=starts_B_virtual_beta(para_env_sub%mepos)
+        my_B_virtual_end_beta=ends_B_virtual_beta(para_env_sub%mepos)
+        my_B_size_beta=sizes_B_virtual_beta(para_env_sub%mepos)
+        my_homo_beta=homo_beta
+      ELSE
+        my_B_virtual_start_beta=my_B_virtual_start
+        my_B_virtual_end_beta=my_B_virtual_end
+        my_B_size_beta=my_B_size
+        my_homo_beta=homo
+      END IF
+
+    END IF ! not imaginary time
 
     IF(my_do_gw) THEN
       my_B_all_start=starts_B_all(para_env_sub%mepos)
@@ -403,31 +447,41 @@ MODULE rpa_ri_gpw
       sub_proc_map(para_env_sub%num_pe+i)=i
     END DO
 
-    ! reorder the local data in such a way to help the next stage of matrix creation
-    ! now the data inside the group are divided into a ia x K matrix
-    CALL calculate_BIb_C_2D(BIb_C_2D,BIb_C,para_env_sub,dimen_ia,homo,virtual,&
-                            sizes_ia,starts_ia,ends_ia,&
-                            sizes_B_virtual,starts_B_virtual,ends_B_virtual,&
-                            sub_proc_map,my_ia_size,my_ia_start,my_ia_end,my_group_L_size,&
-                            my_B_size,my_B_virtual_start)
-    DEALLOCATE(BIb_C)
-    DEALLOCATE(starts_B_virtual)
-    DEALLOCATE(ends_B_virtual)
-    DEALLOCATE(sizes_B_virtual)
+    ! not necessary for imaginary time
 
-    ! The same for open shell
-    IF(my_open_shell) THEN
-      CALL calculate_BIb_C_2D(BIb_C_2D_beta,BIb_C_beta,para_env_sub,&
-                              dimen_ia_beta,homo_beta,virtual_beta,&
-                              sizes_ia_beta,starts_ia_beta,ends_ia_beta,&
-                              sizes_B_virtual_beta,starts_B_virtual_beta,ends_B_virtual_beta,&
-                              sub_proc_map,my_ia_size_beta,my_ia_start_beta,my_ia_end_beta,my_group_L_size,&
-                              my_B_size_beta,my_B_virtual_start_beta)
+    IF(my_do_im_time) THEN
 
-      DEALLOCATE(BIb_C_beta)
-      DEALLOCATE(starts_B_virtual_beta)
-      DEALLOCATE(ends_B_virtual_beta)
-      DEALLOCATE(sizes_B_virtual_beta)
+      dimen_ia=homo*virtual
+
+    ELSE
+
+      ! reorder the local data in such a way to help the next stage of matrix creation
+      ! now the data inside the group are divided into a ia x K matrix
+      CALL calculate_BIb_C_2D(BIb_C_2D,BIb_C,para_env_sub,dimen_ia,homo,virtual,&
+                              sizes_ia,starts_ia,ends_ia,&
+                              sizes_B_virtual,starts_B_virtual,ends_B_virtual,&
+                              sub_proc_map,my_ia_size,my_ia_start,my_ia_end,my_group_L_size,&
+                              my_B_size,my_B_virtual_start)
+      DEALLOCATE(BIb_C)
+      DEALLOCATE(starts_B_virtual)
+      DEALLOCATE(ends_B_virtual)
+      DEALLOCATE(sizes_B_virtual)
+  
+      ! The same for open shell
+      IF(my_open_shell) THEN
+        CALL calculate_BIb_C_2D(BIb_C_2D_beta,BIb_C_beta,para_env_sub,&
+                                dimen_ia_beta,homo_beta,virtual_beta,&
+                                sizes_ia_beta,starts_ia_beta,ends_ia_beta,&
+                                sizes_B_virtual_beta,starts_B_virtual_beta,ends_B_virtual_beta,&
+                                sub_proc_map,my_ia_size_beta,my_ia_start_beta,my_ia_end_beta,my_group_L_size,&
+                                my_B_size_beta,my_B_virtual_start_beta)
+  
+        DEALLOCATE(BIb_C_beta)
+        DEALLOCATE(starts_B_virtual_beta)
+        DEALLOCATE(ends_B_virtual_beta)
+        DEALLOCATE(sizes_B_virtual_beta)
+  
+      END IF
 
     END IF
 
@@ -460,6 +514,7 @@ MODULE rpa_ri_gpw
     END IF
 
 
+
     CALL timestop(handle2)
 
     ! now create the matrices needed for the calculation, Q, S and G
@@ -470,17 +525,43 @@ MODULE rpa_ri_gpw
                           my_ia_size,my_ia_start,my_ia_end,&
                           my_group_L_size,my_group_L_start,my_group_L_end,&
                           para_env_RPA,fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,&
-                          nrow_block_mat,ncol_block_mat)
+                          nrow_block_mat,ncol_block_mat,&
+                          do_im_time=my_do_im_time,fm_scaled_dm_occ=fm_scaled_dm_occ,&
+                          fm_scaled_dm_virt=fm_scaled_dm_virt,mo_coeff=mo_coeff,&
+                          fm_mo_coeff_occ=fm_mo_coeff_occ,&
+                          fm_mo_coeff_virt=fm_mo_coeff_virt,&
+                          nmo=nmo,homo=homo,num_integ_points=num_integ_points,&
+                          fm_mat_Q_omega=fm_mat_Q_omega,&
+                          do_gw=my_do_gw,mat_B_munu=mat_B_munu)
+
+
+    IF(my_open_shell) THEN
+
+      ! for imaginary time, we only have to build beta mo coefficients
+      IF(my_do_im_time) THEN
+
+        CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ_beta,fm_mo_coeff_virt_beta,mo_coeff_beta,&
+                                       nmo,homo)
+
+      ! for RPA with imaginary frequency, we have to build the same matrices for beta as for alpha
+      ELSE
+
+        CALL create_integ_mat(BIb_C_2D_beta,para_env,para_env_sub,color_sub,ngroup,integ_group_size,&
+                              dimen_RI,dimen_ia_beta,dimen_ia_beta,color_rpa_group,&
+                              mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
+                              my_ia_size_beta,my_ia_start_beta,my_ia_end_beta,&
+                              my_group_L_size,my_group_L_start,my_group_L_end,&
+                              para_env_RPA,fm_mat_S_beta,fm_mat_Q_gemm_beta,fm_mat_Q_beta,&
+                              nrow_block_mat,ncol_block_mat,&
+                              .TRUE.,fm_mat_Q%matrix_struct%context)
+
+      END IF
+
+    END IF
+
 
     ! for GW, we need other matrix fm_mat_S  
     IF(my_do_gw) THEN
-!      CALL create_integ_mat(BIb_C_2D_gw,para_env,para_env_sub,color_sub,ngroup,integ_group_size,&
-!                            dimen_RI,dimen_nm_gw,dimen_ia,color_rpa_group,&
-!                            mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
-!                            my_nm_gw_size,my_nm_gw_start,my_nm_gw_end,&
-!                            my_group_L_size,my_group_L_start,my_group_L_end,&
-!                            para_env_RPA,fm_mat_S_gw,fm_mat_R_gw_gemm,fm_mat_R_gw,&
-!                            .TRUE.,fm_mat_Q%matrix_struct%context,fm_mat_S%matrix_struct%context)
       CALL create_integ_mat(BIb_C_2D_gw,para_env,para_env_sub,color_sub,ngroup,integ_group_size,&
                             dimen_RI,dimen_nm_gw,dimen_ia,color_rpa_group,&
                             mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
@@ -508,15 +589,6 @@ MODULE rpa_ri_gpw
     END IF
 
     IF(my_open_shell) THEN
-      ! the same for beta
-      CALL create_integ_mat(BIb_C_2D_beta,para_env,para_env_sub,color_sub,ngroup,integ_group_size,&
-                            dimen_RI,dimen_ia_beta,dimen_ia_beta,color_rpa_group,&
-                            mp2_env%block_size_row,mp2_env%block_size_col,unit_nr,&
-                            my_ia_size_beta,my_ia_start_beta,my_ia_end_beta,&
-                            my_group_L_size,my_group_L_start,my_group_L_end,&
-                            para_env_RPA,fm_mat_S_beta,fm_mat_Q_gemm_beta,fm_mat_Q_beta,&
-                            nrow_block_mat,ncol_block_mat,&
-                            .TRUE.,fm_mat_Q%matrix_struct%context)
 
       IF(do_ri_sos_laplace_mp2) THEN
         ! go with laplace MINIMAX MP2
@@ -527,17 +599,29 @@ MODULE rpa_ri_gpw
                                     fm_mat_Q_gemm_beta,fm_mat_Q_beta)
       ELSE
         ! go with clenshaw-curtius/minimax quadrature
-        CALL rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
-                                 homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
-                                 fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
-                                 my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
-                                 stop_crit,check_fit,fermi_level_offset,crossing_search,&
-                                 max_iter_fit,&
-                                 mp2_env%ri_rpa%mm_style,do_minimax_quad,&
-                                 homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
-                                 fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
-                                 gw_corr_lev_occ_beta,gw_corr_lev_virt_beta)
+        CALL rpa_num_int(Erpa,mp2_env,para_env,para_env_RPA,para_env_sub,unit_nr,&
+                         homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
+                         Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
+                         fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
+                         my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
+                         stop_crit,check_fit,fermi_level_offset,crossing_search,&
+                         max_iter_fit,&
+                         mp2_env%ri_rpa%mm_style,do_minimax_quad,&
+                         homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
+                         fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
+                         gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,&
+                         do_im_time=my_do_im_time,fm_scaled_dm_occ=fm_scaled_dm_occ,&
+                         fm_scaled_dm_virt=fm_scaled_dm_virt,mo_coeff=mo_coeff,&
+                         fm_mo_coeff_occ=fm_mo_coeff_occ,&
+                         fm_mo_coeff_virt=fm_mo_coeff_virt,&
+                         fm_mat_Q_omega=fm_mat_Q_omega,&
+                         mat_munu=mat_munu,mat_B_munu=mat_B_munu,my_Lrows=my_Lrows,&
+                         my_group_L_size=my_group_L_size,my_group_L_start=my_group_L_start,&
+                         my_group_L_end=my_group_L_end,&
+                         ngroup=ngroup,eps_filter=eps_filter,sizes_array=sizes_array,&
+                         mo_coeff_beta=mo_coeff_beta,&
+                         fm_mo_coeff_occ_beta=fm_mo_coeff_occ_beta,&
+                         fm_mo_coeff_virt_beta=fm_mo_coeff_virt_beta)
       END IF
     ELSE
       IF(do_ri_sos_laplace_mp2) THEN
@@ -548,20 +632,33 @@ MODULE rpa_ri_gpw
       ELSE
         ! go with clenshaw-curtius/minimax quadrature
         ! here, we also do the quasi-particle-energy correction for G0W0
-        CALL rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
-                                 homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                 Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
-                                 fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
-                                 my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
-                                 stop_crit,check_fit,fermi_level_offset,crossing_search,&
-                                 max_iter_fit,&
-                                 mp2_env%ri_rpa%mm_style,do_minimax_quad)
+        CALL rpa_num_int(Erpa,mp2_env,para_env,para_env_RPA,para_env_sub,unit_nr,&
+                         homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
+                         Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
+                         fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
+                         my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
+                         stop_crit,check_fit,fermi_level_offset,crossing_search,&
+                         max_iter_fit,&
+                         mp2_env%ri_rpa%mm_style,do_minimax_quad,&
+                         do_im_time=my_do_im_time,fm_scaled_dm_occ=fm_scaled_dm_occ,&
+                         fm_scaled_dm_virt=fm_scaled_dm_virt,mo_coeff=mo_coeff,&
+                         fm_mo_coeff_occ=fm_mo_coeff_occ,&
+                         fm_mo_coeff_virt=fm_mo_coeff_virt,&
+                         fm_mat_Q_omega=fm_mat_Q_omega,&
+                         mat_munu=mat_munu,mat_B_munu=mat_B_munu,my_Lrows=my_Lrows,&
+                         my_group_L_size=my_group_L_size,my_group_L_start=my_group_L_start,&
+                         my_group_L_end=my_group_L_end,&
+                         ngroup=ngroup,eps_filter=eps_filter,sizes_array=sizes_array)
       END IF
     END IF
 
-    DEALLOCATE(sizes_ia)
-    DEALLOCATE(starts_ia)
-    DEALLOCATE(ends_ia)
+    IF(.NOT. my_do_im_time) THEN
+
+      DEALLOCATE(sizes_ia)
+      DEALLOCATE(starts_ia)
+      DEALLOCATE(ends_ia)
+
+    END IF
 
     DEALLOCATE(sub_proc_map)
 
@@ -571,11 +668,13 @@ MODULE rpa_ri_gpw
 
     CALL cp_para_env_release(para_env_RPA)
 
-    CALL cp_fm_release(fm_mat_S)
+    IF(.NOT. my_do_im_time) THEN
+      CALL cp_fm_release(fm_mat_S)
+    END IF
     !XXX CALL cp_fm_release(fm_mat_G)
     CALL cp_fm_release(fm_mat_Q_gemm)
     CALL cp_fm_release(fm_mat_Q)
-    IF(my_open_shell) THEN
+    IF(my_open_shell .AND. (.NOT. my_do_im_time)) THEN
       DEALLOCATE(sizes_ia_beta)
       DEALLOCATE(starts_ia_beta)
       DEALLOCATE(ends_ia_beta)
@@ -656,6 +755,7 @@ MODULE rpa_ri_gpw
       DIMENSION(:, :, :)                     :: BIb_C_rec
 
     dimen_ia=homo*virtual
+
     ALLOCATE(sizes_ia(0:para_env_sub%num_pe-1))
     sizes_ia=0
     ALLOCATE(starts_ia(0:para_env_sub%num_pe-1))
@@ -756,6 +856,20 @@ MODULE rpa_ri_gpw
 !> \param blacs_env_ext ...
 !> \param blacs_env_ext_S ...
 !> \param do_gw_open_shell ...
+!> \param do_im_time ...
+!> \param fm_scaled_dm_occ ...
+!> \param fm_scaled_dm_virt ...
+!> \param mo_coeff ...
+!> \param fm_mo_coeff_occ ...
+!> \param fm_mo_coeff_virt ...
+!> \param nmo ...
+!> \param homo ...
+!> \param num_integ_points ...
+!> \param fm_mat_Q_omega ...
+!> \param do_gw ...
+!> \param mat_B_munu ...
+!> \param proc_rec_M ...
+!> \param proc_send_m ...
 ! *****************************************************************************
     SUBROUTINE create_integ_mat(BIb_C_2D,para_env,para_env_sub,color_sub,ngroup,integ_group_size,&
                                 dimen_RI,dimen_ia,dimen_ia_for_block_size,color_rpa_group,&
@@ -764,7 +878,12 @@ MODULE rpa_ri_gpw
                                 my_group_L_size,my_group_L_start,my_group_L_end,&
                                 para_env_RPA,fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,&
                                 nrow_block_mat,ncol_block_mat,beta_case,&
-                                blacs_env_ext,blacs_env_ext_S,do_gw_open_shell)
+                                blacs_env_ext,blacs_env_ext_S,do_gw_open_shell,&
+                                do_im_time,fm_scaled_dm_occ,fm_scaled_dm_virt,mo_coeff,&
+                                fm_mo_coeff_occ,fm_mo_coeff_virt,&
+                                nmo,homo,&
+                                num_integ_points, fm_mat_Q_omega,do_gw,&
+                                mat_B_munu,proc_rec_M,proc_send_m)
 
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_C_2D
@@ -780,7 +899,18 @@ MODULE rpa_ri_gpw
     LOGICAL, OPTIONAL                        :: beta_case
     TYPE(cp_blacs_env_type), OPTIONAL, &
       POINTER                                :: blacs_env_ext, blacs_env_ext_S
-    LOGICAL, OPTIONAL                        :: do_gw_open_shell
+    LOGICAL, OPTIONAL                        :: do_gw_open_shell, do_im_time
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_scaled_dm_occ, &
+                                                fm_scaled_dm_virt, mo_coeff, &
+                                                fm_mo_coeff_occ, &
+                                                fm_mo_coeff_virt
+    INTEGER, OPTIONAL                        :: nmo, homo, num_integ_points
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: fm_mat_Q_omega
+    LOGICAL, OPTIONAL                        :: do_gw
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mat_B_munu
+    INTEGER, OPTIONAL                        :: proc_rec_M, proc_send_M
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_integ_mat', &
       routineP = moduleN//':'//routineN
@@ -789,14 +919,17 @@ MODULE rpa_ri_gpw
       end_row_block, grid_2D(2), handle, handle2, handle3, i, i_global, &
       i_local, i_sub, iiB, iii, iproc, iproc_col, iproc_row, itmp(2), &
       j_global, j_local, j_sub, jjB, mepos_in_RPA_group, my_num_col_blocks, &
-      my_num_row_blocks, mypcol, myprow, ncol_block, ncol_local, npcol, &
-      nprow, nrow_block, nrow_local, num_rec_cols, number_of_rec, &
-      number_of_send, proc_receive, proc_receive_static, proc_send, &
-      proc_send_static, proc_shift, rec_counter, rec_ia_end, rec_ia_size, &
-      rec_ia_start, rec_L_end, rec_L_size, rec_L_start, rec_pcol, rec_prow
-    INTEGER :: ref_send_pcol, ref_send_prow, row_col_proc_ratio, &
-      send_counter, send_pcol, send_prow, size_rec_buffer, size_send_buffer, &
-      start_col_block, start_row_block, sub_sub_color
+      my_num_row_blocks, my_pcol, my_prow, mypcol, myprow, nblkcols_local, &
+      nblkcols_total, nblkrows_local, nblkrows_total, ncol_block, ncol_local, &
+      nfullcols_local, nfullcols_total, nfullrows_local, nfullrows_total, &
+      npcol, nprow, nrow_block, nrow_local, num_rec_cols, number_of_rec, &
+      number_of_send, proc_receive, proc_receive_static
+    INTEGER :: proc_send, proc_send_static, proc_shift, rec_counter, &
+      rec_ia_end, rec_ia_size, rec_ia_start, rec_L_end, rec_L_size, &
+      rec_L_start, rec_pcol, rec_prow, ref_send_pcol, ref_send_prow, &
+      row_col_proc_ratio, send_counter, send_pcol, send_prow, &
+      size_rec_buffer, size_send_buffer, start_col_block, start_row_block, &
+      sub_sub_color
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iii_vet, index_col_rec, &
                                                 map_rec_size, map_send_size, &
                                                 req_send, RPA_proc_map
@@ -804,9 +937,13 @@ MODULE rpa_ri_gpw
       blocks_ranges_row, grid_2_mepos, grid_ref_2_send_pos, &
       group_grid_2_mepos, mepos_2_grid, RPA_info_end, RPA_info_size, &
       RPA_info_start
-    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: block_distribution_M
+    INTEGER, DIMENSION(:), POINTER :: col_blk_offset, col_blk_size, &
+      col_indices, local_cols, local_rows, proc_col_dist, proc_row_dist, &
+      row_blk_offset, row_blk_size, row_indices
     LOGICAL                                  :: my_beta_case, my_blacs_ext, &
-                                                my_blacs_S_ext, &
+                                                my_blacs_S_ext, my_do_gw, &
+                                                my_do_im_time, &
                                                 my_gw_open_shell
     REAL(KIND=dp)                            :: part_ia, part_RI
     REAL(KIND=dp), ALLOCATABLE, &
@@ -830,6 +967,12 @@ MODULE rpa_ri_gpw
 
     my_gw_open_shell=.FALSE.
     IF(PRESENT(do_gw_open_shell)) my_gw_open_shell=do_gw_open_shell
+
+    my_do_im_time=.FALSE.
+    IF(PRESENT(do_im_time)) my_do_im_time = do_im_time
+
+    my_do_gw=.FALSE.
+    IF(PRESENT(do_gw)) my_do_gw = do_gw
 
     ! create the RPA para_env
     IF(.NOT.my_beta_case) THEN
@@ -863,6 +1006,7 @@ MODULE rpa_ri_gpw
             IF(MOD(para_env_RPA%num_pe,iproc_row)==0) EXIT
           END DO
         END IF
+
         iproc_col=para_env_RPA%num_pe/iproc_row
         grid_2D(1)=iproc_row
         grid_2D(2)=iproc_col
@@ -870,6 +1014,7 @@ MODULE rpa_ri_gpw
         grid_2D=1
       END IF
       CALL cp_blacs_env_create(blacs_env=blacs_env, para_env=para_env_RPA, grid_2d=grid_2d)
+
       IF (unit_nr>0) THEN
         WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
                                    "MATRIX_INFO| Number row processes:", grid_2D(1)
@@ -901,146 +1046,439 @@ MODULE rpa_ri_gpw
                                    "MATRIX_INFO| Column block size:", ncol_block_mat
       END IF
 
-      ! create the S full matrix, that is the (ia|K) matrix with K colomns
-      ! and homo*virtual rows
       NULLIFY(fm_struct)
       ! CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_ia,&
       !                          ncol_global=dimen_RI,para_env=para_env_RPA)
       CALL cp_fm_struct_create(fm_struct,context=blacs_env,nrow_global=dimen_ia,&
                                ncol_global=dimen_RI,para_env=para_env_RPA,&
                                nrow_block=nrow_block_mat, ncol_block=ncol_block_mat, force_block=.TRUE.)
-    END IF
 
-    NULLIFY(fm_mat_S)
-    CALL cp_fm_create(fm_mat_S,fm_struct,name="fm_mat_S")
+    END IF ! external blacs_env
 
-    CALL cp_fm_set_all(matrix=fm_mat_S,alpha=0.0_dp)
+    ! for imaginary time we do not need the fm_mat_S
+    IF(.NOT. my_do_im_time) THEN
 
-    ! fill the matrix
-    CALL cp_fm_get_info(matrix=fm_mat_S,&
-                        nrow_local=nrow_local,&
-                        ncol_local=ncol_local,&
-                        row_indices=row_indices,&
-                        col_indices=col_indices,&
-                        nrow_block=nrow_block,&
-                        ncol_block=ncol_block)
-    myprow=fm_mat_S%matrix_struct%context%mepos(1)
-    mypcol=fm_mat_S%matrix_struct%context%mepos(2)
-    nprow =fm_mat_S%matrix_struct%context%num_pe(1)
-    npcol =fm_mat_S%matrix_struct%context%num_pe(2)
-
-    ! create the RPA proc_map
-    ALLOCATE(RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe-1))
-    RPA_proc_map=0
-    DO i=0,para_env_RPA%num_pe-1
-      RPA_proc_map(i)=i
-      RPA_proc_map(-i-1)=para_env_RPA%num_pe-i-1
-      RPA_proc_map(para_env_RPA%num_pe+i)=i
-    END DO
-
-    ! create the info array, first index: 1-> L info, 2-> ia info
-    ALLOCATE(RPA_info_start(2,0:para_env_RPA%num_pe-1))
-    RPA_info_start=0
-    ALLOCATE(RPA_info_end(2,0:para_env_RPA%num_pe-1))
-    RPA_info_end=0
-    ALLOCATE(RPA_info_size(2,0:para_env_RPA%num_pe-1))
-    RPA_info_size=0
-
-    RPA_info_start(1,para_env_RPA%mepos)=my_group_L_start
-    RPA_info_start(2,para_env_RPA%mepos)=my_ia_start
-
-    RPA_info_end(1,para_env_RPA%mepos)=my_group_L_end
-    RPA_info_end(2,para_env_RPA%mepos)=my_ia_end
-
-    RPA_info_size(1,para_env_RPA%mepos)=my_group_L_size
-    RPA_info_size(2,para_env_RPA%mepos)=my_ia_size
-
-    CALL mp_sum(RPA_info_start,para_env_RPA%group)
-    CALL mp_sum(RPA_info_end,para_env_RPA%group)
-    CALL mp_sum(RPA_info_size,para_env_RPA%group)
-
-    IF(.TRUE.) THEN
-      CALL timeset(routineN//"_comm",handle2)
-      ! new replication scheme
-      ! 0) create array with processes positions
-      CALL timeset(routineN//"_info",handle3)
-      ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1))
-      grid_2_mepos=0
-      ALLOCATE(mepos_2_grid(0:para_env_RPA%num_pe-1,2))
-      mepos_2_grid=0
-
-      grid_2_mepos(myprow,mypcol)=para_env_RPA%mepos
-      mepos_2_grid(para_env_RPA%mepos,1)=myprow
-      mepos_2_grid(para_env_RPA%mepos,2)=mypcol
- 
-      CALL mp_sum(grid_2_mepos,para_env_RPA%group)
-      CALL mp_sum(mepos_2_grid,para_env_RPA%group)
-
-      ! 1) loop over my local data and define a map for the proc to send data
-      ALLOCATE(map_send_size(0:para_env_RPA%num_pe-1))
-      map_send_size=0
-      DO jjB=my_group_L_start, my_group_L_end
-        send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-                          fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+      ! create the S full matrix, that is the (ia|K) matrix with K colomns
+      ! and homo*virtual rows
+      NULLIFY(fm_mat_S)
+      CALL cp_fm_create(fm_mat_S,fm_struct,name="fm_mat_S")
+  
+      CALL cp_fm_set_all(matrix=fm_mat_S,alpha=0.0_dp)
+  
+      ! fill the matrix
+      CALL cp_fm_get_info(matrix=fm_mat_S,&
+                          nrow_local=nrow_local,&
+                          ncol_local=ncol_local,&
+                          row_indices=row_indices,&
+                          col_indices=col_indices,&
+                          nrow_block=nrow_block,&
+                          ncol_block=ncol_block)
+      myprow=fm_mat_S%matrix_struct%context%mepos(1)
+      mypcol=fm_mat_S%matrix_struct%context%mepos(2)
+      nprow =fm_mat_S%matrix_struct%context%num_pe(1)
+      npcol =fm_mat_S%matrix_struct%context%num_pe(2)
+  
+      ! create the RPA proc_map
+      ALLOCATE(RPA_proc_map(-para_env_RPA%num_pe:2*para_env_RPA%num_pe-1))
+      RPA_proc_map=0
+      DO i=0,para_env_RPA%num_pe-1
+        RPA_proc_map(i)=i
+        RPA_proc_map(-i-1)=para_env_RPA%num_pe-i-1
+        RPA_proc_map(para_env_RPA%num_pe+i)=i
+      END DO
+  
+      ! create the info array, first index: 1-> L info, 2-> ia info
+      ALLOCATE(RPA_info_start(2,0:para_env_RPA%num_pe-1))
+      RPA_info_start=0
+      ALLOCATE(RPA_info_end(2,0:para_env_RPA%num_pe-1))
+      RPA_info_end=0
+      ALLOCATE(RPA_info_size(2,0:para_env_RPA%num_pe-1))
+      RPA_info_size=0
+  
+      RPA_info_start(1,para_env_RPA%mepos)=my_group_L_start
+      RPA_info_start(2,para_env_RPA%mepos)=my_ia_start
+  
+      RPA_info_end(1,para_env_RPA%mepos)=my_group_L_end
+      RPA_info_end(2,para_env_RPA%mepos)=my_ia_end
+  
+      RPA_info_size(1,para_env_RPA%mepos)=my_group_L_size
+      RPA_info_size(2,para_env_RPA%mepos)=my_ia_size
+  
+      CALL mp_sum(RPA_info_start,para_env_RPA%group)
+      CALL mp_sum(RPA_info_end,para_env_RPA%group)
+      CALL mp_sum(RPA_info_size,para_env_RPA%group)
+  
+      IF(.TRUE.) THEN
+        CALL timeset(routineN//"_comm",handle2)
+        ! new replication scheme
+        ! 0) create array with processes positions
+        CALL timeset(routineN//"_info",handle3)
+        ALLOCATE(grid_2_mepos(0:nprow-1,0:npcol-1))
+        grid_2_mepos=0
+        ALLOCATE(mepos_2_grid(0:para_env_RPA%num_pe-1,2))
+        mepos_2_grid=0
+  
+        grid_2_mepos(myprow,mypcol)=para_env_RPA%mepos
+        mepos_2_grid(para_env_RPA%mepos,1)=myprow
+        mepos_2_grid(para_env_RPA%mepos,2)=mypcol
+   
+        CALL mp_sum(grid_2_mepos,para_env_RPA%group)
+        CALL mp_sum(mepos_2_grid,para_env_RPA%group)
+  
+        ! 1) loop over my local data and define a map for the proc to send data
+        ALLOCATE(map_send_size(0:para_env_RPA%num_pe-1))
+        map_send_size=0
+        DO jjB=my_group_L_start, my_group_L_end
+          send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
+                            fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+          DO iiB=my_ia_start, my_ia_end
+            send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
+                              fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+            proc_send=grid_2_mepos(send_prow,send_pcol)
+            map_send_size(proc_send)=map_send_size(proc_send)+1
+          END DO
+        END DO  
+  
+        ! 2) loop over my local data of fm_mat_S and define a map for the proc from which rec data
+        ALLOCATE(map_rec_size(0:para_env_RPA%num_pe-1))
+        map_rec_size=0
+        mepos_in_RPA_group=MOD(color_sub,integ_group_size)
+        ALLOCATE(group_grid_2_mepos(0:para_env_sub%num_pe-1,0:integ_group_size-1))
+        group_grid_2_mepos=0
+        group_grid_2_mepos(para_env_sub%mepos,mepos_in_RPA_group)=para_env_RPA%mepos
+        CALL mp_sum(group_grid_2_mepos,para_env_RPA%group)
+        part_ia=FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
+        part_RI=FLOAT(dimen_RI)/FLOAT(ngroup)
+  
+        DO jjB=1, ncol_local
+          j_global=col_indices(jjB) 
+          ! check the group holding this element
+          ! dirty way, if someone has a better idea ...
+          rec_pcol=INT(FLOAT(j_global-1)/part_RI)
+          rec_pcol=MAX(0,rec_pcol)
+          rec_pcol=MIN(rec_pcol,ngroup-1)
+          DO
+            itmp=get_limit(dimen_RI,ngroup,rec_pcol)
+            IF(j_global>=itmp(1).AND.j_global<=itmp(2)) EXIT
+            IF(j_global<itmp(1)) rec_pcol=rec_pcol-1
+            IF(j_global>itmp(2)) rec_pcol=rec_pcol+1
+          END DO
+          ! if the group is not in the same RPA group cycle
+          IF((rec_pcol/integ_group_size).NE.color_rpa_group) CYCLE
+          ! convert global position to position into the RPA group
+          rec_pcol=MOD(rec_pcol,integ_group_size)
+  
+          DO iiB=1, nrow_local
+            i_global=row_indices(iiB)
+            ! check the process in the group holding this element
+            rec_prow=INT(FLOAT(i_global-1)/part_ia)
+            rec_prow=MAX(0,rec_prow)
+            rec_prow=MIN(rec_prow,para_env_sub%num_pe-1)
+            DO
+              itmp=get_limit(dimen_ia,para_env_sub%num_pe,rec_prow)
+              IF(i_global>=itmp(1).AND.i_global<=itmp(2)) EXIT
+              IF(i_global<itmp(1)) rec_prow=rec_prow-1
+              IF(i_global>itmp(2)) rec_prow=rec_prow+1
+            END DO
+  
+            proc_receive=group_grid_2_mepos(rec_prow,rec_pcol)
+  
+            map_rec_size(proc_receive)=map_rec_size(proc_receive)+1
+  
+          END DO  ! i_global
+        END DO  ! j_global
+  
+        ! 3) check if the local data has to be stored in the new fm_mat_S
+        IF(map_rec_size(para_env_RPA%mepos)>0) THEN
+          DO jjB=1, ncol_local
+            j_global=col_indices(jjB)
+            IF(j_global>=my_group_L_start.AND.j_global<=my_group_L_end) THEN
+              DO iiB=1, nrow_local
+                i_global=row_indices(iiB)
+                IF(i_global>=my_ia_start.AND.i_global<=my_ia_end) THEN
+                  fm_mat_S%local_data(iiB,jjB)=BIb_C_2D(i_global-my_ia_start+1,j_global-my_group_L_start+1)
+                END IF
+              END DO
+            END IF
+          END DO
+        END IF
+        CALL timestop(handle3)
+  
+        ! 4) reorder data in the send_buffer
+        CALL timeset(routineN//"_buffer_s",handle3)
+        number_of_send=0
+        DO proc_shift=1, para_env_RPA%num_pe-1
+          proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
+          IF(map_send_size(proc_send)>0) THEN
+            number_of_send=number_of_send+1
+          END IF
+        END DO
+  
+        ALLOCATE(buffer_send(number_of_send))
+  
+        ! this array given a pair (ref_send_prow,ref_send_pcol) returns
+        ! the position in the buffer_send associated to that process
+        ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1))
+        grid_ref_2_send_pos=0
+  
+        send_counter=0
+        DO proc_shift=1, para_env_RPA%num_pe-1
+          proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
+          size_send_buffer=map_send_size(proc_send)
+  
+          IF(map_send_size(proc_send)>0) THEN
+            send_counter=send_counter+1
+            ! prepare the sending buffer
+            ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer))
+            buffer_send(send_counter)%msg=0.0_dp
+            buffer_send(send_counter)%proc=proc_send
+  
+            ref_send_prow=mepos_2_grid(proc_send,1)
+            ref_send_pcol=mepos_2_grid(proc_send,2)
+  
+            grid_ref_2_send_pos(ref_send_prow,ref_send_pcol)=send_counter
+  
+            ! iii=0
+            ! DO iiB=my_ia_start, my_ia_end
+            !   send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
+            !                           fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+            !   IF(send_prow.NE.ref_send_prow) CYCLE
+            !   DO jjB=my_group_L_start, my_group_L_end
+            !     send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
+            !                             fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+            !     IF(send_pcol.NE.ref_send_pcol) CYCLE
+            !     iii=iii+1
+            !     buffer_send(send_counter)%msg(iii)=BIb_C_2D(iiB-my_ia_start+1,jjB-my_group_L_start+1)
+            !   END DO
+            ! END DO
+  
+          END IF
+  
+        END DO
+  
+        ! loop over the locally held data and fill the buffer_send
+        ! for doing that we need an array index 
+        ALLOCATE(iii_vet(number_of_send))
+      
+        iii_vet=0
         DO iiB=my_ia_start, my_ia_end
           send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-                            fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-          proc_send=grid_2_mepos(send_prow,send_pcol)
-          map_send_size(proc_send)=map_send_size(proc_send)+1
-        END DO
-      END DO  
-
-      ! 2) loop over my local data of fm_mat_S and define a map for the proc from which rec data
-      ALLOCATE(map_rec_size(0:para_env_RPA%num_pe-1))
-      map_rec_size=0
-      mepos_in_RPA_group=MOD(color_sub,integ_group_size)
-      ALLOCATE(group_grid_2_mepos(0:para_env_sub%num_pe-1,0:integ_group_size-1))
-      group_grid_2_mepos=0
-      group_grid_2_mepos(para_env_sub%mepos,mepos_in_RPA_group)=para_env_RPA%mepos
-      CALL mp_sum(group_grid_2_mepos,para_env_RPA%group)
-      part_ia=FLOAT(dimen_ia)/FLOAT(para_env_sub%num_pe)
-      part_RI=FLOAT(dimen_RI)/FLOAT(ngroup)
-
-      DO jjB=1, ncol_local
-        j_global=col_indices(jjB) 
-        ! check the group holding this element
-        ! dirty way, if someone has a better idea ...
-        rec_pcol=INT(FLOAT(j_global-1)/part_RI)
-        rec_pcol=MAX(0,rec_pcol)
-        rec_pcol=MIN(rec_pcol,ngroup-1)
-        DO
-          itmp=get_limit(dimen_RI,ngroup,rec_pcol)
-          IF(j_global>=itmp(1).AND.j_global<=itmp(2)) EXIT
-          IF(j_global<itmp(1)) rec_pcol=rec_pcol-1
-          IF(j_global>itmp(2)) rec_pcol=rec_pcol+1
-        END DO
-        ! if the group is not in the same RPA group cycle
-        IF((rec_pcol/integ_group_size).NE.color_rpa_group) CYCLE
-        ! convert global position to position into the RPA group
-        rec_pcol=MOD(rec_pcol,integ_group_size)
-
-        DO iiB=1, nrow_local
-          i_global=row_indices(iiB)
-          ! check the process in the group holding this element
-          rec_prow=INT(FLOAT(i_global-1)/part_ia)
-          rec_prow=MAX(0,rec_prow)
-          rec_prow=MIN(rec_prow,para_env_sub%num_pe-1)
-          DO
-            itmp=get_limit(dimen_ia,para_env_sub%num_pe,rec_prow)
-            IF(i_global>=itmp(1).AND.i_global<=itmp(2)) EXIT
-            IF(i_global<itmp(1)) rec_prow=rec_prow-1
-            IF(i_global>itmp(2)) rec_prow=rec_prow+1
+                                  fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+          DO jjB=my_group_L_start, my_group_L_end
+            send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
+                                    fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+            ! we don't need to send to ourselves
+            IF(grid_2_mepos(send_prow,send_pcol)==para_env_RPA%mepos) CYCLE
+  
+            send_counter=grid_ref_2_send_pos(send_prow,send_pcol)
+            iii_vet(send_counter)=iii_vet(send_counter)+1
+            iii=iii_vet(send_counter)
+            buffer_send(send_counter)%msg(iii)=BIb_C_2D(iiB-my_ia_start+1,jjB-my_group_L_start+1)
           END DO
-
-          proc_receive=group_grid_2_mepos(rec_prow,rec_pcol)
-
-          map_rec_size(proc_receive)=map_rec_size(proc_receive)+1
-
-        END DO  ! i_global
-      END DO  ! j_global
-
-      ! 3) check if the local data has to be stored in the new fm_mat_S
-      IF(map_rec_size(para_env_RPA%mepos)>0) THEN
+        END DO
+  
+        DEALLOCATE(iii_vet)
+        DEALLOCATE(grid_ref_2_send_pos)
+        DEALLOCATE(BIb_C_2D)
+        CALL timestop(handle3)
+  
+        ! 5) create the buffer for receive and post the irecv
+        CALL timeset(routineN//"_isendrecv",handle3)
+        number_of_rec=0
+        DO proc_shift=1, para_env_RPA%num_pe-1
+          proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
+          IF(map_rec_size(proc_receive)>0) THEN
+            number_of_rec=number_of_rec+1
+          END IF
+        END DO
+    
+        ALLOCATE(buffer_rec(number_of_rec))
+  
+        rec_counter=0
+        DO proc_shift=1, para_env_RPA%num_pe-1
+          proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
+          size_rec_buffer=map_rec_size(proc_receive)
+  
+          IF(map_rec_size(proc_receive)>0) THEN
+            rec_counter=rec_counter+1
+            ! prepare the buffer for receive
+            ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer))
+            buffer_rec(rec_counter)%msg=0.0_dp
+            buffer_rec(rec_counter)%proc=proc_receive
+  
+            ! post the receiving message
+            CALL mp_irecv(buffer_rec(rec_counter)%msg,proc_receive,para_env_RPA%group,buffer_rec(rec_counter)%msg_req)
+          END IF
+        END DO
+  
+        ! 6) send data
+        ALLOCATE(req_send(number_of_send))
+        send_counter=0
+        DO proc_shift=1, para_env_RPA%num_pe-1
+          proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
+          IF(map_send_size(proc_send)>0) THEN
+            send_counter=send_counter+1
+            CALL mp_isend(buffer_send(send_counter)%msg,proc_send,para_env_RPA%group,buffer_send(send_counter)%msg_req)
+            req_send(send_counter)=buffer_send(send_counter)%msg_req
+          END IF
+        END DO
+        CALL timestop(handle3)
+  
+        ! 8) fill the fm_mat_S matrix
+        CALL timeset(routineN//"_fill",handle3)
+        ! In order to perform this step efficiently first we have to know the  
+        ! ranges of the blocks over which a given process hold its local data.
+        ! Start with the rows ...
+        my_num_row_blocks=1
+        DO iiB=1, nrow_local-1
+          IF(ABS(row_indices(iiB+1)-row_indices(iiB))==1) CYCLE
+          my_num_row_blocks=my_num_row_blocks+1
+        END DO
+        ALLOCATE(blocks_ranges_row(2,my_num_row_blocks))
+        blocks_ranges_row=0
+        blocks_ranges_row(1,1)=row_indices(1)
+        iii=1
+        DO iiB=1, nrow_local-1
+          IF(ABS(row_indices(iiB+1)-row_indices(iiB))==1) CYCLE
+          iii=iii+1
+          blocks_ranges_row(2,iii-1)=row_indices(iiB)
+          blocks_ranges_row(1,iii)=row_indices(iiB+1)
+        END DO
+        blocks_ranges_row(2,my_num_row_blocks)=row_indices(MAX(nrow_local,1))
+  
+        ! and columns
+        my_num_col_blocks=1
+        DO jjB=1, ncol_local-1
+          IF(ABS(col_indices(jjB+1)-col_indices(jjB))==1) CYCLE
+          my_num_col_blocks=my_num_col_blocks+1
+        END DO
+        ALLOCATE(blocks_ranges_col(2,my_num_col_blocks))
+        blocks_ranges_col=0
+        blocks_ranges_col(1,1)=col_indices(1)
+        iii=1
+        DO jjB=1, ncol_local-1
+          IF(ABS(col_indices(jjB+1)-col_indices(jjB))==1) CYCLE
+          iii=iii+1
+          blocks_ranges_col(2,iii-1)=col_indices(jjB)
+          blocks_ranges_col(1,iii)=col_indices(jjB+1)
+        END DO
+        blocks_ranges_col(2,my_num_col_blocks)=col_indices(MAX(ncol_local,1))
+  
+        rec_counter=0
+        DO proc_shift=1, para_env_RPA%num_pe-1
+          proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
+          size_rec_buffer=map_rec_size(proc_receive)
+  
+          IF(map_rec_size(proc_receive)>0) THEN
+            rec_counter=rec_counter+1
+  
+            rec_L_size=RPA_info_size(1,proc_receive)
+            rec_L_start=RPA_info_start(1,proc_receive)
+            rec_L_end=RPA_info_end(1,proc_receive)
+            ! precompute the number of received columns and relative index
+            num_rec_cols=0
+            DO jjB=1, my_num_col_blocks
+              start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
+              end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
+              DO j_sub=start_col_block, end_col_block
+                num_rec_cols=num_rec_cols+1
+              END DO
+            END DO
+            ALLOCATE(index_col_rec(num_rec_cols))
+            index_col_rec=0
+            iii=0
+            DO jjB=1, my_num_col_blocks
+              start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
+              end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
+              DO j_sub=start_col_block, end_col_block
+                iii=iii+1
+                j_local=cp_fm_indxg2l(j_sub,ncol_block,dummy_proc,&
+                                      fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+                index_col_rec(iii)=j_local
+              END DO
+            END DO
+  
+            rec_ia_size=RPA_info_size(2,proc_receive)
+            rec_ia_start=RPA_info_start(2,proc_receive)
+            rec_ia_end=RPA_info_end(2,proc_receive)
+  
+            ! wait for the message 
+            CALL mp_wait(buffer_rec(rec_counter)%msg_req)
+  
+            iii=0
+            DO iiB=1, my_num_row_blocks
+              start_row_block=MAX(blocks_ranges_row(1,iiB),rec_ia_start)
+              end_row_block=MIN(blocks_ranges_row(2,iiB),rec_ia_end)
+              DO i_sub=start_row_block, end_row_block
+                i_local=cp_fm_indxg2l(i_sub,nrow_block,dummy_proc,&
+                                      fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+                ! DO jjB=1, my_num_col_blocks
+                !   start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
+                !   end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
+                !   DO j_sub=start_col_block, end_col_block
+                !     j_local=cp_fm_indxg2l(j_sub,ncol_block,dummy_proc,&
+                !                           fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+                !     iii=iii+1
+                !     fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+                !   END DO
+                ! END DO
+                DO jjB=1, num_rec_cols 
+                  iii=iii+1
+                  j_local=index_col_rec(jjB)
+                  fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+                END DO
+              END DO
+            END DO
+  
+            ! iii=0
+            ! DO iiB=rec_ia_start, rec_ia_end
+            !   rec_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
+            !                    fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+            !   IF(rec_prow.NE.myprow) CYCLE
+            !   i_local=cp_fm_indxg2l(iiB,nrow_block,dummy_proc,&
+            !                         fm_mat_S%matrix_struct%first_p_pos(1),nprow)
+            !   DO jjB=rec_L_start, rec_L_end
+            !     rec_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
+            !                      fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+            !     IF(rec_pcol.NE.mypcol) CYCLE
+            !     j_local=cp_fm_indxg2l(jjB,ncol_block,dummy_proc,&
+            !                     fm_mat_S%matrix_struct%first_p_pos(2),npcol)
+            !     iii=iii+1
+            !     fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+            !   END DO
+            ! END DO
+  
+            DEALLOCATE(buffer_rec(rec_counter)%msg) 
+            DEALLOCATE(index_col_rec)
+            
+          END IF
+        END DO
+        DEALLOCATE(buffer_rec)
+        
+        DEALLOCATE(blocks_ranges_row)
+        DEALLOCATE(blocks_ranges_col)
+        
+        CALL timestop(handle3)
+        
+        ! wait for all messeges to be sent
+        CALL timeset(routineN//"_waitall",handle3)
+        CALL mp_waitall(req_send(:))
+        DO send_counter=1, number_of_send
+          DEALLOCATE(buffer_send(send_counter)%msg)
+        END DO
+        DEALLOCATE(buffer_send)
+        CALL timestop(handle3)
+  
+        DEALLOCATE(group_grid_2_mepos)
+        DEALLOCATE(map_send_size)
+        DEALLOCATE(map_rec_size)
+        DEALLOCATE(grid_2_mepos)
+        DEALLOCATE(mepos_2_grid)
+  
+        CALL timestop(handle2)
+      ELSE   
+        ! old inefficient replication scheme
+        ! local data
         DO jjB=1, ncol_local
           j_global=col_indices(jjB)
           IF(j_global>=my_group_L_start.AND.j_global<=my_group_L_end) THEN
@@ -1052,358 +1490,71 @@ MODULE rpa_ri_gpw
             END DO
           END IF
         END DO
-      END IF
-      CALL timestop(handle3)
-
-      ! 4) reorder data in the send_buffer
-      CALL timeset(routineN//"_buffer_s",handle3)
-      number_of_send=0
-      DO proc_shift=1, para_env_RPA%num_pe-1
-        proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
-        IF(map_send_size(proc_send)>0) THEN
-          number_of_send=number_of_send+1
-        END IF
-      END DO
-
-      ALLOCATE(buffer_send(number_of_send))
-
-      ! this array given a pair (ref_send_prow,ref_send_pcol) returns
-      ! the position in the buffer_send associated to that process
-      ALLOCATE(grid_ref_2_send_pos(0:nprow-1,0:npcol-1))
-      grid_ref_2_send_pos=0
-
-      send_counter=0
-      DO proc_shift=1, para_env_RPA%num_pe-1
-        proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
-        size_send_buffer=map_send_size(proc_send)
-
-        IF(map_send_size(proc_send)>0) THEN
-          send_counter=send_counter+1
-          ! prepare the sending buffer
-          ALLOCATE(buffer_send(send_counter)%msg(size_send_buffer))
-          buffer_send(send_counter)%msg=0.0_dp
-          buffer_send(send_counter)%proc=proc_send
-
-          ref_send_prow=mepos_2_grid(proc_send,1)
-          ref_send_pcol=mepos_2_grid(proc_send,2)
-
-          grid_ref_2_send_pos(ref_send_prow,ref_send_pcol)=send_counter
-
-          ! iii=0
-          ! DO iiB=my_ia_start, my_ia_end
-          !   send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-          !                           fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-          !   IF(send_prow.NE.ref_send_prow) CYCLE
-          !   DO jjB=my_group_L_start, my_group_L_end
-          !     send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-          !                             fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-          !     IF(send_pcol.NE.ref_send_pcol) CYCLE
-          !     iii=iii+1
-          !     buffer_send(send_counter)%msg(iii)=BIb_C_2D(iiB-my_ia_start+1,jjB-my_group_L_start+1)
-          !   END DO
-          ! END DO
-
-        END IF
-
-      END DO
-
-      ! loop over the locally held data and fill the buffer_send
-      ! for doing that we need an array index 
-      ALLOCATE(iii_vet(number_of_send))
-    
-      iii_vet=0
-      DO iiB=my_ia_start, my_ia_end
-        send_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-                                fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-        DO jjB=my_group_L_start, my_group_L_end
-          send_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-                                  fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-          ! we don't need to send to ourselves
-          IF(grid_2_mepos(send_prow,send_pcol)==para_env_RPA%mepos) CYCLE
-
-          send_counter=grid_ref_2_send_pos(send_prow,send_pcol)
-          iii_vet(send_counter)=iii_vet(send_counter)+1
-          iii=iii_vet(send_counter)
-          buffer_send(send_counter)%msg(iii)=BIb_C_2D(iiB-my_ia_start+1,jjB-my_group_L_start+1)
-        END DO
-      END DO
-
-      DEALLOCATE(iii_vet)
-      DEALLOCATE(grid_ref_2_send_pos)
-      DEALLOCATE(BIb_C_2D)
-      CALL timestop(handle3)
-
-      ! 5) create the buffer for receive and post the irecv
-      CALL timeset(routineN//"_isendrecv",handle3)
-      number_of_rec=0
-      DO proc_shift=1, para_env_RPA%num_pe-1
-        proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
-        IF(map_rec_size(proc_receive)>0) THEN
-          number_of_rec=number_of_rec+1
-        END IF
-      END DO
   
-      ALLOCATE(buffer_rec(number_of_rec))
-
-      rec_counter=0
-      DO proc_shift=1, para_env_RPA%num_pe-1
-        proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
-        size_rec_buffer=map_rec_size(proc_receive)
-
-        IF(map_rec_size(proc_receive)>0) THEN
-          rec_counter=rec_counter+1
-          ! prepare the buffer for receive
-          ALLOCATE(buffer_rec(rec_counter)%msg(size_rec_buffer))
-          buffer_rec(rec_counter)%msg=0.0_dp
-          buffer_rec(rec_counter)%proc=proc_receive
-
-          ! post the receiving message
-          CALL mp_irecv(buffer_rec(rec_counter)%msg,proc_receive,para_env_RPA%group,buffer_rec(rec_counter)%msg_req)
-        END IF
-      END DO
-
-      ! 6) send data
-      ALLOCATE(req_send(number_of_send))
-      send_counter=0
-      DO proc_shift=1, para_env_RPA%num_pe-1
-        proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
-        IF(map_send_size(proc_send)>0) THEN
-          send_counter=send_counter+1
-          CALL mp_isend(buffer_send(send_counter)%msg,proc_send,para_env_RPA%group,buffer_send(send_counter)%msg_req)
-          req_send(send_counter)=buffer_send(send_counter)%msg_req
-        END IF
-      END DO
-      CALL timestop(handle3)
-
-      ! 8) fill the fm_mat_S matrix
-      CALL timeset(routineN//"_fill",handle3)
-      ! In order to perform this step efficiently first we have to know the  
-      ! ranges of the blocks over which a given process hold its local data.
-      ! Start with the rows ...
-      my_num_row_blocks=1
-      DO iiB=1, nrow_local-1
-        IF(ABS(row_indices(iiB+1)-row_indices(iiB))==1) CYCLE
-        my_num_row_blocks=my_num_row_blocks+1
-      END DO
-      ALLOCATE(blocks_ranges_row(2,my_num_row_blocks))
-      blocks_ranges_row=0
-      blocks_ranges_row(1,1)=row_indices(1)
-      iii=1
-      DO iiB=1, nrow_local-1
-        IF(ABS(row_indices(iiB+1)-row_indices(iiB))==1) CYCLE
-        iii=iii+1
-        blocks_ranges_row(2,iii-1)=row_indices(iiB)
-        blocks_ranges_row(1,iii)=row_indices(iiB+1)
-      END DO
-      blocks_ranges_row(2,my_num_row_blocks)=row_indices(MAX(nrow_local,1))
-
-      ! and columns
-      my_num_col_blocks=1
-      DO jjB=1, ncol_local-1
-        IF(ABS(col_indices(jjB+1)-col_indices(jjB))==1) CYCLE
-        my_num_col_blocks=my_num_col_blocks+1
-      END DO
-      ALLOCATE(blocks_ranges_col(2,my_num_col_blocks))
-      blocks_ranges_col=0
-      blocks_ranges_col(1,1)=col_indices(1)
-      iii=1
-      DO jjB=1, ncol_local-1
-        IF(ABS(col_indices(jjB+1)-col_indices(jjB))==1) CYCLE
-        iii=iii+1
-        blocks_ranges_col(2,iii-1)=col_indices(jjB)
-        blocks_ranges_col(1,iii)=col_indices(jjB+1)
-      END DO
-      blocks_ranges_col(2,my_num_col_blocks)=col_indices(MAX(ncol_local,1))
-
-      rec_counter=0
-      DO proc_shift=1, para_env_RPA%num_pe-1
-        proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
-        size_rec_buffer=map_rec_size(proc_receive)
-
-        IF(map_rec_size(proc_receive)>0) THEN
-          rec_counter=rec_counter+1
-
+        proc_send_static=RPA_proc_map(para_env_RPA%mepos+1)
+        proc_receive_static=RPA_proc_map(para_env_RPA%mepos-1)
+  
+        ! start collect data from other proc in the RPA group
+        DO proc_shift=1, para_env_RPA%num_pe-1
+          proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
+          proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
+  
           rec_L_size=RPA_info_size(1,proc_receive)
           rec_L_start=RPA_info_start(1,proc_receive)
           rec_L_end=RPA_info_end(1,proc_receive)
-          ! precompute the number of received columns and relative index
-          num_rec_cols=0
-          DO jjB=1, my_num_col_blocks
-            start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
-            end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
-            DO j_sub=start_col_block, end_col_block
-              num_rec_cols=num_rec_cols+1
-            END DO
-          END DO
-          ALLOCATE(index_col_rec(num_rec_cols))
-          index_col_rec=0
-          iii=0
-          DO jjB=1, my_num_col_blocks
-            start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
-            end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
-            DO j_sub=start_col_block, end_col_block
-              iii=iii+1
-              j_local=cp_fm_indxg2l(j_sub,ncol_block,dummy_proc,&
-                                    fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-              index_col_rec(iii)=j_local
-            END DO
-          END DO
-
+  
           rec_ia_size=RPA_info_size(2,proc_receive)
           rec_ia_start=RPA_info_start(2,proc_receive)
           rec_ia_end=RPA_info_end(2,proc_receive)
-
-          ! wait for the message 
-          CALL mp_wait(buffer_rec(rec_counter)%msg_req)
-
-          iii=0
-          DO iiB=1, my_num_row_blocks
-            start_row_block=MAX(blocks_ranges_row(1,iiB),rec_ia_start)
-            end_row_block=MIN(blocks_ranges_row(2,iiB),rec_ia_end)
-            DO i_sub=start_row_block, end_row_block
-              i_local=cp_fm_indxg2l(i_sub,nrow_block,dummy_proc,&
-                                    fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-              ! DO jjB=1, my_num_col_blocks
-              !   start_col_block=MAX(blocks_ranges_col(1,jjB),rec_L_start)
-              !   end_col_block=MIN(blocks_ranges_col(2,jjB),rec_L_end)
-              !   DO j_sub=start_col_block, end_col_block
-              !     j_local=cp_fm_indxg2l(j_sub,ncol_block,dummy_proc,&
-              !                           fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-              !     iii=iii+1
-              !     fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
-              !   END DO
-              ! END DO
-              DO jjB=1, num_rec_cols 
-                iii=iii+1
-                j_local=index_col_rec(jjB)
-                fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
+  
+          ALLOCATE(BIb_C_rec(rec_ia_size,rec_L_size))
+          BIb_C_rec=0.0_dp
+  
+          CALL  mp_sendrecv(BIb_C_2D,proc_send_static,&
+                            BIb_C_rec,proc_receive_static,&
+                            para_env_RPA%group)
+  
+          DO jjB=1, ncol_local
+            j_global=col_indices(jjB)
+            IF(j_global>=rec_L_start.AND.j_global<=rec_L_end) THEN
+              DO iiB=1, nrow_local
+                i_global=row_indices(iiB)
+                IF(i_global>=rec_ia_start.AND.i_global<=rec_ia_end) THEN
+                  fm_mat_S%local_data(iiB,jjB)=BIb_C_rec(i_global-rec_ia_start+1,j_global-rec_L_start+1)
+                END IF
               END DO
-            END DO
-          END DO
-
-          ! iii=0
-          ! DO iiB=rec_ia_start, rec_ia_end
-          !   rec_prow=cp_fm_indxg2p(iiB,nrow_block,dummy_proc,&
-          !                    fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-          !   IF(rec_prow.NE.myprow) CYCLE
-          !   i_local=cp_fm_indxg2l(iiB,nrow_block,dummy_proc,&
-          !                         fm_mat_S%matrix_struct%first_p_pos(1),nprow)
-          !   DO jjB=rec_L_start, rec_L_end
-          !     rec_pcol=cp_fm_indxg2p(jjB,ncol_block,dummy_proc,&
-          !                      fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-          !     IF(rec_pcol.NE.mypcol) CYCLE
-          !     j_local=cp_fm_indxg2l(jjB,ncol_block,dummy_proc,&
-          !                     fm_mat_S%matrix_struct%first_p_pos(2),npcol)
-          !     iii=iii+1
-          !     fm_mat_S%local_data(i_local,j_local)=buffer_rec(rec_counter)%msg(iii)
-          !   END DO
-          ! END DO
-
-          DEALLOCATE(buffer_rec(rec_counter)%msg) 
-          DEALLOCATE(index_col_rec)
-          
-        END IF
-      END DO
-      DEALLOCATE(buffer_rec)
-      
-      DEALLOCATE(blocks_ranges_row)
-      DEALLOCATE(blocks_ranges_col)
-      
-      CALL timestop(handle3)
-      
-      ! wait for all messeges to be sent
-      CALL timeset(routineN//"_waitall",handle3)
-      CALL mp_waitall(req_send(:))
-      DO send_counter=1, number_of_send
-        DEALLOCATE(buffer_send(send_counter)%msg)
-      END DO
-      DEALLOCATE(buffer_send)
-      CALL timestop(handle3)
-
-      DEALLOCATE(group_grid_2_mepos)
-      DEALLOCATE(map_send_size)
-      DEALLOCATE(map_rec_size)
-      DEALLOCATE(grid_2_mepos)
-      DEALLOCATE(mepos_2_grid)
-
-      CALL timestop(handle2)
-    ELSE   
-      ! old inefficient replication scheme
-      ! local data
-      DO jjB=1, ncol_local
-        j_global=col_indices(jjB)
-        IF(j_global>=my_group_L_start.AND.j_global<=my_group_L_end) THEN
-          DO iiB=1, nrow_local
-            i_global=row_indices(iiB)
-            IF(i_global>=my_ia_start.AND.i_global<=my_ia_end) THEN
-              fm_mat_S%local_data(iiB,jjB)=BIb_C_2D(i_global-my_ia_start+1,j_global-my_group_L_start+1)
             END IF
           END DO
-        END IF
-      END DO
-
-      proc_send_static=RPA_proc_map(para_env_RPA%mepos+1)
-      proc_receive_static=RPA_proc_map(para_env_RPA%mepos-1)
-
-      ! start collect data from other proc in the RPA group
-      DO proc_shift=1, para_env_RPA%num_pe-1
-        proc_send=RPA_proc_map(para_env_RPA%mepos+proc_shift)
-        proc_receive=RPA_proc_map(para_env_RPA%mepos-proc_shift)
-
-        rec_L_size=RPA_info_size(1,proc_receive)
-        rec_L_start=RPA_info_start(1,proc_receive)
-        rec_L_end=RPA_info_end(1,proc_receive)
-
-        rec_ia_size=RPA_info_size(2,proc_receive)
-        rec_ia_start=RPA_info_start(2,proc_receive)
-        rec_ia_end=RPA_info_end(2,proc_receive)
-
-        ALLOCATE(BIb_C_rec(rec_ia_size,rec_L_size))
-        BIb_C_rec=0.0_dp
-
-        CALL  mp_sendrecv(BIb_C_2D,proc_send_static,&
-                          BIb_C_rec,proc_receive_static,&
-                          para_env_RPA%group)
-
-        DO jjB=1, ncol_local
-          j_global=col_indices(jjB)
-          IF(j_global>=rec_L_start.AND.j_global<=rec_L_end) THEN
-            DO iiB=1, nrow_local
-              i_global=row_indices(iiB)
-              IF(i_global>=rec_ia_start.AND.i_global<=rec_ia_end) THEN
-                fm_mat_S%local_data(iiB,jjB)=BIb_C_rec(i_global-rec_ia_start+1,j_global-rec_L_start+1)
-              END IF
-            END DO
-          END IF
+  
+          DEALLOCATE(BIb_C_2D)
+          ALLOCATE(BIb_C_2D(rec_ia_size,rec_L_size))
+          BIb_C_2D(:,:)=BIb_C_rec
+  
+          DEALLOCATE(BIb_C_rec)
         END DO
-
+  
         DEALLOCATE(BIb_C_2D)
-        ALLOCATE(BIb_C_2D(rec_ia_size,rec_L_size))
-        BIb_C_2D(:,:)=BIb_C_rec
+      END IF
+  
+      ! deallocaete the info array
+      DEALLOCATE(RPA_info_start)
+      DEALLOCATE(RPA_info_end)
+      DEALLOCATE(RPA_info_size)
+  
+      ! mp_sum the local data across processes belonging to different RPA group.
+      ! first create the para_env then mp_sum
+      sub_sub_color=para_env_RPA%mepos
+      CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
+      NULLIFY(para_env_exchange)
+      CALL cp_para_env_create(para_env_exchange,comm_exchange)
+  
+      CALL timeset(routineN//"_sum",handle2)
+      CALL mp_sum(fm_mat_S%local_data,para_env_exchange%group)
+      CALL timestop(handle2)
+  
+      CALL cp_para_env_release(para_env_exchange)
 
-        DEALLOCATE(BIb_C_rec)
-      END DO
-
-      DEALLOCATE(BIb_C_2D)
-    END IF
-
-    ! deallocaete the info array
-    DEALLOCATE(RPA_info_start)
-    DEALLOCATE(RPA_info_end)
-    DEALLOCATE(RPA_info_size)
-
-    ! mp_sum the local data across processes belonging to different RPA group.
-    ! first create the para_env then mp_sum
-    sub_sub_color=para_env_RPA%mepos
-    CALL mp_comm_split_direct(para_env%group,comm_exchange,sub_sub_color)
-    NULLIFY(para_env_exchange)
-    CALL cp_para_env_create(para_env_exchange,comm_exchange)
-
-    CALL timeset(routineN//"_sum",handle2)
-    CALL mp_sum(fm_mat_S%local_data,para_env_exchange%group)
-    CALL timestop(handle2)
-
-    CALL cp_para_env_release(para_env_exchange)
+    END IF ! not imag. time
 
     ! create the twin matrix for the mat-mat-mul (mat_Q)
     !XXX CALL cp_fm_create(fm_mat_G,fm_struct,name="fm_mat_G")
@@ -1444,6 +1595,48 @@ MODULE rpa_ri_gpw
       CALL cp_fm_set_all(matrix=fm_mat_Q,alpha=0.0_dp)
     END IF
 
+
+    ! in case we do imaginary time, we allocate fm_scaled_dm_occ and fm_scaled_dm_virt                         
+    IF(my_do_im_time) THEN
+
+      CALL cp_fm_create(fm_scaled_dm_occ,mo_coeff%matrix_struct)
+      CALL cp_fm_set_all(fm_scaled_dm_occ,0.0_dp)
+
+      CALL cp_fm_create(fm_scaled_dm_virt,mo_coeff%matrix_struct)
+      CALL cp_fm_set_all(fm_scaled_dm_virt,0.0_dp)
+
+      CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ,fm_mo_coeff_virt,mo_coeff,&
+                                     nmo,homo)
+
+      ! in case we do GW, we directly work with Q(it) (or Pi(it)) and do not need Q(iw)
+      IF(.NOT. my_do_gw) THEN
+        ALLOCATE(fm_mat_Q_omega(num_integ_points))
+        DO iii=1,num_integ_points
+          CALL cp_fm_create(fm_mat_Q_omega(iii)%matrix,fm_mat_Q%matrix_struct)
+          CALL cp_fm_set_all(fm_mat_Q_omega(iii)%matrix,0.0_dp)
+        END DO
+      END IF
+
+      CALL cp_dbcsr_get_info(mat_B_munu(1)%matrix,nblkrows_total, nblkcols_total,&
+                             nfullrows_total, nfullcols_total,&
+                             nblkrows_local, nblkcols_local,&
+                             nfullrows_local, nfullcols_local,&
+                             my_prow, my_pcol,&
+                             local_rows, local_cols, proc_row_dist, proc_col_dist,&
+                             row_blk_size, col_blk_size, row_blk_offset, col_blk_offset)
+
+     ALLOCATE(block_distribution_M(ngroup,nblkrows_total,nblkcols_total))
+     block_distribution_M = 0
+
+     ! take care: color_sub starts with 0
+     block_distribution_M(color_sub+1,local_rows,local_cols) = para_env%mepos
+
+     CALL mp_sum(block_distribution_M,para_env%group) 
+
+     DEALLOCATE(block_distribution_M)
+
+    END IF ! imag. time
+
     ! release blacs_env
     IF(.NOT.my_blacs_ext) CALL cp_blacs_env_release(blacs_env_Q)
     IF(.NOT.my_blacs_S_ext) CALL cp_blacs_env_release(blacs_env)
@@ -1452,12 +1645,62 @@ MODULE rpa_ri_gpw
 
     END SUBROUTINE create_integ_mat
 
+
+! *****************************************************************************
+!> \brief ...
+!> \param fm_mo_coeff_occ ...
+!> \param fm_mo_coeff_virt ...
+!> \param mo_coeff ...
+!> \param nmo ...
+!> \param homo ...
+! *****************************************************************************
+  SUBROUTINE create_occ_virt_mo_coeffs(fm_mo_coeff_occ,fm_mo_coeff_virt,mo_coeff,&
+                                       nmo,homo)
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mo_coeff_occ, &
+                                                fm_mo_coeff_virt, mo_coeff
+    INTEGER                                  :: nmo, homo
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_occ_virt_mo_coeffs', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, icol_global, &
+                                                irow_global
+
+    CALL timeset(routineN,handle)
+
+    CALL cp_fm_create(fm_mo_coeff_occ,mo_coeff%matrix_struct)
+    CALL cp_fm_set_all(fm_mo_coeff_occ,0.0_dp)
+    CALL cp_fm_to_fm(mo_coeff,fm_mo_coeff_occ)
+
+    ! set all virtual MO coeffs to zero
+    DO irow_global=1,nmo
+      DO icol_global=homo+1,nmo
+        CALL cp_fm_set_element(fm_mo_coeff_occ,irow_global,icol_global,0.0_dp)
+      END DO
+    END DO
+
+    CALL cp_fm_create(fm_mo_coeff_virt,mo_coeff%matrix_struct)
+    CALL cp_fm_set_all(fm_mo_coeff_virt,0.0_dp)
+    CALL cp_fm_to_fm(mo_coeff,fm_mo_coeff_virt)
+
+    ! set all occupied MO coeffs to zero
+    DO irow_global=1,nmo
+      DO icol_global=1,homo
+        CALL cp_fm_set_element(fm_mo_coeff_virt,irow_global,icol_global,0.0_dp)
+      END DO
+    END DO
+
+    CALL timestop(handle)
+
+  END SUBROUTINE create_occ_virt_mo_coeffs
+
 ! *****************************************************************************
 !> \brief ...
 !> \param Erpa ...
 !> \param mp2_env ...
 !> \param para_env ...
 !> \param para_env_RPA ...
+!> \param para_env_sub ...
 !> \param unit_nr ...
 !> \param homo ...
 !> \param virtual ...
@@ -1496,20 +1739,45 @@ MODULE rpa_ri_gpw
 !> \param fm_mat_S_gw_beta ...
 !> \param gw_corr_lev_occ_beta ...
 !> \param gw_corr_lev_virt_beta ...
+!> \param do_im_time ...
+!> \param fm_scaled_dm_occ ...
+!> \param fm_scaled_dm_virt ...
+!> \param mo_coeff ...
+!> \param fm_mo_coeff_occ ...
+!> \param fm_mo_coeff_virt ...
+!> \param fm_mat_Q_omega ...
+!> \param mat_munu ...
+!> \param mat_B_munu ...
+!> \param my_Lrows ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param ngroup ...
+!> \param eps_filter ...
+!> \param sizes_array ...
+!> \param mo_coeff_beta ...
+!> \param fm_mo_coeff_occ_beta ...
+!> \param fm_mo_coeff_virt_beta ...
 ! *****************************************************************************
-    SUBROUTINE rpa_numerical_integ(Erpa,mp2_env,para_env,para_env_RPA,unit_nr,&
-                                   homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
-                                   Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
-                                   fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
-                                   my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
-                                   stop_crit,check_fit,fermi_level_offset,crossing_search,&
-                                   max_iter_fit,mm_style,do_minimax_quad,&
-                                   homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
-                                   fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
-                                   gw_corr_lev_occ_beta,gw_corr_lev_virt_beta)
+    SUBROUTINE rpa_num_int(Erpa,mp2_env,para_env,para_env_RPA,para_env_sub,unit_nr,&
+                           homo,virtual,dimen_RI,dimen_ia,dimen_nm_gw,&
+                           Eigenval,num_integ_points,num_integ_group,color_rpa_group,&
+                           fm_mat_S,fm_mat_Q_gemm,fm_mat_Q,fm_mat_S_gw,fm_mat_R_gw,&
+                           my_do_gw,gw_corr_lev_occ,gw_corr_lev_virt,num_poles,ext_scaling,omega_max_fit,&
+                           stop_crit,check_fit,fermi_level_offset,crossing_search,&
+                           max_iter_fit,mm_style,do_minimax_quad,&
+                           homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
+                           fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
+                           gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,&
+                           do_im_time,fm_scaled_dm_occ,fm_scaled_dm_virt,mo_coeff,&
+                           fm_mo_coeff_occ,fm_mo_coeff_virt,fm_mat_Q_omega,mat_munu,mat_B_munu,&
+                           my_Lrows,my_group_L_size,my_group_L_start,&
+                           my_group_L_end,ngroup,eps_filter,&
+                           sizes_array,mo_coeff_beta,fm_mo_coeff_occ_beta,fm_mo_coeff_virt_beta)
     REAL(KIND=dp)                            :: Erpa
     TYPE(mp2_type), POINTER                  :: mp2_env
-    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA, &
+                                                para_env_sub
     INTEGER                                  :: unit_nr, homo, virtual, &
                                                 dimen_RI, dimen_ia, &
                                                 dimen_nm_gw
@@ -1539,8 +1807,29 @@ MODULE rpa_ri_gpw
                                                 fm_mat_S_gw_beta
     INTEGER, OPTIONAL                        :: gw_corr_lev_occ_beta, &
                                                 gw_corr_lev_virt_beta
+    LOGICAL, OPTIONAL                        :: do_im_time
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_scaled_dm_occ, &
+                                                fm_scaled_dm_virt, mo_coeff, &
+                                                fm_mo_coeff_occ, &
+                                                fm_mo_coeff_virt
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: fm_mat_Q_omega
+    TYPE(cp_dbcsr_p_type)                    :: mat_munu
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mat_B_munu
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :), OPTIONAL              :: my_Lrows
+    INTEGER, OPTIONAL                        :: my_group_L_size, &
+                                                my_group_L_start, &
+                                                my_group_L_end, ngroup
+    REAL(KIND=dp), OPTIONAL                  :: eps_filter
+    INTEGER, ALLOCATABLE, DIMENSION(:), &
+      OPTIONAL                               :: sizes_array
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff_beta, &
+                                                fm_mo_coeff_occ_beta, &
+                                                fm_mo_coeff_virt_beta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_numerical_integ', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_num_int', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: im_unit, re_unit
@@ -1551,33 +1840,48 @@ MODULE rpa_ri_gpw
                                                 vec_Sigma_c_gw_beta
     INTEGER :: avirt, contour_def_end, contour_def_level_tot, &
       contour_def_start, count_ev_sc_GW, gw_corr_lev_tot, handle, handle2, &
-      handle3, i_ener, i_global, i_mo, ierr, iiB, index_contour_def, &
-      info_chol, iocc, iquad, iter_ev_sc, j_global, j_mo, jjB, jquad, &
-      m_global, m_global_beta, my_num_dgemm_call, n_global, n_global_beta, &
-      n_level_gw, n_level_gw_ref, ncol_local, nm_global, nmo, nrow_local, &
-      num_fit_points, num_real_freq_cont_def, num_residues, num_var, &
-      number_of_rec, number_of_rec_beta, number_of_send, number_of_send_beta
+      handle3, handle4, i_ener, i_global, i_mo, ierr, iiB, iii, &
+      index_contour_def, info_chol, iocc, iquad, iter_ev_sc, j_global, j_mo, &
+      jjB, jquad, m_global, m_global_beta, max_size_RI_group, &
+      my_num_dgemm_call, n_global, n_global_beta, n_level_gw, n_level_gw_ref, &
+      ncol_local, nm_global, nmo, nrow_local, num_fit_points, &
+      num_real_freq_cont_def, num_residues, num_var, num_x_nodes_max, &
+      num_x_nodes_min, num_x_nodes_min_temp, num_x_nodes_step, number_of_rec, &
+      number_of_rec_beta
+    INTEGER :: number_of_send, number_of_send_beta
     INTEGER, ALLOCATABLE, DIMENSION(:) :: alpha_beta_from_jquad, &
       map_rec_size, map_rec_size_beta, map_send_size, map_send_size_beta, &
       mo_from_jquad, residue_from_jquad, RPA_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_size_source, &
                                                 local_size_source_beta
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
-    LOGICAL                                  :: do_contour_def, first_cycle, &
-                                                my_open_shell
+    LOGICAL :: do_contour_def, do_mix_exchange, do_ri_Sigma_x, first_cycle, &
+      first_cycle_im_time, first_cycle_im_time_beta, my_do_im_time, &
+      my_open_shell, remove_neg_virt_energies
     REAL(KIND=dp) :: a_scaling, actual_flop_rate, alpha, contour_def_offset, &
       e_fermi, E_Range, eigen_diff, Emax, Emax_beta, Emin, Emin_beta, &
-      FComega, my_flop_rate, omega, omega_i, omega_old, sign_occ_virt, t_end, &
-      t_start
+      FComega, frac_rix, ls_error, max_error_min, my_flop_rate, omega, &
+      omega_i, omega_old, sign_occ_virt, t_end, t_start, tau, tau_old
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, &
       Eigenval_last_beta, Eigenval_scf, Eigenval_scf_beta, Lambda_Im, &
-      Lambda_Re, m_value, m_value_beta, Q_log, real_freq, tj, trace_Qomega, &
-      vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
+      Lambda_Re, m_value, m_value_beta, Q_log, real_freq, tau_tj, tau_wj, tj, &
+      trace_Qomega, vec_gw_energ, vec_gw_energ_beta, vec_gw_energ_error_fit, &
       vec_gw_energ_error_fit_beta, vec_omega_fit_gw, vec_omega_fit_gw_sign, &
       vec_omega_gw, vec_Sigma_c_gw_real_freq, vec_Sigma_c_gw_real_freq_beta, &
-      vec_W_gw, vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
-    TYPE(cp_fm_type), POINTER :: fm_mat_S_contour_def, &
-      fm_mat_S_contour_def_beta, fm_mat_S_gw_work, fm_mat_S_gw_work_beta
+      vec_Sigma_x_gw, vec_Sigma_x_gw_beta, vec_tau_fit_gw_sign, vec_W_gw, &
+      vec_W_gw_beta, wj, x_tw, z_value, z_value_beta
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: my_Lrows_transposed, &
+                                                tau_wj_2d, trace_2d, &
+                                                vec_W_gw_store
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: mat_M_munu_P_occ, &
+                                                mat_M_munu_P_virt
+    TYPE(cp_dbcsr_type), POINTER             :: mat_M_munu_occ, &
+                                                mat_M_munu_virt
+    TYPE(cp_fm_type), POINTER :: fm_mat_L, fm_mat_S_contour_def, &
+      fm_mat_S_contour_def_beta, fm_mat_S_gw_work, fm_mat_S_gw_work_beta, &
+      fm_mat_work
     TYPE(integ_mat_buffer_type), &
       ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_rec_beta, &
                                                 buffer_send, buffer_send_beta
@@ -1593,15 +1897,95 @@ MODULE rpa_ri_gpw
        PRESENT(fm_mat_Q_gemm_beta).AND.&
        PRESENT(fm_mat_Q_beta)) my_open_shell=.TRUE.
 
+    my_do_im_time=.FALSE.
+    IF(PRESENT(do_im_time)) my_do_im_time = do_im_time
+
     do_contour_def = .FALSE.
 
     ALLOCATE(tj(num_integ_points))
     tj=0.0_dp
+
     ALLOCATE(wj(num_integ_points))
     wj=0.0_dp
+
     ALLOCATE(Q_log(dimen_RI))
+
     ALLOCATE(trace_Qomega(dimen_RI))
-  
+
+    ! set up the least-square time grid and other matrices specifically for imag time
+    IF(my_do_im_time) THEN
+
+      ALLOCATE(tau_tj(num_integ_points))
+      tau_tj=0.0_dp
+
+      ALLOCATE(tau_wj_2d(num_integ_points,num_integ_points))
+      tau_wj_2d=0.0_dp
+
+      ALLOCATE(tau_wj(num_integ_points))
+      tau_wj=0.0_dp
+
+      ! determine maximum size of aux. bf group
+      max_size_RI_group = MAXVAL(sizes_array)
+
+      NULLIFY(mat_M_munu_occ)
+      CALL cp_dbcsr_init_p(mat_M_munu_occ)
+      CALL cp_dbcsr_create(matrix=mat_M_munu_occ,template=mat_munu%matrix)
+      CALL cp_dbcsr_copy(mat_M_munu_occ,mat_munu%matrix)
+      CALL cp_dbcsr_set(mat_M_munu_occ,0.0_dp)
+
+      NULLIFY(mat_M_munu_virt)
+      CALL cp_dbcsr_init_p(mat_M_munu_virt)
+      CALL cp_dbcsr_create(matrix=mat_M_munu_virt,template=mat_munu%matrix)
+      CALL cp_dbcsr_copy(mat_M_munu_virt,mat_munu%matrix)
+      CALL cp_dbcsr_set(mat_M_munu_virt,0.0_dp)
+
+      CALL timeset(routineN//"_im_time_alloc_trace_2d",handle4)
+
+      ALLOCATE(trace_2d(my_group_L_size,dimen_RI))
+      trace_2d(:,:) = 0.0_dp
+
+      CALL timestop(handle4)
+
+      CALL timeset(routineN//"_im_time_alloc_mat_M_munu_P_occ",handle4)
+
+      NULLIFY(mat_M_munu_P_occ)
+      CALL cp_dbcsr_allocate_matrix_set(mat_M_munu_P_occ,my_group_L_size)
+      DO iii=1,my_group_L_size
+        ALLOCATE(mat_M_munu_P_occ(iii)%matrix)
+
+        CALL cp_dbcsr_init(mat_M_munu_P_occ(iii)%matrix)
+        CALL cp_dbcsr_desymmetrize(mat_B_munu(1)%matrix,mat_M_munu_P_occ(iii)%matrix)
+        CALL cp_dbcsr_set(mat_M_munu_P_occ(iii)%matrix,0.0_dp)
+      END DO
+
+      CALL timestop(handle4)
+
+      CALL timeset(routineN//"_im_time_alloc_mat_M_munu_P_virt",handle4)
+
+      NULLIFY(mat_M_munu_P_virt)
+      CALL cp_dbcsr_allocate_matrix_set(mat_M_munu_P_virt,max_size_RI_group)
+      DO iii=1,max_size_RI_group
+        ALLOCATE(mat_M_munu_P_virt(iii)%matrix)
+
+        CALL cp_dbcsr_init(mat_M_munu_P_virt(iii)%matrix)
+        CALL cp_dbcsr_desymmetrize(mat_B_munu(1)%matrix,mat_M_munu_P_virt(iii)%matrix)
+        CALL cp_dbcsr_set(mat_M_munu_P_virt(iii)%matrix,0.0_dp)
+      END DO
+
+      CALL timestop(handle4)
+
+      NULLIFY(fm_mat_work)
+      CALL cp_fm_create(fm_mat_work,fm_mat_Q%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_Q,fm_mat_work)
+      CALL cp_fm_set_all(matrix=fm_mat_work,alpha=0.0_dp)
+
+      NULLIFY(fm_mat_L)
+      CALL cp_fm_create(fm_mat_L,fm_mat_Q%matrix_struct)
+      CALL cp_fm_to_fm(fm_mat_Q,fm_mat_L)
+      CALL cp_fm_set_all(matrix=fm_mat_L,alpha=0.0_dp)
+
+    END IF
+
     IF(do_minimax_quad) THEN
       ! MINIMAX quadrature
       ALLOCATE(x_tw(2*num_integ_points))
@@ -1642,8 +2026,69 @@ MODULE rpa_ri_gpw
       ! scale the minimax parameters
       tj(:) = tj(:)*Emin
       wj(:) = wj(:)*Emin
+
+
+      ! set up the minimax time grid
+      IF(my_do_im_time) THEN
+
+        ALLOCATE(x_tw(2*num_integ_points))
+        x_tw=0.0_dp
+
+        CALL get_minimax_coeff(num_integ_points,E_Range,x_tw,ierr)
+
+        DO jquad=1, num_integ_points
+          tau_tj(jquad)=x_tw(jquad)/2.0_dp
+          tau_wj(jquad)=x_tw(jquad+num_integ_points)/2.0_dp
+        END DO
+
+        DEALLOCATE(x_tw)
+
+        IF (unit_nr>0) THEN
+          WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.4)")&
+                              "INTEG_INFO| Range for the minimax approximation:", E_Range
+          WRITE (UNIT=unit_nr,FMT="(T3,A,T54,A,T72,A)") "INTEG_INFO| Minimax parameters of the time grid:","Weights","Abscissas"
+          DO jquad=1, num_integ_points
+            WRITE (UNIT=unit_nr,FMT="(T41,F20.10,F20.10)") tau_wj(jquad), tau_tj(jquad)
+          END DO
+          CALL m_flush(unit_nr)
+        END IF
+
+        ! scale grid from [1,R] to [Emin,Emax]
+        tau_tj(:) = tau_tj(:)/Emin
+        tau_wj(:) = tau_wj(:)/Emin
+
+
+        !JW hack that should be defined in the input
+        num_x_nodes_min  = 5*num_integ_points
   
-    ELSE
+        num_x_nodes_max  = 5*num_integ_points
+  
+        IF(num_x_nodes_min>num_x_nodes_max) THEN
+  
+          num_x_nodes_min_temp = num_x_nodes_min
+  
+          num_x_nodes_min = num_x_nodes_max
+  
+          num_x_nodes_max = num_x_nodes_min_temp
+  
+        END IF
+  
+        num_x_nodes_step = num_integ_points
+  
+
+        ! get the integration weights of the tau-grid specifically for every omega-point (because we are doing a
+        ! Fourier transform from imag. time to imag. frequency)
+        CALL get_rpa_least_sq_weights_tau(num_integ_points,tau_tj,tau_wj,tau_wj_2d,tj,&
+                                          num_x_nodes_min, num_x_nodes_max, num_x_nodes_step,&
+                                          Emin,Emax,E_range,ls_error,max_error_min)
+        IF (unit_nr>0) THEN
+          WRITE (UNIT=unit_nr,FMT="(T3,A,T66,ES15.2)")&
+                              "INTEG_INFO| Maximum deviation of the imag. time fit:", max_error_min
+        END IF
+
+      END IF
+
+    ELSE 
       ! Clenshaw-Curtius quadrature
       DO jquad=1, num_integ_points-1
         tj(jquad)=jquad*pi/(2.0_dp*num_integ_points)
@@ -1668,32 +2113,33 @@ MODULE rpa_ri_gpw
       IF(my_do_gw .AND. ext_scaling > 0.0_dp) THEN
         a_scaling = ext_scaling
       END IF
-  
+
       IF (unit_nr>0) WRITE(unit_nr,'(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
   
       wj(:) = wj(:)*a_scaling
   
     END IF
-  
+
     ! initialize buffer for matrix redistribution
     CALL initialize_buffer(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
                            number_of_rec,number_of_send,&
                            map_send_size,map_rec_size,local_size_source,para_env_RPA)
-    IF(my_open_shell) THEN
+    IF(my_open_shell .AND. (.NOT. my_do_im_time)) THEN
       CALL initialize_buffer(fm_mat_Q_gemm_beta,fm_mat_Q_beta,RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
                              number_of_rec_beta,number_of_send_beta,&
                              map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA)
     END IF
-  
+ 
     IF(my_open_shell) THEN
       alpha=2.0_dp
     ELSE
       alpha=4.0_dp
     END IF
-
+ 
+    nmo=homo+virtual
+ 
     IF(my_do_gw) THEN
-      nmo = homo+virtual
-      gw_corr_lev_tot = gw_corr_lev_occ+gw_corr_lev_virt
+      gw_corr_lev_tot=gw_corr_lev_occ+gw_corr_lev_virt
 
       ALLOCATE(Eigenval_scf(nmo))
       Eigenval_scf(:) = Eigenval(:)
@@ -1742,13 +2188,20 @@ MODULE rpa_ri_gpw
       END IF
 
       ALLOCATE(vec_W_gw(dimen_nm_gw))
+
       vec_W_gw=0.0_dp
+
+      IF(my_do_im_time) THEN
+        ! hack JW for testing; vec_W_gw_store has to be removed afterwards
+        ALLOCATE(vec_W_gw_store(dimen_nm_gw,num_integ_points))
+        vec_W_gw_store=0.0_dp
+      END IF
 
       IF(my_open_shell) THEN
         ALLOCATE(vec_W_gw_beta(dimen_nm_gw))
         vec_W_gw_beta=0.0_dp
       END IF 
- 
+
       im_unit = (0.0_dp, 1.0_dp)
       re_unit = (1.0_dp, 0.0_dp)
   
@@ -1773,6 +2226,13 @@ MODULE rpa_ri_gpw
           num_fit_points = num_fit_points + 1
         END IF
       END DO
+
+      ! allocate imaginary time matrices
+      IF(my_do_im_time) THEN
+        num_fit_points = 2*num_integ_points
+        ALLOCATE(vec_tau_fit_gw_sign(2*num_fit_points))
+        vec_tau_fit_gw_sign=0.0_dp
+      END IF
   
       ! create new arrays containing omega values at which we calculate vec_Sigma_c_gw
       ALLOCATE(vec_omega_fit_gw(num_fit_points))
@@ -1780,12 +2240,118 @@ MODULE rpa_ri_gpw
       ALLOCATE(vec_omega_fit_gw_sign(num_fit_points))
  
       ALLOCATE(vec_Sigma_c_gw(gw_corr_lev_tot,num_fit_points))
+
       vec_Sigma_c_gw=(0.0_dp,0.0_dp)
- 
+
       IF(my_open_shell) THEN
         ALLOCATE(vec_Sigma_c_gw_beta(gw_corr_lev_tot,num_fit_points))
         vec_Sigma_c_gw_beta=(0.0_dp,0.0_dp)
       END IF
+
+      do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x 
+
+      do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
+
+      ! in case we do RI for Sigma_x, we calculate Sigma_x right here 
+      IF(do_ri_Sigma_x .OR. do_mix_exchange) THEN
+
+        IF(do_mix_exchange) THEN
+          frac_rix = 1.0_dp - mp2_env%ri_g0w0%frac_exx
+        ELSE
+          frac_rix = 1.0_dp
+        END IF
+
+        ALLOCATE(vec_Sigma_x_gw(nmo))
+        vec_Sigma_x_gw=0.0_dp
+
+        IF(my_open_shell) THEN
+          ALLOCATE(vec_Sigma_x_gw_beta(nmo))
+          vec_Sigma_x_gw_beta=0.0_dp
+        END IF
+
+        CALL cp_fm_get_info(matrix=fm_mat_S_gw,&
+                            nrow_local=nrow_local,&
+                            ncol_local=ncol_local,&
+                            row_indices=row_indices,&
+                            col_indices=col_indices)
+
+        CALL mp_sync(para_env%group)
+
+
+        ! loop over (nm) index
+        DO iiB=1, nrow_local
+
+          ! this is needed for correct values within parallelization, see analogue
+          ! statement below 
+          IF(MODULO(1,num_integ_group)/=color_rpa_group) CYCLE
+
+
+          nm_global=row_indices(iiB)
+
+          ! transform the index nm to n and m, formulae copied from Mauro's code
+          n_global=MAX(1,nm_global-1)/nmo+1
+          m_global=nm_global-(n_global-1)*nmo
+          n_global=n_global+homo-gw_corr_lev_occ
+
+          IF(my_open_shell) THEN
+            n_global_beta=MAX(1,nm_global-1)/nmo+1
+            m_global_beta=nm_global-(n_global_beta-1)*nmo
+            n_global_beta=n_global_beta+homo_beta-gw_corr_lev_occ_beta
+          END IF
+
+          IF(m_global <= homo) THEN
+  
+            ! loop over auxiliary basis functions
+            DO jjB=1, ncol_local
+
+              ! Sigma_x_n = -sum_m^occ sum_P (B_(nm)^P)^2
+              vec_Sigma_x_gw(n_global) = &
+                vec_Sigma_x_gw(n_global) - &
+                fm_mat_S_gw%local_data(iiB,jjB)**2
+  
+            END DO
+
+          END IF
+
+          ! The same for beta
+          IF(my_open_shell) THEN
+
+            IF(m_global_beta <= homo_beta) THEN
+  
+              ! loop over auxiliary basis functions
+              DO jjB=1, ncol_local
+  
+                ! Sigma_x_n = -sum_m^occ sum_P (B_(nm)^P)^2
+                vec_Sigma_x_gw_beta(n_global_beta) = &
+                  vec_Sigma_x_gw_beta(n_global_beta) - &
+                  fm_mat_S_gw_beta%local_data(iiB,jjB)**2
+  
+              END DO
+  
+            END IF
+
+          END IF
+
+        END DO
+
+        CALL mp_sum(vec_Sigma_x_gw,para_env%group)
+
+        mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1) = &
+           mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1) + &
+           frac_rix*vec_Sigma_x_gw(:)
+
+        IF(my_open_shell) THEN
+
+          CALL mp_sum(vec_Sigma_x_gw_beta,para_env%group)
+
+          mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,2) = &
+             mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,2) + &
+             frac_rix*vec_Sigma_x_gw_beta(:)
+
+        END IF
+
+      END IF
+
 
       ! fill the omega vector with frequencies, where we calculate the self-energy
       iquad=0
@@ -1910,6 +2476,86 @@ MODULE rpa_ri_gpw
         END IF
       END IF
 
+      ! calculate Q_PQ(it) 
+      IF(my_do_im_time) THEN
+
+        first_cycle_im_time = .TRUE.
+        first_cycle_im_time_beta = .TRUE.
+        e_fermi = (Eigenval(homo)+Eigenval(homo+1))*0.5_dp
+        tau = 0.0_dp
+        tau_old = 0.0_dp
+
+        IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T66,ES15.2)")&
+                           "DBCSR_INFO| Eps filter for imaginary time:", eps_filter
+
+
+        ! iteration over time points
+        DO jquad=1, num_integ_points
+
+          CALL timeset(routineN//"_im_time_mat_op",handle3)
+
+          tau_old = tau
+  
+          IF(do_minimax_quad) THEN
+            tau=tau_tj(jquad)
+          ELSE
+            tau=a_scaling/TAN(tj(jquad))
+          END IF
+
+          ! compute the matrix Q(it) and Fourier transform it directly to fm_mat_Q_omega(iw) 
+! take care for beta case we have to set first_cycle_im_time_beta to true !!!!!!!!!!!
+          CALL compute_fm_mat_Q_omega(fm_mat_Q_omega,fm_scaled_dm_occ,&
+                                      fm_scaled_dm_virt,fm_mo_coeff_occ,fm_mo_coeff_virt,&
+                                      fm_mat_Q,mat_M_munu_occ,mat_M_munu_virt,mat_M_munu_P_occ,&
+                                      mat_M_munu_P_virt,mat_B_munu,mat_munu,trace_2d,tau_wj_2d,tj,wj,&
+                                      first_cycle_im_time,do_minimax_quad,&
+                                      tau,tau_old,e_fermi,eps_filter,a_scaling,alpha,&
+                                      Eigenval,nmo,homo,my_group_L_size,&
+                                      my_group_L_start,dimen_RI,max_size_RI_group,ngroup,&
+                                      num_integ_points, jquad,mp2_env,para_env,para_env_sub)
+ 
+          first_cycle_im_time = .FALSE.
+
+          ! the same for open shell, use fm_mo_coeff_occ_beta and fm_mo_coeff_virt_beta
+          IF(my_open_shell) THEN
+
+            CALL compute_fm_mat_Q_omega(fm_mat_Q_omega,fm_scaled_dm_occ,&
+                                        fm_scaled_dm_virt,fm_mo_coeff_occ_beta,fm_mo_coeff_virt_beta,&
+                                        fm_mat_Q,mat_M_munu_occ,mat_M_munu_virt,mat_M_munu_P_occ,&
+                                        mat_M_munu_P_virt,mat_B_munu,mat_munu,trace_2d,tau_wj_2d,tj,wj,&
+                                        first_cycle_im_time_beta,do_minimax_quad,&
+                                        tau,tau_old,e_fermi,eps_filter,a_scaling,alpha,&
+                                        Eigenval,nmo,homo,my_group_L_size,&
+                                        my_group_L_start,dimen_RI,max_size_RI_group,ngroup,&
+                                        num_integ_points, jquad,mp2_env,para_env,para_env_sub)
+  
+            first_cycle_im_time_beta = .FALSE.
+
+          END IF
+ 
+          CALL timestop(handle3)
+ 
+
+        END DO !jquad time points loop
+
+        ALLOCATE(my_Lrows_transposed(my_group_L_size,dimen_RI))
+
+        ! JW hack OMP statement missing
+        DO iiB=1,my_group_L_size
+          DO jjB=1,dimen_RI
+            my_Lrows_transposed(iiB,jjB) = my_Lrows(jjB,iiB)
+          END DO
+        END DO
+
+        DEALLOCATE(my_Lrows)
+
+        CALL fill_fm_with_2d_array(fm_mat_L,my_Lrows_transposed,para_env,my_group_L_start,my_group_L_size,&
+                                   dimen_RI,ngroup)
+
+        DEALLOCATE(my_Lrows_transposed)
+
+      END IF ! do im time
+
       num_residues = 0
 
       ! get the energies for evaluating the residues
@@ -2025,6 +2671,7 @@ MODULE rpa_ri_gpw
       END IF
 
       DO jquad=1, num_integ_points+num_residues
+
         IF(MODULO(jquad,num_integ_group)/=color_rpa_group) CYCLE
   
         CALL timeset(routineN//"_RPA_matrix_operations",handle3)
@@ -2042,283 +2689,294 @@ MODULE rpa_ri_gpw
           omega=real_freq(jquad-num_integ_points)
 
         END IF
-
-        !XXX ! copy fm_mat_S into fm_mat_G
-        !XXX CALL cp_fm_to_fm(source=fm_mat_S,destination=fm_mat_G)
   
-        !XXX ! get info of fm_mat_G
-        !XXX CALL cp_fm_get_info(matrix=fm_mat_G,&
-        !XXX                     nrow_local=nrow_local,&
-        !XXX                     ncol_local=ncol_local,&
-        !XXX                     row_indices=row_indices,&
-        !XXX                     col_indices=col_indices)
-        !XXX                     
+        IF(my_do_im_time) THEN
+
+          ! hack; is necessary that buffer_release does not complain
+          CALL fm_redistribute(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
+                               number_of_send,&
+                               map_send_size,map_rec_size,local_size_source,para_env_RPA)
 
 
-        
-        ! get info of fm_mat_S
-        CALL cp_fm_get_info(matrix=fm_mat_S,&
-                            nrow_local=nrow_local,&
-                            ncol_local=ncol_local,&
-                            row_indices=row_indices,&
-                            col_indices=col_indices)
+          ! in case we do imag time, we already calculated fm_mat_Q by a Fourier transform from im. time
+          CALL cp_fm_to_fm(fm_mat_Q_omega(jquad)%matrix,fm_mat_Q)
 
+          ! multiplication with RI metric/Coulomb operator
+          CALL cp_gemm('N','T',dimen_RI,dimen_RI,dimen_RI,1.0_dp,fm_mat_Q,fm_mat_L,&
+                       0.0_dp,fm_mat_work)
 
-        ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
-        IF(first_cycle .AND. count_ev_sc_GW>1) THEN
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,fm_mat_S,virtual,&
-          !$OMP             homo,omega_old,do_contour_def,fm_mat_S_contour_def)
-          DO jjB=1, ncol_local
-            j_global=col_indices(jjB)
-            DO iiB=1, nrow_local
-              i_global=row_indices(iiB)
+          CALL cp_gemm('N','N',dimen_RI,dimen_RI,dimen_RI,1.0_dp,fm_mat_L,fm_mat_work,&
+                       0.0_dp,fm_mat_Q)
 
-              iocc=MAX(1,i_global-1)/virtual+1
-              avirt=i_global-(iocc-1)*virtual
-              eigen_diff=Eigenval_last(avirt+homo)-Eigenval_last(iocc)
-
-              ! for the contour deformation, we have the original B-matrix 
-              IF(do_contour_def) THEN
-                fm_mat_S%local_data(iiB,jjB)=fm_mat_S_contour_def%local_data(iiB,jjB)
-              ELSE
-                fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)/&
-                                             SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
-              END IF
-
-            END DO
-          END DO
-
-        END IF
-
-        ! update G matrix with the new value of omega
-        IF(first_cycle) THEN
-          ! In this case just update the matrix (symmetric form) witrh 
-          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_S,virtual,homo,omega)
-          DO jjB=1, ncol_local
-            j_global=col_indices(jjB)
-            DO iiB=1, nrow_local
-              i_global=row_indices(iiB)
-  
-              iocc=MAX(1,i_global-1)/virtual+1
-              avirt=i_global-(iocc-1)*virtual
-              eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
-  
-              fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
-                                           SQRT(eigen_diff/(eigen_diff**2+omega**2))
-  
-            END DO
-          END DO
         ELSE
-          ! In this case the update has to remove the old omega component thus
-          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
-          !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-          !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
-          !$OMP                    fm_mat_S,virtual,homo,omega,omega_old,real_freq,jquad,&
-          !$OMP                    num_integ_points,fm_mat_S_contour_def)
-          DO jjB=1, ncol_local
-            j_global=col_indices(jjB)
-            DO iiB=1, nrow_local
-              i_global=row_indices(iiB)
-  
-              iocc=MAX(1,i_global-1)/virtual+1
-              avirt=i_global-(iocc-1)*virtual
-              eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
 
-              IF(jquad<=num_integ_points) THEN
-
-                fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
-                                             SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
-
-              ELSE
-
-                ! reset
-                fm_mat_S%local_data(iiB,jjB)=fm_mat_S_contour_def%local_data(iiB,jjB)
-
-                ! update
-                fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2-omega**2)
-
-              END IF
-            END DO
-          END DO
-        END IF
-
-        ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
-        t_start=m_walltime()
-        SELECT CASE(mm_style)
-        CASE(wfc_mm_style_gemm)
-           ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
-           IF(jquad<=num_integ_points) THEN
-             ! RPA for imaginary frequencies
-             CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
-                          matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
-                          matrix_c=fm_mat_Q_gemm)
-           ELSE
-             ! GW contour deformation for real frequencies with fm_mat_S_contour_def
-             CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
-                          matrix_a=fm_mat_S,matrix_b=fm_mat_S_contour_def,beta=0.0_dp,&
-                          matrix_c=fm_mat_Q_gemm)
-           END IF
-        CASE(wfc_mm_style_syrk)
-           ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
-           CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
-                           ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm)
-           IF(jquad>num_integ_points) THEN
-             CPABORT("GW contour deformation does not work with wfc_mm_style_syrk.")
-           END IF
-        CASE DEFAULT
-           CPABORT("")
-        END SELECT
-        t_end=m_walltime()
-
-        actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)
-        actual_flop_rate=actual_flop_rate/(MAX(0.01_dp,t_end-t_start))
-        IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
-        my_num_dgemm_call=my_num_dgemm_call+1
-  
-        ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
-        CALL cp_fm_set_all(matrix=fm_mat_Q,alpha=0.0_dp)
-        CALL fm_redistribute(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
-                             number_of_send,&
-                             map_send_size,map_rec_size,local_size_source,para_env_RPA)
- 
-        IF(my_open_shell) THEN
-          ! the same for the beta spin
-          !XXX ! copy fm_mat_S into fm_mat_G
-          !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta)
-          !XXX ! get info of fm_mat_G_beta
-          !XXX CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
-          !XXX                     nrow_local=nrow_local,&
-          !XXX                     ncol_local=ncol_local,&
-          !XXX                     row_indices=row_indices,&
-          !XXX                     col_indices=col_indices)
-          !XXX                     
-  
-          ! get info of fm_mat_S_beta
-          CALL cp_fm_get_info(matrix=fm_mat_S_beta,&
+          ! get info of fm_mat_S
+          CALL cp_fm_get_info(matrix=fm_mat_S,&
                               nrow_local=nrow_local,&
                               ncol_local=ncol_local,&
                               row_indices=row_indices,&
                               col_indices=col_indices)
- 
+
           ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
           IF(first_cycle .AND. count_ev_sc_GW>1) THEN
             !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last_beta,&
-            !$OMP                    fm_mat_S_beta,virtual_beta,homo_beta,omega_old,do_contour_def,&
-            !$OMP                    fm_mat_S_contour_def_beta)
+            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old,&
+            !$OMP                    do_contour_def,fm_mat_S_contour_def)
             DO jjB=1, ncol_local
               j_global=col_indices(jjB)
               DO iiB=1, nrow_local
                 i_global=row_indices(iiB)
-
-                iocc=MAX(1,i_global-1)/virtual_beta+1
-                avirt=i_global-(iocc-1)*virtual_beta
-                eigen_diff=Eigenval_last_beta(avirt+homo_beta)-Eigenval_last_beta(iocc)
-
-                ! for the contour deformation, the last omega was a residue, so negative sign
+  
+                iocc=MAX(1,i_global-1)/virtual+1
+                avirt=i_global-(iocc-1)*virtual
+                eigen_diff=Eigenval_last(avirt+homo)-Eigenval_last(iocc)
+  
+                ! for the contour deformation, we have the original B-matrix 
                 IF(do_contour_def) THEN
-                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_contour_def_beta%local_data(iiB,jjB)
+                  fm_mat_S%local_data(iiB,jjB)=fm_mat_S_contour_def%local_data(iiB,jjB)
                 ELSE
-                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)/&
+                  fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)/&
                                                SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
                 END IF
-
+  
               END DO
-            
             END DO
-
+  
           END IF
-
- 
+  
           ! update G matrix with the new value of omega
           IF(first_cycle) THEN
+            ! In this case just update the matrix (symmetric form) witrh 
+            ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
             !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,&
-            !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega)
+            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,fm_mat_S,virtual,homo,omega)
             DO jjB=1, ncol_local
               j_global=col_indices(jjB)
               DO iiB=1, nrow_local
                 i_global=row_indices(iiB)
-  
-                iocc=MAX(1,i_global-1)/virtual_beta+1
-                avirt=i_global-(iocc-1)*virtual_beta
-                eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
-  
-                fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
-                                                  SQRT(eigen_diff/(eigen_diff**2+omega**2))
-  
+    
+                iocc=MAX(1,i_global-1)/virtual+1
+                avirt=i_global-(iocc-1)*virtual
+                eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
+    
+                fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
+                                             SQRT(eigen_diff/(eigen_diff**2+omega**2))
+    
               END DO
             END DO
           ELSE
+            ! In this case the update has to remove the old omega component thus
+            ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
             !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
-            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,jquad,num_integ_points,&
-            !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega,omega_old, &
-            !$OMP                    fm_mat_S_contour_def_beta)
+            !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval,&
+            !$OMP                    fm_mat_S,virtual,homo,omega,omega_old,real_freq,jquad,&
+            !$OMP                    num_integ_points,fm_mat_S_contour_def)
             DO jjB=1, ncol_local
               j_global=col_indices(jjB)
               DO iiB=1, nrow_local
                 i_global=row_indices(iiB)
+    
+                iocc=MAX(1,i_global-1)/virtual+1
+                avirt=i_global-(iocc-1)*virtual
+                eigen_diff=Eigenval(avirt+homo)-Eigenval(iocc)
   
-                iocc=MAX(1,i_global-1)/virtual_beta+1
-                avirt=i_global-(iocc-1)*virtual_beta
-                eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
-
                 IF(jquad<=num_integ_points) THEN
-
-                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
-                                                    SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
-
+  
+                  fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*&
+                                               SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
+  
                 ELSE
-
+  
                   ! reset
-                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_contour_def_beta%local_data(iiB,jjB)
-
+                  fm_mat_S%local_data(iiB,jjB)=fm_mat_S_contour_def%local_data(iiB,jjB)
+  
                   ! update
-                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2-omega**2)
-
+                  fm_mat_S%local_data(iiB,jjB)=fm_mat_S%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2-omega**2)
+  
                 END IF
-
               END DO
             END DO
           END IF
   
+          ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
           t_start=m_walltime()
           SELECT CASE(mm_style)
           CASE(wfc_mm_style_gemm)
-            IF(jquad<=num_integ_points) THEN
-              CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
-                           matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
-                           matrix_c=fm_mat_Q_gemm_beta)
-            ELSE
-              CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
-                           matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_contour_def_beta,beta=0.0_dp,&
-                           matrix_c=fm_mat_Q_gemm_beta)
-            END IF
+             ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
+             IF(jquad<=num_integ_points) THEN
+               ! RPA for imaginary frequencies
+               CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
+                            matrix_a=fm_mat_S,matrix_b=fm_mat_S,beta=0.0_dp,&
+                            matrix_c=fm_mat_Q_gemm)
+             ELSE
+               ! GW contour deformation for real frequencies with fm_mat_S_contour_def
+               CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia,alpha=alpha,&
+                            matrix_a=fm_mat_S,matrix_b=fm_mat_S_contour_def,beta=0.0_dp,&
+                            matrix_c=fm_mat_Q_gemm)
+             END IF
           CASE(wfc_mm_style_syrk)
-             CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia_beta,alpha=alpha,matrix_a=fm_mat_S_beta,&
-                             ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm_beta)
+             ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
+             CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
+                             ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm)
+             IF(jquad>num_integ_points) THEN
+               CPABORT("GW contour deformation does not work with wfc_mm_style_syrk.")
+             END IF
           CASE DEFAULT
              CPABORT("")
           END SELECT
           t_end=m_walltime()
-          actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+  
+          actual_flop_rate=2.0_dp*REAL(dimen_ia,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)
+          actual_flop_rate=actual_flop_rate/(MAX(0.01_dp,t_end-t_start))
           IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
           my_num_dgemm_call=my_num_dgemm_call+1
-
+    
           ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
-          CALL cp_fm_set_all(matrix=fm_mat_Q_beta,alpha=0.0_dp)
-          CALL fm_redistribute(fm_mat_Q_gemm_beta,fm_mat_Q_beta,RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
-                               number_of_send_beta,&
-                               map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA)
+          CALL cp_fm_set_all(matrix=fm_mat_Q,alpha=0.0_dp)
+          CALL fm_redistribute(fm_mat_Q_gemm,fm_mat_Q,RPA_proc_map,buffer_rec,buffer_send,&
+                               number_of_send,&
+                               map_send_size,map_rec_size,local_size_source,para_env_RPA)
+   
+          IF(my_open_shell) THEN
+            ! the same for the beta spin
+            !XXX ! copy fm_mat_S into fm_mat_G
+            !XXX CALL cp_fm_to_fm(source=fm_mat_S_beta,destination=fm_mat_G_beta)
+            !XXX ! get info of fm_mat_G_beta
+            !XXX CALL cp_fm_get_info(matrix=fm_mat_G_beta,&
+            !XXX                     nrow_local=nrow_local,&
+            !XXX                     ncol_local=ncol_local,&
+            !XXX                     row_indices=row_indices,&
+            !XXX                     col_indices=col_indices)
+            !XXX                     
+    
+            ! get info of fm_mat_S_beta
+            CALL cp_fm_get_info(matrix=fm_mat_S_beta,&
+                                nrow_local=nrow_local,&
+                                ncol_local=ncol_local,&
+                                row_indices=row_indices,&
+                                col_indices=col_indices)
+   
+            ! remove eigenvalue part of S matrix from the last eigenvalue self-c. cycle
+            IF(first_cycle .AND. count_ev_sc_GW>1) THEN
+              !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+              !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,Eigenval_last_beta,&
+              !$OMP                    fm_mat_S_beta,virtual_beta,homo_beta,omega_old,do_contour_def,&
+              !$OMP                    fm_mat_S_contour_def_beta)
+              DO jjB=1, ncol_local
+                j_global=col_indices(jjB)
+                DO iiB=1, nrow_local
+                  i_global=row_indices(iiB)
   
-          CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=fm_mat_Q,beta=1.0_dp,matrix_b=fm_mat_Q_beta)
-          ! fm_mat_Q%local_data=fm_mat_Q%local_data+fm_mat_Q_beta%local_data        
+                  iocc=MAX(1,i_global-1)/virtual_beta+1
+                  avirt=i_global-(iocc-1)*virtual_beta
+                  eigen_diff=Eigenval_last_beta(avirt+homo_beta)-Eigenval_last_beta(iocc)
   
-        END IF
+                  ! for the contour deformation, the last omega was a residue, so negative sign
+                  IF(do_contour_def) THEN
+                    fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_contour_def_beta%local_data(iiB,jjB)
+                  ELSE
+                    fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)/&
+                                                 SQRT(eigen_diff/(eigen_diff**2+omega_old**2))
+                  END IF
+  
+                END DO
+              
+              END DO
+  
+            END IF
+
  
+            ! update G matrix with the new value of omega
+            IF(first_cycle) THEN
+              !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+              !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,&
+              !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega)
+              DO jjB=1, ncol_local
+                j_global=col_indices(jjB)
+                DO iiB=1, nrow_local
+                  i_global=row_indices(iiB)
+  
+                  iocc=MAX(1,i_global-1)/virtual_beta+1
+                  avirt=i_global-(iocc-1)*virtual_beta
+                  eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
+  
+                  fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
+                                                    SQRT(eigen_diff/(eigen_diff**2+omega**2))
+  
+                END DO
+              END DO
+            ELSE
+              !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,iocc,avirt,eigen_diff,i_global,j_global) &
+              !$OMP             SHARED(ncol_local,nrow_local,col_indices,row_indices,jquad,num_integ_points,&
+              !$OMP                    Eigenval_beta,fm_mat_S_beta,virtual_beta,homo_beta,omega,omega_old, &
+              !$OMP                    fm_mat_S_contour_def_beta)
+              DO jjB=1, ncol_local
+                j_global=col_indices(jjB)
+                DO iiB=1, nrow_local
+                  i_global=row_indices(iiB)
+  
+                  iocc=MAX(1,i_global-1)/virtual_beta+1
+                  avirt=i_global-(iocc-1)*virtual_beta
+                  eigen_diff=Eigenval_beta(avirt+homo_beta)-Eigenval_beta(iocc)
+  
+                  IF(jquad<=num_integ_points) THEN
+  
+                    fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*&
+                                                      SQRT((eigen_diff**2+omega_old**2)/(eigen_diff**2+omega**2))
+  
+                  ELSE
+  
+                    ! reset
+                    fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_contour_def_beta%local_data(iiB,jjB)
+  
+                    ! update
+                    fm_mat_S_beta%local_data(iiB,jjB)=fm_mat_S_beta%local_data(iiB,jjB)*eigen_diff/(eigen_diff**2-omega**2)
+  
+                  END IF
+  
+                END DO
+              END DO
+            END IF
+
+            ! alpha=4.0 is valid only for closed shell systems (alpha is 2.0 in the spin-orbital basis)
+            t_start=m_walltime()
+            SELECT CASE(mm_style)
+            CASE(wfc_mm_style_gemm)
+              IF(jquad<=num_integ_points) THEN
+                CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
+                             matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_beta,beta=0.0_dp,&
+                             matrix_c=fm_mat_Q_gemm_beta)
+              ELSE
+                CALL cp_gemm(transa="T",transb="N",m=dimen_RI,n=dimen_RI,k=dimen_ia_beta,alpha=alpha,&
+                             matrix_a=fm_mat_S_beta,matrix_b=fm_mat_S_contour_def_beta,beta=0.0_dp,&
+                             matrix_c=fm_mat_Q_gemm_beta)
+              END IF
+            CASE(wfc_mm_style_syrk)
+               ! will only compute the upper half of the matrix, which is fine, since we only use it for cholesky later
+               CALL cp_fm_syrk(uplo='U',trans='T',k=dimen_ia,alpha=alpha,matrix_a=fm_mat_S,&
+                               ia=1,ja=1,beta=0.0_dp,matrix_c=fm_mat_Q_gemm)
+            CASE DEFAULT
+               CPABORT("")
+            END SELECT
+  
+            t_end=m_walltime()
+            actual_flop_rate=2.0_dp*REAL(dimen_ia_beta,KIND=dp)*dimen_RI*REAL(dimen_RI,KIND=dp)/(MAX(0.01_dp,t_end-t_start))
+            IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate+actual_flop_rate
+            my_num_dgemm_call=my_num_dgemm_call+1
+  
+            ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
+            CALL cp_fm_set_all(matrix=fm_mat_Q_beta,alpha=0.0_dp)
+            CALL fm_redistribute(fm_mat_Q_gemm_beta,fm_mat_Q_beta,RPA_proc_map,buffer_rec_beta,buffer_send_beta,&
+                                 number_of_send_beta,&
+                                 map_send_size_beta,map_rec_size_beta,local_size_source_beta,para_env_RPA)
+    
+            CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=fm_mat_Q,beta=1.0_dp,matrix_b=fm_mat_Q_beta)
+            ! fm_mat_Q%local_data=fm_mat_Q%local_data+fm_mat_Q_beta%local_data        
+    
+          END IF ! open shell
+
+        END IF ! im time
+
         ! get info of fm_mat_Q
         CALL cp_fm_get_info(matrix=fm_mat_Q,&
                             nrow_local=nrow_local,&
@@ -2418,7 +3076,7 @@ MODULE rpa_ri_gpw
               END IF
             END DO
           END DO
-  
+ 
           ! copy/redistribute fm_mat_Q to fm_mat_Q_gemm
   !        CALL cp_fm_set_all(matrix=fm_mat_Q_gemm,alpha=0.0_dp)
   !        CALL fm_redistribute(fm_mat_Q,fm_mat_Q_gemm,RPA_proc_map,buffer_rec_gw,buffer_send_gw,&
@@ -2579,12 +3237,15 @@ MODULE rpa_ri_gpw
       CALL mp_sum(Erpa,para_env%group)
       Erpa=Erpa/(pi*2.0_dp)
       IF(do_minimax_quad) Erpa=Erpa/2.0_dp
-  
-      IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate/REAL(MAX(my_num_dgemm_call,1),KIND=dp)/1.0E9_dp
-      CALL mp_sum(my_flop_rate,para_env%group)
-      my_flop_rate=my_flop_rate/para_env%num_pe
-      IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.2)")&
+ 
+      IF(.NOT. my_do_im_time) THEN
+ 
+        IF(para_env_RPA%mepos==0) my_flop_rate=my_flop_rate/REAL(MAX(my_num_dgemm_call,1),KIND=dp)/1.0E9_dp
+        CALL mp_sum(my_flop_rate,para_env%group)
+        my_flop_rate=my_flop_rate/para_env%num_pe
+        IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T66,F15.2)")&
                             "PERFORMANCE| PDGEMM flop rate (Gflops / MPI rank):", my_flop_rate
+      END IF
 
       ! G0W0 postprocessing: Fitting + correction of MO energies
       IF(my_do_gw) THEN
@@ -2609,20 +3270,21 @@ MODULE rpa_ri_gpw
 
         CALL mp_sync(para_env%group)
 
-  
         ! fit the self-energy on imaginary frequency axis and evaluate the fit on the MO energy of the SCF 
         DO n_level_gw=1,gw_corr_lev_tot
           ! processes perform different fits
           IF(MODULO(n_level_gw,para_env%num_pe)/=para_env%mepos) CYCLE
 
           CALL fit_and_continuation(vec_gw_energ,vec_gw_energ_error_fit,vec_omega_fit_gw,&
-                    z_value,m_value,vec_Sigma_c_gw,Eigenval,n_level_gw,gw_corr_lev_occ,num_poles,&
+                    z_value,m_value,vec_Sigma_c_gw,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),&
+                    Eigenval,Eigenval_scf,n_level_gw,gw_corr_lev_occ,num_poles,&
                     num_fit_points,max_iter_fit,crossing_search,homo,unit_nr,check_fit,stop_crit,&
                     fermi_level_offset)
 
           IF(my_open_shell) THEN
             CALL fit_and_continuation(vec_gw_energ_beta,vec_gw_energ_error_fit_beta,vec_omega_fit_gw,&
-                      z_value_beta,m_value_beta,vec_Sigma_c_gw_beta,Eigenval_beta,n_level_gw,&
+                      z_value_beta,m_value_beta,vec_Sigma_c_gw_beta,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,2),&
+                      Eigenval_beta,Eigenval_scf_beta,n_level_gw,&
                       gw_corr_lev_occ_beta,num_poles,&
                       num_fit_points,max_iter_fit,crossing_search,homo_beta,unit_nr,check_fit,stop_crit,&
                       fermi_level_offset)
@@ -2642,6 +3304,8 @@ MODULE rpa_ri_gpw
           CALL mp_sum(z_value_beta,para_env%group)
           CALL mp_sum(m_value_beta,para_env%group)
         END IF
+
+        remove_neg_virt_energies = mp2_env%ri_g0w0%remove_neg_virt_energies
 
         ! in case we do the contour deformation technique, we transfer vec_Sigma_c_gw_real_freq to
         ! vec_gw_energ and we compute the z-value, m-value
@@ -2705,7 +3369,6 @@ MODULE rpa_ri_gpw
 
         END IF
  
-
         ! print the quasiparticle energies and update Eigenval in case you do eigenvalue self-consistent GW
         IF(my_open_shell) THEN
 
@@ -2713,25 +3376,31 @@ MODULE rpa_ri_gpw
                       z_value,m_value,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),Eigenval,&
                       Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
                       count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
-                      do_alpha=.TRUE.)
+                      remove_neg_virt_energies,do_alpha=.TRUE.)
 
           CALL print_and_update_for_ev_sc(vec_gw_energ_beta,vec_gw_energ_error_fit_beta,&
                       z_value_beta,m_value_beta,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,2),Eigenval_beta,&
                       Eigenval_last_beta,Eigenval_scf_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,gw_corr_lev_tot,&
                       count_ev_sc_GW,crossing_search,homo_beta,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
-                      do_beta=.TRUE.)
+                      remove_neg_virt_energies,do_beta=.TRUE.)
 
         ELSE 
 
           CALL print_and_update_for_ev_sc(vec_gw_energ,vec_gw_energ_error_fit,&
                       z_value,m_value,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),Eigenval,&
                       Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
-                      count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details)
+                      count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
+                      remove_neg_virt_energies)
 
         END IF
 
-  
         CALL timestop(handle3)
+
+        ! if HOMO-LUMO gap differs by less then mp2_env%ri_g0w0%eps_ev_sc_iter, exit ev sc GW loop
+        IF(ABS(Eigenval(homo)-Eigenval_last(homo)-Eigenval(homo+1)+Eigenval_last(homo+1)) & 
+           < mp2_env%ri_g0w0%eps_ev_sc_iter) THEN
+           EXIT
+        END IF
 
       END IF ! my_do_gw if
 
@@ -2764,6 +3433,9 @@ MODULE rpa_ri_gpw
       DEALLOCATE(mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw)
       DEALLOCATE(Eigenval_last)
       DEALLOCATE(Eigenval_scf)
+      IF(do_ri_Sigma_x) THEN
+        DEALLOCATE(vec_Sigma_x_gw)
+      END IF
       IF(my_open_shell) THEN
         CALL cp_fm_release(fm_mat_S_gw_work_beta)
         DEALLOCATE(vec_W_gw_beta)
@@ -2774,6 +3446,9 @@ MODULE rpa_ri_gpw
         DEALLOCATE(vec_gw_energ_error_fit_beta)
         DEALLOCATE(Eigenval_last_beta)
         DEALLOCATE(Eigenval_scf_beta)
+        IF(do_ri_Sigma_x) THEN
+          DEALLOCATE(vec_Sigma_x_gw_beta)
+        END IF
       END IF
       IF(do_contour_def) THEN
         DEALLOCATE(vec_Sigma_c_gw_real_freq)
@@ -2784,7 +3459,49 @@ MODULE rpa_ri_gpw
         END IF
       END IF
     END IF
-  
+
+    IF(my_do_im_time) THEN
+
+      CALL cp_fm_release(fm_scaled_dm_occ)
+      CALL cp_fm_release(fm_scaled_dm_virt)
+      CALL cp_fm_release(fm_mo_coeff_occ)
+      CALL cp_fm_release(fm_mo_coeff_virt)
+
+      IF(my_open_shell) THEN
+        CALL cp_fm_release(fm_mo_coeff_occ_beta)
+        CALL cp_fm_release(fm_mo_coeff_virt_beta)
+      END IF
+
+      CALL cp_fm_release(fm_mat_L)
+      CALL cp_fm_release(fm_mat_work)
+
+      CALL cp_dbcsr_release(mat_M_munu_occ)
+      CALL cp_dbcsr_release(mat_M_munu_virt)
+
+      CALL cp_dbcsr_deallocate_matrix_set(mat_M_munu_P_occ)
+      CALL cp_dbcsr_deallocate_matrix_set(mat_M_munu_P_virt)
+
+      DEALLOCATE(trace_2d)
+
+      IF(my_do_gw) THEN
+        DEALLOCATE(vec_tau_fit_gw_sign)
+        DEALLOCATE(vec_W_gw_store)
+      END IF
+
+      IF(.NOT. my_do_gw) THEN 
+        DO iquad=1,num_integ_points
+          CALL cp_fm_release(fm_mat_Q_omega(iquad)%matrix)
+        END DO
+        DEALLOCATE(fm_mat_Q_omega)
+      END IF
+
+      DO iii=1,my_group_L_size
+        CALL cp_dbcsr_release(mat_B_munu(iii)%matrix)
+        DEALLOCATE(mat_B_munu(iii)%matrix)
+      END DO
+
+    END IF
+
     DEALLOCATE(tj)
     DEALLOCATE(wj)
     DEALLOCATE(Q_log)
@@ -2792,7 +3509,7 @@ MODULE rpa_ri_gpw
 
     CALL timestop(handle)
 
-    END SUBROUTINE rpa_numerical_integ
+    END SUBROUTINE rpa_num_int
 
 ! *****************************************************************************
 !> \brief ...
@@ -3088,10 +3805,6 @@ MODULE rpa_ri_gpw
             a_low=a_scaling
           END IF
 
-          ! IF(para_env%mepos==0) THEN
-          !   WRITE(*,*) a_scaling, a_high-a_low, left_term+right_term
-          ! END IF
-
           IF(ABS(a_high-a_low)<1.0D-5) EXIT
 
         END DO
@@ -3215,6 +3928,188 @@ MODULE rpa_ri_gpw
     END IF
 
     END SUBROUTINE calculate_objfunc
+
+
+! *****************************************************************************
+!> \brief Calculate integration weights for the tau grid (in dependency of the omega node)
+!> \param num_integ_points ...
+!> \param tau_tj ...
+!> \param tau_wj ...
+!> \param tau_wj_2d ...
+!> \param omega_tj ...
+!> \param num_x_nodes_min ...
+!> \param num_x_nodes_max ...
+!> \param num_x_nodes_step ...
+!> \param E_min ...
+!> \param E_max ...
+!> \param E_range ...
+!> \param ls_error ...
+!> \param max_error_min ...
+! *****************************************************************************
+    SUBROUTINE get_rpa_least_sq_weights_tau(num_integ_points,tau_tj,tau_wj,tau_wj_2d,omega_tj,&
+                                            num_x_nodes_min, num_x_nodes_max, num_x_nodes_step,&
+                                            E_min,E_max,E_range,ls_error,max_error_min)
+
+    INTEGER                                  :: num_integ_points
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tau_tj, tau_wj
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: tau_wj_2d
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: omega_tj
+    INTEGER                                  :: num_x_nodes_min, &
+                                                num_x_nodes_max, &
+                                                num_x_nodes_step
+    REAL(KIND=dp)                            :: E_min, E_max, E_range, &
+                                                ls_error, max_error_min
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_least_sq_weights_tau', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, iii, info, jjj, jquad, lwork, max_iter_fit, &
+      max_iter_fit_abord, num_check_chi2, num_x_nodes, x_node_min
+    REAL(KIND=dp)                            :: chi2, chi2_min, &
+                                                chi2_min_jquad, max_error, &
+                                                max_error_min_jquad, omega
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tau_wj_work, work_array, &
+                                                x_values, y_values
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: mat_A
+
+    CALL timeset(routineN,handle)
+
+
+    max_error_min = 0.0_dp
+    chi2_min = 0.0_dp
+
+    num_check_chi2 = 300000
+
+    max_iter_fit = 10000000
+    max_iter_fit_abord = 2000
+
+
+
+    ! loop over all omega frequency points
+    DO jquad=1,num_integ_points
+
+      chi2_min_jquad = 100.0_dp
+
+      ! since the fitting is strongly dependent on the initial guess and the number of evaluations points of 2x/(x^2+omega_k^2)
+      ! we search for the optimal fit among different number of evaluation points of 1/x and among different initial guesses
+      ! NINT is the function to round down
+
+    DO num_x_nodes = num_x_nodes_min, num_x_nodes_max, num_x_nodes_step
+  
+        ALLOCATE(x_values(num_x_nodes))
+  
+        ! set the x-values uniformly in the interval [Emin,Emax]
+        DO iii=1,num_x_nodes
+          x_values(iii) = E_min+(iii-1.0_dp)/(num_x_nodes-1.0_dp)*(E_max-E_min)
+        END DO
+  
+        ALLOCATE(y_values(num_x_nodes))
+
+        ALLOCATE(mat_A(num_x_nodes,num_integ_points))
+        mat_A = 0.0_dp
+  
+        ALLOCATE(tau_wj_work(num_integ_points))
+        tau_wj_work = 0.0_dp
+
+        ALLOCATE(work_array(2*num_integ_points))
+        work_array = 0.0_dp
+
+        omega = omega_tj(jquad)
+
+        ! y=2x/(x^2+omega_k^2)
+        DO iii=1,num_x_nodes
+          y_values(iii) = 2.0_dp*x_values(iii)/((x_values(iii))**2+omega**2)
+        END DO
+
+        ! calculate mat_A
+        DO jjj=1,num_integ_points
+
+          DO iii=1,num_x_nodes
+
+            mat_A(iii,jjj) = COS(omega*tau_tj(jjj))*EXP(-x_values(iii)*tau_tj(jjj))
+
+          END DO
+
+        END DO
+
+        ! Query the optimal workspace.
+        CALL DGELS('N',num_x_nodes,num_integ_points,1,mat_A,num_x_nodes,y_values,num_x_nodes,&
+                   work_array,-1,info)
+
+        lwork = INT(work_array(1))
+
+        DEALLOCATE(work_array)
+
+        ALLOCATE(work_array(lwork))
+        work_array = 0.0_dp
+
+        ! calculate least squares solution for the integration weights
+        CALL DGELS('N',num_x_nodes,num_integ_points,1,mat_A,num_x_nodes,y_values,num_x_nodes,&
+                   work_array,lwork,info)
+
+        tau_wj_work(:) = y_values(1:num_integ_points)
+
+        ! Recalculate chi2
+
+        ! first, deallocate x and y
+        DEALLOCATE(x_values)
+        DEALLOCATE(y_values)
+
+        ALLOCATE(x_values(num_check_chi2))
+
+        ! set the x-values uniformly in the interval [E_min,E_max]
+        DO iii=1,num_check_chi2
+          x_values(iii) = E_min+(iii-1.0_dp)/(num_x_nodes-1.0_dp)*(E_max-E_min)
+        END DO
+
+        ALLOCATE(y_values(num_check_chi2))
+
+        DO iii=1,num_check_chi2
+          y_values(iii) = 2.0_dp*x_values(iii)/((x_values(iii))**2+omega**2)
+        END DO
+ 
+        CALL calc_chi2_fit_tau_grid_with_cosine(chi2,omega,tau_tj,tau_wj_work,x_values,&
+                                                y_values,num_integ_points,num_x_nodes)
+
+        CALL calc_max_error_fit_tau_grid_with_cosine(max_error,omega,tau_tj,tau_wj_work,x_values,&
+                                                     y_values,num_integ_points,num_x_nodes)
+
+        IF(chi2<chi2_min_jquad) THEN
+          chi2_min_jquad = chi2
+          max_error_min_jquad = max_error
+
+          x_node_min = num_x_nodes
+
+          tau_wj_2d(jquad,:) = tau_wj_work(:)
+
+        END IF
+
+
+        DEALLOCATE(x_values)
+        DEALLOCATE(y_values)
+        DEALLOCATE(mat_A)
+        DEALLOCATE(tau_wj_work)
+        DEALLOCATE(work_array)
+
+      END DO
+
+      IF(chi2_min_jquad>chi2_min) THEN
+
+        chi2_min = chi2_min_jquad
+
+        max_error_min = max_error_min_jquad
+
+      END IF
+
+    END DO
+
+    ls_error = SQRT(chi2_min/num_check_chi2)
+
+    CALL timestop(handle)
+
+    END SUBROUTINE
 
 ! *****************************************************************************
 !> \brief Calculate the matrix mat_N_gw containing the second derivatives
@@ -3345,23 +4240,157 @@ MODULE rpa_ri_gpw
     COMPLEX(KIND=dp)                         :: func_val, im_unit
     INTEGER                                  :: handle, iii, jjj, kkk
 
+      CALL timeset(routineN,handle)
+
+      im_unit = (0.0_dp, 1.0_dp)
+      chi2 = 0.0_dp
+      DO kkk=1,num_fit_points
+        func_val=Lambda(1)
+        DO iii=1, num_poles
+          jjj=iii*2
+          ! calculate value of the fit function
+          func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw(kkk)-Lambda(jjj+1))
+        END DO
+        chi2 = chi2 + (ABS(Sigma_c(n_level_gw,kkk)-func_val))**2
+      END DO
+
+      CALL timestop(handle)
+
+    END SUBROUTINE calc_chi2
+
+! *****************************************************************************
+!> \brief Calculate chi2
+!> \param chi2 ...
+!> \param beta fitting parameters
+!> \param Sigma_c ...
+!> \param vec_tau_fit_gw ...
+!> \param num_poles ...
+!> \param num_fit_points ...
+! *****************************************************************************
+    SUBROUTINE calc_chi2_im_time(chi2,beta,Sigma_c,vec_tau_fit_gw,num_poles,&
+                         num_fit_points)
+    REAL(KIND=dp)                            :: chi2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: beta, Sigma_c, vec_tau_fit_gw
+    INTEGER                                  :: num_poles, num_fit_points
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_chi2_im_time', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: func_val
+    INTEGER                                  :: handle, iii, jjj, kkk
+
+      CALL timeset(routineN,handle)
+
+      chi2 = 0.0_dp
+      DO kkk=1,num_fit_points
+        func_val=0.0_dp
+        DO iii=1, num_poles
+          jjj=iii*3
+          ! calculate value of the fit function
+          IF(vec_tau_fit_gw(kkk)>0) THEN
+            func_val=func_val+beta(jjj-2)*EXP(-vec_tau_fit_gw(kkk)*beta(jjj))
+          ELSE
+            func_val=func_val+beta(jjj-1)*EXP(vec_tau_fit_gw(kkk)*beta(jjj))
+          END IF
+        END DO
+        chi2 = chi2 + (ABS(Sigma_c(kkk)-func_val))**2
+
+      END DO
+
+      CALL timestop(handle)
+
+    END SUBROUTINE calc_chi2_im_time
+
+! *****************************************************************************
+!> \brief Calculate chi2 when setting up the grid for tau integration with cosine
+!> \param chi2 ...
+!> \param omega ...
+!> \param tau_tj ...
+!> \param tau_wj_work ...
+!> \param x_values ...
+!> \param y_values ...
+!> \param num_integ_points ...
+!> \param num_x_nodes ...
+! *****************************************************************************
+    SUBROUTINE calc_chi2_fit_tau_grid_with_cosine(chi2,omega,tau_tj,tau_wj_work,x_values,&
+                                                  y_values,num_integ_points,num_x_nodes)
+
+    REAL(KIND=dp)                            :: chi2, omega
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tau_tj, tau_wj_work, &
+                                                x_values, y_values
+    INTEGER                                  :: num_integ_points, num_x_nodes
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'calc_chi2_fit_tau_grid_with_cosine', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, kkk
+    REAL(KIND=dp)                            :: func_val
+
+      CALL timeset(routineN,handle)
+
+      chi2 = 0.0_dp
+      DO kkk=1,num_x_nodes
+
+        func_val=0.0_dp
+
+        CALL eval_fit_func_tau_grid_cosine(func_val,x_values(kkk),num_integ_points,tau_tj,tau_wj_work,omega)
+
+        chi2 = chi2 + (ABS(y_values(kkk)-func_val))**2
+
+      END DO
+
+      CALL timestop(handle)
+
+    END SUBROUTINE
+
+! *****************************************************************************
+!> \brief ...
+!> \param max_error ...
+!> \param omega ...
+!> \param tau_tj ...
+!> \param tau_wj_work ...
+!> \param x_values ...
+!> \param y_values ...
+!> \param num_integ_points ...
+!> \param num_x_nodes ...
+! *****************************************************************************
+    SUBROUTINE calc_max_error_fit_tau_grid_with_cosine(max_error,omega,tau_tj,tau_wj_work,x_values,&
+                                                       y_values,num_integ_points,num_x_nodes)
+
+
+    REAL(KIND=dp)                            :: max_error, omega
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tau_tj, tau_wj_work, &
+                                                x_values, y_values
+    INTEGER                                  :: num_integ_points, num_x_nodes
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'calc_max_error_fit_tau_grid_with_cosine', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, kkk
+    REAL(KIND=dp)                            :: func_val
+
     CALL timeset(routineN,handle)
 
-    im_unit = (0.0_dp, 1.0_dp)
-    chi2 = 0.0_dp
-    DO kkk=1,num_fit_points
-      func_val=Lambda(1)
-      DO iii=1, num_poles
-        jjj=iii*2
-        ! calculate value of the fit function
-        func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw(kkk)-Lambda(jjj+1))
-      END DO
-      chi2 = chi2 + (ABS(Sigma_c(n_level_gw,kkk)-func_val))**2
+    max_error = 0.0_dp
+
+    DO kkk=1,num_x_nodes
+
+      func_val=0.0_dp
+
+      CALL eval_fit_func_tau_grid_cosine(func_val,x_values(kkk),num_integ_points,tau_tj,tau_wj_work,omega)
+
+      IF(ABS(y_values(kkk)-func_val)>max_error) THEN
+        max_error = ABS(y_values(kkk)-func_val)
+      END IF
+
     END DO
 
     CALL timestop(handle)
 
-    END SUBROUTINE calc_chi2
+    END SUBROUTINE
+
 
 ! *****************************************************************************
 !> \brief Calculate the maximum deviation between the fit and the computed self-ener 
@@ -3454,7 +4483,9 @@ MODULE rpa_ri_gpw
 !> \param z_value ...
 !> \param m_value ...
 !> \param vec_Sigma_c_gw ...
+!> \param vec_Sigma_x_minus_vxc_gw ...
 !> \param Eigenval ...
+!> \param Eigenval_scf ...
 !> \param n_level_gw ...
 !> \param gw_corr_lev_occ ...
 !> \param num_poles ...
@@ -3468,7 +4499,8 @@ MODULE rpa_ri_gpw
 !> \param fermi_level_offset ...
 ! *****************************************************************************
     SUBROUTINE fit_and_continuation(vec_gw_energ,vec_gw_energ_error_fit,vec_omega_fit_gw,&
-                    z_value,m_value,vec_Sigma_c_gw,Eigenval,n_level_gw,gw_corr_lev_occ,num_poles,&
+                    z_value,m_value,vec_Sigma_c_gw,vec_Sigma_x_minus_vxc_gw,&
+                    Eigenval,Eigenval_scf,n_level_gw,gw_corr_lev_occ,num_poles,&
                     num_fit_points,max_iter_fit,crossing_search,homo,unit_nr,check_fit,stop_crit,&
                     fermi_level_offset)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, &
@@ -3477,7 +4509,8 @@ MODULE rpa_ri_gpw
                                                 m_value
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vec_Sigma_c_gw
-    REAL(KIND=dp), DIMENSION(:)              :: Eigenval
+    REAL(KIND=dp), DIMENSION(:)              :: vec_Sigma_x_minus_vxc_gw, &
+                                                Eigenval, Eigenval_scf
     INTEGER :: n_level_gw, gw_corr_lev_occ, num_poles, num_fit_points, &
       max_iter_fit, crossing_search, homo, unit_nr
     LOGICAL                                  :: check_fit
@@ -3495,392 +4528,440 @@ MODULE rpa_ri_gpw
                                                 vec_b_gw, vec_b_gw_copy
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_A_gw, mat_B_gw
-    INTEGER :: handle, handle4, ierr, iii, iiter, info, integ_range, jjj, &
-      jquad, kkk, n_level_gw_ref, num_var, xpos
+    INTEGER                                  :: handle4, ierr, iii, iiter, &
+                                                info, integ_range, jjj, &
+                                                jquad, kkk, n_level_gw_ref, &
+                                                num_var, xpos
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     LOGICAL                                  :: could_exit
-    REAL(KIND=dp) :: chi2, chi2_old, e_fermi, gw_energ, Ldown, Lup, &
-      range_step, ScalParam, sign_occ_virt, stat_error
+    REAL(KIND=dp) :: chi2, chi2_old, delta, deriv_val_real, e_fermi, &
+      gw_energ, Ldown, level_energ_GW, Lup, range_step, ScalParam, &
+      sign_occ_virt, stat_error
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Lambda_Im, Lambda_Re, &
                                                 stat_errors, vec_N_gw, &
                                                 vec_omega_fit_gw_sign
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_N_gw
 
-    CALL timeset(routineN,handle)
+      im_unit = (0.0_dp, 1.0_dp)
+      re_unit = (1.0_dp, 0.0_dp)
 
-    im_unit = (0.0_dp, 1.0_dp)
-    re_unit = (1.0_dp, 0.0_dp)
+      num_var=2*num_poles+1
+      ALLOCATE(Lambda(num_var))
+      Lambda=(0.0_dp,0.0_dp)
+      ALLOCATE(Lambda_without_offset(num_var))
+      Lambda_without_offset=(0.0_dp,0.0_dp)
+      ALLOCATE(Lambda_Re(num_var))
+      Lambda_Re=0.0_dp
+      ALLOCATE(Lambda_Im(num_var))
+      Lambda_Im=0.0_dp
 
-    num_var=2*num_poles+1
-    ALLOCATE(Lambda(num_var))
-    Lambda=(0.0_dp,0.0_dp)
-    ALLOCATE(Lambda_without_offset(num_var))
-    Lambda_without_offset=(0.0_dp,0.0_dp)
-    ALLOCATE(Lambda_Re(num_var))
-    Lambda_Re=0.0_dp
-    ALLOCATE(Lambda_Im(num_var))
-    Lambda_Im=0.0_dp
+      ALLOCATE(vec_omega_fit_gw_sign(num_fit_points))
 
-    ALLOCATE(vec_omega_fit_gw_sign(num_fit_points))
+      IF(n_level_gw<=gw_corr_lev_occ) THEN
+        sign_occ_virt = -1.0_dp
+      ELSE
+        sign_occ_virt = 1.0_dp
+      END IF
 
-    IF(n_level_gw<=gw_corr_lev_occ) THEN
-      sign_occ_virt = -1.0_dp
-    ELSE
-      sign_occ_virt = 1.0_dp
-    END IF
-
-    DO jquad=1,num_fit_points
-      vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
-    END DO
-
-    ! initial guess
-    range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/(num_poles-1)
-    DO iii=1,num_poles
-      Lambda_Im(2*iii+1)=vec_omega_fit_gw_sign(1)+(iii-1)*range_step
-    END DO
-    range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/num_poles
-    DO iii=1,num_poles
-      Lambda_Re(2*iii+1)=ABS(vec_omega_fit_gw_sign(1)+(iii-0.5_dp)*range_step)
-    END DO
-
-    DO iii=1,num_var
-      Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
-    END DO
-
-    CALL calc_chi2(chi2_old,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                   num_fit_points,n_level_gw)
-
-
-    ALLOCATE(mat_A_gw(num_poles+1,num_poles+1))
-    ALLOCATE(vec_b_gw(num_poles+1))
-    ALLOCATE(ipiv(num_poles+1))
-    mat_A_gw=(0.0_dp,0.0_dp)
-    vec_b_gw=0.0_dp
-    
-    DO iii=1, num_poles+1
-      mat_A_gw(iii,1)=(1.0_dp,0.0_dp)
-    END DO
-    integ_range=num_fit_points/num_poles
-    DO kkk=1,num_poles+1
-      xpos=(kkk-1)*integ_range+1
-      xpos=MIN(xpos,num_fit_points)
-      ! calculate coefficient at this point
-      DO iii=1, num_poles 
-        jjj=iii*2
-        func_val=(1.0_dp,0.0_dp)/(im_unit*vec_omega_fit_gw_sign(xpos)-&
-                 CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1),KIND=dp))
-        mat_A_gw(kkk,iii+1)=func_val
+      DO jquad=1,num_fit_points
+        vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
       END DO
-      vec_b_gw(kkk)=vec_Sigma_c_gw(n_level_gw,xpos)
-    END DO
 
-    ! Solve system of linear equations
-    CALL ZGETRF(num_poles+1,num_poles+1,mat_A_gw,num_poles+1,ipiv,info)
-    CPASSERT(info==0)
+      ! initial guess
+      range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/(num_poles-1)
+      DO iii=1,num_poles
+        Lambda_Im(2*iii+1)=vec_omega_fit_gw_sign(1)+(iii-1)*range_step
+      END DO
+      range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/num_poles
+      DO iii=1,num_poles
+        Lambda_Re(2*iii+1)=ABS(vec_omega_fit_gw_sign(1)+(iii-0.5_dp)*range_step)
+      END DO
 
-    CALL ZGETRS('N',num_poles+1,1,mat_A_gw,num_poles+1,ipiv,vec_b_gw,num_poles+1,info)
-    CPASSERT(info==0)
-
-    Lambda_Re(1)=REAL(vec_b_gw(1))
-    Lambda_Im(1)=AIMAG(vec_b_gw(1))
-    DO iii=1,num_poles
-      jjj=iii*2
-      Lambda_Re(jjj)=REAL(vec_b_gw(iii+1))
-      Lambda_Im(jjj)=AIMAG(vec_b_gw(iii+1))
-    END DO
-
-    DEALLOCATE(mat_A_gw)
-    DEALLOCATE(vec_b_gw)
-    DEALLOCATE(ipiv)
-
-    ALLOCATE(mat_A_gw(num_var*2,num_var*2))
-    ALLOCATE(mat_B_gw(num_fit_points,num_var*2))
-    ALLOCATE(dLambda(num_fit_points))
-    ALLOCATE(dLambda_2(num_fit_points))
-    ALLOCATE(vec_b_gw(num_var*2))
-    ALLOCATE(vec_b_gw_copy(num_var*2))
-    ALLOCATE(ipiv(num_var*2))
-
-    ScalParam=0.01_dp
-    Ldown=1.5_dp
-    Lup=10.0_dp
-    could_exit=.FALSE.
-
-    ! iteration loop for fitting
-    DO iiter=1, max_iter_fit
-
-      CALL timeset(routineN//"_fit_loop_1",handle4)
-
-      ! calc delta lambda
       DO iii=1,num_var
         Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
       END DO
-      dLambda=(0.0_dp,0.0_dp)
 
-      DO kkk=1,num_fit_points
-        func_val=Lambda(1)
-        DO iii=1,num_poles
-          jjj=iii*2
-          func_val=func_val+Lambda(jjj)/(vec_omega_fit_gw_sign(kkk)*im_unit-Lambda(jjj+1))
-        END DO
-        dLambda(kkk)=vec_Sigma_c_gw(n_level_gw,kkk)-func_val
-      END DO
-      rho1=SUM(dLambda*dLambda)
-
-      ! fill matrix
-      mat_B_gw=(0.0_dp,0.0_dp)
-      DO iii=1,num_fit_points
-        mat_B_gw(iii,1)=1.0_dp
-        mat_B_gw(iii,num_var+1)=im_unit
-      END DO
-      DO iii=1,num_poles
-        jjj=iii*2
-        DO kkk=1,num_fit_points
-          mat_B_gw(kkk,jjj)=1.0_dp/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
-          mat_B_gw(kkk,jjj+num_var)=im_unit/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
-          mat_B_gw(kkk,jjj+1)=Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
-          mat_B_gw(kkk,jjj+1+num_var)=(-Lambda_Im(jjj)+im_unit*Lambda_Re(jjj))/&
-                                      (im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
-        END DO
-      END DO
-
-      CALL timestop(handle4)
-
-      CALL timeset(routineN//"_fit_matmul_1",handle4)
-
-      one  = (1.0_dp, 0.0_dp)
-      zero = (0.0_dp, 0.0_dp)
-      CALL zgemm('C','N',num_var*2,num_var*2,num_fit_points,one,mat_B_gw,num_fit_points,mat_B_gw,num_fit_points,&
-                 zero,mat_A_gw,num_var*2)
-      CALL timestop(handle4)
-
-      CALL timeset(routineN//"_fit_zgemv_1",handle4)
-      CALL zgemv('C',num_fit_points,num_var*2,one,mat_B_gw,num_fit_points,dLambda,1,&
-                 zero,vec_b_gw,1)
-
-      CALL timestop(handle4)
-
-      ! scale diagonal elements of a_mat
-      DO iii=1, num_var*2
-        mat_A_gw(iii,iii)=mat_A_gw(iii,iii)+ScalParam*mat_A_gw(iii,iii)
-      END DO
-
-      ! solve linear system
-      ierr=0
-      ipiv=0
-
-      CALL timeset(routineN//"_fit_lin_eq_2",handle4)
-
-      CALL ZGETRF(2*num_var,2*num_var,mat_A_gw,2*num_var,ipiv,info)
-      CPASSERT(info==0)
-
-      CALL ZGETRS('N',2*num_var,1,mat_A_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
-      CPASSERT(info==0)
-
-      CALL timestop(handle4)
-
-      DO iii=1, num_var
-        Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)+vec_b_gw(iii)+vec_b_gw(iii+num_var)
-      END DO
-
-      ! calculate chi2
-      CALL calc_chi2(chi2,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+      CALL calc_chi2(chi2_old,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
                      num_fit_points,n_level_gw)
 
-      IF(chi2<chi2_old) THEN
-        ScalParam=MAX(ScalParam/Ldown,1E-12_dp)
-        DO iii=1, num_var
-          Lambda_Re(iii)=Lambda_Re(iii)+REAL(vec_b_gw(iii)+vec_b_gw(iii+num_var))
-          Lambda_Im(iii)=Lambda_Im(iii)+AIMAG(vec_b_gw(iii)+vec_b_gw(iii+num_var))
+
+      ALLOCATE(mat_A_gw(num_poles+1,num_poles+1))
+      ALLOCATE(vec_b_gw(num_poles+1))
+      ALLOCATE(ipiv(num_poles+1))
+      mat_A_gw=(0.0_dp,0.0_dp)
+      vec_b_gw=0.0_dp
+      
+      DO iii=1, num_poles+1
+        mat_A_gw(iii,1)=(1.0_dp,0.0_dp)
+      END DO
+      integ_range=num_fit_points/num_poles
+      DO kkk=1,num_poles+1
+        xpos=(kkk-1)*integ_range+1
+        xpos=MIN(xpos,num_fit_points)
+        ! calculate coefficient at this point
+        DO iii=1, num_poles 
+          jjj=iii*2
+          func_val=(1.0_dp,0.0_dp)/(im_unit*vec_omega_fit_gw_sign(xpos)-&
+                   CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1),KIND=dp))
+          mat_A_gw(kkk,iii+1)=func_val
         END DO
-        IF(chi2_old/chi2-1.0_dp<stop_crit) could_exit=.TRUE.
-        chi2_old=chi2
+        vec_b_gw(kkk)=vec_Sigma_c_gw(n_level_gw,xpos)
+      END DO
+
+      ! Solve system of linear equations
+      CALL ZGETRF(num_poles+1,num_poles+1,mat_A_gw,num_poles+1,ipiv,info)
+
+      CALL ZGETRS('N',num_poles+1,1,mat_A_gw,num_poles+1,ipiv,vec_b_gw,num_poles+1,info)
+
+      Lambda_Re(1)=REAL(vec_b_gw(1))
+      Lambda_Im(1)=AIMAG(vec_b_gw(1))
+      DO iii=1,num_poles
+        jjj=iii*2
+        Lambda_Re(jjj)=REAL(vec_b_gw(iii+1))
+        Lambda_Im(jjj)=AIMAG(vec_b_gw(iii+1))
+      END DO
+
+      DEALLOCATE(mat_A_gw)
+      DEALLOCATE(vec_b_gw)
+      DEALLOCATE(ipiv)
+
+      ALLOCATE(mat_A_gw(num_var*2,num_var*2))
+      ALLOCATE(mat_B_gw(num_fit_points,num_var*2))
+      ALLOCATE(dLambda(num_fit_points))
+      ALLOCATE(dLambda_2(num_fit_points))
+      ALLOCATE(vec_b_gw(num_var*2))
+      ALLOCATE(vec_b_gw_copy(num_var*2))
+      ALLOCATE(ipiv(num_var*2))
+
+      ScalParam=0.01_dp
+      Ldown=1.5_dp
+      Lup=10.0_dp
+      could_exit=.FALSE.
+
+      ! iteration loop for fitting
+      DO iiter=1, max_iter_fit
+
+        CALL timeset(routineN//"_fit_loop_1",handle4)
+
+        ! calc delta lambda
+        DO iii=1,num_var
+          Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
+        END DO
+        dLambda=(0.0_dp,0.0_dp)
+
+        DO kkk=1,num_fit_points
+          func_val=Lambda(1)
+          DO iii=1,num_poles
+            jjj=iii*2
+            func_val=func_val+Lambda(jjj)/(vec_omega_fit_gw_sign(kkk)*im_unit-Lambda(jjj+1))
+          END DO
+          dLambda(kkk)=vec_Sigma_c_gw(n_level_gw,kkk)-func_val
+        END DO
+        rho1=SUM(dLambda*dLambda)
+
+        ! fill matrix
+        mat_B_gw=(0.0_dp,0.0_dp)
+        DO iii=1,num_fit_points
+          mat_B_gw(iii,1)=1.0_dp
+          mat_B_gw(iii,num_var+1)=im_unit
+        END DO
+        DO iii=1,num_poles
+          jjj=iii*2
+          DO kkk=1,num_fit_points
+            mat_B_gw(kkk,jjj)=1.0_dp/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+            mat_B_gw(kkk,jjj+num_var)=im_unit/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+            mat_B_gw(kkk,jjj+1)=Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
+            mat_B_gw(kkk,jjj+1+num_var)=(-Lambda_Im(jjj)+im_unit*Lambda_Re(jjj))/&
+                                        (im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
+          END DO
+        END DO
+
+        CALL timestop(handle4)
+
+        CALL timeset(routineN//"_fit_matmul_1",handle4)
+
+        one  = (1.0_dp, 0.0_dp)
+        zero = (0.0_dp, 0.0_dp)
+        CALL zgemm('C','N',num_var*2,num_var*2,num_fit_points,one,mat_B_gw,num_fit_points,mat_B_gw,num_fit_points,&
+                   zero,mat_A_gw,num_var*2)
+        CALL timestop(handle4)
+
+        CALL timeset(routineN//"_fit_zgemv_1",handle4)
+        CALL zgemv('C',num_fit_points,num_var*2,one,mat_B_gw,num_fit_points,dLambda,1,&
+                   zero,vec_b_gw,1)
+
+        CALL timestop(handle4)
+
+        ! scale diagonal elements of a_mat
+        DO iii=1, num_var*2
+          mat_A_gw(iii,iii)=mat_A_gw(iii,iii)+ScalParam*mat_A_gw(iii,iii)
+        END DO
+
+        ! solve linear system
+        ierr=0
+        ipiv=0
+
+        CALL timeset(routineN//"_fit_lin_eq_2",handle4)
+
+        CALL ZGETRF(2*num_var,2*num_var,mat_A_gw,2*num_var,ipiv,info)
+
+        CALL ZGETRS('N',2*num_var,1,mat_A_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
+
+        CALL timestop(handle4)
+
+        DO iii=1, num_var
+          Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)+vec_b_gw(iii)+vec_b_gw(iii+num_var)
+        END DO
+
+        ! calculate chi2
+        CALL calc_chi2(chi2,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                       num_fit_points,n_level_gw)
+
+        IF(chi2<chi2_old) THEN
+          ScalParam=MAX(ScalParam/Ldown,1E-12_dp)
+          DO iii=1, num_var
+            Lambda_Re(iii)=Lambda_Re(iii)+REAL(vec_b_gw(iii)+vec_b_gw(iii+num_var))
+            Lambda_Im(iii)=Lambda_Im(iii)+AIMAG(vec_b_gw(iii)+vec_b_gw(iii+num_var))
+          END DO
+          IF(chi2_old/chi2-1.0_dp<stop_crit) could_exit=.TRUE.
+          chi2_old=chi2
+        ELSE
+          ScalParam=ScalParam*Lup
+        END IF
+        IF(ScalParam>100.0_dp .AND. could_exit) EXIT
+
+        IF(ScalParam>1E+10_dp) ScalParam=1E-4_dp
+
+        n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
+        IF(iiter==max_iter_fit) THEN
+          WRITE(MO_number, "(I3)")  n_level_gw_ref
+          CALL cp_warn(__LOCATION__,&
+               "The fit for corrected level n ="// MO_number// " did not converge. "//&
+               "For levels close to HOMO or LUMO, this is normally no issue. "//&
+               "To avoid this warning, you can (1) increase the "//&
+               "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
+               "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
+               "or  you can (3) decrease "//&
+               "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
+
+        END IF
+
+      END DO
+
+      ! change a_0 [Lambda(1)], so that Sigma(i0) = Fit(i0) 
+      func_val=Lambda(1)
+      DO iii=1, num_poles
+        jjj=iii*2
+        ! calculate value of the fit function
+        func_val=func_val+Lambda(jjj)/(-Lambda(jjj+1))
+      END DO
+
+      Lambda_Re(1) = Lambda_Re(1) - REAL(func_val) + REAL(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+      Lambda_Im(1) = Lambda_Im(1) - AIMAG(func_val) + AIMAG(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+
+      Lambda_without_offset(:) = Lambda(:)
+
+      DO iii=1, num_var
+        Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii),KIND=dp)
+      END DO
+
+      ! print self_energy and fit on the imaginary frequency axis if required
+      IF(check_fit) THEN
+
+        WRITE(*,*) ' '
+        WRITE(*,'(T3,A,I5)') 'Check the GW fit for molecular orbital', n_level_gw_ref
+        WRITE(*,'(T3,A)')    '-------------------------------------------'
+        WRITE(*,*)
+        WRITE(*,'(T3,5A)') '  omega (i*eV)    ', 'Re(fit) (eV)    ', &
+                   'Im(fit) (eV)  ', 'Re(Sig_c) (eV)  ', &
+                   'Im(Sig_c) (eV)'
+
+        DO kkk=1, num_fit_points
+          func_val=Lambda(1)
+          DO iii=1, num_poles
+            jjj=iii*2
+            ! calculate value of the fit function
+            func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+          END DO
+          WRITE(*,'(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*27.211_dp, REAL(func_val)*27.211_dp, &
+                     AIMAG(func_val)*27.211_dp, REAL(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp, &
+                     AIMAG(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp
+        END DO
+
+        WRITE(*,*) ' '
+
+      END IF
+
+      ! correct the electronic levels 
+      IF(n_level_gw<=gw_corr_lev_occ) THEN
+        e_fermi = Eigenval(homo) + fermi_level_offset
       ELSE
-        ScalParam=ScalParam*Lup
-      END IF
-      IF(ScalParam>100.0_dp .AND. could_exit) EXIT
-
-      IF(ScalParam>1E+10_dp) ScalParam=1E-4_dp
-
-      n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
-      IF(iiter==max_iter_fit) THEN
-        WRITE(MO_number, "(I3)")  n_level_gw_ref
-        CALL cp_warn(__LOCATION__,&
-             "The fit for corrected level n ="// MO_number// " did not converge. "//&
-             "For levels close to HOMO or LUMO, this is normally no issue. "//&
-             "To avoid this warning, you can (1) increase the "//&
-             "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
-             "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
-             "or  you can (3) decrease "//&
-             "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
-
+        e_fermi = Eigenval(homo+1) - fermi_level_offset
       END IF
 
-    END DO
+      ! either Z-shot or no crossing search for evaluating Sigma_c 
+      IF(crossing_search==ri_rpa_g0w0_crossing_none ) THEN
 
-    ! change a_0 [Lambda(1)], so that Sigma(i0) = Fit(i0) 
-    func_val=Lambda(1)
-    DO iii=1, num_poles
-      jjj=iii*2
-      ! calculate value of the fit function
-      func_val=func_val+Lambda(jjj)/(-Lambda(jjj+1))
-    END DO
-
-    Lambda_Re(1) = Lambda_Re(1) - REAL(func_val) + REAL(vec_Sigma_c_gw(n_level_gw,num_fit_points))
-    Lambda_Im(1) = Lambda_Im(1) - AIMAG(func_val) + AIMAG(vec_Sigma_c_gw(n_level_gw,num_fit_points))
-
-    Lambda_without_offset(:) = Lambda(:)
-
-    DO iii=1, num_var
-      Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii),KIND=dp)
-    END DO
-
-    ! print self_energy and fit on the imaginary frequency axis if required
-    IF(check_fit .AND. unit_nr>0) THEN
-
-      WRITE(unit_nr,*) ' '
-      WRITE(unit_nr,'(T3,A,I5)') 'Check the GW fit for molecular orbital', n_level_gw_ref
-      WRITE(unit_nr,'(T3,A)')    '-------------------------------------------'
-      WRITE(unit_nr,*)
-      WRITE(unit_nr,'(T3,5A)') '  omega (i*eV)    ', 'Re(fit) (eV)    ', &
-                 'Im(fit) (eV)  ', 'Re(Sig_c) (eV)  ', &
-                 'Im(Sig_c) (eV)'
-
-      DO kkk=1, num_fit_points
+        ! calculate func val on the real axis 
+        ! gw_energ = only correlation part of the self energy
         func_val=Lambda(1)
         DO iii=1, num_poles
           jjj=iii*2
-          ! calculate value of the fit function
-          func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+          func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
         END DO
-        WRITE(unit_nr,'(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*27.211_dp, REAL(func_val)*27.211_dp, &
-                   AIMAG(func_val)*27.211_dp, REAL(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp, &
-                   AIMAG(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp
+
+        gw_energ = REAL(func_val)
+        vec_gw_energ(n_level_gw) = gw_energ
+
+      ELSE IF(crossing_search==ri_rpa_g0w0_crossing_z_shot .OR. & 
+              crossing_search==ri_rpa_g0w0_crossing_newton) THEN
+
+        ! calculate Sigma_c_fit(e_n) and Z
+        func_val=Lambda(1)
+        z_value(n_level_gw)=1.0_dp
+        DO iii=1, num_poles
+          jjj=iii*2
+          z_value(n_level_gw)=z_value(n_level_gw)+REAL(Lambda(jjj)/&
+                              (Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))**2)
+          func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
+        END DO
+        ! m is the slope of the correl self-energy
+        m_value(n_level_gw)=1.0_dp-z_value(n_level_gw)
+        z_value(n_level_gw)=1.0_dp/z_value(n_level_gw)
+        gw_energ = REAL(func_val)
+        vec_gw_energ(n_level_gw) = gw_energ
+
+
+        ! in case one wants to do Newton-Raphson on top of the Z-shot
+        IF(crossing_search==ri_rpa_g0w0_crossing_newton) THEN
+
+          level_energ_GW = (Eigenval_scf(n_level_gw_ref)-&
+                      m_value(n_level_gw)*Eigenval(n_level_gw_ref)+&
+                      vec_gw_energ(n_level_gw) + &
+                      vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))*&
+                      z_value(n_level_gw)
+
+
+          ! Newton-Raphson iteration
+          DO kkk=1,1000 
+
+            ! calculate the value of the fit function for level_energ_GW 
+            func_val=Lambda(1)
+            z_value(n_level_gw)=1.0_dp
+            DO iii=1, num_poles
+              jjj=iii*2
+              func_val=func_val+Lambda(jjj)/(level_energ_GW-e_fermi-Lambda(jjj+1))
+            END DO
+
+
+            ! calculate the derivative of the fit function for level_energ_GW
+            deriv_val_real = -1.0_dp
+            DO iii=1, num_poles
+              jjj=iii*2
+              deriv_val_real= deriv_val_real+ REAL(Lambda(jjj))/((ABS(level_energ_GW-e_fermi-Lambda(jjj+1)))**2) & 
+                              - (REAL(Lambda(jjj))*(level_energ_GW-e_fermi) - REAL(Lambda(jjj)*CONJG(Lambda(jjj+1))))* &
+                                2.0_dp*(level_energ_GW-e_fermi-REAL(Lambda(jjj+1)))/&
+                                ((ABS(level_energ_GW-e_fermi-Lambda(jjj+1)))**2)
+
+            END DO
+
+            delta = (Eigenval_scf(n_level_gw_ref)+vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)+REAL(func_val)-level_energ_GW)/&
+                    deriv_val_real
+
+            level_energ_GW = level_energ_GW - delta
+
+            IF(ABS(delta)<1.0E-08) EXIT
+
+          END DO
+
+          ! update the GW-energy by Newton-Raphson and set the Z-value to 1
+
+          vec_gw_energ(n_level_gw) = REAL(func_val)
+          z_value(n_level_gw)      = 1.0_dp
+          m_value(n_level_gw)      = 0.0_dp
+
+
+        END IF ! Newton-Raphson on top of Z-shot
+
+
+
+      END IF ! decision crossing search none, Z-shot
+
+      !   --------------------------------------------
+      !  | calculate statistical error due to fitting |
+      !   --------------------------------------------
+
+      ! estimate the statistical error of the calculated Sigma_c(i*omega) 
+      ! by sqrt(chi2/n), where n is the number of fit points
+
+      CALL calc_chi2(chi2,Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                     num_fit_points,n_level_gw)
+
+      ! Estimate the statistical error of every fit point
+      stat_error = SQRT(chi2/num_fit_points)
+
+
+      ! allocate N array containing the second derivatives of chi^2
+      ALLOCATE(vec_N_gw(num_var*2))
+      vec_N_gw = 0.0_dp
+
+      ALLOCATE(mat_N_gw(num_var*2,num_var*2))
+      mat_N_gw = 0.0_dp
+
+      DO iii=1,num_var*2
+          CALL calc_mat_N(vec_N_gw(iii),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
+                              iii,iii,num_poles,num_fit_points,n_level_gw,0.001_dp)
       END DO
 
-      WRITE(unit_nr,*) ' '
-
-    END IF
-
-    ! correct the electronic levels 
-    IF(n_level_gw<=gw_corr_lev_occ) THEN
-      e_fermi = Eigenval(homo) + fermi_level_offset
-    ELSE
-      e_fermi = Eigenval(homo+1) - fermi_level_offset
-    END IF
-
-    ! either Z-shot or no crossing search for evaluating Sigma_c 
-    IF(crossing_search==ri_rpa_g0w0_crossing_none ) THEN
-
-      ! calculate func val on the real axis 
-      ! gw_energ = only correlation part of the self energy
-      func_val=Lambda(1)
-      DO iii=1, num_poles
-        jjj=iii*2
-        func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
+      DO iii=1,num_var*2
+        DO jjj=1,num_var*2
+          CALL calc_mat_N(mat_N_gw(iii,jjj),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
+                          iii,jjj,num_poles,num_fit_points,n_level_gw,0.001_dp)
+        END DO
       END DO
 
-      gw_energ = REAL(func_val)
-      vec_gw_energ(n_level_gw) = gw_energ
+      CALL DGETRF(2*num_var,2*num_var,mat_N_gw,2*num_var,ipiv,info)
 
-    ELSE IF(crossing_search==ri_rpa_g0w0_crossing_z_shot) THEN
-      ! calculate Sigma_c_fit(e_n) and Z
-      func_val=Lambda(1)
-      z_value(n_level_gw)=1.0_dp
-      DO iii=1, num_poles
-        jjj=iii*2
-        z_value(n_level_gw)=z_value(n_level_gw)+REAL(Lambda(jjj)/&
-                            (Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))**2)
-        func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
+      ! vec_b_gw is only working array
+      CALL DGETRI(2*num_var,mat_N_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
+
+      ALLOCATE(stat_errors(2*num_var))
+      stat_errors=0.0_dp
+
+      DO iii=1,2*num_var
+        stat_errors(iii)=SQRT(ABS(mat_N_gw(iii,iii)))*stat_error
       END DO
-      ! m is the slope of the correl self-energy
-      m_value(n_level_gw)=1.0_dp-z_value(n_level_gw)
-      z_value(n_level_gw)=1.0_dp/z_value(n_level_gw)
-      gw_energ = REAL(func_val)
-      vec_gw_energ(n_level_gw) = gw_energ
 
-    END IF
+      ! Compute error of Sigma_c on real axis according to error propagation 
 
-    !   --------------------------------------------
-    !  | calculate statistical error due to fitting |
-    !   --------------------------------------------
+      vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
 
-    ! estimate the statistical error of the calculated Sigma_c(i*omega) 
-    ! by sqrt(chi2/n), where n is the number of fit points
-
-    CALL calc_chi2(chi2,Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                   num_fit_points,n_level_gw)
-
-    ! Estimate the statistical error of every fit point
-    stat_error = SQRT(chi2/num_fit_points)
-
-
-    ! allocate N array containing the second derivatives of chi^2
-    ALLOCATE(vec_N_gw(num_var*2))
-    vec_N_gw = 0.0_dp
-
-    ALLOCATE(mat_N_gw(num_var*2,num_var*2))
-    mat_N_gw = 0.0_dp
-
-    DO iii=1,num_var*2
-        CALL calc_mat_N(vec_N_gw(iii),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
-                            iii,iii,num_poles,num_fit_points,n_level_gw,0.001_dp)
-    END DO
-
-    DO iii=1,num_var*2
-      DO jjj=1,num_var*2
-        CALL calc_mat_N(mat_N_gw(iii,jjj),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
-                        iii,jjj,num_poles,num_fit_points,n_level_gw,0.001_dp)
+      DO kkk=1,num_poles
+        vec_gw_energ_error_fit(n_level_gw) = vec_gw_energ_error_fit(n_level_gw) + &
+                  (stat_errors(4*kkk-1)+stat_errors(4*kkk))*&
+                  ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1)) - &
+                       1.0_dp/(-Lambda(2*kkk+1)) ) + &
+                  (stat_errors(4*kkk+1)+stat_errors(4*kkk+2))*ABS(Lambda(2*kkk))* &
+                  ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1))**2 - &
+                       1.0_dp/(-Lambda(2*kkk+1))**2 )
       END DO
-    END DO
 
-    CALL DGETRF(2*num_var,2*num_var,mat_N_gw,2*num_var,ipiv,info)
-    CPASSERT(info==0)
-
-    ! vec_b_gw is only working array
-    CALL DGETRI(2*num_var,mat_N_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
-    CPASSERT(info==0)
-
-
-    ALLOCATE(stat_errors(2*num_var))
-    stat_errors=0.0_dp
-
-    DO iii=1,2*num_var
-      stat_errors(iii)=SQRT(ABS(mat_N_gw(iii,iii)))*stat_error
-    END DO
-
-    ! Compute error of Sigma_c on real axis according to error propagation 
-
-    vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
-
-    DO kkk=1,num_poles
-      vec_gw_energ_error_fit(n_level_gw) = vec_gw_energ_error_fit(n_level_gw) + &
-                (stat_errors(4*kkk-1)+stat_errors(4*kkk))*&
-                ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1)) - &
-                     1.0_dp/(-Lambda(2*kkk+1)) ) + &
-                (stat_errors(4*kkk+1)+stat_errors(4*kkk+2))*ABS(Lambda(2*kkk))* &
-                ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1))**2 - &
-                     1.0_dp/(-Lambda(2*kkk+1))**2 )
-    END DO
-
-    DEALLOCATE(mat_N_gw)
-    DEALLOCATE(vec_N_gw)
-    DEALLOCATE(mat_A_gw)
-    DEALLOCATE(mat_B_gw)
-    DEALLOCATE(stat_errors)
-    DEALLOCATE(dLambda)
-    DEALLOCATE(dLambda_2)
-    DEALLOCATE(vec_b_gw)
-    DEALLOCATE(vec_b_gw_copy)
-    DEALLOCATE(ipiv)
-    DEALLOCATE(vec_omega_fit_gw_sign)
-    DEALLOCATE(Lambda)
-    DEALLOCATE(Lambda_without_offset)
-    DEALLOCATE(Lambda_Re)
-    DEALLOCATE(Lambda_Im)
-
-    CALL timestop(handle)
+      DEALLOCATE(mat_N_gw)
+      DEALLOCATE(vec_N_gw)
+      DEALLOCATE(mat_A_gw)
+      DEALLOCATE(mat_B_gw)
+      DEALLOCATE(stat_errors)
+      DEALLOCATE(dLambda)
+      DEALLOCATE(dLambda_2)
+      DEALLOCATE(vec_b_gw)
+      DEALLOCATE(vec_b_gw_copy)
+      DEALLOCATE(ipiv)
+      DEALLOCATE(vec_omega_fit_gw_sign)
+      DEALLOCATE(Lambda)
+      DEALLOCATE(Lambda_without_offset)
+      DEALLOCATE(Lambda_Re)
+      DEALLOCATE(Lambda_Im)
 
     END SUBROUTINE 
 
@@ -3924,6 +5005,337 @@ MODULE rpa_ri_gpw
 
     END SUBROUTINE 
 
+
+
+
+! *****************************************************************************
+!> \brief Fits the complex self-energy of n_level_gw to a multi-pole model and evaluates the 
+!>        fit at the energy eigenvalue of the SCF. Real part of the correlation self-energy 
+!>        is written to vec_gw_energ. Also calculates the statistical error of the correlation
+!>        self-energy due to the fit
+!> \param vec_gw_energ ...
+!> \param vec_gw_energ_error_fit ...
+!> \param vec_tau_fit_gw_sign ...
+!> \param z_value ...
+!> \param m_value ...
+!> \param vec_Sigma_c_gw ...
+!> \param Eigenval ...
+!> \param n_level_gw ...
+!> \param gw_corr_lev_occ ...
+!> \param num_poles ...
+!> \param num_fit_points ...
+!> \param max_iter_fit ...
+!> \param crossing_search ...
+!> \param homo ...
+!> \param unit_nr ...
+!> \param check_fit ...
+!> \param stop_crit ...
+!> \param fermi_level_offset ...
+! *****************************************************************************
+    SUBROUTINE fit_and_continuation_im_time(vec_gw_energ,vec_gw_energ_error_fit,vec_tau_fit_gw_sign,&
+                    z_value,m_value,vec_Sigma_c_gw,Eigenval,n_level_gw,gw_corr_lev_occ,num_poles,&
+                    num_fit_points,max_iter_fit,crossing_search,homo,unit_nr,check_fit,stop_crit,&
+                    fermi_level_offset)
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, &
+                                                vec_gw_energ_error_fit, &
+                                                vec_tau_fit_gw_sign, z_value, &
+                                                m_value
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vec_Sigma_c_gw
+    REAL(KIND=dp), DIMENSION(:)              :: Eigenval
+    INTEGER :: n_level_gw, gw_corr_lev_occ, num_poles, num_fit_points, &
+      max_iter_fit, crossing_search, homo, unit_nr
+    LOGICAL                                  :: check_fit
+    REAL(KIND=dp)                            :: stop_crit, fermi_level_offset
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation_im_time', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iii, iiter, info, jjj, kkk, &
+                                                num_var
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
+    LOGICAL                                  :: could_exit
+    REAL(KIND=dp)                            :: chi2, chi2_old, func_val, &
+                                                func_val_im, Ldown, Lup, &
+                                                omega, ScalParam
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: beta, Sigma_c_real, &
+                                                vec_delta, vec_JT_y_minus_b, &
+                                                vec_y_minus_f
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: mat_J, mat_JTJ
+
+! number of variables to fit
+
+    num_var=3*num_poles
+
+    ALLOCATE(Sigma_c_real(num_fit_points))
+    Sigma_c_real(:) = REAL(vec_Sigma_c_gw(n_level_gw,:))
+
+    ! all names of matrices are following the nomenclature of the wikipedia article on the
+    ! Levenberg-Marquardt algorithm
+
+    ALLOCATE(beta(num_var))
+    beta=0.0_dp
+
+    ! initial guess: 1.0 for every parameter
+    DO iii=1,num_var
+      beta(iii)=1.0_dp
+    END DO
+
+    beta(1) = 0.1_dp
+    beta(2) = -0.0005_dp
+    beta(3) = 0.09_dp
+
+    beta(4) = -0.06_dp
+    beta(5) = -0.02_dp
+    beta(6) = 0.11_dp
+
+
+    IF(num_var>=9) THEN
+
+      beta(7) = 0.01_dp
+      beta(8) = -0.02_dp
+      beta(9) = 0.2_dp
+
+    END IF
+
+    IF(num_var>=12) THEN
+
+      beta(10) = 0.001_dp
+      beta(11) = -0.002_dp
+      beta(12) = 0.001_dp
+
+    END IF
+
+
+    ALLOCATE(mat_J(num_fit_points,num_var))
+    mat_J = 0.0_dp
+
+    ALLOCATE(mat_JTJ(num_var,num_var))
+    mat_JTJ = 0.0_dp
+
+    ALLOCATE(vec_y_minus_f(num_fit_points))
+    vec_y_minus_f = 0.0_dp
+
+    ALLOCATE(vec_JT_y_minus_b(num_var))
+    vec_JT_y_minus_b = 0.0_dp
+
+    ALLOCATE(vec_delta(num_var))
+    vec_delta = 0.0_dp
+
+    ALLOCATE(ipiv(num_var))
+
+
+    ScalParam=0.01_dp
+    Ldown=1.5_dp
+    Lup=10.0_dp
+    could_exit=.FALSE.
+
+    ! iteration loop for fitting
+    DO iiter=1, max_iter_fit
+
+      ! Calculate the chi^2 value with the old fitting parameters
+      CALL calc_chi2_im_time(chi2_old,beta,Sigma_c_real,vec_tau_fit_gw_sign,num_poles,&
+                             num_fit_points)
+
+      ! calculate J
+      DO jjj=1,num_poles
+  
+        kkk=3*jjj-2
+  
+        DO iii=1,num_fit_points
+  
+          IF(vec_tau_fit_gw_sign(iii)>0) THEN
+            mat_J(iii,kkk)   = EXP(-vec_tau_fit_gw_sign(iii)*beta(kkk+2))
+            mat_J(iii,kkk+1) = 0.0_dp
+            mat_J(iii,kkk+2) = -beta(kkk)*vec_tau_fit_gw_sign(iii)*EXP(-vec_tau_fit_gw_sign(iii)*beta(kkk+2))
+  
+          ELSE
+            mat_J(iii,kkk)   = 0.0_dp
+            mat_J(iii,kkk+1) = EXP(vec_tau_fit_gw_sign(iii)*beta(kkk+2))
+            mat_J(iii,kkk+2) = beta(kkk+1)*vec_tau_fit_gw_sign(iii)*EXP(vec_tau_fit_gw_sign(iii)*beta(kkk+2))
+  
+          END IF
+  
+        END DO
+  
+      END DO
+  
+      ! calculate J^T*J
+      CALL dgemm('T','N',num_var,num_var,num_fit_points,1.0_dp,mat_J,num_fit_points,mat_J,num_fit_points,&
+                 0.0_dp,mat_JTJ,num_var)
+
+      ! calculate J^T*J + Lambda*diag(J^T*J)
+      DO iii=1,num_var
+        mat_JTJ(iii,iii)=mat_JTJ(iii,iii)+ScalParam*mat_JTJ(iii,iii)
+      END DO
+  
+      ! calculate y-f(beta)
+      DO iii=1,num_fit_points
+  
+        CALL eval_fit_func_im_time(func_val,vec_tau_fit_gw_sign(iii),num_poles,beta)
+  
+        vec_y_minus_f(iii) = Sigma_c_real(iii) - func_val
+  
+      END DO
+  
+      ! calculate J^T(y-f(beta))
+      CALL dgemm('T','N',num_var,1,num_fit_points,1.0_dp,mat_J,num_fit_points,vec_y_minus_f,num_fit_points,&
+                 0.0_dp,vec_JT_y_minus_b,num_var)
+
+      ! calculate delta as solution of the system of linear equations
+
+      ipiv = 0
+      ! 1) calculate factorization of J^T*J+Lambda*diag(J^T*J)
+      CALL dgetrf(num_var,num_var,mat_JTJ,num_var,ipiv,info)
+
+      ! 2) determine solution of the SysofLinEq, right site vec_JT_y_minus_b as input,
+      !    solution in vec_JT_y_minus_b as output
+      CALL dgetrs('N',num_var,1,mat_JTJ,num_var,ipiv,vec_JT_y_minus_b,num_var,info)
+
+
+      ! Update the fitting parameters
+      beta(:) = beta(:) + vec_JT_y_minus_b(:)
+
+      ! calculate new chi^2
+      CALL calc_chi2_im_time(chi2,beta,Sigma_c_real,vec_tau_fit_gw_sign,num_poles,&
+                             num_fit_points)
+
+
+      ! in case chi2 is worse than chi2_old with the old fitting values, decrease the scaling parameter
+      ! and reset the fitting coefficients, otherwise, decrease the scaling parameter
+      IF(chi2>chi2_old) THEN
+        ScalParam = ScalParam*Lup
+        beta(:) = beta(:) - vec_JT_y_minus_b(:)
+      ELSE
+        ScalParam = ScalParam/Ldown
+      END IF
+
+    END DO
+
+    DO iii=1,num_fit_points
+      CALL eval_fit_func_im_time(func_val,vec_tau_fit_gw_sign(iii),num_poles,beta)
+    END DO 
+
+    DO iii=1,num_fit_points
+      omega=vec_tau_fit_gw_sign(iii)
+      func_val=0.0_dp
+      func_val_im=0.0_dp
+      DO kkk=1,num_poles
+        jjj=3*kkk-2
+        func_val    = func_val + (beta(jjj)+beta(jjj+1))*beta(jjj+2)/((beta(jjj+2))**2+omega**2) 
+        func_val_im = func_val_im +omega*(beta(jjj)-beta(jjj+1))/((beta(jjj+2))**2+omega**2)
+      END DO
+    END DO 
+
+    DEALLOCATE(mat_J)
+    DEALLOCATE(mat_JTJ)
+    DEALLOCATE(beta)
+    DEALLOCATE(Sigma_c_real)
+    DEALLOCATE(vec_y_minus_f)
+    DEALLOCATE(vec_JT_y_minus_b)
+    DEALLOCATE(ipiv)
+
+    END SUBROUTINE 
+
+! *****************************************************************************
+!> \brief Evaluate the fit function at imaginary time
+!> \param func_val ...
+!> \param tau ...
+!> \param num_poles ...
+!> \param beta ...
+! *****************************************************************************
+    SUBROUTINE eval_fit_func_im_time(func_val,tau,num_poles,beta)
+
+    REAL(KIND=dp)                            :: func_val, tau
+    INTEGER                                  :: num_poles
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: beta
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_im_time', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iii, jjj
+
+    func_val=0.0_dp
+    DO iii=1, num_poles
+      jjj=iii*3
+      ! calculate value of the fit function
+      IF(tau>0) THEN
+        func_val=func_val+beta(jjj-2)*EXP(-tau*beta(jjj))
+      ELSE
+        func_val=func_val+beta(jjj-1)*EXP(tau*beta(jjj))
+      END IF
+    END DO
+
+
+    END SUBROUTINE 
+
+! *****************************************************************************
+!> \brief Evaluate fit function when calculating tau grid
+!> \param func_val ...
+!> \param x_value ...
+!> \param num_integ_points ...
+!> \param tj ...
+!> \param wj ...
+! *****************************************************************************
+    SUBROUTINE eval_fit_func_tau_grid(func_val,x_value,num_integ_points,&
+                                      tj,wj)
+
+    REAL(KIND=dp)                            :: func_val, x_value
+    INTEGER                                  :: num_integ_points
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tj, wj
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'eval_fit_func_tau_grid', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iii
+
+    func_val=0.0_dp
+
+    DO iii=1,num_integ_points
+
+      ! calculate value of the fit function
+      func_val = func_val + wj(iii)*EXP(-2.0_dp*x_value*tj(iii)**2)
+
+    END DO
+
+
+    END SUBROUTINE
+
+! *****************************************************************************
+!> \brief Evaluate fit function when calculating tau grid for Fourier transform
+!> \param func_val ...
+!> \param x_value ...
+!> \param num_integ_points ...
+!> \param tau_tj ...
+!> \param tau_wj_work ...
+!> \param omega ...
+! *****************************************************************************
+    SUBROUTINE eval_fit_func_tau_grid_cosine(func_val,x_value,num_integ_points,tau_tj,tau_wj_work,omega)
+
+    REAL(KIND=dp)                            :: func_val, x_value
+    INTEGER                                  :: num_integ_points
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tau_tj, tau_wj_work
+    REAL(KIND=dp)                            :: omega
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'eval_fit_func_tau_grid_cosine', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iii
+
+    func_val=0.0_dp
+
+    DO iii=1,num_integ_points
+
+      ! calculate value of the fit function
+      func_val = func_val + tau_wj_work(iii)*COS(omega*tau_tj(iii))*EXP(-x_value*tau_tj(iii))
+
+    END DO
+
+    END SUBROUTINE
+
+
 ! *****************************************************************************
 !> \brief Prints the GW stuff to the output and optinally to an external file. 
 !>        Also updates the eigenvalues for eigenvalue-self-consistent GW
@@ -3944,13 +5356,15 @@ MODULE rpa_ri_gpw
 !> \param nmo ...
 !> \param unit_nr ...
 !> \param print_gw_details ...
+!> \param remove_neg_virt_energies ...
 !> \param do_alpha ...
 !> \param do_beta ...
 ! *****************************************************************************
     SUBROUTINE print_and_update_for_ev_sc(vec_gw_energ,vec_gw_energ_error_fit,&
                     z_value,m_value,vec_Sigma_x_minus_vxc_gw,Eigenval,&
                     Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
-                    count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,print_gw_details,do_alpha,do_beta)
+                    count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,print_gw_details,&
+                    remove_neg_virt_energies,do_alpha,do_beta)
 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, &
                                                 vec_gw_energ_error_fit, &
@@ -3960,7 +5374,8 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, Eigenval_scf
     INTEGER :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
       count_ev_sc_GW, crossing_search, homo, nmo, unit_nr
-    LOGICAL                                  :: print_gw_details
+    LOGICAL                                  :: print_gw_details, &
+                                                remove_neg_virt_energies
     LOGICAL, OPTIONAL                        :: do_alpha, do_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_and_update_for_ev_sc', &
@@ -3974,6 +5389,12 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp)                            :: eigen_diff
 
     CALL timeset(routineN,handle)
+
+    IF(PRESENT(do_alpha)) THEN
+      my_do_alpha = do_alpha
+    ELSE 
+      my_do_alpha = .FALSE.
+    END IF
 
     IF(PRESENT(do_alpha)) THEN
       my_do_alpha = do_alpha
@@ -4227,13 +5648,13 @@ MODULE rpa_ri_gpw
     CALL timeset(routineN,handle)
 
     my_alpha_beta_case = .FALSE.
-    IF(PRESENT(alpha_beta_case)) my_alpha_beta_case = alpha_beta_case 
+    IF(PRESENT(alpha_beta_case)) my_alpha_beta_case = alpha_beta_case
 
     my_alpha = .FALSE.
-    IF(PRESENT(alpha)) my_alpha = alpha   
+    IF(PRESENT(alpha)) my_alpha = alpha
 
     my_beta = .FALSE.
-    IF(PRESENT(beta)) my_beta = beta   
+    IF(PRESENT(beta)) my_beta = beta
 
     spin = 1
     IF(my_alpha_beta_case) THEN

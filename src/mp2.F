@@ -10,6 +10,7 @@
 !> \author Mauro Del Ben
 ! *****************************************************************************
 MODULE mp2
+  USE admm_methods,                    ONLY: admm_mo_merge_ks_matrix
   USE admm_types,                      ONLY: admm_type
   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
                                              admm_uncorrect_for_eigenvalues
@@ -133,9 +134,9 @@ MODULE mp2
       nfullcols_total, nfullrows_total, nkind, nrow_block, nspins, unit_nr
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    LOGICAL                                  :: calc_ex, &
+    LOGICAL                                  :: calc_ex, do_admm, &
                                                 do_dynamic_load_balancing, &
-                                                do_exx, free_hfx_buffer
+                                                do_exx, do_gw, free_hfx_buffer
     REAL(KIND=dp) :: E_ex_from_GW, Emp2, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
       Emp2_AB, Emp2_AB_Cou, Emp2_AB_ex, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, &
       Emp2_Cou, Emp2_ex, Emp2_S, Emp2_T, maxocc, mem_real, t1, t2, t3
@@ -179,11 +180,10 @@ MODULE mp2
     TYPE(virial_type), POINTER               :: virial
 
 ! If SCF has not converged we should abort MP2 calculation
-
-    IF (qs_env%mp2_env%hf_fail) THEN
-       CALL cp_abort(__LOCATION__,"SCF not converged: "//&
-                      "not possible to run MP2")
-    ENDIF
+!JW 2del    IF (qs_env%mp2_env%hf_fail) THEN
+!       CALL cp_abort(__LOCATION__,"SCF not converged: "//&
+!                      "not possible to run MP2")
+!    ENDIF
 
     NULLIFY(virial, dft_control, blacs_env)
     CALL timeset(routineN,handle)
@@ -267,7 +267,6 @@ MODULE mp2
 
     CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
     nkind = SIZE(atomic_kind_set,1)
-
 
     CALL hfx_create_basis_types(basis_parameter,basis_info, qs_kind_set, do_admm=.FALSE.)
 
@@ -697,7 +696,9 @@ MODULE mp2
      hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF")
      CALL section_vals_get(hfx_sections,explicit=do_exx)
      IF(do_exx) THEN
-       CALL calculate_exx(qs_env,unit_nr,mp2_env%ri_rpa%do_ri_g0w0,E_ex_from_GW,t3)
+       do_gw = mp2_env%ri_rpa%do_ri_g0w0
+       do_admm = mp2_env%ri_rpa%do_admm
+       CALL calculate_exx(qs_env,unit_nr,do_gw,do_admm,E_ex_from_GW,t3)
      END IF
    END IF
 
@@ -1048,13 +1049,14 @@ MODULE mp2
 !> \param qs_env ...
 !> \param unit_nr ...
 !> \param do_gw ...
+!> \param do_admm ...
 !> \param E_ex_from_GW ...
 !> \param t3 ...
 ! *****************************************************************************
-  SUBROUTINE calculate_exx(qs_env,unit_nr,do_gw,E_ex_from_GW,t3)
+  SUBROUTINE calculate_exx(qs_env,unit_nr,do_gw,do_admm,E_ex_from_GW,t3)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER                                  :: unit_nr
-    LOGICAL                                  :: do_gw
+    LOGICAL                                  :: do_gw, do_admm
     REAL(KIND=dp)                            :: E_ex_from_GW, t3
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_exx', &
@@ -1063,7 +1065,8 @@ MODULE mp2
     INTEGER                                  :: handle, i, irep, n_rep_hf, ns
     REAL(KIND=dp)                            :: t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, rho_ao
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
+                                                rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: matrix_ks_2d, rho_ao_2d
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -1075,15 +1078,26 @@ MODULE mp2
 
     t1=m_walltime()
 
-    NULLIFY(hfx_sections, input, para_env, matrix_ks, rho, rho_ao)
+    NULLIFY(hfx_sections, input, para_env, matrix_ks, matrix_ks_aux_fit, rho, rho_ao)
 
-! hack rho->rho_aux_fit
-    CALL get_qs_env(qs_env=qs_env, &
-                    input=input, &
-                    para_env=para_env, &
-                    energy=energy, &
-                    rho=rho, &
-                    matrix_ks=matrix_ks)
+    ! if ADMM for exchange energy, get rho_aux_fit and matrix_ks_aux_fit
+    IF(do_admm) THEN
+      CALL get_qs_env(qs_env=qs_env, &
+                      input=input, &
+                      para_env=para_env, &
+                      energy=energy, &
+                      rho_aux_fit=rho, &
+                      matrix_ks=matrix_ks, &
+                      matrix_ks_aux_fit=matrix_ks_aux_fit)
+    ELSE
+      CALL get_qs_env(qs_env=qs_env, &
+                      input=input, &
+                      para_env=para_env, &
+                      energy=energy, &
+                      rho=rho, &
+                      matrix_ks=matrix_ks, &
+                      matrix_ks_aux_fit=matrix_ks_aux_fit)
+    END IF
 
     CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -1094,6 +1108,9 @@ MODULE mp2
     ! put matrix_ks to zero
     DO i=1, SIZE(matrix_ks)
       CALL cp_dbcsr_set(matrix_ks(i)%matrix,0.0_dp)
+      IF(do_admm) THEN
+        CALL cp_dbcsr_set(matrix_ks_aux_fit(i)%matrix,0.0_dp)
+      END IF
     END DO
  
     ! Remove the Exchange-correlation energy contributions from the total energy
@@ -1114,7 +1131,11 @@ MODULE mp2
         ns = SIZE(rho_ao)
         rho_ao_2d(1:ns,1:1) => rho_ao(1:ns)
         ns = SIZE(matrix_ks)
-        matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
+        IF(do_admm) THEN
+          matrix_ks_2d(1:ns,1:1) => matrix_ks_aux_fit(1:ns)
+        ELSE
+          matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
+        END IF
         CALL integrate_four_center(qs_env, matrix_ks_2d, energy, rho_ao_2d, hfx_sections,&
                                    para_env, .TRUE., irep, .TRUE.,&
                                    ispin=1,do_exx=.TRUE.)
@@ -1158,16 +1179,17 @@ MODULE mp2
       routineN = 'compute_vec_Sigma_x_minus_vxc_gw', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dimen, gw_corr_lev_occ, &
-                                                gw_corr_lev_virt, homo, irep, &
-                                                ispin, myfun, n_rep_hf, nmo, &
-                                                ns
-    LOGICAL                                  :: do_hfx
-    REAL(KIND=dp)                            :: hfx_fraction, t1, t2
+    INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_virt, homo, irep, ispin, &
+      myfun, myfun_aux, myfun_prim, n_rep_hf, nmo, ns
+    LOGICAL                                  :: charge_constrain_tmp, &
+                                                do_admm_rpa, do_hfx, &
+                                                do_mix_exchange, do_ri_Sigma_x
+    REAL(KIND=dp)                            :: frac_exx, hfx_fraction, t1, t2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vec_Sigma_x_minus_vxc_gw
+    TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, &
+      POINTER                                :: matrix_ks, matrix_ks_aux_fit, &
                                                 matrix_sigma_x_minus_vxc, &
                                                 rho_ao
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
@@ -1181,27 +1203,51 @@ MODULE mp2
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: hfx_sections, input, &
-                                                xc_section
+                                                xc_section, &
+                                                xc_section_admm_aux, &
+                                                xc_section_admm_prim
 
-    NULLIFY(matrix_ks,rho_ao,matrix_sigma_x_minus_vxc,input,xc_section,hfx_sections,&
-            rho,energy_dummy,dft_control,para_env,ks_env,mo_coeff)
+    NULLIFY(admm_env,matrix_ks,matrix_ks_aux_fit,rho_ao,matrix_sigma_x_minus_vxc,input,&
+            xc_section,xc_section_admm_aux,xc_section_admm_prim,hfx_sections,rho,&
+            energy_dummy,dft_control,para_env,ks_env,mo_coeff)
 
     t1=m_walltime()
 
-    CALL get_qs_env(qs_env,&
-                    matrix_ks=matrix_ks,&
-                    rho=rho,&
-                    input=input,&
-                    dft_control=dft_control,&
-                    para_env=para_env,&
-                    ks_env=ks_env)
+    do_admm_rpa = mp2_env%ri_rpa%do_admm
+    do_ri_Sigma_x = mp2_env%ri_g0w0%do_ri_Sigma_x
 
-    ! GW on top of HFX with ADMM is not working. Please, converge an SCF with ADMM,
-    ! print the restart file, remove the ADMM section, add the RPA and GW section,
-    ! set very lax SCF convergence parameters to converge the SCF in one step.
-    IF(dft_control%do_admm) CPABORT("GW on top of ADMM is not implemented.")
+    ! In case we do admm for RPA/GW, get the aux. density matrix rho_aux_fit, otherwise
+    ! just the normal density matrix rho
+    IF(do_admm_rpa) THEN
+      CALL get_qs_env(qs_env,&
+                      admm_env=admm_env,&
+                      matrix_ks=matrix_ks,&
+                      matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                      rho_aux_fit=rho,&
+                      input=input,&
+                      dft_control=dft_control,&
+                      para_env=para_env,&
+                      ks_env=ks_env)
+    ELSE
+      CALL get_qs_env(qs_env,&
+                      admm_env=admm_env,&
+                      matrix_ks=matrix_ks,&
+                      matrix_ks_aux_fit=matrix_ks_aux_fit,&
+                      rho=rho,&
+                      input=input,&
+                      dft_control=dft_control,&
+                      para_env=para_env,&
+                      ks_env=ks_env)
+    END IF
 
     CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+    DO ispin=1,SIZE(matrix_ks)
+      ! If ADMM we should make the ks matrix up-to-date
+      IF(dft_control%do_admm) THEN
+        CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks(ispin)%matrix)
+      END IF
+    END DO
 
     ! initialize matrix_sigma_x_minus_vxc
     ALLOCATE(matrix_sigma_x_minus_vxc(SIZE(matrix_ks)))
@@ -1226,9 +1272,62 @@ MODULE mp2
     CALL section_vals_val_set(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
          i_val=xc_none)
 
+    ! in ADMM, also set the XC functional for ADMM correction to none
+    ! do not do this if we do ADMM for Sigma_x
+    IF(dft_control%do_admm) THEN
+      xc_section_admm_aux => section_vals_get_subs_vals(admm_env%xc_section_aux,&
+      "XC_FUNCTIONAL")
+      CALL section_vals_val_get(xc_section_admm_aux,"_SECTION_PARAMETERS_",&
+           i_val=myfun_aux)
+      CALL section_vals_val_set(xc_section_admm_aux,"_SECTION_PARAMETERS_",&
+                                i_val=xc_none)
+
+      ! the same for the primary basis
+      xc_section_admm_prim => section_vals_get_subs_vals(admm_env%xc_section_primary,&
+      "XC_FUNCTIONAL")
+      CALL section_vals_val_get(xc_section_admm_aux,"_SECTION_PARAMETERS_",&
+           i_val=myfun_prim)
+      CALL section_vals_val_set(xc_section_admm_prim,"_SECTION_PARAMETERS_",&
+                                i_val=xc_none)
+
+      ! for ADMMQ/S, set the charge_constrain to false (otherwise wrong results)
+      charge_constrain_tmp = .FALSE.
+      IF(admm_env%charge_constrain) THEN
+        admm_env%charge_constrain = .FALSE.
+        charge_constrain_tmp = .TRUE.
+      END IF
+
+    END IF
+
+    ! if we do ADMM for Sigma_x, we write the ADMM correction into matrix_ks_aux_fit
+    ! and therefore we should set it to zero
+    IF(do_admm_rpa) THEN
+      DO ispin=1,dft_control%nspins
+        CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp)
+      END DO
+
+!      ! set the hf fraction to minus one to get the ADMM correction negatively
+!      ! this is correct because we need ADMM for the exchange self energy Sigma_x
+!      ! but it is calculated in -vxc
+!      qs_env%x_data(:,:)%general_parameter%fraction = -1.0_dp
+!
+!      ! do not search for already existing functionals because in Sigma_x we
+!      ! have 100 % Fock exchange 
+!      CALL create_admm_xc_section(qs_env, xc_section, admm_env, error, search_func=.FALSE.)
+!
+!      qs_env%x_data(:,:)%general_parameter%fraction = 0.0_dp
+
+    END IF
+
     ! calculate KS-matrix without XC and without HF
     CALL qs_ks_build_kohn_sham_matrix(qs_env=qs_env, calculate_forces=.FALSE.,&
                                       just_energy=.FALSE.)
+
+!JW    PRINT *, 'matrix_ks_aux_fit after qs_ks_build_kohn_sham_matrix: '
+!JW    CALL cp_dbcsr_print(matrix_ks_aux_fit(1)%matrix,error=error)
+
+!JW    PRINT *, 'matrix_ks after build ks matrix: '
+!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
 
     ! set the DFT functional and HF fraction back
     CALL section_vals_val_set(xc_section,"XC_FUNCTIONAL%_SECTION_PARAMETERS_",&
@@ -1236,7 +1335,22 @@ MODULE mp2
     IF(do_hfx) THEN
       qs_env%x_data(:,:)%general_parameter%fraction = hfx_fraction
     END IF
-  
+
+    IF(dft_control%do_admm) THEN
+      xc_section_admm_aux => section_vals_get_subs_vals(admm_env%xc_section_aux,&
+      "XC_FUNCTIONAL")
+      xc_section_admm_prim => section_vals_get_subs_vals(admm_env%xc_section_primary,&
+      "XC_FUNCTIONAL")
+
+      CALL section_vals_val_set(xc_section_admm_aux,"_SECTION_PARAMETERS_",&
+           i_val=myfun_aux)
+      CALL section_vals_val_set(xc_section_admm_prim,"_SECTION_PARAMETERS_",&
+           i_val=myfun_prim)
+      IF(charge_constrain_tmp) THEN
+        admm_env%charge_constrain = .TRUE.
+      END IF
+    END IF
+
     ! remove the single-particle part (kin. En + Hartree pot) and change the sign
     DO ispin=1,dft_control%nspins
       CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, -1.0_dp, 1.0_dp)
@@ -1244,6 +1358,9 @@ MODULE mp2
 
     DO ispin=1,dft_control%nspins
       CALL cp_dbcsr_set(matrix_ks(ispin)%matrix,0.0_dp)
+      IF(do_admm_rpa) THEN
+        CALL cp_dbcsr_set(matrix_ks_aux_fit(ispin)%matrix,0.0_dp)
+      END IF
     END DO
 
     hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF")
@@ -1254,19 +1371,59 @@ MODULE mp2
 
     energy_dummy%ex = 0.0_dp
 
-    ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
-    DO irep = 1,n_rep_hf
-      ns = SIZE(rho_ao)
-      rho_ao_2d(1:ns,1:1) => rho_ao(1:ns)
-      ns = SIZE(matrix_ks)
-      matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
-      CALL integrate_four_center(qs_env,matrix_ks_2d,energy_dummy,rho_ao_2d,hfx_sections,&
-                                 para_env,.TRUE.,irep,.TRUE.,&
-                                 ispin=1,do_exx=.TRUE.)
-    END DO
+!JW    PRINT *, 'matrix_ks before int 4 c:' 
+!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
+
+    ! in most cases, we calculate the exchange self-energy here. But if we do only RI for 
+    ! the exchange self-energy, we do not calculate exchange here
+    IF(.NOT. do_ri_Sigma_x .OR. do_mix_exchange) THEN
+
+      ! add here HFX (=Sigma_exchange) to matrix_sigma_x_minus_vxc
+      DO irep = 1,n_rep_hf
+        ns = SIZE(rho_ao)
+        rho_ao_2d(1:ns,1:1) => rho_ao(1:ns)
+        ns = SIZE(matrix_ks)
+        IF(do_admm_rpa) THEN
+          matrix_ks_2d(1:ns,1:1) => matrix_ks_aux_fit(1:ns)
+        ELSE
+          matrix_ks_2d(1:ns,1:1) => matrix_ks(1:ns)
+        END IF
+  
+        CALL integrate_four_center(qs_env,matrix_ks_2d,energy_dummy,rho_ao_2d,hfx_sections,&
+                                   para_env,.TRUE.,irep,.TRUE.,&
+                                   ispin=1,do_exx=.TRUE.)
+      END DO
+
+    END IF
+
+!JW    PRINT *, 'matrix_ks after int 4 c:'        
+!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
+
+!JW    PRINT *, 'rho_ao for auxiliary basis hopefully'
+!JW    CALL cp_dbcsr_print(rho_ao(1)%matrix,error=error)
+
+!JW    PRINT *, 'matrix_ks_aux_fit after int 4c: '
+!JW    CALL cp_dbcsr_print(matrix_ks_aux_fit(1)%matrix,error=error)
+
+    ! transform Fock-Matrix (calculated in integrate_four_center, written in matrix_ks_aux_fit in case
+    ! of ADMM) from ADMM basis to primary basis
+    IF(do_admm_rpa) THEN
+      CALL admm_mo_merge_ks_matrix(qs_env)
+    END IF
+
+!JW    PRINT *, 'matrix_ks after merging: '
+!JW    CALL cp_dbcsr_print(matrix_ks(1)%matrix,error=error)
+
+    do_mix_exchange = mp2_env%ri_g0w0%mix_exchange
+
+    IF(do_mix_exchange) THEN
+      frac_exx = mp2_env%ri_g0w0%frac_exx
+    ELSE
+      frac_exx = 1.0_dp
+    END IF
 
     DO ispin=1,dft_control%nspins
-      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, 1.0_dp)
+      CALL cp_dbcsr_add(matrix_sigma_x_minus_vxc(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, frac_exx)
     END DO
 
     energy_ex = energy_dummy%ex

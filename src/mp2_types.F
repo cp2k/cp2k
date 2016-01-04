@@ -97,6 +97,9 @@ MODULE mp2_types
                                 :: x_data
        LOGICAL                  :: minimax_quad
        LOGICAL                  :: do_ri_g0w0
+       LOGICAL                  :: do_admm
+       LOGICAL                  :: do_im_time
+       LOGICAL                  :: do_RI_overlap
   END TYPE
 
   TYPE ri_g0w0_type
@@ -112,10 +115,15 @@ MODULE mp2_types
        LOGICAL                  :: check_fit
        INTEGER                  :: crossing_search
        REAL(KIND=dp)            :: fermi_level_offset
-       REAL(KIND=dp)            :: cutoff_rad_gw
-       LOGICAL                  :: do_truncation
        INTEGER                  :: iter_ev_sc
-       LOGICAL                  :: hf_like_ev_start, print_gw_details
+       REAL(KIND=dp)            :: eps_ev_sc_iter
+       LOGICAL                  :: hf_like_ev_start, &
+                                   print_gw_details, &
+                                   do_ri_Sigma_x, &
+                                   remove_neg_virt_energies
+       INTEGER                  :: ri_metric
+       LOGICAL                  :: mix_exchange
+       REAL(KIND=dp)            :: frac_exx
        REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) ::vec_Sigma_x_minus_vxc_gw
        INTEGER                  :: contour_def_start, contour_def_end
        REAL(KIND=dp)            :: contour_def_offset
@@ -162,6 +170,7 @@ MODULE mp2_types
        INTEGER  :: mp2_num_proc
        INTEGER  :: block_size_row
        INTEGER  :: block_size_col
+       INTEGER  :: ri_metric
        LOGICAL  :: calc_PQ_cond_num
        LOGICAL  :: hf_fail
        LOGICAL  :: p_screen
@@ -170,6 +179,7 @@ MODULE mp2_types
 
   TYPE integ_mat_buffer_type
     REAL(KIND=dp), DIMENSION(:), POINTER  :: msg
+    INTEGER, DIMENSION(:), POINTER  :: sizes
     INTEGER, DIMENSION(:,:), POINTER  :: indx
     INTEGER :: proc
     INTEGER :: msg_req

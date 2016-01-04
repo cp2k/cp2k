@@ -69,6 +69,7 @@ CONTAINS
     CALL section_vals_val_get(mp2_section,"DIRECT_CANONICAL%BIG_SEND",l_val=mp2_env%direct_canonical%big_send)
     CALL section_vals_val_get(mp2_section,"ROW_BLOCK",i_val=mp2_env%block_size_row)
     CALL section_vals_val_get(mp2_section,"COL_BLOCK",i_val=mp2_env%block_size_col)
+    CALL section_vals_val_get(mp2_section,"RI_METRIC",i_val=mp2_env%ri_metric)
     CALL section_vals_val_get(mp2_section,"CALC_COND_NUM",l_val=mp2_env%calc_PQ_cond_num)
 
     CALL section_vals_val_get(mp2_section,"INTERACTION_POTENTIAL%POTENTIAL_TYPE",&
@@ -99,8 +100,12 @@ CONTAINS
                               i_val=mp2_env%ri_rpa%mm_style)
     CALL section_vals_val_get(mp2_section,"RI_RPA%MINIMAX_QUADRATURE",&
                               l_val=mp2_env%ri_rpa%minimax_quad)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%ADMM",&
+                              l_val=mp2_env%ri_rpa%do_admm)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0",&
                               l_val=mp2_env%ri_rpa%do_ri_g0w0)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%IM_TIME",&
+                              l_val=mp2_env%ri_rpa%do_im_time)
 
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CORR_MOS_OCC",&
                               i_val=mp2_env%ri_g0w0%corr_mos_occ)
@@ -122,23 +127,30 @@ CONTAINS
                               i_val=mp2_env%ri_g0w0%crossing_search)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%FERMI_LEVEL_OFFSET",&
                               r_val=mp2_env%ri_g0w0%fermi_level_offset)
-    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CUTOFF_RADIUS",&
-                              r_val=mp2_env%ri_g0w0%cutoff_rad_gw)
-    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%TRUNCATION",&
-                              l_val=mp2_env%ri_g0w0%do_truncation)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%EV_SC_ITER",&
                               i_val=mp2_env%ri_g0w0%iter_ev_sc)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%EPS_EV_SC_ITER",&
+                              r_val=mp2_env%ri_g0w0%eps_ev_sc_iter)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES",&
+                              l_val=mp2_env%ri_g0w0%remove_neg_virt_energies)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%HF_LIKE_EV_START",&
                               l_val=mp2_env%ri_g0w0%hf_like_ev_start)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%PRINT_GW_DETAILS",&
                               l_val=mp2_env%ri_g0w0%print_gw_details)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%RI_SIGMA_X",&
+                              l_val=mp2_env%ri_g0w0%do_ri_Sigma_x)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%RI_METRIC",&
+                              i_val=mp2_env%ri_g0w0%ri_metric)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%MIX_EXCHANGE",&
+                              l_val=mp2_env%ri_g0w0%mix_exchange)
+    CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%FRACTION_EXX",&
+                              r_val=mp2_env%ri_g0w0%frac_exx)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CONTOUR_DEF_START",&
                               i_val=mp2_env%ri_g0w0%contour_def_start)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CONTOUR_DEF_END",&
                               i_val=mp2_env%ri_g0w0%contour_def_end)
     CALL section_vals_val_get(mp2_section,"RI_RPA%RI_G0W0%CONTOUR_DEF_OFFSET",&
                               r_val=mp2_env%ri_g0w0%contour_def_offset)
-
 
     CALL section_vals_val_get(mp2_section,"RI_LAPLACE%QUADRATURE_POINTS",&
                               i_val=mp2_env%ri_laplace%n_quadrature)

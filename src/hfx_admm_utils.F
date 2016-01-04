@@ -97,17 +97,20 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param qs_env ...
+!> \param do_mp2_hfx ...
 ! *****************************************************************************
- SUBROUTINE  hfx_admm_init(qs_env)
+ SUBROUTINE  hfx_admm_init(qs_env,do_mp2_hfx)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL            :: do_mp2_hfx
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_admm_init', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, n_rep_hf, natoms, &
                                                 nspins
-    LOGICAL                                  :: do_hfx, s_mstruct_changed
+    LOGICAL                                  :: do_hfx, my_do_mp2_hfx, &
+                                                s_mstruct_changed
     TYPE(admm_dm_type), POINTER              :: admm_dm
     TYPE(admm_type), POINTER                 :: admm_env
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -123,6 +126,9 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho, rho_aux_fit
     TYPE(section_vals_type), POINTER         :: hfx_sections, input, &
                                                 xc_section
+
+    my_do_mp2_hfx=.FALSE.
+    IF(PRESENT(do_mp2_hfx)) my_do_mp2_hfx=do_mp2_hfx
 
     CALL timeset(routineN,handle)
     NULLIFY(admm_env, admm_dm, hfx_sections, mos, mos_aux_fit, para_env, &
@@ -147,8 +153,14 @@ CONTAINS
 
     nspins=dft_control%nspins
 
-    hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF")
+    IF(my_do_mp2_hfx) THEN
+      hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%WF_CORRELATION%RI_RPA%HF")
+    ELSE
+      hfx_sections => section_vals_get_subs_vals(input,"DFT%XC%HF")
+    END IF
+
     CALL section_vals_get(hfx_sections,explicit=do_hfx)
+
     !! ** ADMM can only be used with HFX
     IF ( .NOT. do_hfx )&
        CPABORT("Wavefunction fitting requested without Hartree-Fock.")

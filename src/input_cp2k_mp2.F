@@ -24,7 +24,8 @@ MODULE input_cp2k_mp2
   USE input_constants,                 ONLY: &
        do_hfx_potential_coulomb, do_mp2_potential_tshpsc, gaussian, &
        mp2_method_direct, mp2_method_gpw, mp2_method_none, &
-       mp2_ri_optimize_basis, numerical, ri_mp2_laplace, ri_mp2_method_gpw, &
+       mp2_ri_optimize_basis, numerical, ri_coulomb, ri_mp2_laplace, &
+       ri_mp2_method_gpw, ri_overlap, ri_rpa_g0w0_crossing_newton, &
        ri_rpa_g0w0_crossing_none, ri_rpa_g0w0_crossing_z_shot, &
        ri_rpa_method_gpw, wfc_mm_style_gemm, wfc_mm_style_syrk
   USE input_cp2k_hfx,                  ONLY: create_hfx_section
@@ -165,6 +166,20 @@ CONTAINS
          usage="CALC_COND_NUM",&
          default_l_val=.FALSE.,&
          lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(&
+         keyword=keyword,&
+         name="RI_METRIC",&
+         variants=(/"RI"/),&
+         description="Define which RI metric should be used for calculating B^P_ia.",&
+         usage="RI_METRIC COULOMB",&
+         enum_c_vals=s2a("COULOMB","OVERLAP"),&
+         enum_i_vals=(/ri_coulomb,ri_overlap/),&
+         enum_desc=s2a("Use Coulomb metric.",&
+                       "Use overlap metric, recommended in combination with imaginary time for O(N^3) RPA."),&
+         default_i_val=ri_coulomb)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -494,16 +509,41 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(&
+          keyword=keyword,&
+          name="ADMM",&
+          description="Decide whether to perform ADMM in the exact exchange calc. for RPA and/or GW. "//&
+                      "Not really recommended. In most cases, the Hartree-Fock exchange is not expensive "//&
+                      "and there is no need for ADMM. Only in case of diffuse functions for periodic systems "//&
+                      "(only reasonable for GW bandgap calculations) exact exchange can be expensive and then, "//&
+                      "we recommend using RI for exchange, see G0W0 section.",&
+          usage="ADMM",&
+          default_l_val=.FALSE.,&
+          lone_keyword_l_val=.TRUE.)
+     CALL section_add_keyword(section,keyword)
+     CALL keyword_release(keyword)
 
-    ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
-    CALL create_hfx_section(subsection)
-    CALL section_add_subsection(section,subsection)
-    CALL section_release(subsection)
+     CALL keyword_create(&
+          keyword=keyword,&
+          name="IM_TIME",&
+          variants=(/"IMAG_TIME"/),&
+          description="Decide whether to calculate Q-matrix for imaginary times.",&
+          usage="IM_TIME",&
+          default_l_val=.FALSE.,&
+          lone_keyword_l_val=.TRUE.)
+     CALL section_add_keyword(section,keyword)
+     CALL keyword_release(keyword)
 
-    ! here we generate a G0W0 subsection to use if G0W0 is desired
-    CALL create_ri_g0w0(subsection)
-    CALL section_add_subsection(section,subsection)
-    CALL section_release(subsection)
+
+     ! here we generate a hfx subsection to use in the case EXX has to be computed after RPA
+     CALL create_hfx_section(subsection)
+     CALL section_add_subsection(section,subsection)
+     CALL section_release(subsection)
+
+     ! here we generate a G0W0 subsection to use if G0W0 is desired
+     CALL create_ri_g0w0(subsection)
+     CALL section_add_subsection(section,subsection)
+     CALL section_release(subsection)
 
 
   END SUBROUTINE create_ri_rpa
@@ -619,10 +659,11 @@ CONTAINS
     CALL keyword_create(keyword, name="CROSSING_SEARCH",&
          description="Determines, how the self_energy is evaluated on the real axis.",&
          usage="CROSSING_SEARCH Z_SHOT",&
-         enum_c_vals=s2a("NONE","Z_SHOT"),&
-         enum_i_vals=(/ri_rpa_g0w0_crossing_none,ri_rpa_g0w0_crossing_z_shot/),&
+         enum_c_vals=s2a("NONE","Z_SHOT","NEWTON"),&
+         enum_i_vals=(/ri_rpa_g0w0_crossing_none,ri_rpa_g0w0_crossing_z_shot,ri_rpa_g0w0_crossing_newton/),&
          enum_desc=s2a("Evaluate the correlation self-energy at the energy eigenvalue of SCF.",&
-                       "Calculate the derivative of Sigma and out of it Z. Then extrapolate using Z"),&
+                       "Calculate the derivative of Sigma and out of it Z. Then extrapolate using Z.",&
+                       "Make a Newton-Raphson fix point iteration."),&
          default_i_val=ri_rpa_g0w0_crossing_z_shot)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
@@ -637,29 +678,22 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="CUTOFF_RADIUS",&
-         description="Cutoff radius for the truncated Coulomb potential in GW in Angstrom. "//&
-                     "The cell length seems to be a good choice for the truncation.",&
-         usage="CUTOFF_RADIUS 6.0",&
-         default_r_val=10.0_dp,&
-         unit_str="angstrom")
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="TRUNCATION",&
-         description="If true, the Coulomb potential is truncated. Recommended for periodic"//&
-                     "systems.",&
-         usage="TRUNCATION",&
-         default_l_val=.FALSE.,&
-         lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
     CALL keyword_create(keyword, name="EV_SC_ITER",&
-         description="Number of iterations for eigenvalue self-consistency cycle. The "//&
+         description="Maximum number of iterations for eigenvalue self-consistency cycle. The "//&
                      "computational effort of RPA and GW scales linearly with this number.",&
          usage="EV_SC_ITER 3",&
          default_i_val=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="EPS_EV_SC_ITER",&
+          description="Target accuracy for the eigenvalue self-consistency. "//&
+                      "If the G0W0 HOMO-LUMO gap differs by less than the "//&
+                      "target accuracy during the iteration, the eigenvalue "//&
+                      "self-consistency cycle stops. Unit: Hartree.",&
+          usage="EPS_EV_SC_ITER 0.00005",&
+          default_r_val=0.00005_dp,&
+          unit_str="")
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -672,11 +706,67 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES",&
+         variants=(/"REMOVE_NEG"/),&
+         description="Set all GW energies of virtual orbitals which are below the HOMO to the "//&
+                     "value of the last eigenvalue-selfconsistency cycle.",&
+         usage="EV_SC_GW_REMOVE_NEG_VIRT_ENERGIES",&
+         default_l_val=.TRUE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="PRINT_GW_DETAILS",&
          description="If true, prints additional information on the quasiparticle energies.",&
          usage="PRINT_GW_DETAILS",&
          default_l_val=.FALSE.,&
          lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="RI_SIGMA_X",&
+         description="If true, the exchange self-energy is calculated approximatively with RI. "//&
+                     "This is only recommended in case exact exchange is very costly, e.g. when "//&
+                     "using diffuse basis functions (seems not to work for periodic systems).",&
+         usage="RI_SIGMA_X",&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(&
+         keyword=keyword,&
+         name="RI_METRIC",&
+         variants=(/"RI"/),&
+         description="Define which RI metric should be used for calculating B^P_nm needed for GW.",&
+         usage="RI_METRIC COULOMB",&
+         enum_c_vals=s2a("COULOMB","OVERLAP"),&
+         enum_i_vals=(/ri_coulomb,ri_overlap/),&
+         enum_desc=s2a("Use Coulomb metric.",&
+                       "Use overlap metric."),&
+         default_i_val=ri_coulomb)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="MIX_EXCHANGE",&
+         description="If true, mix CP2K-HFX (EXX) based on the truncated Coulomb operator and. "//&
+                     "RI-HFX. Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of  "//&
+                     "periodic systems with the cell size.",&
+         usage="MIX_EXCHANGE",&
+         default_l_val=.FALSE.,&
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="FRACTION_EXX",&
+          variants=(/"ALPHA"/),&
+          description="Mixing parameter between official CP2K-HFX (EXX) based on the truncated Coulomb operator "//&
+                      "(fraction = alpha) and the RI-HFX (fraction = 1-alpha). To be valid, set MIX_HFX TRUE. "//&
+                      "Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of periodic systems "//&
+                      "with the cell size.",&
+          usage="FRACTION_EXX 0.21",&
+          default_r_val=0.21_dp,&
+          unit_str="")
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

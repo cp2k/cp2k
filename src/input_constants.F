@@ -870,11 +870,14 @@ MODULE input_constants
                                               ri_mp2_laplace=9,&
                                               mp2_ri_optimize_basis=10,&
                                               wfc_mm_style_gemm=11,&
-                                              wfc_mm_style_syrk=12
+                                              wfc_mm_style_syrk=12,&
+                                              ri_coulomb=13,&
+                                              ri_overlap=14
 
   ! G0W0 parameter
   INTEGER, PARAMETER, PUBLIC               :: ri_rpa_g0w0_crossing_none=0,&
-                                              ri_rpa_g0w0_crossing_z_shot=1
+                                              ri_rpa_g0w0_crossing_z_shot=1,&
+                                              ri_rpa_g0w0_crossing_newton=2
 
   ! periodic RESP parameters
   INTEGER, PARAMETER, PUBLIC               :: do_resp_x_dir=0,&

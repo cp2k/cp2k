@@ -22,7 +22,8 @@ MODULE mp2_ri_gpw
                                              cp_blacs_env_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_create, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_filter, cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_multiply, &
        cp_dbcsr_p_type, cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
@@ -39,17 +40,19 @@ MODULE mp2_ri_gpw
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
+  USE input_constants,                 ONLY: ri_coulomb,&
+                                             ri_overlap
   USE kinds,                           ONLY: dp,&
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_memory,&
                                              m_walltime
-  USE mathconstants,                   ONLY: fourpi,&
-                                             pi
+  USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_comm_split_direct,&
                                              mp_max,&
@@ -65,7 +68,6 @@ MODULE mp2_ri_gpw
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_methods,                      ONLY: pw_copy,&
                                              pw_scale,&
                                              pw_transfer
@@ -76,8 +78,7 @@ MODULE mp2_ri_gpw
                                              pw_pool_type
   USE pw_types,                        ONLY: REALDATA3D,&
                                              REALSPACE,&
-                                             pw_p_type,&
-                                             pw_type
+                                             pw_p_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -148,6 +149,8 @@ MODULE mp2_ri_gpw
 !> \param mo_coeff_v ...
 !> \param mo_coeff_all ...
 !> \param mo_coeff_gw ...
+!> \param mo_coeff_b ...
+!> \param matrix_s ...
 !> \param eps_filter ...
 !> \param unit_nr ...
 !> \param mp2_memory ...
@@ -160,8 +163,6 @@ MODULE mp2_ri_gpw
 !> \param ends_B_all ...
 !> \param gw_corr_lev_occ ...
 !> \param gw_corr_lev_virt ...
-!> \param rlength ...
-!> \param do_truncation_gw ...
 !> \param BIb_C_beta ...
 !> \param BIb_C_gw_beta ...
 !> \param ends_B_virtual_beta ...
@@ -172,6 +173,11 @@ MODULE mp2_ri_gpw
 !> \param mo_coeff_v_beta ...
 !> \param mo_coeff_all_beta ...
 !> \param mo_coeff_gw_beta ...
+!> \param do_im_time ...
+!> \param ri_metric ...
+!> \param ri_metric_gw ...
+!> \param mat_B_munu ...
+!> \param my_Lrows ...
 !> \author Mauro Del Ben 
 ! *****************************************************************************
   SUBROUTINE mp2_ri_gpw_compute_in(BIb_C,BIb_C_gw,ends_array,ends_B_virtual,&
@@ -180,12 +186,12 @@ MODULE mp2_ri_gpw
                                    cell,particle_set,atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,&
                                    rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                                    poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,mo_coeff_all,&
-                                   mo_coeff_gw,eps_filter,unit_nr,&
+                                   mo_coeff_gw,mo_coeff_b,matrix_s,eps_filter,unit_nr,&
                                    mp2_memory,calc_PQ_cond_num,calc_forces,blacs_env_sub,my_do_gw,&
                                    starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
-                                   rlength,do_truncation_gw,&
                                    BIb_C_beta,BIb_C_gw_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
-                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta)
+                                   homo_beta,mo_coeff_o_beta,mo_coeff_v_beta,mo_coeff_all_beta,mo_coeff_gw_beta,do_im_time,&
+                                   ri_metric,ri_metric_gw,mat_B_munu,my_Lrows)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: BIb_C, BIb_C_gw
     INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array, ends_B_virtual, &
@@ -213,7 +219,10 @@ MODULE mp2_ri_gpw
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(task_list_type), POINTER            :: task_list_sub
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v, &
-                                                mo_coeff_all, mo_coeff_gw
+                                                mo_coeff_all, mo_coeff_gw, &
+                                                mo_coeff_b
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
     REAL(KIND=dp)                            :: eps_filter
     INTEGER                                  :: unit_nr
     REAL(KIND=dp)                            :: mp2_memory
@@ -224,8 +233,6 @@ MODULE mp2_ri_gpw
                                                 ends_B_all
     INTEGER                                  :: gw_corr_lev_occ, &
                                                 gw_corr_lev_virt
-    REAL(KIND=dp)                            :: rlength
-    LOGICAL                                  :: do_truncation_gw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :), OPTIONAL           :: BIb_C_beta, BIb_C_gw_beta
     INTEGER, ALLOCATABLE, DIMENSION(:), &
@@ -237,40 +244,39 @@ MODULE mp2_ri_gpw
                                                 mo_coeff_v_beta, &
                                                 mo_coeff_all_beta, &
                                                 mo_coeff_gw_beta
+    LOGICAL, OPTIONAL                        :: do_im_time
+    INTEGER, OPTIONAL                        :: ri_metric, ri_metric_gw
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mat_B_munu
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :), OPTIONAL              :: my_Lrows
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: gw_corr_lev_total, handle, handle2, handle3, i, i_counter, ig, &
-      iiB, itmp(2), jjB, LLL, max_row_col_local, max_row_col_local_beta, &
+    INTEGER :: gw_corr_lev_total, handle, handle2, handle3, i, i_counter, &
+      itmp(2), LLL, max_row_col_local, max_row_col_local_beta, &
       max_row_col_local_gw, my_B_all_end, my_B_all_size, my_B_all_start, &
       my_B_size, my_B_size_beta, my_B_virtual_end, my_B_virtual_end_beta, &
       my_B_virtual_start, my_B_virtual_start_beta, my_group_L_end, &
-      my_group_L_size, my_group_L_start, ncol_local, nfullcols_total, &
-      nfullrows_total, ngroup, nrow_local, num_small_eigen, virtual, &
-      virtual_beta
+      my_group_L_size, my_group_L_start, my_ri_metric, my_ri_metric_gw, &
+      ncol_local, nfullcols_total, nfullrows_total, ngroup, nrow_local, &
+      num_small_eigen, virtual, virtual_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: sub_proc_map
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: local_col_row_info, &
                                                 local_col_row_info_beta, &
                                                 local_col_row_info_gw
-    LOGICAL                                  :: do_alpha_beta
-    REAL(KIND=dp)                            :: cond_num, g2, g3d, gg, &
-                                                mem_for_iaK, pair_energy, &
-                                                wfn_size
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: my_Lrows
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: BIb_C_gw_trunc
+    LOGICAL                                  :: do_alpha_beta, do_mult_2c, &
+                                                my_do_im_time
+    REAL(KIND=dp)                            :: cond_num, mem_for_iaK, &
+                                                pair_energy, wfn_size
     TYPE(cp_dbcsr_type) :: matrix_ia_jb, matrix_ia_jb_beta, matrix_ia_jnu, &
       matrix_ia_jnu_beta, matrix_in_jm, matrix_in_jm_beta, matrix_in_jnu, &
       matrix_in_jnu_beta
-    TYPE(cp_fm_type), POINTER                :: fm_BIb_gw, fm_BIb_gw_beta, &
-                                                fm_BIb_jb, fm_BIb_jb_beta, &
-                                                fm_matrix_L
+    TYPE(cp_fm_type), POINTER :: fm_BIb_gw, fm_BIb_gw_beta, fm_BIb_jb, &
+      fm_BIb_jb_beta, fm_matrix_L, fm_matrix_L_RI_metric
     TYPE(cp_para_env_type), POINTER          :: para_env_L
-    TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_p_type)                          :: psi_L
-    TYPE(pw_type), POINTER                   :: gf
 
     CALL timeset(routineN,handle)
 
@@ -288,38 +294,57 @@ MODULE mp2_ri_gpw
        PRESENT(mo_coeff_o_beta).AND.&
        PRESENT(mo_coeff_v_beta)) do_alpha_beta=.TRUE.
 
+    my_do_im_time = .FALSE.
+    IF(PRESENT(do_im_time)) my_do_im_time = do_im_time
+
+    ! default: Coulomb metric
+    my_ri_metric = ri_coulomb
+    IF(PRESENT(ri_metric)) my_ri_metric = ri_metric
+
+    ! default: Coulomb metric
+    my_ri_metric_gw = ri_coulomb
+    IF(PRESENT(ri_metric_gw)) my_ri_metric_gw = ri_metric_gw
+
+    ! imag. time only without Coulomb metric implemented
+    CPASSERT(.NOT. (ri_metric==ri_coulomb .AND. my_do_im_time))
+
     virtual=nmo-homo
 
-    CALL create_intermediate_matrices(matrix_ia_jnu,matrix_ia_jb,mo_coeff_o,virtual,homo,&
-                                      fm_BIb_jb,"fm_BIb_jb",max_row_col_local,&
-                                      nfullrows_total,nfullcols_total,nrow_local, &
-                                      ncol_local,blacs_env_sub,&
-                                      para_env_sub,local_col_row_info)
+    ! in case of imaginary time, we do not need the intermediate matrices
+    IF(.NOT. my_do_im_time) THEN
 
-    CALL create_parallelization_arrays(para_env_sub,ends_B_virtual,sizes_B_virtual,&
-                                       starts_B_virtual,my_B_virtual_start,&
-                                       my_B_virtual_end,my_B_size,&
-                                       virtual)
-
-
-    IF(do_alpha_beta) THEN
-
-      virtual_beta=nmo-homo_beta
-
-      CALL create_intermediate_matrices(matrix_ia_jnu_beta,matrix_ia_jb_beta,mo_coeff_o_beta,&
-                                        virtual_beta,homo_beta,&
-                                        fm_BIb_jb_beta,"fm_BIb_jb_beta",&
-                                        max_row_col_local_beta,&
+      CALL create_intermediate_matrices(matrix_ia_jnu,matrix_ia_jb,mo_coeff_o,virtual,homo,&
+                                        fm_BIb_jb,"fm_BIb_jb",max_row_col_local,&
                                         nfullrows_total,nfullcols_total,nrow_local, &
                                         ncol_local,blacs_env_sub,&
-                                        para_env_sub,local_col_row_info_beta)
+                                        para_env_sub,local_col_row_info)
+  
+      CALL create_parallelization_arrays(para_env_sub,ends_B_virtual,sizes_B_virtual,&
+                                         starts_B_virtual,my_B_virtual_start,&
+                                         my_B_virtual_end,my_B_size,&
+                                         virtual)
+  
+  
+      IF(do_alpha_beta) THEN
+  
+        virtual_beta=nmo-homo_beta
+  
+        CALL create_intermediate_matrices(matrix_ia_jnu_beta,matrix_ia_jb_beta,mo_coeff_o_beta,&
+                                          virtual_beta,homo_beta,&
+                                          fm_BIb_jb_beta,"fm_BIb_jb_beta",&
+                                          max_row_col_local_beta,&
+                                          nfullrows_total,nfullcols_total,nrow_local, &
+                                          ncol_local,blacs_env_sub,&
+                                          para_env_sub,local_col_row_info_beta)
+  
+        CALL create_parallelization_arrays(para_env_sub,ends_B_virtual_beta,sizes_B_virtual_beta,&
+                                           starts_B_virtual_beta,my_B_virtual_start_beta,&
+                                           my_B_virtual_end_beta,my_B_size_beta,&
+                                           virtual_beta)
+  
+      END IF
 
-      CALL create_parallelization_arrays(para_env_sub,ends_B_virtual_beta,sizes_B_virtual_beta,&
-                                         starts_B_virtual_beta,my_B_virtual_start_beta,&
-                                         my_B_virtual_end_beta,my_B_size_beta,&
-                                         virtual_beta)
-
-    END IF
+    END IF ! not for imaginary time
 
     ! in the case of G0W0, we need (K|nm), n,m may be occ or virt (m restricted to corrected levels)
     IF(my_do_gw) THEN
@@ -375,16 +400,20 @@ MODULE mp2_ri_gpw
                             use_data=REALDATA3D,&
                             in_space=REALSPACE)
 
-    ! calculate L^{-1}
+    do_mult_2c =  qs_env%mp2_env%mp2_gpw%do_mult_2c
+
     CALL calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
                          fm_matrix_L,ngroup,color_sub,dimen_RI,&
                          mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                          my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
                          sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
-                         num_small_eigen,auxbas_pw_pool)
+                         num_small_eigen,auxbas_pw_pool,do_mult_2c,my_ri_metric,&
+                         fm_matrix_L_RI_metric,my_do_im_time)
 
     IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
                       "RI_INFO| Cholesky decomposition group size:", para_env_L%num_pe
+    IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T75,i6)")&
+                      "RI_INFO| Number of groups for auxiliary basis functions", ngroup
     IF(calc_PQ_cond_num) THEN
       IF (unit_nr>0) WRITE (UNIT=unit_nr,FMT="(T3,A,T67,ES14.5)")&
                         "RI_INFO| Condition number of the (P|Q):", cond_num
@@ -397,7 +426,11 @@ MODULE mp2_ri_gpw
                     my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows)
     ! clean the L^{-1} matrix
     CALL cp_fm_release(fm_matrix_L)
-    CALL cp_para_env_release(para_env_L)
+
+    ! in case of imag. time we need the para_env_L later  
+    IF(.NOT. my_do_im_time) THEN
+      CALL cp_para_env_release(para_env_L)
+    END IF
 
     IF(calc_forces) THEN
       ! we need (P|Q)^(-1/2) for future use, just save it
@@ -432,25 +465,38 @@ MODULE mp2_ri_gpw
     CALL timeset(routineN//"_alloc",handle2)
     CALL mp_sync(para_env%group) ! sync to see memory output
 
-    ! array that will store the (ia|K) integrals
-    ALLOCATE(BIb_C(my_group_L_size,my_B_size,homo))
-    BIb_C=0.0_dp
+    ! in case we do imaginary time, we need the matrix B_alphabeta^P
+    ! B has size N_molecular_orb x N_molecular_orb and contains N_RI_basis_functions
+    ! copies (one for every RI basis function)
+    IF(my_do_im_time) THEN
 
-    IF(do_alpha_beta) THEN
-      ALLOCATE(BIb_C_beta(my_group_L_size,my_B_size_beta,homo_beta))
-      BIb_C_beta=0.0_dp
-    END IF
+      NULLIFY(mat_B_munu)
+      CALL cp_dbcsr_allocate_matrix_set(mat_B_munu,my_group_L_size)
+
+    ELSE
+
+      ! array that will store the (ia|K) integrals
+      ALLOCATE(BIb_C(my_group_L_size,my_B_size,homo))
+      BIb_C=0.0_dp
+
+      IF(do_alpha_beta) THEN
+        ALLOCATE(BIb_C_beta(my_group_L_size,my_B_size_beta,homo_beta))
+        BIb_C_beta=0.0_dp
+      END IF
+
+    END IF ! imag. time
 
     ! in the case of GW, we also need (nm|K) 
     IF(my_do_gw) THEN
+
       ALLOCATE(BIb_C_gw(my_group_L_size,my_B_all_size,gw_corr_lev_total))
       BIb_C_gw=0.0_dp
       IF(do_alpha_beta) THEN
         ALLOCATE(BIb_C_gw_beta(my_group_L_size,my_B_all_size,gw_corr_lev_total))
         BIb_C_gw_beta=0.0_dp
       END IF
-    END IF
 
+    END IF
 
     CALL timestop(handle2)
 
@@ -467,9 +513,15 @@ MODULE mp2_ri_gpw
 
       CALL timeset(routineN//"_pot",handle3)
       rho_r%pw%cr3d = psi_L%pw%cr3d
-      CALL pw_transfer(rho_r%pw, rho_g%pw)
-      CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw)
-      CALL pw_transfer(pot_g%pw, rho_r%pw)
+
+      ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
+      ! overlap metric, we do not need the Coulomb operator
+      IF(my_ri_metric /= ri_overlap) THEN
+        CALL pw_transfer(rho_r%pw, rho_g%pw)
+        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw)
+        CALL pw_transfer(pot_g%pw, rho_r%pw)
+      END IF
+
       CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol)
       CALL timestop(handle3)
 
@@ -480,46 +532,65 @@ MODULE mp2_ri_gpw
            pw_env_external=pw_env_sub, task_list_external=task_list_sub)
       CALL timestop(handle3)
 
-      ! multiply and goooooooo ...
-      CALL timeset(routineN//"_mult_o",handle3)
-      CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
-                              0.0_dp, matrix_ia_jnu, filter_eps=eps_filter) 
-      IF(do_alpha_beta) THEN
-        ! transform orbitals using the beta coeff matrix
-        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
-                                0.0_dp, matrix_ia_jnu_beta, filter_eps=eps_filter)
-      END IF
-      CALL timestop(handle3)
-      CALL timeset(routineN//"_mult_v",handle3)
-      CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
-                              0.0_dp, matrix_ia_jb, filter_eps=eps_filter)
-      IF(do_alpha_beta) THEN
-        ! transform orbitals using the beta coeff matrix
-        CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu_beta, mo_coeff_v_beta, &
-                                0.0_dp, matrix_ia_jb_beta, filter_eps=eps_filter)
-      END IF
+      ! in case of imaginary time, we do not transform from AOs to MOs
+      IF(my_do_im_time) THEN
 
-      CALL timestop(handle3)
+        ALLOCATE(mat_B_munu(i_counter)%matrix)
 
-      ! now fill the matrix
-      CALL timeset(routineN//"_E_Ex_1",handle3)
-      CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
+        CALL cp_dbcsr_init(mat_B_munu(i_counter)%matrix)
+        CALL cp_dbcsr_create(matrix=mat_B_munu(i_counter)%matrix,template=mat_munu%matrix)
 
-      CALL grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_C(i_counter,1:my_B_size,1:homo),max_row_col_local,&
-                             sub_proc_map,local_col_row_info,&
-                             my_B_virtual_end,my_B_virtual_start)
-      IF(do_alpha_beta) THEN
-        CALL copy_dbcsr_to_fm(matrix_ia_jb_beta, fm_BIb_jb_beta)
-        CALL grep_my_integrals(para_env_sub,fm_BIb_jb_beta,&
-                               BIb_C_beta(i_counter,1:my_B_size_beta,1:homo_beta),max_row_col_local_beta,&
-                               sub_proc_map,local_col_row_info_beta,&
-                               my_B_virtual_end_beta,my_B_virtual_start_beta)
-      END IF
+        CALL cp_dbcsr_copy(mat_B_munu(i_counter)%matrix,mat_munu%matrix)
 
-      CALL timestop(handle3)
+        ! filter to save memory but do not filter the first matrix because we need the matrix structure
+        CALL cp_dbcsr_filter(mat_B_munu(i_counter)%matrix,eps_filter)
+
+      ELSE
+
+        ! multiply and goooooooo ...
+        CALL timeset(routineN//"_mult_o",handle3)
+        CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o, &
+                                0.0_dp, matrix_ia_jnu, filter_eps=eps_filter) 
+        IF(do_alpha_beta) THEN
+          ! transform orbitals using the beta coeff matrix
+          CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o_beta, &
+                                  0.0_dp, matrix_ia_jnu_beta, filter_eps=eps_filter)
+        END IF
+        CALL timestop(handle3)
+        CALL timeset(routineN//"_mult_v",handle3)
+        CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu, mo_coeff_v, &
+                                0.0_dp, matrix_ia_jb, filter_eps=eps_filter)
+        IF(do_alpha_beta) THEN
+          ! transform orbitals using the beta coeff matrix
+          CALL cp_dbcsr_multiply("T", "N", 1.0_dp, matrix_ia_jnu_beta, mo_coeff_v_beta, &
+                                  0.0_dp, matrix_ia_jb_beta, filter_eps=eps_filter)
+        END IF
+  
+        CALL timestop(handle3)
+  
+        ! now fill the matrix
+        CALL timeset(routineN//"_E_Ex_1",handle3)
+        CALL copy_dbcsr_to_fm(matrix_ia_jb, fm_BIb_jb)
+  
+        CALL grep_my_integrals(para_env_sub,fm_BIb_jb,BIb_C(i_counter,1:my_B_size,1:homo),max_row_col_local,&
+                               sub_proc_map,local_col_row_info,&
+                               my_B_virtual_end,my_B_virtual_start)
+  
+  
+        IF(do_alpha_beta) THEN
+          CALL copy_dbcsr_to_fm(matrix_ia_jb_beta, fm_BIb_jb_beta)
+          CALL grep_my_integrals(para_env_sub,fm_BIb_jb_beta,&
+                                 BIb_C_beta(i_counter,1:my_B_size_beta,1:homo_beta),max_row_col_local_beta,&
+                                 sub_proc_map,local_col_row_info_beta,&
+                                 my_B_virtual_end_beta,my_B_virtual_start_beta)
+        END IF
+
+        CALL timestop(handle3)
+
+      END IF ! imag. time
 
 
-      IF(my_do_gw) THEN
+      IF(my_do_gw .AND.  (my_ri_metric_gw == my_ri_metric)) THEN
         ! transform (K|mu nu) to (K|nm), n corresponds to corrected GW levels, m is in nmo
         CALL timeset(routineN//"_mult_gw",handle3)
         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_gw, &
@@ -561,24 +632,27 @@ MODULE mp2_ri_gpw
 
     END DO
 
+    ! use possibly different RI metric for GW matrix elements B^nn_P 
+    IF(my_do_gw .AND. my_ri_metric_gw /= my_ri_metric) THEN
 
-    ! use truncated operator for diagonal elements B_nn^P in case of periodic calculations 
-    IF(my_do_gw .AND. do_truncation_gw) THEN
+      DEALLOCATE(my_Lrows,sizes_array,starts_array,ends_array)
 
-      ! truncation
-      IF(my_group_L_start<=my_group_L_end)  THEN
-        grid => poisson_env%green_fft%influence_fn%pw_grid
-        gf   => poisson_env%green_fft%influence_fn
-        DO ig = grid%first_gne0, grid%ngpts_cut_local
-          g2 = grid%gsq(ig)
-          gg = SQRT(g2)
-          g3d = fourpi/g2
-          gf%cc(ig) = g3d*(1.0_dp-COS(rlength*gg))
-        END DO
-        IF(grid%have_g0) &
-          gf%cc(1)=0.5_dp*fourpi*rlength*rlength
-      END IF
+     ! difference to call of calculate_Lmin1 above: other RI metric for GW
+      CALL calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
+                           fm_matrix_L,ngroup,color_sub,dimen_RI,&
+                           mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
+                           my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
+                           sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
+                           num_small_eigen,auxbas_pw_pool,do_mult_2c,my_ri_metric_gw,&
+                           fm_matrix_L_RI_metric,my_do_im_time)
 
+      ! replicate the necessary row of the L^{-1} matrix on each proc
+      CALL grep_Lcols(para_env_L,dimen_RI,fm_matrix_L,&
+                      my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows)
+
+      ! clean the L^{-1} matrix
+      CALL cp_fm_release(fm_matrix_L)
+      CALL cp_para_env_release(para_env_L)
 
       i_counter=0
       DO LLL=my_group_L_start, my_group_L_end
@@ -590,16 +664,19 @@ MODULE mp2_ri_gpw
                                     basis_type="RI_AUX",&
                                     external_vector=my_Lrows(:,LLL-my_group_L_start+1))
   
-        ALLOCATE(BIb_C_gw_trunc(my_group_L_size,my_B_all_size,gw_corr_lev_total))
-        BIb_C_gw_trunc=0.0_dp
-
         CALL timeset(routineN//"_pot_trunc",handle3)
         rho_r%pw%cr3d = psi_L%pw%cr3d
-        CALL pw_transfer(rho_r%pw, rho_g%pw)
 
-        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw)
-        CALL pw_transfer(pot_g%pw, rho_r%pw)
+        ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
+        ! overlap metric, we do not need the Coulomb operator
+        IF(my_ri_metric_gw /= ri_overlap) THEN
+          CALL pw_transfer(rho_r%pw, rho_g%pw)
+          CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw)
+          CALL pw_transfer(pot_g%pw, rho_r%pw)
+        END IF
+
         CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol)
+
         CALL timestop(handle3)
  
         ! and finally (K|mu nu)
@@ -608,7 +685,7 @@ MODULE mp2_ri_gpw
         CALL integrate_v_rspace(rho_r,hmat=mat_munu,qs_env=qs_env,calculate_forces=.FALSE.,compute_tau=.FALSE.,gapw=.FALSE.,&
              pw_env_external=pw_env_sub, task_list_external=task_list_sub)
         CALL timestop(handle3)
- 
+
         CALL timeset(routineN//"_mult_gw_trunc",handle3)
         CALL cp_dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_gw, &
                                 0.0_dp, matrix_in_jnu, filter_eps=eps_filter)
@@ -620,22 +697,10 @@ MODULE mp2_ri_gpw
         CALL timeset(routineN//"_E_Ex_2_trunc",handle3)
 
         CALL copy_dbcsr_to_fm(matrix_in_jm, fm_BIb_gw)
-        CALL grep_my_integrals(para_env_sub,fm_BIb_gw,BIb_C_gw_trunc(i_counter,1:my_B_all_size,1:gw_corr_lev_total),&
+        CALL grep_my_integrals(para_env_sub,fm_BIb_gw,BIb_C_gw(i_counter,1:my_B_all_size,1:gw_corr_lev_total),&
                                max_row_col_local_gw,&
                                sub_proc_map,local_col_row_info_gw,&
                                my_B_all_end,my_B_all_start)
-
-        DO iiB=1,my_B_all_size
-          DO jjB=1,gw_corr_lev_total
-!          DO jjB=homo-gw_corr_lev_occ+1,homo+gw_corr_lev_virt
-            ! only use the truncation for the diagonal elements B^nn_P
-            IF(iiB + my_B_all_start - 1 == homo - gw_corr_lev_occ + jjB) THEN
-              BIb_C_gw(i_counter,iiB,jjB)=BIb_C_gw_trunc(i_counter,iiB,jjB)
-            END IF
-          END DO
-        END DO
-
-        DEALLOCATE(BIb_C_gw_trunc)
 
         CALL timestop(handle3)
 
@@ -650,16 +715,28 @@ MODULE mp2_ri_gpw
 
     DEALLOCATE(my_Lrows)
 
-    CALL cp_fm_release(fm_BIb_jb)
-    DEALLOCATE(local_col_row_info)
+    IF(my_do_im_time) THEN
 
-    CALL cp_dbcsr_release(matrix_ia_jnu)
-    CALL cp_dbcsr_release(matrix_ia_jb)
-    IF(do_alpha_beta) THEN
-      CALL cp_dbcsr_release(matrix_ia_jnu_beta)
-      CALL cp_dbcsr_release(matrix_ia_jb_beta)
-      CALL cp_fm_release(fm_BIb_jb_beta)
-      DEALLOCATE(local_col_row_info_beta)
+      ! transfer entries of fm_matrix_L_RI_metric to RPA
+      CALL grep_Lcols(para_env_L,dimen_RI,fm_matrix_L_RI_metric,&
+                      my_group_L_start,my_group_L_end,my_group_L_size,my_Lrows)
+      CALL cp_fm_release(fm_matrix_L_RI_metric)
+      CALL cp_para_env_release(para_env_L)
+
+    ELSE
+
+      CALL cp_fm_release(fm_BIb_jb)
+      DEALLOCATE(local_col_row_info)
+  
+      CALL cp_dbcsr_release(matrix_ia_jnu)
+      CALL cp_dbcsr_release(matrix_ia_jb)
+      IF(do_alpha_beta) THEN
+        CALL cp_dbcsr_release(matrix_ia_jnu_beta)
+        CALL cp_dbcsr_release(matrix_ia_jb_beta)
+        CALL cp_fm_release(fm_BIb_jb_beta)
+        DEALLOCATE(local_col_row_info_beta)
+      END IF
+
     END IF
 
     IF(my_do_gw) THEN
@@ -867,13 +944,19 @@ MODULE mp2_ri_gpw
 !> \param cond_num ...
 !> \param num_small_eigen ...
 !> \param auxbas_pw_pool ...
+!> \param do_mult_2c ...
+!> \param ri_metric ...
+!> \param fm_matrix_L_RI_metric ...
+!> \param do_im_time ...
 ! *****************************************************************************
   SUBROUTINE calculate_Lmin1(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
                              fm_matrix_L,ngroup,color_sub,dimen_RI,&
                              mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
                              my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
                              sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
-                             num_small_eigen,auxbas_pw_pool)
+                             num_small_eigen,auxbas_pw_pool,do_mult_2c,&
+                             ri_metric,fm_matrix_L_RI_metric,do_im_time)
+
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
                                                 para_env_L
@@ -896,8 +979,152 @@ MODULE mp2_ri_gpw
     REAL(KIND=dp)                            :: cond_num
     INTEGER                                  :: num_small_eigen
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    LOGICAL                                  :: do_mult_2c
+    INTEGER                                  :: ri_metric
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_L_RI_metric
+    LOGICAL                                  :: do_im_time
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_Lmin1', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: do_inversion
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_S_inv_work
+
+! we have to invert the Coulomb matrix V_PQ only when doing RI with the Coulomb metric
+
+    IF(ri_metric == ri_coulomb) THEN
+      do_inversion = .TRUE.
+    ELSE
+      do_inversion = .FALSE.
+    END IF
+
+    ! calculate L^{-1} or L (for overlap and trunc. Coulomb metric)
+    CALL compute_2c_in_and_cholesky(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
+                         fm_matrix_L,ngroup,color_sub,dimen_RI,&
+                         mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
+                         my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
+                         sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
+                         num_small_eigen,auxbas_pw_pool,do_mult_2c,do_inversion)
+
+    IF(ri_metric /= ri_coulomb) THEN
+
+      CALL cp_para_env_release(para_env_L)
+      DEALLOCATE(sizes_array,starts_array,ends_array)
+
+      ! Calculate Chol. decomp. of matrix of RI operator, store it in fm_matrix_L_RI_metric
+      CALL compute_2c_in_and_cholesky(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
+                           fm_matrix_L_RI_metric,ngroup,color_sub,dimen_RI,&
+                           mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
+                           my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
+                           sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
+                           num_small_eigen,auxbas_pw_pool,do_mult_2c=.FALSE.,do_inversion=.TRUE.,&
+                           external_matrix_struc=.TRUE.,fm_matrix_L_extern=fm_matrix_L,&
+                           ri_metric=ri_metric)
+
+
+      NULLIFY(fm_matrix_S_inv_work)
+      CALL cp_fm_create(fm_matrix_S_inv_work,fm_matrix_L_RI_metric%matrix_struct)
+      CALL cp_fm_set_all(fm_matrix_S_inv_work,0.0_dp)
+
+      CALL cp_gemm('N','T',dimen_RI,dimen_RI,dimen_RI,1.0_dp,fm_matrix_L_RI_metric,fm_matrix_L_RI_metric,&
+                   0.0_dp,fm_matrix_S_inv_work)
+
+      ! L (=fm_matrix_L_RI_metric) = S^(-1)*chol_dec(V), V: matrix of RI operator
+      CALL cp_gemm('T','T',dimen_RI,dimen_RI,dimen_RI,1.0_dp,fm_matrix_S_inv_work,fm_matrix_L,&
+                   0.0_dp,fm_matrix_L_RI_metric)
+
+      IF(do_im_time) THEN
+
+        ! set L to identity matrix to compute the 3-center matrix elements (alpha beta | aux) with
+        ! a single auxiliary basis function aux
+        CALL set_identity(fm_matrix_L)
+
+      ELSE
+
+        CALL cp_fm_to_fm(fm_matrix_L_RI_metric,fm_matrix_L)
+        CALL cp_fm_release(fm_matrix_L_RI_metric)
+
+      END IF
+
+      ! clean the S_inv matrix
+      CALL cp_fm_release(fm_matrix_S_inv_work)
+
+    END IF
+
+  END SUBROUTINE calculate_Lmin1
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param para_env ...
+!> \param para_env_sub ...
+!> \param para_env_L ...
+!> \param mp2_memory ...
+!> \param fm_matrix_L ...
+!> \param ngroup ...
+!> \param color_sub ...
+!> \param dimen_RI ...
+!> \param mo_coeff ...
+!> \param dft_control ...
+!> \param psi_L ...
+!> \param rho_r ...
+!> \param rho_g ...
+!> \param pot_g ...
+!> \param pw_env_sub ...
+!> \param poisson_env ...
+!> \param my_group_L_size ...
+!> \param my_group_L_start ...
+!> \param my_group_L_end ...
+!> \param sab_orb_sub ...
+!> \param sizes_array ...
+!> \param starts_array ...
+!> \param ends_array ...
+!> \param calc_PQ_cond_num ...
+!> \param cond_num ...
+!> \param num_small_eigen ...
+!> \param auxbas_pw_pool ...
+!> \param do_mult_2c ...
+!> \param do_inversion ...
+!> \param external_matrix_struc ...
+!> \param fm_matrix_L_extern ...
+!> \param ri_metric ...
+! *****************************************************************************
+  SUBROUTINE compute_2c_in_and_cholesky(qs_env,para_env,para_env_sub,para_env_L,mp2_memory,&
+                             fm_matrix_L,ngroup,color_sub,dimen_RI,&
+                             mo_coeff,dft_control,psi_L,rho_r,rho_g,pot_g,pw_env_sub,poisson_env,&
+                             my_group_L_size,my_group_L_start,my_group_L_end,sab_orb_sub,&
+                             sizes_array,starts_array,ends_array,calc_PQ_cond_num,cond_num,&
+                             num_small_eigen,auxbas_pw_pool,do_mult_2c,do_inversion,&
+                             external_matrix_struc,fm_matrix_L_extern,ri_metric)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub, &
+                                                para_env_L
+    REAL(KIND=dp)                            :: mp2_memory
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_L
+    INTEGER                                  :: ngroup, color_sub, dimen_RI
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(pw_p_type)                          :: psi_L, rho_r, rho_g, pot_g
+    TYPE(pw_env_type), POINTER               :: pw_env_sub
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    INTEGER                                  :: my_group_L_size, &
+                                                my_group_L_start, &
+                                                my_group_L_end
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb_sub
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: sizes_array, starts_array, &
+                                                ends_array
+    LOGICAL                                  :: calc_PQ_cond_num
+    REAL(KIND=dp)                            :: cond_num
+    INTEGER                                  :: num_small_eigen
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    LOGICAL                                  :: do_mult_2c, do_inversion
+    LOGICAL, OPTIONAL                        :: external_matrix_struc
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_matrix_L_extern
+    INTEGER, OPTIONAL                        :: ri_metric
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_in_and_cholesky', &
       routineP = moduleN//':'//routineN
     LOGICAL, PARAMETER                       :: debug = .FALSE.
 
@@ -909,12 +1136,11 @@ MODULE mp2_ri_gpw
       j_ref_kind, j_ref_set, jatom, jjB, jkind, jset, lb(3), LLL, &
       location(3), m, my_group_L_q_end, my_group_L_q_size, &
       my_group_L_q_start, my_group_pot_end, my_group_pot_size, &
-      my_group_pot_start, na1, na2, natom, ncoa, ncoa_a, ncoa_b, ncol_local, &
-      nkind
-    INTEGER :: nrow_local, nseta, nsetb, nsgf, offset, offsetb, proc_receive, &
-      proc_receive_static, proc_send, proc_send_static, proc_shift, &
-      rec_L_end, rec_L_size, rec_L_start, sgfa, sgfb, strat_group_size, &
-      sub_sub_color, tp(3), ub(3)
+      my_group_pot_start, my_ri_metric, na1, na2, natom, ncoa, ncoa_a, ncoa_b
+    INTEGER :: ncol_local, nkind, nrow_local, nseta, nsetb, nsgf, offset, &
+      offsetb, proc_receive, proc_receive_static, proc_send, &
+      proc_send_static, proc_shift, rec_L_end, rec_L_size, rec_L_start, sgfa, &
+      sgfb, strat_group_size, sub_sub_color, tp(3), ub(3)
     INTEGER, ALLOCATABLE, DIMENSION(:) :: diffbf_atom_arbitr_atom, &
       diffbf_noinbas, diffbfatanyatom_noinbas, ends_array_pot, kind_of, &
       proc_map, sizes_array_pot, starts_array_pot, sub_ends_array, &
@@ -926,8 +1152,9 @@ MODULE mp2_ri_gpw
                                                 lb_max, lb_min, npgfa, npgfb, &
                                                 nsgfa, nsgfb, row_indices
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
-    LOGICAL                                  :: check_i, check_j, do_mult_2c, &
-                                                map_it_here
+    LOGICAL                                  :: check_i, check_j, &
+                                                map_it_here, &
+                                                my_external_matrix_struc
     REAL(KIND=dp)                            :: min_mem_for_QK, pair_energy, &
                                                 rab2, rac2, scaling, zet_tmp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: egen_L, f, wf_vector
@@ -970,6 +1197,15 @@ MODULE mp2_ri_gpw
 
     CALL timeset(routineN,handle)
 
+    ! default: Coulomb metric
+    my_ri_metric = ri_coulomb
+    IF(PRESENT(ri_metric)) my_ri_metric = ri_metric
+
+    my_external_matrix_struc = .FALSE.
+    IF(PRESENT(external_matrix_struc)) THEN
+      my_external_matrix_struc = external_matrix_struc
+    END IF
+
 
     ! get stuff
     CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set,&
@@ -997,7 +1233,7 @@ MODULE mp2_ri_gpw
       dimen_RI=dimen_RI+nsgf
     END DO
 
-    ! calculate wich rows of L^{-1} to have
+    ! calculate which rows of L^{-1} to have
     ALLOCATE(sizes_array(0:ngroup-1))
     sizes_array=0
     ALLOCATE(starts_array(0:ngroup-1))
@@ -1017,8 +1253,6 @@ MODULE mp2_ri_gpw
     my_group_L_end=ends_array(color_sub)
 
     CALL timeset(routineN//"_loop_lm",handle2)
-
-    do_mult_2c =  qs_env%mp2_env%mp2_gpw%do_mult_2c
 
     IF(do_mult_2c) THEN
 
@@ -1855,11 +2089,16 @@ MODULE mp2_ri_gpw
   
         CALL timeset(routineN//"_pot_lm",handle3)
         rho_r%pw%cr3d = psi_L%pw%cr3d
-        CALL pw_transfer(rho_r%pw, rho_g%pw)
-        CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw)
-        CALL pw_transfer(pot_g%pw, rho_r%pw)
+
+        ! in case we do the overlap metric, we have no potential and hence no FT has to be carried out
+        IF(my_ri_metric /= ri_overlap) THEN
+          CALL pw_transfer(rho_r%pw, rho_g%pw)
+          CALL pw_poisson_solve(poisson_env,rho_g%pw, pair_energy, pot_g%pw)
+          CALL pw_transfer(pot_g%pw, rho_r%pw)
+        END IF
+
         CALL pw_scale(rho_r%pw,rho_r%pw%pw_grid%dvol)
-  
+
         NULLIFY(rs_v)
         NULLIFY(rs_descs)
         CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
@@ -2048,7 +2287,12 @@ MODULE mp2_ri_gpw
     NULLIFY(fm_struct)
     CALL cp_fm_struct_create(fm_struct,context=blacs_env_L,nrow_global=dimen_RI,&
                              ncol_global=dimen_RI,para_env=para_env_L)
-    CALL cp_fm_create(fm_matrix_L,fm_struct,name="fm_matrix_L")
+    IF(my_external_matrix_struc) THEN
+      CALL cp_fm_create(fm_matrix_L,fm_matrix_L_extern%matrix_struct,name="fm_matrix_L")
+    ELSE
+      CALL cp_fm_create(fm_matrix_L,fm_struct,name="fm_matrix_L")
+    END IF
+
     CALL cp_fm_struct_release(fm_struct)
 
     CALL cp_fm_set_all(matrix=fm_matrix_L,alpha=0.0_dp)
@@ -2132,7 +2376,12 @@ MODULE mp2_ri_gpw
       NULLIFY(fm_struct)
       CALL cp_fm_struct_create(fm_struct,context=blacs_env_L,nrow_global=dimen_RI,&
                                ncol_global=dimen_RI,para_env=para_env_L)
-      CALL cp_fm_create(fm_matrix_L_diag,fm_struct,name="fm_matrix_L_diag")
+      IF(my_external_matrix_struc) THEN
+        CALL cp_fm_create(fm_matrix_L_diag,fm_matrix_L_extern%matrix_struct,name="fm_matrix_L_diag")
+      ELSE
+        CALL cp_fm_create(fm_matrix_L_diag,fm_struct,name="fm_matrix_L_diag")
+      END IF
+
       CALL cp_fm_struct_release(fm_struct)
 
       CALL cp_fm_set_all(matrix=fm_matrix_L_diag,alpha=0.0_dp) 
@@ -2160,7 +2409,9 @@ MODULE mp2_ri_gpw
     CALL cp_fm_cholesky_decompose(matrix=fm_matrix_L, n=dimen_RI, info_out=info_chol)
     CPASSERT(info_chol==0)
 
-    CALL cp_fm_triangular_invert(matrix_a=fm_matrix_L,uplo_tr='U')
+    IF(do_inversion) THEN
+      CALL cp_fm_triangular_invert(matrix_a=fm_matrix_L,uplo_tr='U')
+    END IF
 
     ! clean the lower part of the L^{-1} matrix (just to not have surprises afterwards)
     CALL cp_fm_get_info(matrix=fm_matrix_L,&
@@ -2181,7 +2432,7 @@ MODULE mp2_ri_gpw
 
     CALL timestop(handle)
 
-  END SUBROUTINE calculate_Lmin1
+  END SUBROUTINE compute_2c_in_and_cholesky
 
 ! *****************************************************************************
 !> \brief ...
@@ -2327,6 +2578,43 @@ MODULE mp2_ri_gpw
     CALL timestop(handle)
 
   END SUBROUTINE
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param fm_matrix_L ...
+! *****************************************************************************
+  SUBROUTINE set_identity(fm_matrix_L)
+    TYPE(cp_fm_type), POINTER                :: fm_matrix_L
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_identity', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i_global, iiB, j_global, jjB, &
+                                                ncol_local, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+
+    CALL cp_fm_get_info(matrix=fm_matrix_L,&
+                        nrow_local=nrow_local,&
+                        ncol_local=ncol_local,&
+                        row_indices=row_indices,&
+                        col_indices=col_indices)
+    DO iiB=1, nrow_local
+      i_global=row_indices(iiB)
+      DO jjB=1, ncol_local
+        j_global=col_indices(jjB)
+        IF(j_global==i_global) THEN
+          fm_matrix_L%local_data(iiB,jjB)=1.0_dp
+        ELSE
+          fm_matrix_L%local_data(iiB,jjB)=0.0_dp
+        END IF
+      END DO
+    END DO
+
+
+  END SUBROUTINE set_identity
+
+
 
 ! *****************************************************************************
 !> \brief ...
