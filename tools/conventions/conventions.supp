@@ -441,3 +441,6 @@ Data file BASIS_SET copied to tests/QMMM/QS
 Data file POTENTIAL copied to tests/QMMM/QS
 Data file GTH_BASIS_SETS copied to tests/QMMM/QS
 machine.F: Found OPEN statement in procedure "m_cpuinfo"
+base_hooks.F: Found STOP statement in procedure "cp__a"
+base_hooks.F: Found STOP statement in procedure "cp__b"
+base_hooks.F: Found STOP statement in procedure "cp_abort"
