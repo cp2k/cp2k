@@ -237,7 +237,8 @@ CONTAINS
     CALL cp_dbcsr_iterator_start(iter, matrix_Y)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block)
-       IF(SIZE(block,2)>SIZE(block,1)) CPABORT("Unexpected block sizes")
+       IF(SIZE(block,2)>SIZE(block,1))&
+         CPABORT("PAO basis size exceeds primary basis size.")
        block = 0.0_dp
        DO i=1, SIZE(block, 2)
           block(i,i) = 1.0_dp
