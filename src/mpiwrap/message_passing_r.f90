@@ -596,6 +596,8 @@
     MARK_USED(dest)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_send_r
@@ -632,6 +634,8 @@
     MARK_USED(dest)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_send_rv
@@ -677,6 +681,8 @@
     MARK_USED(source)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode") 
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_r
@@ -721,6 +727,8 @@
     MARK_USED(source)
     MARK_USED(tag)
     MARK_USED(gid)
+    ! only defined in parallel
+    CPABORT("not in parallel mode") 
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_rv
