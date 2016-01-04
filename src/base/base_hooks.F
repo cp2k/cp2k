@@ -71,6 +71,8 @@ CONTAINS
        CALL m_flush(default_output_unit)
        CALL m_abort()
     ENDIF
+    ! compiler hint
+    STOP "Never return from here"
   END SUBROUTINE cp_abort
 
 ! *****************************************************************************
@@ -134,6 +136,8 @@ CONTAINS
     INTEGER, INTENT(in)                      :: lineNr
 
     CALL cp_abort(location=cp__l(filename,lineNr), message="CPASSERT failed")
+    ! compiler hint
+    STOP "Never return from here"
   END SUBROUTINE cp__a
 
 ! *****************************************************************************
@@ -149,6 +153,8 @@ CONTAINS
     CHARACTER(len=*), INTENT(in)             :: message
 
     CALL cp_abort(location=cp__l(filename,lineNr), message=message)
+    ! compiler hint
+    STOP "Never return from here"
   END SUBROUTINE cp__b
 
 ! *****************************************************************************
