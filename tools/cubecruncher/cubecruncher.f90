@@ -33,17 +33,18 @@
 !-------------------------------------------------------------------------------
 MODULE cubecruncher
   IMPLICIT NONE
-  REAL, PARAMETER :: a2au = 1.0/0.5291772083 ! multiply angstrom by a2au to get bohr
+  INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
+  REAL(KIND=dp), PARAMETER :: a2au = 1.0/0.5291772083 ! multiply angstrom by a2au to get bohr
   TYPE cube_type
      INTEGER :: npoints(3)
-     REAL, DIMENSION(:,:,:), POINTER :: grid
-     REAL    :: origin(3)
-     REAL    :: dh(3,3), h(3,3),  hinv(3,3)
+     REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: grid
+     REAL(KIND=dp)    :: origin(3)
+     REAL(KIND=dp)    :: dh(3,3), h(3,3),  hinv(3,3)
      CHARACTER(LEN=80) :: title1,title2
      INTEGER :: Natom
-     REAL, DIMENSION(:,:), POINTER :: coords
+     REAL(KIND=dp), DIMENSION(:,:), POINTER :: coords
      INTEGER, DIMENSION(:), POINTER  :: Zatom
-     REAL, DIMENSION(:), POINTER :: auxfield
+     REAL(KIND=dp), DIMENSION(:), POINTER :: auxfield
   END TYPE cube_type
 
 CONTAINS
@@ -94,7 +95,7 @@ CONTAINS
     TYPE(cube_type), POINTER :: cube
     INTEGER                  :: iunit
     INTEGER                  :: stride
-    REAL                     :: mult_fact
+    REAL(KIND=dp)                     :: mult_fact
 
     INTEGER                  :: I1,I2,I3
 
@@ -125,7 +126,7 @@ CONTAINS
     INTEGER                  :: iunit
 
     INTEGER                  :: I1,I2,I3
-    REAL                     :: dum
+    REAL(KIND=dp)                     :: dum
 
     READ(iunit,'(A80)') cube%title1
     READ(iunit,'(A80)') cube%title2
@@ -193,7 +194,7 @@ CONTAINS
 
     TYPE(cube_type), POINTER :: cube
     integer :: i
-    real :: uvol, vol
+    REAL(KIND=dp) :: uvol, vol
 
     vol=cube%h(1,1)*(cube%h(2,2)*cube%h(3,3)-cube%h(2,3)*cube%h(3,2)) &
        -cube%h(2,1)*(cube%h(1,2)*cube%h(3,3)-cube%h(3,2)*cube%h(1,3)) &
@@ -215,9 +216,9 @@ CONTAINS
 function pbc(r,cube) result(r_pbc)
    
     TYPE(cube_type), POINTER :: cube
-    REAL, DIMENSION(3), INTENT(IN) :: r
-    REAL, DIMENSION(3) :: r_pbc
-    REAL, DIMENSION(3) :: s
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN) :: r
+    REAL(KIND=dp), DIMENSION(3) :: r_pbc
+    REAL(KIND=dp), DIMENSION(3) :: s
 
     s=MATMUL(cube%hinv,r)
     s=s-ANINT(s)
@@ -230,12 +231,12 @@ end function pbc
 !-------------------------------------------------------------------------------
   SUBROUTINE center_cube(cube,center)
     TYPE(cube_type), POINTER :: cube
-    REAL, DIMENSION(3) :: center
+    REAL(KIND=dp), DIMENSION(3) :: center
 
     INTEGER                  :: I1,I2,I3,O1,O2,O3
     INTEGER, DIMENSION(3)    :: C
-    REAL :: h(3,3), hinv(3,3), uvol, vol, dvec(3)
-    REAL, DIMENSION(:,:,:), POINTER :: grid
+    REAL(KIND=dp) :: h(3,3), hinv(3,3), uvol, vol, dvec(3)
+    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: grid
     ALLOCATE(grid(cube%npoints(1),cube%npoints(2),cube%npoints(3)))
 
     ! notice h and hinv here correspond to dh and dhinv, do not overwrite cube%xxx fields with them
@@ -304,12 +305,12 @@ end function pbc
 
     INTEGER                  :: i, I1,I2,closest
     INTEGER :: n1, n2, n3, no1, no2, no3
-    REAL, DIMENSION(3)       :: edges,center,displ
-    REAL                     :: d2, x,y,z
-    REAL :: h11h22,h11h33,h11h32,h11h23,h33h22,h31h22,h13h22,h31h13,h31h23,&
+    REAL(KIND=dp), DIMENSION(3)       :: edges,center,displ
+    REAL(KIND=dp)                     :: d2, x,y,z
+    REAL(KIND=dp) :: h11h22,h11h33,h11h32,h11h23,h33h22,h31h22,h13h22,h31h13,h31h23,&
            h12h21,h12h23,h12h31,h12h33,h32h21,h32h23,h32h13,h21h32,h21h33,&
            h21h13,h32h11h23,h12h23h31,h21h32h13,h11h22h33,h31h22h13,h21h12h33,deth
-    REAL, DIMENSION(3)       :: A, O, r, r_pbc
+    REAL(KIND=dp), DIMENSION(3)       :: A, O, r, r_pbc
 
     center(:)=cube%origin(:)+cube%h(:,1)/2.0 + cube%h(:,2)/2.0 + cube%h(:,3)/2.0
 
@@ -350,6 +351,7 @@ END MODULE cubecruncher
 ! uses the non-Fortran getarg / iargc
 !-------------------------------------------------------------------------------
 MODULE command_line_tools
+  USE cubecruncher, ONLY : dp
   TYPE input_type
     CHARACTER(LEN=200) :: cube_name_in
     CHARACTER(LEN=200) :: cube_name_out
@@ -361,7 +363,7 @@ MODULE command_line_tools
     LOGICAL :: do_iso, do_slice, do_1d_profile, espot_over_iso, iso_current, have_espot_cube
     LOGICAL :: from_top, check_atom_from_down
     INTEGER :: atom_center, stride, cube, index_profile
-    REAL    :: center_point(3), slice(3), iso_level(3), iso_hmin, iso_hmax, delta_profile,&
+    REAL(KIND=dp)    :: center_point(3), slice(3), iso_level(3), iso_hmin, iso_hmax, delta_profile,&
                 mult_fact, iso_delta_grid, bwidth
   END TYPE
 CONTAINS
@@ -582,9 +584,9 @@ MODULE cube_post_process
    USE cubecruncher
 
   IMPLICIT NONE
-!  REAL, PARAMETER :: a2au = 1.0/0.5291772083D0 ! multiply angstrom by a2au to get bohr
-  REAL, PARAMETER :: au2a = 0.5291772083D0 ! multiply bohr by au2a to get angstrom 
-  REAL, PARAMETER :: au2eV = 27.211384D0
+!  REAL(KIND=dp), PARAMETER :: a2au = 1.0/0.5291772083D0 ! multiply angstrom by a2au to get bohr
+  REAL(KIND=dp), PARAMETER :: au2a = 0.5291772083D0 ! multiply bohr by au2a to get angstrom 
+  REAL(KIND=dp), PARAMETER :: au2eV = 27.211384D0
 
 CONTAINS
 
@@ -592,12 +594,12 @@ CONTAINS
 
    TYPE(cube_type), POINTER :: cube
    INTEGER, INTENT(IN) :: index
-   REAL, INTENT(IN) :: delta
+   REAL(KIND=dp), INTENT(IN) :: delta
 
    CHARACTER(LEN=80) :: filename
    INTEGER :: i, ip_low, ip_up,j,k, ncount, np, npp
-   REAL,DIMENSION(:), ALLOCATABLE :: pos, av_val
-   REAL :: length, p, val, dh1, dh2
+   REAL(KIND=dp),DIMENSION(:), ALLOCATABLE :: pos, av_val
+   REAL(KIND=dp) :: length, p, val, dh1, dh2
 
    ALLOCATE(pos(cube%npoints(index)))
    ALLOCATE(av_val(cube%npoints(index)))
@@ -625,7 +627,7 @@ CONTAINS
            val =val + cube%grid(k,j,i)! *dh1*dh2
          END DO
        END DO
-       av_val(i) = val /REAL(ncount)
+       av_val(i) = val /REAL(ncount,KIND=dp)
      END DO
 
    ELSE IF(index==1) THEN
@@ -642,7 +644,7 @@ CONTAINS
            val =val + cube%grid(i,k,j)
          END DO
        END DO
-       av_val(i) = val/REAL(ncount)
+       av_val(i) = val/REAL(ncount,KIND=dp)
      END DO
 
    ELSE IF(index==2) THEN
@@ -659,7 +661,7 @@ CONTAINS
            val =val + cube%grid(k,i,j)
          END DO
        END DO
-       av_val(i) = val/REAL(ncount)
+       av_val(i) = val/REAL(ncount,KIND=dp)
      END DO
 
 
@@ -689,7 +691,7 @@ CONTAINS
      DO i =ip_low,ip_up
        val = val + av_val(i)
      END DO
-     val = val/REAL(ip_up-ip_low+1)
+     val = val/REAL(ip_up-ip_low+1,KIND=dp)
      WRITE(101,*) p, val
      IF(ip_up==cube%npoints(index)) EXIT
    END DO
@@ -703,12 +705,12 @@ CONTAINS
 
    TYPE(cube_type), POINTER :: cube
    INTEGER, INTENT(IN) ::dir 
-   REAL, INTENT(IN) :: height
+   REAL(KIND=dp), INTENT(IN) :: height
 
    CHARACTER(LEN=80) :: filename
    INTEGER :: index_plane, d1,d2
    INTEGER :: i, j,k
-   REAL :: r, r1, r2 , val
+   REAL(KIND=dp) :: r, r1, r2 , val
 
 
    d1=dir+1; if(d1>3) d1=1
@@ -718,9 +720,9 @@ CONTAINS
    END IF
 
    DO i = 1,cube%npoints(dir)
-      r=sqrt((real(i-1)*cube%dh(1,dir)-cube%origin(1))**2&
-               +(real(i-1)*cube%dh(2,dir)-cube%origin(2))**2+&
-                (real(i-1)*cube%dh(3,dir)-cube%origin(3))**2)
+      r=sqrt((real(i-1,KIND=dp)*cube%dh(1,dir)-cube%origin(1))**2&
+               +(real(i-1,KIND=dp)*cube%dh(2,dir)-cube%origin(2))**2+&
+                (real(i-1,KIND=dp)*cube%dh(3,dir)-cube%origin(3))**2)
       IF(r*au2a>=height) THEN
         index_plane = i
         EXIT
@@ -737,16 +739,16 @@ CONTAINS
 
        IF(dir==3)THEN
          val = (cube%grid(i,j,index_plane-1)+cube%grid(i,j,index_plane))*0.5D0
-         r1 = real(i-1)*cube%dh(1,1)+real(j-1)*cube%dh(1,2)+real(index_plane-1)*cube%dh(1,3)
-         r2 = real(i-1)*cube%dh(2,1)+real(j-1)*cube%dh(2,2)+real(index_plane-1)*cube%dh(2,3)
+         r1 = real(i-1,KIND=dp)*cube%dh(1,1)+real(j-1,KIND=dp)*cube%dh(1,2)+real(index_plane-1,KIND=dp)*cube%dh(1,3)
+         r2 = real(i-1,KIND=dp)*cube%dh(2,1)+real(j-1,KIND=dp)*cube%dh(2,2)+real(index_plane-1,KIND=dp)*cube%dh(2,3)
        ELSEIF(dir==1) THEN
          val = (cube%grid(index_plane-1,i,j)+cube%grid(index_plane,i,j))*0.5D0
-         r1 = real(index_plane-1)*cube%dh(2,1)+real(i-1)*cube%dh(2,2)+real(j-1)*cube%dh(2,3)
-         r2 = real(index_plane-1)*cube%dh(3,1)+real(i-1)*cube%dh(3,2)+real(j-1)*cube%dh(3,3)
+         r1 = real(index_plane-1,KIND=dp)*cube%dh(2,1)+real(i-1,KIND=dp)*cube%dh(2,2)+real(j-1,KIND=dp)*cube%dh(2,3)
+         r2 = real(index_plane-1,KIND=dp)*cube%dh(3,1)+real(i-1,KIND=dp)*cube%dh(3,2)+real(j-1,KIND=dp)*cube%dh(3,3)
        ELSEIF(dir==2) THEN
          val = (cube%grid(i,index_plane-1,j)+cube%grid(i,index_plane,j))*0.5D0
-         r1 = real(i-1)*cube%dh(1,1)+real(index_plane-1)*cube%dh(1,2)+real(j-1)*cube%dh(1,3)
-         r2 = real(i-1)*cube%dh(3,1)+real(index_plane-1)*cube%dh(3,2)+real(j-1)*cube%dh(3,3)
+         r1 = real(i-1,KIND=dp)*cube%dh(1,1)+real(index_plane-1,KIND=dp)*cube%dh(1,2)+real(j-1,KIND=dp)*cube%dh(1,3)
+         r2 = real(i-1,KIND=dp)*cube%dh(3,1)+real(index_plane-1,KIND=dp)*cube%dh(3,2)+real(j-1,KIND=dp)*cube%dh(3,3)
        END IF
 
        WRITE(101,*) r1*au2a, r2*au2a, val 
@@ -761,10 +763,10 @@ CONTAINS
 
    TYPE(cube_type), POINTER :: cube
    INTEGER, INTENT(IN) ::dir
-   REAL, INTENT(IN) :: iso_val_inp, h_min, h_max, grid_delta
+   REAL(KIND=dp), INTENT(IN) :: iso_val_inp, h_min, h_max, grid_delta
    LOGICAL :: use_espot, iso_current
    LOGICAL :: check_atom_from_down,  from_top
-   REAL, INTENT(IN), OPTIONAL ::  bwidth 
+   REAL(KIND=dp), INTENT(IN), OPTIONAL ::  bwidth 
    TYPE(cube_type), OPTIONAL, POINTER :: cube_espot
 
    CHARACTER(LEN=80) :: filename
@@ -772,11 +774,11 @@ CONTAINS
    INTEGER ::  d1,d2, iold, jold, kold
    INTEGER :: i, iat, ipoint, j,k, kval, index_min, index_max
    INTEGER :: i1,i2,incr
-   REAL :: d12, iso_val
-   REAL :: alpha, fac1, fac2, r, r1, r2 , val1, val2, val1_e, val2_e
-   REAL, ALLOCATABLE, DIMENSION(:,:) :: ah
-   REAL, ALLOCATABLE, DIMENSION(:,:,:) :: data_grid
-   REAL :: delta, det, height, L1, L2, r1_shift, r2_shift, tmp
+   REAL(KIND=dp) :: d12, iso_val
+   REAL(KIND=dp) :: alpha, fac1, fac2, r, r1, r2 , val1, val2, val1_e, val2_e
+   REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: ah
+   REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:) :: data_grid
+   REAL(KIND=dp) :: delta, det, height, L1, L2, r1_shift, r2_shift, tmp
    INTEGER :: ii, jj, im, ip, jm, jp, np1, np2 
 
 
@@ -798,10 +800,10 @@ CONTAINS
      index_min = 1
    ELSE
      DO i = 1,cube%npoints(dir)
-!       r=sqrt((real(i-1)*cube%dh(1,dir)+cube%origin(1))**2&
-!               +(real(i-1)*cube%dh(2,dir)+cube%origin(2))**2+&
-!                (real(i-1)*cube%dh(3,dir)+cube%origin(3))**2)
-       r  = cube%origin(dir) + real(i-1)*cube%dh(dir,dir)
+!       r=sqrt((real(i-1,KIND=dp)*cube%dh(1,dir)+cube%origin(1))**2&
+!               +(real(i-1,KIND=dp)*cube%dh(2,dir)+cube%origin(2))**2+&
+!                (real(i-1,KIND=dp)*cube%dh(3,dir)+cube%origin(3))**2)
+       r  = cube%origin(dir) + real(i-1,KIND=dp)*cube%dh(dir,dir)
        IF(r*au2a>=h_min)THEN
          index_min = i-1
          EXIT
@@ -813,10 +815,10 @@ CONTAINS
      index_max = cube%npoints(dir) - 1
    ELSE
      DO i = index_min,cube%npoints(dir)
-!       r=sqrt((real(i-1)*cube%dh(1,dir)+cube%origin(1))**2&
-!               +(real(i-1)*cube%dh(2,dir)+cube%origin(2))**2+&
-!                (real(i-1)*cube%dh(3,dir)+cube%origin(3))**2)
-       r  = cube%origin(dir) + real(i-1)*cube%dh(dir,dir)
+!       r=sqrt((real(i-1,KIND=dp)*cube%dh(1,dir)+cube%origin(1))**2&
+!               +(real(i-1,KIND=dp)*cube%dh(2,dir)+cube%origin(2))**2+&
+!                (real(i-1,KIND=dp)*cube%dh(3,dir)+cube%origin(3))**2)
+       r  = cube%origin(dir) + real(i-1,KIND=dp)*cube%dh(dir,dir)
 !dbg
 !    write(*,*) index_min, i, r, r*au2a, h_max
        IF(r*au2a>=h_max)THEN
@@ -922,8 +924,8 @@ CONTAINS
 !dbg
      DO i = 1,cube%npoints(d1)
        DO j = 1,cube%npoints(d2)
-         r1 = real(i-1)*cube%dh(1,d1)+cube%origin(1)+real(j-1)*cube%dh(1,d2)
-         r2 = real(i-1)*cube%dh(2,d1)+real(j-1)*cube%dh(2,d2)+cube%origin(2)
+         r1 = real(i-1,KIND=dp)*cube%dh(1,d1)+cube%origin(1)+real(j-1,KIND=dp)*cube%dh(1,d2)
+         r2 = real(i-1,KIND=dp)*cube%dh(2,d1)+real(j-1,KIND=dp)*cube%dh(2,d2)+cube%origin(2)
          DO iat = 1,cube%natom
            if(cube%coords(dir,iat)*au2a<h_max) THEN
              d12=sqrt((cube%coords(d1,iat)-r1)**2+(cube%coords(d2,iat)-r2)**2)
@@ -989,8 +991,8 @@ CONTAINS
              END IF
          END IF
          IF(found_val) THEN
-             r  = cube%origin(dir) + real(i-1)*cube%dh(dir,d1)+real(j-1)*cube%dh(dir,d2)&
-               +real(k-1)*cube%dh(dir,dir)*fac1+real(k)*cube%dh(dir,dir)*fac2
+             r  = cube%origin(dir) + real(i-1,KIND=dp)*cube%dh(dir,d1)+real(j-1,KIND=dp)*cube%dh(dir,d2)&
+               +real(k-1,KIND=dp)*cube%dh(dir,dir)*fac1+real(k,KIND=dp)*cube%dh(dir,dir)*fac2
              IF(check_atom_from_down) THEN
                  if(r>ah(i,j)) THEN
                    write(*,'(A,2F10.5,A,F16.8,A, F16.8)') ' At ', r1*au2a, r2*au2a, 'tip goes behind atoms, position moved from ', &
@@ -1005,10 +1007,10 @@ CONTAINS
              ELSE
                kval = k
              END IF
-             r1 = cube%origin(d1) + real(i-1)*cube%dh(d1,d1) +real(j-1)*cube%dh(d1,d2) &
-                +real(k-1)*cube%dh(d1,dir) *fac1+real(k)*cube%dh(d1,dir)*fac2
-             r2 = cube%origin(d2) + real(i-1)*cube%dh(d2,d1) +real(j-1)*cube%dh(d2,d2) &
-                +real(kval-1)*cube%dh(d2,dir) *fac1+real(kval)*cube%dh(d2,dir)*fac2
+             r1 = cube%origin(d1) + real(i-1,KIND=dp)*cube%dh(d1,d1) +real(j-1,KIND=dp)*cube%dh(d1,d2) &
+                +real(k-1,KIND=dp)*cube%dh(d1,dir) *fac1+real(k,KIND=dp)*cube%dh(d1,dir)*fac2
+             r2 = cube%origin(d2) + real(i-1,KIND=dp)*cube%dh(d2,d1) +real(j-1,KIND=dp)*cube%dh(d2,d2) &
+                +real(kval-1,KIND=dp)*cube%dh(d2,dir) *fac1+real(kval,KIND=dp)*cube%dh(d2,dir)*fac2
              data_grid(1,i,j) = r1
              data_grid(2,i,j) = r2
              IF(use_espot) THEN
@@ -1030,10 +1032,10 @@ CONTAINS
          END IF 
        END DO ! k
        IF(.NOT. found_val) THEN
-          r1 = cube%origin(d1) + real(i-1)*cube%dh(d1,d1) +real(j-1)*cube%dh(d1,d2) &
-               +real(kold-1)*cube%dh(d1,dir)
-          r2 = cube%origin(d2) + real(i-1)*cube%dh(d2,d1) +real(j-1)*cube%dh(d2,d2) &
-               +real(kold-1)*cube%dh(d2,dir)
+          r1 = cube%origin(d1) + real(i-1,KIND=dp)*cube%dh(d1,d1) +real(j-1,KIND=dp)*cube%dh(d1,d2) &
+               +real(kold-1,KIND=dp)*cube%dh(d1,dir)
+          r2 = cube%origin(d2) + real(i-1,KIND=dp)*cube%dh(d2,d1) +real(j-1,KIND=dp)*cube%dh(d2,d2) &
+               +real(kold-1,KIND=dp)*cube%dh(d2,dir)
           r = data_grid(3,iold,jold)
           data_grid(1,i,j) = r1
           data_grid(2,i,j) = r2
@@ -1083,9 +1085,9 @@ CONTAINS
    det = (cube%dh(d1,d1)*cube%dh(d2,d2) - cube%dh(d1,d2)*cube%dh(d2,d1))
    det = 1.0D0/det
    DO ii = 1,np1
-     r1 = delta*real(ii-1)
+     r1 = delta*real(ii-1,KIND=dp)
      DO jj = 1,np2
-       r2 = delta*real(jj-1)
+       r2 = delta*real(jj-1,KIND=dp)
        tmp = (cube%dh(d2,d2)*r1-cube%dh(d1,d2)*r2)*det
        i = int(tmp)+1
        tmp = (cube%dh(d1,d1)*r2-cube%dh(d2,d1)*r1)*det
@@ -1177,8 +1179,8 @@ PROGRAM main
    INTEGER :: iunit_cube_in,iunit_cube_out,iunit_xyz,narg
    INTEGER :: dir
    LOGICAL :: did_something
-   REAL :: height, iso_val
-   REAL, DIMENSION(3) :: center
+   REAL(KIND=dp) :: height, iso_val
+   REAL(KIND=dp), DIMENSION(3) :: center
    TYPE(input_type) :: input
   
    CALL init_input(input)
