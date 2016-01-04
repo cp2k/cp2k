@@ -3,7 +3,6 @@
   RUN_TYPE     ENERGY
   PRINT_LEVEL  MEDIUM
 &END GLOBAL
-
 &FORCE_EVAL
   METHOD QS
   &SUBSYS
@@ -55,8 +54,6 @@
       MAX_SCF     40
       EPS_SCF     1.0E-5
       SCF_GUESS   ATOMIC 
-#     &OT ON
-#     &END
       &DIAGONALIZATION T
          ALGORITHM STANDARD
          MAX_ITER  20
