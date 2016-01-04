@@ -166,16 +166,16 @@ CONTAINS
 !> \param wa ...
 !> \param pol ...
 !> \param cos_pol ...
-!> \param cotan_azi ...
+!> \param cotan_pol ...
 ! *****************************************************************************
   SUBROUTINE create_harmonics_atom(harmonics,my_CG,na,&
-       llmax,maxs,max_s_harm,ll,wa,pol,cos_pol,cotan_azi)
+       llmax,maxs,max_s_harm,ll,wa,pol,cos_pol,cotan_pol)
 
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     INTEGER, INTENT(IN)                      :: na, llmax, maxs, max_s_harm, &
                                                 ll
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: wa, pol, cos_pol, cotan_azi
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: wa, pol, cos_pol, cotan_pol
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
       routineP = moduleN//':'//routineN
@@ -412,7 +412,7 @@ CONTAINS
 
           DO ia = 1,na
 
-             harmonics%dslm(1,ia,iso) = m_r * cotan_azi(ia)*harmonics%slm(ia,iso)
+             harmonics%dslm(1,ia,iso) = m_r * cotan_pol(ia)*harmonics%slm(ia,iso)
 
              IF(m /= l ) THEN
                 iso_mp1 = soset(l,m+1)
@@ -445,7 +445,7 @@ CONTAINS
 
           abs_m = ABS(m_r)
           DO ia = 1,na
-             harmonics%dslm(1,ia,iso) = abs_m * cotan_azi(ia)*&
+             harmonics%dslm(1,ia,iso) = abs_m * cotan_pol(ia)*&
                   harmonics%slm(ia,iso)
              IF(m /= -l) THEN
                 iso_mm1 = soset(l,m-1)
