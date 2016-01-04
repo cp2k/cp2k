@@ -292,7 +292,7 @@ CONTAINS
 
     ! terminate the run if the value of the potential is abnormal
     IF(abnormal_value(e_pot)) &
-           CPABORT("Potential energy is abnormal value (NaN/Inf).")
+           CPABORT("Potential energy is an abnormal value (NaN/Inf).")
 
     ! Print forces, if requested
     print_forces = cp_print_key_unit_nr(logger,force_env%force_env_section,"PRINT%FORCES",&

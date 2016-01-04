@@ -40,6 +40,7 @@ MODULE dm_ls_scf_methods
                                              int_8
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE mathlib,                         ONLY: abnormal_value
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -757,6 +758,9 @@ CONTAINS
                       (flop1+flop2)/(1.0E6_dp*MAX(t2-t1,0.001_dp)), current_threshold
          CALL m_flush(unit_nr)
       ENDIF
+
+      IF(abnormal_value(trace_gx)) &
+         CPABORT("trace_gx is an abnormal value (NaN/Inf).")
 
       ! a branch of 1 or 2 appears to lead to a less accurate electron number count and premature exit
       ! if it turns out this does not exit because we get stuck in branch 1/2 for a reason we need to refine further

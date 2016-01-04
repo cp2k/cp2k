@@ -27,6 +27,7 @@ MODULE iterate_matrix
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE mathconstants,                   ONLY: ifac
+  USE mathlib,                         ONLY: abnormal_value
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -346,11 +347,8 @@ CONTAINS
     INTEGER(KIND=int_8)                      :: flop1, flop2, flop3, flop4, &
                                                 flop5
     LOGICAL                                  :: converged
-    REAL(KIND=dp)                            :: a, b, c, d, frob_matrix, &
-                                                frob_matrix_base, max_ev, &
-                                                min_ev, oa, ob, oc, &
-                                                occ_matrix, od, scaling, t1, &
-                                                t2
+    REAL(KIND=dp) :: a, b, c, conv, d, frob_matrix, frob_matrix_base, max_ev, &
+      min_ev, oa, ob, oc, occ_matrix, od, scaling, t1, t2
     TYPE(cp_dbcsr_type)                      :: tmp1, tmp2, tmp3
     TYPE(cp_logger_type), POINTER            :: logger
 
@@ -485,15 +483,20 @@ CONTAINS
 
        ! done iterating
        t2 = m_walltime()
+ 
+       conv=frob_matrix/frob_matrix_base
 
        IF (unit_nr>0) THEN
           WRITE(unit_nr,'(T6,A,1X,I3,1X,F10.8,E12.3,F12.3,F13.3)') "NS sqrt iter ",i,occ_matrix,&
-                                                             frob_matrix/frob_matrix_base,t2-t1,&
+                                                             conv,t2-t1,&
                                                  (flop1+flop2+flop3+flop4+flop5)/(1.0E6_dp*MAX(0.001_dp,t2-t1))
           CALL m_flush(unit_nr)
        ENDIF
 
-       IF (frob_matrix/frob_matrix_base<SQRT(threshold)) EXIT
+       IF (abnormal_value(conv)) &
+          CPABORT("conv is an abnormal value (NaN/Inf).")
+
+       IF (conv<SQRT(threshold)) EXIT
 
     ENDDO
 

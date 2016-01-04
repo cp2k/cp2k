@@ -788,7 +788,7 @@ CONTAINS
                    energy%sccs_pol + energy%sccs_mpc
 
     IF(abnormal_value(energy%total)) &
-      CPABORT("KS energy is abnormal value (NaN/Inf).")
+      CPABORT("KS energy is an abnormal value (NaN/Inf).")
 
     ! Print detailed energy
     IF (my_print) THEN
