@@ -886,11 +886,11 @@ CONTAINS
           tau_h(ia,ispin) = tau_h(ia,ispin) + &
                             trho_h(1,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
           tau_h(ia,ispin) = tau_h(ia,ispin) + &
-            trho_h(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_pol(ia)**2
+            trho_h(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_azi(ia)**2
           tau_s(ia,ispin) = tau_s(ia,ispin) + &
                             trho_s(1,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
           tau_s(ia,ispin) = tau_s(ia,ispin) + &
-            trho_s(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_pol(ia)**2
+            trho_s(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_azi(ia)**2
         END DO  ! ia
       END DO  ! iso
       DO iso = 1,harmonics%max_iso_not0
@@ -1455,7 +1455,7 @@ CONTAINS
          ww(1:na) = harmonics%slm(1:na,iso)
          vth(1:nr,iso) = MATMUL(ww(1:na),vtau_h(1:na,1:nr,ispin))
          vts(1:nr,iso) = MATMUL(ww(1:na),vtau_s(1:na,1:nr,ispin))
-         ww(1:na) = harmonics%slm(1:na,iso)*grid_atom%usin_pol(1:na)**2
+         ww(1:na) = harmonics%slm(1:na,iso)*grid_atom%usin_azi(1:na)**2
          dvth(1:nr,iso) = MATMUL(ww(1:na),vtau_h(1:na,1:nr,ispin))
          dvts(1:nr,iso) = MATMUL(ww(1:na),vtau_s(1:na,1:nr,ispin))
       END DO

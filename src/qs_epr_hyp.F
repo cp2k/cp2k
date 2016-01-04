@@ -87,9 +87,9 @@ CONTAINS
       iso, jatom, mepos, natom, natomkind, nkind, num_pe, output_unit, z
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: lsd, paw_atom
-    REAL(dp)                                 :: arg, hard_radius, &
+    REAL(dp)                                 :: arg, esum, hard_radius, &
                                                 hypanisotemp, hypfactor, &
-                                                int_radius, rab2, rtemp, sum
+                                                int_radius, rab2, rtemp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: hypiso, hypiso_one
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: hypaniso
@@ -319,16 +319,16 @@ CONTAINS
         CALL pw_dr2_gg ( rhototspin_elec_gspace%pw, hypaniso_gspace%pw, &
                          idir1, idir2)
         DO iatom=1,natom
-          sum = 0.0_dp
+          esum = 0.0_dp
           ra(:) = pbc(particle_set(iatom)%r,cell)
           DO ig = 1, SIZE ( hypaniso_gspace%pw % cc )
             arg = DOT_PRODUCT(pw_grid % g (:,ig),ra)
-            sum = sum + COS(arg)*REAL(hypaniso_gspace%pw%cc(ig),dp) &
+            esum = esum + COS(arg)*REAL(hypaniso_gspace%pw%cc(ig),dp) &
                       - SIN(arg)*AIMAG(hypaniso_gspace%pw%cc(ig))
           END DO
           ! Actually, we need -1.0 * fourpi * hypaniso_gspace
-          sum = sum * fourpi * (-1.0_dp)
-          hypaniso(idir1,idir2,iatom) = hypaniso(idir1,idir2,iatom) + sum
+          esum = esum * fourpi * (-1.0_dp)
+          hypaniso(idir1,idir2,iatom) = hypaniso(idir1,idir2,iatom) + esum
         END DO
       END DO ! idir2
     END DO ! idir1
