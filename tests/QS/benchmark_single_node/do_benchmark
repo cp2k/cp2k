@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Little script to report a single benchmark number.
+# Runs the benchmarks maxiter times, picks the best times for each benchmark, and reports the geomean.
+#
+
+# optional output postfix, useful to separate results of different benchmark runs
+postfix=""
+# used ranks, can be any value, by default the number of physical cores on the node
+ranks=`lscpu | awk '/^Core\(s\) per socket:/ {cores=$NF}; /^Socket\(s\):/ {sockets=$NF}; END{print cores*sockets}'`
+# adjust command for testing as needed
+command="mpirun -np $ranks ../../../exe/local/cp2k.popt"
+# iterations used for testing (best value retained for benchmark result)
+maxiter=3
+
+# benchmark files
+benchs="bench_dftb dbcsr H2O-gga H2O-hyb"
+
+# run benchmark iteration loop
+for iter in `seq 1 $maxiter`
+do
+  echo "========= iter = $iter ========"
+ 
+  best=""
+  for bench in $benchs
+  do
+    # run benchmark
+    outfile=${bench}.out${postfix}
+    printf "%30s : " $bench
+    $command -i ${bench}.inp -o ${outfile} < /dev/null >& out.bench
+
+    # analyze results
+    grep " CP2K   " ${outfile} | awk '{print $NF}' | sort -n | awk '{printf("%12.3f ",$1)}'
+    printf "\n"
+    bestbench=`grep " CP2K   " ${outfile} | awk '{print $NF}' | sort -nr | tail -n1`
+    best="$best $bestbench"
+  done
+
+  # report geomean of the best results
+  printf "%30s : " "geomean"
+  echo "$best" | awk 'BEGIN{t=1}{for(i=1;i<=NF;i++){t=t*$i} ; c=NF}END{printf("%12.3f\n",exp(log(t)/c))}'
+done
