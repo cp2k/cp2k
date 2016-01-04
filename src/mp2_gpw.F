@@ -196,10 +196,10 @@ MODULE mp2_gpw
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env_sub
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: mat_B_munu, matrix_s
+      POINTER                                :: mat_B_munu
     TYPE(cp_dbcsr_type), POINTER :: mo_coeff_all, mo_coeff_all_beta, &
-      mo_coeff_b, mo_coeff_gw, mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, &
-      mo_coeff_v, mo_coeff_v_beta
+      mo_coeff_gw, mo_coeff_gw_beta, mo_coeff_o, mo_coeff_o_beta, mo_coeff_v, &
+      mo_coeff_v_beta
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_beta
     TYPE(cp_logger_type), POINTER            :: logger, logger_sub
     TYPE(cp_para_env_type), POINTER          :: para_env_sub
@@ -246,7 +246,7 @@ MODULE mp2_gpw
     nspins=SIZE(mos_mp2)
 
     ! ... setup needed to be able to qs_integrate in a subgroup.
-    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, matrix_s=matrix_s, mos=mos)
+    CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
     CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nelectron=nelectron,&
                     eigenvalues=mo_eigenvalues,nmo=nmo,homo=homo,&
                     mo_coeff=mo_coeff,nao=dimen)
@@ -256,7 +256,7 @@ MODULE mp2_gpw
                       mo_coeff=mo_coeff_beta)
     ENDIF
 
-    CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff_b=mo_coeff_b)
+    CALL get_mo_set(mo_set=mos(1)%mo_set)
 
     ! a para_env
     color_sub=para_env%mepos/mp2_env%mp2_num_proc
@@ -415,7 +415,7 @@ MODULE mp2_gpw
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                                    atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mo_coeff_b,matrix_s,&
+                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,&
                                    mp2_env%mp2_gpw%eps_filter,unit_nr,&
                                    mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,blacs_env_sub,my_do_gw,&
                                    starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
@@ -430,7 +430,7 @@ MODULE mp2_gpw
                                    dimen_RI,qs_env,para_env,para_env_sub,color_sub,dft_control,cell,particle_set,&
                                    atomic_kind_set, qs_kind_set,mo_coeff,nmo,homo,rho_r,rho_g,pot_g,&
                                    mat_munu,sab_orb_sub,pw_env_sub,poisson_env,auxbas_pw_pool,task_list_sub,&
-                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,mo_coeff_b,matrix_s,&
+                                   mo_coeff_o,mo_coeff_v,mo_coeff_all,mo_coeff_gw,&
                                    mp2_env%mp2_gpw%eps_filter,unit_nr,&
                                    mp2_env%mp2_memory,mp2_env%calc_PQ_cond_num,calc_forces,blacs_env_sub,my_do_gw,&
                                    starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&

@@ -149,8 +149,6 @@ MODULE mp2_ri_gpw
 !> \param mo_coeff_v ...
 !> \param mo_coeff_all ...
 !> \param mo_coeff_gw ...
-!> \param mo_coeff_b ...
-!> \param matrix_s ...
 !> \param eps_filter ...
 !> \param unit_nr ...
 !> \param mp2_memory ...
@@ -186,7 +184,7 @@ MODULE mp2_ri_gpw
                                    cell,particle_set,atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,&
                                    rho_r,rho_g,pot_g,mat_munu,sab_orb_sub,pw_env_sub,&
                                    poisson_env,auxbas_pw_pool,task_list_sub,mo_coeff_o,mo_coeff_v,mo_coeff_all,&
-                                   mo_coeff_gw,mo_coeff_b,matrix_s,eps_filter,unit_nr,&
+                                   mo_coeff_gw,eps_filter,unit_nr,&
                                    mp2_memory,calc_PQ_cond_num,calc_forces,blacs_env_sub,my_do_gw,&
                                    starts_B_all,sizes_B_all,ends_B_all,gw_corr_lev_occ,gw_corr_lev_virt,&
                                    BIb_C_beta,BIb_C_gw_beta,ends_B_virtual_beta,sizes_B_virtual_beta,starts_B_virtual_beta,&
@@ -219,10 +217,7 @@ MODULE mp2_ri_gpw
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(task_list_type), POINTER            :: task_list_sub
     TYPE(cp_dbcsr_type), POINTER             :: mo_coeff_o, mo_coeff_v, &
-                                                mo_coeff_all, mo_coeff_gw, &
-                                                mo_coeff_b
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+                                                mo_coeff_all, mo_coeff_gw
     REAL(KIND=dp)                            :: eps_filter
     INTEGER                                  :: unit_nr
     REAL(KIND=dp)                            :: mp2_memory

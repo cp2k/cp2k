@@ -611,15 +611,13 @@ MODULE rpa_ri_gpw
                          fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
                          gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,&
                          do_im_time=my_do_im_time,fm_scaled_dm_occ=fm_scaled_dm_occ,&
-                         fm_scaled_dm_virt=fm_scaled_dm_virt,mo_coeff=mo_coeff,&
+                         fm_scaled_dm_virt=fm_scaled_dm_virt,&
                          fm_mo_coeff_occ=fm_mo_coeff_occ,&
                          fm_mo_coeff_virt=fm_mo_coeff_virt,&
                          fm_mat_Q_omega=fm_mat_Q_omega,&
                          mat_munu=mat_munu,mat_B_munu=mat_B_munu,my_Lrows=my_Lrows,&
                          my_group_L_size=my_group_L_size,my_group_L_start=my_group_L_start,&
-                         my_group_L_end=my_group_L_end,&
                          ngroup=ngroup,eps_filter=eps_filter,sizes_array=sizes_array,&
-                         mo_coeff_beta=mo_coeff_beta,&
                          fm_mo_coeff_occ_beta=fm_mo_coeff_occ_beta,&
                          fm_mo_coeff_virt_beta=fm_mo_coeff_virt_beta)
       END IF
@@ -641,13 +639,12 @@ MODULE rpa_ri_gpw
                          max_iter_fit,&
                          mp2_env%ri_rpa%mm_style,do_minimax_quad,&
                          do_im_time=my_do_im_time,fm_scaled_dm_occ=fm_scaled_dm_occ,&
-                         fm_scaled_dm_virt=fm_scaled_dm_virt,mo_coeff=mo_coeff,&
+                         fm_scaled_dm_virt=fm_scaled_dm_virt,&
                          fm_mo_coeff_occ=fm_mo_coeff_occ,&
                          fm_mo_coeff_virt=fm_mo_coeff_virt,&
                          fm_mat_Q_omega=fm_mat_Q_omega,&
                          mat_munu=mat_munu,mat_B_munu=mat_B_munu,my_Lrows=my_Lrows,&
                          my_group_L_size=my_group_L_size,my_group_L_start=my_group_L_start,&
-                         my_group_L_end=my_group_L_end,&
                          ngroup=ngroup,eps_filter=eps_filter,sizes_array=sizes_array)
       END IF
     END IF
@@ -868,8 +865,6 @@ MODULE rpa_ri_gpw
 !> \param fm_mat_Q_omega ...
 !> \param do_gw ...
 !> \param mat_B_munu ...
-!> \param proc_rec_M ...
-!> \param proc_send_m ...
 ! *****************************************************************************
     SUBROUTINE create_integ_mat(BIb_C_2D,para_env,para_env_sub,color_sub,ngroup,integ_group_size,&
                                 dimen_RI,dimen_ia,dimen_ia_for_block_size,color_rpa_group,&
@@ -883,7 +878,7 @@ MODULE rpa_ri_gpw
                                 fm_mo_coeff_occ,fm_mo_coeff_virt,&
                                 nmo,homo,&
                                 num_integ_points, fm_mat_Q_omega,do_gw,&
-                                mat_B_munu,proc_rec_M,proc_send_m)
+                                mat_B_munu)
 
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: BIb_C_2D
@@ -910,7 +905,6 @@ MODULE rpa_ri_gpw
     LOGICAL, OPTIONAL                        :: do_gw
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mat_B_munu
-    INTEGER, OPTIONAL                        :: proc_rec_M, proc_send_M
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_integ_mat', &
       routineP = moduleN//':'//routineN
@@ -1742,7 +1736,6 @@ MODULE rpa_ri_gpw
 !> \param do_im_time ...
 !> \param fm_scaled_dm_occ ...
 !> \param fm_scaled_dm_virt ...
-!> \param mo_coeff ...
 !> \param fm_mo_coeff_occ ...
 !> \param fm_mo_coeff_virt ...
 !> \param fm_mat_Q_omega ...
@@ -1751,11 +1744,9 @@ MODULE rpa_ri_gpw
 !> \param my_Lrows ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
-!> \param my_group_L_end ...
 !> \param ngroup ...
 !> \param eps_filter ...
 !> \param sizes_array ...
-!> \param mo_coeff_beta ...
 !> \param fm_mo_coeff_occ_beta ...
 !> \param fm_mo_coeff_virt_beta ...
 ! *****************************************************************************
@@ -1769,11 +1760,11 @@ MODULE rpa_ri_gpw
                            homo_beta,virtual_beta,dimen_ia_beta,Eigenval_beta,fm_mat_S_beta,&
                            fm_mat_Q_gemm_beta,fm_mat_Q_beta,fm_mat_S_gw_beta,&
                            gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,&
-                           do_im_time,fm_scaled_dm_occ,fm_scaled_dm_virt,mo_coeff,&
+                           do_im_time,fm_scaled_dm_occ,fm_scaled_dm_virt,&
                            fm_mo_coeff_occ,fm_mo_coeff_virt,fm_mat_Q_omega,mat_munu,mat_B_munu,&
                            my_Lrows,my_group_L_size,my_group_L_start,&
-                           my_group_L_end,ngroup,eps_filter,&
-                           sizes_array,mo_coeff_beta,fm_mo_coeff_occ_beta,fm_mo_coeff_virt_beta)
+                           ngroup,eps_filter,&
+                           sizes_array,fm_mo_coeff_occ_beta,fm_mo_coeff_virt_beta)
     REAL(KIND=dp)                            :: Erpa
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_RPA, &
@@ -1809,7 +1800,7 @@ MODULE rpa_ri_gpw
                                                 gw_corr_lev_virt_beta
     LOGICAL, OPTIONAL                        :: do_im_time
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_scaled_dm_occ, &
-                                                fm_scaled_dm_virt, mo_coeff, &
+                                                fm_scaled_dm_virt, &
                                                 fm_mo_coeff_occ, &
                                                 fm_mo_coeff_virt
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1820,13 +1811,11 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :), OPTIONAL              :: my_Lrows
     INTEGER, OPTIONAL                        :: my_group_L_size, &
-                                                my_group_L_start, &
-                                                my_group_L_end, ngroup
+                                                my_group_L_start, ngroup
     REAL(KIND=dp), OPTIONAL                  :: eps_filter
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       OPTIONAL                               :: sizes_array
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff_beta, &
-                                                fm_mo_coeff_occ_beta, &
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: fm_mo_coeff_occ_beta, &
                                                 fm_mo_coeff_virt_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_num_int', &
@@ -2078,9 +2067,9 @@ MODULE rpa_ri_gpw
 
         ! get the integration weights of the tau-grid specifically for every omega-point (because we are doing a
         ! Fourier transform from imag. time to imag. frequency)
-        CALL get_rpa_least_sq_weights_tau(num_integ_points,tau_tj,tau_wj,tau_wj_2d,tj,&
+        CALL get_rpa_least_sq_weights_tau(num_integ_points,tau_tj,tau_wj_2d,tj,&
                                           num_x_nodes_min, num_x_nodes_max, num_x_nodes_step,&
-                                          Emin,Emax,E_range,ls_error,max_error_min)
+                                          Emin,Emax,ls_error,max_error_min)
         IF (unit_nr>0) THEN
           WRITE (UNIT=unit_nr,FMT="(T3,A,T66,ES15.2)")&
                               "INTEG_INFO| Maximum deviation of the imag. time fit:", max_error_min
@@ -2510,7 +2499,7 @@ MODULE rpa_ri_gpw
                                       mat_M_munu_P_virt,mat_B_munu,mat_munu,trace_2d,tau_wj_2d,tj,wj,&
                                       first_cycle_im_time,do_minimax_quad,&
                                       tau,tau_old,e_fermi,eps_filter,a_scaling,alpha,&
-                                      Eigenval,nmo,homo,my_group_L_size,&
+                                      Eigenval,nmo,my_group_L_size,&
                                       my_group_L_start,dimen_RI,max_size_RI_group,ngroup,&
                                       num_integ_points, jquad,mp2_env,para_env,para_env_sub)
  
@@ -2525,7 +2514,7 @@ MODULE rpa_ri_gpw
                                         mat_M_munu_P_virt,mat_B_munu,mat_munu,trace_2d,tau_wj_2d,tj,wj,&
                                         first_cycle_im_time_beta,do_minimax_quad,&
                                         tau,tau_old,e_fermi,eps_filter,a_scaling,alpha,&
-                                        Eigenval,nmo,homo,my_group_L_size,&
+                                        Eigenval,nmo,my_group_L_size,&
                                         my_group_L_start,dimen_RI,max_size_RI_group,ngroup,&
                                         num_integ_points, jquad,mp2_env,para_env,para_env_sub)
   
@@ -3278,7 +3267,7 @@ MODULE rpa_ri_gpw
           CALL fit_and_continuation(vec_gw_energ,vec_gw_energ_error_fit,vec_omega_fit_gw,&
                     z_value,m_value,vec_Sigma_c_gw,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),&
                     Eigenval,Eigenval_scf,n_level_gw,gw_corr_lev_occ,num_poles,&
-                    num_fit_points,max_iter_fit,crossing_search,homo,unit_nr,check_fit,stop_crit,&
+                    num_fit_points,max_iter_fit,crossing_search,homo,check_fit,stop_crit,&
                     fermi_level_offset)
 
           IF(my_open_shell) THEN
@@ -3286,7 +3275,7 @@ MODULE rpa_ri_gpw
                       z_value_beta,m_value_beta,vec_Sigma_c_gw_beta,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,2),&
                       Eigenval_beta,Eigenval_scf_beta,n_level_gw,&
                       gw_corr_lev_occ_beta,num_poles,&
-                      num_fit_points,max_iter_fit,crossing_search,homo_beta,unit_nr,check_fit,stop_crit,&
+                      num_fit_points,max_iter_fit,crossing_search,homo_beta,check_fit,stop_crit,&
                       fermi_level_offset)
 
           END IF
@@ -3376,21 +3365,20 @@ MODULE rpa_ri_gpw
                       z_value,m_value,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),Eigenval,&
                       Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
                       count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
-                      remove_neg_virt_energies,do_alpha=.TRUE.)
+                      do_alpha=.TRUE.)
 
           CALL print_and_update_for_ev_sc(vec_gw_energ_beta,vec_gw_energ_error_fit_beta,&
                       z_value_beta,m_value_beta,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,2),Eigenval_beta,&
                       Eigenval_last_beta,Eigenval_scf_beta,gw_corr_lev_occ_beta,gw_corr_lev_virt_beta,gw_corr_lev_tot,&
                       count_ev_sc_GW,crossing_search,homo_beta,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
-                      remove_neg_virt_energies,do_beta=.TRUE.)
+                      do_beta=.TRUE.)
 
         ELSE 
 
           CALL print_and_update_for_ev_sc(vec_gw_energ,vec_gw_energ_error_fit,&
                       z_value,m_value,mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:,1),Eigenval,&
                       Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
-                      count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details,&
-                      remove_neg_virt_energies)
+                      count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,mp2_env%ri_g0w0%print_gw_details)
 
         END IF
 
@@ -3934,7 +3922,6 @@ MODULE rpa_ri_gpw
 !> \brief Calculate integration weights for the tau grid (in dependency of the omega node)
 !> \param num_integ_points ...
 !> \param tau_tj ...
-!> \param tau_wj ...
 !> \param tau_wj_2d ...
 !> \param omega_tj ...
 !> \param num_x_nodes_min ...
@@ -3942,24 +3929,23 @@ MODULE rpa_ri_gpw
 !> \param num_x_nodes_step ...
 !> \param E_min ...
 !> \param E_max ...
-!> \param E_range ...
 !> \param ls_error ...
 !> \param max_error_min ...
 ! *****************************************************************************
-    SUBROUTINE get_rpa_least_sq_weights_tau(num_integ_points,tau_tj,tau_wj,tau_wj_2d,omega_tj,&
+    SUBROUTINE get_rpa_least_sq_weights_tau(num_integ_points,tau_tj,tau_wj_2d,omega_tj,&
                                             num_x_nodes_min, num_x_nodes_max, num_x_nodes_step,&
-                                            E_min,E_max,E_range,ls_error,max_error_min)
+                                            E_min,E_max,ls_error,max_error_min)
 
     INTEGER                                  :: num_integ_points
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tau_tj, tau_wj
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tau_tj
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: tau_wj_2d
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: omega_tj
     INTEGER                                  :: num_x_nodes_min, &
                                                 num_x_nodes_max, &
                                                 num_x_nodes_step
-    REAL(KIND=dp)                            :: E_min, E_max, E_range, &
-                                                ls_error, max_error_min
+    REAL(KIND=dp)                            :: E_min, E_max, ls_error, &
+                                                max_error_min
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rpa_least_sq_weights_tau', &
       routineP = moduleN//':'//routineN
@@ -4493,7 +4479,6 @@ MODULE rpa_ri_gpw
 !> \param max_iter_fit ...
 !> \param crossing_search ...
 !> \param homo ...
-!> \param unit_nr ...
 !> \param check_fit ...
 !> \param stop_crit ...
 !> \param fermi_level_offset ...
@@ -4501,7 +4486,7 @@ MODULE rpa_ri_gpw
     SUBROUTINE fit_and_continuation(vec_gw_energ,vec_gw_energ_error_fit,vec_omega_fit_gw,&
                     z_value,m_value,vec_Sigma_c_gw,vec_Sigma_x_minus_vxc_gw,&
                     Eigenval,Eigenval_scf,n_level_gw,gw_corr_lev_occ,num_poles,&
-                    num_fit_points,max_iter_fit,crossing_search,homo,unit_nr,check_fit,stop_crit,&
+                    num_fit_points,max_iter_fit,crossing_search,homo,check_fit,stop_crit,&
                     fermi_level_offset)
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, &
                                                 vec_gw_energ_error_fit, &
@@ -4512,7 +4497,7 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), DIMENSION(:)              :: vec_Sigma_x_minus_vxc_gw, &
                                                 Eigenval, Eigenval_scf
     INTEGER :: n_level_gw, gw_corr_lev_occ, num_poles, num_fit_points, &
-      max_iter_fit, crossing_search, homo, unit_nr
+      max_iter_fit, crossing_search, homo
     LOGICAL                                  :: check_fit
     REAL(KIND=dp)                            :: stop_crit, fermi_level_offset
 
@@ -5005,239 +4990,6 @@ MODULE rpa_ri_gpw
 
     END SUBROUTINE 
 
-
-
-
-! *****************************************************************************
-!> \brief Fits the complex self-energy of n_level_gw to a multi-pole model and evaluates the 
-!>        fit at the energy eigenvalue of the SCF. Real part of the correlation self-energy 
-!>        is written to vec_gw_energ. Also calculates the statistical error of the correlation
-!>        self-energy due to the fit
-!> \param vec_gw_energ ...
-!> \param vec_gw_energ_error_fit ...
-!> \param vec_tau_fit_gw_sign ...
-!> \param z_value ...
-!> \param m_value ...
-!> \param vec_Sigma_c_gw ...
-!> \param Eigenval ...
-!> \param n_level_gw ...
-!> \param gw_corr_lev_occ ...
-!> \param num_poles ...
-!> \param num_fit_points ...
-!> \param max_iter_fit ...
-!> \param crossing_search ...
-!> \param homo ...
-!> \param unit_nr ...
-!> \param check_fit ...
-!> \param stop_crit ...
-!> \param fermi_level_offset ...
-! *****************************************************************************
-    SUBROUTINE fit_and_continuation_im_time(vec_gw_energ,vec_gw_energ_error_fit,vec_tau_fit_gw_sign,&
-                    z_value,m_value,vec_Sigma_c_gw,Eigenval,n_level_gw,gw_corr_lev_occ,num_poles,&
-                    num_fit_points,max_iter_fit,crossing_search,homo,unit_nr,check_fit,stop_crit,&
-                    fermi_level_offset)
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, &
-                                                vec_gw_energ_error_fit, &
-                                                vec_tau_fit_gw_sign, z_value, &
-                                                m_value
-    COMPLEX(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: vec_Sigma_c_gw
-    REAL(KIND=dp), DIMENSION(:)              :: Eigenval
-    INTEGER :: n_level_gw, gw_corr_lev_occ, num_poles, num_fit_points, &
-      max_iter_fit, crossing_search, homo, unit_nr
-    LOGICAL                                  :: check_fit
-    REAL(KIND=dp)                            :: stop_crit, fermi_level_offset
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fit_and_continuation_im_time', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iii, iiter, info, jjj, kkk, &
-                                                num_var
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
-    LOGICAL                                  :: could_exit
-    REAL(KIND=dp)                            :: chi2, chi2_old, func_val, &
-                                                func_val_im, Ldown, Lup, &
-                                                omega, ScalParam
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: beta, Sigma_c_real, &
-                                                vec_delta, vec_JT_y_minus_b, &
-                                                vec_y_minus_f
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: mat_J, mat_JTJ
-
-! number of variables to fit
-
-    num_var=3*num_poles
-
-    ALLOCATE(Sigma_c_real(num_fit_points))
-    Sigma_c_real(:) = REAL(vec_Sigma_c_gw(n_level_gw,:))
-
-    ! all names of matrices are following the nomenclature of the wikipedia article on the
-    ! Levenberg-Marquardt algorithm
-
-    ALLOCATE(beta(num_var))
-    beta=0.0_dp
-
-    ! initial guess: 1.0 for every parameter
-    DO iii=1,num_var
-      beta(iii)=1.0_dp
-    END DO
-
-    beta(1) = 0.1_dp
-    beta(2) = -0.0005_dp
-    beta(3) = 0.09_dp
-
-    beta(4) = -0.06_dp
-    beta(5) = -0.02_dp
-    beta(6) = 0.11_dp
-
-
-    IF(num_var>=9) THEN
-
-      beta(7) = 0.01_dp
-      beta(8) = -0.02_dp
-      beta(9) = 0.2_dp
-
-    END IF
-
-    IF(num_var>=12) THEN
-
-      beta(10) = 0.001_dp
-      beta(11) = -0.002_dp
-      beta(12) = 0.001_dp
-
-    END IF
-
-
-    ALLOCATE(mat_J(num_fit_points,num_var))
-    mat_J = 0.0_dp
-
-    ALLOCATE(mat_JTJ(num_var,num_var))
-    mat_JTJ = 0.0_dp
-
-    ALLOCATE(vec_y_minus_f(num_fit_points))
-    vec_y_minus_f = 0.0_dp
-
-    ALLOCATE(vec_JT_y_minus_b(num_var))
-    vec_JT_y_minus_b = 0.0_dp
-
-    ALLOCATE(vec_delta(num_var))
-    vec_delta = 0.0_dp
-
-    ALLOCATE(ipiv(num_var))
-
-
-    ScalParam=0.01_dp
-    Ldown=1.5_dp
-    Lup=10.0_dp
-    could_exit=.FALSE.
-
-    ! iteration loop for fitting
-    DO iiter=1, max_iter_fit
-
-      ! Calculate the chi^2 value with the old fitting parameters
-      CALL calc_chi2_im_time(chi2_old,beta,Sigma_c_real,vec_tau_fit_gw_sign,num_poles,&
-                             num_fit_points)
-
-      ! calculate J
-      DO jjj=1,num_poles
-  
-        kkk=3*jjj-2
-  
-        DO iii=1,num_fit_points
-  
-          IF(vec_tau_fit_gw_sign(iii)>0) THEN
-            mat_J(iii,kkk)   = EXP(-vec_tau_fit_gw_sign(iii)*beta(kkk+2))
-            mat_J(iii,kkk+1) = 0.0_dp
-            mat_J(iii,kkk+2) = -beta(kkk)*vec_tau_fit_gw_sign(iii)*EXP(-vec_tau_fit_gw_sign(iii)*beta(kkk+2))
-  
-          ELSE
-            mat_J(iii,kkk)   = 0.0_dp
-            mat_J(iii,kkk+1) = EXP(vec_tau_fit_gw_sign(iii)*beta(kkk+2))
-            mat_J(iii,kkk+2) = beta(kkk+1)*vec_tau_fit_gw_sign(iii)*EXP(vec_tau_fit_gw_sign(iii)*beta(kkk+2))
-  
-          END IF
-  
-        END DO
-  
-      END DO
-  
-      ! calculate J^T*J
-      CALL dgemm('T','N',num_var,num_var,num_fit_points,1.0_dp,mat_J,num_fit_points,mat_J,num_fit_points,&
-                 0.0_dp,mat_JTJ,num_var)
-
-      ! calculate J^T*J + Lambda*diag(J^T*J)
-      DO iii=1,num_var
-        mat_JTJ(iii,iii)=mat_JTJ(iii,iii)+ScalParam*mat_JTJ(iii,iii)
-      END DO
-  
-      ! calculate y-f(beta)
-      DO iii=1,num_fit_points
-  
-        CALL eval_fit_func_im_time(func_val,vec_tau_fit_gw_sign(iii),num_poles,beta)
-  
-        vec_y_minus_f(iii) = Sigma_c_real(iii) - func_val
-  
-      END DO
-  
-      ! calculate J^T(y-f(beta))
-      CALL dgemm('T','N',num_var,1,num_fit_points,1.0_dp,mat_J,num_fit_points,vec_y_minus_f,num_fit_points,&
-                 0.0_dp,vec_JT_y_minus_b,num_var)
-
-      ! calculate delta as solution of the system of linear equations
-
-      ipiv = 0
-      ! 1) calculate factorization of J^T*J+Lambda*diag(J^T*J)
-      CALL dgetrf(num_var,num_var,mat_JTJ,num_var,ipiv,info)
-
-      ! 2) determine solution of the SysofLinEq, right site vec_JT_y_minus_b as input,
-      !    solution in vec_JT_y_minus_b as output
-      CALL dgetrs('N',num_var,1,mat_JTJ,num_var,ipiv,vec_JT_y_minus_b,num_var,info)
-
-
-      ! Update the fitting parameters
-      beta(:) = beta(:) + vec_JT_y_minus_b(:)
-
-      ! calculate new chi^2
-      CALL calc_chi2_im_time(chi2,beta,Sigma_c_real,vec_tau_fit_gw_sign,num_poles,&
-                             num_fit_points)
-
-
-      ! in case chi2 is worse than chi2_old with the old fitting values, decrease the scaling parameter
-      ! and reset the fitting coefficients, otherwise, decrease the scaling parameter
-      IF(chi2>chi2_old) THEN
-        ScalParam = ScalParam*Lup
-        beta(:) = beta(:) - vec_JT_y_minus_b(:)
-      ELSE
-        ScalParam = ScalParam/Ldown
-      END IF
-
-    END DO
-
-    DO iii=1,num_fit_points
-      CALL eval_fit_func_im_time(func_val,vec_tau_fit_gw_sign(iii),num_poles,beta)
-    END DO 
-
-    DO iii=1,num_fit_points
-      omega=vec_tau_fit_gw_sign(iii)
-      func_val=0.0_dp
-      func_val_im=0.0_dp
-      DO kkk=1,num_poles
-        jjj=3*kkk-2
-        func_val    = func_val + (beta(jjj)+beta(jjj+1))*beta(jjj+2)/((beta(jjj+2))**2+omega**2) 
-        func_val_im = func_val_im +omega*(beta(jjj)-beta(jjj+1))/((beta(jjj+2))**2+omega**2)
-      END DO
-    END DO 
-
-    DEALLOCATE(mat_J)
-    DEALLOCATE(mat_JTJ)
-    DEALLOCATE(beta)
-    DEALLOCATE(Sigma_c_real)
-    DEALLOCATE(vec_y_minus_f)
-    DEALLOCATE(vec_JT_y_minus_b)
-    DEALLOCATE(ipiv)
-
-    END SUBROUTINE 
-
 ! *****************************************************************************
 !> \brief Evaluate the fit function at imaginary time
 !> \param func_val ...
@@ -5356,7 +5108,6 @@ MODULE rpa_ri_gpw
 !> \param nmo ...
 !> \param unit_nr ...
 !> \param print_gw_details ...
-!> \param remove_neg_virt_energies ...
 !> \param do_alpha ...
 !> \param do_beta ...
 ! *****************************************************************************
@@ -5364,7 +5115,7 @@ MODULE rpa_ri_gpw
                     z_value,m_value,vec_Sigma_x_minus_vxc_gw,Eigenval,&
                     Eigenval_last,Eigenval_scf,gw_corr_lev_occ,gw_corr_lev_virt,gw_corr_lev_tot,&
                     count_ev_sc_GW,crossing_search,homo,nmo,unit_nr,print_gw_details,&
-                    remove_neg_virt_energies,do_alpha,do_beta)
+                    do_alpha,do_beta)
 
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: vec_gw_energ, &
                                                 vec_gw_energ_error_fit, &
@@ -5374,8 +5125,7 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Eigenval_last, Eigenval_scf
     INTEGER :: gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
       count_ev_sc_GW, crossing_search, homo, nmo, unit_nr
-    LOGICAL                                  :: print_gw_details, &
-                                                remove_neg_virt_energies
+    LOGICAL                                  :: print_gw_details
     LOGICAL, OPTIONAL                        :: do_alpha, do_beta
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'print_and_update_for_ev_sc', &

@@ -74,7 +74,6 @@ MODULE rpa_im_time
 !> \param alpha ...
 !> \param Eigenval ...
 !> \param nmo ...
-!> \param homo ...
 !> \param my_group_L_size ...
 !> \param my_group_L_start ...
 !> \param dimen_RI ...
@@ -92,7 +91,7 @@ MODULE rpa_im_time
                                     mat_M_munu_P_virt,mat_B_munu,mat_munu,trace_2d,tau_wj_2d,tj,wj,&
                                     first_cycle_im_time,do_minimax_quad,&
                                     tau,tau_old,e_fermi,eps_filter,a_scaling,alpha,&
-                                    Eigenval,nmo,homo,my_group_L_size,&
+                                    Eigenval,nmo,my_group_L_size,&
                                     my_group_L_start,dimen_RI,max_size_RI_group,ngroup,&
                                     num_integ_points, jquad,mp2_env,para_env,para_env_sub)
 
@@ -116,7 +115,7 @@ MODULE rpa_im_time
     REAL(KIND=dp)                            :: tau, tau_old, e_fermi, &
                                                 eps_filter, a_scaling, alpha
     REAL(KIND=dp), DIMENSION(:)              :: Eigenval
-    INTEGER :: nmo, homo, my_group_L_size, my_group_L_start, dimen_RI, &
+    INTEGER :: nmo, my_group_L_size, my_group_L_start, dimen_RI, &
       max_size_RI_group, ngroup, num_integ_points, jquad
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
@@ -219,13 +218,13 @@ MODULE rpa_im_time
     CALL timeset(routineN//"_im_time_repl_subgr",handle4)
 
     ! replicate fm_scaled_dm_occ to every subgroup into sparse matrix mat_M_munu_occ
-    CALL replicate_mat_to_subgroup_im_time(mp2_env,para_env,para_env_sub,fm_scaled_dm_occ,nmo,homo,&
+    CALL replicate_mat_to_subgroup_im_time(mp2_env,para_env,para_env_sub,fm_scaled_dm_occ,nmo,&
                                            mat_munu,mat_M_munu_occ)
 
     CALL cp_dbcsr_filter(mat_M_munu_occ,eps_filter)
 
     ! the same for the virtual scaled density matrix
-    CALL replicate_mat_to_subgroup_im_time(mp2_env,para_env,para_env_sub,fm_scaled_dm_virt,nmo,homo,&
+    CALL replicate_mat_to_subgroup_im_time(mp2_env,para_env,para_env_sub,fm_scaled_dm_virt,nmo,&
                                            mat_munu,mat_M_munu_virt)
 
     CALL cp_dbcsr_filter(mat_M_munu_virt,eps_filter)
@@ -330,16 +329,15 @@ MODULE rpa_im_time
 !> \param para_env_sub ...
 !> \param fm_scaled_dm ...
 !> \param nmo ...
-!> \param homo ...
 !> \param mat_munu ...
 !> \param mat_M_munu ...
 ! *****************************************************************************
   SUBROUTINE replicate_mat_to_subgroup_im_time(mp2_env,para_env,para_env_sub,fm_scaled_dm,&
-                                               nmo,homo,mat_munu,mat_M_munu)
+                                               nmo,mat_munu,mat_M_munu)
     TYPE(mp2_type), POINTER                  :: mp2_env
     TYPE(cp_para_env_type), POINTER          :: para_env, para_env_sub
     TYPE(cp_fm_type), POINTER                :: fm_scaled_dm
-    INTEGER                                  :: nmo, homo
+    INTEGER                                  :: nmo
     TYPE(cp_dbcsr_p_type)                    :: mat_munu
     TYPE(cp_dbcsr_type), POINTER             :: mat_M_munu
 
