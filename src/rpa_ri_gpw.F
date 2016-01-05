@@ -20,7 +20,7 @@ MODULE rpa_ri_gpw
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type
+       cp_dbcsr_release_p, cp_dbcsr_set, cp_dbcsr_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_invert,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_syrk,&
@@ -3464,8 +3464,8 @@ MODULE rpa_ri_gpw
       CALL cp_fm_release(fm_mat_L)
       CALL cp_fm_release(fm_mat_work)
 
-      CALL cp_dbcsr_release(mat_M_munu_occ)
-      CALL cp_dbcsr_release(mat_M_munu_virt)
+      CALL cp_dbcsr_release_p(mat_M_munu_occ)
+      CALL cp_dbcsr_release_p(mat_M_munu_virt)
 
       CALL cp_dbcsr_deallocate_matrix_set(mat_M_munu_P_occ)
       CALL cp_dbcsr_deallocate_matrix_set(mat_M_munu_P_virt)
@@ -3484,10 +3484,13 @@ MODULE rpa_ri_gpw
         DEALLOCATE(fm_mat_Q_omega)
       END IF
 
-      DO iii=1,my_group_L_size
-        CALL cp_dbcsr_release(mat_B_munu(iii)%matrix)
-        DEALLOCATE(mat_B_munu(iii)%matrix)
-      END DO
+      CALL cp_dbcsr_deallocate_matrix_set(mat_B_munu)
+
+!JW 2del      DO iii=1,my_group_L_size
+!        CALL cp_dbcsr_release(mat_B_munu(iii)%matrix)
+!        DEALLOCATE(mat_B_munu(iii)%matrix)
+!      END DO
+!      DEALLOCATE(mat_B_munu)
 
     END IF
 
