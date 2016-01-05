@@ -290,9 +290,6 @@ MODULE rpa_im_time
 
     DO iquad=1, num_integ_points
 
-      omega_old = omega
-      weight_old = weight
-
       IF(do_minimax_quad) THEN
         omega=tj(iquad)
         weight = tau_wj_2d(iquad,jquad)
@@ -312,6 +309,9 @@ MODULE rpa_im_time
       CALL cp_fm_scale_and_add(1.0_dp,fm_mat_Q_omega(iquad)%matrix,1.0_dp,fm_mat_Q)
 
       first_cycle_omega_loop = .FALSE.
+
+      omega_old = omega
+      weight_old = weight
 
     END DO
 
