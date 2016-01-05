@@ -78,9 +78,6 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%MAX_CYCLES",i_val=pao%max_cycles)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","MAX_CYCLES", pao%max_cycles
 
-    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%MAX_OUTER_PAO",i_val=pao%max_outer_pao)
-    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","MAX_OUTER_PAO", pao%max_outer_pao
-
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%PARAMETERIZATION",i_val=pao%parameterization)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,A10)") " PAO|","PARAMETERIZATION", id2str(pao%parameterization)
 
@@ -179,12 +176,6 @@ CONTAINS
     CALL keyword_create(keyword, name="MAX_CYCLES",&
          description="Maximum number of PAO line search cycles for a given hamiltonian.",&
          default_i_val=1000)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="MAX_OUTER_PAO",&
-         description="Number of steps after which the CG is reseted in any case.",&
-         default_i_val=150)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

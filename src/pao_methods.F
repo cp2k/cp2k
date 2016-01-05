@@ -338,12 +338,6 @@ CONTAINS
           IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| resetting because beta < 0"
           beta = 0.0_dp
        ENDIF
-
-       IF(pao%max_outer_pao>0 .AND. pao%istep-pao%last_reset > pao%max_outer_pao) THEN
-          IF(pao%iw>0) WRITE(pao%iw,*) "PAO|CG| resetting because of MAX_OUTER_PAO"
-          pao%last_reset = pao%istep
-          beta = 0.0_dp
-       ENDIF
     ENDIF
 
     IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| beta: ", beta

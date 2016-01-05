@@ -32,7 +32,6 @@ MODULE pao_types
      REAL(KIND=dp)                    :: mixing = 1.0_dp
      INTEGER                          :: max_pao = -1
      INTEGER                          :: max_cycles = -1
-     INTEGER                          :: max_outer_pao = -1
      INTEGER                          :: parameterization = -1
      INTEGER                          :: cg_init_steps = -1
      INTEGER                          :: random_seed = -1
@@ -44,7 +43,6 @@ MODULE pao_types
 
      ! state variable
      INTEGER                          :: istep = -1
-     INTEGER                          :: last_reset = 0
      REAL(KIND=dp)                    :: energy_prev = 0.0_dp
      REAL(KIND=dp)                    :: step_start_time = 0.0_dp
      TYPE(linesearch_type)            :: linesearch

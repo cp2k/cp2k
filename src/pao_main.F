@@ -103,7 +103,6 @@ CONTAINS
     ! init counters
     pao%step_start_time = m_walltime()
     pao%istep = 0
-    pao%last_reset = 0
 
     CALL cp_dbcsr_init(pao%matrix_X_orig)
 
