@@ -17,7 +17,7 @@ MODULE rpa_ri_gpw
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_create, &
+       cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
        cp_dbcsr_deallocate_matrix_set, cp_dbcsr_desymmetrize, &
        cp_dbcsr_get_info, cp_dbcsr_init, cp_dbcsr_init_p, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_set, cp_dbcsr_type

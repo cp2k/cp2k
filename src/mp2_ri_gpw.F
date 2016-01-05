@@ -1121,7 +1121,6 @@ MODULE mp2_ri_gpw
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_2c_in_and_cholesky', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: debug = .FALSE.
 
     INTEGER :: best_group_size, color_exc, color_L, comm_exc, comm_exchange, &
       comm_L, dir, group_size, handle, handle2, handle3, i, i_bf, i_counter, &
