@@ -21,7 +21,7 @@ lapack_re = re.compile("ILAENV|"
                        +"|EXC|GBR|GHR|GLQ|GQL|GQR|GRQ|GST|GTR|HRD|LQF|MBR|MHR"
                        +"|MLQ|MQL|MQR|MRQ|MRZ|MTR|QLF|QPF|QRF|RFS|RQF|RZF|SDC"
                        +"|SEN|SJA|SNA|SQR|SVP|SYL|TRD|TRF|TRI|TRS"
-                       +"|SDD|EV|GV|SV|BS2D|BR2D|GELS))")
+                       +"|SDD|EV|GV|SV|BS2D|BR2D|LS))")
 
 warning_re = re.compile(".*[Ww]arning: (.*)")
 
