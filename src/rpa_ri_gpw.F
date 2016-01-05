@@ -35,6 +35,7 @@ MODULE rpa_ri_gpw
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_element, &
        cp_fm_to_fm, cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
+  USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -4513,10 +4514,8 @@ MODULE rpa_ri_gpw
                                                 vec_b_gw, vec_b_gw_copy
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_A_gw, mat_B_gw
-    INTEGER                                  :: handle4, ierr, iii, iiter, &
-                                                info, integ_range, jjj, &
-                                                jquad, kkk, n_level_gw_ref, &
-                                                num_var, xpos
+    INTEGER :: handle4, ierr, iii, iiter, info, integ_range, jjj, jquad, kkk, &
+      n_level_gw_ref, num_var, output_unit, xpos
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     LOGICAL                                  :: could_exit
     REAL(KIND=dp) :: chi2, chi2_old, delta, deriv_val_real, e_fermi, &
@@ -4528,425 +4527,431 @@ MODULE rpa_ri_gpw
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: mat_N_gw
 
-      im_unit = (0.0_dp, 1.0_dp)
-      re_unit = (1.0_dp, 0.0_dp)
+    output_unit= cp_logger_get_default_io_unit()
 
-      num_var=2*num_poles+1
-      ALLOCATE(Lambda(num_var))
-      Lambda=(0.0_dp,0.0_dp)
-      ALLOCATE(Lambda_without_offset(num_var))
-      Lambda_without_offset=(0.0_dp,0.0_dp)
-      ALLOCATE(Lambda_Re(num_var))
-      Lambda_Re=0.0_dp
-      ALLOCATE(Lambda_Im(num_var))
-      Lambda_Im=0.0_dp
+    im_unit = (0.0_dp, 1.0_dp)
+    re_unit = (1.0_dp, 0.0_dp)
 
-      ALLOCATE(vec_omega_fit_gw_sign(num_fit_points))
+    num_var=2*num_poles+1
+    ALLOCATE(Lambda(num_var))
+    Lambda=(0.0_dp,0.0_dp)
+    ALLOCATE(Lambda_without_offset(num_var))
+    Lambda_without_offset=(0.0_dp,0.0_dp)
+    ALLOCATE(Lambda_Re(num_var))
+    Lambda_Re=0.0_dp
+    ALLOCATE(Lambda_Im(num_var))
+    Lambda_Im=0.0_dp
 
-      IF(n_level_gw<=gw_corr_lev_occ) THEN
-        sign_occ_virt = -1.0_dp
-      ELSE
-        sign_occ_virt = 1.0_dp
-      END IF
+    ALLOCATE(vec_omega_fit_gw_sign(num_fit_points))
 
-      DO jquad=1,num_fit_points
-        vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
+    IF(n_level_gw<=gw_corr_lev_occ) THEN
+      sign_occ_virt = -1.0_dp
+    ELSE
+      sign_occ_virt = 1.0_dp
+    END IF
+
+    DO jquad=1,num_fit_points
+      vec_omega_fit_gw_sign(jquad) = ABS(vec_omega_fit_gw(jquad))*sign_occ_virt
+    END DO
+
+    ! initial guess
+    range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/(num_poles-1)
+    DO iii=1,num_poles
+      Lambda_Im(2*iii+1)=vec_omega_fit_gw_sign(1)+(iii-1)*range_step
+    END DO
+    range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/num_poles
+    DO iii=1,num_poles
+      Lambda_Re(2*iii+1)=ABS(vec_omega_fit_gw_sign(1)+(iii-0.5_dp)*range_step)
+    END DO
+
+    DO iii=1,num_var
+      Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
+    END DO
+
+    CALL calc_chi2(chi2_old,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                   num_fit_points,n_level_gw)
+
+
+    ALLOCATE(mat_A_gw(num_poles+1,num_poles+1))
+    ALLOCATE(vec_b_gw(num_poles+1))
+    ALLOCATE(ipiv(num_poles+1))
+    mat_A_gw=(0.0_dp,0.0_dp)
+    vec_b_gw=0.0_dp
+    
+    DO iii=1, num_poles+1
+      mat_A_gw(iii,1)=(1.0_dp,0.0_dp)
+    END DO
+    integ_range=num_fit_points/num_poles
+    DO kkk=1,num_poles+1
+      xpos=(kkk-1)*integ_range+1
+      xpos=MIN(xpos,num_fit_points)
+      ! calculate coefficient at this point
+      DO iii=1, num_poles 
+        jjj=iii*2
+        func_val=(1.0_dp,0.0_dp)/(im_unit*vec_omega_fit_gw_sign(xpos)-&
+                 CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1),KIND=dp))
+        mat_A_gw(kkk,iii+1)=func_val
       END DO
+      vec_b_gw(kkk)=vec_Sigma_c_gw(n_level_gw,xpos)
+    END DO
 
-      ! initial guess
-      range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/(num_poles-1)
-      DO iii=1,num_poles
-        Lambda_Im(2*iii+1)=vec_omega_fit_gw_sign(1)+(iii-1)*range_step
-      END DO
-      range_step=(vec_omega_fit_gw_sign(num_fit_points)-vec_omega_fit_gw_sign(1))/num_poles
-      DO iii=1,num_poles
-        Lambda_Re(2*iii+1)=ABS(vec_omega_fit_gw_sign(1)+(iii-0.5_dp)*range_step)
-      END DO
+    ! Solve system of linear equations
+    CALL ZGETRF(num_poles+1,num_poles+1,mat_A_gw,num_poles+1,ipiv,info)
 
+    CALL ZGETRS('N',num_poles+1,1,mat_A_gw,num_poles+1,ipiv,vec_b_gw,num_poles+1,info)
+
+    Lambda_Re(1)=REAL(vec_b_gw(1))
+    Lambda_Im(1)=AIMAG(vec_b_gw(1))
+    DO iii=1,num_poles
+      jjj=iii*2
+      Lambda_Re(jjj)=REAL(vec_b_gw(iii+1))
+      Lambda_Im(jjj)=AIMAG(vec_b_gw(iii+1))
+    END DO
+
+    DEALLOCATE(mat_A_gw)
+    DEALLOCATE(vec_b_gw)
+    DEALLOCATE(ipiv)
+
+    ALLOCATE(mat_A_gw(num_var*2,num_var*2))
+    ALLOCATE(mat_B_gw(num_fit_points,num_var*2))
+    ALLOCATE(dLambda(num_fit_points))
+    ALLOCATE(dLambda_2(num_fit_points))
+    ALLOCATE(vec_b_gw(num_var*2))
+    ALLOCATE(vec_b_gw_copy(num_var*2))
+    ALLOCATE(ipiv(num_var*2))
+
+    ScalParam=0.01_dp
+    Ldown=1.5_dp
+    Lup=10.0_dp
+    could_exit=.FALSE.
+
+    ! iteration loop for fitting
+    DO iiter=1, max_iter_fit
+
+      CALL timeset(routineN//"_fit_loop_1",handle4)
+
+      ! calc delta lambda
       DO iii=1,num_var
         Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
       END DO
+      dLambda=(0.0_dp,0.0_dp)
 
-      CALL calc_chi2(chi2_old,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                     num_fit_points,n_level_gw)
-
-
-      ALLOCATE(mat_A_gw(num_poles+1,num_poles+1))
-      ALLOCATE(vec_b_gw(num_poles+1))
-      ALLOCATE(ipiv(num_poles+1))
-      mat_A_gw=(0.0_dp,0.0_dp)
-      vec_b_gw=0.0_dp
-      
-      DO iii=1, num_poles+1
-        mat_A_gw(iii,1)=(1.0_dp,0.0_dp)
-      END DO
-      integ_range=num_fit_points/num_poles
-      DO kkk=1,num_poles+1
-        xpos=(kkk-1)*integ_range+1
-        xpos=MIN(xpos,num_fit_points)
-        ! calculate coefficient at this point
-        DO iii=1, num_poles 
-          jjj=iii*2
-          func_val=(1.0_dp,0.0_dp)/(im_unit*vec_omega_fit_gw_sign(xpos)-&
-                   CMPLX(Lambda_Re(jjj+1),Lambda_Im(jjj+1),KIND=dp))
-          mat_A_gw(kkk,iii+1)=func_val
-        END DO
-        vec_b_gw(kkk)=vec_Sigma_c_gw(n_level_gw,xpos)
-      END DO
-
-      ! Solve system of linear equations
-      CALL ZGETRF(num_poles+1,num_poles+1,mat_A_gw,num_poles+1,ipiv,info)
-
-      CALL ZGETRS('N',num_poles+1,1,mat_A_gw,num_poles+1,ipiv,vec_b_gw,num_poles+1,info)
-
-      Lambda_Re(1)=REAL(vec_b_gw(1))
-      Lambda_Im(1)=AIMAG(vec_b_gw(1))
-      DO iii=1,num_poles
-        jjj=iii*2
-        Lambda_Re(jjj)=REAL(vec_b_gw(iii+1))
-        Lambda_Im(jjj)=AIMAG(vec_b_gw(iii+1))
-      END DO
-
-      DEALLOCATE(mat_A_gw)
-      DEALLOCATE(vec_b_gw)
-      DEALLOCATE(ipiv)
-
-      ALLOCATE(mat_A_gw(num_var*2,num_var*2))
-      ALLOCATE(mat_B_gw(num_fit_points,num_var*2))
-      ALLOCATE(dLambda(num_fit_points))
-      ALLOCATE(dLambda_2(num_fit_points))
-      ALLOCATE(vec_b_gw(num_var*2))
-      ALLOCATE(vec_b_gw_copy(num_var*2))
-      ALLOCATE(ipiv(num_var*2))
-
-      ScalParam=0.01_dp
-      Ldown=1.5_dp
-      Lup=10.0_dp
-      could_exit=.FALSE.
-
-      ! iteration loop for fitting
-      DO iiter=1, max_iter_fit
-
-        CALL timeset(routineN//"_fit_loop_1",handle4)
-
-        ! calc delta lambda
-        DO iii=1,num_var
-          Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)
-        END DO
-        dLambda=(0.0_dp,0.0_dp)
-
-        DO kkk=1,num_fit_points
-          func_val=Lambda(1)
-          DO iii=1,num_poles
-            jjj=iii*2
-            func_val=func_val+Lambda(jjj)/(vec_omega_fit_gw_sign(kkk)*im_unit-Lambda(jjj+1))
-          END DO
-          dLambda(kkk)=vec_Sigma_c_gw(n_level_gw,kkk)-func_val
-        END DO
-        rho1=SUM(dLambda*dLambda)
-
-        ! fill matrix
-        mat_B_gw=(0.0_dp,0.0_dp)
-        DO iii=1,num_fit_points
-          mat_B_gw(iii,1)=1.0_dp
-          mat_B_gw(iii,num_var+1)=im_unit
-        END DO
+      DO kkk=1,num_fit_points
+        func_val=Lambda(1)
         DO iii=1,num_poles
           jjj=iii*2
-          DO kkk=1,num_fit_points
-            mat_B_gw(kkk,jjj)=1.0_dp/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
-            mat_B_gw(kkk,jjj+num_var)=im_unit/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
-            mat_B_gw(kkk,jjj+1)=Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
-            mat_B_gw(kkk,jjj+1+num_var)=(-Lambda_Im(jjj)+im_unit*Lambda_Re(jjj))/&
-                                        (im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
-          END DO
+          func_val=func_val+Lambda(jjj)/(vec_omega_fit_gw_sign(kkk)*im_unit-Lambda(jjj+1))
         END DO
+        dLambda(kkk)=vec_Sigma_c_gw(n_level_gw,kkk)-func_val
+      END DO
+      rho1=SUM(dLambda*dLambda)
 
-        CALL timestop(handle4)
-
-        CALL timeset(routineN//"_fit_matmul_1",handle4)
-
-        one  = (1.0_dp, 0.0_dp)
-        zero = (0.0_dp, 0.0_dp)
-        CALL zgemm('C','N',num_var*2,num_var*2,num_fit_points,one,mat_B_gw,num_fit_points,mat_B_gw,num_fit_points,&
-                   zero,mat_A_gw,num_var*2)
-        CALL timestop(handle4)
-
-        CALL timeset(routineN//"_fit_zgemv_1",handle4)
-        CALL zgemv('C',num_fit_points,num_var*2,one,mat_B_gw,num_fit_points,dLambda,1,&
-                   zero,vec_b_gw,1)
-
-        CALL timestop(handle4)
-
-        ! scale diagonal elements of a_mat
-        DO iii=1, num_var*2
-          mat_A_gw(iii,iii)=mat_A_gw(iii,iii)+ScalParam*mat_A_gw(iii,iii)
+      ! fill matrix
+      mat_B_gw=(0.0_dp,0.0_dp)
+      DO iii=1,num_fit_points
+        mat_B_gw(iii,1)=1.0_dp
+        mat_B_gw(iii,num_var+1)=im_unit
+      END DO
+      DO iii=1,num_poles
+        jjj=iii*2
+        DO kkk=1,num_fit_points
+          mat_B_gw(kkk,jjj)=1.0_dp/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+          mat_B_gw(kkk,jjj+num_var)=im_unit/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+          mat_B_gw(kkk,jjj+1)=Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
+          mat_B_gw(kkk,jjj+1+num_var)=(-Lambda_Im(jjj)+im_unit*Lambda_Re(jjj))/&
+                                      (im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))**2
         END DO
-
-        ! solve linear system
-        ierr=0
-        ipiv=0
-
-        CALL timeset(routineN//"_fit_lin_eq_2",handle4)
-
-        CALL ZGETRF(2*num_var,2*num_var,mat_A_gw,2*num_var,ipiv,info)
-
-        CALL ZGETRS('N',2*num_var,1,mat_A_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
-
-        CALL timestop(handle4)
-
-        DO iii=1, num_var
-          Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)+vec_b_gw(iii)+vec_b_gw(iii+num_var)
-        END DO
-
-        ! calculate chi2
-        CALL calc_chi2(chi2,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                       num_fit_points,n_level_gw)
-
-        IF(chi2<chi2_old) THEN
-          ScalParam=MAX(ScalParam/Ldown,1E-12_dp)
-          DO iii=1, num_var
-            Lambda_Re(iii)=Lambda_Re(iii)+REAL(vec_b_gw(iii)+vec_b_gw(iii+num_var))
-            Lambda_Im(iii)=Lambda_Im(iii)+AIMAG(vec_b_gw(iii)+vec_b_gw(iii+num_var))
-          END DO
-          IF(chi2_old/chi2-1.0_dp<stop_crit) could_exit=.TRUE.
-          chi2_old=chi2
-        ELSE
-          ScalParam=ScalParam*Lup
-        END IF
-        IF(ScalParam>100.0_dp .AND. could_exit) EXIT
-
-        IF(ScalParam>1E+10_dp) ScalParam=1E-4_dp
-
-        n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
-        IF(iiter==max_iter_fit) THEN
-          WRITE(MO_number, "(I3)")  n_level_gw_ref
-          CALL cp_warn(__LOCATION__,&
-               "The fit for corrected level n ="// MO_number// " did not converge. "//&
-               "For levels close to HOMO or LUMO, this is normally no issue. "//&
-               "To avoid this warning, you can (1) increase the "//&
-               "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
-               "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
-               "or  you can (3) decrease "//&
-               "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
-
-        END IF
-
       END DO
 
-      ! change a_0 [Lambda(1)], so that Sigma(i0) = Fit(i0) 
+      CALL timestop(handle4)
+
+      CALL timeset(routineN//"_fit_matmul_1",handle4)
+
+      one  = (1.0_dp, 0.0_dp)
+      zero = (0.0_dp, 0.0_dp)
+      CALL zgemm('C','N',num_var*2,num_var*2,num_fit_points,one,mat_B_gw,num_fit_points,mat_B_gw,num_fit_points,&
+                 zero,mat_A_gw,num_var*2)
+      CALL timestop(handle4)
+
+      CALL timeset(routineN//"_fit_zgemv_1",handle4)
+      CALL zgemv('C',num_fit_points,num_var*2,one,mat_B_gw,num_fit_points,dLambda,1,&
+                 zero,vec_b_gw,1)
+
+      CALL timestop(handle4)
+
+      ! scale diagonal elements of a_mat
+      DO iii=1, num_var*2
+        mat_A_gw(iii,iii)=mat_A_gw(iii,iii)+ScalParam*mat_A_gw(iii,iii)
+      END DO
+
+      ! solve linear system
+      ierr=0
+      ipiv=0
+
+      CALL timeset(routineN//"_fit_lin_eq_2",handle4)
+
+      CALL ZGETRF(2*num_var,2*num_var,mat_A_gw,2*num_var,ipiv,info)
+
+      CALL ZGETRS('N',2*num_var,1,mat_A_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
+
+      CALL timestop(handle4)
+
+      DO iii=1, num_var
+        Lambda(iii)=Lambda_Re(iii)+im_unit*Lambda_Im(iii)+vec_b_gw(iii)+vec_b_gw(iii+num_var)
+      END DO
+
+      ! calculate chi2
+      CALL calc_chi2(chi2,Lambda,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                     num_fit_points,n_level_gw)
+
+      IF(chi2<chi2_old) THEN
+        ScalParam=MAX(ScalParam/Ldown,1E-12_dp)
+        DO iii=1, num_var
+          Lambda_Re(iii)=Lambda_Re(iii)+REAL(vec_b_gw(iii)+vec_b_gw(iii+num_var))
+          Lambda_Im(iii)=Lambda_Im(iii)+AIMAG(vec_b_gw(iii)+vec_b_gw(iii+num_var))
+        END DO
+        IF(chi2_old/chi2-1.0_dp<stop_crit) could_exit=.TRUE.
+        chi2_old=chi2
+      ELSE
+        ScalParam=ScalParam*Lup
+      END IF
+      IF(ScalParam>100.0_dp .AND. could_exit) EXIT
+
+      IF(ScalParam>1E+10_dp) ScalParam=1E-4_dp
+
+      n_level_gw_ref=n_level_gw+homo-gw_corr_lev_occ
+      IF(iiter==max_iter_fit) THEN
+        WRITE(MO_number, "(I3)")  n_level_gw_ref
+        CALL cp_warn(__LOCATION__,&
+             "The fit for corrected level n ="// MO_number// " did not converge. "//&
+             "For levels close to HOMO or LUMO, this is normally no issue. "//&
+             "To avoid this warning, you can (1) increase the "//&
+             "number of fit iterations MAX_ITER_FIT, or you can (2) increase the number "//&
+             "of RPA integration points (then, Sigma_c(i*omega) is more accurate) "//&
+             "or  you can (3) decrease "//&
+             "the fit range by setting the keyword OMEGA_MAX_FIT (in Hartree). ")
+
+      END IF
+
+    END DO
+
+    ! change a_0 [Lambda(1)], so that Sigma(i0) = Fit(i0) 
+    func_val=Lambda(1)
+    DO iii=1, num_poles
+      jjj=iii*2
+      ! calculate value of the fit function
+      func_val=func_val+Lambda(jjj)/(-Lambda(jjj+1))
+    END DO
+
+    Lambda_Re(1) = Lambda_Re(1) - REAL(func_val) + REAL(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+    Lambda_Im(1) = Lambda_Im(1) - AIMAG(func_val) + AIMAG(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+
+    Lambda_without_offset(:) = Lambda(:)
+
+    DO iii=1, num_var
+      Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii),KIND=dp)
+    END DO
+
+    ! print self_energy and fit on the imaginary frequency axis if required
+    IF(check_fit) THEN
+
+      IF (output_unit>0) THEN
+
+        WRITE(output_unit,*) ' '
+        WRITE(output_unit,'(T3,A,I5)') 'Check the GW fit for molecular orbital', n_level_gw_ref
+        WRITE(output_unit,'(T3,A)')    '-------------------------------------------'
+        WRITE(output_unit,*)
+        WRITE(output_unit,'(T3,5A)') '  omega (i*eV)    ', 'Re(fit) (eV)    ', &
+                   'Im(fit) (eV)  ', 'Re(Sig_c) (eV)  ', &
+                   'Im(Sig_c) (eV)'
+  
+      END IF
+
+      DO kkk=1, num_fit_points
+        func_val=Lambda(1)
+        DO iii=1, num_poles
+          jjj=iii*2
+          ! calculate value of the fit function
+          func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+        END DO
+        WRITE(output_unit,'(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*27.211_dp, REAL(func_val)*27.211_dp, &
+                   AIMAG(func_val)*27.211_dp, REAL(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp, &
+                   AIMAG(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp
+      END DO
+
+      WRITE(output_unit,*) ' '
+
+    END IF
+
+    ! correct the electronic levels 
+    IF(n_level_gw<=gw_corr_lev_occ) THEN
+      e_fermi = Eigenval(homo) + fermi_level_offset
+    ELSE
+      e_fermi = Eigenval(homo+1) - fermi_level_offset
+    END IF
+
+    ! either Z-shot or no crossing search for evaluating Sigma_c 
+    IF(crossing_search==ri_rpa_g0w0_crossing_none ) THEN
+
+      ! calculate func val on the real axis 
+      ! gw_energ = only correlation part of the self energy
       func_val=Lambda(1)
       DO iii=1, num_poles
         jjj=iii*2
-        ! calculate value of the fit function
-        func_val=func_val+Lambda(jjj)/(-Lambda(jjj+1))
+        func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
       END DO
 
-      Lambda_Re(1) = Lambda_Re(1) - REAL(func_val) + REAL(vec_Sigma_c_gw(n_level_gw,num_fit_points))
-      Lambda_Im(1) = Lambda_Im(1) - AIMAG(func_val) + AIMAG(vec_Sigma_c_gw(n_level_gw,num_fit_points))
+      gw_energ = REAL(func_val)
+      vec_gw_energ(n_level_gw) = gw_energ
 
-      Lambda_without_offset(:) = Lambda(:)
+    ELSE IF(crossing_search==ri_rpa_g0w0_crossing_z_shot .OR. & 
+            crossing_search==ri_rpa_g0w0_crossing_newton) THEN
 
-      DO iii=1, num_var
-        Lambda(iii)=CMPLX(Lambda_Re(iii),Lambda_Im(iii),KIND=dp)
+      ! calculate Sigma_c_fit(e_n) and Z
+      func_val=Lambda(1)
+      z_value(n_level_gw)=1.0_dp
+      DO iii=1, num_poles
+        jjj=iii*2
+        z_value(n_level_gw)=z_value(n_level_gw)+REAL(Lambda(jjj)/&
+                            (Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))**2)
+        func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
       END DO
+      ! m is the slope of the correl self-energy
+      m_value(n_level_gw)=1.0_dp-z_value(n_level_gw)
+      z_value(n_level_gw)=1.0_dp/z_value(n_level_gw)
+      gw_energ = REAL(func_val)
+      vec_gw_energ(n_level_gw) = gw_energ
 
-      ! print self_energy and fit on the imaginary frequency axis if required
-      IF(check_fit) THEN
 
-        WRITE(*,*) ' '
-        WRITE(*,'(T3,A,I5)') 'Check the GW fit for molecular orbital', n_level_gw_ref
-        WRITE(*,'(T3,A)')    '-------------------------------------------'
-        WRITE(*,*)
-        WRITE(*,'(T3,5A)') '  omega (i*eV)    ', 'Re(fit) (eV)    ', &
-                   'Im(fit) (eV)  ', 'Re(Sig_c) (eV)  ', &
-                   'Im(Sig_c) (eV)'
+      ! in case one wants to do Newton-Raphson on top of the Z-shot
+      IF(crossing_search==ri_rpa_g0w0_crossing_newton) THEN
 
-        DO kkk=1, num_fit_points
+        level_energ_GW = (Eigenval_scf(n_level_gw_ref)-&
+                    m_value(n_level_gw)*Eigenval(n_level_gw_ref)+&
+                    vec_gw_energ(n_level_gw) + &
+                    vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))*&
+                    z_value(n_level_gw)
+
+
+        ! Newton-Raphson iteration
+        DO kkk=1,1000 
+
+          ! calculate the value of the fit function for level_energ_GW 
           func_val=Lambda(1)
+          z_value(n_level_gw)=1.0_dp
           DO iii=1, num_poles
             jjj=iii*2
-            ! calculate value of the fit function
-            func_val=func_val+Lambda(jjj)/(im_unit*vec_omega_fit_gw_sign(kkk)-Lambda(jjj+1))
+            func_val=func_val+Lambda(jjj)/(level_energ_GW-e_fermi-Lambda(jjj+1))
           END DO
-          WRITE(*,'(1F16.3,4F16.5)') vec_omega_fit_gw_sign(kkk)*27.211_dp, REAL(func_val)*27.211_dp, &
-                     AIMAG(func_val)*27.211_dp, REAL(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp, &
-                     AIMAG(vec_Sigma_c_gw(n_level_gw,kkk))*27.211_dp
-        END DO
-
-        WRITE(*,*) ' '
-
-      END IF
-
-      ! correct the electronic levels 
-      IF(n_level_gw<=gw_corr_lev_occ) THEN
-        e_fermi = Eigenval(homo) + fermi_level_offset
-      ELSE
-        e_fermi = Eigenval(homo+1) - fermi_level_offset
-      END IF
-
-      ! either Z-shot or no crossing search for evaluating Sigma_c 
-      IF(crossing_search==ri_rpa_g0w0_crossing_none ) THEN
-
-        ! calculate func val on the real axis 
-        ! gw_energ = only correlation part of the self energy
-        func_val=Lambda(1)
-        DO iii=1, num_poles
-          jjj=iii*2
-          func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
-        END DO
-
-        gw_energ = REAL(func_val)
-        vec_gw_energ(n_level_gw) = gw_energ
-
-      ELSE IF(crossing_search==ri_rpa_g0w0_crossing_z_shot .OR. & 
-              crossing_search==ri_rpa_g0w0_crossing_newton) THEN
-
-        ! calculate Sigma_c_fit(e_n) and Z
-        func_val=Lambda(1)
-        z_value(n_level_gw)=1.0_dp
-        DO iii=1, num_poles
-          jjj=iii*2
-          z_value(n_level_gw)=z_value(n_level_gw)+REAL(Lambda(jjj)/&
-                              (Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))**2)
-          func_val=func_val+Lambda(jjj)/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(jjj+1))
-        END DO
-        ! m is the slope of the correl self-energy
-        m_value(n_level_gw)=1.0_dp-z_value(n_level_gw)
-        z_value(n_level_gw)=1.0_dp/z_value(n_level_gw)
-        gw_energ = REAL(func_val)
-        vec_gw_energ(n_level_gw) = gw_energ
 
 
-        ! in case one wants to do Newton-Raphson on top of the Z-shot
-        IF(crossing_search==ri_rpa_g0w0_crossing_newton) THEN
-
-          level_energ_GW = (Eigenval_scf(n_level_gw_ref)-&
-                      m_value(n_level_gw)*Eigenval(n_level_gw_ref)+&
-                      vec_gw_energ(n_level_gw) + &
-                      vec_Sigma_x_minus_vxc_gw(n_level_gw_ref))*&
-                      z_value(n_level_gw)
-
-
-          ! Newton-Raphson iteration
-          DO kkk=1,1000 
-
-            ! calculate the value of the fit function for level_energ_GW 
-            func_val=Lambda(1)
-            z_value(n_level_gw)=1.0_dp
-            DO iii=1, num_poles
-              jjj=iii*2
-              func_val=func_val+Lambda(jjj)/(level_energ_GW-e_fermi-Lambda(jjj+1))
-            END DO
-
-
-            ! calculate the derivative of the fit function for level_energ_GW
-            deriv_val_real = -1.0_dp
-            DO iii=1, num_poles
-              jjj=iii*2
-              deriv_val_real= deriv_val_real+ REAL(Lambda(jjj))/((ABS(level_energ_GW-e_fermi-Lambda(jjj+1)))**2) & 
-                              - (REAL(Lambda(jjj))*(level_energ_GW-e_fermi) - REAL(Lambda(jjj)*CONJG(Lambda(jjj+1))))* &
-                                2.0_dp*(level_energ_GW-e_fermi-REAL(Lambda(jjj+1)))/&
-                                ((ABS(level_energ_GW-e_fermi-Lambda(jjj+1)))**2)
-
-            END DO
-
-            delta = (Eigenval_scf(n_level_gw_ref)+vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)+REAL(func_val)-level_energ_GW)/&
-                    deriv_val_real
-
-            level_energ_GW = level_energ_GW - delta
-
-            IF(ABS(delta)<1.0E-08) EXIT
+          ! calculate the derivative of the fit function for level_energ_GW
+          deriv_val_real = -1.0_dp
+          DO iii=1, num_poles
+            jjj=iii*2
+            deriv_val_real= deriv_val_real+ REAL(Lambda(jjj))/((ABS(level_energ_GW-e_fermi-Lambda(jjj+1)))**2) & 
+                            - (REAL(Lambda(jjj))*(level_energ_GW-e_fermi) - REAL(Lambda(jjj)*CONJG(Lambda(jjj+1))))* &
+                              2.0_dp*(level_energ_GW-e_fermi-REAL(Lambda(jjj+1)))/&
+                              ((ABS(level_energ_GW-e_fermi-Lambda(jjj+1)))**2)
 
           END DO
 
-          ! update the GW-energy by Newton-Raphson and set the Z-value to 1
+          delta = (Eigenval_scf(n_level_gw_ref)+vec_Sigma_x_minus_vxc_gw(n_level_gw_ref)+REAL(func_val)-level_energ_GW)/&
+                  deriv_val_real
 
-          vec_gw_energ(n_level_gw) = REAL(func_val)
-          z_value(n_level_gw)      = 1.0_dp
-          m_value(n_level_gw)      = 0.0_dp
+          level_energ_GW = level_energ_GW - delta
 
+          IF(ABS(delta)<1.0E-08) EXIT
 
-        END IF ! Newton-Raphson on top of Z-shot
-
-
-
-      END IF ! decision crossing search none, Z-shot
-
-      !   --------------------------------------------
-      !  | calculate statistical error due to fitting |
-      !   --------------------------------------------
-
-      ! estimate the statistical error of the calculated Sigma_c(i*omega) 
-      ! by sqrt(chi2/n), where n is the number of fit points
-
-      CALL calc_chi2(chi2,Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
-                     num_fit_points,n_level_gw)
-
-      ! Estimate the statistical error of every fit point
-      stat_error = SQRT(chi2/num_fit_points)
-
-
-      ! allocate N array containing the second derivatives of chi^2
-      ALLOCATE(vec_N_gw(num_var*2))
-      vec_N_gw = 0.0_dp
-
-      ALLOCATE(mat_N_gw(num_var*2,num_var*2))
-      mat_N_gw = 0.0_dp
-
-      DO iii=1,num_var*2
-          CALL calc_mat_N(vec_N_gw(iii),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
-                              iii,iii,num_poles,num_fit_points,n_level_gw,0.001_dp)
-      END DO
-
-      DO iii=1,num_var*2
-        DO jjj=1,num_var*2
-          CALL calc_mat_N(mat_N_gw(iii,jjj),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
-                          iii,jjj,num_poles,num_fit_points,n_level_gw,0.001_dp)
         END DO
+
+        ! update the GW-energy by Newton-Raphson and set the Z-value to 1
+
+        vec_gw_energ(n_level_gw) = REAL(func_val)
+        z_value(n_level_gw)      = 1.0_dp
+        m_value(n_level_gw)      = 0.0_dp
+
+
+      END IF ! Newton-Raphson on top of Z-shot
+
+
+
+    END IF ! decision crossing search none, Z-shot
+
+    !   --------------------------------------------
+    !  | calculate statistical error due to fitting |
+    !   --------------------------------------------
+
+    ! estimate the statistical error of the calculated Sigma_c(i*omega) 
+    ! by sqrt(chi2/n), where n is the number of fit points
+
+    CALL calc_chi2(chi2,Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,num_poles,&
+                   num_fit_points,n_level_gw)
+
+    ! Estimate the statistical error of every fit point
+    stat_error = SQRT(chi2/num_fit_points)
+
+
+    ! allocate N array containing the second derivatives of chi^2
+    ALLOCATE(vec_N_gw(num_var*2))
+    vec_N_gw = 0.0_dp
+
+    ALLOCATE(mat_N_gw(num_var*2,num_var*2))
+    mat_N_gw = 0.0_dp
+
+    DO iii=1,num_var*2
+        CALL calc_mat_N(vec_N_gw(iii),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
+                            iii,iii,num_poles,num_fit_points,n_level_gw,0.001_dp)
+    END DO
+
+    DO iii=1,num_var*2
+      DO jjj=1,num_var*2
+        CALL calc_mat_N(mat_N_gw(iii,jjj),Lambda_without_offset,vec_Sigma_c_gw,vec_omega_fit_gw_sign,&
+                        iii,jjj,num_poles,num_fit_points,n_level_gw,0.001_dp)
       END DO
+    END DO
 
-      CALL DGETRF(2*num_var,2*num_var,mat_N_gw,2*num_var,ipiv,info)
+    CALL DGETRF(2*num_var,2*num_var,mat_N_gw,2*num_var,ipiv,info)
 
-      ! vec_b_gw is only working array
-      CALL DGETRI(2*num_var,mat_N_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
+    ! vec_b_gw is only working array
+    CALL DGETRI(2*num_var,mat_N_gw,2*num_var,ipiv,vec_b_gw,2*num_var,info)
 
-      ALLOCATE(stat_errors(2*num_var))
-      stat_errors=0.0_dp
+    ALLOCATE(stat_errors(2*num_var))
+    stat_errors=0.0_dp
 
-      DO iii=1,2*num_var
-        stat_errors(iii)=SQRT(ABS(mat_N_gw(iii,iii)))*stat_error
-      END DO
+    DO iii=1,2*num_var
+      stat_errors(iii)=SQRT(ABS(mat_N_gw(iii,iii)))*stat_error
+    END DO
 
-      ! Compute error of Sigma_c on real axis according to error propagation 
+    ! Compute error of Sigma_c on real axis according to error propagation 
 
-      vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
+    vec_gw_energ_error_fit(n_level_gw) = 0.0_dp
 
-      DO kkk=1,num_poles
-        vec_gw_energ_error_fit(n_level_gw) = vec_gw_energ_error_fit(n_level_gw) + &
-                  (stat_errors(4*kkk-1)+stat_errors(4*kkk))*&
-                  ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1)) - &
-                       1.0_dp/(-Lambda(2*kkk+1)) ) + &
-                  (stat_errors(4*kkk+1)+stat_errors(4*kkk+2))*ABS(Lambda(2*kkk))* &
-                  ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1))**2 - &
-                       1.0_dp/(-Lambda(2*kkk+1))**2 )
-      END DO
+    DO kkk=1,num_poles
+      vec_gw_energ_error_fit(n_level_gw) = vec_gw_energ_error_fit(n_level_gw) + &
+                (stat_errors(4*kkk-1)+stat_errors(4*kkk))*&
+                ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1)) - &
+                     1.0_dp/(-Lambda(2*kkk+1)) ) + &
+                (stat_errors(4*kkk+1)+stat_errors(4*kkk+2))*ABS(Lambda(2*kkk))* &
+                ABS( 1.0_dp/(Eigenval(n_level_gw_ref)-e_fermi-Lambda(2*kkk+1))**2 - &
+                     1.0_dp/(-Lambda(2*kkk+1))**2 )
+    END DO
 
-      DEALLOCATE(mat_N_gw)
-      DEALLOCATE(vec_N_gw)
-      DEALLOCATE(mat_A_gw)
-      DEALLOCATE(mat_B_gw)
-      DEALLOCATE(stat_errors)
-      DEALLOCATE(dLambda)
-      DEALLOCATE(dLambda_2)
-      DEALLOCATE(vec_b_gw)
-      DEALLOCATE(vec_b_gw_copy)
-      DEALLOCATE(ipiv)
-      DEALLOCATE(vec_omega_fit_gw_sign)
-      DEALLOCATE(Lambda)
-      DEALLOCATE(Lambda_without_offset)
-      DEALLOCATE(Lambda_Re)
-      DEALLOCATE(Lambda_Im)
+    DEALLOCATE(mat_N_gw)
+    DEALLOCATE(vec_N_gw)
+    DEALLOCATE(mat_A_gw)
+    DEALLOCATE(mat_B_gw)
+    DEALLOCATE(stat_errors)
+    DEALLOCATE(dLambda)
+    DEALLOCATE(dLambda_2)
+    DEALLOCATE(vec_b_gw)
+    DEALLOCATE(vec_b_gw_copy)
+    DEALLOCATE(ipiv)
+    DEALLOCATE(vec_omega_fit_gw_sign)
+    DEALLOCATE(Lambda)
+    DEALLOCATE(Lambda_without_offset)
+    DEALLOCATE(Lambda_Re)
+    DEALLOCATE(Lambda_Im)
 
     END SUBROUTINE 
 

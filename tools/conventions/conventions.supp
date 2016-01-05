@@ -350,7 +350,6 @@ qs_loc_utils.F: Routine PZROT called with an implicit interface.
 qs_localization_methods.F: Routine PZROT called with an implicit interface.
 qs_ot.F: Found WRITE statement with hardcoded unit in "qs_ot_generate_rotation"
 qs_rho_atom_methods.F: Found WRITE statement with hardcoded unit in "init_rho_atom"
-rpa_ri_gpw.F: Found WRITE statement with hardcoded unit in "fit_and_continuation"
 scptb_types.F: Found WRITE statement with hardcoded unit in "scp_vector_print"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "aa"
 se_core_matrix.F: Found WRITE statement with hardcoded unit in "makeds"
