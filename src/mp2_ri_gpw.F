@@ -533,7 +533,7 @@ MODULE mp2_ri_gpw
         ALLOCATE(mat_B_munu(i_counter)%matrix)
 
         CALL cp_dbcsr_init(mat_B_munu(i_counter)%matrix)
-        CALL cp_dbcsr_create(matrix=mat_B_munu(i_counter)%matrix,template=mat_munu%matrix)
+!JW 2del        CALL cp_dbcsr_create(matrix=mat_B_munu(i_counter)%matrix,template=mat_munu%matrix)
 
         CALL cp_dbcsr_copy(mat_B_munu(i_counter)%matrix,mat_munu%matrix)
 

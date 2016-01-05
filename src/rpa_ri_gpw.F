@@ -1918,13 +1918,13 @@ MODULE rpa_ri_gpw
 
       NULLIFY(mat_M_munu_occ)
       CALL cp_dbcsr_init_p(mat_M_munu_occ)
-      CALL cp_dbcsr_create(matrix=mat_M_munu_occ,template=mat_munu%matrix)
+!JW 2del      CALL cp_dbcsr_create(matrix=mat_M_munu_occ,template=mat_munu%matrix)
       CALL cp_dbcsr_copy(mat_M_munu_occ,mat_munu%matrix)
       CALL cp_dbcsr_set(mat_M_munu_occ,0.0_dp)
 
       NULLIFY(mat_M_munu_virt)
       CALL cp_dbcsr_init_p(mat_M_munu_virt)
-      CALL cp_dbcsr_create(matrix=mat_M_munu_virt,template=mat_munu%matrix)
+!JW 2del      CALL cp_dbcsr_create(matrix=mat_M_munu_virt,template=mat_munu%matrix)
       CALL cp_dbcsr_copy(mat_M_munu_virt,mat_munu%matrix)
       CALL cp_dbcsr_set(mat_M_munu_virt,0.0_dp)
 
