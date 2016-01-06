@@ -14,7 +14,8 @@
 ! *****************************************************************************
 MODULE transport_env_types
 
-  USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
+  USE ISO_C_BINDING,                   ONLY: C_BOOL,&
+                                             C_DOUBLE,&
                                              C_FUNPTR,&
                                              C_F_POINTER,&
                                              C_INT,&
@@ -63,6 +64,7 @@ MODULE transport_env_types
      REAL(C_DOUBLE)  :: temperature
      TYPE(C_PTR)     :: contacts_data
      TYPE(C_PTR)     :: contacts_nelec
+     LOGICAL(C_BOOL) :: extra_scf
   END TYPE cp2k_transport_parameters
 
   TYPE transport_env_type

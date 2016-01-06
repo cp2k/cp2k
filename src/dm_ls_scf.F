@@ -55,7 +55,7 @@ MODULE dm_ls_scf
        ls_s_inversion_hotelling, ls_s_inversion_none, &
        ls_s_inversion_sign_sqrt, ls_s_preconditioner_atomic, &
        ls_s_preconditioner_molecular, ls_s_preconditioner_none, ls_scf_ns, &
-       ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4
+       ls_scf_pexsi, ls_scf_tc2, ls_scf_trs4, transport_transmission
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
   USE input_keyword_types,             ONLY: keyword_get,&
@@ -852,8 +852,9 @@ CONTAINS
     INTEGER                                  :: handle, iscf, ispin, &
                                                 nelectron_spin_real, nmixing, &
                                                 nspin, unit_nr
-    LOGICAL                                  :: check_convergence, diis_step, &
-                                                do_transport, should_stop
+    LOGICAL :: check_convergence, diis_step, do_transport, extra_scf, &
+      maxscf_reached, scf_converged, should_stop, transm_maxscf_reached, &
+      transm_scf_converged
     REAL(KIND=dp)                            :: energy_diff, energy_new, &
                                                 energy_old, eps_diis, t1, t2
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -891,6 +892,9 @@ CONTAINS
     ls_scf_env%homo_spin(:) = 0.0_dp
     ls_scf_env%lumo_spin(:) = 0.0_dp
 
+    transm_scf_converged = .FALSE. 
+    transm_maxscf_reached = .FALSE.
+
     energy_old=0.0_dp
     IF(ls_scf_env%scf_history%istore>0)energy_old=ls_scf_env%energy_init
     check_convergence=.TRUE.
@@ -915,10 +919,19 @@ CONTAINS
 
       ! check on max SCF or timing/exit
       CALL external_control(should_stop,"SCF",start_time=qs_env%start_time,target_time=qs_env%target_time)
-      IF (should_stop .OR. iscf>=ls_scf_env%max_scf) THEN
-         IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
-         EXIT
-      ENDIF
+      IF (do_transport .AND. transport_env%params%method .EQ. transport_transmission) THEN
+         maxscf_reached = should_stop .OR. iscf>=ls_scf_env%max_scf
+         IF (transm_maxscf_reached) THEN 
+            IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
+            EXIT
+         END IF
+         transm_maxscf_reached = maxscf_reached
+      ELSE
+         IF (should_stop .OR. iscf>=ls_scf_env%max_scf) THEN
+            IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
+            EXIT
+         ENDIF
+      END IF
 
       t1 = m_walltime()
       iscf=iscf+1
@@ -1014,9 +1027,11 @@ CONTAINS
                IF(ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic)&
                   CPABORT("NOT YET IMPLEMENTED with molecular clustering. ")
 
+               extra_scf = maxscf_reached .OR. scf_converged
                ! get the current Kohn-Sham matrix (ks) and return matrix_p evaluated using an external C routine
                CALL external_scf_method(transport_env, ls_scf_env%matrix_s, matrix_mixing_old(ispin), &
-                                        ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, energy_diff)
+                                        ls_scf_env%matrix_p(ispin), nelectron_spin_real, ls_scf_env%natoms, &
+                                        energy_diff, extra_scf)
 
             ELSE 
                SELECT CASE(ls_scf_env%purification_method)
@@ -1079,8 +1094,14 @@ CONTAINS
          CALL m_flush(unit_nr)
       ENDIF
 
-      ! exit criterium on the energy only for the time being
-      IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
+      IF (do_transport .AND. transport_env%params%method .EQ. transport_transmission) THEN
+         scf_converged = check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total
+         IF (transm_scf_converged) EXIT
+         transm_scf_converged = scf_converged
+      ELSE 
+         ! exit criterium on the energy only for the time being
+         IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
+      END IF
 
       IF (ls_scf_env%ls_diis) THEN
 ! diis_buffer, buffer with 1) Kohn-Sham history matrix, 

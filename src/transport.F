@@ -286,19 +286,21 @@ CONTAINS
 !> \param[in]    nelectron_spin number of electrons 
 !> \param[in]    natoms         number of atoms 
 !> \param[in]    energy_diff    scf energy difference
+!> \param[in]    extra_scf      whether or not an extra scf step will be performed
 !> \par History
 !>       12.2012 created [Hossein Bani-Hashemian]
 !>       12.2014 revised [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
    SUBROUTINE external_scf_method(transport_env, matrix_s, matrix_ks, matrix_p, &
-                                  nelectron_spin, natoms, energy_diff)
+                                  nelectron_spin, natoms, energy_diff, extra_scf)
 
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_s, matrix_ks
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_p
     INTEGER, INTENT(IN)                      :: nelectron_spin, natoms
     REAL(dp), INTENT(IN)                     :: energy_diff
+    LOGICAL, INTENT(IN)                      :: extra_scf
 
     CHARACTER(len=*), PARAMETER :: routineN = 'external_scf_method', &
       routineP = moduleN//':'//routineN
@@ -320,6 +322,7 @@ CONTAINS
     transport_env%params%n_atoms = natoms
     transport_env%params%energy_diff = energy_diff
     transport_env%params%evoltfactor = evolt
+    transport_env%params%extra_scf = extra_scf
 
     CALL csr_interop_nullify(s_mat)
     CALL csr_interop_nullify(ks_mat)
