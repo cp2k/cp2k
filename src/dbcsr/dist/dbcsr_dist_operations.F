@@ -27,6 +27,8 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
        dbcsr_distribution_ncols, dbcsr_distribution_new, &
        dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+       dbcsr_distribution_num_local_col_clusters, &
+       dbcsr_distribution_num_local_row_clusters, &
        dbcsr_distribution_processor, dbcsr_distribution_release, &
        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
        dbcsr_distribution_thread_dist
@@ -474,19 +476,92 @@ CONTAINS
       INTENT(OUT)                            :: dist_tr
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_normal
 
-    INTEGER, DIMENSION(:), POINTER           :: cda, rda
-    TYPE(dbcsr_mp_obj)                       :: mp
+    INTEGER                                  :: nclusters, ncols_tr, &
+                                                npcols_tr, nprows_tr, &
+                                                nrows_tr, vgcd, vlcm
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: img_data, img_data_tr
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_data_tr, &
+                                                col_img_data_tr, &
+                                                row_dist_data_tr, &
+                                                row_img_data_tr
+    TYPE(dbcsr_mp_obj)                       :: mp_env
 
 !   ---------------------------------------------------------------------------
 
-    mp = dbcsr_distribution_mp (dist_normal)
-    ALLOCATE (rda (dbcsr_distribution_ncols (dist_normal)))
-    CALL evenly_bin (rda, dbcsr_mp_nprows (mp))
+    mp_env = dbcsr_distribution_mp (dist_normal)
+    !
+    ! transpose the rows/cols
+    nrows_tr = dbcsr_distribution_ncols (dist_normal)
+    ncols_tr = dbcsr_distribution_nrows (dist_normal)
+    ! procs are not transposed
+    nprows_tr = dbcsr_mp_nprows (mp_env)
+    npcols_tr = dbcsr_mp_npcols (mp_env)
+    vgcd = gcd(nprows_tr,npcols_tr)
+    vlcm = lcm(nprows_tr,npcols_tr)
+    !
+    ALLOCATE (row_dist_data_tr (nrows_tr))
+    ALLOCATE (row_img_data_tr (nrows_tr))
+    IF (dbcsr_distribution_has_col_clusters(dist_normal)) THEN
+       nclusters = npcols_tr*dbcsr_distribution_num_local_col_clusters (dist_normal)
+       ALLOCATE(img_data(nrows_tr))
+       img_data(:) = MOD(dbcsr_distribution_col_clusters (dist_normal),&
+            dbcsr_distribution_num_local_col_clusters (dist_normal))+1
+       ALLOCATE(img_data_tr(nrows_tr))
+       CALL rebin_imaged_distribution (row_dist_data_tr, img_data_tr,&
+            dbcsr_distribution_col_dist (dist_normal),&
+            img_data,&
+            nprows_tr,&
+            nclusters/gcd(nclusters,npcols_tr),&
+            nclusters/nprows_tr)
+       CALL make_vdistribution (nrows_tr, row_img_data_tr, row_dist_data_tr,&
+            nclusters/nprows_tr, img_data_tr)
+       row_img_data_tr = row_img_data_tr + 1
+       DEALLOCATE(img_data,img_data_tr)
+    ELSE
+       CALL rebin_distribution (row_dist_data_tr, row_img_data_tr,&
+            dbcsr_distribution_col_dist (dist_normal),&
+            nprows_tr,&
+            nprows_tr/vgcd,vlcm/nprows_tr)
+       !
+       ! discard image distribution, it will be build later in the multiplication
+       DEALLOCATE(row_img_data_tr)
+       NULLIFY(row_img_data_tr)
+    ENDIF
+    !
+    ALLOCATE (col_dist_data_tr (ncols_tr))
+    ALLOCATE (col_img_data_tr (ncols_tr))
+    IF (dbcsr_distribution_has_row_clusters(dist_normal)) THEN
+       nclusters = nprows_tr*dbcsr_distribution_num_local_row_clusters (dist_normal)
+       ALLOCATE(img_data(ncols_tr))
+       img_data(:) = MOD(dbcsr_distribution_row_clusters (dist_normal),&
+            dbcsr_distribution_num_local_row_clusters (dist_normal))+1
+       ALLOCATE(img_data_tr(ncols_tr))
+       CALL rebin_imaged_distribution (col_dist_data_tr, img_data_tr,&
+            dbcsr_distribution_row_dist (dist_normal),&
+            img_data,&
+            npcols_tr,&
+            nclusters/gcd(nclusters,nprows_tr),&
+            nclusters/npcols_tr)
+       CALL make_vdistribution (ncols_tr, col_img_data_tr, col_dist_data_tr,&
+            nclusters/npcols_tr, img_data_tr)
+       col_img_data_tr = col_img_data_tr + 1
+       DEALLOCATE(img_data,img_data_tr)
+    ELSE
+       CALL rebin_distribution (col_dist_data_tr, col_img_data_tr,&
+            dbcsr_distribution_row_dist (dist_normal),&
+            npcols_tr,&
+            npcols_tr/vgcd,vlcm/npcols_tr)
+       !
+       ! discard image distribution, it will be build later in the multiplication
+       DEALLOCATE(col_img_data_tr)
+       NULLIFY(col_img_data_tr)
+    ENDIF
+    !
+    CALL dbcsr_distribution_new(dist_tr, mp_env, &
+         row_dist_data_tr, col_dist_data_tr, &
+         row_dist_cluster=row_img_data_tr, col_dist_cluster=col_img_data_tr, &
+         reuse_arrays=.TRUE.)
 
-    ALLOCATE (cda (dbcsr_distribution_nrows (dist_normal)))
-    CALL evenly_bin (cda, dbcsr_mp_npcols (mp))
-
-    CALL dbcsr_distribution_new(dist_tr,mp,rda,cda,reuse_arrays=.TRUE.)
   END SUBROUTINE dbcsr_transpose_dims
 
 
