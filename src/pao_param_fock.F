@@ -124,6 +124,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: C, D4, D8, M2, M3, M4, M5, &
                                                 M6, M7, P, U0, V_evecs, W, &
                                                 W_evecs, Y, Z
+    REAL(KIND=dp)                            :: delta, poly, res, W_average
 
     CALL timeset(routineN,handle)
 
@@ -163,9 +164,12 @@ CONTAINS
     ALLOCATE(Z(m,m), W_evals(m), W_evecs(m,m))
     W_evecs = W
     CALL diamat_all(W_evecs, W_evals)
+
+    IF (MINVAL(W_evals)<=0.0_dp) &
+       CPABORT("problem with U0 projection")
+
     Z=0.0_dp
     DO k=1, m
-       IF(W_evals(k) <= 0.0_dp) CYCLE !TODO: is this a clean solution?
        invsqrt = 1.0_dp / SQRT(W_evals(k))
        DO i=1, m
           DO j=1, m
@@ -192,16 +196,25 @@ CONTAINS
        ! dZ / dW
        ALLOCATE(D4(m,m), M4(m,m))
        DO i=1, m
-          IF(W_evals(i)<=0.0_dp) CYCLE
           DO j=1, m
-             IF(W_evals(j)<=0.0_dp) CYCLE
-             IF(i==j) THEN
-                 D4(i,i) = -0.5_dp / (W_evals(i)*SQRT(W_evals(i)))
+             W_average=(W_evals(i)+W_evals(j))/2.0_dp
+             delta=W_evals(i)/W_average-1.0_dp
+             IF (ABS(delta)<0.01_dp) THEN
+                ! degree 10 taylor expansion in delta.
+                res=-1.0/(W_average*SQRT(W_average))
+                poly=     88179.0_dp/524288.0_dp*delta**10
+                poly=poly+12155.0_dp/65536.0_dp*delta**8
+                poly=poly+429.0_dp/2048.0_dp*delta**6
+                poly=poly+63.0_dp/256.0_dp*delta**4
+                poly=poly+5.0_dp/16.0_dp*delta**2
+                poly=poly+1.0_dp/2.0_dp
+                res=res*poly
              ELSE
-                 nom = 1.0_dp/SQRT(W_evals(i)) - 1.0_dp/SQRT(W_evals(j))
-                 denom = W_evals(i) - W_evals(j)
-                 D4(i,j) = nom / denom
+                nom = 1.0_dp/SQRT(W_evals(i)) - 1.0_dp/SQRT(W_evals(j))
+                denom = W_evals(i) - W_evals(j)
+                res = nom / denom
              ENDIF
+             D4(i,j)=res
           ENDDO
        ENDDO
        M4 = fold_derivatives(M2, D4, W_evecs, +1)
