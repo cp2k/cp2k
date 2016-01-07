@@ -227,7 +227,7 @@ CONTAINS
              IF(pao_is_done .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
              EXIT
           ENDIF
-         
+
           ! if we have reached the maximum number of cycles exit in order 
           ! to restart with a fresh hamiltonian
           IF (icycle >= pao%max_cycles) THEN

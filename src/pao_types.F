@@ -34,7 +34,6 @@ MODULE pao_types
      INTEGER                          :: max_cycles = -1
      INTEGER                          :: parameterization = -1
      INTEGER                          :: cg_init_steps = -1
-     INTEGER                          :: random_seed = -1
      CHARACTER(LEN=default_string_length) :: preopt_dm_file = ""
 
      ! output units
@@ -51,6 +50,7 @@ MODULE pao_types
      TYPE(cp_dbcsr_type)              :: matrix_X
      TYPE(cp_dbcsr_type)              :: matrix_U
      TYPE(cp_dbcsr_type)              :: matrix_U0
+     TYPE(cp_dbcsr_type)              :: matrix_H0
      TYPE(cp_dbcsr_type)              :: matrix_Y
      TYPE(cp_dbcsr_type)              :: matrix_N
      TYPE(cp_dbcsr_type)              :: matrix_N_inv

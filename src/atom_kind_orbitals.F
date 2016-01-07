@@ -457,10 +457,11 @@ CONTAINS
           ll = 2*l
           DO k1=1,atom%basis%nbas(l)
           DO k2=1,atom%basis%nbas(l)
+             scal=SQRT(atom%integrals%ovlp(k1,k1,l)*atom%integrals%ovlp(k2,k2,l))
              i=first_sgf(shell_index(l,k1),set_index(l,k1))
              j=first_sgf(shell_index(l,k2),set_index(l,k2))
              DO m=0,ll
-               fmat(i+m,j+m) = atom%fmat%op(k1,k2,l)
+               fmat(i+m,j+m) = atom%fmat%op(k1,k2,l)/scal
              END DO
           END DO
           END DO

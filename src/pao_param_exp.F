@@ -49,7 +49,7 @@ CONTAINS
     INTEGER                                  :: acol, arow, handle
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:), POINTER          :: evals
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_H, block_U0
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_H, block_N, block_U0
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
@@ -72,24 +72,25 @@ CONTAINS
        CALL cp_dbcsr_create(pao%matrix_X, template=matrix_s(1)%matrix, matrix_type="N")
        CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
        CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
-
-       ! allocate matrix_U0
-       CALL cp_dbcsr_init(pao%matrix_U0)
-       CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
-       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
-
-       CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
-          CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_H, found=found)
-          CPASSERT(ASSOCIATED(block_H))
-          block_U0 = block_H
-          ALLOCATE(evals(SIZE(block_H,1)))
-          CALL diamat_all(block_U0, evals)
-          DEALLOCATE(evals)
-       END DO
-       CALL cp_dbcsr_iterator_stop(iter)
     ENDIF
+
+    ! allocate matrix_U0
+    CALL cp_dbcsr_init(pao%matrix_U0)
+    CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
+    CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
+
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
+       CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_H, found=found)
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=arow, col=acol, block=block_N, found=found)
+       CPASSERT(ASSOCIATED(block_H) .AND. ASSOCIATED(block_N))
+       block_U0 = MATMUL(MATMUL(block_N,block_H),block_N)  ! transform H into orthonormal basis
+       ALLOCATE(evals(SIZE(block_H,1)))
+       CALL diamat_all(block_U0, evals)
+       DEALLOCATE(evals)
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_exp

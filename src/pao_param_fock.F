@@ -9,23 +9,19 @@
 ! *****************************************************************************
 MODULE pao_param_fock
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_type
+       cp_dbcsr_reserve_diag_blocks
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE pao_types,                       ONLY: pao_env_type
-  USE parallel_rng_types,              ONLY: create_rng_stream,&
-                                             delete_rng_stream,&
-                                             next_random_number,&
-                                             rng_stream_type
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_initial_guess,                ONLY: calculate_atomic_fock_matrix
   USE qs_kind_types,                   ONLY: qs_kind_type
 #include "./base/base_uses.f90"
 
@@ -51,12 +47,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_fock', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: acol, arow, handle
+    LOGICAL                                  :: found
+    REAL(dp), DIMENSION(:), POINTER          :: evals
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_H0, block_N, block_U0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -66,18 +65,42 @@ CONTAINS
 
     CALL get_qs_env(qs_env,&
                     matrix_s=matrix_s,&
-                    dft_control=dft_control,&
                     particle_set=particle_set,&
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set)
 
-    IF(dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
+    ! allocate matrix_H0
+    CALL cp_dbcsr_init(pao%matrix_H0)
+    CALL cp_dbcsr_create(pao%matrix_H0, template=matrix_s(1)%matrix)
+    CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_H0)
 
-    ! fill U0 with random noise
+    ! calculate inital atomic fock matrix H0
+    ! Can't use matrix_ks from ls_scf_qs_atomic_guess(), it's not rotationally invariant
+    ! getting H0 directly from the atomic code
+    CALL calculate_atomic_fock_matrix(pao%matrix_H0,&
+                                      particle_set,&
+                                      atomic_kind_set,&
+                                      qs_kind_set,&
+                                      output_unit=pao%iw)
+
+    ! allocate matrix_U0
     CALL cp_dbcsr_init(pao%matrix_U0)
     CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
     CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
-    CALL fill_randomly(pao%matrix_U0, pao%random_seed)
+
+    ! fill U0 with eigenvalues from H0
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=arow, col=acol, block=block_H0, found=found)
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=arow, col=acol, block=block_N, found=found)
+       CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_N))
+       block_U0 = MATMUL(MATMUL(block_N,block_H0),block_N) ! transform H0 into orthonormal basis
+       ALLOCATE(evals(SIZE(block_H0,1)))
+       CALL diamat_all(block_U0, evals)
+       DEALLOCATE(evals)
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_fock
@@ -93,6 +116,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_fock', &
       routineP = moduleN//':'//routineN
 
+    CALL cp_dbcsr_release(pao%matrix_H0)
     CALL cp_dbcsr_release(pao%matrix_U0)
 
   END SUBROUTINE pao_param_finalize_fock
@@ -119,17 +143,22 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, k, m, n
     LOGICAL                                  :: found
-    REAL(dp)                                 :: denom, invsqrt, nom
-    REAL(dp), DIMENSION(:), POINTER          :: V_evals, W_evals
-    REAL(dp), DIMENSION(:, :), POINTER       :: C, D4, D8, M2, M3, M4, M5, &
-                                                M6, M7, P, U0, V_evecs, W, &
-                                                W_evecs, Y, Z
+    REAL(dp)                                 :: denom, invsqrt, mu, nom, occ
+    REAL(dp), DIMENSION(:), POINTER          :: H_evals, W_evals
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_N, C, D4, D8, H, H0, &
+                                                H_evecs, M2, M3, M4, M5, M6, &
+                                                M7, M8, P, U0, W, W_evecs, Y, &
+                                                Z
     REAL(KIND=dp)                            :: delta, poly, res, W_average
 
     CALL timeset(routineN,handle)
 
+    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=H0, found=found)
+    CPASSERT(ASSOCIATED(H0))
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=U0, found=found)
     CPASSERT(ASSOCIATED(U0))
+    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
+    CPASSERT(ASSOCIATED(block_N))
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=Y, found=found)
     CPASSERT(ASSOCIATED(Y))
 
@@ -138,15 +167,21 @@ CONTAINS
     m = SIZE(Y, 2)
     IF(SIZE(Y, 1) /= n) CPABORT("strange size of block Y")
 
-    ! calculate P = sign(V)
-    ALLOCATE(V_evals(n), V_evecs(n,n), P(n,n))
-    V_evecs = V
-    CALL diamat_all(V_evecs, V_evals)
+    ! calculate H in the orthonormal basis
+    ALLOCATE(H(n,n))
+    H = MATMUL(MATMUL(block_N, H0 + V), block_N)
+
+    ! calculate P = 0.5*(I - sign[H - mu*I])
+    ALLOCATE(H_evals(n), H_evecs(n,n), P(n,n))
+    H_evecs = H
+    CALL diamat_all(H_evecs, H_evals)
+    mu = 0.5_dp * (H_evals(m) + H_evals(m+1)) ! chemical pot. determined by pao basis size
     P(:,:) = 0.0_dp
-    DO k=1, m ! First m states have occupation 1, remaining have 0 .
+    DO k=1, n
+       occ = occupation(H_evals(k), mu)
        DO i=1, n
           DO j=1, n
-             P(i,j) = P(i,j) + V_evecs(i,k)*V_evecs(j,k)
+             P(i,j) = P(i,j) + occ*H_evecs(i,k)*H_evecs(j,k)
           ENDDO
        ENDDO
     ENDDO
@@ -230,38 +265,54 @@ CONTAINS
        ALLOCATE(M7(n,n))
        M7 = MATMUL(MATMUL(M6, TRANSPOSE(Y)), TRANSPOSE(U0))
 
-       ! dP / dV
-       ALLOCATE(D8(n,n))
+       ! dP / dH
+       ALLOCATE(D8(n,n), M8(n,n))
        DO i=1, n
           DO j=1, n
              IF(i==j) THEN
-                  D8(i,i) = 0.0 ! derivative of step-function
+                D8(i,i) = 0.0 ! derivative of step-function
              ELSE
-                 nom = 0.0_dp
-                 IF(i<=m) nom = nom + 1.0_dp
-                 IF(j<=m) nom = nom - 1.0_dp
-                 denom = V_evals(i) - V_evals(j)
-                 IF(nom==0.0_dp) THEN ! avoid division by zero if denom==0 too.
-                    D8(i,j) = 0.0_dp
-                 ELSE
-                    D8(i,j) = nom / denom
-                 ENDIF
+                nom = occupation(H_evals(i),mu) - occupation(H_evals(j),mu)
+                denom = H_evals(i) - H_evals(j)
+                IF(nom==0.0_dp) THEN ! avoid division by zero if denom==0 too.
+                   D8(i,j) = 0.0_dp
+                ELSE
+                   D8(i,j) = nom / denom
+                ENDIF
              ENDIF
           ENDDO
        ENDDO
+       M8 = fold_derivatives(M7, D8, H_evecs, +1)
 
-       ! the final gradient
-       G = fold_derivatives(M7, D8, V_evecs, +1)
+       ! dH / dV
+       G = MATMUL(MATMUL(block_N, M8), block_N) ! the final gradient
 
-       DEALLOCATE(M2, M3, M4, M5, M6, M7)
+       DEALLOCATE(M2, M3, M4, M5, M6, M7, M8)
        DEALLOCATE(D4, D8)
     ENDIF
 
-    DEALLOCATE(V_evals, V_evecs, W_evals, W_evecs)
-    DEALLOCATE(Z, P, C, W)
+    DEALLOCATE(H_evals, H_evecs, W_evals, W_evecs)
+    DEALLOCATE(H, Z, P, C, W)
 
     CALL timestop(handle)
   END SUBROUTINE pao_calc_U_fock
+
+
+! *****************************************************************************
+!> \brief Step-function, ie. fermi-distribution at zero temperature
+!> \param energy energy of state
+!> \param mu chemical potential
+!> \retval occ occupation of state
+! *****************************************************************************
+  FUNCTION occupation(energy, mu) RESULT(occ)
+    REAL(dp)                                 :: energy, mu, occ
+
+    IF(energy < mu) THEN
+      occ = 1.0_dp
+    ELSE
+      occ = 0.0_dp
+    ENDIF
+  END FUNCTION
 
 
 ! *****************************************************************************
@@ -301,47 +352,5 @@ CONTAINS
 
      DEALLOCATE(RM, RMR, F, RF, RFR)
   END FUNCTION fold_derivatives
-
-
-! *****************************************************************************
-!> \brief Fills a DBCSR matrix with random noise.
-!> \param matrix ...
-!> \param seed ...
-! *****************************************************************************
-  SUBROUTINE fill_randomly(matrix, seed)
-    TYPE(cp_dbcsr_type)                      :: matrix
-    INTEGER                                  :: seed
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fill_randomly', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: acol, arow, handle, i, j
-    REAL(dp), DIMENSION(:, :), POINTER       :: block
-    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
-    TYPE(cp_dbcsr_iterator)                  :: iter
-    TYPE(rng_stream_type), POINTER           :: rng_stream
-
-    NULLIFY(rng_stream)
-    CALL timeset(routineN,handle)
-
-    CALL cp_dbcsr_iterator_start(iter, matrix)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block)
-       ! a "unique" reproducible seed for each block
-       initial_seed(1,:) = REAL(seed*arow,KIND=dp)
-       initial_seed(2,:) = REAL(seed*acol,KIND=dp)
-       initial_seed(3,:) = REAL(seed*SIZE(block),KIND=dp)
-       CALL create_rng_stream(rng_stream, seed=initial_seed, name="pao")
-       DO i=1, SIZE(block, 1)
-          DO j=1, SIZE(block, 2)
-             block(i,j) = next_random_number(rng_stream)
-          ENDDO
-       ENDDO
-       CALL delete_rng_stream(rng_stream)
-    END DO
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    CALL timestop(handle)
-  END SUBROUTINE fill_randomly
 
 END MODULE pao_param_fock

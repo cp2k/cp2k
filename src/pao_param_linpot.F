@@ -59,10 +59,10 @@ CONTAINS
                                                 nterms
     INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_H, block_V_term, block_X
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, block_X
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,handle)
@@ -70,7 +70,6 @@ CONTAINS
 
     CALL get_qs_env(qs_env,&
                     matrix_s=matrix_s,&
-                    matrix_ks=matrix_ks,&
                     dft_control=dft_control,&
                     natom=natoms)
 
@@ -112,15 +111,13 @@ CONTAINS
        DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
           CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_term)
           CALL cp_dbcsr_get_block_p(matrix=pao%matrix_X, row=arow, col=acol, block=block_X, found=found)
-          CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_H, found=found)
-          CPASSERT(ASSOCIATED(block_X) .AND. ASSOCIATED(block_H))
+          CPASSERT(ASSOCIATED(block_X))
           IF(arow /= acol) CPABORT("encountered off-diagonal block")
           iatom = arow
           CALL linpot_count_terms(pao, qs_env, iatom, nterms)
           IF(kterm <= nterms) THEN
             CALL linpot_calc_term(pao, qs_env, iatom, kterm, block_V_term)
             block_V_term = block_V_term / SQRT(SUM(block_V_term*block_V_term))
-            block_X(kterm,1) = SUM(block_V_term * block_H) ! seems like a good initial guess
           ENDIF
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
