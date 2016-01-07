@@ -17,7 +17,8 @@ trap 'error_handler ${LINENO}' ERR
 # default settings
 enable_tsan=false
 mpichoice=mpich
-mpich_ver=3.1.2
+#mpich_ver=3.1.2
+mpich_ver=3.2
 openmpi_ver=1.8.6
 openblas_ver=0.2.15
 scalapack_ver=2.0.2
@@ -820,7 +821,7 @@ LIBS="${LIBS} -lstdc++ "
 # we always want good line information and backtraces
 BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
 #For gcc 6.0 use -O1 -coverage -fkeep-static-functions -D__NO_ABORT
-BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -ffast-math))"
+BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -funroll-loops -ffast-math))"
 # those flags that do not influence code generation are used always, the others if debug
 FCDEBFLAGS="IF_DEBUG(-fsanitize=leak -fcheck='bounds,do,recursion,pointer' -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math,) -std=f2003 -fimplicit-none "
 DFLAGS="${DFLAGS} IF_DEBUG(-D__HAS_IEEE_EXCEPTIONS,)"
