@@ -4,7 +4,7 @@
 !-----------------------------------------------------------------------------!
 
 ! *****************************************************************************
-!> \brief Routines for reading and writting restart files.
+!> \brief Routines for reading and writing restart files.
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE pao_io
@@ -266,7 +266,7 @@ CONTAINS
     unit_max = unit_nr
     CALL mp_max(unit_max, para_env%group)
     IF(unit_max>0) THEN
-       IF(pao%iw>0) WRITE(pao%iw,'(A,A)') " PAO| Writting restart file."
+       IF(pao%iw>0) WRITE(pao%iw,'(A,A)') " PAO| Writing restart file."
        IF(unit_nr>0)&
           CALL write_restart_header(pao, qs_env, energy, unit_nr)
 
