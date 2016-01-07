@@ -919,13 +919,15 @@ CONTAINS
 
       ! check on max SCF or timing/exit
       CALL external_control(should_stop,"SCF",start_time=qs_env%start_time,target_time=qs_env%target_time)
-      IF (do_transport .AND. transport_env%params%method .EQ. transport_transmission) THEN
-         maxscf_reached = should_stop .OR. iscf>=ls_scf_env%max_scf
-         IF (transm_maxscf_reached) THEN 
-            IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
-            EXIT
+      IF (do_transport) THEN 
+         IF (transport_env%params%method .EQ. transport_transmission) THEN
+            maxscf_reached = should_stop .OR. iscf>=ls_scf_env%max_scf
+            IF (transm_maxscf_reached) THEN 
+               IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
+               EXIT
+            END IF
+            transm_maxscf_reached = maxscf_reached
          END IF
-         transm_maxscf_reached = maxscf_reached
       ELSE
          IF (should_stop .OR. iscf>=ls_scf_env%max_scf) THEN
             IF (unit_nr>0) WRITE(unit_nr,'(T2,A)') "SCF not converged! "
@@ -1094,10 +1096,12 @@ CONTAINS
          CALL m_flush(unit_nr)
       ENDIF
 
-      IF (do_transport .AND. transport_env%params%method .EQ. transport_transmission) THEN
-         scf_converged = check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total
-         IF (transm_scf_converged) EXIT
-         transm_scf_converged = scf_converged
+      IF (do_transport) THEN 
+         IF (transport_env%params%method .EQ. transport_transmission) THEN
+            scf_converged = check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total
+            IF (transm_scf_converged) EXIT
+            transm_scf_converged = scf_converged
+         END IF
       ELSE 
          ! exit criterium on the energy only for the time being
          IF (check_convergence.AND.ABS(energy_diff)<ls_scf_env%eps_scf*ls_scf_env%nelectron_total) EXIT
