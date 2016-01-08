@@ -279,7 +279,8 @@ CONTAINS
           NULLIFY(block_X)
           CALL cp_dbcsr_get_block_p(matrix=pao%matrix_X, row=iatom, col=iatom, block=block_X, found=found)
           IF(ASSOCIATED(block_X)) THEN
-             buffer = block_X
+             IF(SIZE(block_X) > 0) & ! corner-case of zero pao parameters
+               buffer(:,:) = block_X(:,:)
           ELSE
              buffer(:,:) = 0.0_dp
           ENDIF

@@ -22,6 +22,7 @@ QS/regtest-admm-qps                                         libint
 QS/regtest-rtp-3
 QS/regtest-ot
 QS/regtest-pao-2
+QS/regtest-pao-3
 QS/regtest-kp-1
 QS/regtest-gpw-3
 QS/regtest-dft-vdw-corr-3                                   libxc 

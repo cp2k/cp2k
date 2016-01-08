@@ -19,16 +19,8 @@
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        EPS_PAO    5.0E-7
-        MAX_PAO    3000
+        MAX_PAO    1
         PARAMETERIZATION FOCK
-        &LINE_SEARCH
-          METHOD ADAPT
-        &END LINE_SEARCH
-        &PRINT
-          &RESTART ON
-          &END RESTART
-        &END PRINT
       &END PAO
     &END
     &XC
@@ -56,6 +48,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT He
+  PROJECT He_pao_initguess_fock
   RUN_TYPE ENERGY
 &END GLOBAL

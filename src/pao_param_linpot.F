@@ -173,23 +173,20 @@ CONTAINS
 
     INTEGER                                  :: handle, kterm, N, nterms
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:), POINTER          :: vec_G, vec_X
     REAL(dp), DIMENSION(:, :), POINTER       :: block_M2, block_V, &
                                                 block_V_term
 
     CALL timeset(routineN,handle)
     N = SIZE(block_U, 1)
     nterms = SIZE(block_X)
-    ALLOCATE(block_V(N,N), vec_X(nterms))
-
-    vec_X = block_X(:, 1)
+    ALLOCATE(block_V(N,N))
 
     ! calc block_V
     block_V(:,:) = 0.0_dp
     DO kterm=1, nterms
        CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms(kterm), row=iatom, col=iatom, block=block_V_term, found=found)
        CPASSERT(ASSOCIATED(block_V_term))
-       block_V = block_V + vec_X(kterm) * block_V_term
+       block_V = block_V + block_X(kterm,1) * block_V_term
     ENDDO
 
     IF(MAXVAL(ABS(block_V-TRANSPOSE(block_V))/MAX(1.0_dp,MAXVAL(ABS(block_V)))) > 1e-12)&
@@ -202,21 +199,19 @@ CONTAINS
     ELSE  ! TURNING POINT (if calc grad) --------------------------------------
 
        CPASSERT(PRESENT(block_M1))
-       ALLOCATE(block_M2(N,N), vec_G(nterms))
+       ALLOCATE(block_M2(N,N))
        CALL pao_calc_U_fock(pao, iatom, block_V, block_U, block_M1, block_M2)
 
        DO kterm=1, nterms
           CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms(kterm), row=iatom, col=iatom, block=block_V_term, found=found)
           CPASSERT(ASSOCIATED(block_V_term))
-          vec_G(kterm) = SUM(block_V_term * block_M2)
+          block_G(kterm,1) = SUM(block_V_term * block_M2)
        ENDDO
 
-       block_G(:,1) = vec_G
-
-       DEALLOCATE(block_M2, vec_G)
+       DEALLOCATE(block_M2)
     ENDIF
 
-    DEALLOCATE(block_V, vec_X)
+    DEALLOCATE(block_V)
     CALL timestop(handle)
 
   END SUBROUTINE pao_calc_U_linpot

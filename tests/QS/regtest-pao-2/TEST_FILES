@@ -10,5 +10,4 @@ H2O_pao_eq_prim.inp               11     3e-09    -17.202700812326320
 H2O_ref2.inp                      11     9e-14    -17.202822380853704
 H2O_pao_rotinv_restart.inp        11     5e-07    -17.202822380853704
 H2O_pao_check_grad.inp             0
-He_fock.inp                       11     1e-8      -2.889333021586907
 #EOF
