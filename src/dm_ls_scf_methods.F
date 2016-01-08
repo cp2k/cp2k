@@ -642,10 +642,14 @@ CONTAINS
                                                          min_eig, max_eig," converged: ",arnoldi_converged
     eps_max = max_eig
     eps_min = min_eig
-    
+
     ! scale KS matrix
-    CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max)
-    CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+    IF (eps_max == eps_min) THEN
+      CALL cp_dbcsr_scale(matrix_x,  1.0_dp/eps_max)
+    ELSE 
+      CALL cp_dbcsr_add_on_diag(matrix_x, -eps_max)
+      CALL cp_dbcsr_scale(matrix_x, -1.0_dp/(eps_max-eps_min))
+    ENDIF
 
     current_threshold = threshold
     IF (do_dyn_threshold) THEN
