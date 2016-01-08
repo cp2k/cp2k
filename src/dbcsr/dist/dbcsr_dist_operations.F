@@ -504,7 +504,7 @@ CONTAINS
     IF (dbcsr_distribution_has_col_clusters(dist_normal)) THEN
        nclusters = npcols_tr*dbcsr_distribution_num_local_col_clusters (dist_normal)
        ALLOCATE(img_data(nrows_tr))
-       img_data(:) = MOD(dbcsr_distribution_col_clusters (dist_normal),&
+       img_data(:) = MOD(dbcsr_distribution_col_clusters (dist_normal)-1,&
             dbcsr_distribution_num_local_col_clusters (dist_normal))+1
        ALLOCATE(img_data_tr(nrows_tr))
        CALL rebin_imaged_distribution (row_dist_data_tr, img_data_tr,&
@@ -533,7 +533,7 @@ CONTAINS
     IF (dbcsr_distribution_has_row_clusters(dist_normal)) THEN
        nclusters = nprows_tr*dbcsr_distribution_num_local_row_clusters (dist_normal)
        ALLOCATE(img_data(ncols_tr))
-       img_data(:) = MOD(dbcsr_distribution_row_clusters (dist_normal),&
+       img_data(:) = MOD(dbcsr_distribution_row_clusters (dist_normal)-1,&
             dbcsr_distribution_num_local_row_clusters (dist_normal))+1
        ALLOCATE(img_data_tr(ncols_tr))
        CALL rebin_imaged_distribution (col_dist_data_tr, img_data_tr,&
