@@ -228,8 +228,10 @@ CONTAINS
           END DO
 
           DO ia = 1,na
+             ! polar angle: pol = acos(r(3))
              cosia = lebedev_grid(ll)%r(3,ia)
              grid_atom%cos_pol(ia) = cosia
+             ! azimuthal angle: pol = atan(r(2)/r(1))
              IF ( ABS(lebedev_grid(ll)%r(2,ia)) < EPSILON(1.0_dp) .AND. &
                   ABS(lebedev_grid(ll)%r(1,ia)) < EPSILON(1.0_dp) ) THEN
                 grid_atom%azi(ia) = 0.0_dp

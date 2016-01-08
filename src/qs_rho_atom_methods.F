@@ -28,7 +28,8 @@ MODULE qs_rho_atom_methods
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
-                                             nsoset
+                                             nsoset,&
+                                             soset
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                              paw_proj_set_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -111,10 +112,11 @@ MODULE qs_rho_atom_methods
 
     INTEGER :: damax_iso_not0_local, dbmax_iso_not0_local, dmax_iso_not0, &
       handle, i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, ir, iset1, iset2, &
-      iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, &
-      j, l, l1, l2, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1, &
-      m1s, m2, m2s, max_iso_not0, max_iso_not0_local, max_s_harm, maxl, &
-      maxso, mepos, n1s, n2s, nr, nset, num_pe, size1, size2
+      iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, isom1, &
+      isom2, istat, j, l, l1, l2, l_iso, l_sub, l_sum, lmax12, &
+      lmax_expansion, lmin12, m1, m1s, m2, m2s, max_iso_not0, &
+      max_iso_not0_local, max_s_harm, maxl, maxso, mepos, n1s, n2s, nr, nset, &
+      num_pe, size1, size2
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dacg_n_list, &
                                                 dbcg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dacg_list, dbcg_list
@@ -322,6 +324,8 @@ MODULE qs_rho_atom_methods
                              l2 = indso(1,iso2)
                              m1 = indso(2,iso1)
                              m2 = indso(2,iso2)
+                             isom1 = soset(l1,-m1)
+                             isom2 = soset(l2,-m2)
 
                              dd(1:nr) = REAL(l1*l2,dp)/grid_atom%rad2(1:nr) &
                                   - 2._dp*REAL(l1,dp)*zet(ipgf2,iset2) &
@@ -364,12 +368,12 @@ MODULE qs_rho_atom_methods
                              rho_atom_set(iatom)%trho_rad_h(3,i)%r_coef(1:nr,iso) =&
                                   rho_atom_set(iatom)%trho_rad_h(3,i)%r_coef(1:nr,iso) +&
                                   0.5_dp*REAL(m1*m2,dp)*gg(1:nr,l)*CPCH_sphere(iso1,iso2)*&
-                                  my_CG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
+                                  my_CG(isom1,isom2,iso)/grid_atom%rad2(1:nr)
 
                              rho_atom_set(iatom)%trho_rad_s(3,i)%r_coef(1:nr,iso) =&
                                   rho_atom_set(iatom)%trho_rad_s(3,i)%r_coef(1:nr,iso) +&
                                   0.5_dp*REAL(m1*m2,dp)*gg(1:nr,l)*CPCS_sphere(iso1,iso2)*&
-                                  my_CG(iso1,iso2,iso)/grid_atom%rad2(1:nr)
+                                  my_CG(isom1,isom2,iso)/grid_atom%rad2(1:nr)
 
                           ENDDO  ! icg
 

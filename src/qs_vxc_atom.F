@@ -25,7 +25,8 @@ MODULE qs_vxc_atom
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
-                                             nsoset
+                                             nsoset,&
+                                             soset
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -886,19 +887,19 @@ CONTAINS
           tau_h(ia,ispin) = tau_h(ia,ispin) + &
                             trho_h(1,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
           tau_h(ia,ispin) = tau_h(ia,ispin) + &
-            trho_h(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_azi(ia)**2
+                            trho_h(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
           tau_s(ia,ispin) = tau_s(ia,ispin) + &
                             trho_s(1,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
           tau_s(ia,ispin) = tau_s(ia,ispin) + &
-            trho_s(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_azi(ia)**2
+                            trho_s(3,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
         END DO  ! ia
       END DO  ! iso
       DO iso = 1,harmonics%max_iso_not0
         DO ia = 1,na
           tau_h(ia,ispin) = tau_h(ia,ispin) + &
-                            trho_h(2,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
+             trho_h(2,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_azi(ia)**2
           tau_s(ia,ispin) = tau_s(ia,ispin) + &
-                            trho_s(2,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)
+             trho_s(2,ispin)%r_coef(ir,iso)*harmonics%slm(ia,iso)*grid_atom%usin_azi(ia)**2
        END DO  ! ia
      END DO  ! iso
    END DO  ! ispin
@@ -1391,9 +1392,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: dmax_iso_not0_local, handle, ic, icg, ipgf1, ipgf2, iset1, &
-      iset2, iso, iso1, iso2, ispin, l1, l2, lmax12, lmax_expansion, lmin12, &
-      m1, m2, max_iso_not0, max_iso_not0_local, max_s_harm, maxiso, maxl, &
-      maxso, mm1, mm2, n1, n2, na, ngau1, ngau2, nngau1, nr, nset, size1
+      iset2, iso, iso1, iso2, isom1, isom2, ispin, l1, l2, lmax12, &
+      lmax_expansion, lmin12, m1, m2, max_iso_not0, max_iso_not0_local, &
+      max_s_harm, maxiso, maxl, maxso, mm1, mm2, n1, n2, na, ngau1, ngau2, &
+      nngau1, nr, nset, size1
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cg_n_list, dcg_n_list
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cg_list, dcg_list
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
@@ -1515,6 +1517,8 @@ CONTAINS
                        l2 = indso(1,iso2)
                        mm1 = indso(2,iso1)
                        mm2 = indso(2,iso2)
+                       isom1 = soset(l1,-mm1)
+                       isom2 = soset(l2,-mm2)
 
                        IF (l1+l2 > lmax_expansion) CYCLE
 
@@ -1523,18 +1527,10 @@ CONTAINS
                        matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_CG(iso1,iso2,iso)*&
                             DOT_PRODUCT(vts(1:nr,ispin),fgr(1:nr,l1,l2))
                        ! d azimuthal
-! Add a warning here
-!deb
-!IF(mm1*mm2 /= 0) THEN
-!  IF(ABS(indso(2,iso)) .LE. 1) THEN
-!     WRITE(*,*) " PROBLEM ::::: ",l1,mm1,l2,mm2,indso(1,iso),indso(2,iso)
-!  ENDIF
-!ENDIF
-!deb
-                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + REAL(mm1*mm2,dp)*my_CG(iso1,iso2,iso)*&
-                            DOT_PRODUCT(dvth(1:nr,ispin),dgr(1:nr,l1+l2))
-                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + REAL(mm1*mm2,dp)*my_CG(iso1,iso2,iso)*&
-                            DOT_PRODUCT(dvts(1:nr,ispin),dgr(1:nr,l1+l2))
+                       matso_h(iso1,iso2) = matso_h(iso1,iso2) + REAL(mm1*mm2,dp)*my_CG(isom1,isom2,iso)*&
+                            DOT_PRODUCT(vth(1:nr,ispin),dgr(1:nr,l1+l2))
+                       matso_s(iso1,iso2) = matso_s(iso1,iso2) + REAL(mm1*mm2,dp)*my_CG(isom1,isom2,iso)*&
+                            DOT_PRODUCT(vts(1:nr,ispin),dgr(1:nr,l1+l2))
                     END DO
                  END DO
               END IF
@@ -1547,9 +1543,9 @@ CONTAINS
                     l1 = indso(1,iso1)
                     l2 = indso(1,iso2)
                     matso_h(iso1,iso2) = matso_h(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
-                         DOT_PRODUCT(vth(1:nr,ispin),dgr(1:nr,l1+l2))
+                         DOT_PRODUCT(dvth(1:nr,ispin),dgr(1:nr,l1+l2))
                     matso_s(iso1,iso2) = matso_s(iso1,iso2) + my_dCG(iso1,iso2,iso)*&
-                         DOT_PRODUCT(vts(1:nr,ispin),dgr(1:nr,l1+l2))
+                         DOT_PRODUCT(dvts(1:nr,ispin),dgr(1:nr,l1+l2))
                  END DO
               END DO
 
