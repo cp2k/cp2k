@@ -270,6 +270,12 @@ cat << EOF > ${INSTALLDIR}/valgrind.supp
    ...
    fun:SymbolicFactorize
 }
+{
+   BuggyMPICH32
+   Memcheck:Cond
+   ...
+   fun:MPIR_Process_status
+}
 EOF
 
 # now we need these tools and compiler to be in the path
