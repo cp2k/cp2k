@@ -126,14 +126,16 @@ CONTAINS
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
 !> \param iatom ...
+!> \param min_eval ...
 !> \param V ...
 !> \param U ...
 !> \param M1 ...
 !> \param G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_fock(pao, iatom, V, U, M1, G)
+  SUBROUTINE pao_calc_U_fock(pao, iatom, min_eval, V, U, M1, G)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER                                  :: iatom
+    REAL(dp), INTENT(INOUT)                  :: min_eval
     REAL(dp), DIMENSION(:, :), POINTER       :: V, U
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: M1, G
@@ -177,6 +179,7 @@ CONTAINS
     CALL diamat_all(H_evecs, H_evals)
     mu = 0.5_dp * (H_evals(m) + H_evals(m+1)) ! chemical pot. determined by pao basis size
     P(:,:) = 0.0_dp
+    ! fill projectors
     DO k=1, n
        occ = occupation(H_evals(k), mu)
        DO i=1, n
@@ -187,7 +190,7 @@ CONTAINS
     ENDDO
     IF(MAXVAL(ABS(P-TRANSPOSE(P)))>1e-14_dp) CPABORT("block P not symmetric")
 
-    ! Apply projector P onto random matrix U0
+    ! Apply projector P onto initial vectors matrix U0
     ALLOCATE(C(n,m))
     C = MATMUL(MATMUL(P, U0), Y)
 
@@ -199,6 +202,7 @@ CONTAINS
     ALLOCATE(Z(m,m), W_evals(m), W_evecs(m,m))
     W_evecs = W
     CALL diamat_all(W_evecs, W_evals)
+    min_eval=MIN(min_eval,MINVAL(W_evals))
 
     IF (MINVAL(W_evals)<=0.0_dp) &
        CPABORT("problem with U0 projection")

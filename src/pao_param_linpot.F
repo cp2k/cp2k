@@ -156,14 +156,16 @@ CONTAINS
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
 !> \param iatom ...
+!> \param min_eval ...
 !> \param block_X ...
 !> \param block_U ...
 !> \param block_M1 ...
 !> \param block_G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_linpot(pao, iatom, block_X, block_U, block_M1, block_G)
+  SUBROUTINE pao_calc_U_linpot(pao, iatom, min_eval, block_X, block_U, block_M1, block_G)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER, INTENT(IN)                      :: iatom
+    REAL(KIND=dp), INTENT(INOUT)             :: min_eval
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X, block_U
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: block_M1, block_G
@@ -194,13 +196,13 @@ CONTAINS
     block_V = 0.5_dp*( block_V + TRANSPOSE(block_V) ) ! symmetrize exactly
 
     IF(.NOT. PRESENT(block_G))THEN
-       CALL pao_calc_U_fock(pao, iatom, block_V, block_U)
+       CALL pao_calc_U_fock(pao, iatom, min_eval, block_V, block_U)
 
     ELSE  ! TURNING POINT (if calc grad) --------------------------------------
 
        CPASSERT(PRESENT(block_M1))
        ALLOCATE(block_M2(N,N))
-       CALL pao_calc_U_fock(pao, iatom, block_V, block_U, block_M1, block_M2)
+       CALL pao_calc_U_fock(pao, iatom, min_eval, block_V, block_U, block_M1, block_M2)
 
        DO kterm=1, nterms
           CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms(kterm), row=iatom, col=iatom, block=block_V_term, found=found)
