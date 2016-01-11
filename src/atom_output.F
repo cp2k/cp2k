@@ -17,9 +17,10 @@ MODULE atom_output
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE input_constants,                 ONLY: &
-       do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
-       do_dkh5_atom, do_nonrel_atom, do_rhf_atom, do_rks_atom, do_rohf_atom, &
-       do_sczoramp_atom, do_uhf_atom, do_uks_atom, do_zoramp_atom, xc_none
+       barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
+       do_dkh4_atom, do_dkh5_atom, do_nonrel_atom, do_rhf_atom, do_rks_atom, &
+       do_rohf_atom, do_sczoramp_atom, do_uhf_atom, do_uks_atom, &
+       do_zoramp_atom, poly_conf, xc_none
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
@@ -640,8 +641,19 @@ CONTAINS
         CPABORT("")
     END SELECT
     IF (potential%confinement) THEN
-      WRITE(iw,'(/,T10,A,T51,F12.6," * (R /",F6.2,")**",F6.2)') &
-        " Confinement Potential ",potential%acon,potential%rcon,potential%scon
+      IF (potential%conf_type == poly_conf) THEN
+        WRITE(iw,'(/,T10,A,T51,F12.6," * (R /",F6.2,")**",F6.2)') &
+          " Confinement Potential ",potential%acon,potential%rcon,potential%scon
+      ELSE IF (potential%conf_type == barrier_conf) THEN
+        WRITE(iw,'(/,T10,A)') " Confinement Potential s*F[(r-ron)/w] "
+        WRITE(iw,'(T57,A,F12.6,A)') "s     =",potential%acon,"   Ha"
+        WRITE(iw,'(T57,A,F12.6,A)') "w     =",potential%rcon," Bohr"
+        WRITE(iw,'(T57,A,F12.6,A)') "ron   =",potential%scon," Bohr"
+      ELSE
+        CPABORT("")
+      END IF
+    ELSE
+      WRITE(iw,'(/,T10,A)') " No Confinement Potential is applied "
     END IF
     WRITE(iw,'(" ",79("*"))')
 

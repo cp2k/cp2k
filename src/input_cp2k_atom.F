@@ -15,12 +15,12 @@ MODULE input_cp2k_atom
                                              silent_print_level
   USE input_constants,                 ONLY: &
        atom_basis_run, atom_energy_run, atom_no_run, atom_pseudo_run, &
-       contracted_gto, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, &
-       do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, do_gapw_gct, &
-       do_gapw_log, do_nonrel_atom, do_numeric, do_rhf_atom, do_rks_atom, &
-       do_rohf_atom, do_sczoramp_atom, do_semi_analytic, do_uhf_atom, &
-       do_uks_atom, do_zoramp_atom, gaussian, geometrical_gto, gth_pseudo, &
-       no_pseudo, numerical, slater
+       barrier_conf, contracted_gto, do_analytic, do_dkh0_atom, do_dkh1_atom, &
+       do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, &
+       do_gapw_gct, do_gapw_log, do_nonrel_atom, do_numeric, do_rhf_atom, &
+       do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
+       do_uhf_atom, do_uks_atom, do_zoramp_atom, gaussian, geometrical_gto, &
+       gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, slater
   USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -793,10 +793,25 @@ CONTAINS
          description="Section of information on potential.",&
          n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
+    CALL keyword_create(keyword, name="CONFINEMENT_TYPE",&
+         description="Define functional form of confinement potential.",&
+         usage="CONFINEMENT_TYPE (NONE|POLYNOM|BARRIER)",&
+         default_i_val=poly_conf,&
+         enum_c_vals=(/"NONE                     ",&
+                       "POLYNOM                  ",&
+                       "BARRIER                  "/),&
+         enum_i_vals= (/ no_conf, poly_conf, barrier_conf /),&
+         enum_desc=s2a("Do not use confinement potential",&
+                       "Use polynomial confinement potential: a*R^b",&
+                       "Use a smooth barrier potential: a*F[r-ron)/w]"))
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL keyword_create(keyword, name="CONFINEMENT",&
-         description="Definition of confinement potential",&
-         usage="CONFINEMENT prefactor range exponent", &
-         default_r_vals=(/ 0._dp, 4._dp, 2._dp /),&
+         description="Definition of parameters for confinement potential",&
+         usage="CONFINEMENT prefactor range exponent (POLYNOM)"//&
+               "CONFINEMENT prefactor range r_onset (BARRIER)", &
+         default_r_vals=(/ 0._dp, 0._dp, 0._dp /),&
          repeats=.FALSE., n_var=-1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)

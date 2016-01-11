@@ -31,7 +31,8 @@ MODULE atom_pseudo
                                              cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE input_constants,                 ONLY: do_analytic
+  USE input_constants,                 ONLY: do_analytic,&
+                                             poly_conf
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -132,11 +133,13 @@ CONTAINS
     IF ( .NOT.p_pot%confinement .AND. .NOT.ae_pot%confinement ) THEN
       !set default confinement potential
       p_pot%confinement = .TRUE.
+      p_pot%conf_type = poly_conf
       p_pot%scon = 2.0_dp
       p_pot%acon = 0.5_dp
       ! this seems to be the default in the old code
       p_pot%rcon = (2._dp*ptable(zval)%covalent_radius*bohr)**2
       ae_pot%confinement = .TRUE.
+      ae_pot%conf_type = poly_conf
       ae_pot%scon = 2.0_dp
       ae_pot%acon = 0.5_dp
       ! this seems to be the default in the old code

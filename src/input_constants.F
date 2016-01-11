@@ -164,6 +164,10 @@ MODULE input_constants
   ! Pseudopotential type for Atom Code
   INTEGER, PARAMETER, PUBLIC               :: no_pseudo=0,&
                                               gth_pseudo=1
+  ! Confinement type for Atom Code
+  INTEGER, PARAMETER, PUBLIC               :: no_conf=0,&
+                                              poly_conf=1,&
+                                              barrier_conf=2
   ! BAND
   INTEGER, PARAMETER, PUBLIC               :: do_b_neb=0,&
                                               do_it_neb=1,&

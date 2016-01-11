@@ -27,8 +27,9 @@ MODULE atom_operators
   USE dkh_main,                        ONLY: dkh_atom_transformation
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: &
-       do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, &
-       do_dkh5_atom, do_nonrel_atom, do_sczoramp_atom, do_zoramp_atom
+       barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
+       do_dkh4_atom, do_dkh5_atom, do_nonrel_atom, do_sczoramp_atom, &
+       do_zoramp_atom, poly_conf
   USE kinds,                           ONLY: dp
   USE lapack,                          ONLY: lapack_sgesv
   USE mathconstants,                   ONLY: gamma1,&
@@ -77,7 +78,7 @@ CONTAINS
                                                 ipiv(1000), l, l1, l2, ll, &
                                                 lwork, m, m1, m2, mm1, mm2, &
                                                 n, n1, n2, nn1, nn2, nu, nx
-    REAL(KIND=dp)                            :: rc, sc
+    REAL(KIND=dp)                            :: om, rc, ron, sc, x
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cpot, w, work
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: omat, vmat
@@ -124,9 +125,28 @@ CONTAINS
           integrals%conf = 0._dp
           m = basis%grid%nr
           ALLOCATE (cpot(1:m))
-          rc = potential%rcon
-          sc = potential%scon
-          cpot(1:m) = (basis%grid%rad(1:m)/rc)**sc
+          IF ( potential%conf_type == poly_conf ) THEN
+             rc = potential%rcon
+             sc = potential%scon
+             cpot(1:m) = (basis%grid%rad(1:m)/rc)**sc
+          ELSEIF ( potential%conf_type == barrier_conf ) THEN
+             om = potential%rcon
+             ron = potential%scon
+             rc = ron+om
+             DO i=1,m
+                IF(basis%grid%rad(i) < ron) THEN
+                   cpot(i) = 0.0_dp
+                ELSEIF(basis%grid%rad(i) < rc) THEN
+                   x = (basis%grid%rad(i) - ron)/om
+                   x = 1._dp - x
+                   cpot(i) = -6._dp*x**5 + 15._dp*x**4-10._dp*x**3+1._dp
+                ELSE
+                   cpot(i) = 1.0_dp
+                END IF
+             END DO
+          ELSE
+             CPABORT("")
+          END IF
           CALL numpot_matrix(integrals%conf,cpot,basis,0)
           DEALLOCATE (cpot)
         END IF

@@ -40,6 +40,7 @@
     0.38059720     2   -15.53165455    13.58045054
                                       -15.39878349
     &END 
+    CONFINEMENT_TYPE POLYNOM
     CONFINEMENT   0.5  20.00  4.5
   &END POTENTIAL
   &POWELL

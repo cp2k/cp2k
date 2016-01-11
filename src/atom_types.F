@@ -20,10 +20,13 @@ MODULE atom_types
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE input_constants,                 ONLY: contracted_gto,&
+  USE input_constants,                 ONLY: barrier_conf,&
+                                             contracted_gto,&
                                              gaussian,&
                                              geometrical_gto,&
+                                             no_conf,&
                                              numerical,&
+                                             poly_conf,&
                                              slater
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -115,6 +118,7 @@ MODULE atom_types
   TYPE atom_potential_type
     INTEGER                                       :: ppot_type
     LOGICAL                                       :: confinement
+    INTEGER                                       :: conf_type
     REAL(dp)                                      :: acon
     REAL(dp)                                      :: rcon
     REAL(dp)                                      :: scon
@@ -2013,6 +2017,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: pseudo_fn, pseudo_name
+    INTEGER                                  :: ic
     REAL(dp), DIMENSION(:), POINTER          :: convals
     TYPE(section_vals_type), POINTER         :: gth_potential_section
 
@@ -2037,26 +2042,54 @@ CONTAINS
 
     ! confinement
     NULLIFY(convals)
-    CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
-    IF ( SIZE (convals) >= 1 ) THEN
-      IF ( convals(1) > 0.0_dp ) THEN
-        potential%confinement = .TRUE.
-        potential%acon = convals(1)
-        IF ( SIZE (convals) >= 2 ) THEN
-          potential%rcon = convals(2)
-        ELSE
-          potential%rcon = 4.0_dp
-        END IF
-        IF ( SIZE (convals) >= 3 ) THEN
-          potential%scon = convals(3)
-        ELSE
-          potential%scon = 2.0_dp
-        END IF
-      ELSE
-        potential%confinement = .FALSE.
-      END IF
-    ELSE
-      potential%confinement = .FALSE.
+    CALL section_vals_val_get(potential_section,"CONFINEMENT_TYPE",i_val=ic)
+    potential%conf_type = ic
+    IF(potential%conf_type==no_conf) THEN
+       potential%acon = 0.0_dp
+       potential%rcon = 4.0_dp
+       potential%scon = 2.0_dp
+       potential%confinement = .FALSE.
+    ELSE IF(potential%conf_type==poly_conf) THEN
+       CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
+       IF ( SIZE (convals) >= 1 ) THEN
+         IF ( convals(1) > 0.0_dp ) THEN
+           potential%confinement = .TRUE.
+           potential%acon = convals(1)
+           IF ( SIZE (convals) >= 2 ) THEN
+             potential%rcon = convals(2)
+           ELSE
+             potential%rcon = 4.0_dp
+           END IF
+           IF ( SIZE (convals) >= 3 ) THEN
+             potential%scon = convals(3)
+           ELSE
+             potential%scon = 2.0_dp
+           END IF
+         ELSE
+           potential%confinement = .FALSE.
+         END IF
+       ELSE
+         potential%confinement = .FALSE.
+       END IF
+    ELSE IF(potential%conf_type==barrier_conf) THEN
+       potential%acon = 200.0_dp
+       potential%rcon = 4.0_dp
+       potential%scon = 8.0_dp
+       potential%confinement = .TRUE.
+       CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
+       IF ( SIZE (convals) >= 1 ) THEN
+         IF ( convals(1) > 0.0_dp ) THEN
+           potential%acon = convals(1)
+           IF ( SIZE (convals) >= 2 ) THEN
+             potential%rcon = convals(2)
+           END IF
+           IF ( SIZE (convals) >= 3 ) THEN
+             potential%scon = convals(3)
+           END IF
+         ELSE
+           potential%confinement = .FALSE.
+         END IF
+       END IF
     END IF
 
   END SUBROUTINE init_atom_potential

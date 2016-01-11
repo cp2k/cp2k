@@ -34,7 +34,8 @@ MODULE atom_kind_orbitals
        do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
        do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, do_numeric, &
        do_rks_atom, do_sczoramp_atom, do_zoramp_atom, gth_pseudo, no_pseudo, &
-       rel_dkh, rel_none, rel_sczora_mp, rel_zora, rel_zora_full, rel_zora_mp
+       poly_conf, rel_dkh, rel_none, rel_sczora_mp, rel_zora, rel_zora_full, &
+       rel_zora_mp
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
@@ -163,6 +164,7 @@ CONTAINS
       ELSE
          potential%confinement=.TRUE.
       END IF
+      potential%conf_type = poly_conf
       potential%acon=0.1_dp
       potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
       potential%scon=2.0_dp
@@ -575,6 +577,7 @@ CONTAINS
       ELSE
          potential%confinement=.TRUE.
       END IF
+      potential%conf_type=poly_conf
       potential%acon=0.1_dp
       potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
       potential%scon=2.0_dp
@@ -677,6 +680,7 @@ CONTAINS
       ELSE
          potential%confinement=.FALSE.
       END IF
+      potential%conf_type=poly_conf
       potential%acon=0.1_dp
       potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
       potential%scon=2.0_dp
