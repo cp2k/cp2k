@@ -47,7 +47,9 @@ MODULE dbcsr_dist_operations
                                              dbcsr_mp_nprows,&
                                              dbcsr_mp_release
   USE dbcsr_toollib,                   ONLY: gcd,&
-                                             lcm
+                                             lcm,&
+                                             sort,&
+                                             swap
   USE dbcsr_types,                     ONLY: &
        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, dbcsr_mp_obj, &
        dbcsr_obj, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
@@ -476,10 +478,10 @@ CONTAINS
       INTENT(OUT)                            :: dist_tr
     TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_normal
 
-    INTEGER                                  :: nclusters, ncols_tr, &
+    INTEGER                                  :: i, j, nclusters, ncols_tr, &
                                                 npcols_tr, nprows_tr, &
                                                 nrows_tr, vgcd, vlcm
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: img_data, img_data_tr
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: img_data, reorder
     INTEGER, DIMENSION(:), POINTER           :: col_dist_data_tr, &
                                                 col_img_data_tr, &
                                                 row_dist_data_tr, &
@@ -505,18 +507,24 @@ CONTAINS
        nclusters = npcols_tr*dbcsr_distribution_num_local_col_clusters (dist_normal)
        ALLOCATE(img_data(nrows_tr))
        img_data(:) = MOD(dbcsr_distribution_col_clusters (dist_normal)-1,&
-            dbcsr_distribution_num_local_col_clusters (dist_normal))+1
-       ALLOCATE(img_data_tr(nrows_tr))
-       CALL rebin_imaged_distribution (row_dist_data_tr, img_data_tr,&
+            dbcsr_distribution_num_local_col_clusters (dist_normal))
+       CALL rebin_imaged_distribution_clusters (row_dist_data_tr, row_img_data_tr,&
             dbcsr_distribution_col_dist (dist_normal),&
             img_data,&
             nprows_tr,&
             nclusters/gcd(nclusters,npcols_tr),&
-            nclusters/nprows_tr)
-       CALL make_vdistribution (nrows_tr, row_img_data_tr, row_dist_data_tr,&
-            nclusters/nprows_tr, img_data_tr)
-       row_img_data_tr = row_img_data_tr + 1
-       DEALLOCATE(img_data,img_data_tr)
+            nclusters)
+       ! Sort clusters for convenience
+       ALLOCATE(reorder(SIZE(row_img_data_tr)))
+       CALL sort(row_img_data_tr,SIZE(row_img_data_tr),reorder)
+       ! Realign blocks distribution
+       DO i = 1, SIZE(reorder)
+          j = reorder(i)
+          IF (i.GE.j) CYCLE
+          CALL swap(reorder(i),reorder(j))
+          CALL swap(row_dist_data_tr(i),row_dist_data_tr(j))
+       ENDDO
+       DEALLOCATE(img_data,reorder)
     ELSE
        CALL rebin_distribution (row_dist_data_tr, row_img_data_tr,&
             dbcsr_distribution_col_dist (dist_normal),&
@@ -534,18 +542,24 @@ CONTAINS
        nclusters = nprows_tr*dbcsr_distribution_num_local_row_clusters (dist_normal)
        ALLOCATE(img_data(ncols_tr))
        img_data(:) = MOD(dbcsr_distribution_row_clusters (dist_normal)-1,&
-            dbcsr_distribution_num_local_row_clusters (dist_normal))+1
-       ALLOCATE(img_data_tr(ncols_tr))
-       CALL rebin_imaged_distribution (col_dist_data_tr, img_data_tr,&
+            dbcsr_distribution_num_local_row_clusters (dist_normal))
+       CALL rebin_imaged_distribution_clusters (col_dist_data_tr, col_img_data_tr,&
             dbcsr_distribution_row_dist (dist_normal),&
             img_data,&
             npcols_tr,&
             nclusters/gcd(nclusters,nprows_tr),&
-            nclusters/npcols_tr)
-       CALL make_vdistribution (ncols_tr, col_img_data_tr, col_dist_data_tr,&
-            nclusters/npcols_tr, img_data_tr)
-       col_img_data_tr = col_img_data_tr + 1
-       DEALLOCATE(img_data,img_data_tr)
+            nclusters)
+       ! Sort clusters for convenience
+       ALLOCATE(reorder(SIZE(col_img_data_tr)))
+       CALL sort(col_img_data_tr,SIZE(col_img_data_tr),reorder)
+       ! Realign blocks distribution
+       DO i = 1, SIZE(reorder)
+          j = reorder(i)
+          IF (i.GE.j) CYCLE
+          CALL swap(reorder(i),reorder(j))
+          CALL swap(col_dist_data_tr(i),col_dist_data_tr(j))
+       ENDDO
+       DEALLOCATE(img_data,reorder)
     ELSE
        CALL rebin_distribution (col_dist_data_tr, col_img_data_tr,&
             dbcsr_distribution_row_dist (dist_normal),&
@@ -805,6 +819,49 @@ CONTAINS
             routineN, "Wrong image calculation",__LINE__)
     ENDDO
   END SUBROUTINE rebin_imaged_distribution
+
+! *****************************************************************************
+!> \brief ...
+!> \param new_bins ...
+!> \param new_images ...
+!> \param source_bins ...
+!> \param source_images ...
+!> \param nbins ...
+!> \param multiplicity ...
+!> \param nclusters ...
+! *****************************************************************************
+  SUBROUTINE rebin_imaged_distribution_clusters (new_bins, new_images,&
+       source_bins, source_images, nbins, multiplicity, nclusters)
+    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_bins, new_images
+    INTEGER, DIMENSION(:), INTENT(IN)        :: source_bins, source_images
+    INTEGER, INTENT(IN)                      :: nbins, multiplicity, nclusters
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'rebin_imaged_distribution_clusters', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: dim, i, nimages, virtual_bin
+
+!   ---------------------------------------------------------------------------
+
+    dim = SIZE (new_bins)
+    nimages = nclusters/nbins
+    CALL dbcsr_assert (dim.EQ.SIZE(source_bins),&
+         dbcsr_fatal_level, dbcsr_internal_error,&
+         routineN, "Wrong bins array dimension",__LINE__)
+    CALL dbcsr_assert (dim.EQ.SIZE(new_images).AND.dim.EQ.SIZE(source_images),&
+         dbcsr_fatal_level, dbcsr_internal_error,&
+         routineN, "Wrong images array dimensions",__LINE__)
+    DO i = 1, dim
+       virtual_bin = source_bins(i)*multiplicity + source_images(i)
+       new_bins(i) = virtual_bin / nimages
+       new_images(i) = 1 + virtual_bin
+       CALL dbcsr_assert (new_bins(i).lt.nbins, dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Wrong bin calculation",__LINE__)
+       CALL dbcsr_assert (new_images(i).le.nclusters, dbcsr_fatal_level, dbcsr_internal_error,&
+            routineN, "Wrong image calculation",__LINE__)
+    ENDDO
+  END SUBROUTINE rebin_imaged_distribution_clusters
 
 
 ! *****************************************************************************

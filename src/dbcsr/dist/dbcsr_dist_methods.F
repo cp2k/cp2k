@@ -121,6 +121,7 @@ CONTAINS
     CALL array_nullify(dist%d%row_dist_cluster)
     IF (PRESENT(row_dist_cluster)) THEN
        IF (ASSOCIATED(row_dist_cluster)) THEN
+          ! check against the case where there are more clusters than blocks
           IF (SIZE(row_dist_cluster).GE.lcmv) THEN
              row_dist_tmp => row_dist_cluster
              CALL array_new(dist%d%row_dist_cluster, row_dist_tmp, gift=reuse_arrays)
@@ -135,6 +136,7 @@ CONTAINS
     CALL array_nullify(dist%d%col_dist_cluster)
     IF (PRESENT(col_dist_cluster)) THEN
        IF (ASSOCIATED(col_dist_cluster)) THEN
+          ! check against the case where there are more clusters than blocks
           IF (SIZE(col_dist_cluster).GE.lcmv) THEN
              col_dist_tmp => col_dist_cluster
              CALL array_new(dist%d%col_dist_cluster, col_dist_tmp, gift=reuse_arrays)

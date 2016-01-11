@@ -54,8 +54,7 @@ MODULE dbcsr_mm_cannon
        dbcsr_scalar_set_type, dbcsr_scalar_zero
   USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
   USE dbcsr_dist_methods,              ONLY: &
-       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_get_num_images_1d, &
+       dbcsr_distribution_col_dist, dbcsr_distribution_get_num_images_1d, &
        dbcsr_distribution_has_col_clusters, &
        dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_threads, &
        dbcsr_distribution_hold, dbcsr_distribution_local_cols, &
@@ -64,7 +63,7 @@ MODULE dbcsr_mm_cannon
        dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
        dbcsr_distribution_num_local_col_clusters, &
        dbcsr_distribution_num_local_row_clusters, dbcsr_distribution_release, &
-       dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist
+       dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_create_image_dist,&
                                              dbcsr_get_local_vcols,&
                                              dbcsr_get_local_vrows,&
@@ -804,14 +803,6 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_distribution_make_threads (matrix_c%m%dist)
     ELSE
        release_tdist = .FALSE.
-    ENDIF
-
-    ! Check clusters distribution
-    IF (dbcsr_distribution_has_col_clusters(matrix_left%m%dist).AND.&
-        dbcsr_distribution_has_row_clusters(matrix_right%m%dist)) THEN
-       IF(.NOT.array_equality(dbcsr_distribution_col_clusters(matrix_left%m%dist),&
-                              dbcsr_distribution_row_clusters(matrix_right%m%dist)))&
-                              CPABORT("A cols/B rows clusters not equal")
     ENDIF
     !
     ! Compute number of clusters
