@@ -35,7 +35,7 @@ MODULE dbcsr_methods
                                              dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
-       dbcsr_2d_array_type, dbcsr_array_type, dbcsr_data_obj, &
+       dbcsr_1d_array_type, dbcsr_2d_array_type, dbcsr_data_obj, &
        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, &
        dbcsr_imagedistribution_type, dbcsr_memtype_type, dbcsr_mp_obj, &
        dbcsr_mutable_obj, dbcsr_obj, dbcsr_type, dbcsr_type_antihermitian, &
@@ -112,7 +112,7 @@ MODULE dbcsr_methods
   ! For the 1-D and 2-D arrays
 
   INTERFACE dbcsr_destroy_array
-     MODULE PROCEDURE dbcsr_destroy_2d_array, dbcsr_destroy_1d_array
+     MODULE PROCEDURE dbcsr_destroy_1d_array, dbcsr_destroy_2d_array
   END INTERFACE
 
 
@@ -1010,7 +1010,7 @@ CONTAINS
 !> \param[in,out] marray      matrix array
 ! *****************************************************************************
   SUBROUTINE dbcsr_destroy_1d_array(marray)
-    TYPE(dbcsr_array_type), INTENT(INOUT)    :: marray
+    TYPE(dbcsr_1d_array_type), INTENT(INOUT) :: marray
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_destroy_1d_array', &
       routineP = moduleN//':'//routineN
@@ -1022,8 +1022,8 @@ CONTAINS
     DO i = LBOUND(marray%mats,1), UBOUND (marray%mats,1)
        CALL dbcsr_destroy (marray%mats(i),force=.TRUE.)
     ENDDO
+    CALL dbcsr_image_dist_release (marray%image_dist)
     DEALLOCATE (marray%mats)
-    !CALL dbcsr_destroy_image_dist(marray%image_dist)
   END SUBROUTINE dbcsr_destroy_1d_array
 
 

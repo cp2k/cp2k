@@ -2480,8 +2480,7 @@
 #else
     MARK_USED(base)
     MARK_USED(comm)
-    MARK_USED(win)
-    CPABORT("mp_win_create called in non parallel case")
+    win = mp_win_null
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_create_zv
@@ -2497,9 +2496,10 @@
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
-  SUBROUTINE mp_rget_zv(base,source,win,disp,request)
+  SUBROUTINE mp_rget_zv(base,source,win,win_data,disp,request)
     COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: base
     INTEGER, INTENT(IN)                                 :: source, win
+    COMPLEX(kind=real_8), DIMENSION(:), POINTER                      :: win_data
     INTEGER, INTENT(IN), OPTIONAL                       :: disp
     INTEGER, INTENT(OUT)                                :: request
 
@@ -2518,6 +2518,7 @@
 
 #if defined(__parallel)
     t_start = m_walltime ( )
+    MARK_USED(win_data)
 
 #if __MPI_VERSION > 2
     len = SIZE(base)
@@ -2534,7 +2535,7 @@
             len,MPI_DOUBLE_COMPLEX,win,request,ierr)
     ENDIF
 #else
-    request = 0
+    request = mp_request_null
     CPABORT("mp_rget requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_rget @ "//routineN )
@@ -2542,12 +2543,17 @@
     t_end = m_walltime ( )
     CALL add_perf(perf_id=17,count=1,time=t_end-t_start,msg_size=SIZE(base)*(2*real_8_size))
 #else
-    MARK_USED(base)
     MARK_USED(source)
     MARK_USED(win)
-    MARK_USED(disp)
-    MARK_USED(request)
-    CPABORT("mp_rget called in non parallel case")
+
+    request = mp_request_null
+    !
+    IF (PRESENT(disp)) THEN
+       base(:) = win_data(disp+1:disp+SIZE(base))
+    ELSE
+       base(:) = win_data(:SIZE(base))
+    ENDIF
+
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_rget_zv

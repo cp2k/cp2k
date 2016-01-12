@@ -1,3 +1,4 @@
+! *****************************************************************************
 !> \brief Calculates norms of the entire matrix with minimal overhead.
 !> \param norms ...
 !> \param nrows ...
@@ -9,12 +10,10 @@
 !> \param DATA ...
 !> \param local ...
 !> \param local2global ...
-!> \param max_val ...
 ! *****************************************************************************
   SUBROUTINE calc_norms_c(norms, nrows,&
-       row_p, col_i, blk_p, rbs, cbs, DATA, local, local2global,&
-       max_val)
-    REAL(kind=sp), DIMENSION(:), INTENT(OUT), OPTIONAL :: norms
+       row_p, col_i, blk_p, rbs, cbs, DATA, local, local2global)
+    REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
     INTEGER, INTENT(IN)                      :: nrows
     INTEGER, DIMENSION(1:nrows+1), &
       INTENT(IN)                             :: row_p
@@ -23,7 +22,6 @@
       INTENT(IN)                             :: DATA
     LOGICAL, INTENT(IN)                      :: local
     INTEGER, DIMENSION(*), INTENT(IN)        :: local2global
-    REAL(kind=sp), INTENT(OUT)               :: max_val
 
     INTEGER                                  :: blk, bp, bpe, row, row_i, &
                                                 row_size
@@ -31,13 +29,11 @@
 
 !   ---------------------------------------------------------------------------
 
-    max_val = 0
-
     !$omp parallel default(none) &
     !$omp          private (row_i, row, row_size, blk, bp, bpe, val) &
     !$omp          shared (nrows, local) &
     !$omp          shared (local2global, rbs, cbs, row_p, col_i, blk_p, &
-    !$omp                  data, norms) reduction (max:max_val)
+    !$omp                  data, norms)
     !$omp do
     DO row_i = 1, nrows
        IF (local) THEN
@@ -54,14 +50,14 @@
           ELSE
              val = 0.0_sp
           ENDIF
-          IF (PRESENT(norms)) norms(blk) = val
-          max_val = MAX(max_val,val)
+          norms(blk) = val
        ENDDO
     ENDDO
     !$omp end do
     !$omp end parallel
   END SUBROUTINE calc_norms_c
 
+! *****************************************************************************
 !> \brief Calculates norms of the entire matrix with minimal overhead.
 !> \param norms ...
 !> \param nblks ...
@@ -72,12 +68,10 @@
 !> \param local ...
 !> \param local2global_rows ...
 !> \param local2global_cols ...
-!> \param max_val ...
 ! *****************************************************************************
   SUBROUTINE calc_norms_list_c(norms, nblks,&
-       blki, rbs, cbs, DATA, local, local2global_rows, local2global_cols,&
-       max_val)
-    REAL(kind=sp), DIMENSION(:), INTENT(OUT), OPTIONAL :: norms
+       blki, rbs, cbs, DATA, local, local2global_rows, local2global_cols)
+    REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
     INTEGER, INTENT(IN)                      :: nblks
     INTEGER, DIMENSION(3,nblks), INTENT(IN)  :: blki
     INTEGER, DIMENSION(:), INTENT(IN)        :: rbs, cbs
@@ -86,21 +80,17 @@
     LOGICAL, INTENT(IN)                      :: local
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_rows
     INTEGER, DIMENSION(:), INTENT(IN)        :: local2global_cols
-    REAL(kind=sp), INTENT(OUT)               :: max_val
 
     INTEGER                                  :: blk, bp, bpe, row, col
     REAL(kind=sp)                            :: val
 
 !   ---------------------------------------------------------------------------
 
-    max_val = 0
-
     !$omp parallel default(none) &
     !$omp          private (row, col, blk, bp, bpe, val) &
     !$omp          shared (local, nblks) &
     !$omp          shared (rbs, cbs, blki, &
-    !$omp                  data, norms, local2global_rows, local2global_cols) &
-    !$omp          reduction (max:max_val)
+    !$omp                  data, norms, local2global_rows, local2global_cols)
     !$omp do
     DO blk = 1, nblks
        IF (blki(3,blk) .NE. 0) THEN
@@ -117,11 +107,83 @@
        ELSE
           val = 0.0_sp
        ENDIF
-       IF (PRESENT(norms)) norms(blk) = val
-       max_val = MAX(max_val,val)
+       norms(blk) = val
     ENDDO
     !$omp end do
     !$omp end parallel
   END SUBROUTINE calc_norms_list_c
 
+! *****************************************************************************
+!> \brief Calculates norms of the entire matrix with minimal overhead.
+!> \param norms ...
+!> \param nblks ...
+!> \param blki ...
+!> \param rbs ...
+!> \param cbs ...
+!> \param DATA ...
+!> \param local ...
+!> \param local2global_rows ...
+!> \param local2global_cols ...
+!> \param max_val ...
+! *****************************************************************************
 
+  SUBROUTINE calc_max_image_norms_c(meta,DATA,refs,&
+     img_map_rows,img_map_cols,&
+     img_offset_rows,img_offset_cols,&
+     row_blk_size,col_blk_size,&
+     local_rows,local_cols,&
+     max_norms)
+  INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: meta
+  COMPLEX(kind=real_4), DIMENSION(:), &
+       INTENT(IN)                         :: DATA
+  INTEGER, DIMENSION(:, :, :), INTENT(IN) :: refs
+  INTEGER, DIMENSION(:), INTENT(IN)       :: img_map_rows, img_map_cols,&
+                                             img_offset_rows, img_offset_cols, &
+                                             row_blk_size, col_blk_size, &
+                                             local_rows, local_cols
+  REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT) :: max_norms
+
+  INTEGER, DIMENSION(:), POINTER    :: rowi, coli, bps
+  INTEGER                           :: v_ri, v_ci, nblks, blk, bpe
+
+  !$omp parallel default(none) &
+  !$omp          private (v_ri, v_ci, nblks, blk, rowi, coli, bps, bpe) &
+  !$omp          shared (max_norms, data, meta, refs, img_offset_rows,&
+  !$omp                  img_map_rows, img_map_cols,&
+  !$omp                  img_offset_cols, row_blk_size, col_blk_size,&
+  !$omp                  local_rows, local_cols)
+  !$omp do schedule(dynamic) collapse(2)
+  DO v_ri = 1, SIZE(max_norms,1)
+     DO v_ci = 1, SIZE(max_norms,2)
+        IF (refs(imeta_size,v_ri,v_ci).EQ.0) THEN
+           max_norms(v_ri,v_ci) = huge_norm
+        ELSE
+           nblks = meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_slot_nblks)
+           rowi => meta(meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_slot_coo_l)+&
+                refs(imeta_displ,v_ri,v_ci):&
+                meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_num_slots)+&
+                refs(imeta_displ,v_ri,v_ci):3)
+           coli => meta(meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_slot_coo_l)+&
+                refs(imeta_displ,v_ri,v_ci)+1:&
+                meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_num_slots)+&
+                refs(imeta_displ,v_ri,v_ci):3)
+           bps => meta(meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_slot_coo_l)+&
+                refs(imeta_displ,v_ri,v_ci)+2:&
+                meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_num_slots)+&
+                refs(imeta_displ,v_ri,v_ci):3)
+           max_norms(v_ri,v_ci) = 0
+           DO blk = 1, nblks
+              IF (bps(blk).NE.0) THEN
+                 bpe = bps(blk) + row_blk_size(local_rows(img_map_rows(rowi(blk)+img_offset_rows(v_ri))))*&
+                      col_blk_size(local_cols(img_map_cols(coli(blk)+img_offset_cols(v_ci)))) - 1
+                 max_norms(v_ri,v_ci) = MAX(max_norms(v_ri,v_ci),&
+                      SQRT (REAL(SUM(ABS(DATA(bps(blk)+refs(idata_displ,v_ri,v_ci):&
+                                              bpe+refs(idata_displ,v_ri,v_ci)))**2), KIND=sp)))
+              ENDIF
+           ENDDO
+        ENDIF
+     ENDDO
+  ENDDO
+  !$omp end do
+  !$omp end parallel
+END SUBROUTINE calc_max_image_norms_c

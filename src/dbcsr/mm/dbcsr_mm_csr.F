@@ -480,20 +480,24 @@ MODULE dbcsr_mm_csr
 !> \param product ...
 !> \param m_sizes ...
 !> \param n_sizes ...
+!> \param block_estimate ...
+!> \param right_row_blk_size ...
 !> \author Ole Schuett
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_csr_init(this, left, right, product, &
-    m_sizes, n_sizes)
+    m_sizes, n_sizes, block_estimate, right_row_blk_size)
     TYPE(dbcsr_mm_csr_type), INTENT(INOUT)   :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
+    TYPE(dbcsr_type), INTENT(IN), OPTIONAL   :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     INTEGER, DIMENSION(:), POINTER           :: m_sizes, n_sizes
+    INTEGER, INTENT(IN)                      :: block_estimate
+    INTEGER, DIMENSION(:), INTENT(IN)        :: right_row_blk_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_csr_init', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: block_estimate, default_stack, handle, istack, ithread, k_map, &
-      k_size, m_map, m_size, n_map, n_size, nstacks, nthreads, ps_g
+    INTEGER :: default_stack, handle, istack, ithread, k_map, k_size, m_map, &
+      m_size, n_map, n_size, nstacks, nthreads, ps_g
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: flop_index, flop_list, &
                                                 most_common_k, most_common_m, &
                                                 most_common_n
@@ -507,14 +511,20 @@ MODULE dbcsr_mm_csr
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
 
-    ! find out if we have local_indexing
-    CALL dbcsr_assert (right%local_indexing, "EQV", left%local_indexing,&
+    CALL dbcsr_assert (.NOT.(PRESENT(left).NEQV.PRESENT(right)),&
+         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+         "Must both left and right provided or not.", __LINE__)
+
+    IF (PRESENT(left).AND.PRESENT(right)) THEN
+       ! find out if we have local_indexing
+       CALL dbcsr_assert (right%local_indexing, "EQV", left%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Local index useage must be consistent.", __LINE__)
-    local_indexing = left%local_indexing
-
+       local_indexing = left%local_indexing
+    ELSE
+       local_indexing = .TRUE.
+    ENDIF
     ! Setup the hash tables if needed
-    block_estimate=MAX(product%nblks,left%nblks,right%nblks)/nthreads
     IF (local_indexing) THEN
        ALLOCATE (this%c_hashes (product%nblkrows_local))
        CALL fill_hash_tables (this%c_hashes, product,block_estimate,&
@@ -553,7 +563,7 @@ MODULE dbcsr_mm_csr
          most_common_n,&
          max_stack_block_size, this%max_n)
     this%n_size_maps_size = SIZE (this%n_size_maps)
-    CALL map_most_common (array_data(right%row_blk_size),&
+    CALL map_most_common (right_row_blk_size,&
          this%k_size_maps, nxstacks(3), &
          most_common_k,&
          max_stack_block_size, this%max_k)

@@ -130,6 +130,7 @@ MODULE dbcsr_mm_multrec
      INTEGER(kind=int_8)   :: flop
      TYPE(dbcsr_work_type), POINTER :: product_wm  => Null()
      TYPE(dbcsr_mm_csr_type)        :: csr
+     LOGICAL                        :: new_row_max_epss = .FALSE.
      LOGICAL                        :: initialized = .FALSE.
   END TYPE dbcsr_mm_multrec_type
 
@@ -178,15 +179,20 @@ MODULE dbcsr_mm_multrec
 !>                                 existing product matrix, default is no
 !> \param[in] eps             (optional) on-the-fly filtering epsilon
 !> \param row_max_epss ...
+!> \param block_estimate ...
+!> \param right_row_blk_size ...
 ! *****************************************************************************
   SUBROUTINE dbcsr_mm_multrec_init(this, left, right, product, &
-       keep_sparsity, eps, row_max_epss)
+       keep_sparsity, eps, row_max_epss, block_estimate, right_row_blk_size)
     TYPE(dbcsr_mm_multrec_type), INTENT(out) :: this
-    TYPE(dbcsr_type), INTENT(IN)             :: left, right
+    TYPE(dbcsr_type), INTENT(IN), OPTIONAL   :: left, right
     TYPE(dbcsr_type), INTENT(INOUT)          :: product
     LOGICAL, INTENT(IN)                      :: keep_sparsity
     REAL(kind=real_8), INTENT(in), OPTIONAL  :: eps
-    REAL(kind=sp), DIMENSION(:), INTENT(IN)  :: row_max_epss
+    REAL(kind=sp), DIMENSION(:), &
+      INTENT(IN), TARGET                     :: row_max_epss
+    INTEGER, INTENT(IN)                      :: block_estimate
+    INTEGER, DIMENSION(:), INTENT(IN)        :: right_row_blk_size
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_mm_multrec_init', &
       routineP = moduleN//':'//routineN
@@ -210,39 +216,48 @@ MODULE dbcsr_mm_multrec
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
          "multrec already initialized.", __LINE__)
 
-    ! Ensures that the index is correctly defined.
-    CALL dbcsr_assert (left%list_indexing,&
+    CALL dbcsr_assert (.NOT.(PRESENT(left).NEQV.PRESENT(right)),&
          dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Must use list indexing for this routine.", __LINE__)
+         "Must both left and right provided or not.", __LINE__)
 
-    CALL dbcsr_assert ("NOT", left%bcsc,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Wrong routine for BCSC matrices.", __LINE__)
-    CALL dbcsr_assert ("NOT", right%bcsc,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Wrong routine for BCSC matrices.", __LINE__)
-    CALL dbcsr_assert (right%local_indexing, "EQV", left%local_indexing,&
+    IF (PRESENT(left).AND.PRESENT(right)) THEN
+       ! Ensures that the index is correctly defined.
+       CALL dbcsr_assert (left%list_indexing,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Must use list indexing for this routine.", __LINE__)
+       CALL dbcsr_assert ("NOT", left%bcsc,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Wrong routine for BCSC matrices.", __LINE__)
+
+       CALL dbcsr_assert ("NOT", right%bcsc,&
+            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+            "Wrong routine for BCSC matrices.", __LINE__)
+       CALL dbcsr_assert (right%local_indexing, "EQV", left%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Local index useage must be consistent.", __LINE__)
 
-    IF (right%local_indexing) THEN
-       CALL dbcsr_assert (left%local_indexing,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong left format for local_cols.", __LINE__)
-       CALL dbcsr_assert (right%local_indexing,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong right format for local_cols.", __LINE__)
+       IF (right%local_indexing) THEN
+          CALL dbcsr_assert (left%local_indexing,&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Wrong left format for local_cols.", __LINE__)
+          CALL dbcsr_assert (right%local_indexing,&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Wrong right format for local_cols.", __LINE__)
+       ELSE
+          CALL dbcsr_assert ("NOT",left%local_indexing,&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Wrong left format for not local_cols.", __LINE__)
+          CALL dbcsr_assert ("NOT",right%local_indexing,&
+               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
+               "Wrong right format for not local_cols.", __LINE__)
+       ENDIF
+       
+       this%local_indexing = left%local_indexing 
     ELSE
-       CALL dbcsr_assert ("NOT",left%local_indexing,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong left format for not local_cols.", __LINE__)
-       CALL dbcsr_assert ("NOT",right%local_indexing,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong right format for not local_cols.", __LINE__)
+       this%local_indexing = .TRUE.
     ENDIF
     !
     ! Fill result data structure.
-    this%local_indexing = left%local_indexing 
     this%keep_sparsity = keep_sparsity
     this%c_has_symmetry = product%symmetry
     this%use_eps = PRESENT (eps)
@@ -312,14 +327,22 @@ MODULE dbcsr_mm_multrec
     !
     ! And the k epsilons
     IF (this%local_indexing) THEN
-       ALLOCATE (this%row_max_epss(c_nblkrows_local))
+       IF ((PRESENT(left).AND.PRESENT(right)).OR. .NOT.this%use_eps) THEN
+          ALLOCATE (this%row_max_epss(c_nblkrows_local))
+          this%new_row_max_epss = .TRUE.
+       ENDIF
     ELSE
        ALLOCATE (this%row_max_epss(product%nblkrows_total))
+       this%new_row_max_epss = .TRUE.
     ENDIF
     IF (this%use_eps) THEN
        IF (this%local_indexing) THEN
-          CALL local_filter_sp(row_max_epss, c_nblkrows_local, c_local_rows,&
-               this%row_max_epss)
+          IF (PRESENT(left).AND.PRESENT(right)) THEN
+             CALL local_filter_sp(row_max_epss, c_nblkrows_local, c_local_rows,&
+                  this%row_max_epss)
+          ELSE
+             this%row_max_epss => row_max_epss
+          ENDIF
        ELSE
           IF (careful_mod) &
                CALL dbcsr_assert (SIZE(row_max_epss) .EQ. SIZE(this%row_max_epss),&
@@ -358,7 +381,9 @@ MODULE dbcsr_mm_multrec
     !TODO: should we move this up?
     CALL dbcsr_mm_csr_init(this%csr, &
        left=left, right=right, product=product, &
-       m_sizes=this%m_sizes, n_sizes=this%n_sizes) 
+       m_sizes=this%m_sizes, n_sizes=this%n_sizes, &
+       block_estimate=block_estimate, &
+       right_row_blk_size=right_row_blk_size) 
 
     this%initialized = .TRUE.
     CALL timestop(handle)
@@ -502,7 +527,7 @@ MODULE dbcsr_mm_multrec
     ! Release the carrier
     DEALLOCATE (this%m_sizes)
     DEALLOCATE (this%n_sizes)
-    DEALLOCATE (this%row_max_epss)
+    IF (this%new_row_max_epss) DEALLOCATE (this%row_max_epss)
 
     IF (this%local_indexing) THEN
        CALL remap_local2global(this%product_wm%row_i, &

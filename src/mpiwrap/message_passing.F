@@ -3198,7 +3198,7 @@ CONTAINS
     CALL add_perf(perf_id=21,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_free called in non parallel case")
+    win = mp_win_null
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_free
@@ -3232,7 +3232,6 @@ CONTAINS
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_lock_all called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_lock_all
@@ -3266,7 +3265,6 @@ CONTAINS
     CALL add_perf(perf_id=19,count=1,time=t_end-t_start)
 #else
     MARK_USED(win)
-    CPABORT("mp_win_unlock_all called in non parallel case")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_win_unlock_all

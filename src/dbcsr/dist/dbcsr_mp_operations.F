@@ -481,28 +481,34 @@ CONTAINS
 !> \param base ...
 !> \param source ...
 !> \param win ...
+!> \param win_data ...
 !> \param disp ...
 !> \param request ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_rget_any(base,source,win,disp,request)
+  SUBROUTINE dbcsr_rget_any(base,source,win,win_data,disp,request)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: base
     INTEGER, INTENT(IN)                      :: source
     INTEGER, INTENT(INOUT)                   :: win
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: win_data
     INTEGER, INTENT(IN), OPTIONAL            :: disp
     INTEGER, INTENT(OUT)                     :: request
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_rget_any', &
       routineP = moduleN//':'//routineN
 
+    CALL dbcsr_assert (dbcsr_data_get_type (base), "EQ", dbcsr_data_get_type(win_data),&
+         dbcsr_fatal_level, dbcsr_caller_error,&
+         routineN, "Mismatch data type between buffer and window", __LINE__)
+
     SELECT CASE (dbcsr_data_get_type (base))
     CASE (dbcsr_type_real_4)
-       CALL mp_rget (base%d%r_sp, source, win, disp, request)
+       CALL mp_rget (base%d%r_sp, source, win, win_data%d%r_sp, disp, request)
     CASE (dbcsr_type_real_8)
-       CALL mp_rget (base%d%r_dp, source, win, disp, request)
+       CALL mp_rget (base%d%r_dp, source, win, win_data%d%r_dp, disp, request)
     CASE (dbcsr_type_complex_4)
-       CALL mp_rget (base%d%c_sp, source, win, disp, request)
+       CALL mp_rget (base%d%c_sp, source, win, win_data%d%c_sp, disp, request)
     CASE (dbcsr_type_complex_8)
-       CALL mp_rget (base%d%c_dp, source, win, disp, request)
+       CALL mp_rget (base%d%c_dp, source, win, win_data%d%c_dp, disp, request)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect data type", __LINE__)
