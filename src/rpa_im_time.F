@@ -29,7 +29,7 @@ MODULE rpa_im_time
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: &
        mp_comm_split_direct, mp_irecv, mp_isend, mp_max, mp_sendrecv, mp_sum, &
-       mp_sync, mp_wait, mp_waitall
+       mp_sync, mp_wait, mp_waitall, mp_send, mp_recv
   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                              mp2_type
   USE util,                            ONLY: get_limit
@@ -667,21 +667,22 @@ MODULE rpa_im_time
       group_iter, handle, handle2, i_block, i_block_occ, i_block_virt, KKK, &
       LLL, my_group_K_start, n_blocks_local_occ, n_blocks_local_virt, &
       n_entries_local_occ, n_entries_local_virt, offset, offset_occ, &
-      offset_virt, proc_rec_static, proc_send_static, req(10), row, row_occ, &
+      offset_virt, proc_rec_static, proc_send_static, row, row_occ, &
       row_size, row_virt, size_occ, size_virt
-    INTEGER, DIMENSION(:), POINTER           :: proc_rec, proc_send, req_array
+    INTEGER, DIMENSION(:), POINTER           :: proc_rec, proc_send
     INTEGER, DIMENSION(:, :), POINTER        :: buffer_info_occ, &
-                                                buffer_info_virt
+                                                buffer_info_virt, &
+                                                req_array
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer_data_occ, &
                                                 buffer_data_virt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
     REAL(KIND=dp), EXTERNAL                  :: DDOT
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_para_env_type), POINTER          :: para_env_exch
+    TYPE(integ_mat_buffer_type), POINTER     :: buffer_send
     TYPE(integ_mat_buffer_type), &
-      ALLOCATABLE, DIMENSION(:)              :: buffer_rec, buffer_send
+      DIMENSION(:), POINTER                  :: buffer_rec
 
-!    INTEGER, DIMENSION(:), ALLOCATABLE       :: req_send, req_rec
 
     CALL timeset(routineN,handle)
 
@@ -875,41 +876,26 @@ MODULE rpa_im_time
 
     CALL timeset(routineN//"_comm_1",handle2)
 
-    ALLOCATE(req_array(ngroup-1))
+    ALLOCATE(req_array(ngroup-1,2))
     ALLOCATE(buffer_rec(ngroup-1))
-    ALLOCATE(buffer_send(1))
+    ALLOCATE(buffer_send)
 
     DO group_iter=1,ngroup-1
       ALLOCATE(buffer_rec(group_iter)%sizes(2))
     END DO
-    ALLOCATE(buffer_send(1)%sizes(2))
+    ALLOCATE(buffer_send%sizes(2))
 
     ! get and send number of local virtual blocks in advance with  non-blocking communication
-    buffer_send(1)%sizes(1) = n_blocks_local_virt
-    buffer_send(1)%sizes(2) = n_entries_local_virt
+    buffer_send%sizes(1) = n_blocks_local_virt
+    buffer_send%sizes(2) = n_entries_local_virt
 
     DO group_iter=1,ngroup-1
-      CALL mp_isend(buffer_send(1)%sizes,proc_send(group_iter),para_env_exch%group,req(1),tag=2)
+      CALL mp_irecv(buffer_rec(group_iter)%sizes,proc_rec(group_iter),para_env_exch%group,req_array(group_iter,2),tag=group_iter)
+      CALL mp_isend(buffer_send%sizes,proc_send(group_iter),para_env_exch%group,req_array(group_iter,1),tag=group_iter)
     END DO
-
-    DO group_iter=1,ngroup-1
-      CALL mp_irecv(buffer_rec(group_iter)%sizes,proc_rec(group_iter),para_env_exch%group,req_array(group_iter),tag=2)
-    END DO
-
-    CALL mp_waitall(req_array(:))
+    CALL mp_waitall(req_array(:,:))
 
     CALL timestop(handle2)
-
-
-    ! send around the indices
-    DO group_iter=1,ngroup-1
-      CALL mp_isend(buffer_info_virt,proc_send(group_iter),para_env_exch%group,req(2),tag=4)
-    END DO
-
-    ! send around the data
-    DO group_iter=1,ngroup-1
-      CALL mp_isend(buffer_data_virt,proc_send(group_iter),para_env_exch%group,req(3),tag=6)
-    END DO
 
 
     DO group_iter=1,ngroup-1
@@ -917,25 +903,26 @@ MODULE rpa_im_time
       ALLOCATE(buffer_rec(group_iter)%indx(buffer_rec(group_iter)%sizes(1),6))
       ALLOCATE(buffer_rec(group_iter)%msg(buffer_rec(group_iter)%sizes(2)))
 
-      CALL timeset(routineN//"_comm_2",handle2)
-
       ! get infos
-      CALL mp_irecv(buffer_rec(group_iter)%indx,proc_rec(group_iter),para_env_exch%group,req(4),tag=4)
-
+      CALL timeset(routineN//"_comm_2",handle2)
+      CALL mp_irecv(buffer_rec(group_iter)%indx,proc_rec(group_iter),para_env_exch%group,req_array(group_iter,2),tag=group_iter)
+      CALL mp_isend(buffer_info_virt,proc_send(group_iter),para_env_exch%group,req_array(group_iter,1),tag=group_iter)
       CALL timestop(handle2)
 
-      CALL timeset(routineN//"_comm_3",handle2)
+      ! wait (makes it blocking send/recv)
+      CALL timeset(routineN//"_wait",handle2)
+      CALL mp_waitall(req_array(group_iter,:))
+      CALL timestop(handle2)
 
       ! get actual data
-      CALL mp_irecv(buffer_rec(group_iter)%msg,proc_rec(group_iter),para_env_exch%group,req(5),tag=6)
-
+      CALL timeset(routineN//"_comm_3",handle2)
+      CALL mp_irecv(buffer_rec(group_iter)%msg,proc_rec(group_iter),para_env_exch%group,req_array(group_iter,2),tag=group_iter)
+      CALL mp_isend(buffer_data_virt,proc_send(group_iter),para_env_exch%group,req_array(group_iter,1),tag=group_iter)
       CALL timestop(handle2)
 
+      ! wait (makes it blocking send/recv)
       CALL timeset(routineN//"_wait",handle2)
-
-      CALL mp_wait(req(4))
-      CALL mp_wait(req(5))
-
+      CALL mp_waitall(req_array(group_iter,:))
       CALL timestop(handle2)
 
       CALL timeset(routineN//"_DDOT",handle2)
@@ -1001,7 +988,7 @@ MODULE rpa_im_time
     DO group_iter=1,ngroup-1
       DEALLOCATE(buffer_rec(group_iter)%sizes)
     END DO
-    DEALLOCATE(buffer_send(1)%sizes)
+    DEALLOCATE(buffer_send%sizes)
     DEALLOCATE(buffer_rec,buffer_send)
 
     CALL timestop(handle)
