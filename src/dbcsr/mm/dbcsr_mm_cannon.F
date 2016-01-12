@@ -1674,6 +1674,8 @@ MODULE dbcsr_mm_cannon
              stored_row = col ; stored_col = row; tr = blk_p.GT.0
              tr_row_size = row_size; tr_col_size = col_size
           ENDIF
+          IF (is_transposed) THEN
+          ENDIF
           row_img = row_img_dist (stored_row)
           col_img = col_img_dist (stored_col)
           CALL image_calculator(imgdist,&
