@@ -27,9 +27,14 @@ MODULE rpa_im_time
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: &
-       mp_comm_split_direct, mp_irecv, mp_isend, mp_max, mp_sendrecv, mp_sum, &
-       mp_sync, mp_wait, mp_waitall, mp_send, mp_recv
+  USE message_passing,                 ONLY: mp_comm_split_direct,&
+                                             mp_irecv,&
+                                             mp_isend,&
+                                             mp_max,&
+                                             mp_sendrecv,&
+                                             mp_sum,&
+                                             mp_sync,&
+                                             mp_waitall
   USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                              mp2_type
   USE util,                            ONLY: get_limit
@@ -667,22 +672,20 @@ MODULE rpa_im_time
       group_iter, handle, handle2, i_block, i_block_occ, i_block_virt, KKK, &
       LLL, my_group_K_start, n_blocks_local_occ, n_blocks_local_virt, &
       n_entries_local_occ, n_entries_local_virt, offset, offset_occ, &
-      offset_virt, proc_rec_static, proc_send_static, row, row_occ, &
-      row_size, row_virt, size_occ, size_virt
+      offset_virt, proc_rec_static, proc_send_static, row, row_occ, row_size, &
+      row_virt, size_occ, size_virt
     INTEGER, DIMENSION(:), POINTER           :: proc_rec, proc_send
     INTEGER, DIMENSION(:, :), POINTER        :: buffer_info_occ, &
-                                                buffer_info_virt, &
-                                                req_array
+                                                buffer_info_virt, req_array
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer_data_occ, &
                                                 buffer_data_virt
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: data_block
     REAL(KIND=dp), EXTERNAL                  :: DDOT
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_para_env_type), POINTER          :: para_env_exch
-    TYPE(integ_mat_buffer_type), POINTER     :: buffer_send
     TYPE(integ_mat_buffer_type), &
       DIMENSION(:), POINTER                  :: buffer_rec
-
+    TYPE(integ_mat_buffer_type), POINTER     :: buffer_send
 
     CALL timeset(routineN,handle)
 
