@@ -119,7 +119,8 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_may_be_dense,&
                                              dbcsr_scale
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
-  USE dbcsr_toollib,                   ONLY: uppercase
+  USE dbcsr_toollib,                   ONLY: merge_ordered_arrays_nodup,&
+                                             uppercase
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
                                              dbcsr_make_dense_low,&
                                              dbcsr_make_undense,&
@@ -526,8 +527,8 @@ MODULE dbcsr_mm_cannon
       l_row, nimages_left_rows, nimages_match, nimages_right_cols, numnodes, &
       output_unit
     INTEGER(KIND=int_8)                      :: my_flop
-    LOGICAL :: ab_dense, keep_product_data, keep_sparsity, product_reindex, &
-      release_tdist, transposed_left, transposed_right, use_dense_mult
+    LOGICAL :: ab_dense, keep_product_data, keep_sparsity, new_left, &
+      new_right, product_reindex, release_tdist, use_dense_mult
     REAL(KIND=dp)                            :: cs
     TYPE(array_i1d_obj) :: dense_col_sizes, dense_k_sizes, dense_row_sizes, &
       k_vmap, m_map, n_map, old_product_col_blk_offsets, &
@@ -618,7 +619,7 @@ MODULE dbcsr_mm_cannon
     SELECT CASE(transa_l)
     CASE(dbcsr_no_transpose)
        matrix_left = matrix_a
-       transposed_left = .FALSE.
+       new_left = .FALSE.
     CASE(dbcsr_transpose)
        CALL dbcsr_init(matrix_left)
        IF(dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric) THEN
@@ -633,14 +634,14 @@ MODULE dbcsr_mm_cannon
                shallow_data_copy=.TRUE., redistribute=.FALSE.,&
                transpose_distribution=.FALSE.)
        ENDIF
-       transposed_left = .TRUE.
+       new_left = .TRUE.
     CASE(dbcsr_conjugate_transpose)
        CALL dbcsr_init(matrix_left)
        CALL dbcsr_new_transposed (matrix_left, matrix_a,&
             shallow_data_copy=.FALSE., redistribute=.FALSE.,&
             transpose_distribution=.FALSE.)
        CALL dbcsr_conjg(matrix_left)
-       transposed_left = .TRUE.
+       new_left = .TRUE.
     CASE DEFAULT
        CPABORT("wrong transa_l = "//transa_l)
     END SELECT
@@ -648,7 +649,7 @@ MODULE dbcsr_mm_cannon
     SELECT CASE(transb_l)
     CASE(dbcsr_no_transpose)
        matrix_right = matrix_b
-       transposed_right = .FALSE.
+       new_right = .FALSE.
     CASE(dbcsr_transpose)
        CALL dbcsr_init(matrix_right)
        IF(dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric) THEN
@@ -663,14 +664,14 @@ MODULE dbcsr_mm_cannon
                shallow_data_copy=.TRUE., redistribute=.FALSE.,&
                transpose_distribution=.FALSE.)
        ENDIF
-       transposed_right = .TRUE.
+       new_right = .TRUE.
     CASE(dbcsr_conjugate_transpose)
        CALL dbcsr_init(matrix_right)
        CALL dbcsr_new_transposed (matrix_right, matrix_b,&
             shallow_data_copy=.FALSE., redistribute=.FALSE.,&
             transpose_distribution=.FALSE.)
        CALL dbcsr_conjg(matrix_right)
-       transposed_right = .TRUE.
+       new_right = .TRUE.
     CASE DEFAULT
        CPABORT("wrong transb_l = "//transb_l)
     END SELECT
@@ -688,7 +689,7 @@ MODULE dbcsr_mm_cannon
     IF (has_acc) use_dense_mult = .FALSE.
     !
     ! Temporary check for RMA algorithm
-    IF (transposed_right.OR.transposed_left.OR.&
+    IF (new_right.OR.new_left.OR.&
         matrix_left%m%symmetry.OR.matrix_right%m%symmetry.OR.&
         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_c%m%dist)).NE.&
         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_c%m%dist))) THEN
@@ -978,13 +979,11 @@ MODULE dbcsr_mm_cannon
        !
        ! Right buffer images
        CALL dbcsr_make_buffers_rma(matrix_right,rdist_right,.FALSE.,&
-                                   transposed_right,&
                                    f_k,l_k,f_col,l_col,&
                                    alpha)
        !
        ! Left buffer images
        CALL dbcsr_make_buffers_rma(matrix_left,rdist_left,.TRUE.,&
-                                   transposed_left,&
                                    f_row,l_row,f_k,l_k)
     ELSE
        !
@@ -1042,8 +1041,8 @@ MODULE dbcsr_mm_cannon
        CALL timestop(handle2)
     ENDIF
     !
-    IF (transposed_left) CALL dbcsr_release (matrix_left)
-    IF (transposed_right) CALL dbcsr_release (matrix_right)
+    IF (new_left) CALL dbcsr_release (matrix_left)
+    IF (new_right) CALL dbcsr_release (matrix_right)
     IF (release_tdist) THEN
        CALL dbcsr_distribution_no_threads (product_matrix%m%dist)
     ENDIF
@@ -1281,7 +1280,6 @@ MODULE dbcsr_mm_cannon
 !> \param matrix ...
 !> \param imgdist ...
 !> \param is_left ...
-!> \param is_transposed ...
 !> \param f_row ...
 !> \param l_row ...
 !> \param f_col ...
@@ -1290,13 +1288,12 @@ MODULE dbcsr_mm_cannon
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE dbcsr_make_buffers_rma(matrix,imgdist,is_left,&
-                                    is_transposed,&
                                     f_row,l_row,f_col,l_col,&
                                     alpha)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: imgdist
-    LOGICAL, INTENT(IN)                      :: is_left, is_transposed
+    LOGICAL, INTENT(IN)                      :: is_left
     INTEGER, INTENT(IN)                      :: f_row, l_row, f_col, l_col
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: alpha
@@ -1312,11 +1309,9 @@ MODULE dbcsr_mm_cannon
     !
     IF (do_scale) THEN
        CALL make_buffers_rma(matrix,imgdist,is_left,&
-            is_transposed,&
             f_row,l_row,f_col,l_col,alpha)
     ELSE
        CALL make_buffers_rma(matrix,imgdist,is_left,&
-            is_transposed,&
             f_row,l_row,f_col,l_col)
     ENDIF
   END SUBROUTINE dbcsr_make_buffers_rma
@@ -1326,7 +1321,6 @@ MODULE dbcsr_mm_cannon
 !> \param matrix ...
 !> \param imgdist ...
 !> \param is_left ...
-!> \param is_transposed ...
 !> \param f_row ...
 !> \param l_row ...
 !> \param f_col ...
@@ -1335,13 +1329,12 @@ MODULE dbcsr_mm_cannon
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE make_buffers_rma(matrix,imgdist,is_left,&
-                              is_transposed,&
                               f_row,l_row,f_col,l_col,&
                               scale_value)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
     TYPE(dbcsr_imagedistribution_obj), &
       INTENT(IN)                             :: imgdist
-    LOGICAL, INTENT(IN)                      :: is_left, is_transposed
+    LOGICAL, INTENT(IN)                      :: is_left
     INTEGER, INTENT(IN)                      :: f_row, l_row, f_col, l_col
     TYPE(dbcsr_scalar_type), INTENT(IN), &
       OPTIONAL                               :: scale_value
@@ -1349,21 +1342,20 @@ MODULE dbcsr_mm_cannon
     CHARACTER(len=*), PARAMETER :: routineN = 'make_buffers_rma', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: predist_type, predist_type_fwd
     INTEGER :: blk, blk_p, bp, col, col_img, col_size, coli, data_size, &
-      data_type, handle, ithread, meta_size, mi, mynode, myt, nblkcols_local, &
-      nblkrows_local, nblocks, ncols_images, nimages_merged, &
+      data_type, handle, ithread, meta_size, mi, mypcol, myprow, myt, &
+      nblkcols_local, nblkrows_local, nblocks, ncols_images, nimages_merged, &
       nimages_unmerged, nrows_images, nsymmetries, nthreads, nze, row, &
-      row_img, row_size, rowi, size_threads_index, stored_col, stored_row, &
-      symmetry_i, tr_col_size, tr_row_size, ui
+      row_img, row_size, rowi, size_rows_cols, size_threads_index, &
+      stored_col, stored_row, symmetry_i, tr_col_size, tr_row_size, ui
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: g2l_map_cols, g2l_map_rows, &
                                                 tmp_img_offset
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :, :)                  :: refs
     INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, img_map_cols, &
-      img_map_rows, local_cols, local_rows, meta_buffer, row_dist, &
-      row_img_dist, threads_dist
+      img_map_rows, local_cols, local_rows, local_rows_cols, meta_buffer, &
+      row_dist, row_img_dist, threads_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, img_refs_cols, &
                                                 img_refs_rows, local_refs_p
     INTEGER, DIMENSION(:, :, :), POINTER     :: local_refs
@@ -1397,8 +1389,6 @@ MODULE dbcsr_mm_cannon
     col_dist => dbcsr_distribution_col_dist (set_dist)
     local_rows => dbcsr_distribution_local_rows(set_dist)
     local_cols => dbcsr_distribution_local_cols(set_dist)
-    nblkrows_local = SIZE(local_rows)
-    nblkcols_local = SIZE(local_cols)
     IF (sm%symmetry) THEN
        IF(SIZE(row_dist).NE.SIZE(col_dist))&
             CPWARN('Unequal row and column distributions for symmetric matrix.')
@@ -1409,7 +1399,8 @@ MODULE dbcsr_mm_cannon
     col_img_dist => array_data (imgdist%i%col_image)
     mp_obj = dbcsr_distribution_mp (set_dist)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    mynode = dbcsr_mp_mynode (mp_obj)
+    myprow = dbcsr_mp_myprow (mp_obj)
+    mypcol = dbcsr_mp_mypcol (mp_obj)
     IF (MAXVAL(row_dist).GT.UBOUND(blacs2mpi,1))&
          CPABORT("Row distribution references unexistent processor rows")
     IF (MAXVAL(col_dist).GT.UBOUND(blacs2mpi,2))&
@@ -1440,20 +1431,24 @@ MODULE dbcsr_mm_cannon
     !
     IF (dbcsr_has_symmetry(matrix)) THEN
        nsymmetries = 2
+       ! In case of symmetry we need to prepare a single local array for rows and cols
+       CALL merge_ordered_arrays_nodup(local_rows,local_cols,local_rows_cols,size_rows_cols)
+       local_rows => local_rows_cols
+       local_cols => local_rows_cols
+       nblkrows_local = size_rows_cols
+       nblkcols_local = size_rows_cols
     ELSE
        nsymmetries = 1
+       nblkrows_local = SIZE(local_rows)
+       nblkcols_local = SIZE(local_cols)
     ENDIF
     !
     size_threads_index = dbcsr_num_slots
     !
     IF (is_left) THEN
-       predist_type = 'L'
-       predist_type_fwd = 'l'
        nimages_merged = nrows_images
        nimages_unmerged = ncols_images
     ELSE
-       predist_type = 'R'
-       predist_type_fwd = 'r'
        nimages_merged = ncols_images
        nimages_unmerged = nrows_images
     ENDIF
@@ -1462,8 +1457,8 @@ MODULE dbcsr_mm_cannon
     ! Evaluate maps for local_image -> local indexing (img_map_rows, img_map_cols)
     ! Evaluate refs (count and offset) per each image
     ALLOCATE(g2l_map_rows(sm%nblkrows_total),g2l_map_cols(sm%nblkcols_total))
-    ALLOCATE(img_map_rows(nblkrows_local),img_map_cols(nblkcols_local))
     ALLOCATE(img_refs_rows(2,nrows_images),img_refs_cols(2,ncols_images))
+    ALLOCATE(img_map_rows(nblkrows_local),img_map_cols(nblkcols_local))
     !
     img_refs_rows(:,:) = 0
     g2l_map_rows(:) = 0
@@ -1520,16 +1515,16 @@ MODULE dbcsr_mm_cannon
 !$omp          tr_row_size,tr_col_size) &
 !$omp shared (nthreads,refs,matrix,nsymmetries,&
 !$omp         row_img_dist,col_img_dist,imgdist,row_dist,col_dist,&
-!$omp         predist_type_fwd,is_left,nrows_images,ncols_images,&
+!$omp         is_left,nrows_images,ncols_images,&
 !$omp         local_refs,nimages_merged,nimages_unmerged,local_refs_p,&
 !$omp         data_size,meta_size,data_type,rma_buffers_orig,&
 !$omp         memtype_mpi_buffer,data_buffer,meta_buffer,sm,&
 !$omp         img_refs_cols,img_refs_rows,img_map_cols,img_map_rows,&
 !$omp         g2l_map_cols,g2l_map_rows,&
 !$omp         scale_value,scale_neg_one,&
-!$omp         size_threads_index,predist_type,&
+!$omp         size_threads_index,&
 !$omp         mp_obj,threads_dist,&
-!$omp         locks,mynode,is_transposed) &
+!$omp         locks) &
 !$omp         reduction(+ : nblocks)
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -1554,7 +1549,7 @@ MODULE dbcsr_mm_cannon
     ! Take data and meta dimensions per each thread
     CALL dbcsr_iterator_start(iter, matrix, shared=.TRUE.)
     DO WHILE (dbcsr_iterator_blocks_left (iter))
-       CALL dbcsr_iterator_next_block (iter, row, col, blk, blk_p=blk_p, &
+       CALL dbcsr_iterator_next_block (iter, row, col, blk, &
             row_size=row_size, col_size=col_size)
        nze = row_size * col_size
        IF (nze.EQ.0) CYCLE
@@ -1669,8 +1664,6 @@ MODULE dbcsr_mm_cannon
              IF (row .EQ. col) CYCLE
              stored_row = col ; stored_col = row; tr = blk_p.GT.0
              tr_row_size = row_size; tr_col_size = col_size
-          ENDIF
-          IF (is_transposed) THEN
           ENDIF
           row_img = row_img_dist (stored_row)
           col_img = col_img_dist (stored_col)
@@ -4565,10 +4558,16 @@ MODULE dbcsr_mm_cannon
     DO v_ki = 1, nimages
        CALL dbcsr_init(buffer_set%mats(v_ki))
        CALL dbcsr_create(buffer_set%mats(v_ki),&
-            template = template_matrix,&
-            name = TRIM("Buffer image of "//TRIM(template_matrix%m%name)),&
+            "Buffer image of "//template_matrix%m%name,&
+            imgdist%i%main,&
+            dbcsr_type_no_symmetry,&
+            array_data(template_matrix%m%row_blk_size), array_data(template_matrix%m%col_blk_size),&
+            template_matrix%m%row_blk_size, template_matrix%m%col_blk_size,&
             data_buffer = data_buffer,&
-            index_memory_type = memtype_mpi_buffer,&
+            max_rbs=template_matrix%m%max_rbs,max_cbs=template_matrix%m%max_cbs,&
+            row_blk_offset=template_matrix%m%row_blk_offset,col_blk_offset=template_matrix%m%col_blk_offset,&
+            thread_dist=template_matrix%m%dist,&
+            index_memory_type=memtype_mpi_buffer,&
             make_index=.FALSE.)
        CALL ensure_array_size (buffer_set%mats(v_ki)%m%index,&
             ub=index_size_merged(v_ki), nocopy=.TRUE.,&
