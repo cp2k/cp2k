@@ -688,15 +688,10 @@ MODULE dbcsr_mm_cannon
     IF (has_acc) use_dense_mult = .FALSE.
     !
     ! Temporary check for RMA algorithm
-    IF (has_acc.OR.&
-        transposed_right.OR.transposed_left.OR.&
+    IF (transposed_right.OR.transposed_left.OR.&
         matrix_left%m%symmetry.OR.matrix_right%m%symmetry.OR.&
         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_c%m%dist)).NE.&
-        dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_c%m%dist)).OR.&
-        dbcsr_distribution_has_row_clusters(matrix_left%m%dist).OR.&
-        dbcsr_distribution_has_col_clusters(matrix_left%m%dist).OR.&
-        dbcsr_distribution_has_row_clusters(matrix_right%m%dist).OR.&
-        dbcsr_distribution_has_col_clusters(matrix_right%m%dist)) THEN
+        dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_c%m%dist))) THEN
        my_use_mpi_rma = .FALSE.
     ELSE
        my_use_mpi_rma = use_mpi_rma
@@ -855,6 +850,7 @@ MODULE dbcsr_mm_cannon
        nimages_match = dbcsr_distribution_num_local_row_clusters(matrix_right%m%dist)*&
             dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_right%m%dist))
     ELSE
+       ! 2D clustering
        nimages_match = dbcsr_distribution_get_num_images_1d(&
             dbcsr_nfullcols_total(matrix_left),&
             dbcsr_nblkcols_total(matrix_left),&
