@@ -58,8 +58,8 @@ MODULE pao_types
      TYPE(cp_dbcsr_type)              :: matrix_G
      TYPE(cp_dbcsr_type)              :: matrix_G_prev
      TYPE(cp_dbcsr_type)              :: matrix_D
+     TYPE(cp_dbcsr_type)              :: matrix_V_terms
 
-     TYPE(cp_dbcsr_type), DIMENSION(:), POINTER :: matrix_V_terms => Null()
   END TYPE
 
 END MODULE pao_types

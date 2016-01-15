@@ -142,7 +142,7 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"PAO",repeats=.FALSE.,&
-                        description="Polarize Atomic Orbital Method",&
+                        description="Polarized Atomic Orbital Method",&
                         citations=(/Berghold2011/))
 
     ! Convergence Criteria *****************************************************

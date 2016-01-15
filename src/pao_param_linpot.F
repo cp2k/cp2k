@@ -10,8 +10,8 @@
 MODULE pao_param_linpot
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
@@ -49,17 +49,16 @@ CONTAINS
   SUBROUTINE pao_param_init_linpot(pao, qs_env, reuse_matrix_X)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL                                  :: reuse_matrix_X
+    LOGICAL, INTENT(IN)                      :: reuse_matrix_X
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_linpot', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, iatom, &
-                                                kterm, max_terms, natoms, &
-                                                nterms
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
-    LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, block_X
+                                                kterm, n, natoms, nterms
+    INTEGER, DIMENSION(:), POINTER           :: blk_sizes_pri, col_blk_size, &
+                                                row_blk_size
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, block_V_terms
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -78,18 +77,16 @@ CONTAINS
     ALLOCATE(row_blk_size(natoms), col_blk_size(natoms))
 
     ! figure out number of potential terms
-    max_terms = 0
     DO iatom=1, natoms
        CALL linpot_count_terms(pao, qs_env, iatom, nterms)
-       max_terms = MAX(max_terms, nterms)
        col_blk_size(iatom) = 1 ! a skinny matrix
        row_blk_size(iatom) = nterms
     ENDDO
 
+    ! allocate matrix_X unless it's reused
     IF(reuse_matrix_X) THEN
        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| reusing potential from last MD step"
     ELSE
-       ! allocate matrix_X
        CALL cp_dbcsr_init(pao%matrix_X)
        CALL cp_dbcsr_create(pao%matrix_X,&
                             template=matrix_s(1)%matrix,&
@@ -100,30 +97,35 @@ CONTAINS
        CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
     ENDIF
 
-    ! calculate, normalize, and store potential terms
-    ALLOCATE(pao%matrix_V_terms(max_terms))
-    DO kterm=1, max_terms
-       CALL cp_dbcsr_init(pao%matrix_V_terms(kterm))
-       CALL cp_dbcsr_create(pao%matrix_V_terms(kterm), template=matrix_s(1)%matrix)
-       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_V_terms(kterm))
-       CALL cp_dbcsr_set(pao%matrix_V_terms(kterm), 0.0_dp)
-       CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms(kterm))
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_term)
-          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_X, row=arow, col=acol, block=block_X, found=found)
-          CPASSERT(ASSOCIATED(block_X))
-          IF(arow /= acol) CPABORT("encountered off-diagonal block")
-          iatom = arow
-          CALL linpot_count_terms(pao, qs_env, iatom, nterms)
-          IF(kterm <= nterms) THEN
-            CALL linpot_calc_term(pao, qs_env, iatom, kterm, block_V_term)
-            block_V_term = block_V_term / SQRT(SUM(block_V_term*block_V_term))
-          ENDIF
-       ENDDO
-       CALL cp_dbcsr_iterator_stop(iter)
-    ENDDO
-
+    ! allocate matrix_V_terms
+    blk_sizes_pri => cp_dbcsr_col_block_sizes(matrix_s(1)%matrix)
+    col_blk_size = row_blk_size
+    row_blk_size = blk_sizes_pri**2
+    CALL cp_dbcsr_init(pao%matrix_V_terms)
+    CALL cp_dbcsr_create(pao%matrix_V_terms,&
+                         template=matrix_s(1)%matrix,&
+                         matrix_type="N",&
+                         row_blk_size=row_blk_size,&
+                         col_blk_size=col_blk_size)
+    CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_V_terms)
     DEALLOCATE(row_blk_size, col_blk_size)
+
+    ! calculate, normalize, and store potential terms as rows of block_V_terms
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_V_terms)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_V_terms)
+       iatom = arow
+       n = blk_sizes_pri(iatom)
+       CPASSERT(n*n == SIZE(block_V_terms,1))
+       nterms = SIZE(block_V_terms, 2)
+       DO kterm=1, nterms
+          block_V_term(1:n,1:n) => block_V_terms(:,kterm) ! map column into matrix
+          CALL linpot_calc_term(pao, qs_env, iatom, kterm, block_V_term)
+          block_V_term = block_V_term / SQRT(SUM(block_V_term*block_V_term)) ! normalize
+       ENDDO
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_linpot
 
@@ -138,14 +140,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_linpot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iterm
-
     CALL pao_param_finalize_fock(pao)
-
-    DO iterm=1, SIZE(pao%matrix_V_terms)
-       CALL cp_dbcsr_release(pao%matrix_V_terms(iterm))
-    ENDDO
-    DEALLOCATE(pao%matrix_V_terms)
+    CALL cp_dbcsr_release(pao%matrix_V_terms)
 
     ! pao%matrix_X is kept for the next MD step
 
@@ -173,24 +169,25 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_linpot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, kterm, N, nterms
+    INTEGER                                  :: handle, n
     LOGICAL                                  :: found
+    REAL(dp), DIMENSION(:), POINTER          :: vec_M2, vec_V
     REAL(dp), DIMENSION(:, :), POINTER       :: block_M2, block_V, &
-                                                block_V_term
+                                                block_V_terms
 
     CALL timeset(routineN,handle)
-    N = SIZE(block_U, 1)
-    nterms = SIZE(block_X)
-    ALLOCATE(block_V(N,N))
 
-    ! calc block_V
-    block_V(:,:) = 0.0_dp
-    DO kterm=1, nterms
-       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms(kterm), row=iatom, col=iatom, block=block_V_term, found=found)
-       CPASSERT(ASSOCIATED(block_V_term))
-       block_V = block_V + block_X(kterm,1) * block_V_term
-    ENDDO
+    n = SIZE(block_U, 1)
 
+    ! calculate potential V
+    ALLOCATE(vec_V(n*n))
+    vec_V(:) = 0.0_dp
+    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=block_V_terms, found=found)
+    IF(SIZE(block_V_terms)>0)& ! protect against corner-case of zero pao parameters
+      vec_V = MATMUL(block_V_terms, block_X(:,1))
+    block_V(1:n,1:n) => vec_V(:) ! map vector into matrix
+
+    ! symmetrize
     IF(MAXVAL(ABS(block_V-TRANSPOSE(block_V))/MAX(1.0_dp,MAXVAL(ABS(block_V)))) > 1e-12)&
         CPABORT("block_V not symmetric")
     block_V = 0.5_dp*( block_V + TRANSPOSE(block_V) ) ! symmetrize exactly
@@ -201,19 +198,16 @@ CONTAINS
     ELSE  ! TURNING POINT (if calc grad) --------------------------------------
 
        CPASSERT(PRESENT(block_M1))
-       ALLOCATE(block_M2(N,N))
+       ALLOCATE(vec_M2(n*n))
+       block_M2(1:n,1:n) => vec_M2(:) ! map vector into matrix
        CALL pao_calc_U_fock(pao, iatom, min_eval, block_V, block_U, block_M1, block_M2)
-
-       DO kterm=1, nterms
-          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms(kterm), row=iatom, col=iatom, block=block_V_term, found=found)
-          CPASSERT(ASSOCIATED(block_V_term))
-          block_G(kterm,1) = SUM(block_V_term * block_M2)
-       ENDDO
-
-       DEALLOCATE(block_M2)
+       IF(MAXVAL(ABS(block_M2-TRANSPOSE(block_M2)))>1e-14_dp) CPABORT("Expect symmetric matrix")
+       IF(SIZE(block_V_terms)>0)& ! protect against corner-case of zero pao parameters
+         block_G(:,1) = MATMUL(vec_M2, block_V_terms)
+       DEALLOCATE(vec_M2)
     ENDIF
 
-    DEALLOCATE(block_V)
+    DEALLOCATE(vec_V)
     CALL timestop(handle)
 
   END SUBROUTINE pao_calc_U_linpot

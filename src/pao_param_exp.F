@@ -41,7 +41,7 @@ CONTAINS
   SUBROUTINE pao_param_init_exp(pao, qs_env, reuse_matrix_X)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL                                  :: reuse_matrix_X
+    LOGICAL, INTENT(IN)                      :: reuse_matrix_X
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp', &
       routineP = moduleN//':'//routineN
@@ -262,7 +262,7 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Helper routine for calling BLAS zheevd
+!> \brief Helper routine for calling LAPACK zheevd
 !> \param matrix ...
 !> \param eigenvectors ...
 !> \param eigenvalues ...
