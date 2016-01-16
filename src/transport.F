@@ -21,6 +21,8 @@ MODULE transport
                                              C_LOC,&
                                              C_NULL_PTR,&
                                              C_PTR
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE bibliography,                    ONLY: Bruck2014,&
                                              cite_reference
   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
@@ -33,6 +35,7 @@ MODULE transport
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
+  USE input_constants,                 ONLY: transport_diagscalapack
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -40,10 +43,14 @@ MODULE transport
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_environ
+  USE particle_methods,                ONLY: get_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE transport_env_types,             ONLY: cp2k_csr_interop_type,&
                                              cp2k_transport_parameters,&
@@ -105,6 +112,7 @@ CONTAINS
 
     ALLOCATE(transport_env)
     CALL transport_init_read_input(input,transport_env)
+    CALL transport_init_contact_params(qs_env, transport_env)
     CALL cp_dbcsr_init(transport_env%template_matrix_sym)
     CALL cp_dbcsr_init(transport_env%template_matrix_nosym)
     CALL cp_dbcsr_init(transport_env%csr_sparsity)
@@ -167,13 +175,12 @@ CONTAINS
     IF (contact_explicit) THEN
        transport_env%params%num_contacts = n_contacts
        ALLOCATE(transport_env%contacts_data(5*n_contacts))
-       ALLOCATE(transport_env%contacts_nelec(n_contacts))
        DO i = 1, n_contacts
           CALL section_vals_val_get(contact_section,"BANDWIDTH",i_rep_section=i,&
                                                 i_val=transport_env%contacts_data((i-1)*5+1))
-          CALL section_vals_val_get(contact_section,"N_DOF",i_rep_section=i,&
-                                                i_val=transport_env%contacts_data((i-1)*5+2))
           CALL section_vals_val_get(contact_section,"START",i_rep_section=i,&
+                                                i_val=transport_env%contacts_data((i-1)*5+2))
+          CALL section_vals_val_get(contact_section,"N_ATOMS",i_rep_section=i,&
                                                 i_val=transport_env%contacts_data((i-1)*5+3))
           CALL section_vals_val_get(contact_section,"INJECTION_SIGN",i_rep_section=i,&
                                                 i_val=transport_env%contacts_data((i-1)*5+4))
@@ -183,15 +190,15 @@ CONTAINS
           ELSE 
              transport_env%contacts_data((i-1)*5+5) = 0
           END IF
-          CALL section_vals_val_get(contact_section,"N_ELEC",i_rep_section=i,&
-                                                r_val=transport_env%contacts_nelec(i))
        END DO
-       transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1)) 
-       transport_env%params%contacts_nelec = C_LOC(transport_env%contacts_nelec(1)) 
+       transport_env%params%contacts_data = C_LOC(transport_env%contacts_data(1))
     ELSE
-       transport_env%params%num_contacts = 0
-       transport_env%params%contacts_data  = C_NULL_PTR
-       transport_env%params%contacts_nelec = C_NULL_PTR
+       IF (transport_env%params%method .EQ. transport_diagscalapack) THEN
+          transport_env%params%num_contacts = 0
+          transport_env%params%contacts_data  = C_NULL_PTR
+       ELSE
+          CPABORT("No contact region is defined.")
+       END IF
     END IF
 
     CALL timestop(handle)
@@ -501,6 +508,58 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE convert_csr_interop_to_dbcsr
+
+! *****************************************************************************
+!> \brief extraxts zeff (effective nuclear charges per atom) and nsgf (the size 
+!>   of spherical Gaussian basis functions per atom) from qs_env and intializes 
+!>   the corresponding arrays in transport_env%params 
+!> \param[in] qs_env qs environment 
+!> \param[inout] transport_env transport environment
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE transport_init_contact_params(qs_env, transport_env)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'transport_init_contact_params', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iat, ikind, natom, nkind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    REAL(KIND=dp)                            :: zeff
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+
+    CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+    CALL get_qs_env(qs_env, particle_set=particle_set,&
+                            qs_kind_set=qs_kind_set, &
+                            atomic_kind_set=atomic_kind_set)
+
+    ALLOCATE (transport_env%nsgf(natom))
+    ALLOCATE (transport_env%zeff(natom))
+    CALL get_particle_set(particle_set, qs_kind_set, nsgf=transport_env%nsgf)
+
+    ! reference charges
+    DO ikind = 1, nkind
+       CALL get_qs_kind(qs_kind_set(ikind),zeff=zeff)
+       atomic_kind => atomic_kind_set(ikind)
+       CALL get_atomic_kind(atomic_kind,atom_list=atom_list)
+       DO iat = 1, SIZE(atom_list)
+          i = atom_list(iat)
+          transport_env%zeff(i) = zeff
+       END DO
+    END DO
+
+    transport_env%params%nsgf = C_LOC(transport_env%nsgf(1))
+    transport_env%params%zeff = C_LOC(transport_env%zeff(1))
+
+  END SUBROUTINE transport_init_contact_params
 
 END MODULE transport
 

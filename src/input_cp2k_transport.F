@@ -81,7 +81,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="N_ABSCISSAE",&
          description="The number of abscissae per integration interval on the real axis.",&
-         usage="N_ABSCISSAE <integer>", default_i_val=0)
+         usage="N_ABSCISSAE <integer>", default_i_val=64)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -226,7 +226,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="CONTACT", &
          description="Parameters for defining device contacts.",&
-         n_keywords=6, n_subsections=0, repeats=.TRUE.)
+         n_keywords=5, n_subsections=0, repeats=.TRUE.)
 
     NULLIFY(keyword)
 
@@ -236,15 +236,15 @@ CONTAINS
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="N_DOF",&
-         description="Number of degrees of freedom for the contact unit cell.",&
-         usage="N_DOF <integer>", default_i_val=0)
+    CALL keyword_create(keyword, name="START",&
+         description="Index of the atom where the contact unit cell starts.",&
+         usage="START <integer>", default_i_val=-1)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="START",&
-         description="Start index of the contact unit cell.",&
-         usage="START <integer>", default_i_val=-1)
+    CALL keyword_create(keyword, name="N_ATOMS",&
+         description="Number of atoms in the contact unit cell.",&
+         usage="N_ATOMS <integer>", default_i_val=0)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
@@ -264,12 +264,6 @@ CONTAINS
          description="whether or not the contact can inject electrons.",&
          default_l_val=.TRUE., lone_keyword_l_val = .TRUE.)
     CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="N_ELEC",&
-         description="Number of electrons per unit cell including doping.",&
-         usage="N_ELEC <real>", default_r_val=0.0_dp)
-    CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 
   END SUBROUTINE create_contact_section
