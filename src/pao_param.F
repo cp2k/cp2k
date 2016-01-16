@@ -140,12 +140,12 @@ CONTAINS
                                                 iatom, n1, n2
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:, :), POINTER       :: block_U, block_X
-    REAL(KIND=dp)                            :: min_eval
+    REAL(KIND=dp)                            :: min_gap
     TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
 
-    min_eval=1.0_dp
+    min_gap = 1.0_dp
 
     CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
@@ -158,14 +158,14 @@ CONTAINS
        CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
        CPASSERT(ASSOCIATED(block_U))
 
-       CALL pao_calc_U_low(pao, iatom, min_eval, block_X, block_U)
+       CALL pao_calc_U_low(pao, iatom, min_gap, block_X, block_U)
     END DO
 
     CALL cp_dbcsr_iterator_stop(iter)
 
     group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
-    CALL mp_min(min_eval,group)
-    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| min_eval",min_eval
+    CALL mp_min(min_gap,group)
+    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| min_gap:", min_gap
 
     CALL pao_assert_unitary(pao, pao%matrix_U, pao%matrix_Y)
     CALL timestop(handle)
@@ -176,14 +176,14 @@ CONTAINS
 !> \brief Helper routien for pao_calc_U
 !> \param pao ...
 !> \param iatom ...
-!> \param min_eval ...
+!> \param min_gap ...
 !> \param block_X ...
 !> \param block_U ...
 ! *****************************************************************************
- SUBROUTINE pao_calc_U_low(pao, iatom, min_eval, block_X, block_U)
+ SUBROUTINE pao_calc_U_low(pao, iatom, min_gap, block_X, block_U)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER, INTENT(IN)                      :: iatom
-    REAL(KIND=dp), INTENT(INOUT)             :: min_eval
+    REAL(KIND=dp), INTENT(INOUT)             :: min_gap
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X, block_U
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_low', &
@@ -193,7 +193,7 @@ CONTAINS
       CASE(pao_exp_param)
         CALL pao_calc_U_exp(pao, iatom, block_X, block_U)
       CASE DEFAULT
-        CALL pao_calc_U_linpot(pao, iatom, min_eval, block_X, block_U)
+        CALL pao_calc_U_linpot(pao, iatom, min_gap, block_X, block_U)
     END SELECT
 
   END SUBROUTINE pao_calc_U_low
@@ -214,7 +214,7 @@ CONTAINS
     INTEGER                                  :: acol, arow, group, handle, &
                                                 iatom
     LOGICAL                                  :: found
-    REAL(dp)                                 :: grad_check_max, min_eval
+    REAL(dp)                                 :: grad_check_max, min_gap
     REAL(dp), DIMENSION(:, :), POINTER       :: block_G, block_M, block_U, &
                                                 block_X
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -223,7 +223,7 @@ CONTAINS
 
     grad_check_max = 0.0_dp
 
-    min_eval=1.0_dp
+    min_gap = 1.0_dp
 
     CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
@@ -242,18 +242,18 @@ CONTAINS
          CASE(pao_exp_param)
            CALL pao_calc_U_exp(pao, iatom, block_X, block_U, block_M, block_G)
          CASE DEFAULT
-           CALL pao_calc_U_linpot(pao, iatom, min_eval, block_X, block_U, block_M, block_G)
+           CALL pao_calc_U_linpot(pao, iatom, min_gap, block_X, block_U, block_M, block_G)
        END SELECT
 
        IF(pao%check_grad_param_tol>0.0_dp)&
-          CALL pao_check_grad_param(pao, iatom, min_eval, block_X, block_G, block_M, grad_check_max)
+          CALL pao_check_grad_param(pao, iatom, min_gap, block_X, block_G, block_M, grad_check_max)
 
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
-     
+
     group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_M)))
-    CALL mp_min(min_eval,group)
-    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| min_eval",min_eval
+    CALL mp_min(min_gap,group)
+    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| min_gap:", min_gap
 
     IF(pao%check_grad_param_tol>0.0_dp) THEN
        group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_M)))
@@ -271,16 +271,16 @@ CONTAINS
 !> \brief Debugging routien for checking the analytic gradient.
 !> \param pao ...
 !> \param iatom ...
-!> \param min_eval ...
+!> \param min_gap ...
 !> \param block_X ...
 !> \param block_G ...
 !> \param block_M ...
 !> \param grad_check_max ...
 ! *****************************************************************************
-  SUBROUTINE pao_check_grad_param(pao, iatom, min_eval, block_X, block_G, block_M, grad_check_max)
+  SUBROUTINE pao_check_grad_param(pao, iatom, min_gap, block_X, block_G, block_M, grad_check_max)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER, INTENT(IN)                      :: iatom
-    REAL(KIND=dp), INTENT(INOUT)             :: min_eval
+    REAL(KIND=dp), INTENT(INOUT)             :: min_gap
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X, block_G, block_M
     REAL(dp), INTENT(INOUT)                  :: grad_check_max
 
@@ -311,12 +311,12 @@ CONTAINS
           dX = block_X
           dX(i,j) = dX(i,j) + eps
           IF(symm/=0.0) dX(j,i) = dX(j,i) + symm*eps
-          CALL pao_calc_U_low(pao, iatom, min_eval, dX, dU1)
+          CALL pao_calc_U_low(pao, iatom, min_gap, dX, dU1)
 
           dX = block_X
           dX(i,j) = dX(i,j) - eps
           IF(symm/=0.0) dX(j,i) = dX(j,i) - symm*eps
-          CALL pao_calc_U_low(pao, iatom, min_eval, dX, dU2)
+          CALL pao_calc_U_low(pao, iatom, min_gap, dX, dU2)
 
           dUdX = (dU1 - dU2) / (2.0_dp*eps)
           Gij_num = SUM(block_M * dUdX)

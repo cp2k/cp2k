@@ -9,12 +9,12 @@
 ! *****************************************************************************
 MODULE pao_param_fock
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_create,&
+                                             cp_dbcsr_get_block_p,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_release,&
+                                             cp_dbcsr_reserve_diag_blocks
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE pao_types,                       ONLY: pao_env_type
@@ -47,13 +47,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_fock', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: acol, arow, handle
-    LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:), POINTER          :: evals
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_H0, block_N, block_U0
+    INTEGER                                  :: handle
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(particle_type), DIMENSION(:), &
@@ -83,25 +79,6 @@ CONTAINS
                                       qs_kind_set,&
                                       output_unit=pao%iw)
 
-    ! allocate matrix_U0
-    CALL cp_dbcsr_init(pao%matrix_U0)
-    CALL cp_dbcsr_create(pao%matrix_U0, template=matrix_s(1)%matrix, matrix_type="N")
-    CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U0)
-
-    ! fill U0 with eigenvalues from H0
-    CALL cp_dbcsr_iterator_start(iter, pao%matrix_U0)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_U0)
-       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=arow, col=acol, block=block_H0, found=found)
-       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=arow, col=acol, block=block_N, found=found)
-       CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_N))
-       block_U0 = MATMUL(MATMUL(block_N,block_H0),block_N) ! transform H0 into orthonormal basis
-       ALLOCATE(evals(SIZE(block_H0,1)))
-       CALL diamat_all(block_U0, evals)
-       DEALLOCATE(evals)
-    END DO
-    CALL cp_dbcsr_iterator_stop(iter)
-
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_fock
 
@@ -117,7 +94,6 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CALL cp_dbcsr_release(pao%matrix_H0)
-    CALL cp_dbcsr_release(pao%matrix_U0)
 
   END SUBROUTINE pao_param_finalize_fock
 
@@ -126,16 +102,16 @@ CONTAINS
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
 !> \param iatom ...
-!> \param min_eval ...
+!> \param min_gap ...
 !> \param V ...
 !> \param U ...
 !> \param M1 ...
 !> \param G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_fock(pao, iatom, min_eval, V, U, M1, G)
+  SUBROUTINE pao_calc_U_fock(pao, iatom, min_gap, V, U, M1, G)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER                                  :: iatom
-    REAL(dp), INTENT(INOUT)                  :: min_eval
+    REAL(dp), INTENT(INOUT)                  :: min_gap
     REAL(dp), DIMENSION(:, :), POINTER       :: V, U
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: M1, G
@@ -143,218 +119,92 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_fock', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k, m, n
+    INTEGER                                  :: handle, i, j, m, n
     LOGICAL                                  :: found
-    REAL(dp)                                 :: denom, invsqrt, mu, nom, occ
-    REAL(dp), DIMENSION(:), POINTER          :: H_evals, W_evals
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_N, C, D4, D8, H, H0, &
-                                                H_evecs, M2, M3, M4, M5, M6, &
-                                                M7, M8, P, U0, W, W_evecs, Y, &
-                                                Z
-    REAL(KIND=dp)                            :: delta, poly, res, W_average
+    REAL(dp)                                 :: denom, gap
+    REAL(dp), DIMENSION(:), POINTER          :: H_evals
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_N, D, H, H0, H_evecs, &
+                                                M2, M3, M4, M5, Y
 
     CALL timeset(routineN,handle)
 
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=iatom, col=iatom, block=H0, found=found)
     CPASSERT(ASSOCIATED(H0))
-    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=U0, found=found)
-    CPASSERT(ASSOCIATED(U0))
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_N, row=iatom, col=iatom, block=block_N, found=found)
     CPASSERT(ASSOCIATED(block_N))
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=Y, found=found)
     CPASSERT(ASSOCIATED(Y))
 
     IF(MAXVAL(ABS(V-TRANSPOSE(V)))>1e-14_dp) CPABORT("Expect symmetric matrix")
-    n = SIZE(V, 1)
-    m = SIZE(Y, 2)
-    IF(SIZE(Y, 1) /= n) CPABORT("strange size of block Y")
+    n = SIZE(Y, 1) ! size of primary basis
+    m = SIZE(Y, 2) ! size of pao basis
 
     ! calculate H in the orthonormal basis
     ALLOCATE(H(n,n))
     H = MATMUL(MATMUL(block_N, H0 + V), block_N)
 
-    ! calculate P = 0.5*(I - sign[H - mu*I])
-    ALLOCATE(H_evals(n), H_evecs(n,n), P(n,n))
+    ! diagonalize H
+    ALLOCATE(H_evals(n), H_evecs(n,n))
     H_evecs = H
     CALL diamat_all(H_evecs, H_evals)
-    mu = 0.5_dp * (H_evals(m) + H_evals(m+1)) ! chemical pot. determined by pao basis size
-    P(:,:) = 0.0_dp
-    ! fill projectors
-    DO k=1, n
-       occ = occupation(H_evals(k), mu)
-       DO i=1, n
-          DO j=1, n
-             P(i,j) = P(i,j) + occ*H_evecs(i,k)*H_evecs(j,k)
-          ENDDO
-       ENDDO
-    ENDDO
-    IF(MAXVAL(ABS(P-TRANSPOSE(P)))>1e-14_dp) CPABORT("block P not symmetric")
 
-    ! Apply projector P onto initial vectors matrix U0
-    ALLOCATE(C(n,m))
-    C = MATMUL(MATMUL(P, U0), Y)
-
-    ! calc W = C^T * C
-    ALLOCATE(W(m,m))
-    W = MATMUL(TRANSPOSE(C), C)
-
-    ! calc Z = 1 / sqrt(CC)
-    ALLOCATE(Z(m,m), W_evals(m), W_evecs(m,m))
-    W_evecs = W
-    CALL diamat_all(W_evecs, W_evals)
-    min_eval=MIN(min_eval,MINVAL(W_evals))
-
-    IF (MINVAL(W_evals)<=0.0_dp) &
-       CPABORT("problem with U0 projection")
-
-    Z=0.0_dp
-    DO k=1, m
-       invsqrt = 1.0_dp / SQRT(W_evals(k))
-       DO i=1, m
-          DO j=1, m
-             Z(i,j) = Z(i,j) + invsqrt * W_evecs(i,k)*W_evecs(j,k)
-          ENDDO
-       ENDDO
+    ! normalize sign of eigenvectors
+    ! The total enegies are unaffacted by this,
+    ! however pao_check_grad_param() gets confused by spontaneous sign flips.
+    DO i=1, n
+       H_evecs(:,i) =  H_evecs(:,i) * SIGN(1.0_dp, H_evecs(i,i))
     ENDDO
 
-    ! pice together block U
-    U = MATMUL(MATMUL(C, Z), TRANSPOSE(Y))
+    ! the eigenvectors of H become the rotation matrix U
+    U = H_evecs
 
-    ! TURNING POINT (if calc grad) ------------------------------------------
-    IF(PRESENT(G))THEN
-       CPASSERT(PRESENT(M1))
-
-       ! dU / dZ
-       ALLOCATE(M2(m,m))
-       M2 = MATMUL(MATMUL(TRANSPOSE(C), M1), Y)
-
-       ! dU / dC
-       ALLOCATE(M3(n,m))
-       M3 = MATMUL(MATMUL(M1, Y), TRANSPOSE(Z))
-
-       ! dZ / dW
-       ALLOCATE(D4(m,m), M4(m,m))
-       DO i=1, m
-          DO j=1, m
-             W_average=(W_evals(i)+W_evals(j))/2.0_dp
-             delta=W_evals(i)/W_average-1.0_dp
-             IF (ABS(delta)<0.01_dp) THEN
-                ! degree 10 taylor expansion in delta.
-                res=-1.0/(W_average*SQRT(W_average))
-                poly=     88179.0_dp/524288.0_dp*delta**10
-                poly=poly+12155.0_dp/65536.0_dp*delta**8
-                poly=poly+429.0_dp/2048.0_dp*delta**6
-                poly=poly+63.0_dp/256.0_dp*delta**4
-                poly=poly+5.0_dp/16.0_dp*delta**2
-                poly=poly+1.0_dp/2.0_dp
-                res=res*poly
-             ELSE
-                nom = 1.0_dp/SQRT(W_evals(i)) - 1.0_dp/SQRT(W_evals(j))
-                denom = W_evals(i) - W_evals(j)
-                res = nom / denom
-             ENDIF
-             D4(i,j)=res
-          ENDDO
-       ENDDO
-       M4 = fold_derivatives(M2, D4, W_evecs, +1)
-
-       ! dW / dC
-       ALLOCATE(M5(n,m))
-       M5 = MATMUL(C, TRANSPOSE(M4) + M4)
-
-       ALLOCATE(M6(n,m))
-       M6 = M3 + M5
-
-       ! dC / dP
-       ALLOCATE(M7(n,n))
-       M7 = MATMUL(MATMUL(M6, TRANSPOSE(Y)), TRANSPOSE(U0))
-
-       ! dP / dH
-       ALLOCATE(D8(n,n), M8(n,n))
-       DO i=1, n
-          DO j=1, n
-             IF(i==j) THEN
-                D8(i,i) = 0.0 ! derivative of step-function
-             ELSE
-                nom = occupation(H_evals(i),mu) - occupation(H_evals(j),mu)
-                denom = H_evals(i) - H_evals(j)
-                IF(nom==0.0_dp) THEN ! avoid division by zero if denom==0 too.
-                   D8(i,j) = 0.0_dp
-                ELSE
-                   D8(i,j) = nom / denom
-                ENDIF
-             ENDIF
-          ENDDO
-       ENDDO
-       M8 = fold_derivatives(M7, D8, H_evecs, +1)
-
-       ! dH / dV
-       G = MATMUL(MATMUL(block_N, M8), block_N) ! the final gradient
-
-       DEALLOCATE(M2, M3, M4, M5, M6, M7, M8)
-       DEALLOCATE(D4, D8)
+    ! calculate homo-lumo gap (it's useful for detecting numerical issues)
+    IF(m < n) THEN ! catch special case n==m
+      gap = H_evals(m+1) - H_evals(m)
+      min_gap = MIN(min_gap, gap)
     ENDIF
 
-    DEALLOCATE(H_evals, H_evecs, W_evals, W_evecs)
-    DEALLOCATE(H, Z, P, C, W)
+    IF(PRESENT(G))THEN ! TURNING POINT (if calc grad) ----------------------------------------
+
+       CPASSERT(PRESENT(M1))
+
+       ! calculate derivatives between eigenvectors of H
+       ALLOCATE(D(n,n))
+       DO i=1, n
+       DO j=1, n
+          ! ignore changes among occupied or virtual eigenvectors
+          ! They will get filtered out by M2*D anyways, however this early
+          ! intervention might stabilize numerics in the case of level-crossings.
+          IF(i<=m .EQV. j<=m) THEN
+             D(i,i) = 0.0_dp
+          ELSE
+             denom = H_evals(i) - H_evals(j)
+             IF(ABS(denom) > 1e-9_dp) THEN ! avoid division by zero
+                D(i,j) = 1.0_dp / denom
+             ELSE
+                D(i,j) = SIGN(1e+9_dp, denom)
+             ENDIF
+          ENDIF
+       ENDDO
+       ENDDO
+
+       ! fold derivatives
+       ALLOCATE(M2(n,n))
+       M2 = MATMUL(TRANSPOSE(M1), H_evecs)
+       ALLOCATE(M3(n,n), M4(n,n), M5(n,n))
+       M3 = M2 * D ! Hadamard product
+       M4 = MATMUL(MATMUL(H_evecs, M3), TRANSPOSE(H_evecs))
+       M5 = 0.5_dp * (M4 + TRANSPOSE(M4)) ! symmetrize
+
+       ! dH / dV
+       G = MATMUL(MATMUL(block_N, M5), block_N) ! the final gradient
+
+       DEALLOCATE(D, M2, M3, M4, M5)
+    ENDIF
+
+    DEALLOCATE(H, H_evals, H_evecs)
 
     CALL timestop(handle)
   END SUBROUTINE pao_calc_U_fock
-
-
-! *****************************************************************************
-!> \brief Step-function, ie. fermi-distribution at zero temperature
-!> \param energy energy of state
-!> \param mu chemical potential
-!> \retval occ occupation of state
-! *****************************************************************************
-  FUNCTION occupation(energy, mu) RESULT(occ)
-    REAL(dp)                                 :: energy, mu, occ
-
-    IF(energy < mu) THEN
-      occ = 1.0_dp
-    ELSE
-      occ = 0.0_dp
-    ENDIF
-  END FUNCTION
-
-
-! *****************************************************************************
-!> \brief Helper routine for calculating derivatives
-!> \param M ...
-!> \param D ...
-!> \param R ...
-!> \param sym ...
-!> \retval G ...
-! *****************************************************************************
-  FUNCTION fold_derivatives(M, D, R, sym) RESULT(G)
-    REAL(dp), DIMENSION(:, :)                :: M, D, R
-    INTEGER                                  :: sym
-    REAL(dp), &
-      DIMENSION(SIZE(M, 1), SIZE(M, 1))      :: G
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'fold_derivatives', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: n
-    REAL(dp), DIMENSION(:, :), POINTER       :: F, RF, RFR, RM, RMR
-
-     IF(ABS(sym) /= 1) CPABORT("expected +1 or -1 as sym")
-
-     n = SIZE(R, 1)
-
-     ALLOCATE(RM(n,n), RMR(n,n), F(n,n), RF(n,n), RFR(n,n))
-
-     RM  = MATMUL(TRANSPOSE(R), TRANSPOSE(M))
-     RMR = MATMUL(RM, R)
-     F   = RMR * D !Hadamard product
-     RF  = MATMUL(R, F)
-     RFR = REAL(MATMUL(RF, TRANSPOSE(R)))
-
-     ! gradient dE/dX has to be (anti)symmetric
-     G = 0.5_dp * (TRANSPOSE(RFR) + REAL(sym,dp) * RFR)
-
-     DEALLOCATE(RM, RMR, F, RF, RFR)
-  END FUNCTION fold_derivatives
 
 END MODULE pao_param_fock
