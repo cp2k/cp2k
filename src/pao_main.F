@@ -252,7 +252,7 @@ CONTAINS
        CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
        CALL pao_update_AB(pao, ls_mstruct)
     ENDDO
- 
+
     IF (pao%mixing /= 1.0_dp  .AND. nrm /= 0.0_dp) THEN
        CALL cp_dbcsr_add(pao%matrix_X,matrix_X_start,pao%mixing,1.0_dp-pao%mixing)
 

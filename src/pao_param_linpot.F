@@ -10,11 +10,11 @@
 MODULE pao_param_linpot
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_get_block_p, &
-       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_frobenius_norm, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
   USE kinds,                           ONLY: dp
   USE pao_input,                       ONLY: pao_fock_param,&
                                              pao_rotinv_param
@@ -125,6 +125,8 @@ CONTAINS
        ENDDO
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
+
+    IF(.NOT. reuse_matrix_X) CALL linepot_initial_guess(pao, qs_env)
 
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_linpot
@@ -268,5 +270,136 @@ CONTAINS
      END SELECT
 
   END SUBROUTINE linpot_calc_term
+
+
+! *****************************************************************************
+!> \brief Calculate intial guess for matrix_X
+!> \param pao ...
+!> \param qs_env ...
+! *****************************************************************************
+  SUBROUTINE linepot_initial_guess(pao, qs_env)
+    TYPE(pao_env_type), POINTER              :: pao
+    TYPE(qs_environment_type), POINTER       :: qs_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'linepot_initial_guess', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: acol, arow, handle, n
+    LOGICAL                                  :: found
+    REAL(dp)                                 :: norm
+    REAL(dp), DIMENSION(:), POINTER          :: V_guess_vec
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_H0, block_ks, &
+                                                block_V_terms, block_X, &
+                                                V_guess
+    TYPE(cp_dbcsr_iterator)                  :: iter
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+
+    CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
+
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+
+       ! retrieve potential terms
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=arow, col=acol, block=block_V_terms, found=found)
+       CPASSERT(ASSOCIATED(block_V_terms))
+       IF(SIZE(block_V_terms)==0) CYCLE ! protect against corner-case of zero pao parameters
+
+       ! retrieve block_ks and block_H0
+       CALL cp_dbcsr_get_block_p(matrix=matrix_ks(1)%matrix, row=arow, col=acol, block=block_ks, found=found)
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_H0, row=arow, col=acol, block=block_H0, found=found)
+       CPASSERT(ASSOCIATED(block_H0) .AND. ASSOCIATED(block_ks))
+
+       ! guess a potential
+       n = SIZE(block_ks, 1)
+       ALLOCATE(V_guess_vec(n*n))
+       V_guess(1:n,1:n) => V_guess_vec
+       V_guess = block_ks - block_H0
+
+       ! project out anything that the potential terms can not represent
+       V_guess_vec = MATMUL(MATMUL(block_V_terms, TRANSPOSE(block_V_terms)), V_guess_vec)
+
+       ! find least-square-fit of guessed potential
+       CALL dgelsy_wrapper(block_V_terms, V_guess_vec, block_X(:,1))
+
+       DEALLOCATE(V_guess_vec)
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    norm = cp_dbcsr_frobenius_norm(pao%matrix_X)
+    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| Calculated initial guess, norm(X):", norm
+
+    CALL timestop(handle)
+  END SUBROUTINE linepot_initial_guess
+
+
+! *****************************************************************************
+!> \brief Helper routine for calling LAPACK dgelsy
+!>  computes the linear least square fit min|| A * X - B ||
+!> \param matrix_A possibly non-square matrix
+!> \param vec_B ...
+!> \param vec_X ...
+! *****************************************************************************
+   SUBROUTINE dgelsy_wrapper(matrix_A, vec_B, vec_X)
+    REAL(dp), DIMENSION(:, :)                :: matrix_A
+    REAL(dp), DIMENSION(:)                   :: vec_B, vec_X
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dgelsy_wrapper', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, info, lda, ldb, &
+                                                lwork, m, n, nrhs, rank
+    INTEGER, DIMENSION(:), POINTER           :: jpvt
+    REAL(KIND=dp)                            :: rcon
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: B, work
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: A
+
+    CALL timeset(routineN,handle)
+    NULLIFY(jpvt, work, B)
+
+    IF(SIZE(matrix_A, 1) /= SIZE(vec_B)) CPABORT("DGELSY: matrix_A and vec_B not compatible")
+    IF(SIZE(matrix_A, 2) /= SIZE(vec_X)) CPABORT("DGELSY: matrix_A and vec_X not compatible")
+    m = SIZE(matrix_A, 1)
+    n = SIZE(matrix_A, 2)
+    lda = m
+    ldb = MAX(m,n)
+    nrhs = 1 ! number of right hand sides
+
+    rcon = 0.0_dp ! est. condition number
+
+    ! optional permutations of A
+    ALLOCATE(jpvt(n))
+    jpvt(:) = 0 ! no permutation
+
+    ! make copies of matrix_A and vec_B
+    ALLOCATE(A(m,n), B(MAX(m,n)))
+    B(1:m) = vec_B(:)
+    A(:,:) = matrix_A(:,:)
+
+    ! query required work space
+    lwork = -1
+    ALLOCATE(work(1))
+    CALL DGELSY(m, n, nrhs, A(1,1), lda, B(1), ldb, jpvt, rcon, rank, work(1), lwork, info)
+    IF (info /= 0) CPABORT("DGELSY work space query failed")
+
+    ! allocate work space
+    lwork  = INT(REAL(work(1)))
+    DEALLOCATE(work)
+    ALLOCATE(work(lwork))
+
+    ! perform actual optimization
+    CALL DGELSY(m, n, nrhs, A(1,1), lda, B(1), ldb, jpvt, rcon, rank, work(1), lwork, info)
+    IF (info /= 0) CPABORT("DGELSY optimization failed")
+
+    ! copy results
+    vec_X(:) = B(1:n)
+
+    DEALLOCATE(A, B, work, jpvt)
+    CALL timestop(handle)
+
+  END SUBROUTINE dgelsy_wrapper
 
 END MODULE pao_param_linpot
