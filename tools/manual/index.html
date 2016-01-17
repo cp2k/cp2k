@@ -124,15 +124,6 @@ a:link, a:visited {
 <!-- Java Script *********************************************************** -->
 <script type="text/javascript">
   (function() {
-    var set_focus = function(){
-       var inputs = document.getElementsByName("search");
-       if(inputs.length>0){
-          inputs[0].focus();
-       //}else{
-       //   window.setTimeout(set_focus, 200    ); // wait a litle longer
-       }
-    }
-
     var change_branch = function(){
         // get current branch and update cookie
        var branch = document.getElementById("branch_selector").value;
@@ -165,27 +156,35 @@ a:link, a:visited {
        new_elem.setAttribute("id", "searchresults");
        new_elem.setAttribute("class", "gcse-searchresults");
        container.appendChild(new_elem);
-
-       // run google's javascript
-       var cx = '000324016156316545387:ddjlujwfaba';
-       var gcse = document.createElement('script');
-       gcse.type = 'text/javascript';
-       gcse.async = true;
-       gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-       var s = document.getElementsByTagName('script')[0];
-       s.parentNode.insertBefore(gcse, s);
-
-       // set focus once new searchbar is instantiated
-       window.setTimeout(set_focus, 500);
     };
 
-    // initial setup
+    var event_handler = function(){
+        change_branch();
+        google.search.cse.element.go();
+        document.getElementsByName("search")[0].focus();
+    }
+
+    var set_focus = function(){
+       var inputs = document.getElementsByName("search");
+       if(inputs.length>0) inputs[0].focus();
+    }
+
+    // read cookie and setup branch accordingly
     if(document.cookie.indexOf("branch=") >= 0){
        var branch = document.cookie.split("=")[1];
        document.getElementById("branch_selector").value = branch;
     }
-    document.getElementById("branch_selector").addEventListener("change", change_branch);
-    document.addEventListener("DOMContentLoaded", change_branch);
+    change_branch();
+
+    // register event handler
+    document.getElementById("branch_selector").addEventListener("change", event_handler);
+
+    // set focus once searchbar is instantiated
+    window.setTimeout(set_focus, 500);
   })();
 </script>
+
+<!-- google java script has to be loaded after initial call to change_branch(). -->
+<script type="text/javascript" src="https://cse.google.com/cse.js?cx=000324016156316545387:ddjlujwfaba"></script>
+
 </body></html>
