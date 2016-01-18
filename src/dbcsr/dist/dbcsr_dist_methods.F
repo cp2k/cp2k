@@ -100,7 +100,7 @@ CONTAINS
     INTEGER                                  :: handle, i, lcmv, mypcoor, &
                                                 nclusters, npcols, nprows, seq
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cluster_dist
-    INTEGER, DIMENSION(:), POINTER           :: col_dist_tmp, ld, row_dist_tmp
+    INTEGER, DIMENSION(:), POINTER           :: col_dist_tmp, row_dist_tmp
 
 !   ---------------------------------------------------------------------------
 
@@ -169,32 +169,30 @@ CONTAINS
     ELSE
        mypcoor = dbcsr_mp_myprow (mp_env)
        i = COUNT (row_dist_block.EQ.mypcoor)
-       NULLIFY (ld)
-       ALLOCATE (ld(i))
+       ALLOCATE (row_dist_tmp(i))
        seq = 1
        DO i = 1, SIZE(row_dist_block)
           IF (row_dist_block(i) .EQ. mypcoor) THEN
-             ld(seq) = i
+             row_dist_tmp(seq) = i
              seq = seq+1
           ENDIF
        ENDDO
-       CALL array_new (dist%d%local_rows, ld, gift=.TRUE.)
+       CALL array_new (dist%d%local_rows, row_dist_tmp, gift=.TRUE.)
     ENDIF
     IF (PRESENT (local_cols)) THEN
        CALL array_new(dist%d%local_cols, local_cols, gift=reuse_arrays)
     ELSE
        mypcoor = dbcsr_mp_mypcol (mp_env)
        i = COUNT (col_dist_block.EQ.mypcoor)
-       NULLIFY (ld)
-       ALLOCATE (ld(i))
+       ALLOCATE (col_dist_tmp(i))
        seq = 1
        DO i = 1, SIZE(col_dist_block)
           IF (col_dist_block(i) .EQ. mypcoor) THEN
-             ld(seq) = i
+             col_dist_tmp(seq) = i
              seq = seq+1
           ENDIF
        ENDDO
-       CALL array_new (dist%d%local_cols, ld, gift=.TRUE.)
+       CALL array_new (dist%d%local_cols, col_dist_tmp, gift=.TRUE.)
     ENDIF
 
     ! check cluster distributions -- rows

@@ -355,12 +355,12 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_sendrecv
-     MODULE PROCEDURE mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3,&
-                      mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3,&
-                      mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3,&
-                      mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3,&
-                      mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3,&
-                      mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3
+     MODULE PROCEDURE mp_sendrecv_iv, mp_sendrecv_im2, mp_sendrecv_im3, mp_sendrecv_im4,&
+                      mp_sendrecv_lv, mp_sendrecv_lm2, mp_sendrecv_lm3, mp_sendrecv_lm4,&
+                      mp_sendrecv_rv, mp_sendrecv_rm2, mp_sendrecv_rm3, mp_sendrecv_rm4,&
+                      mp_sendrecv_dv, mp_sendrecv_dm2, mp_sendrecv_dm3, mp_sendrecv_dm4,&
+                      mp_sendrecv_cv, mp_sendrecv_cm2, mp_sendrecv_cm3, mp_sendrecv_cm4,&
+                      mp_sendrecv_zv, mp_sendrecv_zm2, mp_sendrecv_zm3, mp_sendrecv_zm4
   END INTERFACE
 
   INTERFACE mp_isendrecv

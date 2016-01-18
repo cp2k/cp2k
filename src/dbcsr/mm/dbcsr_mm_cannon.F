@@ -36,7 +36,8 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_block_copy_aa,&
                                              dbcsr_block_real_neg,&
                                              dbcsr_block_scale,&
-                                             dbcsr_block_transpose_aa
+                                             dbcsr_block_transpose_aa,&
+                                             dbcsr_data_set
   USE dbcsr_config,                    ONLY: default_resize_factor,&
                                              has_acc,&
                                              use_comm_thread,&
@@ -109,6 +110,7 @@ MODULE dbcsr_mm_cannon
   USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_rget_any,&
+                                             dbcsr_sendrecv_any,&
                                              dbcsr_win_create_any,&
                                              hybrid_alltoall_any,&
                                              hybrid_alltoall_i1
@@ -119,8 +121,7 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_may_be_dense,&
                                              dbcsr_scale
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
-  USE dbcsr_toollib,                   ONLY: merge_ordered_arrays_nodup,&
-                                             uppercase
+  USE dbcsr_toollib,                   ONLY: uppercase
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
                                              dbcsr_make_dense_low,&
                                              dbcsr_make_undense,&
@@ -162,7 +163,7 @@ MODULE dbcsr_mm_cannon
                                              m_memory
   USE message_passing,                 ONLY: &
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_max, mp_min, &
-       mp_request_null, mp_rget, mp_sum, mp_testany, mp_waitall, &
+       mp_request_null, mp_rget, mp_sendrecv, mp_sum, mp_testany, mp_waitall, &
        mp_win_create, mp_win_free, mp_win_lock_all, mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
@@ -224,7 +225,9 @@ MODULE dbcsr_mm_cannon
   INTEGER, PARAMETER , PRIVATE               :: idata_displ = 3, &
                                                 idata_size = 1, &
                                                 imeta_displ = 4, &
-                                                imeta_size = 2
+                                                imeta_size = 2, &
+                                                ilocal_proc = 1, &
+                                                isym_proc = 2
 
   LOGICAL                                :: my_use_mpi_rma
 
@@ -1343,24 +1346,29 @@ MODULE dbcsr_mm_cannon
       routineP = moduleN//':'//routineN
 
     INTEGER :: blk, blk_p, bp, col, col_img, col_size, coli, data_size, &
-      data_type, handle, ithread, meta_size, mi, mypcol, myprow, myt, &
+      data_type, dst_p, grp, handle, ithread, meta_size, mi, mynode, myt, &
       nblkcols_local, nblkrows_local, nblocks, ncols_images, nimages_merged, &
-      nimages_unmerged, nrows_images, nsymmetries, nthreads, nze, row, &
-      row_img, row_size, rowi, size_rows_cols, size_threads_index, &
-      stored_col, stored_row, symmetry_i, tr_col_size, tr_row_size, ui
+      nimages_unmerged, nrows_images, nsymmetries, nthreads, nze, pcol, prow, &
+      row, row_img, row_size, rowi, size_threads_index, stored_col, &
+      stored_row, sym_p, symmetry_i, tr_col_size, tr_row_size, ui
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: g2l_map_cols, g2l_map_rows, &
+                                                meta_recv, meta_send, &
                                                 tmp_img_offset
     INTEGER, ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: refs
+      DIMENSION(:, :, :, :)                  :: recv_refs
+    INTEGER, ALLOCATABLE, &
+      DIMENSION(:, :, :, :, :)               :: refs
+    INTEGER, DIMENSION(2)                    :: recv_sym_size, sym_size
     INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, img_map_cols, &
-      img_map_rows, local_cols, local_rows, local_rows_cols, meta_buffer, &
+      img_map_rows, local_cols, local_rows, meta_buffer, meta_buffer_p, &
       row_dist, row_img_dist, threads_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, img_refs_cols, &
                                                 img_refs_rows, local_refs_p
     INTEGER, DIMENSION(:, :, :), POINTER     :: local_refs
     LOGICAL                                  :: tr
-    TYPE(dbcsr_data_obj), POINTER            :: data_buffer
+    TYPE(dbcsr_data_obj), POINTER            :: data_buffer, data_buffer_p
+    TYPE(dbcsr_data_obj), TARGET             :: data_recv, data_send
     TYPE(dbcsr_distribution_obj)             :: set_dist
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
@@ -1389,6 +1397,8 @@ MODULE dbcsr_mm_cannon
     col_dist => dbcsr_distribution_col_dist (set_dist)
     local_rows => dbcsr_distribution_local_rows(set_dist)
     local_cols => dbcsr_distribution_local_cols(set_dist)
+    nblkrows_local = SIZE(local_rows)
+    nblkcols_local = SIZE(local_cols)
     IF (sm%symmetry) THEN
        IF(SIZE(row_dist).NE.SIZE(col_dist))&
             CPWARN('Unequal row and column distributions for symmetric matrix.')
@@ -1398,9 +1408,9 @@ MODULE dbcsr_mm_cannon
     ncols_images = imgdist%i%col_decimation
     col_img_dist => array_data (imgdist%i%col_image)
     mp_obj = dbcsr_distribution_mp (set_dist)
+    grp = dbcsr_mp_group (mp_obj)
     blacs2mpi => dbcsr_mp_pgrid (mp_obj)
-    myprow = dbcsr_mp_myprow (mp_obj)
-    mypcol = dbcsr_mp_mypcol (mp_obj)
+    mynode = dbcsr_mp_mynode(mp_obj)
     IF (MAXVAL(row_dist).GT.UBOUND(blacs2mpi,1))&
          CPABORT("Row distribution references unexistent processor rows")
     IF (MAXVAL(col_dist).GT.UBOUND(blacs2mpi,2))&
@@ -1431,16 +1441,9 @@ MODULE dbcsr_mm_cannon
     !
     IF (dbcsr_has_symmetry(matrix)) THEN
        nsymmetries = 2
-       ! In case of symmetry we need to prepare a single local array for rows and cols
-       CALL merge_ordered_arrays_nodup(local_rows,local_cols,local_rows_cols,size_rows_cols)
-       local_rows => local_rows_cols
-       local_cols => local_rows_cols
-       nblkrows_local = size_rows_cols
-       nblkcols_local = size_rows_cols
+       sym_p = blacs2mpi(dbcsr_mp_mypcol(mp_obj),dbcsr_mp_myprow(mp_obj))
     ELSE
        nsymmetries = 1
-       nblkrows_local = SIZE(local_rows)
-       nblkcols_local = SIZE(local_cols)
     ENDIF
     !
     size_threads_index = dbcsr_num_slots
@@ -1512,7 +1515,8 @@ MODULE dbcsr_mm_cannon
 !$omp private (ithread,myt,iter,row,col,blk,row_size,col_size,&
 !$omp          stored_row,stored_col,mi,ui,blk_p,bp,tr,&
 !$omp          nze,symmetry_i,row_img,col_img,rowi,coli,&
-!$omp          tr_row_size,tr_col_size) &
+!$omp          tr_row_size,tr_col_size,prow,pcol,dst_p,&
+!$omp          data_buffer_p,meta_buffer_p) &
 !$omp shared (nthreads,refs,matrix,nsymmetries,&
 !$omp         row_img_dist,col_img_dist,imgdist,row_dist,col_dist,&
 !$omp         is_left,nrows_images,ncols_images,&
@@ -1520,11 +1524,11 @@ MODULE dbcsr_mm_cannon
 !$omp         data_size,meta_size,data_type,rma_buffers_orig,&
 !$omp         memtype_mpi_buffer,data_buffer,meta_buffer,sm,&
 !$omp         img_refs_cols,img_refs_rows,img_map_cols,img_map_rows,&
-!$omp         g2l_map_cols,g2l_map_rows,&
-!$omp         scale_value,scale_neg_one,&
-!$omp         size_threads_index,&
-!$omp         mp_obj,threads_dist,&
-!$omp         locks) &
+!$omp         g2l_map_cols,g2l_map_rows,recv_refs,grp,&
+!$omp         scale_value,scale_neg_one,data_send,data_recv,&
+!$omp         size_threads_index,sym_size,recv_sym_size,meta_send,&
+!$omp         mp_obj,threads_dist,meta_recv,&
+!$omp         locks,mynode,blacs2mpi,sym_p) &
 !$omp         reduction(+ : nblocks)
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -1532,8 +1536,8 @@ MODULE dbcsr_mm_cannon
 !$omp master
     nthreads = 1
 !$  nthreads = omp_get_num_threads()    
-    ALLOCATE(refs(2,nrows_images,ncols_images,0:nthreads))
-    refs(:,:,:,1:nthreads) = 0
+    ALLOCATE(refs(2,nrows_images,ncols_images,nsymmetries,0:nthreads))
+    refs(:,:,:,:,1:nthreads) = 0
 !$  IF (is_left) THEN
 !$     size_threads_index = size_threads_index + nthreads + 1
 !$  ENDIF
@@ -1545,6 +1549,9 @@ MODULE dbcsr_mm_cannon
 !$  IF (is_left.AND.nsymmetries.GT.1) THEN
 !$     call omp_init_lock(locks(ithread))
 !$  ENDIF
+    !
+    ! By default all data are considered already in local proc
+    dst_p = ilocal_proc
     !
     ! Take data and meta dimensions per each thread
     CALL dbcsr_iterator_start(iter, matrix, shared=.TRUE.)
@@ -1563,26 +1570,48 @@ MODULE dbcsr_mm_cannon
           row_img = row_img_dist (stored_row)
           col_img = col_img_dist (stored_col)
           CALL image_calculator(imgdist,&
+               prow = prow, pcol = pcol,&
                rowi = rowi, coli = coli,&
                myprow = row_dist(stored_row), myrowi = row_img,&
                mypcol = col_dist(stored_col), mycoli = col_img,&
                shifting = '0')
+          IF (nsymmetries.GT.1) THEN
+             IF (blacs2mpi(prow, pcol).EQ.mynode) THEN
+                dst_p = ilocal_proc
+             ELSE
+                ! Move data to remove symmetric proc
+                dst_p = isym_proc
+             ENDIF
+          ENDIF
 !$        IF (is_left.AND.nsymmetries.GT.1) THEN
 !$           myt = threads_dist(stored_row)
 !$        ENDIF
 !$omp atomic
-          refs(1,rowi,coli,myt+1) = refs(1,rowi,coli,myt+1) + 3
+          refs(imeta_size,rowi,coli,dst_p,myt+1) = refs(imeta_size,rowi,coli,dst_p,myt+1) + 3
 !$omp atomic
-          refs(2,rowi,coli,myt+1) = refs(2,rowi,coli,myt+1) + nze
+          refs(idata_size,rowi,coli,dst_p,myt+1) = refs(idata_size,rowi,coli,dst_p,myt+1) + nze
        ENDDO ! symmetry_i
     ENDDO
     CALL dbcsr_iterator_stop(iter)
+    IF (nsymmetries.GT.1) THEN
+!$omp barrier
+!$omp master
+       ALLOCATE(recv_refs(2,nrows_images,ncols_images,0:nthreads))
+       ! exchange sizes with the symmetric proc
+       CALL mp_sendrecv(refs(:,:,:,isym_proc,1:nthreads),sym_p,&
+            recv_refs(:,:,:,1:nthreads),sym_p,grp)
+!$omp end master
+    ENDIF
 !$omp barrier
 !$omp critical(local_refs_acc)
     !
     ! Store local data and meta dimensions
-    local_refs(imeta_size,:,:) = local_refs(imeta_size,:,:) + refs(1,:,:,ithread+1)
-    local_refs(idata_size,:,:) = local_refs(idata_size,:,:) + refs(2,:,:,ithread+1)
+    local_refs(imeta_size,:,:) = local_refs(imeta_size,:,:) + refs(imeta_size,:,:,ilocal_proc,ithread+1)
+    local_refs(idata_size,:,:) = local_refs(idata_size,:,:) + refs(idata_size,:,:,ilocal_proc,ithread+1)
+    IF (nsymmetries.GT.1) THEN
+       local_refs(imeta_size,:,:) = local_refs(imeta_size,:,:) + recv_refs(imeta_size,:,:,ithread+1)
+       local_refs(idata_size,:,:) = local_refs(idata_size,:,:) + recv_refs(idata_size,:,:,ithread+1)
+    ENDIF
 !$omp end critical(local_refs_acc)
 !$omp barrier
 !$omp master
@@ -1611,13 +1640,39 @@ MODULE dbcsr_mm_cannon
     !
     ! Change displacements for the first thread
     ! In this case they refer to position 1
-    refs(1,:,:,0) = local_refs(imeta_displ,:,:)+1
-    refs(2,:,:,0) = local_refs(idata_displ,:,:)+1
+    refs(imeta_size,:,:,ilocal_proc,0) = local_refs(imeta_displ,:,:)+1
+    refs(idata_size,:,:,ilocal_proc,0) = local_refs(idata_displ,:,:)+1
     !
     ! Evaluate data and meta diplacements per each thread
     DO mi=1, nthreads-1
-       refs(:,:,:,mi) = refs(:,:,:,mi) + refs(:,:,:,mi-1)
+       refs(:,:,:,ilocal_proc,mi) = refs(:,:,:,ilocal_proc,mi) + refs(:,:,:,ilocal_proc,mi-1)
     ENDDO
+    !
+    ! Take offsets for symmetric case
+    IF (nsymmetries.GT.1) THEN
+       !
+       ! For the symmetric case, always goes in rows and columns order w.r.t the the images
+       sym_size(:) = 1
+       recv_sym_size(:) = 1
+       DO coli=1, ncols_images
+          DO rowi=1, nrows_images
+             ! Carry previous value
+             refs(:,rowi,coli,isym_proc,0) = sym_size(:)
+             recv_refs(:,rowi,coli,0) = recv_sym_size(:)
+             DO mi=1, nthreads
+                refs(:,rowi,coli,isym_proc,mi) = refs(:,rowi,coli,isym_proc,mi) + refs(:,rowi,coli,isym_proc,mi-1)
+                recv_refs(:,rowi,coli,mi) = recv_refs(:,rowi,coli,mi) + recv_refs(:,rowi,coli,mi-1)
+                ! Add symetric events to the diplacements of local data
+                refs(:,rowi,coli,ilocal_proc,mi) = refs(:,rowi,coli,ilocal_proc,mi) + &
+                     recv_refs(:,rowi,coli,mi) - recv_sym_size(:)
+             ENDDO
+             sym_size(:) = refs(:,rowi,coli,isym_proc,nthreads)
+             recv_sym_size(:) = recv_refs(:,rowi,coli,nthreads)
+             ! Use the slot of the last thread to store the displ
+             refs(:,rowi,coli,isym_proc,nthreads) = refs(:,rowi,coli,isym_proc,0)-1
+          ENDDO
+       ENDDO
+    ENDIF
     !
     ! Allocate data and meta buffers
     IF (is_left) THEN
@@ -1645,8 +1700,18 @@ MODULE dbcsr_mm_cannon
        data_buffer => rma_buffers_orig%right_data
        meta_buffer => rma_buffers_orig%right_meta
     ENDIF
+    !
+    IF (nsymmetries.GT.1) THEN
+       ! Allocate data/meta to send
+       CALL dbcsr_data_init (data_send)
+       CALL dbcsr_data_new (data_send, data_type, sym_size(idata_size)-1)
+       ALLOCATE(meta_send(sym_size(imeta_size)-1))
+    ENDIF
 !$omp end master
 !$omp barrier
+    !
+    data_buffer_p => data_buffer
+    meta_buffer_p => meta_buffer
     !
     ! Copy data and meta in the buffers 
     CALL dbcsr_iterator_start(iter, matrix, shared=.TRUE.)
@@ -1668,48 +1733,85 @@ MODULE dbcsr_mm_cannon
           row_img = row_img_dist (stored_row)
           col_img = col_img_dist (stored_col)
           CALL image_calculator(imgdist,&
+               prow = prow, pcol = pcol,&
                rowi = rowi, coli = coli,&
                myprow = row_dist(stored_row), myrowi = row_img,&
                mypcol = col_dist(stored_col), mycoli = col_img,&
                shifting = '0')
+          IF (nsymmetries.GT.1) THEN
+             IF (blacs2mpi(prow, pcol).EQ.mynode) THEN
+                dst_p = ilocal_proc
+                data_buffer_p => data_buffer
+                meta_buffer_p => meta_buffer
+             ELSE
+                ! Move data to remove symmetric proc
+                dst_p = isym_proc
+                data_buffer_p => data_send
+                meta_buffer_p => meta_send
+             ENDIF
+          ENDIF
 !$        IF (is_left.AND.nsymmetries.GT.1) THEN
 !$           myt = threads_dist(stored_row)
 !$           call omp_set_lock(locks(myt))
 !$        ENDIF
           IF (tr) THEN
-             CALL dbcsr_block_transpose_aa(data_buffer,sm%data_area,tr_row_size,tr_col_size,&
-                                           refs(2,rowi,coli,myt),bp,&
+             CALL dbcsr_block_transpose_aa(data_buffer_p,sm%data_area,tr_row_size,tr_col_size,&
+                                           refs(idata_size,rowi,coli,dst_p,myt),bp,&
                                            scale_value)
              IF (sm%negate_real .AND. sm%negate_imaginary) THEN
-                CALL dbcsr_block_scale (data_buffer, scale=scale_neg_one,&
+                CALL dbcsr_block_scale (data_buffer_p, scale=scale_neg_one,&
                                         row_size=nze, col_size=1, &
-                                        lb=refs(2,rowi,coli,myt))
+                                        lb=refs(idata_size,rowi,coli,dst_p,myt))
              ELSEIF (sm%negate_real) THEN
-                CALL dbcsr_block_real_neg (data_buffer, row_size=nze, col_size=1,&
-                                           lb=refs(2,rowi,coli,myt))
+                CALL dbcsr_block_real_neg (data_buffer_p, row_size=nze, col_size=1,&
+                                           lb=refs(idata_size,rowi,coli,dst_p,myt))
              ELSEIF (sm%negate_imaginary) THEN
-                CALL dbcsr_block_conjg (data_buffer, row_size=nze, col_size=1,&
-                                        lb=refs(2,rowi,coli,myt))
+                CALL dbcsr_block_conjg (data_buffer_p, row_size=nze, col_size=1,&
+                                        lb=refs(idata_size,rowi,coli,dst_p,myt))
              ENDIF
           ELSE
-             CALL dbcsr_block_copy_aa(data_buffer,sm%data_area,row_size,col_size,&
-                                      refs(2,rowi,coli,myt),bp,&
+             CALL dbcsr_block_copy_aa(data_buffer_p,sm%data_area,row_size,col_size,&
+                                      refs(idata_size,rowi,coli,dst_p,myt),bp,&
                                       scale_value)
           ENDIF
           !
           ! Set meta data (local indexing)
-          meta_buffer(refs(1,rowi,coli,myt)+size_threads_index) = g2l_map_rows(stored_row)
-          meta_buffer(refs(1,rowi,coli,myt)+size_threads_index+1) = g2l_map_cols(stored_col)
-          meta_buffer(refs(1,rowi,coli,myt)+size_threads_index+2) = refs(2,rowi,coli,myt) - &
-               local_refs(idata_displ,rowi,coli)
-          refs(1,rowi,coli,myt) = refs(1,rowi,coli,myt) + 3
-          refs(2,rowi,coli,myt) = refs(2,rowi,coli,myt) + nze
+          IF (nsymmetries.EQ.1.OR.blacs2mpi(prow, pcol).EQ.mynode) THEN
+             meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)+size_threads_index) = g2l_map_rows(stored_row)
+             meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)+size_threads_index+1) = g2l_map_cols(stored_col)
+             meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)+size_threads_index+2) = &
+                  refs(idata_size,rowi,coli,dst_p,myt) - local_refs(idata_displ,rowi,coli)
+          ELSE
+             ! For the symmetric case we need to swap rows and cols maps
+             meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)) = g2l_map_cols(stored_row)
+             meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)+1) = g2l_map_rows(stored_col)
+             ! The offset will be adjusted on the symmetric proc
+             meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)+2) = &
+                  refs(idata_size,rowi,coli,dst_p,myt) - refs(idata_size,rowi,coli,dst_p,nthreads)
+          ENDIF
+          refs(imeta_size,rowi,coli,dst_p,myt) = refs(imeta_size,rowi,coli,dst_p,myt) + 3
+          refs(idata_size,rowi,coli,dst_p,myt) = refs(idata_size,rowi,coli,dst_p,myt) + nze
 !$        IF (is_left.AND.nsymmetries.GT.1) THEN
 !$           call omp_unset_lock(locks(myt))
 !$        ENDIF
        ENDDO
     ENDDO
     CALL dbcsr_iterator_stop(iter)
+    !
+    IF (nsymmetries.GT.1) THEN
+!$omp barrier
+!$omp master
+       ! Send/recv data to the symmetric proc
+       CALL dbcsr_data_init (data_recv)
+       CALL dbcsr_data_new (data_recv, data_type, recv_sym_size(idata_size)-1)
+       CALL dbcsr_sendrecv_any(data_send,sym_p,data_recv,sym_p,grp)       
+       ALLOCATE(meta_recv(recv_sym_size(imeta_size)-1))
+       CALL mp_sendrecv(meta_send,sym_p,meta_recv,sym_p,grp)       
+       ! Delete send data
+       CALL dbcsr_data_release (data_send)
+       DEALLOCATE(meta_send)
+!$omp end master
+    ENDIF
 !$omp barrier
 !$  IF (is_left.AND.nsymmetries.GT.1) THEN
 !$     call omp_destroy_lock(locks(ithread))    
@@ -1720,6 +1822,29 @@ MODULE dbcsr_mm_cannon
     DO coli = 1, ncols_images
        DO rowi = 1, nrows_images
           IF (local_refs(imeta_size,rowi,coli).EQ.0) CYCLE
+          !
+          ! Insert symmetric data in local buffers
+          IF (nsymmetries.GT.1) THEN
+             IF (recv_refs(imeta_size,rowi,coli,nthreads).GT.1) THEN
+                DO ithread=0, nthreads-1
+                   ! Copy meta, block by block
+                   DO blk = recv_refs(imeta_size,rowi,coli,ithread),recv_refs(imeta_size,rowi,coli,ithread+1)-1,3
+                      meta_buffer(refs(imeta_size,rowi,coli,ilocal_proc,ithread)+size_threads_index) = &
+                           meta_recv(blk)
+                      meta_buffer(refs(imeta_size,rowi,coli,ilocal_proc,ithread)+size_threads_index+1) = &
+                           meta_recv(blk+1)
+                      meta_buffer(refs(imeta_size,rowi,coli,ilocal_proc,ithread)+size_threads_index+2) = &
+                           meta_recv(blk+2)+refs(idata_size,rowi,coli,ilocal_proc,ithread)-&
+                           recv_refs(idata_size,rowi,coli,ithread)
+                      refs(imeta_size,rowi,coli,ilocal_proc,ithread) = refs(imeta_size,rowi,coli,ilocal_proc,ithread) + 3
+                   ENDDO
+                   ! Copy data
+                   CALL dbcsr_data_set(data_buffer,refs(idata_size,rowi,coli,ilocal_proc,ithread),&
+                        recv_refs(idata_size,rowi,coli,ithread+1)-recv_refs(idata_size,rowi,coli,ithread),&
+                        data_recv,recv_refs(idata_size,rowi,coli,ithread))
+                ENDDO
+             ENDIF
+          ENDIF
           meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_size) = &
                local_refs(imeta_size,rowi,coli)
           meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_nblks) = &
@@ -1772,7 +1897,7 @@ MODULE dbcsr_mm_cannon
              meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_num_slots+1) = 0
              DO ithread=0, nthreads-1
                 meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_num_slots+ithread+2) = &
-                     (refs(1,rowi,coli,ithread)-local_refs(imeta_displ,rowi,coli)-1)/3
+                     (refs(imeta_size,rowi,coli,ilocal_proc,ithread)-local_refs(imeta_displ,rowi,coli)-1)/3
              ENDDO
           ENDIF
           meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_coo_l) = size_threads_index+1
@@ -1789,6 +1914,10 @@ MODULE dbcsr_mm_cannon
 !$omp end do
 !$omp end parallel
     DEALLOCATE(refs)
+    IF (nsymmetries.GT.1) THEN
+       CALL dbcsr_data_release (data_recv)
+       DEALLOCATE(recv_refs,meta_recv)
+    ENDIF
     DEALLOCATE(g2l_map_rows,g2l_map_cols)
 !$  IF (is_left.AND.nsymmetries.GT.1) THEN    
 !$     DEALLOCATE(locks)

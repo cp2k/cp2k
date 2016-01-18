@@ -1900,6 +1900,58 @@
   END SUBROUTINE mp_sendrecv_cm3
 
 ! *****************************************************************************
+!> \brief Sends and receives rank-4 data
+!> \param msgin ...
+!> \param dest ...
+!> \param msgout ...
+!> \param source ...
+!> \param comm ...
+!> \note see mp_sendrecv_cv 
+! *****************************************************************************
+  SUBROUTINE mp_sendrecv_cm4(msgin,dest,msgout,source,comm)
+    COMPLEX(kind=real_4), INTENT(IN)                      :: msgin( :, :, :, : )
+    INTEGER, INTENT(IN)                      :: dest
+    COMPLEX(kind=real_4), INTENT(OUT)                     :: msgout( :, :, :, : )
+    INTEGER, INTENT(IN)                      :: source, comm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sendrecv_cm4', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen_in, msglen_out, &
+                                                recv_tag, send_tag
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: status
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    ALLOCATE(status(MPI_STATUS_SIZE))
+    t_start = m_walltime ( )
+    msglen_in = SIZE(msgin)
+    msglen_out = SIZE(msgout)
+    send_tag = 0 ! cannot think of something better here, this might be dangerous
+    recv_tag = 0 ! cannot think of something better here, this might be dangerous
+    CALL mpi_sendrecv(msgin,msglen_in,MPI_COMPLEX,dest,send_tag,msgout,&
+         msglen_out,MPI_COMPLEX,source,recv_tag,comm,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=7,count=1,time=t_end-t_start,&
+         msg_size=(msglen_in+msglen_out)*(2*real_4_size)/2)
+    DEALLOCATE(status)
+#else
+    MARK_USED(dest)
+    MARK_USED(source)
+    MARK_USED(comm)
+    msgout = msgin
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_sendrecv_cm4
+
+! *****************************************************************************
 !> \brief Non-blocking send and receieve of a scalar
 !> \param[in] msgin           Scalar data to send
 !> \param[in] dest            Which process to send to

@@ -37,7 +37,7 @@ MODULE dbcsr_toollib
   ! math routines
   PUBLIC :: gcd, lcm
   ! utility routines
-  PUBLIC :: sort, joaat_hash, merge_ordered_arrays_nodup
+  PUBLIC :: sort, joaat_hash
 
   INTERFACE swap
      MODULE PROCEDURE iswap, bswap
@@ -247,51 +247,5 @@ CONTAINS
     ! In fortran the rightmost (least significant) bit is in position 0
     hash_index = INT(IBCLR(hash, 31))
   END FUNCTION joaat_hash
-
-! *****************************************************************************
-!> \brief merge two ordered arrays, avoiding duplicates
-!> \param arr1 input array
-!> \param arr2 input array
-!> \param output output array
-!> \param output_size size of output array (actually size is the size 
-!>                    of arr1 and arr2)
-!> \author  Alfio Lazzaro
-! *****************************************************************************
-  SUBROUTINE merge_ordered_arrays_nodup(arr1,arr2,output,output_size)
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      POINTER                                :: arr1, arr2
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      POINTER                                :: output
-    INTEGER, INTENT(OUT)                     :: output_size
-
-    INTEGER                                  :: i1, i2, s1, s2
-
-    s1 = SIZE(arr1)
-    s2 = SIZE(arr2)
-    ALLOCATE(output(s1+s2))
-    i1 = 1
-    i2 = 1
-    output_size = 0
-    DO WHILE (i1.LE.s1.OR.i2.LE.s2)
-       output_size = output_size+1
-       IF (i1.GT.s1) THEN
-          output(output_size) = arr2(i2)
-          i2 = i2+1
-       ELSEIF (i2.GT.s2) THEN
-          output(output_size) = arr1(i1)
-          i1 = i1+1
-       ELSEIF (arr1(i1).EQ.arr2(i2)) THEN
-          output(output_size) = arr1(i1)
-          i1 = i1+1
-          i2 = i1+1
-       ELSEIF (arr1(i1).LT.arr2(i2)) THEN
-          output(output_size) = arr1(i1)
-          i1 = i1+1
-       ELSE
-          output(output_size) = arr2(i2)
-          i2 = i2+1
-       ENDIF
-    ENDDO
-  END SUBROUTINE merge_ordered_arrays_nodup
 
 END MODULE dbcsr_toollib
