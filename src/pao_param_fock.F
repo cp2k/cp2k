@@ -176,7 +176,7 @@ CONTAINS
           ! They will get filtered out by M2*D anyways, however this early
           ! intervention might stabilize numerics in the case of level-crossings.
           IF(i<=m .EQV. j<=m) THEN
-             D(i,i) = 0.0_dp
+             D(i,j) = 0.0_dp
           ELSE
              denom = H_evals(i) - H_evals(j)
              IF(ABS(denom) > 1e-9_dp) THEN ! avoid division by zero

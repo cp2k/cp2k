@@ -32,7 +32,8 @@ MODULE pao_methods
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
-  USE mathlib,                         ONLY: diamat_all
+  USE mathlib,                         ONLY: abnormal_value,&
+                                             diamat_all
   USE message_passing,                 ONLY: mp_max
   USE pao_input,                       ONLY: pao_exp_param
   USE pao_param,                       ONLY: pao_update_AB
@@ -280,6 +281,8 @@ CONTAINS
     norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", new_energy
     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| gradient norm:", norm_G
+    IF(abnormal_value(norm_G))&
+       CPABORT("PAO gradient norm is an abnormal value (NaN/Inf).")
 
     IF(pao%istep>1) THEN
        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
