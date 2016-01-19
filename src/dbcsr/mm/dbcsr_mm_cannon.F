@@ -693,7 +693,6 @@ MODULE dbcsr_mm_cannon
     !
     ! Temporary check for RMA algorithm
     IF (new_right.OR.new_left.OR.&
-        matrix_left%m%symmetry.OR.matrix_right%m%symmetry.OR.&
         dbcsr_mp_nprows(dbcsr_distribution_mp(matrix_c%m%dist)).NE.&
         dbcsr_mp_npcols(dbcsr_distribution_mp(matrix_c%m%dist))) THEN
        my_use_mpi_rma = .FALSE.
@@ -1787,7 +1786,7 @@ MODULE dbcsr_mm_cannon
              meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)+1) = g2l_map_rows(stored_col)
              ! The offset will be adjusted on the symmetric proc
              meta_buffer_p(refs(imeta_size,rowi,coli,dst_p,myt)+2) = &
-                  refs(idata_size,rowi,coli,dst_p,myt) - refs(idata_size,rowi,coli,dst_p,nthreads)
+                  refs(idata_size,rowi,coli,dst_p,myt)
           ENDIF
           refs(imeta_size,rowi,coli,dst_p,myt) = refs(imeta_size,rowi,coli,dst_p,myt) + 3
           refs(idata_size,rowi,coli,dst_p,myt) = refs(idata_size,rowi,coli,dst_p,myt) + nze
@@ -1834,8 +1833,8 @@ MODULE dbcsr_mm_cannon
                       meta_buffer(refs(imeta_size,rowi,coli,ilocal_proc,ithread)+size_threads_index+1) = &
                            meta_recv(blk+1)
                       meta_buffer(refs(imeta_size,rowi,coli,ilocal_proc,ithread)+size_threads_index+2) = &
-                           meta_recv(blk+2)+refs(idata_size,rowi,coli,ilocal_proc,ithread)-&
-                           recv_refs(idata_size,rowi,coli,ithread)
+                           meta_recv(blk+2)-recv_refs(idata_size,rowi,coli,ithread)+&
+                           refs(idata_size,rowi,coli,ilocal_proc,ithread)-local_refs(idata_displ,rowi,coli)
                       refs(imeta_size,rowi,coli,ilocal_proc,ithread) = refs(imeta_size,rowi,coli,ilocal_proc,ithread) + 3
                    ENDDO
                    ! Copy data
