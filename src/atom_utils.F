@@ -381,6 +381,11 @@ CONTAINS
             density(:) = density(:) + 0.5_dp*ff*(&
               basis%dbf(:,i,l)*basis%dbf(:,j,l) + &
               REAL(l*(l+1),dp)*basis%bf(:,i,l)*basis%bf(:,j,l)/rr(:))
+          ELSE IF(my_typ == "LAP") THEN
+            density(:) = density(:) + ff*basis%ddbf(:,i,l)*basis%bf(:,j,l) &
+                                    + ff*basis%bf(:,i,l)*basis%ddbf(:,j,l) &
+                                    + 2._dp*ff*basis%dbf(:,i,l)*basis%bf(:,j,l)/rr(:) &
+                                    + 2._dp*ff*basis%bf(:,i,l)*basis%dbf(:,j,l)/rr(:)
           ELSE
             CPABORT("")
           END IF
@@ -693,7 +698,7 @@ CONTAINS
 
     CHARACTER(LEN=3)                         :: my_typ
     INTEGER                                  :: i, j, m, n
-    REAL(KIND=dp)                            :: a
+    REAL(KIND=dp)                            :: a, a2, fb
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fe, rc
 
     my_typ = "RHO"
@@ -705,6 +710,7 @@ CONTAINS
       n=gthpot%nexp_nlcc
       DO i=1,n
         a=gthpot%alpha_nlcc(i)
+        a2 = a*a
         ! note that all terms are computed with rc, not rr
         rc(:)=rr(:)/a
         fe(:)=EXP(-0.5_dp*rc(:)*rc(:))
@@ -715,6 +721,15 @@ CONTAINS
             corden(:) = corden(:) - fe(:)*rc**(2*j-1)*gthpot%cval_nlcc(j,i)/a
             IF(j>1) THEN
               corden(:) = corden(:) + REAL(2*j-2,dp)*fe(:)*rc**(2*j-3)*gthpot%cval_nlcc(j,i)/a
+            END IF
+          ELSE IF(my_typ == "LAP") THEN
+            fb = 2._dp*gthpot%cval_nlcc(j,i)/a
+            corden(:) = corden(:) - fb*fe(:)/rr(:)*rc**(2*j-1)
+            corden(:) = corden(:) + fe(:)*rc**(2*j)*gthpot%cval_nlcc(j,i)/a2
+            IF(j>1) THEN
+              corden(:) = corden(:) + fb*REAL(2*j-2,dp)*fe(:)/rr(:)*rc**(2*j-3)
+              corden(:) = corden(:) + REAL((2*j-2)*(2*j-3),dp)*fe(:)*rc**(2*j-4)*gthpot%cval_nlcc(j,i)/a2
+              corden(:) = corden(:) - REAL(2*j-2,dp)*fe(:)*rc**(2*j-2)*gthpot%cval_nlcc(j,i)/a2
             END IF
           ELSE
             CPABORT("")

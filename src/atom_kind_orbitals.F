@@ -285,7 +285,7 @@ CONTAINS
     grid%nr = ngp
     basis%grid => grid
 
-    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
     basis%basis_type = CGTO_BASIS
     basis%eps_eig = 1.e-12_dp
 
@@ -342,9 +342,11 @@ CONTAINS
     m  = MAXVAL(basis%nbas)
     ALLOCATE (basis%bf(nr,m,0:3))
     ALLOCATE (basis%dbf(nr,m,0:3))
+    ALLOCATE (basis%ddbf(nr,m,0:3))
 
     basis%bf =  0._dp
     basis%dbf = 0._dp
+    basis%ddbf = 0._dp
     DO l=0,3
       DO i=1,basis%nprim(l)
         al  = basis%am(i,l)
@@ -355,6 +357,8 @@ CONTAINS
             basis%bf(k,j,l) = basis%bf(k,j,l) + rk**l * ear*basis%cm(i,j,l)
             basis%dbf(k,j,l) = basis%dbf(k,j,l) &
               + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*basis%cm(i,j,l)
+            basis%ddbf(k,j,l) = basis%ddbf(k,j,l) + ( REAL(l*(l-1),dp)*rk**(l-2) - &
+              2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear*basis%cm(i,j,l)
           END DO
         END DO
       END DO
@@ -696,7 +700,7 @@ CONTAINS
     grid%nr = ngp
     basis%grid => grid
 
-    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
 
     ! fill in the basis data structures
     basis%eps_eig = 1.e-12_dp
@@ -723,8 +727,10 @@ CONTAINS
     m  = MAXVAL(basis%nbas)
     ALLOCATE (basis%bf(nr,m,0:3))
     ALLOCATE (basis%dbf(nr,m,0:3))
+    ALLOCATE (basis%ddbf(nr,m,0:3))
     basis%bf =  0._dp
     basis%dbf = 0._dp
+    basis%ddbf = 0._dp
     DO l=0,3
       DO i=1,basis%nbas(l)
         al  = basis%am(i,l)
@@ -733,6 +739,8 @@ CONTAINS
           ear = EXP(-al*basis%grid%rad(k)**2)
           basis%bf(k,i,l) = rk**l * ear
           basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+          basis%ddbf(k,i,l) = ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear
         END DO
       END DO
     END DO
@@ -1016,7 +1024,7 @@ CONTAINS
        grid%nr = ngp
        basis%grid => grid
 
-       NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+       NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
        basis%basis_type = CGTO_BASIS
        basis%eps_eig = 1.e-12_dp
 
@@ -1084,9 +1092,11 @@ CONTAINS
        m  = MAXVAL(basis%nbas)
        ALLOCATE (basis%bf(nr,m,0:3))
        ALLOCATE (basis%dbf(nr,m,0:3))
+       ALLOCATE (basis%ddbf(nr,m,0:3))
 
        basis%bf =  0._dp
        basis%dbf = 0._dp
+       basis%ddbf = 0._dp
        DO l=0,3
          DO i=1,basis%nprim(l)
            al  = basis%am(i,l)
@@ -1097,6 +1107,8 @@ CONTAINS
                basis%bf(k,j,l) = basis%bf(k,j,l) + rk**l * ear*basis%cm(i,j,l)
                basis%dbf(k,j,l) = basis%dbf(k,j,l) &
                  + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*basis%cm(i,j,l)
+               basis%ddbf(k,j,l) = basis%ddbf(k,j,l) + ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear*basis%cm(i,j,l)
              END DO
            END DO
          END DO

@@ -74,6 +74,7 @@ MODULE atom_types
     INTEGER,DIMENSION(:,:),POINTER                :: ns         !STO n-quantum numbers
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: bf         !num. bsf
     REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: dbf        !derivatives (num)
+    REAL(KIND=dp),DIMENSION(:,:,:),POINTER        :: ddbf       !2nd derivatives (num)
     REAL(KIND=dp)                                 :: eps_eig
     TYPE(grid_atom_type),POINTER                  :: grid
     LOGICAL                                       :: geometrical
@@ -335,7 +336,7 @@ CONTAINS
 !   btyp = AA : high accuracy all-electron basis
 !   btyp = AP : high accuracy pseudopotential basis
 
-    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf)
+    NULLIFY(basis%am,basis%cm,basis%as,basis%ns,basis%bf,basis%dbf,basis%ddbf)
     ! get information on quadrature type and number of grid points
     ! allocate and initialize the atomic grid
     CALL allocate_grid_atom(basis%grid)
@@ -422,8 +423,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
              al  = basis%am(i,l)
@@ -432,6 +435,8 @@ CONTAINS
                ear = EXP(-al*basis%grid%rad(k)**2)
                basis%bf(k,i,l) = rk**l * ear
                basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+               basis%ddbf(k,i,l) = ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear
              END DO
            END DO
          END DO
@@ -502,8 +507,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
              al  = basis%am(i,l)
@@ -512,6 +519,8 @@ CONTAINS
                ear = EXP(-al*basis%grid%rad(k)**2)
                basis%bf(k,i,l) = rk**l * ear
                basis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+               basis%ddbf(k,i,l) = ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear
              END DO
            END DO
          END DO
@@ -528,8 +537,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nprim(l)
              al  = basis%am(i,l)
@@ -540,6 +551,8 @@ CONTAINS
                  basis%bf(k,j,l) = basis%bf(k,j,l) + rk**l * ear*basis%cm(i,j,l)
                  basis%dbf(k,j,l) = basis%dbf(k,j,l) &
                    + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*basis%cm(i,j,l)
+                 basis%ddbf(k,j,l) = basis%ddbf(k,j,l) + ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                   2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear*basis%cm(i,j,l)
                END DO
              END DO
            END DO
@@ -622,8 +635,10 @@ CONTAINS
          m  = MAXVAL(basis%nbas)
          ALLOCATE (basis%bf(nr,m,0:3))
          ALLOCATE (basis%dbf(nr,m,0:3))
+         ALLOCATE (basis%ddbf(nr,m,0:3))
          basis%bf =  0._dp
          basis%dbf = 0._dp
+         basis%ddbf = 0._dp
          DO l=0,3
            DO i=1,basis%nbas(l)
              al  = basis%as(i,l)
@@ -631,9 +646,11 @@ CONTAINS
              pf  = (2._dp*al)**nl * SQRT(2._dp*al/fac(2*nl))
              DO k=1,nr
                rk  = basis%grid%rad(k)
-               ear = EXP(-al*rk)
-               basis%bf(k,i,l) = pf * rk**(nl-1) * ear
-               basis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * rk**(nl-1) * ear
+               ear = rk**(nl-1) * EXP(-al*rk)
+               basis%bf(k,i,l) = pf * ear
+               basis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * ear
+               basis%ddbf(k,i,l) = pf * ( REAL( (nl-2)*(nl-1),dp)/rk/rk &
+                 - al*REAL( 2*(nl-1),dp)/rk + al*al ) * ear
              END DO
            END DO
          END DO
@@ -671,6 +688,9 @@ CONTAINS
     END IF
     IF(ASSOCIATED(basis%dbf)) THEN
        DEALLOCATE (basis%dbf)
+    END IF
+    IF(ASSOCIATED(basis%ddbf)) THEN
+       DEALLOCATE (basis%ddbf)
     END IF
 
     CALL deallocate_grid_atom(basis%grid)

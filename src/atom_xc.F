@@ -205,7 +205,7 @@ CONTAINS
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
     REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxc
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: drho, rho, tau
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: drho, lap, rho, tau
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: taumat, xcpot
     TYPE(section_vals_type), POINTER         :: xc_fun_section
@@ -278,8 +278,16 @@ CONTAINS
           CALL atom_density(tau(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,&
                             typ="KIN",rr=atom%basis%grid%rad2)
         END IF
+        IF ( needs%laplace_rho ) THEN
+          ALLOCATE(lap(nr,1))
+          CALL atom_density(lap(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,&
+                            typ="LAP",rr=atom%basis%grid%rad2)
+          IF ( nlcc ) THEN
+            CALL atom_core_density(lap(:,1),atom%potential%gth_pot,typ="LAP",rr=atom%basis%grid%rad)
+          END IF
+        END IF
 
-        CALL fill_rho_set(rho_set,nspins,needs,rho,drho,tau,nr)
+        CALL fill_rho_set(rho_set,nspins,needs,rho,drho,tau,lap,nr)
 
         CALL xc_dset_zero_all(deriv_set)
 
@@ -381,11 +389,11 @@ CONTAINS
     INTEGER                                  :: deriv_order, handle, l, &
                                                 myfun, n1, n2, n3, nr, nspins
     INTEGER, DIMENSION(2, 3)                 :: bounds
-    LOGICAL                                  :: lsd
+    LOGICAL                                  :: lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxca, vxcb
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: drho, rho, tau
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxca, vxcb, xfun
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: drho, lap, rho, tau
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: taumat, xcpot
     TYPE(section_vals_type), POINTER         :: xc_fun_section
@@ -398,8 +406,17 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
+    nlcc=.FALSE.
+    IF ( atom%potential%ppot_type==GTH_PSEUDO ) THEN
+      nlcc = atom%potential%gth_pot%nlcc
+    END IF
+
     IF ( ASSOCIATED(xc_section) ) THEN
        NULLIFY(rho_set)
+       IF(nlcc) THEN
+         nr = atom%basis%grid%nr
+         ALLOCATE(xfun(nr))
+       END IF
 
        xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL")
        CALL section_vals_val_get(xc_fun_section,"_SECTION_PARAMETERS_",i_val=myfun)
@@ -438,11 +455,23 @@ CONTAINS
            ALLOCATE(rho(nr,2))
            CALL atom_density(rho(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,typ="RHO")
            CALL atom_density(rho(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,typ="RHO")
+           IF ( nlcc ) THEN
+             xfun = 0.0_dp
+             CALL atom_core_density(xfun(:),atom%potential%gth_pot,typ="RHO",rr=atom%basis%grid%rad)
+             rho(:,1) = rho(:,1) + 0.5_dp*xfun(:)
+             rho(:,2) = rho(:,2) + 0.5_dp*xfun(:)
+           END IF
          END IF
          IF ( needs%norm_drho_spin ) THEN
            ALLOCATE(drho(nr,2))
            CALL atom_density(drho(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,typ="DER")
            CALL atom_density(drho(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,typ="DER")
+           IF ( nlcc ) THEN
+             xfun = 0.0_dp
+             CALL atom_core_density(xfun(:),atom%potential%gth_pot,typ="DER",rr=atom%basis%grid%rad)
+             drho(:,1) = drho(:,1) + 0.5_dp*xfun(:)
+             drho(:,2) = drho(:,2) + 0.5_dp*xfun(:)
+           END IF
          END IF
          IF ( needs%tau_spin ) THEN
            ALLOCATE(tau(nr,2))
@@ -451,8 +480,21 @@ CONTAINS
            CALL atom_density(tau(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,&
                              typ="KIN",rr=atom%basis%grid%rad2)
          END IF
+         IF ( needs%laplace_rho_spin ) THEN
+           ALLOCATE(lap(nr,2))
+           CALL atom_density(lap(:,1),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,&
+                             typ="LAP",rr=atom%basis%grid%rad2)
+           CALL atom_density(lap(:,2),atom%orbitals%pmat,atom%basis,atom%state%maxl_occ,&
+                             typ="LAP",rr=atom%basis%grid%rad2)
+           IF ( nlcc ) THEN
+             xfun = 0.0_dp
+             CALL atom_core_density(xfun(:),atom%potential%gth_pot,typ="LAP",rr=atom%basis%grid%rad)
+             lap(:,1) = lap(:,1) + 0.5_dp*xfun(:)
+             lap(:,2) = lap(:,2) + 0.5_dp*xfun(:)
+           END IF
+         END IF
 
-         CALL fill_rho_set(rho_set,nspins,needs,rho,drho,tau,nr)
+         CALL fill_rho_set(rho_set,nspins,needs,rho,drho,tau,lap,nr)
 
          CALL xc_dset_zero_all(deriv_set)
 
@@ -533,21 +575,31 @@ CONTAINS
 
        END IF !xc_none
 
-     ELSE
+       IF (nlcc) DEALLOCATE(xfun)
 
-      ! we don't have an xc_section, use a default setup
-      nr = atom%basis%grid%nr
-      ALLOCATE(rho(nr,2),exc(nr),vxca(nr),vxcb(nr))
+    ELSE
 
-      CALL atom_density(rho(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,typ="RHO")
-      CALL atom_density(rho(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,typ="RHO")
-      CALL lsd_pade(rho(:,1),rho(:,2),exc,vxca,vxcb)
-
-      atom%energy%exc = fourpi*integrate_grid(exc,atom%basis%grid)
-      CALL numpot_matrix(xcmata%op,vxca,atom%basis,0)
-      CALL numpot_matrix(xcmatb%op,vxcb,atom%basis,0)
-
-      DEALLOCATE(rho,exc,vxca,vxcb)
+       ! we don't have an xc_section, use a default setup
+       nr = atom%basis%grid%nr
+       ALLOCATE(rho(nr,2),exc(nr),vxca(nr),vxcb(nr))
+       IF(nlcc) ALLOCATE(xfun(nr))
+ 
+       CALL atom_density(rho(:,1),atom%orbitals%pmata,atom%basis,atom%state%maxl_occ,typ="RHO")
+       CALL atom_density(rho(:,2),atom%orbitals%pmatb,atom%basis,atom%state%maxl_occ,typ="RHO")
+       IF ( nlcc ) THEN
+         xfun(:) = 0.0_dp
+         CALL atom_core_density(xfun(:),atom%potential%gth_pot,typ="RHO",rr=atom%basis%grid%rad)
+         rho(:,1) = rho(:,1) + 0.5_dp*xfun(:)
+         rho(:,2) = rho(:,2) + 0.5_dp*xfun(:)
+       END IF
+       CALL lsd_pade(rho(:,1),rho(:,2),exc,vxca,vxcb)
+ 
+       atom%energy%exc = fourpi*integrate_grid(exc,atom%basis%grid)
+       CALL numpot_matrix(xcmata%op,vxca,atom%basis,0)
+       CALL numpot_matrix(xcmatb%op,vxcb,atom%basis,0)
+ 
+       DEALLOCATE(rho,exc,vxca,vxcb)
+       IF (nlcc) DEALLOCATE(xfun)
 
     END IF
 
@@ -563,14 +615,15 @@ CONTAINS
 !> \param rho ...
 !> \param drho ...
 !> \param tau ...
+!> \param lap ...
 !> \param na ...
 ! *****************************************************************************
-  SUBROUTINE fill_rho_set(rho_set,nspins,needs,rho,drho,tau,na)
+  SUBROUTINE fill_rho_set(rho_set,nspins,needs,rho,drho,tau,lap,na)
 
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, INTENT(IN)                      :: nspins
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
-    REAL(dp), DIMENSION(:, :), POINTER       :: rho, drho, tau
+    REAL(dp), DIMENSION(:, :), POINTER       :: rho, drho, tau, lap
     INTEGER, INTENT(IN)                      :: na
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_rho_set', &
@@ -686,6 +739,32 @@ CONTAINS
        END DO
        rho_set%owns%tau_spin=.TRUE.
        rho_set%has%tau_spin=.TRUE.
+    END IF
+
+    ! Laplace
+    IF (needs%laplace_rho) THEN
+       IF (nspins==2) THEN
+          DO ia = 1,na
+             rho_set%laplace_rho(ia,1,1) = lap(ia,1)+lap(ia,2)
+          END DO
+          rho_set%owns%laplace_rho=.TRUE.
+          rho_set%has%laplace_rho=.TRUE.
+       ELSE
+          DO ia = 1,na
+             rho_set%laplace_rho(ia,1,1) = lap(ia,1)
+          END DO
+          rho_set%owns%laplace_rho=.TRUE.
+          rho_set%has%laplace_rho=.TRUE.
+       END IF
+    END IF
+    IF (needs%laplace_rho_spin) THEN
+       CPASSERT(nspins==2)
+       DO ia = 1,na
+          rho_set%laplace_rhoa(ia,1,1) = lap(ia,1)
+          rho_set%laplace_rhob(ia,1,1) = lap(ia,2)
+       END DO
+       rho_set%owns%laplace_rho_spin=.TRUE.
+       rho_set%has%laplace_rho_spin=.TRUE.
     END IF
 
   END SUBROUTINE fill_rho_set
