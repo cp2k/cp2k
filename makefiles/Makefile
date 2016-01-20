@@ -162,6 +162,13 @@ ifneq ($(AR),)
 	$(firstword $(AR)) V
 	@echo ""
 endif
+	@echo "========== Make ($(ONEVERSION)) =========="
+	$(MAKE) --version
+	@echo ""
+	@echo "========= Python ($(ONEVERSION)) ========="
+	/usr/bin/env python --version
+	@echo ""
+
 else
 
 # stage 4: Include $(OBJDIR)/all.dep, expand target all and libcp2k, and perform actual build.
