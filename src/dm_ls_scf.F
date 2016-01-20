@@ -479,12 +479,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_path_length)       :: file_name, project_name
-    INTEGER                                  :: handle, ispin, istore, &
-                                                nelectron_spin_real, unit_nr
-    REAL(KIND=dp)                            :: cs_pos, homo_spin, lumo_spin, &
-                                                mu_spin
-    TYPE(cp_dbcsr_type)                      :: matrix_ks_deviation_tmp, &
-                                                matrix_p_tmp, matrix_tmp1
+    INTEGER                                  :: handle, ispin, istore, unit_nr
+    REAL(KIND=dp)                            :: cs_pos
+    TYPE(cp_dbcsr_type)                      :: matrix_tmp1
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -505,38 +502,13 @@ CONTAINS
           IF (unit_nr>0) THEN
              WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
           ENDIF
-
-          ! perform trs4 once to get a full dm required by other purification methods
           IF (ls_scf_env%do_transport .OR. ls_scf_env%do_pexsi) THEN
              IF (unit_nr>0) THEN
-                WRITE(unit_nr,'(T2,A)') "DM has the sparsity of S! "
-                WRITE(unit_nr,'(T2,A)') "TRS4 will be performed once to prepare "//&
-                                        "a full DM to store in the restart file."
-             ENDIF
-
-             CALL cp_dbcsr_init(matrix_p_tmp)
-             CALL cp_dbcsr_create(matrix_p_tmp,template=ls_scf_env%matrix_ks(ispin))
-             CALL cp_dbcsr_set(matrix_p_tmp,0.0_dp)
-
-             CALL cp_dbcsr_init(matrix_ks_deviation_tmp)
-             CALL cp_dbcsr_create(matrix_ks_deviation_tmp,template=ls_scf_env%matrix_ks(ispin))
-             CALL cp_dbcsr_set(matrix_ks_deviation_tmp,0.0_dp)
-
-             nelectron_spin_real=ls_scf_env%nelectron_spin(ispin)
-             IF (ls_scf_env%nspins==1) nelectron_spin_real=nelectron_spin_real/2
-             CALL density_matrix_trs4(matrix_p_tmp, ls_scf_env%matrix_ks(ispin),  ls_scf_env%matrix_s_sqrt_inv,&
-                                      nelectron_spin_real, 1.0E-06_dp, homo_spin, lumo_spin, mu_spin, &
-                                      dynamic_threshold=.FALSE., matrix_ks_deviation=matrix_ks_deviation_tmp, &
-                                      eps_lanczos=1.0E-03_dp, max_iter_lanczos=128)
-             IF (ls_scf_env%nspins==1) CALL cp_dbcsr_scale(matrix_p_tmp, 2.0_dp)
-
-             CALL cp_dbcsr_binary_write(matrix_p_tmp,file_name)
-
-             CALL cp_dbcsr_release(matrix_p_tmp)
-             CALL cp_dbcsr_release(matrix_ks_deviation_tmp)
-          ELSE
-             CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(ispin),file_name)
-          END IF 
+                WRITE(unit_nr,'(T6,A)') "The restart DM "//TRIM(file_name)//" has the sparsity of S, therefore,"
+                WRITE(unit_nr,'(T6,A)') "not compatible with methods that require a full DM! "
+             END IF
+          END IF
+          CALL cp_dbcsr_binary_write(ls_scf_env%matrix_p(ispin),file_name)
        ENDDO
     END IF
 
@@ -674,22 +646,20 @@ CONTAINS
                           .AND. .NOT. ls_scf_env%do_transport
     IF (ls_scf_env%do_pexsi) THEN
       CALL pexsi_init_read_input(pexsi_section,ls_scf_env%pexsi)
-      IF (.NOT. ls_scf_env%restart_write) THEN
-        ! Turn off S inversion (not used for PEXSI).
-        ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
-        ! a finite temperature one, and thus not idempotent
-        ls_scf_env%s_inversion_type = ls_s_inversion_none
-        ! PEXSI needs the sparsity pattern of S to be fixed by the upper bound ~ Int[|phi_a||phi_b|], 
-        ! they can not be filtered based on magnitude, as small elements in S (e.g. symmetry) do not necessarily
-        ! correspond to small elements in the density matrix, with non-zero contributions to the total density.
-        ! the easiest way to make sure S is untouched is to set eps_filter to zero (which should be inconsequential,
-        ! as a run based on pexsi should execute exactly zero multiplications)
-        ls_scf_env%eps_filter = 0.0_dp
-      END IF
+      ! Turn off S inversion (not used for PEXSI).
+      ! Methods such as purification must thus be avoided... which is OK, as the density matrix computed in pexsi is
+      ! a finite temperature one, and thus not idempotent
+      ls_scf_env%s_inversion_type = ls_s_inversion_none
+      ! PEXSI needs the sparsity pattern of S to be fixed by the upper bound ~ Int[|phi_a||phi_b|], 
+      ! they can not be filtered based on magnitude, as small elements in S (e.g. symmetry) do not necessarily
+      ! correspond to small elements in the density matrix, with non-zero contributions to the total density.
+      ! the easiest way to make sure S is untouched is to set eps_filter to zero (which should be inconsequential,
+      ! as a run based on pexsi should execute exactly zero multiplications)
+      ls_scf_env%eps_filter = 0.0_dp
     ENDIF
 
     ! Turn off S inversion and set eps_filter to zero for transport
-    IF (ls_scf_env%do_transport .AND. .NOT. ls_scf_env%restart_write) THEN
+    IF (ls_scf_env%do_transport) THEN
       ls_scf_env%s_inversion_type = ls_s_inversion_none 
       ls_scf_env%eps_filter = 0.0_dp
     END IF
@@ -717,9 +687,9 @@ CONTAINS
 
     ! verify some requirements for the curvy steps
     IF(ls_scf_env%curvy_steps .AND. ls_scf_env%do_pexsi)&
-       CPABORT("CURVY_STEPS can not be used together with PEXSI.")
+       CPABORT("CURVY_STEPS cannot be used together with PEXSI.")
     IF(ls_scf_env%curvy_steps .AND. ls_scf_env%do_transport)&
-       CPABORT("CURVY_STEPS can not be used together with TRANSPORT.")
+       CPABORT("CURVY_STEPS cannot be used together with TRANSPORT.")
     IF(ls_scf_env%curvy_steps.AND.ls_scf_env%has_s_preconditioner)&
        CPABORT("S Preconditioning not implemented in combination with CURVY_STEPS.")
     IF(ls_scf_env%curvy_steps.AND..NOT.ls_scf_env%use_s_sqrt)&

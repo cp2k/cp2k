@@ -812,16 +812,16 @@ CONTAINS
                               nblkrows_total, nblkcols_total, &
                               row_blk_size, col_blk_size/))             
     END IF
-!> write sub-header2 
+! write sub-header2 
     subh2_disps(:) = subh2_disps(:) + ginfo_size
     subh2_offsets(:) = BOF + (subh2_disps-char_count)*mpi_integer_size +&
                     char_count*mpi_character_size
     CALL mp_file_write_at_all(thefile, subh2_offsets(mynode+1), (/nblks, data_area_size/))
-!> write sub-header3 
+! write sub-header3 
     subh3_offsets(:) = BOF + (subh3_disps-char_count)*mpi_integer_size +&
                     char_count*mpi_character_size
     CALL mp_file_write_at_all(thefile, subh3_offsets(mynode+1), (/row_p, col_i, blk_p/))
-!> write block data 
+! write block data 
     mp_type = dbcsr_mp_type_from_anytype(data_area)
     CALL mp_type_size(mp_type,type_size)
     bdata_offsets(:) = BOF + (/((bdata_disps(i)-bdata_disps(1))*type_size,i=1,numnodes)/)+&
@@ -951,7 +951,7 @@ CONTAINS
     CALL mp_environ(group_list_size,worker_id,group_id)
     CALL mp_file_open(group_id, thefile, filepath, file_amode_rdonly)
     
-!> read version, matrix name and matrix type
+! read version, matrix name and matrix type
     CALL mp_file_read_at_all(thefile, BOF, version)
 
     IF(version/=version_v_1_0)&
@@ -961,24 +961,24 @@ CONTAINS
     matrix_name=matrix_name_v_1_0
 
     CALL mp_file_read_at_all(thefile, BOF+(version_len+default_string_length)*mpi_character_size, matrix_type) 
-!> read 4 integer values form sub-header1
+! read 4 integer values form sub-header1
     CALL mp_file_read_at_all(thefile, BOF+char_count*mpi_character_size, values) 
     size_of_pgrid = values(1) 
     data_type = values(2)
     nblkrows_total = values(3)  
     nblkcols_total = values(4)
-!> read 2 vectors, row_blk_size and col_blk_size, from sub-header1   
+! read 2 vectors, row_blk_size and col_blk_size, from sub-header1   
     globalinfo_size = nblkrows_total+nblkcols_total
     ALLOCATE(ginfo_vec(globalinfo_size))
     CALL mp_file_read_at_all(thefile, BOF+char_count*mpi_character_size+4*mpi_integer_size, ginfo_vec)
     row_blk_size => ginfo_vec(1:nblkrows_total)
     col_blk_size => ginfo_vec(nblkrows_total+1:globalinfo_size)
 
-!> compute the offsets where sub-header2 and sub-header3 start 
+! compute the offsets where sub-header2 and sub-header3 start 
     subh2_start = (4+globalinfo_size)*mpi_integer_size+char_count*mpi_character_size
     subh3_start = subh2_start+2*size_of_pgrid*mpi_integer_size
  
-!> compute the offsets in sub-header2 and read 2 integers nblocks, data_area_size
+! compute the offsets in sub-header2 and read 2 integers nblocks, data_area_size
     ! number of data chunks from sub-header 2 and 3 to be read by every node rounded up 
     ! to the next integer to make it even for all the nodes in the specified mpi group 
     share_size = CEILING(REAL(size_of_pgrid)/group_list_size) 
@@ -1011,7 +1011,7 @@ CONTAINS
     proc_nblks => val_data(1,:)           ! to be passed to dbcsr_datablock_redistribute
     proc_darea_sizes => val_data(2,:)     ! to be passed to dbcsr_datablock_redistribute
 
-!> compute the offsets in sub-header3 and read 3 vectors row_p, col_i, blk_p
+! compute the offsets in sub-header3 and read 3 vectors row_p, col_i, blk_p
     ! actual number of chunks to be read by the current node 
     job_count = COUNT(val_data(3,:) .NE. 0)
     CALL mp_file_get_size(thefile, file_size)
@@ -1068,7 +1068,7 @@ CONTAINS
     col_i => coli
     blk_p => blkp 
 
-!> compute the offsets and read block data
+! compute the offsets and read block data
     ALLOCATE(bdata_lens(size_of_pgrid))
     ALLOCATE(bdata_disps(size_of_pgrid))
     ALLOCATE(bdata_offsets(size_of_pgrid))
@@ -1102,8 +1102,8 @@ CONTAINS
          ALLOCATE(rsp(darea_size))
          DO i = 1, share_size
             order = val_data(3,i)
-            !> use dummy one-sized data array as buffer in place of empty array 
-            !> when nothing is supposed to be read (order = 0)  
+            ! use dummy one-sized data array as buffer in place of empty array 
+            ! when nothing is supposed to be read (order = 0)  
             IF (order .EQ. 0) THEN
                blockdata_offset = file_size
                CALL mp_file_read_at_all(thefile, blockdata_offset, rsp_dummy)
