@@ -2666,7 +2666,8 @@ CONTAINS
        IF(append_cube) THEN
          my_pos_cube="APPEND"
        END IF
-       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,&
+                       v_hartree_rspace=v_hartree_rspace)
        CALL pw_env_get(pw_env)
        udvol = 1.0_dp/v_hartree_rspace%pw_grid%dvol
        DO id=1,3
