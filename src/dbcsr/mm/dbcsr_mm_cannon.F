@@ -1871,10 +1871,6 @@ MODULE dbcsr_mm_cannon
           meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_type) = 0
           !
           CALL image_calculator(imgdist,&
-               prow=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_prow),&
-               pcol=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_pcol),&
-               rowi=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_rowi),&
-               coli=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_coli),&
                vprow=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_vprow),&
                vpcol=meta_buffer(local_refs(imeta_displ,rowi,coli)+dbcsr_slot_home_vpcol),&
                myrowi = rowi, mycoli = coli,&
