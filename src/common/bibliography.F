@@ -3224,7 +3224,7 @@ CONTAINS
           "EP 5192",&
           "DI 10.1103/PhysRevB.13.5188",&
           "ER"),&
-          DOI="110.1103/PhysRevB.13.5188")
+          DOI="10.1103/PhysRevB.13.5188")
 
      CALL add_reference(key=MacDonald1978, ISI_record=s2a(&
           "PT J",&
