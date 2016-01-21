@@ -156,7 +156,7 @@
   DO v_ri = 1, SIZE(max_norms,1)
      DO v_ci = 1, SIZE(max_norms,2)
         IF (refs(imeta_size,v_ri,v_ci).EQ.0) THEN
-           max_norms(v_ri,v_ci) = huge_norm
+           max_norms(v_ri,v_ci) = 0
         ELSE
            nblks = meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_slot_nblks)
            rowi => meta(meta(refs(imeta_displ,v_ri,v_ci)+dbcsr_slot_coo_l)+&
