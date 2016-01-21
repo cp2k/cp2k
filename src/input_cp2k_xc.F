@@ -327,8 +327,8 @@ CONTAINS
          enum_desc=s2a("Uses first Ou-Yang and Levy functional, currently not producing correct results",&
                        "Uses second Ou-Yang and Levy functional, currently not producing correct results",&
                        "Uses Lee, Lee, and Parr functional",&
-                       "Uses Perdew and Wang’s 1986 functional",&
-                       "Uses Perdew and Wang’s 1991 functional",&
+                       "Uses Perdew and Wang's 1986 functional",&
+                       "Uses Perdew and Wang's 1991 functional",&
                        "Uses Lembarki and Chermette functional",&
                        "Uses Thakkar functional",&
                        "Uses the 1996 functional of Perdew, Burke and Ernzerhof"),&
