@@ -75,7 +75,7 @@ MODULE bibliography
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
        Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012,             &
-       Ceriotti2010, Walewski2014
+       Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978
 
 
 CONTAINS
@@ -3207,6 +3207,42 @@ CONTAINS
           "DI 10.1021/ja00051a040",&
           "ER"),&
           DOI="10.1021/ja00051a040")
+
+     CALL add_reference(key=Monkhorst1976, ISI_record=s2a(&
+          "PT J",&
+          "AU Monkhorst, HJ",&
+          "   Pack, JD",&
+          "AF Monkhorst, HJ",&
+          "   Pack, JD",&
+          "TI Special points for Brillouin-zone integrations",&
+          "SO PHYSICAL REVIEW B",&
+          "SN 0163-1829",&
+          "PY 1976",&
+          "VL 13",&
+          "IS 12",&
+          "BP 5188",&
+          "EP 5192",&
+          "DI 10.1103/PhysRevB.13.5188",&
+          "ER"),&
+          DOI="110.1103/PhysRevB.13.5188")
+
+     CALL add_reference(key=MacDonald1978, ISI_record=s2a(&
+          "PT J",&
+          "AU MacDonald, AH",&
+          "AF MacDonald, AH",&
+          "TI Comment on special points for Brillouin-zone integrations",&
+          "SO PHYSICAL REVIEW B",&
+          "SN 0163-1829",&
+          "J9 PHYS REV B",&
+          "JI Phys. Rev. B",&
+          "PY 1978",&
+          "VL 18",&
+          "IS 10",&
+          "BP 5897",&
+          "EP 5899",&
+          "DI 10.1103/PhysRevB.18.5897",&
+          "ER"),&
+          DOI="10.1103/PhysRevB.18.5897")
 
   END SUBROUTINE add_all_references
 

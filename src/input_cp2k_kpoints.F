@@ -10,7 +10,8 @@
 !> \author JGH
 ! *****************************************************************************
 MODULE input_cp2k_kpoints
-  
+  USE bibliography,                    ONLY: MacDonald1978,&
+                                             Monkhorst1976
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -20,7 +21,8 @@ MODULE input_cp2k_kpoints
   USE input_val_types,                 ONLY: char_t,&
                                              real_t
   USE kinds,                           ONLY: dp
-  USE string_utilities,                ONLY: s2a
+  USE string_utilities,                ONLY: newline,&
+                                             s2a
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -68,8 +70,13 @@ CONTAINS
 
     NULLIFY (keyword)
     CALL keyword_create(keyword, name="SCHEME",&
-         description="Kpoint scheme to be used. ",&
-         usage="SCHEME {KPMETHOD}{integer} {integer} ..",&
+         description="Kpoint scheme to be used."//newline//&
+         "Available options: NONE, GAMMA, MONKHORST-PACK, MACDONALD, and GENERAL."//&
+         newline//"For MONKHORST-PACK and MACDONALD the number of k points in all "//&
+         "3 dimensions has to be supplied along with the keyword. "//&
+         "E.g. MONKHORST-PACK 12 12 8.",&
+         usage="SCHEME {KPMETHOD} {integer} {integer} ..",&
+         citations=(/Monkhorst1976, MacDonald1978/),&
          n_var=-1, type_of_var=char_t)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
