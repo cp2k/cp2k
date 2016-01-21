@@ -1,6 +1,6 @@
 PROGRAM dumpdcd
 
-! Copyright (C) 2012 - 2015  Matthias Krack (MK)
+! Copyright (C) 2012 - 2016  Matthias Krack (MK)
 !
 ! Version: 3.0
 ! Author:  Matthias Krack (MK)
@@ -675,7 +675,8 @@ PROGRAM dumpdcd
               END IF
             ELSE
               IF (output_format_xmol) THEN
-                WRITE (UNIT=output_unit,FMT="(T2,I0,/,A)") natom_dcd,TRIM(remark_xyz)
+                WRITE (UNIT=output_unit,FMT="(T2,I0,/,A,2(I0,A))")&
+                  natom_dcd,"Frame: ",nframe_read + 1,", Step: ",nframe,", "//TRIM(remark_xyz)
                 DO iatom=1,natom_dcd
                   WRITE (UNIT=output_unit,FMT="(A5,3(1X,F14.6))") ADJUSTL(atomic_label(iatom)),r(iatom,1:3)
                 END DO
