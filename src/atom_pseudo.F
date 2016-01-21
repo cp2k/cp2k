@@ -76,6 +76,7 @@ CONTAINS
     INTEGER, DIMENSION(0:3)                  :: maxn
     INTEGER, DIMENSION(:), POINTER           :: cn
     LOGICAL                                  :: eri_c, eri_e, pp_calc
+    REAL(KIND=dp)                            :: ne, nm
     REAL(KIND=dp), DIMENSION(0:3, 10)        :: pocc
     TYPE(atom_basis_type), POINTER           :: ae_basis, pp_basis
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
@@ -230,6 +231,30 @@ CONTAINS
         state%core=0._dp
         CALL set_atom(atom_refs(in,im)%atom,zcore=zval,pp_calc=.FALSE.)
 
+        IF(state%multiplicity/=-1) THEN
+          ! set alpha and beta occupations
+          state%occa = 0._dp
+          state%occb = 0._dp
+          DO l=0,3
+            nm=REAL((2*l+1),KIND=dp)
+            DO k=1,10
+              ne = state%occupation(l,k)
+              IF(ne==0._dp) THEN  !empty shell
+                EXIT  !assume there are no holes
+              ELSEIF(ne==2._dp*nm) THEN  !closed shell
+                state%occa(l,k)=nm
+                state%occb(l,k)=nm
+              ELSEIF(state%multiplicity==-2) THEN !High spin case
+                state%occa(l,k)=MIN(ne,nm)
+                state%occb(l,k)=MAX(0._dp,ne-nm)
+              ELSE
+                state%occa(l,k)=0.5_dp*(ne+state%multiplicity-1._dp)
+                state%occb(l,k)=ne-state%occa(l,k)
+              END IF
+            END DO
+          END DO
+        END IF
+
         ! set occupations for pseudopotential calculation
         CALL section_vals_val_get(atom_section,"CORE", c_vals=tmpstringlist)
         CALL atom_set_occupation(tmpstringlist,statepp%core,pocc)
@@ -247,6 +272,10 @@ CONTAINS
             END IF
           END DO
         END DO
+        IF(state%multiplicity/=-1) THEN
+          statepp%occa = state%occa - statepp%core/2
+          statepp%occb = state%occb - statepp%core/2
+        END IF
 
         statepp%maxl_occ = get_maxl_occ(statepp%occ)
         statepp%maxn_occ = get_maxn_occ(statepp%occ)
