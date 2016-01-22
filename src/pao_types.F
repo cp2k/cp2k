@@ -24,12 +24,13 @@ MODULE pao_types
 
   TYPE pao_env_type
      ! input values
-     REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
-     REAL(KIND=dp)                    :: check_grad_param_tol = 0.0_dp
-     REAL(KIND=dp)                    :: check_grad_full_tol = 0.0_dp
      REAL(KIND=dp)                    :: eps_pao = 0.0_dp
      REAL(KIND=dp)                    :: min_step = 0.0_dp
      REAL(KIND=dp)                    :: mixing = 1.0_dp
+     REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
+     REAL(KIND=dp)                    :: check_grad_tol = 0.0_dp
+     REAL(KIND=dp)                    :: num_grad_eps = 0.0_dp
+     INTEGER                          :: num_grad_order = 0
      INTEGER                          :: max_pao = -1
      INTEGER                          :: max_cycles = -1
      INTEGER                          :: parameterization = -1

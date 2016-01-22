@@ -21,10 +21,9 @@
         MAX_PAO 500
         EPS_PAO 1.0E-5
         PARAMETERIZATION EXP
-        CHECK_GRADIENT_PARAM_TOL 1.0E-6
         CHECK_UNITARY_TOL 1.0E-10
         &LINE_SEARCH
-          METHOD 3PNT
+          METHOD GOLD
         &END LINE_SEARCH
       &END PAO
     &END

@@ -13,19 +13,24 @@
     &LS_SCF
       MAX_SCF     25
       EPS_SCF     1.0E-8
-      EPS_FILTER  1.0E-8
       S_PRECONDITIONER  NONE
       REPORT_ALL_SPARSITIES OFF
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        PREOPT_DM_FILE H2O_ref_LS_DM_SPIN_1_RESTART.dm
-        MAX_PAO    1
-        CHECK_GRADIENT_TOL 1.0E-6
-        PARAMETERIZATION FOCK
+        MAX_PAO 5
+        EPS_PAO 1.0E-5
+        PARAMETERIZATION ROTINV
+        NUM_GRADIENT_ORDER 2
+        CHECK_GRADIENT_TOL 1.0E-4
+        CHECK_UNITARY_TOL 1.0E-10
         &LINE_SEARCH
-          METHOD ADAPT
+          METHOD 3PNT
         &END LINE_SEARCH
+        &PRINT
+          &RESTART ON
+          &END
+        &END PRINT
       &END PAO
     &END
     &XC
@@ -39,19 +44,14 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      O         2.6116774290        4.1629472392        4.1629480502
-      H         1.8450021896        4.5850871565        4.5850871241
-      H         2.2373131663        3.5277354616        3.5277353471
+      H       0.72  0.0   0.0
+      H       0.0   0.0   0.0
     &END COORD
     &KIND H
       BASIS_SET DZVP-MOLOPT-SR-GTH
       POTENTIAL GTH-PBE
-      PAO_BASIS_SIZE 4
-    &END KIND
-    &KIND O
-      BASIS_SET DZVP-MOLOPT-SR-GTH
-      POTENTIAL GTH-PBE
-      PAO_BASIS_SIZE 4
+      PAO_BASIS_SIZE 1
+      PAO_POTENTIAL_MAXL 0
     &END KIND
     &TOPOLOGY
        &CENTER_COORDINATES
@@ -60,6 +60,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROJECT H2O_pao_check_grad
+  PROJECT H2_pao_rotinv_checkgrad
   RUN_TYPE ENERGY
 &END GLOBAL

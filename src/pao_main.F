@@ -13,7 +13,6 @@ MODULE pao_main
        cp_dbcsr_init, cp_dbcsr_p_type, cp_dbcsr_release, &
        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type
   USE cp_external_control,             ONLY: external_control
-  USE dm_ls_scf_methods,               ONLY: ls_scf_init_matrix_S
   USE dm_ls_scf_qs,                    ONLY: ls_scf_qs_atomic_guess
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                              ls_scf_env_type
@@ -30,9 +29,9 @@ MODULE pao_main
                                              pao_write_restart
   USE pao_methods,                     ONLY: &
        pao_build_orthogonalizer, pao_build_selector, pao_calc_CG_beta, &
-       pao_calc_outer_grad_lnv, pao_calc_trace_ph, pao_check_grad_full, &
-       pao_check_trace_ps, pao_dm_trs4, pao_print_atom_info, &
-       pao_read_preopt_dm, pao_test_convergence
+       pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, &
+       pao_check_trace_ps, pao_print_atom_info, pao_read_preopt_dm, &
+       pao_test_convergence
   USE pao_param,                       ONLY: pao_calc_grad,&
                                              pao_param_finalize,&
                                              pao_param_init,&
@@ -155,9 +154,7 @@ CONTAINS
 
     INTEGER                                  :: handle, icycle
     LOGICAL                                  :: cycle_converged, should_stop
-    REAL(KIND=dp)                            :: beta, energy, nrm
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+    REAL(KIND=dp)                            :: beta, energy, norm_X
     TYPE(cp_dbcsr_type)                      :: matrix_M, matrix_X_start
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
     TYPE(pao_env_type), POINTER              :: pao
@@ -178,8 +175,8 @@ CONTAINS
 
     ! only perform mixing if the pao%matrix_X is non-zero
     ! useful if started from a reference DM.
-    nrm=cp_dbcsr_frobenius_norm(pao%matrix_X)
-    IF (pao%mixing /= 1.0_dp .AND. nrm /= 0.0_dp) THEN
+    norm_X = cp_dbcsr_frobenius_norm(pao%matrix_X)
+    IF (pao%mixing /= 1.0_dp .AND. norm_X /= 0.0_dp) THEN
        CALL cp_dbcsr_init(matrix_X_start)
        CALL cp_dbcsr_copy(matrix_X_start, pao%matrix_X)
     ENDIF
@@ -193,11 +190,8 @@ CONTAINS
        IF(pao%iw>0) WRITE(pao%iw,"(A,I9,A)") " PAO| ======================= Iteration: ",&
                  pao%istep," ============================="
 
-       ! calculate new density matrix
-       CALL pao_dm_trs4(qs_env, ls_scf_env)
-
        ! calc energy and check trace_PS
-       CALL pao_calc_trace_PH(ls_scf_env, energy)
+       CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
        CALL pao_check_trace_PS(ls_scf_env)
 
        IF(pao%linesearch%starts) THEN
@@ -206,7 +200,7 @@ CONTAINS
           CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
           CALL pao_calc_grad(pao, matrix_M)
           CALL cp_dbcsr_release(matrix_M)
-          CALL pao_check_grad_full(pao, qs_env, ls_scf_env)
+          CALL pao_check_grad(pao, qs_env, ls_scf_env)
 
           ! determine CG mixing factor
           CALL pao_calc_CG_beta(pao, beta)
@@ -250,19 +244,11 @@ CONTAINS
                             slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
        CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
        CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
-       CALL pao_update_AB(pao, ls_mstruct)
     ENDDO
 
-    IF (pao%mixing /= 1.0_dp  .AND. nrm /= 0.0_dp) THEN
-       CALL cp_dbcsr_add(pao%matrix_X,matrix_X_start,pao%mixing,1.0_dp-pao%mixing)
-
-       ! update matrices to match the new X
-       CALL pao_update_AB(pao, ls_mstruct)
-       CALL cp_dbcsr_release(ls_scf_env%matrix_s_inv)
-       CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt)
-       CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt_inv)
-       CALL get_qs_env(qs_env, matrix_s=matrix_s)
-       CALL ls_scf_init_matrix_s(matrix_s(1)%matrix, ls_scf_env)
+    ! perform mixing of matrix_X
+    IF (pao%mixing /= 1.0_dp  .AND. norm_X /= 0.0_dp) THEN
+       CALL cp_dbcsr_add(pao%matrix_X, matrix_X_start, pao%mixing, 1.0_dp-pao%mixing)
        CALL cp_dbcsr_release(matrix_X_start)
     ENDIF
 
