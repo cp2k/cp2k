@@ -4360,6 +4360,12 @@ CONTAINS
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
 
+    CALL keyword_create(keyword, name="DM_RESTART_WRITE",&
+         description="Write the density matrix into a binary file at the end of the SCF.",&
+         usage="DM_RESTART_WRITE", default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 

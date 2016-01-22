@@ -148,7 +148,8 @@ MODULE qs_scf_post_gpw
                                              qs_loc_env_init,&
                                              qs_loc_init,&
                                              retain_history
-  USE qs_mo_io,                        ONLY: write_mo_set
+  USE qs_mo_io,                        ONLY: write_dm_binary_restart,&
+                                             write_mo_set
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
                                              make_mo_eig
   USE qs_mo_occupation,                ONLY: set_mo_occupation
@@ -2055,7 +2056,9 @@ CONTAINS
           ELSE
              CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,qs_kind_set,particle_set,4,&
                   dft_section,last=.TRUE.)
-          END IF
+         END IF
+          CALL get_qs_env(qs_env, matrix_ks=ks_rmpv)
+          CALL write_dm_binary_restart(mos,dft_section,ks_rmpv)
        END IF
 
        ! *** at the end of scf print out the projected dos per kind

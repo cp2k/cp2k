@@ -23,7 +23,15 @@ MODULE qs_mo_io
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_binary_write,&
+                                             cp_dbcsr_checksum,&
+                                             cp_dbcsr_create,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_p_type,&
+                                             cp_dbcsr_release,&
+                                             cp_dbcsr_type
+  USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                             copy_fm_to_dbcsr
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -64,6 +72,7 @@ MODULE qs_mo_io
   USE qs_kind_types,                   ONLY: get_qs_kind,&
                                              get_qs_kind_set,&
                                              qs_kind_type
+  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_occupation,                ONLY: set_mo_occupation
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
@@ -80,7 +89,8 @@ MODULE qs_mo_io
             read_mo_set,&
             write_mo_set,&
             write_rt_mos_to_restart,&
-            read_rt_mos_from_restart
+            read_rt_mos_from_restart,&
+            write_dm_binary_restart
 
   INTERFACE read_mo_set
     MODULE PROCEDURE read_mo_set_from_restart
@@ -157,6 +167,72 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_mo_set_to_restart
+
+! *****************************************************************************
+!> \brief calculates density matrix from mo set and writes the density matrix 
+!>        into a binary restart file
+!> \param mo_array mos
+!> \param dft_section dft input section 
+!> \param tmpl_matrix template dbcsr matrix
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE write_dm_binary_restart(mo_array, dft_section, tmpl_matrix)
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: tmpl_matrix
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_dm_binary_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: file_name, project_name
+    INTEGER                                  :: handle, ispin, unit_nr
+    LOGICAL                                  :: do_dm_restart
+    REAL(KIND=dp)                            :: cs_pos
+    TYPE(cp_dbcsr_type), POINTER             :: matrix_p_tmp
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+    logger => cp_get_default_logger()
+    IF (logger%para_env%mepos==logger%para_env%source) THEN
+       unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.)
+    ELSE
+       unit_nr=-1
+    ENDIF
+
+    project_name = logger%iter_info%project_name
+    CALL section_vals_val_get(dft_section,"SCF%PRINT%DM_RESTART_WRITE",l_val=do_dm_restart)
+    NULLIFY(matrix_p_tmp) 
+
+    IF (do_dm_restart) THEN
+       ALLOCATE(matrix_p_tmp)
+       DO ispin = 1, SIZE(mo_array)
+          CALL cp_dbcsr_init(matrix_p_tmp)
+          CALL cp_dbcsr_create(matrix_p_tmp, template=tmpl_matrix(ispin)%matrix, name="DM RESTART")
+
+          IF (.NOT. ASSOCIATED(mo_array(ispin)%mo_set%mo_coeff_b)) CPABORT("mo_coeff_b NOT ASSOCIATED")
+
+          CALL copy_fm_to_dbcsr(mo_array(ispin)%mo_set%mo_coeff, mo_array(ispin)%mo_set%mo_coeff_b)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set, matrix_p_tmp, &
+                                        use_dbcsr=.TRUE., retain_sparsity=.FALSE.)
+
+          WRITE(file_name,'(A,I0,A)') TRIM(project_name)//"_SCF_DM_SPIN_",ispin,"_RESTART.dm"
+          cs_pos = cp_dbcsr_checksum (matrix_p_tmp, pos=.TRUE.)
+          IF (unit_nr>0) THEN
+             WRITE(unit_nr,'(T2,A,E20.8)') "Writing restart DM "//TRIM(file_name)//" with checksum: ",cs_pos
+          ENDIF
+          CALL cp_dbcsr_binary_write(matrix_p_tmp, file_name)
+
+          CALL cp_dbcsr_release(matrix_p_tmp)
+       ENDDO
+       DEALLOCATE(matrix_p_tmp)
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE write_dm_binary_restart
 
 ! *****************************************************************************
 !> \brief ...

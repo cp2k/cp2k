@@ -401,23 +401,25 @@ CONTAINS
 !> \param mo_set ...
 !> \param density_matrix ...
 !> \param use_dbcsr ...
+!> \param retain_sparsity ...
 !> \date    06.2002
 !> \par History
 !>       - Fractional occupied orbitals (MK)
 !> \author  Joost VandeVondele
 !> \version 1.0
 ! *****************************************************************************
-  SUBROUTINE calculate_dm_sparse(mo_set,density_matrix,use_dbcsr)
+  SUBROUTINE calculate_dm_sparse(mo_set,density_matrix,use_dbcsr,retain_sparsity)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_dbcsr_type), POINTER             :: density_matrix
-    LOGICAL, INTENT(IN), OPTIONAL            :: use_dbcsr
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_dbcsr, retain_sparsity
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: my_use_dbcsr
+    LOGICAL                                  :: my_retain_sparsity, &
+                                                my_use_dbcsr
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_dbcsr_type)                      :: dbcsr_tmp
     TYPE(cp_fm_type), POINTER                :: fm_tmp
@@ -426,6 +428,8 @@ CONTAINS
 
     my_use_dbcsr = .FALSE.
     IF(PRESENT(use_dbcsr)) my_use_dbcsr = use_dbcsr
+    my_retain_sparsity = .TRUE.
+    IF(PRESENT(retain_sparsity)) my_retain_sparsity = retain_sparsity
     IF(my_use_dbcsr) THEN
        IF (.NOT.ASSOCIATED(mo_set%mo_coeff_b)) THEN
           CPABORT("mo_coeff_b NOT ASSOCIATED")
@@ -442,7 +446,7 @@ CONTAINS
           CALL cp_dbcsr_scale_by_vector(dbcsr_tmp,mo_set%occupation_numbers(1:mo_set%homo),&
                side='right')
           CALL cp_dbcsr_multiply("N", "T", 1.0_dp, mo_set%mo_coeff_b, dbcsr_tmp,&
-               1.0_dp, density_matrix, retain_sparsity=.TRUE.,&
+               1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity,&
                last_k = mo_set%homo)
           CALL cp_dbcsr_release(dbcsr_tmp)
        ELSE
@@ -461,7 +465,7 @@ CONTAINS
     ELSE
        IF(my_use_dbcsr) THEN
           CALL cp_dbcsr_multiply("N", "T", mo_set%maxocc, mo_set%mo_coeff_b, mo_set%mo_coeff_b,&
-               1.0_dp, density_matrix, retain_sparsity=.TRUE.,&
+               1.0_dp, density_matrix, retain_sparsity=my_retain_sparsity,&
                last_k = mo_set%homo)
        ELSE
           alpha=mo_set%maxocc
