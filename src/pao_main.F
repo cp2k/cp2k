@@ -64,6 +64,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
+    REAL(dp)                                 :: penalty
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
@@ -88,6 +89,7 @@ CONTAINS
     ELSE
        CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env%energy_init)
        IF(pao%iw>0) WRITE(pao%iw,'(A,F20.9)') " PAO| Energy from initial atomic guess:", ls_scf_env%energy_init
+       pao%need_initial_scf = .TRUE.
     ENDIF
 
     CALL pao_build_orthogonalizer(pao, qs_env)
@@ -129,7 +131,8 @@ CONTAINS
     CALL cp_dbcsr_init(ls_mstruct%matrix_B)
     CALL cp_dbcsr_create(ls_mstruct%matrix_B, template=pao%matrix_Y)
 
-    CALL pao_update_AB(pao, ls_mstruct)
+    CALL pao_update_AB(pao, ls_mstruct, penalty)
+    IF(pao%iw>0) WRITE(pao%iw,'(A,F20.9)') " PAO| Energy from initial penalty:", penalty
 
     section => section_vals_get_subs_vals(input,"DFT%LS_SCF%PAO%LINE_SEARCH")
     CALL linesearch_init(pao%linesearch, section, "PAO|")
@@ -164,9 +167,17 @@ CONTAINS
        RETURN
     ENDIF
 
-    CALL timeset(routineN,handle)
     ls_mstruct => ls_scf_env%ls_mstruct
     pao => ls_scf_env%pao_env
+
+    IF(pao%need_initial_scf) THEN
+       pao_is_done = .FALSE.
+       pao%need_initial_scf = .FALSE.
+       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| Performing initial SCF optimization."
+       RETURN
+    ENDIF
+
+    CALL timeset(routineN,handle)
 
     ! reset CG
     CALL linesearch_reset(pao%linesearch)
@@ -203,7 +214,7 @@ CONTAINS
           CALL pao_check_grad(pao, qs_env, ls_scf_env)
 
           ! determine CG mixing factor
-          CALL pao_calc_CG_beta(pao, beta)
+          CALL pao_calc_CG_beta(pao, icycle, beta)
 
           ! calculate new CG direction matrix_D
           CALL cp_dbcsr_add(pao%matrix_D, pao%matrix_G, beta, 1.0_dp)
@@ -215,14 +226,14 @@ CONTAINS
           CALL cp_dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
 
           ! print info and convergence test
-          CALL pao_test_convergence(pao, ls_scf_env, energy, icycle, cycle_converged)
+          CALL pao_test_convergence(pao, ls_scf_env, energy, cycle_converged)
           IF(cycle_converged) THEN
              pao_is_done = icycle < 3
              IF(pao_is_done .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| converged after ", pao%istep, " steps :-)"
              EXIT
           ENDIF
 
-          ! if we have reached the maximum number of cycles exit in order 
+          ! if we have reached the maximum number of cycles exit in order
           ! to restart with a fresh hamiltonian
           IF (icycle >= pao%max_cycles) THEN
              IF (pao%iw>0) WRITE(pao%iw,*) "PAO| CG not yet converged after ", icycle , " cylces."
@@ -242,6 +253,7 @@ CONTAINS
        CALL linesearch_step(pao%linesearch,&
                             energy=energy,&
                             slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
+       IF(pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
        CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
        CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
     ENDDO
@@ -250,6 +262,8 @@ CONTAINS
     IF (pao%mixing /= 1.0_dp  .AND. norm_X /= 0.0_dp) THEN
        CALL cp_dbcsr_add(pao%matrix_X, matrix_X_start, pao%mixing, 1.0_dp-pao%mixing)
        CALL cp_dbcsr_release(matrix_X_start)
+       IF (pao%iw>0) WRITE(pao%iw,*) "PAO| Recalculating energy after mixing."
+       CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
     ENDIF
 
     CALL pao_write_restart(pao, qs_env, energy)

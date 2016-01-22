@@ -254,14 +254,12 @@ CONTAINS
 !> \param pao ...
 !> \param ls_scf_env ...
 !> \param new_energy ...
-!> \param icycle ...
 !> \param is_converged ...
 ! *****************************************************************************
-  SUBROUTINE pao_test_convergence(pao, ls_scf_env, new_energy, icycle, is_converged)
+  SUBROUTINE pao_test_convergence(pao, ls_scf_env, new_energy, is_converged)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(ls_scf_env_type)                    :: ls_scf_env
     REAL(KIND=dp), INTENT(IN)                :: new_energy
-    INTEGER, INTENT(IN)                      :: icycle
     LOGICAL, INTENT(OUT)                     :: is_converged
 
     REAL(KIND=dp)                            :: energy_diff, loop_eps, &
@@ -284,13 +282,9 @@ CONTAINS
        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy improvement:", energy_diff
        ! IF(energy_diff>0.0_dp) CPWARN("PAO| energy increased")
 
+       ! convergence criterion
        loop_eps = norm_G / ls_scf_env%nelectron_total
-       IF(loop_eps < pao%eps_pao) &
-         is_converged = .TRUE.
-
-       ! safeguard against noisy gradient
-       IF(icycle > 1 .AND. pao%linesearch%step_size < pao%min_step) &
-         is_converged = .TRUE.
+       is_converged = loop_eps < pao%eps_pao
 
        ! print one-liner
        IF(pao%iw>0) WRITE (pao%iw,'(A,I6,11X,F20.9,1X,E10.3,1X,E10.3,1X,F6.3)')&
@@ -307,10 +301,12 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Conjugate gradient algorithm
 !> \param pao ...
+!> \param icycle ...
 !> \param beta ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_CG_beta(pao, beta)
+  SUBROUTINE pao_calc_CG_beta(pao, icycle, beta)
     TYPE(pao_env_type), POINTER              :: pao
+    INTEGER, INTENT(IN)                      :: icycle
     REAL(KIND=dp), INTENT(OUT)               :: beta
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_CG_beta', &
@@ -319,9 +315,10 @@ CONTAINS
     REAL(KIND=dp)                            :: trace_G_mix, trace_G_new, &
                                                 trace_G_prev
 
-    beta = 0.0_dp !default
-
-    IF(pao%istep > pao%cg_init_steps) THEN
+    IF(icycle <= pao%cg_init_steps) THEN
+       IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| warming up with steepest descent"
+       beta = 0.0_dp
+    ELSE
        CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G, trace_G_new)
        CALL cp_dbcsr_trace(pao%matrix_G_prev, pao%matrix_G_prev, trace_G_prev)
        CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G_prev, trace_G_mix)
@@ -361,14 +358,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    REAL(KIND=dp)                            :: trace_PH
+    REAL(KIND=dp)                            :: penalty, trace_PH
 
     CALL timeset(routineN,handle)
 
     ! calculate matrix U, which determines the pao basis
-    CALL pao_update_AB(pao, ls_scf_env%ls_mstruct)
+    CALL pao_update_AB(pao, ls_scf_env%ls_mstruct, penalty)
 
-    ! within this new pao basis, calulate the new density matrix P
+    ! calculat S, S_inv, S_sqrt, and S_sqrt_inv in the new pao basis
+    CALL pao_rebuild_S(qs_env, ls_scf_env)
+
+    ! calulate the density matrix P in the pao basis
     CALL pao_dm_trs4(qs_env, ls_scf_env)
 
     ! calculate the energy from the trace(PH) in the pao basis
@@ -377,6 +377,10 @@ CONTAINS
        CALL cp_dbcsr_trace(ls_scf_env%matrix_p(ispin), ls_scf_env%matrix_ks(ispin), trace_PH)
        energy = energy + trace_PH
     ENDDO
+
+    ! add penalty term
+    IF (penalty/=0.0_dp .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| penalty energy:", penalty
+    energy = energy + penalty
 
     CALL timestop(handle)
   END SUBROUTINE pao_calc_energy
@@ -473,6 +477,35 @@ CONTAINS
 
 
 ! *****************************************************************************
+!> \brief Rebuilds S, S_inv, S_sqrt, and S_sqrt_inv in the pao basis
+!> \param qs_env ...
+!> \param ls_scf_env ...
+! *****************************************************************************
+  SUBROUTINE pao_rebuild_S(qs_env, ls_scf_env)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_rebuild_S', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+
+    CALL timeset(routineN,handle)
+
+    CALL cp_dbcsr_release(ls_scf_env%matrix_s_inv)
+    CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt)
+    CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt_inv)
+
+    CALL get_qs_env(qs_env, matrix_s=matrix_s)
+    CALL ls_scf_init_matrix_s(matrix_s(1)%matrix, ls_scf_env)
+
+    CALL timestop(handle)
+  END SUBROUTINE pao_rebuild_S
+
+
+! *****************************************************************************
 !> \brief Calculate density matrix using TRS4 purification
 !> \param qs_env ...
 !> \param ls_scf_env ...
@@ -490,7 +523,7 @@ CONTAINS
     LOGICAL                                  :: converged
     REAL(KIND=dp)                            :: homo_spin, lumo_spin, mu_spin
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, matrix_s
+      POINTER                                :: matrix_ks
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,handle)
@@ -498,16 +531,7 @@ CONTAINS
     project_name = logger%iter_info%project_name
     nspin = ls_scf_env%nspins
 
-    CALL get_qs_env(qs_env,&
-                    matrix_ks=matrix_ks,&
-                    matrix_s=matrix_s)
-
-    ! rebuild S, S_inv, S_sqrt, and S_sqrt_inv in pao basis
-    CALL cp_dbcsr_release(ls_scf_env%matrix_s_inv)
-    CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt)
-    CALL cp_dbcsr_release(ls_scf_env%matrix_s_sqrt_inv)
-    CALL ls_scf_init_matrix_s(matrix_s(1)%matrix, ls_scf_env)
-
+    CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
     DO ispin=1, nspin
        CALL matrix_qs_to_ls(ls_scf_env%matrix_ks(ispin),matrix_ks(ispin)%matrix,&
                             ls_scf_env%ls_mstruct,covariant=.TRUE.)
@@ -828,6 +852,7 @@ CONTAINS
              IF(ASSOCIATED(block_X)) THEN
                 delta = ABS(Gij_num - block_G(i,j))
                 delta_max = MAX(delta_max, delta)
+                !WRITE (*,*) "gradient check", iatom, i, j, Gij_num, block_G(i,j), delta
              ENDIF
           ENDDO
        ENDDO

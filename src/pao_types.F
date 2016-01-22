@@ -25,12 +25,13 @@ MODULE pao_types
   TYPE pao_env_type
      ! input values
      REAL(KIND=dp)                    :: eps_pao = 0.0_dp
-     REAL(KIND=dp)                    :: min_step = 0.0_dp
-     REAL(KIND=dp)                    :: mixing = 1.0_dp
+     REAL(KIND=dp)                    :: mixing = 0.0_dp
+     REAL(KIND=dp)                    :: penalty_dist = 0.0_dp
+     REAL(KIND=dp)                    :: penalty_strength = 0.0_dp
      REAL(KIND=dp)                    :: check_unitary_tol = 0.0_dp
      REAL(KIND=dp)                    :: check_grad_tol = 0.0_dp
      REAL(KIND=dp)                    :: num_grad_eps = 0.0_dp
-     INTEGER                          :: num_grad_order = 0
+     INTEGER                          :: num_grad_order = -1
      INTEGER                          :: max_pao = -1
      INTEGER                          :: max_cycles = -1
      INTEGER                          :: parameterization = -1
@@ -46,6 +47,7 @@ MODULE pao_types
      REAL(KIND=dp)                    :: energy_prev = 0.0_dp
      REAL(KIND=dp)                    :: step_start_time = 0.0_dp
      TYPE(linesearch_type)            :: linesearch
+     LOGICAL                          :: need_initial_scf = .FALSE.
 
      ! matrices
      TYPE(cp_dbcsr_type)              :: matrix_X

@@ -102,16 +102,17 @@ CONTAINS
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
 !> \param iatom ...
+!> \param penalty ...
 !> \param min_gap ...
 !> \param V ...
 !> \param U ...
 !> \param M1 ...
 !> \param G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_fock(pao, iatom, min_gap, V, U, M1, G)
+  SUBROUTINE pao_calc_U_fock(pao, iatom, penalty, min_gap, V, U, M1, G)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER                                  :: iatom
-    REAL(dp), INTENT(INOUT)                  :: min_gap
+    REAL(dp), INTENT(INOUT)                  :: penalty, min_gap
     REAL(dp), DIMENSION(:, :), POINTER       :: V, U
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: M1, G
@@ -121,10 +122,11 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, m, n
     LOGICAL                                  :: found
-    REAL(dp)                                 :: denom, gap
+    REAL(dp)                                 :: alpha, beta, denom, diff, gap
     REAL(dp), DIMENSION(:), POINTER          :: H_evals
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_N, D, H, H0, H_evecs, &
-                                                M2, M3, M4, M5, Y
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_N, D1, D2, H, H0, &
+                                                H_evecs, M2, M3, M4, M5, M6, &
+                                                M7, Y
 
     CALL timeset(routineN,handle)
 
@@ -164,42 +166,67 @@ CONTAINS
       min_gap = MIN(min_gap, gap)
     ENDIF
 
-    IF(PRESENT(G))THEN ! TURNING POINT (if calc grad) ----------------------------------------
+    ! penalty terms: occupied and virtual eigenvalues repel each other
+    alpha = pao%penalty_strength
+    beta  = pao%penalty_dist
+    DO i=1, m
+    DO j=m+1, n
+       diff = H_evals(i) - H_evals(j)
+       penalty = penalty + alpha*EXP(-(diff/beta)**2)
+    ENDDO
+    ENDDO
+
+    IF(PRESENT(G))THEN ! TURNING POINT (if calc grad) -------------------------
 
        CPASSERT(PRESENT(M1))
 
        ! calculate derivatives between eigenvectors of H
-       ALLOCATE(D(n,n))
+       ALLOCATE(D1(n,n), M2(n,n), M3(n,n), M4(n,n))
        DO i=1, n
        DO j=1, n
           ! ignore changes among occupied or virtual eigenvectors
-          ! They will get filtered out by M2*D anyways, however this early
+          ! They will get filtered out by M2*D1 anyways, however this early
           ! intervention might stabilize numerics in the case of level-crossings.
           IF(i<=m .EQV. j<=m) THEN
-             D(i,j) = 0.0_dp
+             D1(i,j) = 0.0_dp
           ELSE
              denom = H_evals(i) - H_evals(j)
              IF(ABS(denom) > 1e-9_dp) THEN ! avoid division by zero
-                D(i,j) = 1.0_dp / denom
+                D1(i,j) = 1.0_dp / denom
              ELSE
-                D(i,j) = SIGN(1e+9_dp, denom)
+                D1(i,j) = SIGN(1e+9_dp, denom)
              ENDIF
           ENDIF
        ENDDO
        ENDDO
-
-       ! fold derivatives
-       ALLOCATE(M2(n,n))
        M2 = MATMUL(TRANSPOSE(M1), H_evecs)
-       ALLOCATE(M3(n,n), M4(n,n), M5(n,n))
-       M3 = M2 * D ! Hadamard product
+       M3 = M2 * D1 ! Hadamard product
        M4 = MATMUL(MATMUL(H_evecs, M3), TRANSPOSE(H_evecs))
-       M5 = 0.5_dp * (M4 + TRANSPOSE(M4)) ! symmetrize
 
-       ! dH / dV
-       G = MATMUL(MATMUL(block_N, M5), block_N) ! the final gradient
+       ! gradient contribution from penalty terms
+       ALLOCATE(D2(n,n), M5(n,n))
+       D2 = 0.0_dp
+       DO i=1, n
+       DO j=1, n
+          IF (i<=m .EQV. j<=m) CYCLE
+          diff = H_evals(i) - H_evals(j)
+          D2(i,i) = D2(i,i) - 2.0_dp * alpha * diff / beta**2 * EXP(-(diff/beta)**2)
+       ENDDO
+       ENDDO
+       M5 = MATMUL(MATMUL(H_evecs, D2), TRANSPOSE(H_evecs))
 
-       DEALLOCATE(D, M2, M3, M4, M5)
+       ! combine M1*dH/dH_evecs with dE_penalty/dH_evecs
+       ALLOCATE(M6(n,n))
+       M6 = M4 + M5
+
+       ! dH / dV, return to non-orthonormal basis
+       ALLOCATE(M7(n,n))
+       M7 = MATMUL(MATMUL(block_N, M6), block_N)
+
+       ! symmetrize
+       G = 0.5_dp * (M7 + TRANSPOSE(M7)) ! the final gradient
+
+       DEALLOCATE(D1, D2, M2, M3, M4, M5, M6, M7)
     ENDIF
 
     DEALLOCATE(H, H_evals, H_evecs)

@@ -66,9 +66,6 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%EPS_PAO",r_val=pao%eps_pao)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","EPS_PAO", pao%eps_pao
 
-    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%MIN_STEP",r_val=pao%min_step)
-    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","MIN_STEP", pao%min_step
-
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%MIXING",r_val=pao%mixing)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","MIXING", pao%mixing
 
@@ -80,6 +77,14 @@ CONTAINS
 
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%PARAMETERIZATION",i_val=pao%parameterization)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,A10)") " PAO|","PARAMETERIZATION", id2str(pao%parameterization)
+
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%PENALTY_DISTANCE",r_val=pao%penalty_dist)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","PENALTY_DISTANCE",pao%penalty_dist
+    IF(pao%penalty_dist<0.0_dp) CPABORT("PAO: PENALTY_DISTANCE < 0")
+
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%PENALTY_STRENGTH",r_val=pao%penalty_strength)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","PENALTY_STRENGTH",pao%penalty_strength
+    IF(pao%penalty_strength<0.0_dp) CPABORT("PAO: PENALTY_STRENGTH < 0")
 
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CG_INIT_STEPS",i_val=pao%cg_init_steps)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","CG_INIT_STEPS",pao%cg_init_steps
@@ -156,12 +161,6 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="MIN_STEP",&
-         description="Save guard agains noisy gradients",&
-         default_r_val=1.e-5_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
     CALL keyword_create(keyword, name="MIXING",&
          description="Mixing fraction of new and old solutions after CG",&
          default_r_val=1.0_dp)
@@ -189,6 +188,18 @@ CONTAINS
                        "Fock matrix parametrization",&
                        "Original matrix exponential parametrization"),&
          default_i_val=pao_rotinv_param)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="PENALTY_DISTANCE",&
+         description="Distance at which approaching eigenvalues are penalized to prevent degeneration.",&
+         default_r_val=0.2_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="PENALTY_STRENGTH",&
+         description="Strength of the penalty term which prevents degenerate eigenvalues.",&
+         default_r_val=0.005_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -270,7 +281,7 @@ CONTAINS
     CALL keyword_create(keyword, name="CG_INIT_STEPS",&
          description="Number of steepest descent steps before starting the"//&
          " conjugate gradients optimization.",&
-         default_i_val=1)
+         default_i_val=2)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

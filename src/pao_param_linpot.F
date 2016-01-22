@@ -154,16 +154,17 @@ CONTAINS
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
 !> \param iatom ...
+!> \param penalty ...
 !> \param min_eval ...
 !> \param block_X ...
 !> \param block_U ...
 !> \param block_M1 ...
 !> \param block_G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_linpot(pao, iatom, min_eval, block_X, block_U, block_M1, block_G)
+  SUBROUTINE pao_calc_U_linpot(pao, iatom, penalty, min_eval, block_X, block_U, block_M1, block_G)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER, INTENT(IN)                      :: iatom
-    REAL(KIND=dp), INTENT(INOUT)             :: min_eval
+    REAL(dp), INTENT(INOUT)                  :: penalty, min_eval
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X, block_U
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: block_M1, block_G
@@ -195,14 +196,14 @@ CONTAINS
     block_V = 0.5_dp*( block_V + TRANSPOSE(block_V) ) ! symmetrize exactly
 
     IF(.NOT. PRESENT(block_G))THEN
-       CALL pao_calc_U_fock(pao, iatom, min_eval, block_V, block_U)
+       CALL pao_calc_U_fock(pao, iatom, penalty, min_eval, block_V, block_U)
 
     ELSE  ! TURNING POINT (if calc grad) --------------------------------------
 
        CPASSERT(PRESENT(block_M1))
        ALLOCATE(vec_M2(n*n))
        block_M2(1:n,1:n) => vec_M2(:) ! map vector into matrix
-       CALL pao_calc_U_fock(pao, iatom, min_eval, block_V, block_U, block_M1, block_M2)
+       CALL pao_calc_U_fock(pao, iatom, penalty, min_eval, block_V, block_U, block_M1, block_M2)
        IF(MAXVAL(ABS(block_M2-TRANSPOSE(block_M2)))>1e-14_dp) CPABORT("Expect symmetric matrix")
        IF(SIZE(block_V_terms)>0)& ! protect against corner-case of zero pao parameters
          block_G(:,1) = MATMUL(vec_M2, block_V_terms)
