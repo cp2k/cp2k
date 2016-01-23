@@ -626,7 +626,8 @@ MODULE hfx_energy_potential
          CALL cp_warn(__LOCATION__,&
               "The Kohn Sham matrix is not 100% occupied. This "//&
               "may result in uncorrect Hartree-Fock results. Try to decrease EPS_PGF_ORB "//&
-              "and EPS_FILTER_MATRIX in the QS section.")
+              "and EPS_FILTER_MATRIX in the QS section. For more information "//&
+              "see FAQ: https://www.cp2k.org/faq:hfx_eps_warning")
       END IF
     END IF
 
