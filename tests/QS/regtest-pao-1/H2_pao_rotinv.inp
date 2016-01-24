@@ -23,7 +23,8 @@
         PARAMETERIZATION ROTINV
         CHECK_UNITARY_TOL 1.0E-10
         &LINE_SEARCH
-          METHOD 3PNT
+          METHOD 2PNT
+          INITIAL_STEP_SIZE 2.0
         &END LINE_SEARCH
         &PRINT
           &RESTART ON

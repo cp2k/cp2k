@@ -275,7 +275,6 @@ CONTAINS
     pao%step_start_time = now
 
     norm_G = cp_dbcsr_frobenius_norm(pao%matrix_G)
-    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", new_energy
     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| gradient norm:", norm_G
 
     IF(pao%istep>1) THEN
@@ -379,9 +378,9 @@ CONTAINS
     ENDDO
 
     ! add penalty term
-    IF (penalty/=0.0_dp .AND. pao%iw>0) WRITE(pao%iw,*) "PAO| penalty energy:", penalty
     energy = energy + penalty
 
+    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", energy, "penalty:", penalty
     CALL timestop(handle)
   END SUBROUTINE pao_calc_energy
 

@@ -24,6 +24,7 @@
         CHECK_UNITARY_TOL 1.0E-10
         &LINE_SEARCH
           METHOD 3PNT
+          MAX_STEP_SIZE 10.0
         &END LINE_SEARCH
       &END PAO
     &END

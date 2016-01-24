@@ -252,7 +252,7 @@ CONTAINS
        ! perform line-search step
        CALL linesearch_step(pao%linesearch,&
                             energy=energy,&
-                            slope=cp_dbcsr_frobenius_norm(pao%matrix_G))
+                            slope=0.5_dp*cp_dbcsr_frobenius_norm(pao%matrix_G))
        IF(pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
        CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
        CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
