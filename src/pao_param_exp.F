@@ -10,11 +10,11 @@
 MODULE pao_param_exp
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE pao_types,                       ONLY: pao_env_type
@@ -46,7 +46,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: acol, arow, handle
+    INTEGER                                  :: acol, arow, handle, natoms
+    INTEGER, DIMENSION(:), POINTER           :: blk_sizes_diff, &
+                                                blk_sizes_pao, blk_sizes_pri
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:), POINTER          :: evals
     REAL(dp), DIMENSION(:, :), POINTER       :: block_H, block_N, block_U0
@@ -60,6 +62,7 @@ CONTAINS
     CALL get_qs_env(qs_env,&
                     matrix_ks=matrix_ks,&
                     matrix_s=matrix_s,&
+                    natom=natoms,&
                     dft_control=dft_control)
 
     IF(dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
@@ -67,11 +70,20 @@ CONTAINS
     IF(reuse_matrix_X) THEN
        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| reusing rotation matrices from last MD step"
     ELSE
-       ! allocate matrix_X
+       ! allocate matrix_X, considering only rotations between occupied and virtuals
+       ALLOCATE(blk_sizes_diff(natoms))
+       blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
+       blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
+       blk_sizes_diff = blk_sizes_pri - blk_sizes_pao
        CALL cp_dbcsr_init(pao%matrix_X)
-       CALL cp_dbcsr_create(pao%matrix_X, template=matrix_s(1)%matrix, matrix_type="N")
+       CALL cp_dbcsr_create(pao%matrix_X,&
+                            template=matrix_s(1)%matrix,&
+                            matrix_type="N",&
+                            row_blk_size=blk_sizes_pao,&
+                            col_blk_size=blk_sizes_diff)
        CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
        CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
+       DEALLOCATE(blk_sizes_diff)
     ENDIF
 
     ! allocate matrix_U0
@@ -135,7 +147,9 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:, :), POINTER    :: block_D, evecs
     INTEGER                                  :: handle, i, j, k, M, N
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_tmp, block_U0, block_Y
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_G_full, block_tmp, &
+                                                block_U0, block_X_full, &
+                                                block_Y
 
     CALL timeset(routineN,handle)
 
@@ -147,10 +161,19 @@ CONTAINS
     CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
     CPASSERT(ASSOCIATED(block_U0))
 
-    ALLOCATE(evals(N), evecs(N,N))
-    CALL diag_antisym(block_X, evecs, evals)
+    ! block_X stores only rotations between occupied and virtuals
+    ! hence, we first have to build the full anti-symmetric exponent block
+    ALLOCATE(block_X_full(N,N))
+    block_X_full(:,:) = 0.0_dp
+    block_X_full(1:M, M+1:N) = block_X
+    block_X_full(M+1:N, 1:M) = -TRANSPOSE(block_X)
 
-    block_U=0.0_dp
+    ! diagonalize block_X_full
+    ALLOCATE(evals(N), evecs(N,N))
+    CALL diag_antisym(block_X_full, evecs, evals)
+
+    ! construct rotation matrix
+    block_U(:,:) = 0.0_dp
     DO k=1, N
        DO i=1, N
           DO j=1, N
@@ -165,7 +188,7 @@ CONTAINS
     IF(PRESENT(block_G))THEN
        CPASSERT(PRESENT(block_M))
 
-       ALLOCATE(block_D(N,N), block_tmp(N,N))
+       ALLOCATE(block_D(N,N), block_tmp(N,N), block_G_full(N,N))
        DO i=1, N
           DO j=1, N
              denom = evals(i) - evals(j)
@@ -180,11 +203,16 @@ CONTAINS
        ENDDO
 
        block_tmp = MATMUL(TRANSPOSE(block_U0), block_M)
-       block_G = fold_derivatives(block_tmp, block_D, evecs, -1)
-       DEALLOCATE(block_D, block_tmp)
+       block_G_full = fold_derivatives(block_tmp, block_D, evecs)
+
+       ! return only gradient for rotations between occupied and virtuals
+       IF(M < N)& ! catch special case N==M
+          block_G = block_G_full(1:M, M+1:N)
+
+       DEALLOCATE(block_D, block_tmp, block_G_full)
     ENDIF
 
-    DEALLOCATE(evals, evecs)
+    DEALLOCATE(block_X_full, evals, evecs)
 
     CALL timestop(handle)
   END SUBROUTINE pao_calc_U_exp
@@ -195,13 +223,11 @@ CONTAINS
 !> \param M ...
 !> \param D ...
 !> \param R ...
-!> \param sym ...
 !> \retval G ...
 ! *****************************************************************************
-  FUNCTION fold_derivatives(M, D, R, sym) RESULT(G)
+  FUNCTION fold_derivatives(M, D, R) RESULT(G)
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: M
     COMPLEX(dp), DIMENSION(:, :), INTENT(IN) :: D, R
-    INTEGER, INTENT(IN)                      :: sym
     REAL(dp), &
       DIMENSION(SIZE(M, 1), SIZE(M, 1))      :: G
 
@@ -211,8 +237,6 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:, :), POINTER    :: F, RF, RM, RMR
     INTEGER                                  :: n
     REAL(dp), DIMENSION(:, :), POINTER       :: RFR
-
-     IF(ABS(sym) /= 1) CPABORT("expected +1 or -1 as sym")
 
      n = SIZE(M, 1)
 
@@ -224,8 +248,8 @@ CONTAINS
      RF  = MATMUL(R, F)
      RFR = REAL(MATMUL(RF, TRANSPOSE(CONJG(R))))
 
-     ! gradient dE/dX has to be (anti)symmetric
-     G = TRANSPOSE(RFR) + REAL(sym,dp) * RFR
+     ! gradient dE/dX has to be anti-symmetric
+     G = TRANSPOSE(RFR) - RFR
 
      DEALLOCATE(RM, RMR, F, RF, RFR)
   END FUNCTION fold_derivatives

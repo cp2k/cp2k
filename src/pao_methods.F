@@ -34,7 +34,6 @@ MODULE pao_methods
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_max
-  USE pao_input,                       ONLY: pao_exp_param
   USE pao_param,                       ONLY: pao_update_AB
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
@@ -780,8 +779,7 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, j, natoms
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes_col, blk_sizes_row
     LOGICAL                                  :: found
-    REAL(dp)                                 :: delta, delta_max, eps, &
-                                                Gij_num, symm
+    REAL(dp)                                 :: delta, delta_max, eps, Gij_num
     REAL(dp), DIMENSION(:, :), POINTER       :: block_G, block_X
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(ls_mstruct_type), POINTER           :: ls_mstruct
@@ -791,13 +789,6 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     ls_mstruct => ls_scf_env%ls_mstruct
-
-    SELECT CASE(pao%parameterization)
-      CASE(pao_exp_param)
-        symm = -1.0_dp ! anti-symmetric
-      CASE DEFAULT
-        symm = 0.0_dp  ! no symmetry
-    END SELECT
 
     CALL get_qs_env(qs_env, para_env=para_env, natom=natoms)
 
@@ -819,29 +810,26 @@ CONTAINS
 
        DO i=1, blk_sizes_row(iatom)
           DO j=1, blk_sizes_col(iatom)
-             IF(symm /= 0.0_dp .AND. j<i) CYCLE   ! symmetric matrix, skip lower triangle
-             IF(symm == -1.0_dp .AND. i==j) CYCLE ! anti-symmetric matrix, skip diagonal
-
              SELECT CASE(pao%num_grad_order)
               CASE(2) ! calculate derivative to 2th order
-                Gij_num =         - eval_point(block_X, i, j, -eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num + eval_point(block_X, i, j, +eps, symm, pao, ls_scf_env, qs_env)
+                Gij_num =         - eval_point(block_X, i, j, -eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num + eval_point(block_X, i, j, +eps, pao, ls_scf_env, qs_env)
                 Gij_num = Gij_num / (2.0_dp * eps)
 
               CASE(4) ! calculate derivative to 4th order
-                Gij_num =                  eval_point(block_X, i, j, -2_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num - 8_dp * eval_point(block_X, i, j, -1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num + 8_dp * eval_point(block_X, i, j, +1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num -        eval_point(block_X, i, j, +2_dp*eps, symm, pao, ls_scf_env, qs_env)
+                Gij_num =                  eval_point(block_X, i, j, -2_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num - 8_dp * eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num + 8_dp * eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num -        eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
                 Gij_num = Gij_num / (12.0_dp * eps)
 
               CASE(6) ! calculate derivative to 6th order
-                Gij_num =         -  1_dp * eval_point(block_X, i, j, -3_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num +  9_dp * eval_point(block_X, i, j, -2_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num - 45_dp * eval_point(block_X, i, j, -1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num + 45_dp * eval_point(block_X, i, j, +1_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num -  9_dp * eval_point(block_X, i, j, +2_dp*eps, symm, pao, ls_scf_env, qs_env)
-                Gij_num = Gij_num +  1_dp * eval_point(block_X, i, j, +3_dp*eps, symm, pao, ls_scf_env, qs_env)
+                Gij_num =         -  1_dp * eval_point(block_X, i, j, -3_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num +  9_dp * eval_point(block_X, i, j, -2_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num - 45_dp * eval_point(block_X, i, j, -1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num + 45_dp * eval_point(block_X, i, j, +1_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num -  9_dp * eval_point(block_X, i, j, +2_dp*eps, pao, ls_scf_env, qs_env)
+                Gij_num = Gij_num +  1_dp * eval_point(block_X, i, j, +3_dp*eps, pao, ls_scf_env, qs_env)
                 Gij_num = Gij_num / (60.0_dp * eps)
 
              CASE DEFAULT
@@ -871,16 +859,15 @@ CONTAINS
 !> \param i ...
 !> \param j ...
 !> \param eps ...
-!> \param symm ...
 !> \param pao ...
 !> \param ls_scf_env ...
 !> \param qs_env ...
 !> \retval energy ...
 ! *****************************************************************************
-  FUNCTION eval_point(block_X, i, j, eps, symm, pao, ls_scf_env, qs_env) RESULT(energy)
+  FUNCTION eval_point(block_X, i, j, eps, pao, ls_scf_env, qs_env) RESULT(energy)
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X
     INTEGER, INTENT(IN)                      :: i, j
-    REAL(dp), INTENT(IN)                     :: eps, symm
+    REAL(dp), INTENT(IN)                     :: eps
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(ls_scf_env_type), TARGET            :: ls_scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -889,23 +876,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_point', &
       routineP = moduleN//':'//routineN
 
-    REAL(dp)                                 :: old_Xij, old_Xji
+    REAL(dp)                                 :: old_Xij
 
     IF(ASSOCIATED(block_X)) THEN
        old_Xij = block_X(i,j) ! backup old block_X
        block_X(i,j) = block_X(i,j) + eps ! add pertubation
-       IF(symm/=0.0) THEN
-          old_Xji = block_X(j,i)
-          block_X(j,i) = block_X(j,i) + symm*eps
-       ENDIF
     ENDIF
 
     ! calculate energy
     CALL pao_calc_energy(pao, qs_env, ls_scf_env, energy)
 
-    ! restore old block_X (in reverse order to treat diagonals properly)
+    ! restore old block_X
     IF(ASSOCIATED(block_X)) THEN
-       IF(symm/=0.0) block_X(j,i) = old_Xji
        block_X(i,j) = old_Xij
     ENDIF
 

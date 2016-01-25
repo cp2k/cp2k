@@ -24,7 +24,7 @@
         MAX_PAO    20
         PARAMETERIZATION EXP
         &LINE_SEARCH
-          METHOD ADAPT
+          METHOD NONE
         &END LINE_SEARCH
       &END PAO
     &END

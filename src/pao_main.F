@@ -93,6 +93,7 @@ CONTAINS
     ENDIF
 
     CALL pao_build_orthogonalizer(pao, qs_env)
+    CALL pao_build_selector(qs_env, pao%matrix_Y)
 
     IF(pao%istep>0) THEN ! was there a previous MD step?
        CALL pao_param_init(pao, qs_env, reuse_matrix_X=.TRUE.)
@@ -100,6 +101,8 @@ CONTAINS
        CALL pao_param_init(pao, qs_env, reuse_matrix_X=.FALSE.)
        CALL pao_read_restart(pao, qs_env)
     ENDIF
+
+    CALL pao_print_atom_info(pao)
 
     ! init counters
     pao%step_start_time = m_walltime()
@@ -116,10 +119,6 @@ CONTAINS
 
     CALL cp_dbcsr_init(pao%matrix_D)
     CALL cp_dbcsr_copy(pao%matrix_D, pao%matrix_G)
-
-    CALL pao_build_selector(qs_env, pao%matrix_Y)
-
-    CALL pao_print_atom_info(pao)
 
     CALL cp_dbcsr_init(pao%matrix_U)
     CALL cp_dbcsr_create(pao%matrix_U, template=matrix_s(1)%matrix, matrix_type="N", name="PAO matrix_U")
@@ -253,7 +252,7 @@ CONTAINS
        ! perform line-search step
        CALL linesearch_step(pao%linesearch,&
                             energy=energy,&
-                            slope=0.5_dp*cp_dbcsr_frobenius_norm(pao%matrix_G))
+                            slope=cp_dbcsr_frobenius_norm(pao%matrix_G)**2)
        IF(pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
        CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
        CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
