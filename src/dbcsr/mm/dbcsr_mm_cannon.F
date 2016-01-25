@@ -3698,7 +3698,7 @@ MODULE dbcsr_mm_cannon
        ALLOCATE (right_all_max_norms(right_row_nimages,right_col_nimages,0:right_nprows-1))
        CALL mp_allgather(right_max_norms,right_all_max_norms,grp_right)
        DEALLOCATE(right_max_norms,left_max_norms)
-       ALLOCATE(right_max_norms(0:nvirt_k-1,right_myfirstvcol:right_myfirstvcol+right_col_nimages-1))
+       ALLOCATE(right_max_norms(right_myfirstvcol:right_myfirstvcol+right_col_nimages-1,0:nvirt_k-1))
        ALLOCATE(left_max_norms(left_myfirstvrow:left_myfirstvrow+left_row_nimages-1,0:nvirt_k-1))
     ENDIF
     !
@@ -3717,7 +3717,7 @@ MODULE dbcsr_mm_cannon
           right_refs(:, src_vrow, src_vcol) =&
                right_all_refs(:, dst_irow, dst_icol, dst_p)
           IF (otf_filtering.AND.use_mpi_filtering) THEN
-             right_max_norms(src_vrow, src_vcol) = right_all_max_norms(dst_irow, dst_icol, dst_p)
+             right_max_norms(src_vcol, src_vrow) = right_all_max_norms(dst_irow, dst_icol, dst_p)
           ENDIF
        ENDDO
     ENDDO
@@ -3861,9 +3861,10 @@ MODULE dbcsr_mm_cannon
     ! Pre-CANNON execution: filtering and resize buffers for communications
     CALL timeset(routineN//"_precannon", handle2)
     !
-    ALLOCATE(right_recv_filtered(0:min_nimages-1,0:right_col_nimages-1,0:nsteps_k-1))
+    ALLOCATE(right_recv_filtered(0:right_col_nimages-1,0:min_nimages-1,0:nsteps_k-1))
     ALLOCATE(left_recv_filtered(0:left_row_nimages-1,0:min_nimages-1,0:nsteps_k-1))
-    right_recv_filtered = 0 ; left_recv_filtered = 0
+    ! By default all clusters are communicated
+    right_recv_filtered = left_row_nimages ; left_recv_filtered = right_col_nimages
     !
     right_max_data_size = 0 ; right_max_meta_size = 0
     left_max_data_size = 0 ; left_max_meta_size = 0
@@ -3920,17 +3921,21 @@ MODULE dbcsr_mm_cannon
           ! Max norms evaluation for filtering
           IF (otf_filtering.AND.use_mpi_filtering) THEN
              !
+             ! Reset clusters counters
+             left_recv_filtered(:,v_ki,metronome) = 0
+             right_recv_filtered(:,v_ki,metronome) = 0
+             !
              ! multiplication of norms
              DO v_ri = 0, left_row_nimages-1
+                IF (left_refs(imeta_size,v_ri+left_vrow,recv_vcol).EQ.0) CYCLE
                 DO v_ci = 0, right_col_nimages-1
-                   IF (left_refs(imeta_size,v_ri+left_vrow,recv_vcol).EQ.0.OR.&
-                       right_refs(imeta_size,recv_vrow,v_ci+right_vcol).EQ.0) CYCLE
-                   IF (left_max_norms(v_ri+left_vrow,recv_vcol)*right_max_norms(recv_vrow,v_ci+right_vcol).GE.&
+                   IF (right_refs(imeta_size,recv_vrow,v_ci+right_vcol).EQ.0) CYCLE
+                   IF (left_max_norms(v_ri+left_vrow,recv_vcol)*right_max_norms(v_ci+right_vcol,recv_vrow).LT.&
                        min_row_max_epss) CYCLE
                    left_recv_filtered(v_ri,v_ki,metronome) = &
                         left_recv_filtered(v_ri,v_ki,metronome)+1
-                   right_recv_filtered(v_ki,v_ci,metronome) = &
-                        right_recv_filtered(v_ki,v_ci,metronome)+1
+                   right_recv_filtered(v_ci,v_ki,metronome) = &
+                        right_recv_filtered(v_ci,v_ki,metronome)+1
                 ENDDO
              ENDDO
           ENDIF
@@ -3938,7 +3943,7 @@ MODULE dbcsr_mm_cannon
           ! resize buffers taking in account filtering
           meta_size_image = 0
           DO v_ci = 0, right_col_nimages-1
-             IF (right_recv_filtered(v_ki,v_ci,metronome).GE.left_row_nimages.OR.&
+             IF (right_recv_filtered(v_ci,v_ki,metronome).EQ.0.OR.&
                  right_refs(imeta_size,recv_vrow,v_ci+right_vcol).EQ.0) THEN
                 meta_size_image = meta_size_image + dbcsr_num_slots
              ELSE
@@ -3951,7 +3956,7 @@ MODULE dbcsr_mm_cannon
           !
           meta_size_image = 0
           DO v_ri = 0, left_row_nimages-1
-             IF (left_recv_filtered(v_ri,v_ki,metronome).GE.right_col_nimages.OR.&
+             IF (left_recv_filtered(v_ri,v_ki,metronome).EQ.0.OR.&
                  left_refs(imeta_size,v_ri+left_vrow,recv_vcol).EQ.0) THEN
                 meta_size_image = meta_size_image + dbcsr_num_slots+size_threads_index
              ELSE
@@ -4137,7 +4142,7 @@ MODULE dbcsr_mm_cannon
                      shifting='R')
                 !
                 IF (right_refs(imeta_size,recv_vrow,recv_vcol).GT.0.AND.&
-                    right_recv_filtered(v_ki,v_ci,metronome).LT.left_row_nimages) THEN
+                    right_recv_filtered(v_ci,v_ki,metronome).GT.0) THEN
                    CALL timeset(routineN//"_metrocomm2", handle2)
                    !
                    rma_buffers_comm%right_offset_data(v_ci+2+v_i) = &
@@ -4241,7 +4246,7 @@ MODULE dbcsr_mm_cannon
                      shifting='L')
                 !
                 IF (left_refs(imeta_size,recv_vrow,recv_vcol).GT.0.AND.&
-                    left_recv_filtered(v_ri,v_ki,metronome).LT.right_col_nimages) THEN
+                    left_recv_filtered(v_ri,v_ki,metronome).GT.0) THEN
                    CALL timeset(routineN//"_metrocomm4", handle2)
                    !
                    rma_buffers_comm%left_offset_data(v_ri+2+v_i) = &
