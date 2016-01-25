@@ -286,7 +286,7 @@ CONTAINS
        is_converged = loop_eps < pao%eps_pao
 
        ! print one-liner
-       IF(pao%iw>0) WRITE (pao%iw,'(A,I6,11X,F20.9,1X,E10.3,1X,E10.3,1X,F6.3)')&
+       IF(pao%iw>0) WRITE (pao%iw,'(A,I6,11X,F20.9,1X,E10.3,1X,E10.3,1X,F9.3)')&
                     " PAO| step ",&
                     pao%istep,&
                     new_energy,&
