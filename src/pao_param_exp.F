@@ -202,7 +202,11 @@ CONTAINS
           ENDDO
        ENDDO
 
-       block_tmp = MATMUL(TRANSPOSE(block_U0), block_M)
+       IF (ASSOCIATED(block_M)) THEN
+          block_tmp = MATMUL(TRANSPOSE(block_U0), block_M)
+       ELSE
+          block_tmp = 0.0_dp
+       ENDIF
        block_G_full = fold_derivatives(block_tmp, block_D, evecs)
 
        ! return only gradient for rotations between occupied and virtuals

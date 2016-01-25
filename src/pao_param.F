@@ -222,7 +222,7 @@ CONTAINS
        CALL cp_dbcsr_get_block_p(matrix=pao%matrix_G, row=arow, col=acol, block=block_G, found=found)
        CPASSERT(ASSOCIATED(block_G))
        CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=arow, col=acol, block=block_M, found=found)
-       CPASSERT(ASSOCIATED(block_M))
+       ! M blocks might be not present if they are filtered to zero, deal with .NOT.ASSOCIATED(block_M) explicitly later on
 
        SELECT CASE(pao%parameterization)
          CASE(pao_exp_param)

@@ -199,7 +199,11 @@ CONTAINS
           ENDIF
        ENDDO
        ENDDO
-       M2 = MATMUL(TRANSPOSE(M1), H_evecs)
+       IF (ASSOCIATED(M1)) THEN
+          M2 = MATMUL(TRANSPOSE(M1), H_evecs)
+       ELSE
+          M2 = 0.0_dp
+       ENDIF
        M3 = M2 * D1 ! Hadamard product
        M4 = MATMUL(MATMUL(H_evecs, M3), TRANSPOSE(H_evecs))
 

@@ -566,6 +566,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, nspin
+    REAL(KIND=dp)                            :: filter_eps
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, rho_ao
     TYPE(cp_dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M1, matrix_M2, &
@@ -589,6 +590,7 @@ CONTAINS
                     dft_control=dft_control)
     CALL qs_rho_get(rho, rho_ao=rho_ao)
     nspin = dft_control%nspins
+    filter_eps=ls_scf_env%eps_filter
 
     IF(nspin /= 1) CPABORT("open shell not yet implemented")
     !TODO: handle openshell case properly
@@ -603,29 +605,29 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_PH)
     CALL cp_dbcsr_create(matrix_PH, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), ls_scf_env%matrix_ks(1),&
-                          0.0_dp, matrix_PH)
+                          0.0_dp, matrix_PH, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_PHP)
     CALL cp_dbcsr_create(matrix_PHP, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_PH, ls_scf_env%matrix_p(1),&
-                           0.0_dp, matrix_PHP)
+                           0.0_dp, matrix_PHP, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_SP)
     CALL cp_dbcsr_create(matrix_SP, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_s, ls_scf_env%matrix_p(1),&
-                          0.0_dp, matrix_SP)
+                          0.0_dp, matrix_SP, filter_eps=filter_eps)
 
     IF(SIZE(ls_scf_env%matrix_p)==1) CALL cp_dbcsr_scale(matrix_SP, 0.5_dp)
 
     CALL cp_dbcsr_init(matrix_HPS)
     CALL cp_dbcsr_create(matrix_HPS, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, ls_scf_env%matrix_ks(1), matrix_SP,&
-                          0.0_dp, matrix_HPS)
+                          0.0_dp, matrix_HPS, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_PSP)
     CALL cp_dbcsr_create(matrix_PSP, template=ls_scf_env%matrix_s, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, ls_scf_env%matrix_p(1), matrix_SP,&
-                           0.0_dp, matrix_PSP)
+                           0.0_dp, matrix_PSP, filter_eps=filter_eps)
 
     !---------------------------------------------------------------------------
     ! M1 = dE_lnv / dP_pao
@@ -633,19 +635,19 @@ CONTAINS
     CALL cp_dbcsr_create(matrix_M1, template=ls_scf_env%matrix_s, matrix_type="N")
 
     CALL cp_dbcsr_multiply("N", "T", 3.0_dp, ls_scf_env%matrix_ks(1), matrix_SP,&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "N", 3.0_dp, matrix_SP, ls_scf_env%matrix_ks(1),&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_HPS, matrix_SP,&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_SP, matrix_HPS, &
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_SP, matrix_HPS,&
-                           1.0_dp, matrix_M1)
+                           1.0_dp, matrix_M1, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -656,7 +658,7 @@ CONTAINS
     CALL cp_dbcsr_add(matrix_M2, matrix_PSP, 1.0_dp, 3.0_dp)
 
     CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PSP, matrix_SP,&
-                           1.0_dp, matrix_M2)
+                           1.0_dp, matrix_M2, filter_eps=filter_eps)
 
     !---------------------------------------------------------------------------
     ! M3 = dE_lnv / dS
@@ -666,10 +668,10 @@ CONTAINS
     CALL cp_dbcsr_add(matrix_M3, matrix_PHP, 1.0_dp, 3.0_dp)
 
     CALL cp_dbcsr_multiply("N", "N", -2.0_dp, matrix_PHP, matrix_SP,&
-                           1.0_dp, matrix_M3)
+                           1.0_dp, matrix_M3, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", -2.0_dp, matrix_PSP, matrix_PH,&
-                           1.0_dp, matrix_M3)
+                           1.0_dp, matrix_M3, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -677,20 +679,20 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_PA)
     CALL cp_dbcsr_create(matrix_PA, template=ls_mstruct%matrix_A, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, rho_ao(1)%matrix, ls_mstruct%matrix_A ,&
-                           0.0_dp, matrix_PA)
+                           0.0_dp, matrix_PA, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NPA)
     CALL cp_dbcsr_create(matrix_NPA, template=ls_mstruct%matrix_A, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N_inv, matrix_PA,&
-                           0.0_dp, matrix_NPA)
+                           0.0_dp, matrix_NPA, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NPAM1)
     CALL cp_dbcsr_create(matrix_NPAM1, template=ls_mstruct%matrix_A, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NPA, matrix_M1,&
-                           0.0_dp, matrix_NPAM1)
+                           0.0_dp, matrix_NPAM1, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NPAM1, pao%matrix_Y,&
-                           1.0_dp, matrix_M)
+                           1.0_dp, matrix_M, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -698,20 +700,20 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_HB)
     CALL cp_dbcsr_create(matrix_HB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_ks(1)%matrix, ls_mstruct%matrix_B,&
-                           0.0_dp, matrix_HB)
+                           0.0_dp, matrix_HB, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NHB)
     CALL cp_dbcsr_create(matrix_NHB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, matrix_HB,&
-                           0.0_dp, matrix_NHB)
+                           0.0_dp, matrix_NHB, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NHBM2)
     CALL cp_dbcsr_create(matrix_NHBM2, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NHB, matrix_M2,&
-                           0.0_dp, matrix_NHBM2)
+                           0.0_dp, matrix_NHBM2, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NHBM2, pao%matrix_Y,&
-                           1.0_dp, matrix_M)
+                           1.0_dp, matrix_M, filter_eps=filter_eps)
 
 
     !---------------------------------------------------------------------------
@@ -719,27 +721,27 @@ CONTAINS
     CALL cp_dbcsr_init(matrix_SB)
     CALL cp_dbcsr_create(matrix_SB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_s(1)%matrix, ls_mstruct%matrix_B,&
-                           0.0_dp, matrix_SB)
+                           0.0_dp, matrix_SB, filter_eps=filter_eps)
 
     IF(SIZE(ls_scf_env%matrix_p)==1) CALL cp_dbcsr_scale(matrix_SB, 0.5_dp)
 
     CALL cp_dbcsr_init(matrix_NSB)
     CALL cp_dbcsr_create(matrix_NSB, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, pao%matrix_N, matrix_SB,&
-                           0.0_dp, matrix_NSB)
+                           0.0_dp, matrix_NSB, filter_eps=filter_eps)
 
     CALL cp_dbcsr_init(matrix_NSBM3)
     CALL cp_dbcsr_create(matrix_NSBM3, template=ls_mstruct%matrix_B, matrix_type="N")
     CALL cp_dbcsr_multiply("N", "N", 1.0_dp, matrix_NSB, matrix_M3,&
-                           0.0_dp, matrix_NSBM3)
+                           0.0_dp, matrix_NSBM3, filter_eps=filter_eps)
 
     CALL cp_dbcsr_multiply("N", "T", 1.0_dp, matrix_NSBM3, pao%matrix_Y,&
-                           1.0_dp, matrix_M)
+                           1.0_dp, matrix_M, filter_eps=filter_eps)
 
     IF(SIZE(ls_scf_env%matrix_p)==1) CALL cp_dbcsr_scale(matrix_M, 2.0_dp)
 
     !---------------------------------------------------------------------------
-    ! cleanup
+    ! cleanup: TODO release matrices as early as possible
     CALL cp_dbcsr_release(matrix_PH)
     CALL cp_dbcsr_release(matrix_PHP)
     CALL cp_dbcsr_release(matrix_SP)
