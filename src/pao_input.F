@@ -193,7 +193,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="PENALTY_DISTANCE",&
          description="Distance at which approaching eigenvalues are penalized to prevent degeneration.",&
-         default_r_val=0.2_dp)
+         default_r_val=0.1_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

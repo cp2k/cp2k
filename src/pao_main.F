@@ -237,6 +237,7 @@ CONTAINS
           ! to restart with a fresh hamiltonian
           IF (icycle >= pao%max_cycles) THEN
              IF (pao%iw>0) WRITE(pao%iw,*) "PAO| CG not yet converged after ", icycle , " cylces."
+             pao_is_done = .FALSE.
              EXIT
           ENDIF
        ENDIF
