@@ -379,7 +379,10 @@ CONTAINS
     ! add penalty term
     energy = energy + penalty
 
-    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| energy:", energy, "penalty:", penalty
+    IF(pao%iw>0) THEN
+      WRITE(pao%iw,*) ""
+      WRITE(pao%iw,*) "PAO| energy:", energy, "penalty:", penalty
+    ENDIF
     CALL timestop(handle)
   END SUBROUTINE pao_calc_energy
 
