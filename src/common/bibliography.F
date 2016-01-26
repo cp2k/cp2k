@@ -75,7 +75,8 @@ MODULE bibliography
        QUIP_ref, DelBen2015, Souza2002, Umari2002, Stengel2009,        &
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
        Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012,             &
-       Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978
+       Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978,       &
+       Gilbert2008
 
 
 CONTAINS
@@ -239,8 +240,8 @@ CONTAINS
          "AU ZHAO, QS",&
          "   MORRISON, RC",&
          "   PARR, RG",&
-         "TI FOR ELECTRON DENSITIES TO KOHN-SHAM KINETIC ENERGIES, ORBITAL ENERGIES.",&
-         "   EXCHANGE-CORRELATION POTENTIALS, AND EXCHANGE-CORRELATION ENERGIES",&
+         "TI From electron densities to Kohn-Sham kinetic energies, orbital energies,",&
+         "   exchange-correlation potentials, and exchange-correlation energies",&
          "SO PHYSICAL REVIEW A",&
          "SN 1050-2947",&
          "PD SEP 1",&
@@ -3243,6 +3244,28 @@ CONTAINS
           "DI 10.1103/PhysRevB.18.5897",&
           "ER"),&
           DOI="10.1103/PhysRevB.18.5897")
+
+     CALL add_reference(key=Gilbert2008, ISI_record=s2a(&
+          "PT J",&
+          "AU Gilbert, ATB",&
+          "   Besley, NA",&
+          "   Gill, PMW",&
+          "AF Gilbert, Andrew T. B.",&
+          "   Besley, Nicholas A.",&
+          "   Gill, Peter M. W.",&
+          "TI Self-consistent field calculations of excited states",&
+          "   using the maximum overlap method (MOM)",&
+          "SO THE JOURNAL OF PHYSICAL CHEMISTRY A",&
+          "PD AUG 26",&
+          "PY 2008",&
+          "VL 112",&
+          "BP 13164",&
+          "EP 13171",&
+          "DI 10.1021/jp801738f",&
+          "ER"),&
+          DOI="10.1021/jp801738f")
+
+
 
   END SUBROUTINE add_all_references
 

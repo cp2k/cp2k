@@ -556,8 +556,10 @@ CONTAINS
 
     ! this just guarantees that all mo_occupations match the eigenvalues, if smear
     DO ispin=1,dft_control%nspins
-       CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
-                              smear=scf_control%smear)
+       ! do not reset mo_occupations if the maximum overlap method is in use
+       IF (.NOT. scf_control%diagonalization%mom) &
+          CALL set_mo_occupation(mo_set=mos(ispin)%mo_set,&
+                                 smear=scf_control%smear)
     ENDDO
 
     SELECT CASE (scf_env%method)

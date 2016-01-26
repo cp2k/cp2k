@@ -114,6 +114,16 @@ MODULE scf_control_types
     REAL(KIND=dp) :: eps_jacobi
     REAL(KIND=dp) :: jacobi_threshold
     INTEGER       :: max_iter, nkrylov, nblock_krylov
+    ! Maximum Overlap Method
+    LOGICAL       :: mom, mom_didguess
+    INTEGER       :: mom_proj_formula
+    ! indices of de-occupied and newly occupied alpha / beta molecular orbitals
+    INTEGER, DIMENSION(:), POINTER :: mom_deoccA, mom_deoccB, mom_occA, mom_occB
+    ! determines on SCF which iteration MOM will be switched on;
+    ! since MOs from the previous iteration should be available, it might be at least
+    !  1 when wave-function has been read from restart file, or
+    !  2 when the atomic guess method has been used
+    INTEGER       :: mom_start
     REAL(KIND=dp) :: eps_iter
     REAL(KIND=dp) :: eps_adapt
     TYPE(qs_ot_settings_type) :: ot_settings
@@ -202,6 +212,15 @@ CONTAINS
     scf_control%diagonalization%nkrylov = 0
     scf_control%diagonalization%nblock_krylov = 0
     CALL qs_ot_settings_init(scf_control%diagonalization%ot_settings)
+
+    scf_control%diagonalization%mom = .FALSE.
+    scf_control%diagonalization%mom_didguess = .FALSE.
+    scf_control%diagonalization%mom_proj_formula = 0
+    NULLIFY(scf_control%diagonalization%mom_deoccA)
+    NULLIFY(scf_control%diagonalization%mom_deoccB)
+    NULLIFY(scf_control%diagonalization%mom_occA)
+    NULLIFY(scf_control%diagonalization%mom_occB)
+    scf_control%diagonalization%mom_start = 0
 
     ! ROKS
 
@@ -302,6 +321,12 @@ CONTAINS
            DEALLOCATE(scf_control%smear%list)
         ENDIF
         DEALLOCATE(scf_control%smear)
+
+        ! Maximum overlap method orbital indices lists
+        ! mom_deoccA, mom_deoccB, mom_occA, mom_occB
+        ! points to memory allocated by input file parser,
+        ! so they do not have to be deallocated
+
         DEALLOCATE(scf_control)
       END IF
     END IF
@@ -389,6 +414,28 @@ CONTAINS
        IF ( scf_control%diagonalization%method == diag_ot ) THEN
          ! read OT section
          CALL ot_diag_read_input(scf_control%diagonalization%ot_settings,scf_section)
+       END IF
+       ! read maximum overlap method's parameters
+       CALL section_vals_val_get(scf_section,"MOM%_SECTION_PARAMETERS_",&
+            l_val=scf_control%diagonalization%MOM)
+       IF (scf_control%diagonalization%mom) THEN
+         CALL section_vals_val_get(scf_section,"MOM%START_ITER", &
+              i_val=scf_control%diagonalization%mom_start)
+
+         CALL section_vals_val_get(scf_section,"MOM%DEOCC_ALPHA", &
+              i_vals=scf_control%diagonalization%mom_deoccA)
+
+         CALL section_vals_val_get(scf_section,"MOM%DEOCC_BETA", &
+              i_vals=scf_control%diagonalization%mom_deoccB)
+
+         CALL section_vals_val_get(scf_section,"MOM%OCC_ALPHA", &
+              i_vals=scf_control%diagonalization%mom_occA)
+
+         CALL section_vals_val_get(scf_section,"MOM%OCC_BETA", &
+              i_vals=scf_control%diagonalization%mom_occB)
+
+         CALL section_vals_val_get(scf_section,"MOM%PROJ_FORMULA", &
+              i_val=scf_control%diagonalization%mom_proj_formula)
        END IF
     END IF
 

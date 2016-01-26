@@ -196,7 +196,11 @@ MODULE input_constants
                                               sparse_guess=8,&
                                               almo_scf_guess=9,&
                                               molecular_guess=10
-                                             
+
+  ! Projection formulas for the maximum overlap method
+  INTEGER, PARAMETER, PUBLIC               :: momproj_sum=0,&
+                                              momproj_norm=1
+
   INTEGER, PARAMETER, PUBLIC               :: almo_frz_none=0,&
                                               almo_frz_isolated=1,&
                                               almo_frz_crystal=2,&

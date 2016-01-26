@@ -70,6 +70,7 @@ MODULE cp_fm_types
             cp_fm_maxabsrownorm,&  ! find the maximum of the sum of the abs of the elements of a row
             cp_fm_to_fm,&  ! copy (parts of) a fm to a fm
             cp_fm_vectorsnorm,&  ! compute the norm of the column-vectors
+            cp_fm_vectorssum,&   ! compute the sum of all elements of the column-vectors
             cp_fm_to_fm_submat,&  ! copy (parts of) a fm to a fm
             cp_fm_to_fm_triangular,&
             cp_fm_copy_general,&
@@ -1094,6 +1095,49 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE
+
+! *****************************************************************************
+!> \brief summing up all the elements along the matrix's i-th index
+!>        \f$ \mathrm{sum}_{j} = \sum_{i} A_{ij} \f$
+!> \param matrix     an input matrix A
+!> \param sum_array  sums of elements in each column
+!> \note  forked from cp_fm_vectorsnorm() to be used with
+!>        the maximum overlap method
+! *****************************************************************************
+  SUBROUTINE cp_fm_vectorssum(matrix, sum_array)
+  USE message_passing,  ONLY: mp_sum
+    TYPE(cp_fm_type), POINTER                :: matrix
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: sum_array
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vectorssum', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, ncol_global, &
+                                                ncol_local, nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_block
+
+    CALL timeset(routineN,handle)
+
+    my_block => matrix%local_data
+
+    CPASSERT(.NOT.matrix%use_sp)
+
+    CALL cp_fm_get_info(matrix, col_indices=col_indices, ncol_global=ncol_global, &
+                                nrow_local=nrow_local, ncol_local=ncol_local)
+
+    ! the efficiency could be improved by making use of the row-col distribution of scalapack
+    sum_array(:) = 0.0_dp
+    DO j = 1,ncol_local
+       DO i = 1,nrow_local
+          sum_array(col_indices(j)) = sum_array(col_indices(j)) + my_block(i,j)
+       ENDDO
+    ENDDO
+    CALL mp_sum(sum_array, matrix%matrix_struct%para_env%group)
+
+    CALL timestop(handle)
+  END SUBROUTINE
+
 
 ! *****************************************************************************
 !> \brief copy one identically sized matrix in the other

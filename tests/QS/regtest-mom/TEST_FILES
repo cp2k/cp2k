@@ -1,0 +1,25 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# compute ground and some excited states of a water molecule at PBE / DZVP level of theory
+# number of active electrons : 8
+# excitation              multiplicity  C2v_irreducible_representation
+# ground state              singlet     A1
+H2O-mom-s-0.inp                                        1    1.0E-07             -17.22362524406253
+# 4 (alpha) -> 5 (alpha)    singlet     B1
+H2O-mom-s-1.inp                                        1    1.0E-07             -16.95846444424902
+# 3 (alpha) -> 5 (alpha)    singlet     A1
+H2O-mom-s-2.inp                                        1    1.0E-07             -16.85959056542186
+# 4 (alpha) -> 6 (alpha)    singlet     A2
+H2O-mom-s-3.inp                                        1    1.0E-07             -16.81975343064439
+# 4 (beta)  -> 5 (alpha)    triplet     B1
+H2O-mom-t-1.inp                                        1    1.0E-07             -16.96729857609427
+# 3 (beta)  -> 5 (alpha) =  4 (beta)  -> 5 (alpha) +
+# 3 (beta)  -> 4 (beta)     triplet     A1
+H2O-mom-t-2.inp                                        1    1.0E-07             -16.87080862223539
+# 4 (beta)  -> 6 (alpha) =  4 (beta)  -> 5 (alpha) +
+# 5 (alpha) -> 6 (alpha)    triplet     A2
+H2O-mom-t-3.inp                                        1    1.0E-07             -16.82720533369756

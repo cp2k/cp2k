@@ -129,6 +129,7 @@ MODULE input_cp2k_dft
                                              precond_spl3_aint2
   USE qs_density_mixing_types,         ONLY: create_mixing_section
   USE qs_fb_input,                     ONLY: create_filtermatrix_section
+  USE qs_mom_types,                    ONLY: create_mom_section
   USE string_utilities,                ONLY: newline,&
                                              s2a
 #include "./base/base_uses.f90"
@@ -4074,8 +4075,8 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,"scf",&
-         description="Parameters needed perform an SCF run.",&
-         n_keywords=24, n_subsections=3, repeats=.FALSE.)
+         description="Parameters needed to perform an SCF run.",&
+         n_keywords=18, n_subsections=7, repeats=.FALSE.)
 
     NULLIFY (subsection)
 
@@ -4096,6 +4097,10 @@ CONTAINS
     CALL section_release(subsection)
 
     CALL create_mixing_section(subsection)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
+
+    CALL create_mom_section(subsection)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 
