@@ -7,13 +7,11 @@
 !> \brief methods for deltaSCF calculations
 ! *****************************************************************************
 MODULE qs_mom_methods
-
   USE bibliography,                    ONLY: Gilbert2008,&
                                              cite_reference
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -22,6 +20,7 @@ MODULE qs_mom_methods
                                              cp_fm_type,&
                                              cp_fm_vectorsnorm,&
                                              cp_fm_vectorssum
+  USE cp_gemm_interface,               ONLY: cp_gemm
   USE input_constants,                 ONLY: momproj_norm,&
                                              momproj_sum
   USE input_section_types,             ONLY: section_vals_type
@@ -400,7 +399,7 @@ CONTAINS
          ! are allocated only if neither OT nor davidson diagonalization is in use.
          CALL cp_fm_create(svec, mo_coeff%matrix_struct)
 
-         ! S * C
+         ! S * C(new)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, mo_coeff, svec, nmo)
 
          ! a temporary overlap matrix
@@ -411,10 +410,8 @@ CONTAINS
 
          ! C(old occupied)^T * S * C(new)
          CALL cp_fm_column_scale(mo_coeff_orig, occ_nums)
-         CALL cp_fm_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff_orig, svec, 0.0_dp, overlap)
+         CALL cp_gemm('T', 'N', nmo, nmo, nao, 1.0_dp, mo_coeff_orig, svec, 0.0_dp, overlap)
          CALL cp_fm_release(svec)
-
-         !CALL cp_fm_vectorsnorm(overlap,mos(ispin)%mo_set%occupation_numbers)
 
          ALLOCATE(proj(nmo))
          ALLOCATE(inds(nmo))

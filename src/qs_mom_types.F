@@ -7,6 +7,7 @@
 !> \brief manage control variables for the maximum overlap method
 ! *****************************************************************************
 MODULE qs_mom_types
+  USE bibliography,                    ONLY: Gilbert2008
   USE input_constants,                 ONLY: momproj_norm,&
                                              momproj_sum
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -43,7 +44,6 @@ CONTAINS
 !> \version    1.0
 ! *****************************************************************************
   SUBROUTINE create_mom_section(section)
-
     TYPE(section_type), POINTER              :: section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_mom_section', &
@@ -59,9 +59,8 @@ CONTAINS
                         "to determine orbital occupancies. "//&
                         "The MOM procedures activated by this section are only active for diagonalization "//&
                         "methods, i.e. not with minimization methods based on OT.",&
-                        n_keywords=5,&
-                        n_subsections=0,&
-                        repeats=.FALSE.)
+                        n_keywords=7, n_subsections=0, repeats=.FALSE., &
+                        citations=(/Gilbert2008/))
 
     NULLIFY (keyword)
 
