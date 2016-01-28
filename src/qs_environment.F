@@ -560,7 +560,7 @@ CONTAINS
        et_becke_section =>  section_vals_get_subs_vals(et_coupling_section,"BECKE_RESTRAINT_A")
        CALL  read_becke_section(dft_control%qs_control,et_becke_section)
     END IF
-    CALL read_mgrid_section(dft_control%qs_control,dft_section,para_env=para_env)
+    CALL read_mgrid_section(dft_control%qs_control,dft_section)
 
     !   Create relativistic control section
     CALL rel_c_create(rel_control)

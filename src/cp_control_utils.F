@@ -22,7 +22,6 @@ MODULE cp_control_utils
                                              cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE input_constants,                 ONLY: &
        constant_env, do_admm_basis_projection, do_admm_blocked_projection, &
@@ -439,13 +438,11 @@ CONTAINS
 !> \brief ...
 !> \param qs_control ...
 !> \param dft_section ...
-!> \param para_env ...
 ! *****************************************************************************
-  SUBROUTINE read_mgrid_section(qs_control,dft_section,para_env)
+  SUBROUTINE read_mgrid_section(qs_control,dft_section)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mgrid_section', &
       routineP = moduleN//':'//routineN
