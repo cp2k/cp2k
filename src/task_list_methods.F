@@ -36,8 +36,9 @@ MODULE task_list_methods
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_alltoall,&
-                                             mp_gather,&
-                                             mp_scatter
+                                             mp_bcast,&
+                                             mp_sum,&
+                                             mp_sum_partial
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -1106,6 +1107,8 @@ CONTAINS
 !> \param my_pos ...
 !> \par History
 !>      created 2008-10-06 [Joost VandeVondele]
+!>      Modified 2016-01   [EPCC] Reduce memory requirements on P processes
+!>                                from O(P^2) to O(P)
 ! *****************************************************************************
   SUBROUTINE optimize_load_list(list,group,my_pos)
     INTEGER, DIMENSION(:, :, 0:)             :: list
@@ -1113,69 +1116,61 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'optimize_load_list', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: rank_of_root = 0
 
-    INTEGER                                  :: handle, i, icpu, idest, itmp, &
-                                                jcpu, maxdest, ncpu
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: load_all, load_per_source
+    INTEGER                                  :: handle, icpu, idest, maxdest, &
+                                                ncpu
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: load_all
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: load_partial
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: list_global
 
     CALL timeset(routineN,handle)
 
-
     ncpu=SIZE(list,3)
     maxdest=SIZE(list,2)
 
+    !find total workload ...
     ALLOCATE (load_all(maxdest*ncpu))
-    !
-    ! XXXXX this allocation can cause an out-of-memory if the number of MPI tasks is sufficient
-    !
-    ALLOCATE (load_per_source(maxdest*ncpu*ncpu))
-    ALLOCATE (list_global(2,maxdest,ncpu))
-
     load_all(:)=RESHAPE(list(2,:,:),(/maxdest*ncpu/))
+    CALL mp_sum( load_all(:) , rank_of_root , group )
 
-    CALL mp_gather(load_all,load_per_source,0,group)
-
-    IF (my_pos==0) THEN
-
-       ! collect the load of all CPUs
-       load_all=0
-       DO icpu=1,ncpu
-          load_all(:)=load_all+load_per_source(maxdest*ncpu*(icpu-1)+1:maxdest*ncpu*icpu)
-       ENDDO
-
-       list_global(1,:,:)=list(1,:,:)
-       list_global(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
-
-       ! optimize the fluxes
-       CALL balance_global_list(list_global)
-
-       ! figure out the amount of data a given CPU can send to a destination
-       !
-       i=0
-       DO jcpu=1,ncpu
-         DO  icpu=1,ncpu
-           DO idest=1,maxdest
-              i=i+1
-              itmp=MIN(list_global(2,idest,icpu),load_per_source(i))
-              load_per_source(i)=itmp
-              list_global(2,idest,icpu)=list_global(2,idest,icpu)-itmp
-           ENDDO
-         ENDDO
-       ENDDO
-
+    ! ... and optimise the work per process
+    ALLOCATE( list_global(2,maxdest,ncpu) )
+    IF (rank_of_root .EQ. my_pos) THEN
+      list_global(1,:,:)=list(1,:,:)
+      list_global(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
+      CALL balance_global_list(list_global)
     ENDIF
+    CALL mp_bcast( list_global , rank_of_root , group )
 
-    CALL mp_scatter(load_per_source,load_all,0,group)
-    list(2,:,:)=RESHAPE(load_all,(/maxdest,ncpu/))
+    !figure out how much can be sent to other processes
+    ALLOCATE( load_partial(maxdest,ncpu) )
+    CALL mp_sum_partial( list(2,:,:) , load_partial(:,:) , group )
 
+    DO icpu=1,ncpu
+       DO idest=1,maxdest
+
+          !need to deduct 1 because `list' was passed in to this routine as being indexed from zero
+          IF ( load_partial(idest,icpu) > list_global(2,idest,icpu) ) THEN
+             IF ( load_partial(idest,icpu) - list(2,idest,icpu-1) < list_global(2,idest,icpu) ) THEN
+                list(2,idest,icpu-1) = list_global(2,idest,icpu)   &
+                                     - (load_partial(idest,icpu) - list(2,idest,icpu-1)) 
+             ELSE
+                list(2,idest,icpu-1) = 0
+             ENDIF 
+          ENDIF 
+
+      ENDDO 
+    ENDDO 
+
+    !clean up before leaving
     DEALLOCATE (load_all)
-    DEALLOCATE (load_per_source)
     DEALLOCATE (list_global)
+    DEALLOCATE (load_partial)
 
     CALL timestop(handle)
-
   END SUBROUTINE optimize_load_list
+
 ! *****************************************************************************
 !> \brief fill the load list with values derived from the tasks array
 !>        from the alternate locations, we select the alternate location that
@@ -1965,7 +1960,6 @@ CONTAINS
 
        ! First round of balancing on the distributed grids
        ! we just balance each of the distributed grids independently
-       ! XXXX this call to load_balance_distributed can be a memory hog XXXX
        DO igrid_level=1,SIZE(rs_descs)
          IF ( rs_descs(igrid_level)%rs_desc%distributed ) THEN
 

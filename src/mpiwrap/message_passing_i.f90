@@ -983,7 +983,7 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-3 array on all processes.
-!> \param[in] msg             Arary to sum and result
+!> \param[in] msg             Array to sum and result
 !> \param gid ...
 !> \note see mp_sum_i 
 ! *****************************************************************************
@@ -1016,7 +1016,7 @@
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-4 array on all processes.
-!> \param[in] msg             Arary to sum and result
+!> \param[in] msg             Array to sum and result
 !> \param gid ...
 !> \note see mp_sum_i 
 ! *****************************************************************************
@@ -1148,6 +1148,46 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_root_im
+
+! *****************************************************************************
+!> \brief Partial sum of data from all processes with result on each process.
+!> \param[in] msg          Matrix to sum (input)
+!> \param[out] res         Matrix containing result (output)
+!> \param[in] gid          Message passing environment identifier
+! *****************************************************************************
+  SUBROUTINE mp_sum_partial_im(msg,res,gid)
+    INTEGER(KIND=int_4), INTENT(IN)         :: msg( :, : )
+    INTEGER(KIND=int_4), INTENT(OUT)        :: res( :, : )
+    INTEGER, INTENT(IN)         :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_sum_partial_im'   &
+                                 , routineP = moduleN//':'//routineN
+
+    INTEGER                     :: handle, ierr, msglen
+#if defined(__parallel)
+    INTEGER                     :: taskid
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+    msglen = SIZE(msg)
+#if defined(__parallel)
+    t_start = m_walltime ( )
+    CALL mpi_comm_rank ( gid, taskid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ "//routineN )
+    IF (msglen>0) THEN
+      CALL mpi_scan(msg,res,msglen,MPI_INTEGER,MPI_SUM,gid,ierr)
+      IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_scan @ "//routineN )
+    END IF
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_4_size)
+                ! perf_id is same as for other summation routines
+#else
+    MARK_USED(gid)
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_sum_partial_im
 
 ! *****************************************************************************
 !> \brief Finds the maximum of a datum with the result left on all processes.

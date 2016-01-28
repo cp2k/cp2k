@@ -5040,10 +5040,22 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="SKIP_LOAD_BALANCE_DISTRIBUTED",&
-         description="Skip load balancing on distributed multigrids, which might be memory intensive."//&
-                     "If not explicitly specified, runs using more than 1024 MPI tasks will default to .TRUE.",&
-         usage="SKIP_LOAD_BALANCE_DISTRIBUTED", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+
+    CALL keyword_create( keyword    &
+                       , name="SKIP_LOAD_BALANCE_DISTRIBUTED"    &
+                       , description="Skips load balancing on distributed multigrids.  " &
+                              //     "Memory usage is O(p) so may be used "    & 
+                              //     "for all but the very largest runs."    &
+                       , usage="SKIP_LOAD_BALANCE_DISTRIBUTED"    &
+                       , default_l_val=.FALSE.    &
+                       , lone_keyword_l_val=.TRUE.    &
+                       )
+!    CALL keyword_create(keyword, name="SKIP_LOAD_BALANCE_DISTRIBUTED",&
+!         description="Skip load balancing on distributed multigrids, which might be memory intensive."//&
+!                     "If not explicitly specified, runs using more than 1024 MPI tasks will default to .TRUE.",&
+!         usage="SKIP_LOAD_BALANCE_DISTRIBUTED", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+
+
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

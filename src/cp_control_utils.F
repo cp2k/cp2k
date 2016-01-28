@@ -470,13 +470,7 @@ CONTAINS
     CALL section_vals_val_get(mgrid_section,"REALSPACE",l_val=qs_control%realspace_mgrids)
     CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",r_val=qs_control%relative_cutoff)
     CALL section_vals_val_get(mgrid_section,"SKIP_LOAD_BALANCE_DISTRIBUTED", &
-                                 l_val=qs_control%skip_load_balance_distributed,explicit=explicit)
-    ! In the default case, we automatically switch to not optimize if the number of tasks is large,
-    ! otherwise we run in the quadratic memory bottleneck,
-    ! and in that case, the is likely not to be important anyway
-    IF (.NOT.explicit) THEN
-       IF (para_env%num_pe>1024) qs_control%skip_load_balance_distributed=.TRUE.
-    ENDIF
+                                 l_val=qs_control%skip_load_balance_distributed)
 
     ! For SE and DFTB possibly override with new defaults
     IF (qs_control%semi_empirical .OR. qs_control%dftb) THEN

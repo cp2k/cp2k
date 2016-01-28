@@ -129,7 +129,7 @@ MODULE message_passing
   PUBLIC :: mp_probe
 
   ! message passing
-  PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
+  PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
   PUBLIC :: mp_isend, mp_irecv
   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
@@ -235,6 +235,15 @@ MODULE message_passing
                       mp_sum_root_cv, mp_sum_root_cm,&
                       mp_sum_root_zv, mp_sum_root_zm
      MODULE PROCEDURE mp_sum_b
+  END INTERFACE
+
+  INTERFACE mp_sum_partial
+     MODULE PROCEDURE mp_sum_partial_im,&
+                      mp_sum_partial_lm,&
+                      mp_sum_partial_rm,&
+                      mp_sum_partial_dm,&
+                      mp_sum_partial_cm,&
+                      mp_sum_partial_zm 
   END INTERFACE
 
   INTERFACE mp_max
