@@ -1121,7 +1121,9 @@ MODULE dbcsr_mm_cannon
     !  - matrix_c contains already blocks and beta is not zero
     !  - Cuda is enabled
     !  - multiple OpenMP threads are used
-    IF(matrix_c%m%nblks > SIZE(array_data(matrix_c%m%row_blk_size)) * SIZE(array_data(matrix_c%m%col_blk_size)))&
+    IF(INT(matrix_c%m%nblks, KIND=int_8) > &
+       INT(SIZE(array_data(matrix_c%m%row_blk_size)), KIND=int_8) * &
+       INT(SIZE(array_data(matrix_c%m%col_blk_size)), KIND=int_8))  &
        CPABORT("Bug: Matrix contains too many blocks")
     output_unit = default_output_unit
     CALL timestop(handle)
