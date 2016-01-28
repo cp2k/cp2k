@@ -15,6 +15,7 @@ PROGRAM dumpdcd
 !          - VEL to CORD (-vel2cord flag) hack added (25.06.2012,MK)
 !          - Added -displacement (-disp) flag (26.06.2012,MK)
 !          - Dump the atomic displacements (CORD file) or temperatures (VEL file as x-coordinates of a DCD file (28.06.2012,MK)
+!          - FRC to CORD (-frc2cord flag) hack added (28.01.2016,MK)
 !
 ! Note: For -ekin a XYZ file is required to obtain the atomic labels.
 !       The -info and the -debug flags provide a more detailed output which is especially handy for tracing problems.
@@ -66,7 +67,7 @@ PROGRAM dumpdcd
                                                         pbc0,print_atomic_displacements,print_scaled_coordinates,&
                                                         print_scaled_pbc_coordinates,trace_atoms,vel2cord
   REAL(KIND=sp)                                      :: dt
-  REAL(KIND=dp)                                      :: a,alpha,b,beta,c,eps_out_of_box,gamma,tavg,tavg_frame,x
+  REAL(KIND=dp)                                      :: a,alpha,b,beta,c,eps_out_of_box,gamma,tavg,tavg_frame
   INTEGER, DIMENSION(16)                             :: idum
   REAL(KIND=dp), DIMENSION(3)                        :: rdum
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: atomic_displacement,atomic_mass,atomic_temperature
@@ -227,7 +228,7 @@ PROGRAM dumpdcd
       trace_atoms = .TRUE.
       CYCLE dcd_file_loop
 108   CALL abort_program(routine_name,"Invalid threshold value for -trace_atoms flag specified")
-    CASE ("-vel2cord","-v2c")
+    CASE ("-vel2cord","-v2c","-frc2cord","-f2c")
       vel2cord = .TRUE.
       CYCLE dcd_file_loop
     CASE ("-xyz","xyz_file")
@@ -437,7 +438,7 @@ PROGRAM dumpdcd
       CALL abort_program(routine_name,"pbc flags require that unit cell information is available")
     END IF
 
-    IF (TRIM(ADJUSTL(id_dcd)) == "VEL") THEN
+    IF ((TRIM(ADJUSTL(id_dcd)) == "FRC").OR.(TRIM(ADJUSTL(id_dcd)) == "VEL")) THEN
       unit_string = "[a.u.]"
       IF (apply_pbc) CALL abort_program(routine_name,"pbc flags require a DCD file with COoRDinates")
     ELSE IF (TRIM(ADJUSTL(id_dcd)) == "CORD") THEN
@@ -1108,6 +1109,7 @@ CONTAINS
      " dumpdcd -o new.dcd -of dcd -pbc -trace_atoms 0.02 old.dcd (all atoms more than 2% out of the box are listed)",&
      " dumpdcd -o new.dcd -e out_of_box.log -of dcd -pbc -trace_atoms 0.1 old.dcd (atoms more than 10% out of the box are listed)",&
      " dumpdcd -o new.dcd -of dcd -vel2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from VEL to CORD)",&
+     " dumpdcd -o new.dcd -of dcd -frc2cord old.dcd (dump old.dcd as new.dcd and change only the DCD id string from FRC to CORD)",&
      " dumpdcd -i -disp UO2-2x2x2-pos-1.dcd (dump the displacements of all atoms w.r.t. their positions in the first frame)",&
      " dumpdcd -i -of dcd -disp UO2-2x2x2-pos-1.dcd (dump the atomic displacements as x-coordinates of a DCD CORD file)",&
      " dumpdcd -i -of dcd -ekin -v2c -xyz UO2-2x2x2.xyz UO2-2x2x2-vel-1.dcd (dump the atomic temperatures as x-coordinates of a ",&
