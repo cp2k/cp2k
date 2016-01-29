@@ -194,7 +194,7 @@
 !> \param group ...
 !> \par MPI mapping
 !>      mpi_alltoallv
-!> \note see mp_alltoall_d11v 
+!> \note see mp_alltoall_d11v
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_d22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
 
@@ -294,7 +294,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_d 
+!> \note see mp_alltoall_d
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_d22 ( sb, rb, count, group )
 
@@ -338,7 +338,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_d 
+!> \note see mp_alltoall_d
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_d33 ( sb, rb, count, group )
 
@@ -382,7 +382,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_d 
+!> \note see mp_alltoall_d
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_d44 ( sb, rb, count, group )
 
@@ -428,7 +428,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_d 
+!> \note see mp_alltoall_d
 !> \note User must ensure size consistency.
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_d45 ( sb, rb, count, group )
@@ -475,7 +475,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_d 
+!> \note see mp_alltoall_d
 !> \note User must ensure size consistency.
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_d34 ( sb, rb, count, group )
@@ -522,7 +522,7 @@
 !> \param rb ...
 !> \param count ...
 !> \param group ...
-!> \note see mp_alltoall_d 
+!> \note see mp_alltoall_d
 !> \note User must ensure size consistency.
 ! *****************************************************************************
   SUBROUTINE mp_alltoall_d54 ( sb, rb, count, group )
@@ -608,7 +608,7 @@
 !> \param dest ...
 !> \param tag ...
 !> \param gid ...
-!> \note see mp_send_d 
+!> \note see mp_send_d
 ! *****************************************************************************
   SUBROUTINE mp_send_dv(msg,dest,tag,gid)
     REAL(kind=real_8)                                  :: msg( : )
@@ -682,7 +682,7 @@
     MARK_USED(tag)
     MARK_USED(gid)
     ! only defined in parallel
-    CPABORT("not in parallel mode") 
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_d
@@ -693,7 +693,7 @@
 !> \param source ...
 !> \param tag ...
 !> \param gid ...
-!> \note see mp_recv_d 
+!> \note see mp_recv_d
 ! *****************************************************************************
   SUBROUTINE mp_recv_dv(msg,source,tag,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -728,7 +728,7 @@
     MARK_USED(tag)
     MARK_USED(gid)
     ! only defined in parallel
-    CPABORT("not in parallel mode") 
+    CPABORT("not in parallel mode")
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_recv_dv
@@ -773,7 +773,7 @@
 !> \param[in] msg             Data to broadcast
 !> \param source ...
 !> \param gid ...
-!> \note see mp_bcast_d1 
+!> \note see mp_bcast_d1
 ! *****************************************************************************
   SUBROUTINE mp_bcast_dv(msg,source,gid)
     REAL(kind=real_8)                                  :: msg( : )
@@ -806,7 +806,7 @@
 !> \param[in] msg             Data to broadcast
 !> \param source ...
 !> \param gid ...
-!> \note see mp_bcast_d1 
+!> \note see mp_bcast_d1
 ! *****************************************************************************
   SUBROUTINE mp_bcast_dm(msg,source,gid)
     REAL(kind=real_8)                                  :: msg( :, : )
@@ -839,7 +839,7 @@
 !> \param[in] msg             Data to broadcast
 !> \param source ...
 !> \param gid ...
-!> \note see mp_bcast_d1 
+!> \note see mp_bcast_d1
 ! *****************************************************************************
   SUBROUTINE mp_bcast_d3(msg,source,gid)
     REAL(kind=real_8)                                  :: msg( :, :, : )
@@ -904,7 +904,7 @@
 !> \brief Element-wise sum of a rank-1 array on all processes.
 !> \param[in,out] msg         Vector to sum and result
 !> \param gid ...
-!> \note see mp_sum_d 
+!> \note see mp_sum_d
 ! *****************************************************************************
   SUBROUTINE mp_sum_dv(msg,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -941,7 +941,7 @@
 !> \brief Element-wise sum of a rank-2 array on all processes.
 !> \param[in] msg             Matrix to sum and result
 !> \param gid ...
-!> \note see mp_sum_d 
+!> \note see mp_sum_d
 ! *****************************************************************************
   SUBROUTINE mp_sum_dm(msg,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( :, : )
@@ -985,7 +985,7 @@
 !> \brief Element-wise sum of a rank-3 array on all processes.
 !> \param[in] msg             Array to sum and result
 !> \param gid ...
-!> \note see mp_sum_d 
+!> \note see mp_sum_d
 ! *****************************************************************************
   SUBROUTINE mp_sum_dm3(msg,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( :, :, : )
@@ -1018,7 +1018,7 @@
 !> \brief Element-wise sum of a rank-4 array on all processes.
 !> \param[in] msg             Array to sum and result
 !> \param gid ...
-!> \note see mp_sum_d 
+!> \note see mp_sum_d
 ! *****************************************************************************
   SUBROUTINE mp_sum_dm4(msg,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( :, :, :, : )
@@ -1106,7 +1106,7 @@
 !>                            result (output)
 !> \param root ...
 !> \param gid ...
-!> \note see mp_sum_root_dv 
+!> \note see mp_sum_root_dv
 ! *****************************************************************************
   SUBROUTINE mp_sum_root_dm(msg,root,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( :, : )
@@ -1184,6 +1184,7 @@
     CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*real_8_size)
                 ! perf_id is same as for other summation routines
 #else
+    res = msg
     MARK_USED(gid)
 #endif
     CALL mp_timestop(handle)
@@ -1229,7 +1230,7 @@
 !> \param[in,out] msg         Find maximum among these data (input) and
 !>                            maximum (output)
 !> \param gid ...
-!> \note see mp_max_d 
+!> \note see mp_max_d
 ! *****************************************************************************
   SUBROUTINE mp_max_dv(msg,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -1298,7 +1299,7 @@
 !> \param gid ...
 !> \par MPI mapping
 !>      mpi_allreduce
-!> \note see mp_min_d 
+!> \note see mp_min_d
 ! *****************************************************************************
   SUBROUTINE mp_min_dv(msg,gid)
     REAL(kind=real_8), INTENT(INOUT)                   :: msg( : )
@@ -1412,7 +1413,7 @@
 !>      All data (msg) is equal-sized
 !> \par MPI mapping
 !>      mpi_gather
-!> \note see mp_gather_d 
+!> \note see mp_gather_d
 ! *****************************************************************************
   SUBROUTINE mp_gather_dv(msg,msg_gather,root,gid)
     REAL(kind=real_8), INTENT(IN)                      :: msg( : )
@@ -1453,7 +1454,7 @@
 !>      All data (msg) is equal-sized
 !> \par MPI mapping
 !>      mpi_gather
-!> \note see mp_gather_d 
+!> \note see mp_gather_d
 ! *****************************************************************************
   SUBROUTINE mp_gather_dm(msg,msg_gather,root,gid)
     REAL(kind=real_8), INTENT(IN)                      :: msg( :, : )
@@ -1629,7 +1630,7 @@
 !> \param[in] msgout          Rank-2 data to send
 !> \param msgin ...
 !> \param gid ...
-!> \note see mp_allgather_d12 
+!> \note see mp_allgather_d12
 ! *****************************************************************************
   SUBROUTINE mp_allgather_d23(msgout, msgin,gid)
     REAL(kind=real_8), INTENT(IN)                      :: msgout(:,:)
@@ -1667,7 +1668,7 @@
 !> \param[in] msgout          Rank-3 data to send
 !> \param msgin ...
 !> \param gid ...
-!> \note see mp_allgather_d12 
+!> \note see mp_allgather_d12
 ! *****************************************************************************
   SUBROUTINE mp_allgather_d34(msgout, msgin,gid)
     REAL(kind=real_8), INTENT(IN)                      :: msgout(:,:, :)
@@ -1842,7 +1843,7 @@
 !> \param msgout ...
 !> \param source ...
 !> \param comm ...
-!> \note see mp_sendrecv_dv 
+!> \note see mp_sendrecv_dv
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_dm2(msgin,dest,msgout,source,comm)
     REAL(kind=real_8), INTENT(IN)                      :: msgin( :, : )
@@ -1894,7 +1895,7 @@
 !> \param msgout ...
 !> \param source ...
 !> \param comm ...
-!> \note see mp_sendrecv_dv 
+!> \note see mp_sendrecv_dv
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_dm3(msgin,dest,msgout,source,comm)
     REAL(kind=real_8), INTENT(IN)                      :: msgin( :, :, : )
@@ -1946,7 +1947,7 @@
 !> \param msgout ...
 !> \param source ...
 !> \param comm ...
-!> \note see mp_sendrecv_dv 
+!> \note see mp_sendrecv_dv
 ! *****************************************************************************
   SUBROUTINE mp_sendrecv_dm4(msgin,dest,msgout,source,comm)
     REAL(kind=real_8), INTENT(IN)                      :: msgin( :, :, :, : )
@@ -2143,7 +2144,7 @@
 !> \param tag ...
 !> \par History
 !>      08.2003 created [f&j]
-!> \note see mp_isendrecv_dv 
+!> \note see mp_isendrecv_dv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2206,8 +2207,8 @@
 !> \par History
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_dv 
-!> \note see mp_isend_dv 
+!> \note see mp_isendrecv_dv
+!> \note see mp_isend_dv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2273,8 +2274,8 @@
 !>     (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_dv 
-!> \note see mp_isend_dv 
+!> \note see mp_isendrecv_dv
+!> \note see mp_isend_dv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2341,7 +2342,7 @@
 !> \par History
 !>      08.2003 created [f&j]
 !>      2009-11-25 [UB] Made type-generic for templates
-!> \note see mp_isendrecv_dv 
+!> \note see mp_isendrecv_dv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2403,8 +2404,8 @@
 !> \par History
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_dv 
-!> \note see mp_irecv_dv 
+!> \note see mp_isendrecv_dv
+!> \note see mp_irecv_dv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2469,8 +2470,8 @@
 !>      9.2008 added _rm3 subroutine [Iain Bethune] (c) The Numerical Algorithms Group (NAG) Ltd, 2008 on behalf of the HECToR project
 !>      2009-11-25 [UB] Made type-generic for templates
 !> \author fawzi
-!> \note see mp_isendrecv_dv 
-!> \note see mp_irecv_dv 
+!> \note see mp_isendrecv_dv
+!> \note see mp_irecv_dv
 !> \note
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
@@ -2652,7 +2653,7 @@
 
 ! *****************************************************************************
 !> \brief Allocates special parallel memory
-!> \param[in]  DATA      pointer to integer array to allocate 
+!> \param[in]  DATA      pointer to integer array to allocate
 !> \param[in]  len       number of integers to allocate
 !> \param[out] stat      (optional) allocation status result
 !> \author UB
@@ -2689,7 +2690,7 @@
 
 ! *****************************************************************************
 !> \brief Deallocates special parallel memory
-!> \param[in] DATA         pointer to special memory to deallocate 
+!> \param[in] DATA         pointer to special memory to deallocate
 !> \param stat ...
 !> \author UB
 ! *****************************************************************************
@@ -3046,7 +3047,7 @@
 ! *****************************************************************************
 !> \brief Allocates an array, using MPI_ALLOC_MEM ... this is hackish
 !>        as the Fortran version returns an integer, which we take to be a C_PTR
-!> \param DATA           data array to allocate  
+!> \param DATA           data array to allocate
 !> \param[in] len        length (in data elements) of data array allocation
 !> \param[out] stat      (optional) allocation status result
 ! *****************************************************************************
@@ -3081,7 +3082,7 @@
    END SUBROUTINE mp_alloc_mem_d
 
 ! *****************************************************************************
-!> \brief Deallocates am array, ... this is hackish 
+!> \brief Deallocates am array, ... this is hackish
 !>        as the Fortran version takes an integer, which we hope to get by reference
 !> \param DATA           data array to allocate
 !> \param[out] stat      (optional) allocation status result
