@@ -9,7 +9,7 @@ MODULE mltfftsg_tools
                                              C_LOC
   USE fft_kinds,                       ONLY: dp
 
-!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+!$ USE OMP_LIB, ONLY: omp_get_num_threads, omp_get_thread_num
 
 #include "../../base/base_uses.f90"
 

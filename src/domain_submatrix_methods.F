@@ -27,7 +27,6 @@ MODULE domain_submatrix_methods
                                              cp_logger_type
   USE domain_submatrix_types,          ONLY: domain_map_type,&
                                              domain_submatrix_type,&
-                                             select_row,&
                                              select_row_col
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_allgather,&

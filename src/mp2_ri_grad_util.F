@@ -13,11 +13,14 @@ MODULE mp2_ri_grad_util
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_type
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_allocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       dbcsr_type_no_symmetry
+  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_allocate_matrix_set,&
+                                             cp_dbcsr_init,&
+                                             cp_dbcsr_iterator,&
+                                             cp_dbcsr_iterator_blocks_left,&
+                                             cp_dbcsr_iterator_next_block,&
+                                             cp_dbcsr_iterator_start,&
+                                             cp_dbcsr_iterator_stop,&
+                                             dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                              cp_dbcsr_m_by_n_from_template
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&

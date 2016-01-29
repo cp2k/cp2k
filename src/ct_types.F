@@ -16,8 +16,7 @@ MODULE ct_types
                                              cp_dbcsr_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: cg_polak_ribiere,&
-                                             tensor_orthogonal,&
-                                             tensor_up_down
+                                             tensor_orthogonal
   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 

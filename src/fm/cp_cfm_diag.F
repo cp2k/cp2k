@@ -20,9 +20,7 @@ MODULE cp_cfm_diag
                                              cp_cfm_set_element,&
                                              cp_cfm_to_cfm,&
                                              cp_cfm_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size
+  USE kinds,                           ONLY: dp
 #if defined (__HAS_IEEE_EXCEPTIONS)
   USE ieee_exceptions,                 ONLY: ieee_get_halting_mode,&
                                              ieee_set_halting_mode,&

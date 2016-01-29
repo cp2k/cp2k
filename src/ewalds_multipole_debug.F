@@ -32,7 +32,6 @@ SUBROUTINE debug_ewald_multipoles(ewald_env, ewald_pw, nonbond_env, cell, &
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
-                                             next_random_number,&
                                              rng_stream_type,&
                                              random_numbers
   USE particle_types,                  ONLY: particle_type

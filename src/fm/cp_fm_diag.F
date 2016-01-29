@@ -19,9 +19,7 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
                                              cp_blacs_gridinit
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_release
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
-                                             cp_fm_cholesky_reduce,&
-                                             cp_fm_cholesky_restore
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk,&
                                              cp_fm_gemm,&
                                              cp_fm_scale,&
@@ -43,9 +41,7 @@ USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger, cp_logger_get_
                                              cp_para_env_release
   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length, dp,&
-                                             dp_size,&
-                                             int_size
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_comm_free,&
                                              mp_comm_split,&

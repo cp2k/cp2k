@@ -69,7 +69,6 @@ MODULE xc_libxc_wrap
   USE xc_f90_lib_m,                    ONLY: xc_f90_func_end,&
                                              xc_f90_func_init,&
                                              xc_f90_functional_get_number,&
-                                             xc_f90_family_from_id,&
 !
                                              xc_f90_gga_exc,&
                                              xc_f90_gga_exc_vxc,&

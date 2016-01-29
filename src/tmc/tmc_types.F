@@ -28,7 +28,6 @@
 ! *****************************************************************************
 
 MODULE tmc_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type

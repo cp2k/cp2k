@@ -60,28 +60,18 @@ MODULE xc_libxc
                                              xc_f90_gga_exc,&
                                              xc_f90_gga_exc_vxc,&
                                              xc_f90_gga_fxc,&
-                                             xc_f90_gga_lb_set_par,&
                                              xc_f90_gga_vxc,&
-                                             xc_f90_gga_x_hjs_set_par,&
-                                             xc_f90_gga_x_wpbeh_set_par,&
-                                             xc_f90_hyb_gga_xc_hse_set_par,&
                                              xc_f90_lda,&
-                                             xc_f90_lda_c_1d_csc_set_par,&
-                                             xc_f90_lda_c_2d_prm_set_par,&
-                                             xc_f90_lda_c_xalpha_set_par,&
                                              xc_f90_lda_exc,&
                                              xc_f90_lda_exc_vxc,&
                                              xc_f90_lda_fxc,&
                                              xc_f90_lda_kxc,&
                                              xc_f90_lda_vxc,&
-                                             xc_f90_lda_x_1d_set_par,&
-                                             xc_f90_lda_x_set_par,&
                                              xc_f90_mgga,&
                                              xc_f90_mgga_exc,&
                                              xc_f90_mgga_exc_vxc,&
                                              xc_f90_mgga_fxc,&
                                              xc_f90_mgga_vxc,&
-                                             xc_f90_mgga_x_tb09_set_par,&
                                              XC_POLARIZED,&
                                              XC_UNPOLARIZED,&
                                              XC_FAMILY_LDA,&
