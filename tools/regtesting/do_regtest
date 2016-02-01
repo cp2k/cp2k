@@ -187,7 +187,7 @@ noreset=${noreset:-"reset"}
 skiptest=${skiptest:-"noskiptest"}
 do_unit_test=${do_unit_test:-"yes"}
 farming=${farming:-"no"}
-svndate=${svndat:-"$datum_full"}
+svndate=${svndate:-"$datum_full"}
 #
 # guessing the number of tasks / threads / ranks
 #
