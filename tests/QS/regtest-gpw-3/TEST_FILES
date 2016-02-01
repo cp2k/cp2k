@@ -12,7 +12,7 @@ H+-bloechl.inp                                         1      6e-11           0.
 He2H-bloechl-md.inp               1     2e-05           -0.53855807719486004
 He2H-bloechl.inp                                       1      8e-12           -0.33998448719952001
 H2O-bloechl.inp                                        1      1e-13             -17.15579833538235
-H2O-bloechl-Spl.inp                                    1      2e-14            -17.155785426599749
+H2O-bloechl-Spl.inp               1     4e-14            -17.155785426599749
 H2O-bloechl-restraint.inp                              1      3e-12             -17.14839328273856
 # S**2
 CN.inp                                                 4    1.0E-14                       0.751382
