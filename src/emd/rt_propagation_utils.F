@@ -22,10 +22,14 @@ MODULE  rt_propagation_utils
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
        cp_dbcsr_scale, cp_dbcsr_set, cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
                                              cp_fm_p_type,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
@@ -378,7 +382,10 @@ MODULE  rt_propagation_utils
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao, rho_ao_im
+    TYPE(cp_fm_p_type)                       :: mos_occ
     TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_new
+    TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
@@ -386,34 +393,42 @@ MODULE  rt_propagation_utils
 
     CALL timeset(routineN,handle)
 
-    NULLIFY (rho,ks_env,mos,rtp)
+    NULLIFY (rho,ks_env,mos_new,rtp)
     CALL get_qs_env(qs_env,&
                     ks_env=ks_env,&
                     rho=rho,&
-                    rtp=rtp)
-    CALL get_rtp(rtp=rtp,mos_new=mos)
+                    rtp=rtp,&
+                    mos=mos)
+    CALL get_rtp(rtp=rtp,mos_new=mos_new)
     CALL qs_rho_get(rho_struct=rho,rho_ao=rho_ao)
-    DO i=1,SIZE(mos)/2
+    DO i=1,SIZE(mos_new)/2
        re=2*i-1 ; im =2*i
-       alpha=3*one-REAL(SIZE(mos)/2,dp)
+       alpha=3*one-REAL(SIZE(mos_new)/2,dp)
        CALL cp_dbcsr_set(rho_ao(i)%matrix,zero)
-       CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol)
+       CALL cp_fm_get_info(mos_new(re)%matrix,ncol_global=ncol)
+       CALL cp_fm_create(mos_occ%matrix,&
+                  matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
+                  name="mos_occ")
+       CALL cp_fm_to_fm(mos_new(re)%matrix,mos_occ%matrix)           
+       CALL cp_fm_column_scale(mos_occ%matrix,mos(i)%mo_set%occupation_numbers/alpha)
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
-                               matrix_v=mos(re)%matrix,&
+                               matrix_v=mos_occ%matrix,&
                                ncol=ncol,&
                                alpha=alpha)
        ! It is actually complex conjugate but i*i=-1 therfore it must be added
+       CALL cp_fm_to_fm(mos_new(im)%matrix,mos_occ%matrix)           
+       CALL cp_fm_column_scale(mos_occ%matrix,mos(i)%mo_set%occupation_numbers/alpha)
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(i)%matrix,&
-                        matrix_v=mos(im)%matrix,&
+                        matrix_v=mos_occ%matrix,&
                         ncol=ncol,&
                         alpha=alpha)
+       CALL cp_fm_release(mos_occ%matrix)
     END DO
-
     CALL qs_rho_update_rho(rho, qs_env)
 
     IF(rtp%do_hfx)THEN
        CALL qs_rho_get(rho_struct=rho,rho_ao_im=rho_ao_im)
-       CALL calculate_P_imaginary(rtp, rho_ao_im,keep_sparsity=.TRUE.)
+       CALL calculate_P_imaginary(qs_env,rtp, rho_ao_im,keep_sparsity=.TRUE.)
        CALL qs_rho_set(rho, rho_ao_im=rho_ao_im)
     END IF
 
@@ -504,11 +519,13 @@ MODULE  rt_propagation_utils
   
 ! *****************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param rtp ...
 !> \param matrix_p_im ...
 !> \param keep_sparsity ...
 ! *****************************************************************************
-  SUBROUTINE calculate_P_imaginary(rtp,matrix_p_im,keep_sparsity)
+  SUBROUTINE calculate_P_imaginary(qs_env,rtp,matrix_p_im,keep_sparsity)
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rt_prop_type), POINTER              :: rtp
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_p_im
@@ -521,33 +538,48 @@ MODULE  rt_propagation_utils
     LOGICAL                                  :: my_keep_sparsity
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mos_new, mos_occ
+    TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
 
-    CALL get_rtp(rtp=rtp,mos_new=mos)
+    CALL get_rtp(rtp=rtp,mos_new=mos_new)
 
     my_keep_sparsity=.FALSE.
     IF(PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
+    CALL get_qs_env(qs_env,mos=mos)
+    ALLOCATE(mos_occ(SIZE(mos)*2))
 
-    DO i=1,SIZE(mos)/2
+    DO i=1,SIZE(mos_new)/2
        re=2*i-1 ; im =2*i
        alpha=3.0_dp-REAL(SIZE(matrix_p_im),dp)
+       CALL cp_fm_create(mos_occ(re)%matrix,&
+                  matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
+                  name="mos_occ")
+       CALL cp_fm_create(mos_occ(im)%matrix,&
+                  matrix_struct=mos(i)%mo_set%mo_coeff%matrix_struct,&
+                  name="mos_occ")
        CALL cp_dbcsr_set(matrix_p_im(i)%matrix,0.0_dp)
-       CALL cp_fm_get_info(mos(re)%matrix,ncol_global=ncol)
+       CALL cp_fm_get_info(mos_new(re)%matrix,ncol_global=ncol)
+       CALL cp_fm_to_fm(mos_new(re)%matrix,mos_occ(re)%matrix)
+       CALL cp_fm_column_scale(mos_occ(re)%matrix,mos(i)%mo_set%occupation_numbers/alpha)
+       CALL cp_fm_to_fm(mos_new(im)%matrix,mos_occ(im)%matrix)
+       CALL cp_fm_column_scale(mos_occ(im)%matrix,mos(i)%mo_set%occupation_numbers/alpha)
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix,&
-                               matrix_v=mos(im)%matrix,&
-                               matrix_g=mos(re)%matrix,&
+                               matrix_v=mos_occ(im)%matrix,&
+                               matrix_g=mos_occ(re)%matrix,&
                                ncol=ncol,&
                                keep_sparsity=my_keep_sparsity,&
                                alpha=alpha)
        ! It is actually complex conjugate not only transposed
        alpha=-alpha
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=matrix_p_im(i)%matrix,&
-                        matrix_v=mos(re)%matrix,&
-                        matrix_g=mos(im)%matrix,&
-                        ncol=ncol,&
-                        keep_sparsity=my_keep_sparsity,&
-                        alpha=alpha)
+                               matrix_v=mos_occ(re)%matrix,&
+                               matrix_g=mos_occ(im)%matrix,&
+                               ncol=ncol,&
+                               keep_sparsity=my_keep_sparsity,&
+                               alpha=alpha)
     END DO
+    CALL cp_fm_vect_dealloc(mos_occ)
   
   END SUBROUTINE calculate_P_imaginary
 

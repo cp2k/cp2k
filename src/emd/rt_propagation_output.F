@@ -241,7 +241,7 @@ CONTAINS
                    CALL cp_dbcsr_init_p(P_im(spin)%matrix)
                    CALL cp_dbcsr_create(P_im(spin)%matrix,template=matrix_s(1)%matrix,matrix_type="N")
                 END DO
-                CALL calculate_P_imaginary(rtp,P_im)
+                CALL calculate_P_imaginary(qs_env,rtp,P_im)
                 DO spin=1,nspin
                    CALL rt_current(qs_env,P_im(spin)%matrix,dft_section,spin)
                 END DO

@@ -11,4 +11,5 @@ H2O-delta-02.inp                  1     1e-13             -17.17819891050733
 H2O-delta-03.inp                  1     1e-13             -16.81088185881393
 H2O-delta-04.inp                  1     4e-14             -17.17819854564469
 H2O_rtp_dbcsr_gemm.inp                                 2    1.0E-14            -0.171661642587E+02
+H2O_added_mos_emd.inp             1     1.0E-14           -17.16616425765393
 #EOF

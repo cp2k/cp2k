@@ -19,7 +19,8 @@ MODULE rt_propagator_init
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              copy_fm_to_dbcsr,&
                                              cp_dbcsr_plus_fm_fm_t
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_scale,&
                                              cp_fm_upper_to_full
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -535,6 +536,7 @@ CONTAINS
        alpha=3.0_dp-REAL(SIZE(mos),dp)
        CALL cp_dbcsr_set(rho_old(re)%matrix,0.0_dp)
        CALL cp_fm_get_info(mos(ispin)%mo_set%mo_coeff,ncol_global=ncol)
+       CALL cp_fm_column_scale(mos(ispin)%mo_set%mo_coeff,mos(ispin)%mo_set%occupation_numbers/alpha)
        CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix,&
             matrix_v=mos(ispin)%mo_set%mo_coeff,ncol=ncol,alpha=alpha,keep_sparsity=.FALSE.)
        IF(orthonormal) THEN
