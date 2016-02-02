@@ -842,6 +842,7 @@ CONTAINS
                      t_s2norm_drho + 0.2e1_dp * t187 * t629 * A_s2 * t_s2norm_drho * t227&
                      - t622 * t625 * (0.2e1_dp * t615 * t_s2norm_drho + 0.4e1_dp * t630 &
                      * t_s2norm_drho)) * t637
+             ELSE
                 mbnorm_drho = Hnorm_drho
              END IF
              epsilon_cRevPKZBnorm_drho = Hnorm_drho + (0.53e0_dp * Hnorm_drho *&
