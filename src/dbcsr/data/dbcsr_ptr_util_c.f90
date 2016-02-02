@@ -161,7 +161,9 @@
     INTEGER, INTENT(IN) :: n
     COMPLEX(kind=real_4), DIMENSION(1:n), INTENT(OUT) :: dst
     COMPLEX(kind=real_4), DIMENSION(1:n), INTENT(IN) :: src
+    !$OMP PARALLEL WORKSHARE DEFAULT(none) SHARED(dst,src)
     dst(:) = src(:)
+    !$OMP END PARALLEL WORKSHARE
   END SUBROUTINE mem_copy_c
 
 ! *****************************************************************************
@@ -172,7 +174,9 @@
   SUBROUTINE mem_zero_c (dst, n)
     INTEGER, INTENT(IN) :: n
     COMPLEX(kind=real_4), DIMENSION(1:n), INTENT(OUT) :: dst
+    !$OMP PARALLEL WORKSHARE DEFAULT(none) SHARED(dst)
     dst(:) = CMPLX(0.0, 0.0, real_4)
+    !$OMP END PARALLEL WORKSHARE
   END SUBROUTINE mem_zero_c
 
 
