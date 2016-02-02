@@ -12,6 +12,7 @@ MODULE input_cp2k_motion
   USE bibliography,                    ONLY: Byrd1995,&
                                              Ceriotti2010,&
                                              Ceriotti2012,&
+                                             Ceriotti2014,&
                                              Henkelman1999
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
@@ -1509,6 +1510,7 @@ CONTAINS
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="DRIVER",&
          description="This section defines the parameters needed to run in i-PI driver mode.",&
+         citations=(/Ceriotti2014/),&
          n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
     NULLIFY(keyword)
