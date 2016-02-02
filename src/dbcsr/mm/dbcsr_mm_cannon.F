@@ -4190,13 +4190,13 @@ MODULE dbcsr_mm_cannon
                            rma_buffers_orig%right_data,&
                            right_refs(idata_displ,recv_vcol_displ,recv_vrow_displ),&
                            right_get_requests(1,right_nrequests))
-                      right_data_offset = right_data_size
                       IF (metronome.GT.0) THEN
                          CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
                               right_data_size-right_data_offset,&
                               dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
                          dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                       ENDIF
+                      right_data_offset = right_data_size
                       set_displ = .TRUE.
                    ENDIF
                 ELSE
@@ -4311,13 +4311,13 @@ MODULE dbcsr_mm_cannon
                            rma_buffers_orig%left_data,&
                            left_refs(idata_displ,recv_vrow_displ,recv_vcol_displ),&
                            left_get_requests(1,left_nrequests))
-                      left_data_offset = left_data_size
                       IF (metronome.GT.0) THEN
                          CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
                               left_data_size-left_data_offset,&
                               dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
                          dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                       ENDIF
+                      left_data_offset = left_data_size
                       set_displ = .TRUE.
                    ENDIF
                 ELSE
@@ -5693,10 +5693,6 @@ MODULE dbcsr_mm_cannon
     meta_index(dbcsr_slot_row_p) = 1
     meta_index(dbcsr_slot_col_i) = 1
     meta_index(dbcsr_slot_blk_p) = 1
-!$ IF (PRESENT(nthreads)) THEN
-!$     meta_index(dbcsr_slot_thr_c) = dbcsr_num_slots+1
-!$     meta_index(dbcsr_slot_thr_c+1) = meta_index(dbcsr_slot_thr_c)+nthreads
-!$  ENDIF
     meta_index(dbcsr_slot_coo_l) = meta_index(dbcsr_slot_size)+1
     meta_index(dbcsr_num_slots) = meta_index(dbcsr_slot_size)
   END SUBROUTINE set_empty_meta_index
@@ -5744,9 +5740,9 @@ MODULE dbcsr_mm_cannon
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, index_offset, ithread, ki, kl, ks, mi, my_nthreads, &
-      my_vpcol, my_vprow, ncols_merged, nimages_merged, nimages_unmerged, &
-      nrows_merged, offset_data, offset_meta, offset_meta_first, &
-      size_prefix_meta, slot_nblk_local, ui
+      my_vpcol, my_vprow, nblks, ncols_merged, nimages_merged, &
+      nimages_unmerged, nrows_merged, offset_data, offset_meta, &
+      offset_meta_first, size_prefix_meta, slot_nblk_local, ui
     INTEGER, DIMENSION(:), POINTER           :: unmerged_indices
     TYPE(dbcsr_obj), POINTER                 :: image_obj
     TYPE(dbcsr_type), POINTER                :: image
@@ -5786,11 +5782,42 @@ MODULE dbcsr_mm_cannon
        !
        ! Merge images
        images_unmerge: DO ui = 1, nimages_unmerged
-          image => images%mats(ui)%m
+          image_obj => images%mats(ui)
+          image => image_obj%m
           !
           image%index(dbcsr_slot_size) = size_prefix_meta
           image%index(dbcsr_slot_size+1:size_prefix_meta) = 0
           image%index(dbcsr_num_slots) = size_prefix_meta
+          !
+          ! Global stats
+          image%index(dbcsr_slot_nblkrows_total:dbcsr_slot_nfullcols_local) = &
+               global_indices(:)
+          !
+          IF (do_merge_rows) THEN
+             ! Virtual coords
+             image%index(dbcsr_slot_home_vprow) = my_vprow
+             image%index(dbcsr_slot_home_vpcol) = my_vpcol+ui
+          ELSE
+             ! Virtual coords
+             image%index(dbcsr_slot_home_vprow) = my_vprow+ui
+             image%index(dbcsr_slot_home_vpcol) = my_vpcol
+          ENDIF
+          !
+          ! row_p, col_i, blk_p
+          image%index(dbcsr_slot_row_p) = 1
+          image%index(dbcsr_slot_col_i) = 1
+          image%index(dbcsr_slot_blk_p) = 1
+          ! thr_c
+!$        IF (PRESENT(nthreads)) THEN
+!$           image%index(dbcsr_slot_thr_c) = dbcsr_num_slots+1
+!$           image%index(dbcsr_slot_thr_c+1) = size_prefix_meta
+!$        ENDIF
+          ! coo_l
+          image%index(dbcsr_slot_coo_l) = size_prefix_meta+1
+          !
+          ! Reset
+          CALL dbcsr_reset_vlocals (image_obj,imgdist,&
+               do_rows=.NOT.do_merge_rows)
           !
           ! Merge corresponding thread blocks for all images
           threads: DO ithread = 1, my_nthreads
@@ -5848,46 +5875,30 @@ MODULE dbcsr_mm_cannon
                      img_refs(1,mi)
              ENDDO images_merge
              !
-             CALL dbcsr_sort_indices((image%index(dbcsr_slot_size)-image%index(dbcsr_num_slots))/3,&
-                  image%index(image%index(dbcsr_num_slots)+1:image%index(dbcsr_slot_size):3),&
-                  image%index(image%index(dbcsr_num_slots)+2:image%index(dbcsr_slot_size):3),&
-                  blk_d=image%index(image%index(dbcsr_num_slots)+3:image%index(dbcsr_slot_size):3))
-             image%index(dbcsr_num_slots) = image%index(dbcsr_slot_size)
+             IF (image%index(dbcsr_slot_size).GT.image%index(dbcsr_num_slots)) THEN
+                nblks = (image%index(dbcsr_slot_size)-image%index(dbcsr_num_slots))/3
+                CALL dbcsr_sort_indices(nblks,&
+                     image%index(image%index(dbcsr_num_slots)+1:image%index(dbcsr_slot_size):3),&
+                     image%index(image%index(dbcsr_num_slots)+2:image%index(dbcsr_slot_size):3),&
+                     blk_d=image%index(image%index(dbcsr_num_slots)+3:image%index(dbcsr_slot_size):3))
+                !
+                CALL rec_sort_index(1,dbcsr_nblkrows_local(image_obj),&
+                     1,dbcsr_nblkcols_local(image_obj),&
+                     nblks,image%index(image%index(dbcsr_num_slots)+1:image%index(dbcsr_slot_size)),0)
+                image%index(dbcsr_num_slots) = image%index(dbcsr_slot_size)
+             ENDIF
           ENDDO threads
-          !
-          ! Global stats
-          image%index(dbcsr_slot_nblkrows_total:dbcsr_slot_nfullcols_local) = &
-               global_indices(:)
-          !
-          IF (do_merge_rows) THEN
-             ! Virtual coords
-             image%index(dbcsr_slot_home_vprow) = my_vprow
-             image%index(dbcsr_slot_home_vpcol) = my_vpcol+ui
-          ELSE
-             ! Virtual coords
-             image%index(dbcsr_slot_home_vprow) = my_vprow+ui
-             image%index(dbcsr_slot_home_vpcol) = my_vpcol
-          ENDIF
-          !
-          ! row_p, col_i, blk_p
-          image%index(dbcsr_slot_row_p) = 1
-          image%index(dbcsr_slot_col_i) = 1
-          image%index(dbcsr_slot_blk_p) = 1
-          ! thr_c
-!$        IF (PRESENT(nthreads)) THEN
-!$           image%index(dbcsr_slot_thr_c) = dbcsr_num_slots+1
-!$           image%index(dbcsr_slot_thr_c+1) = size_prefix_meta
-!$        ENDIF
-          ! coo_l
-          image%index(dbcsr_slot_coo_l) = size_prefix_meta+1
-          !
           offset_meta_first = offset_meta
+          ! Repoint index
+          CALL dbcsr_repoint_index (image)
+          image%valid = .TRUE.
        ENDDO images_unmerge
     ELSE
        ! No merging, just copy
        ! Make empty clusters on-the-fly
        nomerge: DO ui = 1, nimages_unmerged
-          image => images%mats(ui)%m
+          image_obj => images%mats(ui)
+          image => image_obj%m
           offset_data = offset_images(ui)
           ! Check for empty images
           IF (offset_data.NE.offset_images(ui+1)) THEN
@@ -5900,23 +5911,15 @@ MODULE dbcsr_mm_cannon
                                        global_indices,&
                                        vprow,vpcol,nthreads)
           ENDIF
+          !
+          ! Reset and repoint index
+          CALL dbcsr_reset_vlocals (image_obj,imgdist,&
+               do_rows=.NOT.do_merge_rows)
+          CALL dbcsr_repoint_index (image)
+          image%valid = .TRUE.
        ENDDO nomerge
+       CALL setup_rec_index (images, nimages_unmerged)
     ENDIF merge
-    !
-    ! repoint index and reset
-    DO ui = 1, nimages_unmerged
-       image_obj => images%mats(ui)
-!$     IF (PRESENT(nthreads).AND.image_obj%m%index(dbcsr_slot_nblks).EQ.0.AND.nimages_merged.EQ.1) THEN
-!$       image_obj%m%index(image_obj%m%index(dbcsr_slot_thr_c):image_obj%m%index(dbcsr_slot_thr_c+1)) = 0
-!$     ENDIF
-       CALL dbcsr_repoint_index (image_obj%m)
-       image_obj%m%valid = .TRUE.
-       CALL dbcsr_reset_vlocals (image_obj,imgdist,&
-            do_rows=.NOT.do_merge_rows)
-    ENDDO
-    !
-    ! setup indexing
-    CALL setup_rec_index (images, nimages_unmerged)
     !
     CALL timestop(handle)
   END SUBROUTINE merge_images
