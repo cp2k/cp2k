@@ -13,8 +13,8 @@
 
 
 MODULE tmc_setup
-  USE F77_interface,                   ONLY: create_force_env,&
-                                             destroy_force_env
+  USE bibliography,                    ONLY: cite_reference,&
+                                             schonherr2014
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_log_handling,                 ONLY: &
@@ -24,6 +24,8 @@ MODULE tmc_setup
   USE cp_para_env,                     ONLY: cp_para_env_create
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE environment,                     ONLY: cp2k_get_walltime
+  USE f77_interface,                   ONLY: create_force_env,&
+                                             destroy_force_env
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: tmc_ana_header,&
                                              tmc_header
@@ -121,6 +123,8 @@ CONTAINS
 ! start the timing
 
     CALL timeset(routineN,handle)
+
+    CALL cite_reference(Schonherr2014)
 
     NULLIFY(logger, logger_sub, tmc_env, tmc_ana_env_list)
     logger=>cp_get_default_logger()

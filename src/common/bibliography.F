@@ -76,7 +76,7 @@ MODULE bibliography
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
        Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012,             &
        Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978,       &
-       Gilbert2008
+       Gilbert2008, Schonherr2014, Ceriotti2014
 
 
 CONTAINS
@@ -3265,7 +3265,59 @@ CONTAINS
           "ER"),&
           DOI="10.1021/jp801738f")
 
+     CALL add_reference(key=Schonherr2014, ISI_record=s2a(&
+          "PT J",&
+          "AU Schonherr, M",&
+          "   Slater, B",&
+          "   Hutter, J",&
+          "   VandeVondele, J",&
+          "AF Schoenherr, Mandes",&
+          "   Slater, Ben",&
+          "   Hutter, Juerg",&
+          "   VandeVondele, Joost",&
+          "TI Dielectric Properties of Water Ice, the Ice Ih/XI Phase Transition, and",&
+          "   an Assessment of Density Functional Theory",&
+          "SO JOURNAL OF PHYSICAL CHEMISTRY B",&
+          "RI Hutter, Juerg/E-9244-2011; VandeVondele, Joost/L-6420-2013",&
+          "OI VandeVondele, Joost/0000-0002-0902-5111",&
+          "SN 1520-6106",&
+          "PD JAN 16",&
+          "PY 2014",&
+          "VL 118",&
+          "IS 2",&
+          "BP 590",&
+          "EP 596",&
+          "DI 10.1021/jp4103355",&
+          "UT WOS:000330017900021",&
+          "PM 24392971",&
+          "ER"),&
+          DOI="10.1021/jp4103355")
 
+     CALL add_reference(key=Ceriotti2014, ISI_record=s2a(&
+          "PT J",&
+          "AU Ceriotti, M",&
+          "   More, J",&
+          "   Manolopoulos, DE",&
+          "AF Ceriotti, Michele",&
+          "   More, Joshua",&
+          "   Manolopoulos, David E.",&
+          "TI i-PI: A Python interface for ab initio path integral molecular dynamics",&
+          "   simulations",&
+          "SO COMPUTER PHYSICS COMMUNICATIONS",&
+          "RI Ceriotti, Michele/C-2393-2009",&
+          "OI Ceriotti, Michele/0000-0003-2571-2832",&
+          "SN 0010-4655",&
+          "EI 1879-2944",&
+          "PD MAR",&
+          "PY 2014",&
+          "VL 185",&
+          "IS 3",&
+          "BP 1019",&
+          "EP 1026",&
+          "DI 10.1016/j.cpc.2013.10.027",&
+          "UT WOS:000331919100033",&
+          "ER"),&
+          DOI="10.1016/j.cpc.2013.10.027")
 
   END SUBROUTINE add_all_references
 

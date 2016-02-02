@@ -16,6 +16,8 @@ MODULE ipi_driver
                                              C_LOC,&
                                              C_NULL_CHAR,&
                                              C_PTR
+  USE bibliography,                    ONLY: Ceriotti2014,&
+                                             cite_reference
   USE cell_types,                      ONLY: cell_create,&
                                              cell_type,&
                                              init_cell
@@ -345,6 +347,7 @@ MODULE ipi_driver
 
     CALL timeset(routineN,handle)
 
+    CALL cite_reference(Ceriotti2014)
 
 ! server address parsing
 ! buffers and temporaries for communication

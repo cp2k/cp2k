@@ -12,7 +12,9 @@
 ! *****************************************************************************
 MODULE input_cp2k_global
   USE bibliography,                    ONLY: Borstnik2014,&
-                                             Frigo2005
+                                             Ceriotti2014,&
+                                             Frigo2005,&
+                                             Schonherr2014
   USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
                                              BLACS_GRID_ROW,&
                                              BLACS_GRID_SQUARE
@@ -273,6 +275,7 @@ CONTAINS
          "optimization, md, montecarlo,...",&
          usage="RUN_TYPE MD",&
          default_i_val=energy_force_run,&
+         citations=(/Ceriotti2014,Schonherr2014/),&
          enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCE", "MD", "GEO_OPT",&
          "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS",&
          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION",&
