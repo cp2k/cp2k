@@ -1235,20 +1235,24 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'assign_clusters', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ilevel, offset, &
+    INTEGER                                  :: handle, i, ilevel, offset, &
                                                 piv_pcost(nproc), &
                                                 sort_proc_cost(nproc)
 
-     DO ilevel=1,SIZE(cluster_cost)/nproc
-        sort_proc_cost(:)=proc_cost(:)
-        CALL sort(sort_proc_cost,nproc,piv_pcost)
+    CALL timeset(routineN,handle)
+
+    DO ilevel=1,SIZE(cluster_cost)/nproc
+       sort_proc_cost(:)=proc_cost(:)
+       CALL sort(sort_proc_cost,nproc,piv_pcost)
    
-        offset=(SIZE(cluster_cost)/nproc-ilevel+1)*nproc+1
-        DO i=1,nproc
-           cluster_assign(piv_cost(offset-i))=piv_pcost(i)
-           proc_cost(piv_pcost(i))=proc_cost(piv_pcost(i))+cluster_cost(piv_cost(offset-i))
-        END DO
-     END DO
+       offset=(SIZE(cluster_cost)/nproc-ilevel+1)*nproc+1
+       DO i=1,nproc
+          cluster_assign(piv_cost(offset-i))=piv_pcost(i)
+          proc_cost(piv_pcost(i))=proc_cost(piv_pcost(i))+cluster_cost(piv_cost(offset-i))
+       END DO
+    END DO
+
+    CALL timestop(handle)
 
  END SUBROUTINE assign_clusters
    
@@ -1407,7 +1411,11 @@ CONTAINS
     INTEGER                                  :: seed
     REAL(KIND=dp)                            :: tot_var
 
-    INTEGER                                  :: i, ind, itn, j, nat, oldc
+    CHARACTER(len=*), PARAMETER :: routineN = 'kmeans', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, ind, itn, j, nat, &
+                                                oldc
     LOGICAL                                  :: changed
     REAL(KIND=dp) :: average(3,ncent,2), cent_coord(3,ncent), devi, &
       deviat(ncent), dist, dvec(3), old_var, rn, scaled_cent(3,ncent), &
@@ -1417,10 +1425,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
+   CALL timeset(routineN,handle)
+
    initial_seed=REAL(seed,dp); nat=SIZE(coord,2)
    NULLIFY(rng_stream)
    ALLOCATE(dmat(ncent,nat))
-
 
    CALL create_rng_stream(rng_stream=rng_stream,&
         name="kmeans uniform distribution [0,1]",&
@@ -1500,6 +1509,8 @@ CONTAINS
    END DO
 
    CALL delete_rng_stream(rng_stream)
+
+   CALL timestop(handle)
         
 END SUBROUTINE kmeans
 
