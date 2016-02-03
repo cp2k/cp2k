@@ -192,13 +192,11 @@ MODULE pint_piglet
     ! Select algorithm for S-matrix initialization
     IF (matrix_init == matrix_init_cholesky) THEN
        IF (para_env%ionode) THEN
-          WRITE(UNIT=msg,FMT=*) "PIGLET| Initalizing S-matrices using cholesky decomposition."
-          CALL pint_write_line(TRIM(msg))
+          CALL pint_write_line("PIGLET| Initalizing S-matrices using cholesky decomposition.")
        END IF
     ELSE IF (matrix_init == matrix_init_diagonal) THEN
        IF (para_env%ionode) THEN
-          WRITE(UNIT=msg,FMT=*) "PIGLET| Initalizing S-matrices using full diagonalization."
-          CALL pint_write_line(TRIM(msg))
+          CALL pint_write_line("PIGLET| Initalizing S-matrices using full diagonalization.")
        END IF
     ELSE 
        CPWARN("No PIGLET init algorithm selected. Selecting cholesky decomposition")
@@ -210,8 +208,8 @@ MODULE pint_piglet
        WRITE(default_format,'(A,I10,A)') "(A", default_string_length,")"
        CALL section_vals_val_get(section, "MATRICES_FILE_NAME", &
             c_val=matrices_file_name)
-       WRITE(UNIT=msg,FMT=*) "PIGLET| Reading PIGLET matrices from file: ", TRIM(matrices_file_name)
-       CALL pint_write_line(TRIM(msg))
+       CALL pint_write_line("PIGLET| Reading PIGLET matrices from file: ")
+       CALL pint_write_line("PIGLET|    "//TRIM(matrices_file_name))
        CALL open_file(file_name=TRIM(matrices_file_name), &
             file_action="READ", file_status="OLD", unit_number=input_unit)
        read_err = 0
