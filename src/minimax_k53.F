@@ -17,6 +17,10 @@
 MODULE minimax_k53
   USE kinds,                           ONLY: dp
 
+IMPLICIT NONE
+PRIVATE
+PUBLIC :: R_max, R_mm, err_mm, get_minimax_coeff_low, k_max, k_mm, k_p, n_approx
+
 INTEGER, PARAMETER :: n_approx = 935
 INTEGER, PARAMETER :: n_k = 53
 INTEGER, PARAMETER :: k_max = 53
