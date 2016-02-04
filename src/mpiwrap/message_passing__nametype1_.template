@@ -2589,19 +2589,24 @@
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
-  SUBROUTINE mp_rget_[nametype1]v(base,source,win,win_data,disp,request)
+  SUBROUTINE mp_rget_[nametype1]v(base,source,win,win_data,disp,request,&
+       origin_datatype, target_datatype)
     [type1], DIMENSION(:), POINTER                      :: base
     INTEGER, INTENT(IN)                                 :: source, win
     [type1], DIMENSION(:), POINTER                      :: win_data
     INTEGER, INTENT(IN), OPTIONAL                       :: disp
     INTEGER, INTENT(OUT)                                :: request
+    TYPE(mp_type_descriptor_type), INTENT(IN), OPTIONAL :: origin_datatype, target_datatype
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_rget_[nametype1]v', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ierr, handle
 #if defined(__parallel) && (__MPI_VERSION > 2)
-    INTEGER                                  :: len, lower1
+    INTEGER                                  :: len, lower1, &
+                                                handle_origin_datatype, &
+                                                handle_target_datatype, &
+                                                origin_len, target_len
     INTEGER(kind=mpi_address_kind)           :: disp_aint
     [type1]                                  :: foo(1)
 #endif
@@ -2619,10 +2624,22 @@
     IF (PRESENT(disp)) THEN
        disp_aint = INT(disp,KIND=mpi_address_kind)
     ENDIF
+    handle_origin_datatype = [mpi_type1]
+    origin_len = len
+    IF (PRESENT(origin_datatype)) THEN 
+       handle_origin_datatype = origin_datatype%type_handle
+       origin_len = 1
+    ENDIF
+    handle_target_datatype = [mpi_type1]
+    target_len = len
+    IF (PRESENT(target_datatype)) THEN 
+       handle_target_datatype = target_datatype%type_handle
+       target_len = 1
+    ENDIF
     IF (len>0) THEN
        lower1=LBOUND(base,1)
-       CALL mpi_rget(base(lower1),len,[mpi_type1],source,disp_aint,&
-            len,[mpi_type1],win,request,ierr)
+       CALL mpi_rget(base(lower1),origin_len,handle_origin_datatype,source,disp_aint,&
+            target_len,handle_target_datatype,win,request,ierr)
     ELSE
        CALL mpi_rget(foo,len,[mpi_type1],source,disp_aint,&
             len,[mpi_type1],win,request,ierr)
@@ -2638,6 +2655,8 @@
 #else
     MARK_USED(source)
     MARK_USED(win)
+    MARK_USED(origin_datatype)
+    MARK_USED(target_datatype)
 
     request = mp_request_null
     !
@@ -2650,6 +2669,49 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_rget_[nametype1]v
+
+! *****************************************************************************
+!> \brief ...
+!> \param count ...
+!> \param lengths ...
+!> \param displs ...
+!> \retval type_descriptor ...
+! ***************************************************************************
+  FUNCTION mp_type_indexed_make_[nametype1](count,lengths,displs) &
+       RESULT(type_descriptor)
+    INTEGER, INTENT(IN)                      :: count
+    INTEGER, DIMENSION(1:count), INTENT(IN), TARGET  :: lengths, displs
+    TYPE(mp_type_descriptor_type)            :: type_descriptor
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_indexed_make_[nametype1]', &
+         routineP = moduleN//':'//routineN
+
+    INTEGER :: ierr, handle
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    CALL mpi_type_indexed(count,lengths,displs,[mpi_type1],&
+         type_descriptor%type_handle,ierr)
+    IF (ierr /= 0)&
+        CPABORT("MPI_Type_Indexed @ "//routineN)
+    CALL mpi_type_commit (type_descriptor%type_handle, ierr)
+    IF (ierr /= 0)&
+       CPABORT("MPI_Type_commit @ "//routineN)
+#else
+    type_descriptor%type_handle = [handle1]
+#endif
+    type_descriptor%length = count
+    NULLIFY(type_descriptor%subtype)
+    type_descriptor%vector_descriptor(1:2) = 1
+    type_descriptor%has_indexing = .TRUE.
+    type_descriptor%index_descriptor%index => lengths
+    type_descriptor%index_descriptor%chunks => displs
+
+    CALL mp_timestop(handle)
+
+  END FUNCTION mp_type_indexed_make_[nametype1]
 
 ! *****************************************************************************
 !> \brief Allocates special parallel memory
@@ -3020,7 +3082,7 @@
     TYPE(mp_indexing_meta_type), INTENT(IN), OPTIONAL :: index_descriptor
     TYPE(mp_type_descriptor_type)                     :: type_descriptor
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_make_type_[nametype1]', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_make_[nametype1]', &
          routineP = moduleN//':'//routineN
 
     INTEGER :: ierr

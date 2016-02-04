@@ -153,7 +153,7 @@ MODULE message_passing
 
   ! some 'advanced types' currently only used for dbcsr
   PUBLIC :: mp_type_descriptor_type
-  PUBLIC :: mp_type_make
+  PUBLIC :: mp_type_make, mp_type_free
   PUBLIC :: mp_type_size
 
   ! some benchmarking code
@@ -162,6 +162,11 @@ MODULE message_passing
   ! one-sided communication
   PUBLIC :: mp_win_create, mp_win_free, mp_win_lock_all,&
             mp_win_unlock_all, mp_rget
+
+  ! vector types
+  PUBLIC :: mp_type_indexed_make_i, mp_type_indexed_make_l, &
+            mp_type_indexed_make_r, mp_type_indexed_make_d, &
+            mp_type_indexed_make_c, mp_type_indexed_make_z
 
 #ifndef __parallel
   INTEGER, PARAMETER :: MPI_COMM_SELF=0,MPI_COMM_WORLD=0, MPI_COMM_NULL=-1
@@ -181,6 +186,10 @@ MODULE message_passing
 
   INTERFACE mp_testany
      MODULE PROCEDURE mp_testany_1, mp_testany_2
+  END INTERFACE
+
+  INTERFACE mp_type_free
+     MODULE PROCEDURE mp_type_free_m, mp_type_free_v
   END INTERFACE
 
   !
@@ -3076,31 +3085,51 @@ CONTAINS
 !> \brief ...
 !> \param type_descriptor ...
 ! *****************************************************************************
-  RECURSIVE SUBROUTINE mp_type_free (type_descriptor)
+  RECURSIVE SUBROUTINE mp_type_free_m (type_descriptor)
     TYPE(mp_type_descriptor_type), &
       INTENT(inout)                          :: type_descriptor
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_free', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_type_free_m', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ierr
+    INTEGER                                  :: handle, i, ierr
 
+    CALL mp_timeset(routineN,handle)
     ierr = 0
 
     ! If the subtype is associated, then it's a user-defined data type.
 
     IF (ASSOCIATED (type_descriptor%subtype)) THEN
         DO i = 1, SIZE(type_descriptor%subtype)
-          CALL mp_type_free (type_descriptor%subtype(i))
+          CALL mp_type_free_m (type_descriptor%subtype(i))
        ENDDO
        DEALLOCATE (type_descriptor%subtype)
-#if defined(__parallel)
-       CALL MPI_Type_free (type_descriptor%type_handle, ierr)
-       IF (ierr /= 0)&
-          CPABORT("MPI_Type_free @ "//routineN)
-#endif
     ENDIF
-  END SUBROUTINE mp_type_free
+#if defined(__parallel)
+    CALL MPI_Type_free (type_descriptor%type_handle, ierr)
+    IF (ierr /= 0)&
+         CPABORT("MPI_Type_free @ "//routineN)
+#endif
+
+    CALL mp_timestop(handle)
+
+  END SUBROUTINE mp_type_free_m
+
+! *****************************************************************************
+!> \brief ...
+!> \param type_descriptors ...
+! *****************************************************************************
+  SUBROUTINE mp_type_free_v (type_descriptors)
+    TYPE(mp_type_descriptor_type), &
+      DIMENSION(:), INTENT(inout)            :: type_descriptors
+
+    INTEGER                                  :: i
+
+    DO i = 1, SIZE(type_descriptors)
+       CALL mp_type_free(type_descriptors(i))
+    ENDDO
+
+  END SUBROUTINE mp_type_free_v
 
 ! *****************************************************************************
 !> \brief Non-blocking send of custom type
