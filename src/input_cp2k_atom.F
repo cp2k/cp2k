@@ -939,7 +939,7 @@ CONTAINS
     CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL",&
          description="Weight for virtual states in pseudopotential optimization",&
          usage="WEIGHT_POT_VIRTUAL 1.0",&
-         default_r_val=0.01_dp)
+         default_r_val=1._dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -953,14 +953,21 @@ CONTAINS
     CALL keyword_create(keyword, name="WEIGHT_POT_VALENCE",&
          description="Weight for valence states in pseudopotential optimization",&
          usage="WEIGHT_POT_VALENCE 1.0",&
-         default_r_val=100.0_dp)
+         default_r_val=1.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="WEIGHT_POT_NODE",&
          description="Weight for node mismatch in pseudopotential optimization",&
          usage="WEIGHT_POT_NODE 1.0",&
-         default_r_val=1000.0_dp)
+         default_r_val=1.0_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="WEIGHT_DELTA_ENERGY",&
+         description="Weight for energy differences in pseudopotential optimization",&
+         usage="WEIGHT_DELTA_ENERGY 1.0",&
+         default_r_val=1._dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -981,21 +988,28 @@ CONTAINS
     CALL keyword_create(keyword, name="TARGET_POT_VIRTUAL",&
          description="Target accuracy for virtual state eigenvalues in pseudopotential optimization",&
          usage="TARGET_POT_VIRTUAL 0.0001",&
-         default_r_val=0.001_dp)
+         default_r_val=1.0e-3_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="TARGET_POT_VALENCE",&
          description="Target accuracy for valence state eigenvalues in pseudopotential optimization",&
          usage="TARGET_POT_VALENCE 0.0001",&
-         default_r_val=0.00001_dp)
+         default_r_val=1.0e-5_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="TARGET_POT_SEMICORE",&
          description="Target accuracy for semicore state eigenvalues in pseudopotential optimization",&
          usage="TARGET_POT_SEMICORE 0.01",&
-         default_r_val=0.001_dp)
+         default_r_val=1.0e-3_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="TARGET_DELTA_ENERGY",&
+         description="Target accuracy for energy differences in pseudopotential optimization",&
+         usage="TARGET_DELTA_ENERGY 0.01",&
+         default_r_val=1.0e-4_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

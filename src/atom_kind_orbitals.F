@@ -31,11 +31,11 @@ MODULE atom_kind_orbitals
                                              get_potential,&
                                              gth_potential_type
   USE input_constants,                 ONLY: &
-       do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
-       do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, do_numeric, &
-       do_rks_atom, do_sczoramp_atom, do_zoramp_atom, gth_pseudo, no_pseudo, &
-       poly_conf, rel_dkh, rel_none, rel_sczora_mp, rel_zora, rel_zora_full, &
-       rel_zora_mp
+       barrier_conf, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, &
+       do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_log, do_nonrel_atom, &
+       do_numeric, do_rks_atom, do_sczoramp_atom, do_zoramp_atom, gth_pseudo, &
+       no_pseudo, poly_conf, rel_dkh, rel_none, rel_sczora_mp, rel_zora, &
+       rel_zora_full, rel_zora_mp
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
@@ -117,11 +117,6 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
-!INTEGER, DIMENSION(0:3)                  :: econfx
-!INTEGER, DIMENSION(:), POINTER           :: econf
-!INTEGER, DIMENSION(:, :), POINTER        :: addel, laddel, naddel 
-!LOGICAL                                  :: bs_occupation
-
     NULLIFY(atom)
     CALL create_atom_type(atom)
 
@@ -137,10 +132,6 @@ CONTAINS
                      basis_set=orb_basis_set,&
                      all_potential=all_potential,&
                      gth_potential=gth_potential)
-
-    !!RZK CALL get_qs_kind(qs_kind,&
-    !!RZK                  bs_occupation=bs_occupation,&
-    !!RZK                  addel=addel,laddel=laddel,naddel=naddel)
 
     CPASSERT(ASSOCIATED(orb_basis_set))
 
@@ -487,8 +478,6 @@ CONTAINS
   END SUBROUTINE calculate_atomic_orbitals
 
 ! *****************************************************************************
-
-! *****************************************************************************
 !> \brief ...
 !> \param density ...
 !> \param atomic_kind ...
@@ -581,10 +570,10 @@ CONTAINS
       ELSE
          potential%confinement=.TRUE.
       END IF
-      potential%conf_type=poly_conf
-      potential%acon=0.1_dp
-      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
-      potential%scon=2.0_dp
+      potential%conf_type=barrier_conf
+      potential%acon=200._dp
+      potential%rcon=4.0_dp
+      potential%scon=8.0_dp
 
       CALL get_potential(gth_potential,&
                          zeff=zeff,&
@@ -684,10 +673,11 @@ CONTAINS
       ELSE
          potential%confinement=.FALSE.
       END IF
-      potential%conf_type=poly_conf
-      potential%acon=0.1_dp
-      potential%rcon=2.0_dp*ptable(z)%vdw_radius*bohr
-      potential%scon=2.0_dp
+      potential%conf_type=barrier_conf
+      potential%acon=200._dp
+      potential%rcon=4.0_dp
+      potential%scon=8.0_dp
+      CALL set_atom(atom,zcore=z,potential=potential)
       CALL set_atom(atom,zcore=z,potential=potential)
     END IF
 
@@ -905,8 +895,6 @@ CONTAINS
     DEALLOCATE (potential,basis,integrals)
 
   END SUBROUTINE calculate_atomic_density
-
-! *****************************************************************************
 
 ! *****************************************************************************
 !> \brief ...

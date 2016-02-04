@@ -288,7 +288,7 @@ CONTAINS
         END DO
         statepp%multiplicity=state%multiplicity
 
-        CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_val=im)
+        CALL section_vals_val_get(method_section,"METHOD_TYPE",i_val=method,i_rep_section=im)
         CALL section_vals_val_get(method_section,"RELATIVISTIC",i_val=reltyp,i_rep_section=im)
         CALL set_atom(atom_info(in,im)%atom,method_type=method)
         CALL set_atom(atom_refs(in,im)%atom,method_type=method,relativistic=reltyp)

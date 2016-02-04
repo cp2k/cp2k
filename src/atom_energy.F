@@ -719,6 +719,7 @@ CONTAINS
        WRITE(iw,'(T8,A)') TRIM(string)
        WRITE(iw,'(T8,A)') 'columns="4">'
        ALLOCATE(corden(nr))
+       corden(:) = 0.0_dp
        CALL atom_core_density(corden,pot,"RHO",atom%basis%grid%rad)
        IF(up) THEN
           WRITE(iw,'(T8,4ES25.12E3)') (corden(i),i=1,nr)
@@ -735,6 +736,7 @@ CONTAINS
     WRITE(iw,'(T8,A)') TRIM(string)
     WRITE(iw,'(T8,A)') 'columns="4">'
     ALLOCATE(locpot(nr))
+    locpot(:) = 0.0_dp
     CALL atom_local_potential(locpot,pot,atom%basis%grid%rad)
     IF(up) THEN
        WRITE(iw,'(T8,4ES25.12E3)') (2.0_dp*locpot(i),i=1,nr)
