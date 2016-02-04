@@ -33,8 +33,7 @@ MODULE eri_mme_methods_low
                                              pi,&
                                              twopi
   USE message_passing,                 ONLY: mp_sum
-  USE minimax,                         ONLY: check_range,&
-                                             get_minimax_coeff
+  USE minimax,                         ONLY: get_minimax_coeff
   USE orbital_pointers,                ONLY: coset
 #include "./base/base_uses.f90"
 
@@ -1336,8 +1335,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_coeff_v_gspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_aw, ierr, iG, nG
-    REAL(KIND=dp)                            :: dG, G, G_max, minimax_Rc, V_mm
+    REAL(KIND=dp)                            :: dG, G_max, minimax_Rc
 
     dG = 1.0E-3 ! Resolution in G to determine error of minimax approximation
     min_cutoff = .FALSE.
@@ -1358,29 +1356,10 @@ CONTAINS
     G_max = SQRT(3.0_dp*2.0_dp*cutoff)
     CPASSERT(G_max .GT. G_min)
 
-    CALL check_range(n_minimax, minimax_Rc, ierr)
-    CPASSERT(ierr == 0)
-    CALL get_minimax_coeff(n_minimax, minimax_Rc, minimax_aw, ierr)
-    CPASSERT(ierr == 0)
+    CALL get_minimax_coeff(n_minimax, minimax_Rc, minimax_aw, err_minimax)
+
     minimax_aw = minimax_aw/G_min**2
-
-    CPASSERT(ALL(minimax_aw(:) .GT. 0))
-
-    ! 2) sample minimax error
-    IF (PRESENT(err_minimax)) THEN
-      err_minimax = 0.0_dp
-      nG = CEILING((G_max - G_min)/dG)
-      G = G_min
-      DO iG = 1, nG
-        G = MIN(G, G_max)
-        V_mm = 0.0_dp
-        DO i_aw = 1, n_minimax
-          V_mm = V_mm + minimax_aw(n_minimax + i_aw)*EXP(-minimax_aw(i_aw)*G**2)
-        ENDDO
-        err_minimax = MAX(err_minimax, ABS(V_mm - 1.0_dp/G**2))
-        G = G + dG
-      ENDDO
-    ENDIF
+    IF(PRESENT(err_minimax)) err_minimax = err_minimax/G_min**2
 
   END SUBROUTINE get_minimax_coeff_v_gspace
 

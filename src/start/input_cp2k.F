@@ -230,6 +230,15 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    CALL keyword_create(keyword, name="MINIMAX",&
+         description="Tests validity of minimax coefficients for approximating 1/x "//&
+         "as a sum of exponentials. "//&
+         "Checks numerical error against tabulated error, testing "//&
+         "the given number of different Rc values.",&
+         usage="MINIMAX 1000",default_i_val=0)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
     CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
          description="Controls the printing of information regarding the PW and RS grid structures"//&
          " (ONLY for TEST run).",&

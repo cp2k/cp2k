@@ -2024,7 +2024,7 @@ MODULE rpa_ri_gpw
         ALLOCATE(x_tw(2*num_integ_points))
         x_tw=0.0_dp
 
-        CALL get_minimax_coeff(num_integ_points,E_Range,x_tw,ierr)
+        CALL get_minimax_coeff(num_integ_points,E_Range,x_tw)
 
         DO jquad=1, num_integ_points
           tau_tj(jquad)=x_tw(jquad)/2.0_dp

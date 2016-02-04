@@ -76,6 +76,7 @@ MODULE library_tests
                                              mp_sum,&
                                              mp_sync,&
                                              mpi_perf_test
+  USE minimax,                         ONLY: minimax_validate
   USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              UNIFORM,&
                                              check_rng,&
@@ -176,6 +177,8 @@ CONTAINS
     !
     IF ( runtest ( 9 ) /= 0 ) CALL rng_test( para_env, iw)
     !
+    IF ( runtest ( 10 ) /= 0 ) CALL minimax_validate(runtest(10), iw)
+    !
     rs_pw_transfer_section => section_vals_get_subs_vals(root_section,"TEST%RS_PW_TRANSFER")
     CALL section_vals_get(rs_pw_transfer_section,explicit=explicit)
     IF (explicit) THEN
@@ -266,6 +269,7 @@ CONTAINS
     CALL section_vals_val_get(test_section,'CLEBSCH_GORDON',i_val=runtest(6))
     CALL section_vals_val_get(test_section,'MPI',i_val=runtest (8))
     CALL section_vals_val_get(test_section,'RNG',i_val=runtest(9))
+    CALL section_vals_val_get(test_section,'MINIMAX',i_val=runtest(10))
 
     CALL mp_sync(para_env%group)
   END SUBROUTINE test_input

@@ -87,8 +87,8 @@ MODULE mp2_laplace
     CHARACTER(LEN=*), PARAMETER :: routineN = 'laplace_minimax_approx', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: avirt, handle, i_global, ierr, iiB, iocc, j_global, jjB, &
-      jquad, my_num_dgemm_call, ncol_local, nrow_local, number_of_rec, &
+    INTEGER :: avirt, handle, i_global, iiB, iocc, j_global, jjB, jquad, &
+      my_num_dgemm_call, ncol_local, nrow_local, number_of_rec, &
       number_of_rec_beta, number_of_send, number_of_send_beta
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: map_rec_size, &
                                                 map_rec_size_beta, &
@@ -135,8 +135,7 @@ MODULE mp2_laplace
     E_Range=Emax/Emin   
     IF(E_Range<2.0_dp) E_Range=2.0_dp
 
-    ierr=0
-    CALL get_minimax_coeff(num_integ_points,E_Range,awj,ierr)
+    CALL get_minimax_coeff(num_integ_points,E_Range,awj)
 
     ALLOCATE(aj(num_integ_points))
     aj=0.0_dp

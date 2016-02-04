@@ -28,4 +28,5 @@ dbcsr_io_1.inp                                         0
 dbcsr_order_N.inp                                     58    1.0E-14             1910924.8949438382
 test_eri_mme_accuracy.inp                              0
 test_eri_mme_performance.inp                           0
+test_minimax.inp                                       0
 #EOF
