@@ -37,7 +37,9 @@ MODULE dbcsr_mp_operations
                                              real_8
   USE message_passing,                 ONLY: &
        mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_rget, mp_sendrecv, &
-       mp_type_descriptor_type, mp_type_make, mp_waitall, mp_win_create
+       mp_type_descriptor_type, mp_type_indexed_make_c, &
+       mp_type_indexed_make_d, mp_type_indexed_make_r, &
+       mp_type_indexed_make_z, mp_type_make, mp_waitall, mp_win_create
 #include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -56,6 +58,7 @@ MODULE dbcsr_mp_operations
   PUBLIC :: dbcsr_sendrecv_any
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
   PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any
+  PUBLIC :: dbcsr_mp_type_indexed_make_any
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
 
@@ -523,14 +526,20 @@ CONTAINS
 !> \param win_data ...
 !> \param disp ...
 !> \param request ...
+!> \param origin_datatype ...
+!> \param target_datatype ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_rget_any(base,source,win,win_data,disp,request)
+  SUBROUTINE dbcsr_rget_any(base,source,win,win_data,disp,request,&
+       origin_datatype,target_datatype)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: base
     INTEGER, INTENT(IN)                      :: source
     INTEGER, INTENT(INOUT)                   :: win
     TYPE(dbcsr_data_obj), INTENT(IN)         :: win_data
     INTEGER, INTENT(IN), OPTIONAL            :: disp
     INTEGER, INTENT(OUT)                     :: request
+    TYPE(mp_type_descriptor_type), &
+      INTENT(IN), OPTIONAL                   :: origin_datatype, &
+                                                target_datatype
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_rget_any', &
       routineP = moduleN//':'//routineN
@@ -541,18 +550,54 @@ CONTAINS
 
     SELECT CASE (dbcsr_data_get_type (base))
     CASE (dbcsr_type_real_4)
-       CALL mp_rget (base%d%r_sp, source, win, win_data%d%r_sp, disp, request)
+       CALL mp_rget (base%d%r_sp, source, win, win_data%d%r_sp, disp, request, origin_datatype, target_datatype)
     CASE (dbcsr_type_real_8)
-       CALL mp_rget (base%d%r_dp, source, win, win_data%d%r_dp, disp, request)
+       CALL mp_rget (base%d%r_dp, source, win, win_data%d%r_dp, disp, request, origin_datatype, target_datatype)
     CASE (dbcsr_type_complex_4)
-       CALL mp_rget (base%d%c_sp, source, win, win_data%d%c_sp, disp, request)
+       CALL mp_rget (base%d%c_sp, source, win, win_data%d%c_sp, disp, request, origin_datatype, target_datatype)
     CASE (dbcsr_type_complex_8)
-       CALL mp_rget (base%d%c_dp, source, win, win_data%d%c_dp, disp, request)
+       CALL mp_rget (base%d%c_dp, source, win, win_data%d%c_dp, disp, request, origin_datatype, target_datatype)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect data type", __LINE__)
     END SELECT
   END SUBROUTINE dbcsr_rget_any
+
+
+! *****************************************************************************
+!> \brief ...
+!> \param count ...
+!> \param lengths ...
+!> \param displs ...
+!> \param data_type ...
+!> \retval new_mp_data_type ...
+! *****************************************************************************
+  FUNCTION dbcsr_mp_type_indexed_make_any(count,lengths,displs,data_type) &
+       RESULT(new_mp_data_type)
+    INTEGER, INTENT(IN)                      :: count
+    INTEGER, DIMENSION(1:count), INTENT(IN)  :: lengths, displs
+    INTEGER, INTENT(IN)                      :: data_type
+    TYPE(mp_type_descriptor_type)            :: new_mp_data_type
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'dbcsr_mp_type_indexed_make_any', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (data_type)
+    CASE (dbcsr_type_real_4)
+       new_mp_data_type = mp_type_indexed_make_r(count,lengths,displs)
+    CASE (dbcsr_type_real_8)
+       new_mp_data_type = mp_type_indexed_make_d(count,lengths,displs)
+    CASE (dbcsr_type_complex_4)
+       new_mp_data_type = mp_type_indexed_make_c(count,lengths,displs)
+    CASE (dbcsr_type_complex_8)
+       new_mp_data_type = mp_type_indexed_make_z(count,lengths,displs)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
+            routineN, "Invalid data type", __LINE__)
+    END SELECT
+
+  END FUNCTION dbcsr_mp_type_indexed_make_any
 
 ! *****************************************************************************
 !> \brief Allgather of encapsulated data
