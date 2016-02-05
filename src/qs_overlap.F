@@ -64,6 +64,8 @@ MODULE qs_overlap
                                              uppercase
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -140,9 +142,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, ikind, inode, &
-      irow, iset, jatom, jkind, jset, ldsab, maxder, maxiter, maxs, n1, n2, &
-      natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, output_unit, sgfa, &
-      sgfb
+      irow, iset, jatom, jkind, jset, ldsab, maxder, maxiter, maxs, mepos, &
+      n1, n2, natom, ncoa, ncob, nder, nimg, nkind, nseta, nsetb, nthread, &
+      output_unit, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -266,19 +268,34 @@ CONTAINS
            CPASSERT(PRESENT(matrix_p))
         END IF
         nder = MAX(nder,1)
-        ALLOCATE (pmat(ldsab,ldsab))
      END IF
      maxder = ncoset(nder)
-     ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab))
 
+     nthread=1
+!$   nthread=omp_get_max_threads()
+     CALL neighbor_list_iterator_create(nl_iterator,sab_nl,nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (nthread,do_forces,ldsab,maxder,nl_iterator, use_cell_mapping, do_symmetric,maxs,dokp,&
+!$OMP         ncoset,nder,use_virial,force,virial,&
+!$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, atom_of_kind, cell_to_index, matrixkp_s, matrixkp_p)  &
+!$OMP PRIVATE (mepos,oint,owork,pmat,sint,ikind,jkind,inode,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
+!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
+!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, f,  & 
+!$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset )
+
+     mepos=0
+!$   mepos=omp_get_thread_num()
+
+     ALLOCATE (oint(ldsab,ldsab,maxder),owork(ldsab,ldsab))
+     IF (do_forces) ALLOCATE (pmat(ldsab,ldsab))
      ALLOCATE (sint(maxs))
      DO i=1,maxs
        NULLIFY (sint(i)%block)
      END DO
 
-     CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
-     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+     DO WHILE (neighbor_list_iterate(nl_iterator,mepos=mepos)==0)
+        CALL get_iterator_info(nl_iterator,mepos=mepos,ikind=ikind,jkind=jkind,inode=inode,&
                                iatom=iatom,jatom=jatom,r=rab,cell=cell)
         basis_set_a => basis_set_list_a(ikind)%gto_basis_set
         IF (.NOT.ASSOCIATED(basis_set_a)) CYCLE
@@ -400,11 +417,13 @@ CONTAINS
                CALL decontraction(owork,pmat,scon_a(:,sgfa:),n1,nsgfa(iset),scon_b(:,sgfb:),n2,nsgfb(jset),&
                                   trans=trans)
                CALL force_trace(force_a,oint(:,:,2:4),pmat,n1,n2,3)
+!$OMP CRITICAL(forceupdate)
                force(ikind)%overlap(:,atom_a)=force(ikind)%overlap(:,atom_a) - ff*force_a(:)
                force(jkind)%overlap(:,atom_b)=force(jkind)%overlap(:,atom_b) + ff*force_a(:)
                IF( use_virial ) THEN
                   CALL virial_pair_force ( virial%pv_virial, -f0, force_a, rab)
                END IF
+!$OMP END CRITICAL(forceupdate)
             END IF
             ! Contraction
             DO i=1,maxs
@@ -412,14 +431,20 @@ CONTAINS
                IF (ndod(i) == 1 .AND. trans) f = -1.0_dp
                CALL contraction(oint(:,:,i),owork,ca=scon_a(:,sgfa:),na=n1,ma=nsgfa(iset),&
                     cb=scon_b(:,sgfb:),nb=n2,mb=nsgfb(jset),fscale=f,trans=trans)
+!$OMP CRITICAL(blockadd)
                CALL block_add("IN",owork,nsgfa(iset),nsgfb(jset),sint(i)%block,&
                     sgfa,sgfb,trans=trans)
+!$OMP END CRITICAL(blockadd)
             END DO
 
           END DO
         END DO
 
      END DO
+     IF(do_forces) DEALLOCATE (pmat)
+     DEALLOCATE (oint,owork)
+     DEALLOCATE (sint)
+!$OMP END PARALLEL
      CALL neighbor_list_iterator_release(nl_iterator)
 
      IF(dokp) THEN
@@ -487,15 +512,7 @@ CONTAINS
 
      ! *** Release work storage ***
      DEALLOCATE (atom_of_kind)
-     DO i=1,maxs
-        NULLIFY (sint(i)%block)
-     END DO
-     DEALLOCATE (sint)
      DEALLOCATE (basis_set_list_a,basis_set_list_b)
-     DEALLOCATE (oint,owork)
-     IF(do_forces) THEN
-        DEALLOCATE (pmat)
-     END IF
 
      CALL timestop(handle)
 
