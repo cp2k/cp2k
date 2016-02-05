@@ -426,7 +426,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, handle, i, igrid, j, &
-                                                k, kind_interp, ngrids, &
+                                                k, kind_interp, me, ngrids, &
                                                 request, stat
     INTEGER, DIMENSION(3)                    :: glb, gub, lb, ub
     INTEGER, DIMENSION(:), POINTER           :: pos_of_x
@@ -470,9 +470,10 @@ CONTAINS
     END DO
     pos_of_x => grids(auxbas_grid)%pw%pw_grid%para%pos_of_x
     group=grids(auxbas_grid)%pw%pw_grid%para%group
+    me=grids(auxbas_grid)%pw%pw_grid%para%my_pos
     glb=rho%pw_grid%bounds(1,:)
     gub=rho%pw_grid%bounds(2,:)
-    IF (lb(1)==glb(1).AND.ub(1)==gub(1)) THEN
+    IF ((pos_of_x(glb(1)) .EQ. me).AND.(pos_of_x(gub(1)) .EQ. me)) THEN
        DO k=lb(3),ub(3)
           DO j=lb(2),ub(2)
              grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,k)=rho%cr3d(lb(1),j,k)
@@ -483,7 +484,7 @@ CONTAINS
           grids(auxbas_grid) % pw %cr3d(ub(1)+1,j,ub(3)+1)=rho%cr3d(lb(1),j,lb(3))
        END DO
        grids(auxbas_grid) % pw %cr3d(ub(1)+1,ub(2)+1,ub(3)+1)=rho%cr3d(lb(1),lb(2),lb(3))
-    ELSE IF (lb(1)==glb(1)) THEN
+    ELSE IF (pos_of_x(glb(1)) .EQ. me) THEN
        ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
             rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
             stat=stat)
@@ -492,7 +493,7 @@ CONTAINS
        CALL mp_isend(msgin=tmp,dest=pos_of_x(rho%pw_grid%bounds(2,1)),comm=group,&
             request=request,tag=112)
        CALL mp_wait(request)
-    ELSE IF (ub(1)==gub(1)) THEN
+    ELSE IF (pos_of_x(gub(1)) .EQ. me) THEN
        ALLOCATE(tmp(rho%pw_grid%bounds_local(1,2):rho%pw_grid%bounds_local(2,2),&
             rho%pw_grid%bounds_local(1,3):rho%pw_grid%bounds_local(2,3)),&
             stat=stat)
