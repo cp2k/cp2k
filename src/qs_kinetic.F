@@ -48,6 +48,8 @@ MODULE qs_kinetic
   USE qs_overlap,                      ONLY: create_sab_matrix
   USE virial_methods,                  ONLY: virial_pair_force
   USE virial_types,                    ONLY: virial_type
+
+!$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -108,8 +110,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atom_a, atom_b, handle, iatom, ic, icol, ikind, inode, irow, &
-      iset, jatom, jkind, jset, ldsab, natom, ncoa, ncob, nimg, nkind, nseta, &
-      nsetb, sgfa, sgfb
+      iset, jatom, jkind, jset, ldsab, mepos, natom, ncoa, ncob, nimg, nkind, &
+      nseta, nsetb, nthread, sgfa, sgfb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
@@ -207,18 +209,33 @@ CONTAINS
            CPASSERT(PRESENT(matrix_p))
         END IF
      END IF
-
      ! *** Allocate work storage ***
      ldsab = get_memory_usage(qs_kind_set,basis_type)
+
+     nthread=1
+!$   nthread=omp_get_max_threads()
+     ! Iterate of neighbor list
+     CALL neighbor_list_iterator_create(nl_iterator,sab_nl,nthread=nthread)
+
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP SHARED (nthread,do_forces,ldsab,nl_iterator, use_cell_mapping, do_symmetric,dokp,&
+!$OMP         ncoset,use_virial,force,virial,matrix_t,matrixkp_t,&
+!$OMP         matrix_p,basis_set_list, atom_of_kind, cell_to_index, matrixkp_p)  &
+!$OMP PRIVATE (k_block,mepos,kab,qab,pab,ikind,jkind,inode,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
+!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
+!$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, tab, & 
+!$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, sgfa, sgfb, iset, jset )
+
+     mepos=0
+!$   mepos=omp_get_thread_num()
+
      ALLOCATE (kab(ldsab,ldsab),qab(ldsab,ldsab))
      IF (do_forces) THEN
         ALLOCATE(dab(ldsab,ldsab,3),pab(ldsab,ldsab))
      END IF
 
-     ! Iterate of neighbor list
-     CALL neighbor_list_iterator_create(nl_iterator,sab_nl)
-     DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-        CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,inode=inode,&
+     DO WHILE (neighbor_list_iterate(nl_iterator,mepos=mepos)==0)
+        CALL get_iterator_info(nl_iterator,mepos=mepos,ikind=ikind,jkind=jkind,inode=inode,&
                                iatom=iatom,jatom=jatom,r=rab,cell=cell)
         atom_a = atom_of_kind(iatom)
         atom_b = atom_of_kind(jatom)
@@ -324,11 +341,13 @@ CONTAINS
                             lb_max(jset),lb_min(jset),npgfb(jset),rpgfb(:,jset),zetb(:,jset),&
                             rab,kab,dab)
                CALL force_trace(force_a,dab,pab,ncoa,ncob,3)
+!$OMP CRITICAL(forceupate)
                force(ikind)%kinetic(:,atom_a)=force(ikind)%kinetic(:,atom_a) + ff*force_a(:)
                force(jkind)%kinetic(:,atom_b)=force(jkind)%kinetic(:,atom_b) - ff*force_a(:)
                IF( use_virial ) THEN
                   CALL virial_pair_force ( virial%pv_virial, f0, force_a, rab)
                END IF
+!$OMP END CRITICAL(forceupate)
             ELSE
                ! calclulate integrals
                CALL kinetic(la_max(iset),la_min(iset),npgfa(iset),rpgfa(:,iset),zeta(:,iset),&
@@ -339,12 +358,17 @@ CONTAINS
             CALL contraction(kab,qab,ca=scon_a(:,sgfa:),na=ncoa,ma=nsgfa(iset),&
                                      cb=scon_b(:,sgfb:),nb=ncob,mb=nsgfb(jset),&
                                      trans=trans)
+!$OMP CRITICAL(blockadd)
             CALL block_add("IN",qab,nsgfa(iset),nsgfb(jset),k_block,sgfa,sgfb,trans=trans)
+!$OMP END CRITICAL(blockadd)
 
           END DO
         END DO
 
      END DO
+     DEALLOCATE (kab,qab)
+     IF(do_forces) DEALLOCATE (pab,dab)
+!$OMP END PARALLEL
      CALL neighbor_list_iterator_release(nl_iterator)
 
      IF(dokp) THEN
@@ -363,10 +387,6 @@ CONTAINS
 
      ! Release work storage
      DEALLOCATE (atom_of_kind)
-     DEALLOCATE (kab,qab)
-     IF(do_forces) THEN
-        DEALLOCATE (pab,dab)
-     END IF
      DEALLOCATE (basis_set_list)
 
      CALL timestop(handle)
