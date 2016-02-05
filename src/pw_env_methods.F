@@ -721,7 +721,7 @@ SUBROUTINE compute_max_radius(radius, pw_env, qs_env)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.01
+    REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.015_dp
 
     CHARACTER(LEN=default_string_length)     :: basis_type
     INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, &
