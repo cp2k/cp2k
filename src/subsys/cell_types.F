@@ -75,7 +75,7 @@ MODULE cell_types
             cell_create, cell_retain, cell_release,&
             cell_clone, cell_copy, parse_cell_line, set_cell_param
 
-#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+#if defined (__PLUMED2)
   PUBLIC :: pbc_cp2k_plumed_getset_cell
 #endif
 
@@ -833,7 +833,7 @@ CONTAINS
 
   END SUBROUTINE cell_release
 
-#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+#if defined (__PLUMED2)
 ! *****************************************************************************
 !> \brief   For the interface with plumed, pass a cell pointer and retrieve it 
 !>          later. It's a hack, but avoids passing the cell back and forth

@@ -191,7 +191,7 @@ Support for QUIP can be enabled via the flag -D__QUIP .
 For more information see http://www.libatoms.org/ .
 
 ==== 2m. PLUMED (optional, enables various enhanced sampling methods) ====
-CP2K can be compiled with PLUMED 1.3 (-D__PLUMED_CP2K) and PLUMED 2.x (-D__PLUMED2).
+CP2K can be compiled with PLUMED 2.x (-D__PLUMED2).
 Note that the code can only be built for one of these libraries at a time.
 
 See https://cp2k.org/howto:install_with_plumed for full instructions.

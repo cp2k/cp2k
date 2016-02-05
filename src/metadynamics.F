@@ -12,7 +12,7 @@
 MODULE metadynamics
 USE cp_log_handling, ONLY: cp_logger_type, cp_get_default_logger
   USE bibliography,                    ONLY: VandenCic2006
-#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+#if defined (__PLUMED2)
   USE cell_types,                      ONLY: cell_type,&
                                              pbc_cp2k_plumed_getset_cell
 #else
@@ -96,17 +96,11 @@ CONTAINS
 
     INTEGER                                  :: handle
 
-#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+#if defined (__PLUMED2)
     INTEGER                                  :: natom_plumed
     REAL(KIND=dp)                            :: timestep_plumed
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
-#endif
-
-#if defined (__PLUMED_CP2K)
-    INTEGER                                  :: nsp_plumed, i_kinds
-    INTEGER, DIMENSION(90)                   :: na_plumed
-    REAL(KIND=dp), DIMENSION(90)             :: pma0_plumed
 #endif
 
 #if defined (__PLUMED2)
@@ -117,7 +111,7 @@ CONTAINS
     CPASSERT(ASSOCIATED(simpar))
     CPASSERT(ASSOCIATED(force_env))
 
-#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+#if defined (__PLUMED2)
     NULLIFY(cell,subsys)
     CALL force_env_get(force_env, subsys=subsys, cell=cell)
     CALL pbc_cp2k_plumed_getset_cell (cell, set=.TRUE.) !Store the cell pointer for later use.
@@ -125,18 +119,6 @@ CONTAINS
     natom_plumed=subsys%particles%n_els
 #endif
 
-#if defined (__PLUMED_CP2K)
-    !in a parallel run plumed only needs to be initialized on the master node
-    IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
-        nsp_plumed=subsys%atomic_kinds%n_els
-        DO i_kinds=1,nsp_plumed
-            na_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%natom
-            pma0_plumed(i_kinds) = subsys%atomic_kinds%els(i_kinds)%mass
-        END DO
-        CALL INIT_METADYN(natom_plumed, nsp_plumed, na_plumed, &
-            timestep_plumed, itimes, pma0_plumed, force_env%meta_env%plumed_input_file)
-    END IF
-#endif
     MARK_USED(itimes)
 #if defined (__PLUMED2)
     CALL plumed_f_installed(plumedavailable)
@@ -159,7 +141,7 @@ CONTAINS
     END IF
 #endif
 
-#if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
+#if !defined (__PLUMED2)
     CALL cp_abort(__LOCATION__,&
          "Requested to use plumed for metadynamics, but cp2k was"//&
          " not compiled with plumed support.")
@@ -212,14 +194,10 @@ END SUBROUTINE
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, plumed_itimes
-#if defined (__PLUMED_CP2K) || defined (__PLUMED2)
+#if defined (__PLUMED2)
     INTEGER                                  :: i_part, natom_plumed
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsys_type), POINTER            :: subsys
-#endif
-#if defined (__PLUMED_CP2K)
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: force_plumed, pos_plumed
 #endif
 #if defined (__PLUMED2)
     TYPE(meta_env_type), POINTER             :: meta_env
@@ -238,32 +216,6 @@ END SUBROUTINE
     IF (ASSOCIATED(force_env%meta_env)) THEN
         IF (force_env%meta_env%use_plumed .EQV. .TRUE.) THEN
             plumed_itimes = itimes
-#if defined (__PLUMED_CP2K)
-            CALL force_env_get(force_env, subsys=subsys,cell=cell)
-            natom_plumed=subsys%particles%n_els
-            ALLOCATE (pos_plumed(1:3,natom_plumed))
-            ALLOCATE (force_plumed(1:3,natom_plumed))
-            force_plumed(:,:)=0.0d0
-
-            DO i_part=1,natom_plumed
-              pos_plumed(:,i_part)=subsys%particles%els(i_part)%r(:)
-            END DO
-           
-            !in a parallel run plumed colvars are only processed on the
-            !master node and then broadcast to the others.
-            IF (force_env%para_env%ionode .EQV. .TRUE.) THEN
-                CALL META_FORCE_CALCULATION(pos_plumed,force_plumed,natom_plumed,cell)
-            END IF
-            CALL mp_bcast (force_plumed,                     &
-                           force_env%para_env%source,        &
-                           force_env%para_env%group)
-            
-            DO i_part=1,natom_plumed
-              subsys%particles%els(i_part)%f(:) = subsys%particles%els(i_part)%f(:) + force_plumed(:,i_part)
-            END DO
-
-            DEALLOCATE (force_plumed, pos_plumed)
-#endif
 #if defined (__PLUMED2)
             CALL force_env_get(force_env, meta_env=meta_env, subsys=subsys,cell=cell)
             natom_plumed=subsys%particles%n_els
@@ -336,12 +288,11 @@ END SUBROUTINE
             CALL fix_atom_control(force_env)
 #endif
 
-#if !defined (__PLUMED_CP2K) && !defined (__PLUMED2)
+#if !defined (__PLUMED2)
                 CALL cp_abort(__LOCATION__,&
                      "Requested to use plumed for metadynamics, but cp2k was"//&
                      " not compiled with plumed support.")
 #endif
-
 
         ELSE
             IF(force_env%meta_env%langevin) THEN

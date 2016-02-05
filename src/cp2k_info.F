@@ -136,9 +136,6 @@ CONTAINS
 #if defined(__QUIP)
     flags=TRIM(flags)//" quip"
 #endif
-#if defined(__PLUMED_CP2K)
-    flags=TRIM(flags)//" plumed"
-#endif
 
 #if defined(__ACC)
     flags=TRIM(flags)//" acc"
@@ -265,9 +262,6 @@ ENDIF
 #endif
 #if defined __STATM_TOTAL
    flags=TRIM(flags)//" statm_total"
-#endif
-#if defined __PLUMED_CP2K
-   flags=TRIM(flags)//" plumed1.3"
 #endif
 #if defined __PLUMED2
    flags=TRIM(flags)//" plumed2"
