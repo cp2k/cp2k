@@ -277,7 +277,7 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (nthread,do_forces,ldsab,maxder,nl_iterator, use_cell_mapping, do_symmetric,maxs,dokp,&
-!$OMP         ncoset,nder,use_virial,force,virial,ndod,&
+!$OMP         ncoset,nder,use_virial,force,virial,&
 !$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, atom_of_kind, cell_to_index, matrixkp_s, matrixkp_p)  &
 !$OMP PRIVATE (mepos,oint,owork,pmat,sint,ikind,jkind,inode,iatom,jatom,rab,cell,basis_set_a,basis_set_b,atom_a,atom_b,&
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
