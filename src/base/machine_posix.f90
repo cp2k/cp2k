@@ -335,51 +335,17 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE m_getlog(user)
     CHARACTER(len=*), INTENT(OUT)            :: user
+    INTEGER :: status
 
-    ! this is needed to load a statically linked binary on some architectures.
-#if defined(__HAS_NO_SHARED_GLIBC)
-    user="root ;-)"
-#else
-    TYPE, BIND(C) :: passwd_struct
-      TYPE(C_PTR)             :: name
-      !... more fields, which we don't need and where Linux deviates from POSIX
-    END TYPE passwd_struct
+    ! on a posix system LOGNAME should be defined
+    CALL get_environment_variable("LOGNAME", value=user, status=status)
+    ! nope, check alternative
+    IF (status/=0) &
+       CALL get_environment_variable("USER", value=user, status=status)
+    ! fall back
+    IF (status/=0) &
+       user="root ;-)"
 
-    INTEGER                                  :: uid, i
-    TYPE(passwd_struct), POINTER             :: pwd
-    TYPE(C_PTR)                              :: pwd_cptr
-    CHARACTER, DIMENSION(:), POINTER         :: pwd_name_p
-    CHARACTER(len=default_string_length)     :: name_long
-
-    INTERFACE
-     FUNCTION getpwuid(uid) BIND(C,name="getpwuid") RESULT(result)
-       IMPORT
-       INTEGER(KIND=C_INT), VALUE               :: uid
-       TYPE(C_PTR)                              :: result
-     END FUNCTION
-    END INTERFACE
-
-    pwd_cptr = C_NULL_PTR
-    NULLIFY(pwd, pwd_name_p)
-    name_long = ""
-
-    CALL m_getuid(uid)
-    WRITE(user,'(I16)') uid
-    pwd_cptr = getpwuid(uid)
-
-    IF(.NOT.C_ASSOCIATED(pwd_cptr)) RETURN
-    CALL C_F_POINTER(pwd_cptr, pwd)
-    IF(.NOT.C_ASSOCIATED(pwd%name)) RETURN
-    CALL C_F_POINTER(pwd%name, pwd_name_p, (/LEN(name_long)/) )
-
-    DO i=1, LEN(name_long)
-      IF(pwd_name_p(i) .EQ. C_NULL_CHAR) EXIT
-      name_long(i:i) = pwd_name_p(i)
-    END DO
-    IF(i > LEN(name_long)) RETURN
-
-    user = TRIM(name_long)
-#endif
   END SUBROUTINE m_getlog
 
 
