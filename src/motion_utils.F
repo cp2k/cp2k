@@ -354,7 +354,7 @@ CONTAINS
        unit_conv = cp_unit_from_cp2k(1.0_dp,TRIM(unit_str))
     ENDIF
 
-    ! Get the otuput format
+    ! Get the output format
     CALL get_output_format(root_section,"MOTION%PRINT%"//TRIM(my_pk_name),my_form,my_ext)
     traj_unit = cp_print_key_unit_nr(logger,root_section,"MOTION%PRINT%"//TRIM(my_pk_name),&
             extension=my_ext, file_position=my_pos, file_action=my_act,&
