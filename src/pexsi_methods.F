@@ -220,6 +220,8 @@ CONTAINS
     CALL cp_csr_create(pexsi_env%csr_mat_F, pexsi_env%csr_mat_s)
 
     DO ispin=1, pexsi_env%nspin
+      ! max_ev_vector only initialised to avoid warning in case max_scf==0
+      CALL cp_dbcsr_init(pexsi_env%max_ev_vector(ispin))
       CALL cp_dbcsr_init(pexsi_env%matrix_w(ispin)%matrix)
       CALL cp_dbcsr_create(pexsi_env%matrix_w(ispin)%matrix, "W matrix",&
         template = template_matrix, matrix_type=dbcsr_type_no_symmetry)

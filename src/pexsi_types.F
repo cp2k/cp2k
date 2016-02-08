@@ -170,6 +170,7 @@ CONTAINS
     ! allocations with nspin
     pexsi_env%nspin=nspin
     ALLOCATE(pexsi_env%kTS(nspin))
+    pexsi_env%kTS(:) = 0.0_dp
     ALLOCATE(pexsi_env%max_ev_vector(nspin))
     ALLOCATE(pexsi_env%matrix_w(nspin))
     DO ispin = 1, pexsi_env%nspin 

@@ -560,7 +560,7 @@ CONTAINS
      CALL keyword_release(keyword)
 
      CALL keyword_create(keyword, name="NP_SYMB_FACT",&
-          description="Number of processors for PARMETIS/PT-SCOTCH. Only used if the ordering == 0. "//&
+          description="Number of processors for PARMETIS/PT-SCOTCH. Only used if ORDERING is set to PARALLEL. "//&
           "If 0, the number of processors for PARMETIS/PT-SCOTCH will be set equal to the number of "//&
           "MPI ranks per pole. Note: if more than one processor is used, a segmentation fault may occur in the "//&
           "symbolic factorization phase.",&
