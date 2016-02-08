@@ -1,893 +1,1068 @@
 #!/bin/bash -e
-#
-# This script installs a fairly complete up to date toolchain for development and use of cp2k.
-# It compiles tools etc such that they are suitable for debugging cp2k.
-# Full installation / compilation can take a while.
-#
-# trap errors
+[ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-error_handler() {
-   echo "Non-zero exit code in this script on line $1"
-   echo "Aborting, toolchain incomplete"
-   exit 1
+# +-----------------------------------------------------------------------+
+# |  CP2K: A general program to perform molecular dynamics simulations    |
+# |  Copyright (C) 2000 - 2016  CP2K developers group                     |
+# +-----------------------------------------------------------------------+
+#
+# *****************************************************************************
+#> \brief    This script will compile and install or link existing tools and
+#>           libraries CP2K depends on and generate a set of ARCH files which
+#>           can be used to compile CP2K
+#> \history  Created on Friday, 2016/02/05
+#> \author   Lianheng Tong (ltong) lianheng.tong@kcl.ac.uk
+# *****************************************************************************
+
+# ------------------------------------------------------------------------
+# Work directories and used files
+# ------------------------------------------------------------------------
+export ROOTDIR="${PWD}"
+export SCRIPTDIR="${ROOTDIR}/scripts"
+export BUILDDIR="${ROOTDIR}/build"
+export INSTALLDIR="${ROOTDIR}/install"
+export SETUPFILE="${INSTALLDIR}/setup"
+export SHA256_CHECKSUM="${SCRIPTDIR}/checksums.sha256"
+export ARCH_FILE_TEMPLATE="${SCRIPTDIR}/arch_base.tmpl"
+
+# ------------------------------------------------------------------------
+# Load common variables and tools
+# ------------------------------------------------------------------------
+source "${SCRIPTDIR}"/common_vars.sh
+source "${SCRIPTDIR}"/package_versions.sh
+source "${SCRIPTDIR}"/tool_kit.sh
+
+# ------------------------------------------------------------------------
+# Documentation
+# ------------------------------------------------------------------------
+show_help() {
+    cat<<EOF
+This script will help you compile and install, or link libraries
+CP2K depends on and setup a set of ARCH files that you can use
+to compile CP2K.
+
+USAGE:
+
+$(basename $SCRIPT_NAME) [options]
+
+OPTIONS:
+
+-h, --help                Show this message.
+-j <n>                    Number of processors to use for compilation, if
+                          this option is not present, then the script
+                          automatically tries to determine the number of
+                          processors you have and try to use all of the
+                          processors.
+--no-check-certificate    If you encounter "certificate verification" errors
+                          from wget or ones saying that "common name doesn’t
+                          match requested host name" while at tarball downloading
+                          stage, then the recommended solution is to install
+                          the newest wget release.  Alternatively, you can use
+                          this option to bypass the verification and proceed with
+                          the download. Security wise this should still be okay
+                          as the installation script will check file checksums
+                          after every tarball download. Nevertheless use this
+                          option at your own risk.
+--install-all             This option will set value of all --with-PKG
+                          options to "install". You can selectively set
+                          --with-PKG to another value again by having the
+                          --with-PKG option placed AFTER this option on the
+                          command line.
+--mpi-mode                Selects which MPI flavour to use. Available options
+                          are: mpich, openmpi and no.  By selecting no, you will
+                          be disabling MPI support.  By default the script
+                          will try to determine the flavour based on the MPI library
+                          currently avaliable in your system path. For CRAY (CLE)
+                          systems, the default flavour is mpich. Note that explicitly
+                          setting --with-mpich or --with-openmpi options to values
+                          other than no will also switch --mpi-mode to the respective
+                          mode.
+--math-mode               Selects which core math library to use. Available options
+                          are: acml, cray, mkl, openblas and reflapack. cray
+                          corresponds to cray libsci, and is the default for CRAY
+                          (CLE) systems. For non-CRAY systems, if env variable MKLROOT
+                          exists then mkl will be default, otherwise openblas is the
+                          default option. Note that reflapack corresponds to the
+                          reference LAPACK library, and is not really recommended for
+                          CP2K binaries used for real simulations. Explicitly setting
+                          --with-acml, --with-mkl or --with-openblas options will
+                          switch --math-mode to the respective modes, BUT
+                          --with-reflapack option do not have this effect.
+
+The --enable-FEATURE options follow the rules:
+  --enable-FEATURE=yes    Enable this particular feature
+  --enable-FEATHRE=no     Disable this particular feature
+  --enable-FEATURE        The option keyword alone is equivalent to
+                          --enable-FEATURE=yes
+
+  --enable-tsan           If you are installing GCC using this script
+                          this option enables thread sanitizer support.
+                          This is only relevant for debugging purposes.
+                          Default = no
+  --enable-gcc-master     If you are installing GCC using this script
+                          this option forces the master development version
+                          to be installed.
+                          Default = no
+  --enable-libxsmm-master If you are installing libxsmm using this script
+                          this option forces the master development version
+                          to be installed.
+                          Default = no
+  --enable-omp            Turn on OpenMP (threading) support.
+                          Default = yes
+  --enable-cuda           Turn on GPU (CUDA) support.
+                          Default = no
+  --enable-cray           Turn on or off support for CRAY Linux Environment
+                          (CLE) manually. Be default the script will automatically
+                          detect if your system is CLE, and provide support
+                          accordingly.
+
+The --with-PKG options follow the rules:
+  --with-PKG=install      Will download the package in \$PWD/build and
+                          install the library package in \$PWD/install.
+  --with-PKG=system       The script will then try to find the required
+                          libraries of the package from the system path
+                          variables such as PATH, LD_LIBRARY_PATH and
+                          CPATH etc.
+  --with-PKG=no           Do not use the package.
+  --with-PKG=<path>       The package will be assumed to be installed in
+                          the given <path>, and be linked accordingly.
+  --with-PKG              The option keyword alone will be equivalent to
+                          --with-PKG=install
+
+  --with-gcc              The GCC compiler to use to compile CP2K
+                          Default = system
+  --with-binutils         GNU binutils
+                          Default = system
+  --with-make             GNU make
+                          Default = system
+  --with-cmake            Cmake utilities, required for building ParMETIS
+                          Default = no
+  --with-valgrind         Valgrind memory debugging tool, only used for
+                          debugging purposes.
+                          Default = no
+  --with-lcov             LCOV code coverage utility, mainly used by CP2K developers
+                          Default = no
+  --with-openmpi          OpenMPI, important if you want parallel version
+                          of CP2K.
+                          Default = system
+  --with-mpich            MPICH, MPI library like OpenMPI. one should
+                          only use EITHER OpenMPI or MPICH and not both.
+                          Default = system
+  --with-libxc            libxc, exchange-correlation library. Needed for
+                          QuickStep DFT and hybrid calculations.
+                          Default = install
+  --with-libint           libint, library for evaluation of two-body molecular
+                          integrals, needed for hybrid functional calculations
+                          Default = install
+  --with-fftw             FFTW3, library for fast fourier transform
+                          Default = install
+  --with-reflapack        Reference (vanilla) LAPACK and BLAS linear algebra libraries.
+                          One should use only ONE linear algebra library. This
+                          one is really mostly used for debugging purposes as it is
+                          non-optimised.
+                          Default = no
+  --with-acml             AMD core maths library, which provides LAPACK and BLAS
+                          Default = system
+  --with-mkl              Intel maths kernel library, which provides LAPACK and BLAS,
+                          and depending on your system, may also provide ScaLAPACK.
+                          If the MKL version of ScaLAPACK is found, then it will replace
+                          the one specified by --with-scalapack option.
+                          Default = system
+  --with-openblas         OpenBLAS is a free high performance LAPACK and BLAS library,
+                          the sucessor to GotoBLAS.
+                          Default = install
+  --with-scalapack        Parallel linear algebra library, needed for parallel
+                          calculations.
+                          Default = install
+  --with-libsmm           CP2K's own small matrix multiplication library. An optimised
+                          libsmm should increase the code performance. If you set
+                          --with-libsmm=install, then instead of actually compiling
+                          the library (which may take a long time), the script will
+                          try to download a preexisting version from the CP2K website
+                          that is compatable with your system.
+                          Default = no
+  --with-libxsmm          Small matrix multiplication library for x86_64 systems. If
+                          your system arch is x86_64, then you can use libxsmm
+                          instead of libsmm.
+                          Default = install
+  --with-elpa             Eigenvalue SoLvers for Petaflop-Applications library.
+                          Fast library for large parallel jobs.
+                          Default = no
+  --with-ptscotch         PT-SCOTCH, only used if PEXSI is used
+                          Default = no
+  --with-parmetis         ParMETIS, and if --with-parmetis=install will also install
+                          METIS, only used if PEXSI is used
+                          Default = no
+  --with-metis            METIS, --with-metis=install actuall does nothing, because
+                          METIS is installed together with ParMETIS.  This option
+                          is used to specify the METIS library if it is pre-installed
+                          else-where. Only used if PEXSI is used
+                          Default = no
+  --with-superlu          SuperLU DIST, used only if PEXSI is used
+                          Default = no
+  --with-pexsi            Enable interface to PEXSI library
+                          Default = no
+  --with-quip             Enable interface to QUIP library
+                          Default = no
+
+FURTHER INSTRUCTIONS
+
+All packages to be installed locally will be downloaded and build inside
+./build, and then installed into package specific directories inside
+./install.
+
+Both ./build and ./install are safe to delete, as they contain
+only the files and directories that are generated by this script. However,
+once all the packages are installed, and you compile CP2K using the arch
+files provided by this script, then you must keep ./install in exactly
+the same location as it was first created, as it contains tools and libraries
+your version of CP2K binary will depend on.
+
+It should be safe to terminate running of this script in middle of a
+build process.  The script will know if a package has been successfully
+installed, and will just carry on and recompile and install the last
+package it is working on. This is true even if you lose the content of
+the entire ./build directory.
+
+  +----------------------------------------------------------------+
+  |  YOU SHOULD ALWAYS SOURCE ./install/setup BEFORE YOU RUN CP2K  |
+  |  COMPILED WITH THIS TOOLCHAIN                                  |
+  +----------------------------------------------------------------+
+
+TROUBLESHOOTING:
+
+Below are solutions to some of the common problems you may encounter when running
+this script.
+
+* The script terminated with an error message while installing a particular
+  package.
+
+  Look at the error message. If it does not indicate the reason for failure
+  then it is likely that some error occured during compilation of the package.
+  You can look at the compiler log in the file make.log in the source directory
+  of the package in ./build.
+
+  One of the causes on some systems may be the fact that too many parallel
+  make processes were initiated.  By default the script tries to use
+  all of the processors on you node. You can override this behaviour using
+  -j option.
+
+* The script tailed at a tarball downloading stage
+
+  Try run again with --no-check-certificate option. See the help section
+  for this option for details.
+
+EOF
 }
-trap 'error_handler ${LINENO}' ERR
 
+# ------------------------------------------------------------------------
+# PACKAGE LIST: register all new dependent tools and libs here. Order
+# is important, the first in the list gets installed first
+# ------------------------------------------------------------------------
+tool_list="binutils lcov valgrind make cmake gcc"
+mpi_list="mpich openmpi"
+math_list="mkl acml openblas reflapack"
+lib_list="fftw libint libxc libsmm libxsmm scalapack elpa \
+          ptscotch parmetis metis superlu pexsi quip"
+package_list="$tool_list $mpi_list $math_list $lib_list"
+# ------------------------------------------------------------------------
 
-# default settings
-enable_tsan=false
-mpichoice=mpich
-#mpich_ver=3.1.2
-mpich_ver=3.2
-openmpi_ver=1.8.6
-openblas_ver=0.2.15
-scalapack_ver=2.0.2
-lapack_ver=3.5.0
-libxc_ver=2.2.2
-libint_ver=1.1.4
-fftw_ver=3.3.4
-elpa_ver=2015.11.001
-cmake_ver=3.1.1
-parmetis_ver=4.0.2
-scotch_ver=6.0.0
-superlu_ver=3.3
-pexsi_ver=0.9.0
-plumed_ver=2.2b
-quip_ver=cc83ceea5776c40fcb5ab224a25ab04d62175449
-#binutils_ver=2.24
-binutils_ver=2.25
-#valgrind_ver=3.10.0
-#valgrind_ver=3.10.1
-valgrind_ver=3.11.0
-lcov_ver=1.11
-#gcc_ver=4.9.2
-#gcc_ver=4.9.3
-#gcc_ver=5.1.0
-gcc_ver=5.3.0
-make_ver=4.1
-xsmm_ver=1.1
-
-# parse options
-while [ $# -ge 1 ]; do
-   case $1 in
-   --mpich)
-      mpichoice=mpich;;
-   --openmpi)
-      mpichoice=openmpi;;
-   --enable-tsan)
-      enable_tsan=true;;
-   --enable-gcc-trunk)
-      gcc_ver=master;;
-   --enable-libxsmm-trunk)
-      xsmm_ver=master;;
-   -help|-h|--help)
-      echo "Usage: install_cp2k_toolchain.sh [OPTIONS]"
-      echo "Installs a well defined development environment for CP2K"
-      echo ""
-      echo "Options:"
-      echo "  -h, -help, --help         print this help screen."
-      echo "  --mpich                   use the MPICH package. Default: on."
-      echo "  --openmpi                 use the OpenMPI package. Default: off."
-      echo "  --enable-tsan             compile entire toolchain with -fsanitize=thread. Default: off."
-      echo "                            This is not for normal (production) use, but suitable for"
-      echo "                            finding/testing/debugging threading issues during development."
-      echo "  --enable-gcc-trunk        use a non-released, development version of gcc for testing."
-      echo "  --enable-libxsmm-trunk    use github master of libxsmm for testing."
-      echo ""
-      echo "For more information visit: <https://www.cp2k.org/>"
-      exit 0;;
-   -*)
-      echo "ERROR: Invalid command line flag $1 found"
-      exit 1;;
-   # Default case
-   *)
-      echo "ERROR: Unknown command line string $1 found"
-      exit 1;;
-   esac
-   shift
+# first set everything to __DONTUSE__
+for ii in $package_list ; do
+    eval with_${ii}=__DONTUSE__
 done
 
-# disable known conflicts
-if $enable_tsan ; then
-   openblas_ver=
+# ------------------------------------------------------------------------
+# Work out default settings
+# ------------------------------------------------------------------------
+
+# tools to turn on by default:
+with_binutils=__SYSTEM__
+with_gcc=__SYSTEM__
+with_make=__SYSTEM__
+
+# libs to turn on by default, the math and mpi libraries are chosen by there respective modes:
+with_fftw=__INSTALL__
+with_libint=__INSTALL__
+with_libxsmm=__INSTALL__
+with_libxc=__INSTALL__
+with_scalapack=__INSTALL__
+
+# default math library settings, FAST_MATH_MODE picks the math library
+# to use, and with_* defines the default method of installation if it
+# is picked. For non-CRAY systems defaults to mkl if $MKLROOT is
+# avaliable, otherwise defaults to openblas
+if [ "$MKLROOT" ] ; then
+    export FAST_MATH_MODE=mkl
+else
+    export FAST_MATH_MODE=openblas
+fi
+with_acml=__SYSTEM__
+with_mkl=__SYSTEM__
+with_openblas=__INSTALL__
+with_reflapack=__INSTALL__
+
+# for MPI, we try to detect system MPI variant
+with_openmpi=__SYSTEM__
+with_mpich=__SYSTEM__
+if (command -v mpirun >&- 2>&-) ; then
+    # check if we are dealing with openmpi or mpich
+    if (mpirun --version 2>&1 | grep -s -q "HYDRA") ; then
+        echo "MPI is detected and it appears to be MPICH"
+        export MPI_MODE=mpich
+    elif (mpirun --version 2>&1 | grep -s -q "Open MPI") ; then
+        echo "MPI is detected and it appears to be OpenMPI"
+        export MPI_MODE=openmpi
+    else
+        # default to mpich
+        export MPI_MODE=mpich
+    fi
+else
+    report_warning $LINENO "No MPI installation detected on you system. Ignore this message if you are using Cray Linux Environment"
+    MPI_MODE=no
 fi
 
-# helper routine to check integrity of downloaded files
-checksum() {
-   filename=$1
-   if grep $filename ../checksums.sha256 | sha256sum --quiet --check ; then
-      echo "Checksum of ${filename} Ok"
-   else
-      echo "Checksum of ${filename} could not be verified, abort."
-      rm -v ${filename}
-      exit 255
-   fi
+# number of processors to use
+export NPROCS=$(get_nprocs)
+
+# default enable options
+enable_tsan=__FALSE__
+enable_gcc_master=__FALSE__
+enable_libxsmm_master=__FALSE__
+enable_omp=__TRUE__
+enable_cuda=__FALSE__
+
+# defaults for CRAY Linux Environment
+if [ "$CRAY_LD_LIBRARY_PATH" ] ; then
+    enable_cray=__TRUE__
+    export FAST_MATH_MODE=cray
+    # Default MPI used by CLE is assumed to be MPICH, in any case
+    # don't use the installers for the MPI libraries
+    with_mpich="__DONTUSE__"
+    with_openmpi="__DONTUSE__"
+    export MPI_MODE=mpich
+    # set default value for some installers appropriate for CLE
+    with_gcc="__DONTUSE__"
+    with_fftw="__SYSTEM__"
+    with_scalapack="__DONTUSE__"
+else
+    enable_cray=__FALSE__
+fi
+
+# ------------------------------------------------------------------------
+# parse user options
+# ------------------------------------------------------------------------
+while [ $# -ge 1 ] ; do
+    case $1 in
+        -j)
+            shift
+            export NPROCS=$1
+            ;;
+        --no-check-certificate)
+            export DOWNLOADER_FLAGS="-n"
+            ;;
+        --install-all)
+            # set all package to __INSTALL__ status
+            for ii in $package_list ; do
+                eval with_${ii}=__INSTALL__
+            done
+            # default mpi-mode to MPICH
+            MPI_MODE=mpich
+            ;;
+        --mpi-mode=*)
+            user_input="${1#*=}"
+            case "$user_input" in
+                mpich)
+                    export MPI_MODE=mpich
+                    ;;
+                openmpi)
+                    export MPI_MODE=openmpi
+                    ;;
+                no)
+                    export MPI_MODE=no
+                    ;;
+                *)
+                    report_error ${LINENO} \
+                                 "--mpi-mode currently only supports openmpi, mpich and no as options"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        --math-mode=*)
+            user_input="${1#*=}"
+            case "$user_input" in
+                cray)
+                    export FAST_MATH_MODE=cray
+                    ;;
+                mkl)
+                    export FAST_MATH_MODE=mkl
+                    ;;
+                acml)
+                    export FAST_MATH_MODE=acml
+                    ;;
+                openblas)
+                    export FAST_MATH_MODE=openblas
+                    ;;
+                reflapack)
+                    export FAST_MATH_MODE=reflapack
+                    ;;
+                *)
+                    report_error ${LINENO} \
+                    "--math-mode currently only supports mkl, acml, openblas and reflapack as options"
+            esac
+            ;;
+        --enable-tsan*)
+            enable_tsan=$(read_enable $1)
+            if [ $enable_tsan = "__INVALID__" ] ; then
+                report_error "invalid value for --enable-tsan, please use yes or no"
+                exit 1
+            fi
+            ;;
+        --enable-gcc-master*)
+            enable_gcc_master=$(read_enable $1)
+            if [ $enable_gcc_master = "__INVALID__" ] ; then
+                report_error "invalid value for --enable-gcc-master, please use yes or no"
+                exit 1
+            fi
+            ;;
+        --enable-libxsmm-master*)
+            enable_libxsmm_master=$(read_enable $1)
+            if [ $enable_libxsmm_master = "__INVALID__" ] ; then
+                report_error "invalid value for --enable-libxsmm-master, please use yes or no"
+                exit 1
+            fi
+            ;;
+        --enable-omp*)
+            enable_omp=$(read_enable $1)
+            if [ $enable_omp = "__INVALID__" ] ; then
+                report_error "invalid value for --enable-omp, please use yes or no"
+                exit 1
+            fi
+            ;;
+        --enable-cuda*)
+            enable_cuda=$(read_enable $1)
+            if [ $enable_cuda = "__INVALID__" ] ; then
+                report_error "invalid value for --enable-cuda, please use yes or no"
+                exit 1
+            fi
+            ;;
+        --enable-cray*)
+            enable_cray=$(read_enable $1)
+            if [ $enable_cray = "__INVALID__" ] ; then
+                report_error "invalid value for --enable-cray, please use yes or no"
+                exit 1
+            fi
+            ;;
+        --with-gcc*)
+            with_gcc=$(read_with $1)
+            ;;
+        --with-binutils*)
+            with_binutils=$(read_with $1)
+            ;;
+        --with-make*)
+            with_make=$(read_with $1)
+            ;;
+        --with-cmake*)
+            with_cmake=$(read_with $1)
+            ;;
+        --with-lcov*)
+            with_lcov=$(read_with $1)
+            ;;
+        --with-valgrind*)
+            with_valgrind=$(read_with $1)
+            ;;
+        --with-mpich*)
+            with_mpich=$(read_with $1)
+            if [ $with_mpich != __DONTUSE__ ] ; then
+                export MPI_MODE=mpich
+            fi
+            ;;
+        --with-openmpi*)
+            with_openmpi=$(read_with $1)
+            if [ $with_openmpi != __DONTUSE__ ] ; then
+                export MPI_MODE=openmpi
+            fi
+            ;;
+        --with-libint*)
+            with_libint=$(read_with $1)
+            ;;
+        --with-libxc*)
+            with_libxc=$(read_with $1)
+            ;;
+        --with-fftw*)
+            with_fftw=$(read_with $1)
+            ;;
+        --with-reflapack*)
+            with_reflapack=$(read_with $1)
+            ;;
+        --with-mkl*)
+            with_mkl=$(read_with $1)
+            if [ $with_mkl != __DONTUSE__ ] ; then
+                export FAST_MATH_MODE=mkl
+            fi
+            ;;
+        --with-acml*)
+            with_acml=$(read_with $1)
+            if [ $with_acml != __DONTUSE__ ] ; then
+                export FAST_MATH_MODE=acml
+            fi
+            ;;
+        --with-openblas*)
+            with_openblas=$(read_with $1)
+            if [ $with_openblas != __DONTUSE__ ] ; then
+                export FAST_MATH_MODE=openblas
+            fi
+            ;;
+        --with-scalapack*)
+            with_scalapack=$(read_with $1)
+            ;;
+        --with-libsmm*)
+            with_libsmm=$(read_with $1)
+            ;;
+        --with-libxsmm*)
+            with_libxsmm=$(read_with $1)
+            ;;
+        --with-elpa*)
+            with_elpa=$(read_with $1)
+            ;;
+        --with-ptscotch*)
+            with_ptscotch=$(read_with $1)
+            ;;
+        --with-parmetis*)
+            with_parmetis=$(read_with $1)
+            ;;
+        --with-metis*)
+            with_metis=$(read_with $1)
+            ;;
+        --with-superlu*)
+            with_superlu=$(read_with $1)
+            ;;
+        --with-pexsi*)
+            with_pexsi=$(read_with $1)
+            ;;
+        --with-quip*)
+            with_quip=$(read_with $1)
+            ;;
+        *)
+            show_help
+            exit 0
+            ;;
+    esac
+    shift
+done
+
+# consolidate settings after user input
+export ENABLE_TSAN=$enable_tsan
+export ENABLE_OMP=$enable_omp
+export ENABLE_CUDA=$enable_cuda
+export ENABLE_CRAY=$enable_cray
+[ "$enable_gcc_master" = "__TRUE__" ] && export gcc_ver=master
+[ "$enable_libxsmm_master" = "__TRUE__" ] && export libxsmm_ver=master
+[ "$with_valgrind" != "__DONTUSE__"  ] && export ENABLE_VALGRIND="__TRUE__"
+[ "$with_lcov" != "__DONTUSE__" ] && export ENABLE_COVERAGE="__TRUE__"
+
+# ------------------------------------------------------------------------
+# Check and solve known conflicts before installations proceed
+# ------------------------------------------------------------------------
+
+# GCC thread sanitizer conflicts
+if [ $ENABLE_TSAN = "__TRUE__" ] ; then
+    if [ "$with_openblas" != "__DONTUSE__" ] ; then
+        echo "TSAN is enabled, canoot use openblas, we will use reflapack instead"
+        [ "$with_reflapack" = "__DONTUSE__" ] && with_reflapack="__INSTALL__"
+        export FAST_MATH_MODE=reflapack
+    fi
+    echo "TSAN is enabled, canoot use libsmm"
+    with_libsmm="__DONTUSE__"
+fi
+
+# valgrind conflicts
+if [ "$ENABLE_VALGRIND" != "__TRUE__" ] ; then
+    if [ "$with_reflapack" = "__DONTUSE__" ] ; then
+        echo "reflapack is automatically installed when valgrind is enabled"
+        with_reflapack="__INSTALL__"
+    fi
+fi
+
+# mpi library conflicts
+if [ $MPI_MODE = no ] ; then
+    if [ "$with_scalapack" != "__DONTUSE__"  ] ; then
+        echo "Not using MPI, so scalapack is disabled."
+        with_scalapack="__DONTUSE__"
+    fi
+    if [ "$with_elpa" != "__DONTUSE__" ] ; then
+        echo "Not using MPI, so ELPA is disabled."
+        with_elpa="__DONTUSE__"
+    fi
+    if [ "$with_pexi" != "__DONTUSE__" ] ; then
+        echo "Not using MPI, so PEXSI is disabled."
+        with_pexsi="__DONTUSE__"
+    fi
+else
+    # if gcc is installed, then mpi needs to be installed too
+    if [ "$with_gcc" = "__INSTALL__" ] ; then
+        echo "You have chosen to install GCC, therefore MPI libraries will have to be installed too"
+        with_openmpi="__INSTALL__"
+        with_mpich="__INSTALL__"
+    fi
+fi
+
+# PESXI and its dependencies
+if [ "$with_pexsi" = "__DONTUSE__" ] ; then
+    if [ "$with_ptscotch" != "__DONTUSE__" ] ; then
+        echo "Not using PEXSI, so PT-Scotch is disabled."
+        with_ptscotch="__DONTUSE__"
+    fi
+    if [ "$with_parmetis" != "__DONTUSE__" ] ; then
+        echo "Not using PEXSI, so ParMETIS is disabled."
+        with_parmetis="__DONTUSE__"
+    fi
+    if [ "$with_metis" != "__DONTUSE__" ] ; then
+        echo "Not using PEXSI, so METIS is disabled."
+        with_metis="__DONTUSE__"
+    fi
+    if [ "$with_superlu" != "__DONTUSE__" ] ; then
+        echo "Not using PEXSI, so SuperLU-DIST is disabled."
+        with_superlu="__DONTUSE__"
+    fi
+elif [ "$with_pexsi" = "__INSTALL__" ] ; then
+    [ "$with_ptscotch" = "__DONTUSE__" ] && with_ptscotch="__INSTALL__"
+    [ "$with_parmetis" = "__DONTUSE__" ] && with_parmetis="__INSTALL__"
+    [ "$with_superlu" = "__DONTUSE__" ] && with_superlu="__INSTALL__"
+else
+    if [ "$with_ptscotch" = "__DONTUSE__" ] ; then
+        report_error "For PEXSI to work you need a working PT-Scotch library use --with-ptscotch option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_parmetis" = "__DONTUSE__" ] ; then
+        report_error "For PEXSI to work you need a working PARMETIS library use --with-parmetis option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_metis" = "__DONTUSE__" ] ; then
+        report_error "For PEXSI to work you need a working METIS library use --with-metis option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+    if [ "$with_superlu" = "__DONTUSE__" ] ; then
+        report_error "For PEXSI to work you need a working SuperLU-DIST library use --with-superlu option to specify if you wish to install the library or specify its location."
+        exit 1
+    fi
+fi
+# ParMETIS requires cmake, it also installs METIS if it is chosen
+# __INSTALL__ option
+if [ "$with_parmetis" = "__INSTALL__" ] ; then
+    [ "$with_cmake" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
+    with_metis="__INSTALL__"
+fi
+
+# ------------------------------------------------------------------------
+# Preliminaries
+# ------------------------------------------------------------------------
+
+mkdir -p "$INSTALLDIR"
+
+# variables used for generating cp2k ARCH file
+export CP_DFLAGS=''
+export CP_LIBS=''
+export CP_CFLAGS='IF_OMP(-fopenmp|)'
+export CP_LDFLAGS="-Wl,--enable-new-dtags"
+
+# ------------------------------------------------------------------------
+# Start writing setup file
+# ------------------------------------------------------------------------
+cat <<EOF > "$SETUPFILE"
+#!/bin/bash
+prepend_path() {
+    local __env_var=\$1
+    local __path=\$2
+    if eval [ x\"\\\$\$__env_var\" = x ] ; then
+        eval \$__env_var=\"\$__path\"
+        eval export \$__env_var
+    elif ! eval [[ \"\\\$\$__env_var\" =~ '(^|:)'\"\$__path\"'(\$|:)' ]] ; then
+        eval \$__env_var=\"\\\$__path:\\\$\$__env_var\"
+        eval export \$__env_var
+    fi
 }
-
-# preliminaries
-rootdir=${PWD}
-mkdir -p build
-cd build
-INSTALLDIR=${rootdir}/install
-echo "All tools will be installed in " ${INSTALLDIR}
-mkdir -p ${INSTALLDIR}
-nprocs=`nproc --all` # number of processes to use for compilation
-
-#
-# first get an up-to-date toolchain.
-#
-
-export CC=gcc
-export FC=gfortran
-export F77=gfortran
-export F90=gfortran
-export CXX=g++
-export CFLAGS="-O2 -g -Wno-error"
-export FFLAGS="-O2 -g -Wno-error"
-export FCFLAGS="-O2 -g -Wno-error"
-export F90FLAGS="-O2 -g -Wno-error"
-export F77FLAGS="-O2 -g -Wno-error"
-export CXXFLAGS="-O2 -g -Wno-error"
-
-echo "==================== Installing make ================="
-if [ -f make-${make_ver}.tar.gz  ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://ftp.gnu.org/gnu/make/make-${make_ver}.tar.gz
-   checksum make-${make_ver}.tar.gz
-   tar -xzf make-${make_ver}.tar.gz
-   cd make-${make_ver}
-   ./configure --prefix=${INSTALLDIR} >& config.log
-   make -j $nprocs >& make.log
-   make -j $nprocs install >& install.log
-   cd ..
-fi
-
-echo "==================== Installing binutils ================="
-if [ -f binutils-${binutils_ver}.tar.gz  ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://ftp.gnu.org/gnu/binutils/binutils-${binutils_ver}.tar.gz
-   checksum binutils-${binutils_ver}.tar.gz
-   tar -xzf binutils-${binutils_ver}.tar.gz
-   cd binutils-${binutils_ver}
-   ./configure --prefix=${INSTALLDIR} --enable-gold --enable-plugins >& config.log
-   make -j $nprocs >& make.log
-   make -j $nprocs install >& install.log
-   cd ..
-fi
-
-echo "==================== Installing valgrind ================="
-if [ -f valgrind-${valgrind_ver}.tar.bz2 ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/valgrind-${valgrind_ver}.tar.bz2
-   checksum valgrind-${valgrind_ver}.tar.bz2
-   tar -xjf valgrind-${valgrind_ver}.tar.bz2
-   cd valgrind-${valgrind_ver}
-   ./configure --prefix=${INSTALLDIR} >& config.log
-   make -j $nprocs >& make.log
-   make -j $nprocs install >& install.log
-   cd ..
-fi
-
-echo "==================== Installing lcov ====================="
-if [ -f lcov-${lcov_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/lcov-${lcov_ver}.tar.gz
-   checksum lcov-${lcov_ver}.tar.gz
-   tar -xzf lcov-${lcov_ver}.tar.gz
-   cd lcov-${lcov_ver}
-   # note.... this installs in ${INSTALLDIR}/usr/bin
-   make PREFIX=${INSTALLDIR} install >& make.log
-   cd ..
-fi
-
-echo "================== Installing CMake ================="
-if [ -f cmake-${cmake_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/cmake-${cmake_ver}.tar.gz
-   checksum cmake-${cmake_ver}.tar.gz
-   tar -xzf cmake-${cmake_ver}.tar.gz
-   cd cmake-${cmake_ver}
-   ./bootstrap --prefix=${INSTALLDIR} >& config.log
-   make -j $nprocs >&  make.log
-   make install >& install.log
-   cd ..
-fi
-
-echo "==================== Installing gcc ======================"
-if [ -f gcc-${gcc_ver}.tar.gz -o -d gcc-master ]; then
-   echo "Installation already started, skipping it."
-else
-   if [ "${gcc_ver}" == "master" ]; then
-      # no check since this follows the gcc trunk svn repo and changes constantly
-      svn checkout svn://gcc.gnu.org/svn/gcc/trunk gcc-master >& svn-gcc.log
-   else
-      wget https://ftp.gnu.org/gnu/gcc/gcc-${gcc_ver}/gcc-${gcc_ver}.tar.gz
-      checksum gcc-${gcc_ver}.tar.gz
-      tar -xzf gcc-${gcc_ver}.tar.gz
-   fi
-   cd gcc-${gcc_ver}
-   ./contrib/download_prerequisites >& prereq.log
-   GCCROOT=${PWD}
-   mkdir obj
-   cd obj
-   ${GCCROOT}/configure --prefix=${INSTALLDIR}  --enable-languages=c,c++,fortran --disable-multilib --disable-bootstrap --enable-lto --enable-plugins >& config.log
-   make -j $nprocs >& make.log
-   make -j $nprocs install >& install.log
-
-   if $enable_tsan ; then
-      # now the tricky bit... we need to recompile in particular libgomp with -fsanitize=thread.. there is not configure option for this (as far as I know).
-      # we need to go in the build tree and recompile / reinstall with proper options...
-      # this is likely to break for later version of gcc, tested with 5.1.0
-      # based on https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55374#c10
-      cd x86_64*/libgfortran
-      make clean >& clean.log
-      make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
-      make install >& install.log
-      cd ../libgomp
-      make clean >& clean.log
-      make -j $nprocs CFLAGS="-std=gnu99 -g -O2 -fsanitize=thread "  FCFLAGS="-g -O2 -fsanitize=thread" CXXFLAGS="-std=gnu99 -g -O2 -fsanitize=thread " LDFLAGS="-B`pwd`/../libsanitizer/tsan/.libs/ -Wl,-rpath,`pwd`/../libsanitizer/tsan/.libs/ -fsanitize=thread" >& make.log
-      make install >& install.log
-      cd $GCCROOT/obj/
-   fi
-   cd ../..
-fi
-if $enable_tsan ; then
-   TSANFLAGS="-fsanitize=thread"
-else
-   TSANFLAGS=""
-fi
-
-# lsan & tsan suppressions for known leaks are created as well, this might need to be adjusted for the versions of the software employed
-cat << EOF > ${INSTALLDIR}/lsan.supp
-# known leak either related to mpi or scalapack  (e.g. showing randomly for Fist/regtest-7-2/UO2-2x2x2-genpot_units.inp)
-leak:__cp_fm_types_MOD_cp_fm_write_unformatted
-# leak related to mpi or scalapack  triggers sometimes for regtest-kp-2/cc2.inp
-leak:Cblacs_gridmap
-# leaks related to PEXSI
-leak:PPEXSIDFTDriver
-EOF
-cat << EOF > ${INSTALLDIR}/tsan.supp
-# tsan bugs likely related to gcc
-# PR66756
-deadlock:_gfortran_st_open
-mutex:_gfortran_st_open
-# bugs related to removing/filtering blocks in DBCSR.. to be fixed
-race:__dbcsr_block_access_MOD_dbcsr_remove_block
-race:__dbcsr_operations_MOD_dbcsr_filter_anytype
-race:__dbcsr_transformations_MOD_dbcsr_make_untransposed_blocks
 EOF
 
-#valgrind suppressions
-cat << EOF > ${INSTALLDIR}/valgrind.supp
-{
-   BuggySUPERLU
-   Memcheck:Cond
-   ...
-   fun:SymbolicFactorize
-}
-{
-   BuggyMPICH32
-   Memcheck:Cond
-   ...
-   fun:MPIR_Process_status
-}
-EOF
+# ------------------------------------------------------------------------
+# Special settings for CRAY Linux Environment (CLE)
+# ------------------------------------------------------------------------
+if [ "$ENABLE_CRAY" = "__TRUE__" ] ; then
+    echo "------------------------------------------------------------------------"
+    echo "CRAY Linux Environment (CLE) is detected"
+    echo "------------------------------------------------------------------------"
+    # add cray paths to system search path
+    export LIB_PATHS="CRAY_LD_LIBRARY_PATH ${LIB_PATHS}"
+    # set compilers to CLE wrappers
+    check_command cc
+    check_command ftn
+    check_command CC
+    export CC=cc
+    export FC=ftn
+    export F77=ftn
+    export F90=ftn
+    export CXX=CC
+    export MPICC=cc
+    export MPIFC=ftn
+    export MPIF77=ftn
+    export MPIF90=ftn
+    export MPICXX=CC
+    # CRAY libsci should contains core math libraries, scalapack
+    # doesn't need LDFLAGS or CFLAGS, nor do the one need to
+    # explicitly link the math and scalapack libraries, as all is
+    # taken care of by the cray compiler wrappers.
+    if [ "$with_scalapack" = "__DONTUSE__" ] ; then
+        export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__SCALAPACK|)"
+    fi
+    case $MPI_MODE in
+        mpich)
+            if [ "$MPICH_DIR" ] ; then
+                cray_mpich_include_path="$MPICH_DIR/include"
+                cray_mpich_lib_path="$MPICH_DIR/lib"
+                export INCLUDE_PATHS="$INCLUDE_PATHS cray_mpich_include_path"
+                export LIB_PATHS="$LIB_PATHS cray_mpich_lib_path"
+            fi
+            if [ "$with_mpich" = "__DONTUSE__" ] ; then
+                add_include_from_paths MPI_CFLAGS "mpi.h" $INCLUDE_PATHS
+                add_include_from_paths MPI_LDFLAGS "libmpi.*" $LIB_PATHS
+                export MPI_CFLAGS
+                export MPI_LDFLAGS
+                export MPI_LIBS=" "
+                export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
+            fi
+            ;;
+        openmpi)
+            if [ "$with_openmpi" = "__DONTUSE__" ] ; then
+                add_include_from_paths MPI_CFLAGS "mpi.h" $INCLUDE_PATHS
+                add_include_from_paths MPI_LDFLAGS "libmpi.*" $LIB_PATHS
+                export MPI_CFLAGS
+                export MPI_LDFLAGS
+                export MPI_LIBS="-lmpi -lmpi_cxx"
+                export CP_DFLAGS="${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
+            fi
+            ;;
+    esac
+    check_lib -lz
+    check_lib -ldl
+    export CRAY_EXTRA_LIBS="-lz -ldl"
+    # the space is intentional, so that the variable is non-empty and
+    # can pass require_env checks
+    export SCALAPACK_LDFLAGS=" "
+    export SCALAPACK_LIBS=" "
+fi
 
-# now we need these tools and compiler to be in the path
-cat << EOF > ${INSTALLDIR}/setup
-if [ -z "\${LD_LIBRARY_PATH}" ]
-then
-    export LD_LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib
-else
-    export LD_LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib:\${LD_LIBRARY_PATH}
-fi
-if [ -z "\${LIBRARY_PATH}" ]
-then
-    export LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib
-else
-    export LIBRARY_PATH=${INSTALLDIR}/lib64:${INSTALLDIR}/lib:\${LIBRARY_PATH}
-fi
-if [ -z "\${PATH}" ]
-then
-    export PATH=${INSTALLDIR}/bin:${INSTALLDIR}/usr/bin
-else
-    export PATH=${INSTALLDIR}/bin:${INSTALLDIR}/usr/bin:\$PATH
-fi
-export CP2KINSTALLDIR=${INSTALLDIR}
-export LSAN_OPTIONS=suppressions=${INSTALLDIR}/lsan.supp
-export TSAN_OPTIONS=suppressions=${INSTALLDIR}/tsan.supp
-export VALGRIND_OPTIONS="--suppressions=${INSTALLDIR}/valgrind.supp --max-stackframe=2168152 --error-exitcode=42"
-export CC=gcc
-export CXX=g++
-export FC=gfortran
-export F77=gfortran
-export F90=gfortran
-EOF
-SETUPFILE=${INSTALLDIR}/setup
-source ${SETUPFILE}
+# ------------------------------------------------------------------------
+# Installing tools required for building CP2K and associated libraries
+# ------------------------------------------------------------------------
 
-# set some flags, leading to nice stack traces on crashes, yet, are optimized
+echo "Compiling with $NPROCS processes."
+
+# set environment for compiling compilers and tools required for CP2K
+# and libraries it depends on
+export CFLAGS=${CFLAGS:-"-O2 -g -Wno-error"}
+export FFLAGS=${FFLAGS:-"-O2 -g -Wno-error"}
+export FCLAGS=${FCLAGS:-"-O2 -g -Wno-error"}
+export F90FLAGS=${F90FLAGS:-"-O2 -g -Wno-error"}
+export F77FLAGS=${F77FLAGS:-"-O2 -g -Wno-error"}
+export CXXFLAGS=${CXXFLAGS:-"-O2 -g -Wno-error"}
+
+# need to setup tools after all of the tools are built. We should use
+# consistent pairs of gcc and binutils etc for make. So we use system
+# tool sets to compile the tool sets used to compile CP2K
+for ii in $tool_list ; do
+    install_mode="$(eval echo \${with_${ii}})"
+    "${SCRIPTDIR}"/install_${ii}.sh "$install_mode"
+done
+for ii in $tool_list ; do
+    load "${BUILDDIR}/setup_${ii}"
+done
+
+# ------------------------------------------------------------------------
+# Install or compile packages using newly installed tools
+# ------------------------------------------------------------------------
+
+# setup compiler flags, leading to nice stack traces on crashes but
+# still optimised
 export CFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 export FFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 export F77FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 export F90FLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 export FCFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
 export CXXFLAGS="-O2 -ftree-vectorize -g -fno-omit-frame-pointer -march=native -ffast-math $TSANFLAGS"
-export LDFLAGS=" $TSANFLAGS"
+export LDFLAGS="$TSANFLAGS"
 
-# Flags which both gfortran and gcc understand.
-BASEFLAGS="IF_OMP(-fopenmp,) -I\$(CP2KINSTALLDIR)/include"
+# get system arch information using OpenBLAS prebuild
+"${SCRIPTDIR}"/get_openblas_arch.sh; load "${BUILDDIR}/openblas_arch"
 
-if [ "$mpichoice" == "openmpi" ]; then
-   echo "=================== Installing openmpi ====================="
-   if [ -f openmpi-${openmpi_ver}.tar.gz ]; then
-      echo "Installation already started, skipping it."
-   else
-      wget https://www.cp2k.org/static/downloads/openmpi-${openmpi_ver}.tar.gz
-      checksum openmpi-${openmpi_ver}.tar.gz
-      tar -xzf openmpi-${openmpi_ver}.tar.gz
-      cd openmpi-${openmpi_ver}
-      ./configure --prefix=${INSTALLDIR} >& config.log
-      make -j $nprocs >& make.log
-      make -j $nprocs install >& install.log
-      cd ..
-   fi
-   DFLAGS="${FLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
-   #extra libs needed to link with mpif90 also applications based on C++
-   LIBS="IF_MPI(-lmpi_cxx,) ${LIBS}"
-fi
+# MPI libraries
+case "$MPI_MODE" in
+    mpich)
+        "${SCRIPTDIR}"/install_mpich.sh "${with_mpich}"; load "${BUILDDIR}/setup_mpich"
+        ;;
+    openmpi)
+        "${SCRIPTDIR}"/install_openmpi.sh "${with_openmpi}"; load "${BUILDDIR}/setup_openmpi"
+        ;;
+esac
 
+# math core libraries, need to use reflapck for valgrind builds, as
+# many fast libraries are not necesarily thread safe
+export REF_MATH_CFLAGS=''
+export REF_MATH_LDFLAGS=''
+export REF_MATH_LIBS=''
+export FAST_MATH_CFLAGS=''
+export FAST_MATH_LDFLAGS=''
+export FAST_MATH_LIBS=''
 
-if [ "$mpichoice" == "mpich" ]; then
-   echo "=================== Installing mpich ====================="
-   if [ -f mpich-${mpich_ver}.tar.gz ]; then
-      echo "Installation already started, skipping it."
-   else
-      # needed to install mpich ??
-      unset F90; unset F90FLAGS
-      wget https://www.cp2k.org/static/downloads/mpich-${mpich_ver}.tar.gz
-      checksum mpich-${mpich_ver}.tar.gz
-      tar -xzf mpich-${mpich_ver}.tar.gz
-      cd mpich-${mpich_ver}
-      ./configure --prefix=${INSTALLDIR} >& config.log
-      make -j $nprocs >& make.log
-      make -j $nprocs install >& install.log
-      cd ..
-   fi
-   DFLAGS="${DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3,)"
-fi
+"${SCRIPTDIR}"/install_reflapack.sh "${with_reflapack}"; load "${BUILDDIR}/setup_reflapack"
+case "$FAST_MATH_MODE" in
+    mkl)
+        "${SCRIPTDIR}"/install_mkl.sh "${with_mkl}"; load "${BUILDDIR}/setup_mkl"
+        ;;
+    acml)
+        "${SCRIPTDIR}"/install_acml.sh "${with_acml}"; load "${BUILDDIR}/setup_acml"
+        ;;
+    openblas)
+        "${SCRIPTDIR}"/install_openblas.sh "${with_openblas}"; load "${BUILDDIR}/setup_openblas"
+        ;;
+    cray)
+        # note the space is intentional so that the variable is
+        # non-empty and can pass require_env checks
+        export FAST_MATH_LDFLAGS="${FAST_MATH_LDFLAGS} "
+        export FAST_MATH_LIBS="${FAST_MATH_LIBS} ${CRAY_EXTRA_LIBS}"
+        ;;
+esac
 
-echo "================= Installing lapack ref ================="
-if [ -f lapack-${lapack_ver}.tgz ]; then
-   echo "Installation already started, skipping it."
+if [ $ENABLE_VALGRIND = "__TRUE__" ] ; then
+    export MATH_CFLAGS="${REF_MATH_CFLAGS}"
+    export MATH_LDFLAGS="${REF_MATH_LDFLAGS}"
+    export MATH_LIBS="${REF_MATH_LIBS}"
 else
-   wget https://www.cp2k.org/static/downloads/lapack-${lapack_ver}.tgz
-   checksum lapack-${lapack_ver}.tgz
-   tar -xzf lapack-${lapack_ver}.tgz
-   cd lapack-${lapack_ver}
-cat << EOF > make.inc
-SHELL    = /bin/sh
-FORTRAN  = gfortran
-OPTS     = $FFLAGS -frecursive -fno-fast-math
-DRVOPTS  = $FFLAGS -frecursive -fno-fast-math
-NOOPT    = $FFLAGS -O0 -frecursive -fno-fast-math
-LOADER   = gfortran
-LOADOPTS = $FFLAGS
-TIMER    = INT_ETIME
-CC       = gcc
-CFLAGS   = $CFLAGS
-ARCH     = ar
-ARCHFLAGS= cr
-RANLIB   = ranlib
-XBLASLIB     =
-BLASLIB      = ../../librefblas.a
-LAPACKLIB    = libreflapack.a
-TMGLIB       = libreftmglib.a
-LAPACKELIB   = libreflapacke.a
-EOF
-   # lapack/blas build is *not* parallel safe (updates to the archive race)
-   make -j 1  lib blaslib >& make.log
-   cp librefblas.a libreflapack.a ${INSTALLDIR}/lib/
-   cd ..
+    export MATH_CFLAGS="${FAST_MATH_CFLAGS}"
+    export MATH_LDFLAGS="${FAST_MATH_LDFLAGS}"
+    export MATH_LIBS="${FAST_MATH_LIBS}"
 fi
 
-echo "================= Installing openblas ==================="
-if [ "x${openblas_ver}" == "x" ]; then
-   echo "skipping openblas"
-   LIBS="-lreflapack -lrefblas ${LIBS}"
-else
-   if [ -f OpenBLAS-${openblas_ver}.tar.gz ]; then
-      echo "Installation already started, skipping it."
-   else
-      wget https://www.cp2k.org/static/downloads/OpenBLAS-${openblas_ver}.tar.gz
-      checksum OpenBLAS-${openblas_ver}.tar.gz
-      tar -xzf OpenBLAS-${openblas_ver}.tar.gz
-      cd OpenBLAS-*
-      # we install only the serial version, in principle serial and omp'ed could co-exist
-      make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} >& make.serial.log
-      make -j $nprocs USE_THREAD=0 LIBNAMESUFFIX=serial PREFIX=${INSTALLDIR} install >& install.serial.log
-      # make clean >& clean.log
-      # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} >& make.omp.log
-      # make -j $nprocs USE_THREAD=1 USE_OPENMP=1 LIBNAMESUFFIX=omp PREFIX=${INSTALLDIR} install >& install.omp.log
-      cd ..
-   fi
-   # openblas should be thread safe now (older issue seemed linux kernel or glibc related)
-   LIBS="IF_VALGRIND(-lreflapack -lrefblas, -lopenblas_serial) ${LIBS}"
-   # where is the openblas configuration file, which gives us the core
-   openblas_conf=`echo ${rootdir}/build/*OpenBLAS*/Makefile.conf`
-   if [ ! -f "$openblas_conf" ]; then
-      echo "Could not find OpenBLAS' Makefile.conf: $openblas_conf"
-      exit 1
-   fi
-   openblas_libcore=`grep 'LIBCORE=' $openblas_conf | cut -f2 -d=`
-   openblas_arch=`grep 'ARCH=' $openblas_conf | cut -f2 -d=`
-fi
+export CP_CFLAGS="${CP_CFLAGS} IF_VALGRIND(${REF_MATH_CFLAGS}|${FAST_MATH_CFLAGS})"
+export CP_LDFLAGS="${CP_LDFLAGS} IF_VALGRIND(${REF_MATH_LDFLAGS}|${FAST_MATH_LDFLAGS})"
+export CP_LIBS="${CP_LIBS} IF_VALGRIND(${REF_MATH_LIBS}|${FAST_MATH_LIBS})"
 
-echo "================= Installing libsmm ==================="
-if $enable_tsan ; then
-   echo "TSAN build ... not downloading libsmm"
-   libsmm=""
-else
-   # Here we attempt to determine which libsmm to download, and do that if it exists.
-   # We use info on the architecture / core from the openblas build.
+# other libraries
+for ii in $lib_list ; do
+    install_mode="$(eval echo \${with_${ii}})"
+    "${SCRIPTDIR}"/install_${ii}.sh "$install_mode"
+    load "${BUILDDIR}/setup_${ii}"
+done
 
-   # helper to check if libsmm is available (uses http-redirect to find latest version)
-   libsmm_exists() {
-       query_url=https://www.cp2k.org/static/downloads/libsmm/$1-latest.a
-       reply_url=`python -c "import urllib2; print(urllib2.urlopen('$query_url').geturl())"`
-       if [ "$query_url" != "$reply_url" ]; then
-          echo $reply_url | cut -d/ -f7
-       fi
-   }
-
-   libsmm=`libsmm_exists libsmm_dnn_${openblas_libcore}`
-   if [ "$libsmm" != "" ]; then
-      echo "An optimized libsmm $libsmm is available"
-   else
-      libsmm=`libsmm_exists libsmm_dnn_${openblas_arch}`
-      if [ "$libsmm" != "" ]; then
-         echo "A generic libsmm $libsmm is available."
-         echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
-      else
-         echo "No libsmm is available"
-         echo "Consider building and contributing to CP2K an optimized libsmm for your $openblas_arch $openblas_libcore"
-      fi
-   fi
-fi
-
-# we know what to get, proceed with install
-if [ "$libsmm" != "" ]; then
-   if [ -f $libsmm ]; then
-      echo "Installation already started, skipping it."
-   else
-      wget https://www.cp2k.org/static/downloads/libsmm/$libsmm
-      checksum $libsmm
-      cp $libsmm ${INSTALLDIR}/lib/
-   fi
-   tmp=${libsmm#lib}
-   libname=${tmp%.a}
-   DFLAGS="${DFLAGS} IF_VALGRIND(,-D__HAS_smm_dnn)"
-   LIBS="IF_VALGRIND(,-l${libname}) ${LIBS}"
-fi
-
-if [ "x${xsmm_ver}" != "x" ]; then
-   echo "================= Installing libxsmm ====================="
-   if [ "$openblas_arch" == "x86_64" ]; then
-      if [ -f libxsmm-${xsmm_ver}.tar.gz -o -d libxsmm-${xsmm_ver} ]; then
-         echo "Installation already started, skipping it."
-      else
-         # master has been tested at rev 1.0.2-157, just prior to the 1.1 release
-         if [ "$xsmm_ver" == "master" ]; then
-           wget -O libxsmm-master.zip https://github.com/hfp/libxsmm/archive/master.zip
-           unzip libxsmm-master.zip  >& libxsmm-unzip.log
-         else
-           wget https://www.cp2k.org/static/downloads/libxsmm-${xsmm_ver}.tar.gz
-           checksum libxsmm-${xsmm_ver}.tar.gz
-           tar -xzf libxsmm-${xsmm_ver}.tar.gz
-         fi
-         cd libxsmm-${xsmm_ver}
-         # we rely on the jit, but as it is not available for SSE, we also generate a subset statically
-         make -j $nprocs CXX=g++ CC=gcc FC=gfortran MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" SSE=1 JIT=1 PREFETCH=1 OPENBLAS=1 BLAS_THREADS=_serial PREFIX=${INSTALLDIR} >& make.log
-         make -j $nprocs CXX=g++ CC=gcc FC=gfortran MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" SSE=1 JIT=1 PREFETCH=1 OPENBLAS=1 BLAS_THREADS=_serial PREFIX=${INSTALLDIR} install >& install.log
-         cd ..
-      fi
-      LIBS="-lxsmm ${LIBS}"
-      DFLAGS="-D__LIBXSMM ${DFLAGS}"
-   else
-      echo "libxsmm not supported on arch $openblas_arch !"  
-   fi
-fi
-
-echo "================= Installing scalapack ==================="
-if [ -f scalapack-${scalapack_ver}.tgz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/scalapack-${scalapack_ver}.tgz
-   checksum scalapack-${scalapack_ver}.tgz
-   tar -xzf scalapack-${scalapack_ver}.tgz
-   # we dont know the version
-   cd scalapack-${scalapack_ver}
-cat << EOF > SLmake.inc
-CDEFS         = -DAdd_
-FC            = mpif90
-CC            = mpicc
-NOOPT         = ${FFLAGS} -O0 -fno-fast-math
-FCFLAGS       = ${FFLAGS} -fno-fast-math
-CCFLAGS       = ${CFLAGS} -fno-fast-math
-FCLOADER      = \$(FC)
-CCLOADER      = \$(CC)
-FCLOADFLAGS   = \$(FCFLAGS)
-CCLOADFLAGS   = \$(CCFLAGS)
-ARCH          = ar
-ARCHFLAGS     = cr
-RANLIB        = ranlib
-SCALAPACKLIB  = libscalapack.a
-BLASLIB       = -lrefblas
-LAPACKLIB     = -lreflapack
-LIBS          = \$(LAPACKLIB) \$(BLASLIB)
-EOF
-   # scalapack build not parallel safe (update to the archive race)
-   make -j 1 lib >& make.log
-   cp libscalapack.a ${INSTALLDIR}/lib/
-   cd ..
-fi
-
-
-DFLAGS="${DFLAGS} IF_MPI(-D__SCALAPACK,)"
-LIBS="IF_MPI(-lscalapack,) ${LIBS}"
-
-
-echo "==================== Installing libxc ===================="
-if [ -f libxc-${libxc_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/libxc-${libxc_ver}.tar.gz
-   checksum libxc-${libxc_ver}.tar.gz
-   tar -xzf libxc-${libxc_ver}.tar.gz
-   cd libxc-${libxc_ver}
-   # patch buggy configure macro (fails with gcc trunk)
-   sed -i 's/ax_cv_f90_modext=`ls | sed/ax_cv_f90_modext=`ls -1 | grep -iv smod | sed/g' configure
-   ./configure  --prefix=${INSTALLDIR} >& config.log
-   make -j $nprocs >& make.log
-   make install >& install.log
-   cd ..
-fi
-DFLAGS="${DFLAGS} -D__LIBXC"
-LIBS="-lxcf90 -lxc ${LIBS}"
-
-
-echo "=================== Installing libint ===================="
-if [ -f libint-${libint_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/libint-${libint_ver}.tar.gz
-   checksum libint-${libint_ver}.tar.gz
-   tar -xzf libint-${libint_ver}.tar.gz
-   cd libint-${libint_ver}
-   # hack for -with-cc (needed for -fsanitize=thread that also needs to be passed to the linker, but seemingly ldflags is ignored by libint's configure)
-   ./configure  --prefix=${INSTALLDIR} --with-libint-max-am=5 --with-libderiv-max-am1=4 --with-cc="gcc $CFLAGS" --with-cc-optflags="$CFLAGS" --with-cxx-optflags="$CXXFLAGS" >& config.log
-   make -j $nprocs >&  make.log
-   make install >& install.log
-   cd ..
-fi
-DFLAGS="${DFLAGS} -D__LIBINT -D__LIBINT_MAX_AM=6 -D__LIBDERIV_MAX_AM1=5"
-LIBS="-lderiv -lint ${LIBS}"
-
-
-echo "==================== Installing FFTW ====================="
-if [ -f fftw-${fftw_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/fftw-${fftw_ver}.tar.gz
-   checksum fftw-${fftw_ver}.tar.gz
-   tar -xzf fftw-${fftw_ver}.tar.gz
-   cd fftw-${fftw_ver}
-   ./configure  --prefix=${INSTALLDIR} --enable-openmp >& config.log
-   make -j $nprocs >&  make.log
-   make install >& install.log
-   cd ..
-fi
-DFLAGS="${DFLAGS} -D__FFTW3"
-DFLAGS="${DFLAGS} IF_COVERAGE(IF_MPI(,-U__FFTW3),)" # also want to cover FFT_SG
-LIBS="-lfftw3 IF_OMP(-lfftw3_omp,) ${LIBS}"
-
-
-echo "==================== Installing ELPA ====================="
-if [ -f elpa-${elpa_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/elpa-${elpa_ver}.tar.gz
-   checksum elpa-${elpa_ver}.tar.gz
-   tar -xzf elpa-${elpa_ver}.tar.gz
-
-   # need both flavors ?
-   cp -rp elpa-${elpa_ver} elpa-${elpa_ver}_mt
-
-   # elpa expect FC to be an mpi fortran compiler that's happy with long lines, and that a bunch of libs can be found
-
-   cd elpa-${elpa_ver}_mt
-   FC="mpif90 -ffree-line-length-none" LDFLAGS="-L${INSTALLDIR}/lib" LIBS="-lscalapack -lreflapack -lrefblas" ./configure  --prefix=${INSTALLDIR} --enable-openmp=yes --with-generic --enable-shared=no >& config.log
-   make -j $nprocs >&  make.log
-   make install >& install.log
-   cd ..
-
-   cd elpa-${elpa_ver}
-   FC="mpif90 -ffree-line-length-none" LDFLAGS="-L${INSTALLDIR}/lib" LIBS="-lscalapack -lreflapack -lrefblas" ./configure  --prefix=${INSTALLDIR} --enable-openmp=no --with-generic --enable-shared=no >& config.log
-   make -j $nprocs >&  make.log
-   make install >& install.log
-   cd ..
-fi
-DFLAGS="${DFLAGS} IF_MPI(-D__ELPA3,)"
-# Unfortunately, we need two separate include dirs for ELPA w/wo threading.
-P1="-I\$(CP2KINSTALLDIR)/include/elpa_openmp-${elpa_ver}/modules"
-P2="-I\$(CP2KINSTALLDIR)/include/elpa-${elpa_ver}/modules"
-BASEFLAGS="${BASEFLAGS} IF_MPI(IF_OMP(${P1},${P2}),)"
-LIBS="IF_MPI(IF_OMP(-lelpa_openmp,-lelpa),) ${LIBS}"
-
-if  [ "x${pexsi_ver}" == "x" ]; then
-   echo "Skipping PEXSI build and dependencies"
-else
-echo "================== Installing PT-Scotch =================="
-if [ -f scotch_${scotch_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget  https://www.cp2k.org/static/downloads/scotch_${scotch_ver}.tar.gz
-   checksum scotch_${scotch_ver}.tar.gz
-   tar -xzf scotch_${scotch_ver}.tar.gz
-   cd scotch_${scotch_ver}/src
-   cat Make.inc/Makefile.inc.x86-64_pc_linux2 | \
-   sed "s|\(^CFLAGS\).*|\1 =  $CFLAGS -DCOMMON_RANDOM_FIXED_SEED -DSCOTCH_RENAME -Drestrict=__restrict -DIDXSIZE64|" > Makefile.inc
-
-   make scotch -j $nprocs >& make.log
-   make ptscotch -j $nrocs >& make.log
-   make install prefix=${INSTALLDIR} >& install.log
-   cd ../..
-fi
-LIBS="IF_MPI(-lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr,) ${LIBS}"
-
-
-echo "================== Installing ParMETIS =================="
-if [ -f parmetis-${parmetis_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/parmetis-${parmetis_ver}.tar.gz
-   checksum parmetis-${parmetis_ver}.tar.gz
-   tar -xzf parmetis-${parmetis_ver}.tar.gz
-
-   cd parmetis-${parmetis_ver}
-   make config prefix=${INSTALLDIR} >& config.log
-   make -j $nprocs >& make.log
-   make install >& install.log
-
-   # Have to build METIS again independently due to bug in ParMETIS make install
-   cd metis
-   make config prefix=${INSTALLDIR} >& config.log
-   make -j $nprocs >& make.log
-   make install >& install.log
-   cd ../..
-fi
-LIBS="IF_MPI(-lptscotchparmetis,) ${LIBS}"
-LIBSOMP="${LIBSOMP} IF_MPI(-lptscotchparmetis,)"
-
-
-echo "================== Installing SuperLU_DIST =================="
-if [ -f superlu_dist_${superlu_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/superlu_dist_${superlu_ver}.tar.gz
-   checksum superlu_dist_${superlu_ver}.tar.gz
-   tar -xzf superlu_dist_${superlu_ver}.tar.gz
-
-   cd SuperLU_DIST_${superlu_ver}
-   mv make.inc make.inc.orig
-   cat <<EOF >> make.inc
-PLAT=_x86_64
-DSUPERLULIB= ${PWD}/lib/libsuperlu_dist_${superlu_ver}.a
-LIBS=\$(DSUPERLULIB) -L${INSTALLDIR}/lib -lparmetis -lmetis -lrefblas
-ARCH=ar
-ARCHFLAGS=cr
-RANLIB=ranlib
-CC=mpicc
-CFLAGS=${CFLAGS}
-NOOPTS=-O0
-FORTRAN=mpif90
-F90FLAGS=${FFLAGS}
-LOADER=\$(CC)
-LOADOPTS=${CFLAGS}
-CDEFS=-DAdd_
-EOF
-   make &> make.log #-j $nprocs will crash
-   # no make install
-   chmod a+r lib/* SRC/*.h
-   cp lib/libsuperlu_dist_${superlu_ver}.a ${INSTALLDIR}/lib/
-   mkdir -p ${INSTALLDIR}/include/superlu_dist_${superlu_ver}
-   cp SRC/*.h ${INSTALLDIR}/include/superlu_dist_${superlu_ver}/
-   cd ..
-fi
-LIBS="IF_MPI(-lsuperlu_dist_${superlu_ver},) ${LIBS}"
-
-
-echo "================== Installing PEXSI =================="
-if [ -f pexsi_v${pexsi_ver}.tar.gz ]; then
-   echo "Installation already started, skipping it."
-else
-   wget https://www.cp2k.org/static/downloads/pexsi_v${pexsi_ver}.tar.gz
-   #wget https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v${pexsi_ver}.tar.gz
-   checksum pexsi_v${pexsi_ver}.tar.gz
-
-   tar -xzf pexsi_v${pexsi_ver}.tar.gz
-
-   cd pexsi_v${pexsi_ver}
-
-   cat config/make.inc.linux.gnu | \
-   sed 's|\(PAR_ND_LIBRARY *=\).*|\1 parmetis|' |\
-   sed 's|\(SEQ_ND_LIBRARY *=\).*|\1 metis|' |\
-   sed "s|\(PEXSI_DIR *=\).*|\1 ${PWD}|" |\
-   sed "s|\(CPP_LIB *=\).*|\1 -lstdc++ ${mpiextralibs}|" |\
-   sed "s|\(LAPACK_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lreflapack|" |\
-   sed "s|\(BLAS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lrefblas|" |\
-   sed "s|\(\bMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lmetis|" |\
-   sed "s|\(PARMETIS_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lparmetis|" |\
-   sed "s|\(DSUPERLU_LIB *=\).*|\1 -L${INSTALLDIR}/lib -lsuperlu_dist_${superlu_ver}|" |\
-   sed 's|#FLOADOPTS *=.*|FLOADOPTS    = ${LIBS} ${CPP_LIB}|' |\
-   sed "s|\(DSUPERLU_INCLUDE *=\).*|\1 -I${INSTALLDIR}/include/superlu_dist_${superlu_ver}|" |\
-   sed 's|\(INCLUDES *=\).*|\1 ${DSUPERLU_INCLUDE} ${PEXSI_INCLUDE}|' |\
-   sed "s|\(COMPILE_FLAG *=\).*|\1 ${CFLAGS}|" |\
-   sed "s|\(SUFFIX *=\).*|\1 linux_v${pexsi_ver}|" |\
-   sed 's|\(DSUPERLU_DIR *=\).*|\1|' |\
-   sed 's|\(METIS_DIR *=\).*|\1|' |\
-   sed 's|\(PARMETIS_DIR *=\).*|\1|' |\
-   sed 's|\(PTSCOTCH_DIR *=\).*|\1|' |\
-   sed 's|\(LAPACK_DIR *=\).*|\1|' |\
-   sed 's|\(BLAS_DIR *=\).*|\1|' |\
-   sed 's|\(GFORTRAN_LIB *=\).*|\1|' > make.inc
-   cd src
-   make -j $nprocs >& make.log
-   # no make install
-   chmod a+r libpexsi_linux_v${pexsi_ver}.a
-   cp libpexsi_linux_v${pexsi_ver}.a ${INSTALLDIR}/lib/
-
-   # make fortran interface
-   cd ../fortran
-   make >& make.log #-j $nprocs will crash
-   chmod a+r f_ppexsi_interface.mod
-   cp f_ppexsi_interface.mod ${INSTALLDIR}/include/ 
-   cd ..
-   # no need to install PEXSI headers
-   #mkdir -p ${INSTALLDIR}/include/pexsi_v${pexsi_ver}
-   #cp include/* ${INSTALLDIR}/include/pexsi_v${pexsi_ver}/
-   cd ..
-fi
-DFLAGS="${DFLAGS} IF_MPI(-D__LIBPEXSI,)"
-LIBS="IF_MPI(-lpexsi_linux_v${pexsi_ver},) ${LIBS}"
-fi
-
-
-#echo "==================== Installing PLUMED ====================="
-# Unfortunately plumed 2.x does not compile with gcc 5.x at the moment:
-# https://groups.google.com/forum/#!msg/plumed-users/Y4q_7bx31ag/dNYdCa-LXZYJ
-#if [ -f plumed-${plumed_ver}.tgz ]; then
-#  echo "Installation already started, skipping it."
-#else
-#  wget https://www.cp2k.org/static/downloads/plumed/plumed-${plumed_ver}.tgz
-#  checksum plumed-${plumed_ver}.tgz
-#  tar -xzf plumed-${plumed_ver}.tgz
-#  cd plumed-${plumed_ver}
-#  ./configure  --prefix=${INSTALLDIR} >& config.log
-#  make -j $nprocs >&  make.log
-#  make install >& install.log
-#  cd ..
-#fi
-
-
-echo "==================== Installing QUIP ================="
-if $enable_tsan ; then
-   echo "TSAN build ... will not use QUIP"
-else
-   if [ -f QUIP-${quip_ver}.zip  ]; then
-      echo "Installation already started, skipping it."
-   else
-      wget https://www.cp2k.org/static/downloads/QUIP-${quip_ver}.zip
-      checksum QUIP-${quip_ver}.zip
-      unzip QUIP-${quip_ver}.zip >& unzip.log
-      cd QUIP-${quip_ver}
-      # enable debug symbols
-      echo "F95FLAGS       += -g" >> arch/Makefile.linux_x86_64_gfortran
-      echo "F77FLAGS       += -g" >> arch/Makefile.linux_x86_64_gfortran
-      echo "CFLAGS         += -g" >> arch/Makefile.linux_x86_64_gfortran
-      echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_x86_64_gfortran
-      export QUIP_ARCH=linux_x86_64_gfortran
-      # hit enter a few times to accept defaults
-      echo -e "-L${INSTALLDIR}/lib -lreflapack -lrefblas\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
-      # make -j does not work :-(
-      make >& make.log
-      cp build/linux_x86_64_gfortran/quip_unified_wrapper_module.mod  ${INSTALLDIR}/include/
-      cp build/linux_x86_64_gfortran/*.a                              ${INSTALLDIR}/lib/
-      cp src/FoX-4.0.3/objs.linux_x86_64_gfortran/lib/*.a             ${INSTALLDIR}/lib/
-      cd ..
-   fi
-   LIBS="-lquip_core -latoms -lFoX_sax -lFoX_common -lFoX_utils -lFoX_fsys ${LIBS}"
-   DFLAGS="${DFLAGS} -D__QUIP"
-fi
-
+# ------------------------------------------------------------------------
+# generate arch file for compiling cp2k
+# ------------------------------------------------------------------------
 
 echo "==================== generating arch files ===================="
 echo "arch files can be found in the ${INSTALLDIR}/arch subdirectory"
-mkdir -p ${INSTALLDIR}/arch
+! [ -f "${INSTALLDIR}/arch" ] && mkdir -p ${INSTALLDIR}/arch
 cd ${INSTALLDIR}/arch
 
-# standart libs
-LIBS="${LIBS} -lstdc++ "
+# -------------------------
+# set compiler flags
+# -------------------------
+
+# need to switch between FC and MPICC etc in arch file, but cannot use
+# same variable names, so use _arch suffix
+CC_arch="$CC"
+CXX_arch="$CXX"
+FC_arch="IF_MPI(${MPIFC}|${FC})"
+LD_arch="IF_MPI(${MPIFC}|${FC})"
 
 # we always want good line information and backtraces
-BASEFLAGS="${BASEFLAGS} -march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
-#For gcc 6.0 use -O1 -coverage -fkeep-static-functions -D__NO_ABORT
-BASEFLAGS="${BASEFLAGS} IF_COVERAGE(-O0 -coverage -D__NO_ABORT, IF_DEBUG(-O1,-O3 -funroll-loops -ffast-math))"
-# those flags that do not influence code generation are used always, the others if debug
-FCDEBFLAGS="IF_DEBUG(-fsanitize=leak -fcheck='bounds,do,recursion,pointer' -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math,) -std=f2003 -fimplicit-none "
-DFLAGS="${DFLAGS} IF_DEBUG(-D__HAS_IEEE_EXCEPTIONS,)"
-# profile based optimization, see https://www.cp2k.org/howto:pgo
-BASEFLAGS="${BASEFLAGS} IF_DEBUG(,\$(PROFOPT))"
+BASEFLAGS="-march=native -fno-omit-frame-pointer -g ${TSANFLAGS}"
+OPT_FLAGS="-O3 -funroll-loops -ffast-math"
+NOOPT_FLAGS="-O1"
 
-# Special flags for gfortran
+# those flags that do not influence code generation are used always, the others if debug
+FCDEB_FLAGS="-ffree-form -std=f2003 -fimplicit-none"
+FCDEB_FLAGS_DEBUG="-fsanitize=leak -fcheck='bounds,do,recursion,pointer' -ffpe-trap='invalid,zero,overflow' -finit-real=snan -fno-fast-math"
+
+# code coverage generation flags
+#For gcc 6.0 use -O1 -coverage -fkeep-static-functions
+COVERAGE_FLAGS="-O0 -coverage"
+COVERAGE_DFLAGS="-D__NO_ABORT"
+
+# profile based optimization, see https://www.cp2k.org/howto:pgo
+PROFOPT_FLAGS="\$(PROFOPT)"
+
+# special flags for gfortran
 # https://gcc.gnu.org/onlinedocs/gfortran/Error-and-Warning-Options.html
 # we error out for these warnings (-Werror=uninitialized -Wno-maybe-uninitialized -> error on variables that must be used uninitialized)
-WFLAGSERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion -Werror=zerotrip -Werror=uninitialized -Wno-maybe-uninitialized"
+WFLAGS_ERROR="-Werror=aliasing -Werror=ampersand -Werror=c-binding-type -Werror=intrinsic-shadow -Werror=intrinsics-std -Werror=line-truncation -Werror=tabs -Werror=realloc-lhs-all -Werror=target-lifetime -Werror=underflow -Werror=unused-but-set-variable -Werror=unused-variable -Werror=unused-dummy-argument -Werror=conversion -Werror=zerotrip -Werror=uninitialized -Wno-maybe-uninitialized"
 # we just warn for those (that eventually might be promoted to WFLAGSERROR). It is useless to put something here with 100s of warnings.
-WFLAGSWARN="-Wuse-without-only"
+WFLAGS_WARN="-Wuse-without-only"
 # while here we collect all other warnings, some we'll ignore
-WFLAGSWARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
-# combine warn/error flags
-WFLAGS="$WFLAGSERROR $WFLAGSWARN IF_WARNALL(${WFLAGSWARNALL},)"
-FCFLAGS="${BASEFLAGS} -ffree-form \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
-LDFLAGS="-L\$(CP2KINSTALLDIR)/lib \$(FCFLAGS)"
+WFLAGS_WARNALL="-pedantic -Wall -Wextra -Wsurprising -Wunused-parameter -Warray-temporaries -Wcharacter-truncation -Wconversion-extra -Wimplicit-interface -Wimplicit-procedure -Wreal-q-constant -Wunused-parameter -Walign-commons -Wfunction-elimination -Wrealloc-lhs -Wcompare-reals -Wzerotrip"
 
-# Spcial flags for gcc (currently none)
-CFLAGS="${BASEFLAGS} \$(DFLAGS)"
+# IEEE_EXCEPTIONS dependency
+IEEE_EXCEPTIONS_DFLAGS="-D__HAS_IEEE_EXCEPTIONS"
+
+# check all of the above flags, filter out incompatable flags for the
+# current version of gcc in use
+BASEFLAGS=$(allowed_gfortran_flags         $BASEFLAGS)
+OPT_FLAGS=$(allowed_gfortran_flags         $OPT_FLAGS)
+NOOPT_FLAGS=$(allowed_gfortran_flags       $NOOPT_FLAGS)
+FCDEB_FLAGS=$(allowed_gfortran_flags       $FCDEB_FLAGS)
+FCDEB_FLAGS_DEBUG=$(allowed_gfortran_flags $FCDEB_FLAGS_DEBUG)
+COVERAGE_FLAGS=$(allowed_gfortran_flags    $COVERAGE_FLAGS)
+WFLAGS_ERROR=$(allowed_gfortran_flags      $WFLAGS_ERROR)
+WFLAGS_WARN=$(allowed_gfortran_flags       $WFLAGS_WARN)
+WFLAGS_WARNALL=$(allowed_gfortran_flags    $WFLAGS_WARNALL)
+
+# check if ieee_exeptions module is avaliable for the current version
+# of gfortran being used
+if ! (check_gfortran_module ieee_exceptions) ; then
+    IEEE_EXCEPTIONS_DFLAGS=""
+fi
+
+# contagnate the above flags into WFLAGS, FCDEBFLAGS, DFLAGS and
+# finally into FCFLAGS and CFLAGS
+WFLAGS="$WFLAGS_ERROR $WFLAGS_WARN IF_WARNALL(${WFLAGS_WARNALL}|)"
+FCDEBFLAGS="$FCDEB_FLAGS IF_DEBUG($FCDEB_FLAGS_DEBUG|)"
+DFLAGS="${CP_DFLAGS} IF_DEBUG($IEEE_EXCEPTIONS_DFLAGS|) IF_COVERAGE($COVERAGE_DFLAGS|)"
+# language independent flags
+G_CFLAGS="$BASEFLAGS"
+G_CFLAGS="$G_CFLAGS IF_COVERAGE($COVERAGE_FLAGS|IF_DEBUG($NOOPT_FLAGS|$OPT_FLAGS))"
+G_CFLAGS="$G_CFLAGS IF_DEBUG(|$PROFOPT_FLAGS)"
+G_CFLAGS="$G_CFLAGS $CP_CFLAGS"
+# FCFLAGS, for gfortran
+FCFLAGS="$G_CFLAGS \$(FCDEBFLAGS) \$(WFLAGS) \$(DFLAGS)"
+# CFLAGS, spcial flags for gcc (currently none)
+CFLAGS="$G_CFLAGS \$(DFLAGS)"
+
+# Linker flags
+LDFLAGS="\$(FCFLAGS) ${CP_LDFLAGS}"
+
+# Library flags
+# add standard libs
+LIBS="${CP_LIBS} -lstdc++"
 
 # CUDA stuff
-LIBS="${LIBS} IF_CUDA(-lcudart -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt,),)"
-DFLAGS="IF_CUDA(-D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING,),) ${DFLAGS}"
-NVFLAGS="-arch sm_35 \$(DFLAGS) "
+CUDA_LIBS="-lcudart -lcufft -lcublas -lrt IF_DEBUG(-lnvToolsExt|)"
+CUDA_DFLAGS="-D__ACC -D__DBCSR_ACC -D__PW_CUDA IF_DEBUG(-D__CUDA_PROFILING|)"
+if [ "$ENABLE_CUDA" = __TRUE__ ] ; then
+    LIBS="${LIBS} IF_CUDA(${CUDA_LIBS}|)"
+    DFLAGS="IF_CUDA(${CUDA_DFLAGS}|) ${DFLAGS}"
+    NVFLAGS="-arch sm_35 \$(DFLAGS)"
+fi
 
-# helper routine for instantiating the arch.tmpl
+# -------------------------
+# generate the arch files
+# -------------------------
+
+# generator for CP2K ARCH files
 gen_arch_file() {
- filename=$1
- flags=$2
- TMPL=`cat ${rootdir}/arch.tmpl`
- eval "printf \"$TMPL\"" | cpp -traditional-cpp -P ${flags} - > $filename
- echo "Wrote install/arch/"$filename
+    # usage: gen_arch_file file_name flags
+    #
+    # If the flags are present they are assumed to be on, otherwise
+    # they switched off
+    require_env ARCH_FILE_TEMPLATE
+    local __filename=$1
+    shift
+    local __flags=$@
+    local __full_flag_list="MPI OMP DEBUG CUDA WARNALL VALGRIND COVERAGE"
+    local __flag=''
+    for __flag in $__full_flag_list ; do
+        eval "local __${__flag}=off"
+    done
+    for __flag in $__flags ; do
+        eval "__${__flag}=on"
+    done
+    # geneate initial arch file
+    cat $ARCH_FILE_TEMPLATE > $__filename
+    # add additional parts
+    if [ "$__CUDA" = "on" ] ; then
+      cat <<EOF >> $__filename
+#
+NVCC        = \${NVCC} -D__GNUC_MINOR__=6 -D__GNUC__=4
+NVFLAGS     = \${NVFLAGS}
+EOF
+    fi
+    if [ "$__WARNALL" = "on" ] ; then
+        cat <<EOF >> $__filename
+#
+FCLOGPIPE   =  2> \\\$(notdir \\\$<).warn
+EOF
+    fi
+    # replace variable values in output file using eval
+    local __TMPL=$(cat $__filename)
+    eval "printf \"${__TMPL}\n\"" > $__filename
+    # pass this to parsers to replace all of the IF_XYZ statements
+    python ${SCRIPTDIR}/parse_if.py $__filename $__flags
+    echo "Wrote ${INSTALLDIR}/arch/$__filename"
 }
 
 rm -f ${INSTALLDIR}/arch/local*
-gen_arch_file "local.sopt"                 ""
-gen_arch_file "local.sdbg"                 "-DDEBUG"
-gen_arch_file "local.ssmp"                 "-DOMP"
-gen_arch_file "local.popt"                 "-DMPI"
-gen_arch_file "local.pdbg"                 "-DMPI -DDEBUG"
-gen_arch_file "local.psmp"                 "-DMPI -DOMP"
-gen_arch_file "local_cuda.ssmp"            "-DCUDA -DOMP"
-gen_arch_file "local_cuda.psmp"            "-DCUDA -DOMP -DMPI"
-gen_arch_file "local_cuda.sdbg"            "-DCUDA -DDEBUG -DOMP"
-gen_arch_file "local_cuda.pdbg"            "-DCUDA -DDEBUG -DOMP -DMPI"
-gen_arch_file "local_valgrind.sdbg"        "-DVALGRIND"
-gen_arch_file "local_valgrind.pdbg"        "-DVALGRIND -DMPI"
-gen_arch_file "local_coverage.sdbg"        "-DCOVERAGE"
-gen_arch_file "local_coverage.pdbg"        "-DCOVERAGE -DMPI"
-gen_arch_file "local_coverage_cuda.pdbg"   "-DCOVERAGE -DMPI -DCUDA"
-gen_arch_file "local_cuda_warn.psmp"       "-DCUDA -DMPI -DOMP -DWARNALL"
+# normal production arch files
+    { gen_arch_file "local.sopt" ;          arch_vers="sopt"; }
+    { gen_arch_file "local.sdbg" DEBUG;     arch_vers="${arch_vers} sdbg"; }
+[ "$ENABLE_OMP" = __TRUE__ ] && \
+    { gen_arch_file "local.ssmp" OMP;       arch_vers="${arch_vers} ssmp"; }
+[ "$MPI_MODE" != no ] && \
+    { gen_arch_file "local.popt" MPI;       arch_vers="${arch_vers} popt"; }
+[ "$MPI_MODE" != no ] && \
+    { gen_arch_file "local.pdbg" MPI DEBUG; arch_vers="${arch_vers} pdbg"; }
+[ "$MPI_MODE" != no ] && \
+[ "$ENABLE_OMP" = __TRUE__ ] && \
+    { gen_arch_file "local.psmp" MPI OMP;   arch_vers="${arch_vers} psmp"; }
+# cuda enabled arch files
+if [ "$ENABLE_CUDA" = __TRUE__ ] ; then
+    [ "$ENABLE_OMP" = __TRUE__ ] && \
+      gen_arch_file "local_cuda.ssmp"          CUDA OMP
+    [ "$MPI_MODE" != no ] && \
+    [ "$ENABLE_OMP" = __TRUE__ ] && \
+      gen_arch_file "local_cuda.psmp"          CUDA OMP MPI
+    [ "$ENABLE_OMP" = __TRUE__ ] && \
+      gen_arch_file "local_cuda.sdbg"          CUDA DEBUG OMP
+    [ "$MPI_MODE" != no ] && \
+    [ "$ENABLE_OMP" = __TRUE__ ] && \
+      gen_arch_file "local_cuda.pdbg"          CUDA DEBUG OMP MPI
+    [ "$MPI_MODE" != no ] && \
+    [ "$ENABLE_OMP" = __TRUE__ ] && \
+      gen_arch_file "local_cuda_warn.psmp"     CUDA MPI OMP WARNALL
+fi
+# valgrind enabled arch files
+if [ "$ENABLE_VALGRIND" = __TRUE__ ] ; then
+      gen_arch_file "local_valgrind.sdbg"      VALGRIND
+    [ "$MPI_MODE" != no ] && \
+      gen_arch_file "local_valgrind.pdbg"      VALGRIND MPI
+fi
+# coverage enabled arch files
+if [ "$ENABLE_COVERAGE" = __TRUE__ ]; then
+      gen_arch_file "local_coverage.sdbg"      COVERAGE
+    [ "$MPI_MODE" != no ] && \
+      gen_arch_file "local_coverage.pdbg"      COVERAGE MPI
+    [ "$ENABLE_CUDA" = __TRUE__ ] && \
+      gen_arch_file "local_coverage_cuda.pdbg" COVERAGE MPI CUDA
+fi
 
-echo "========================== usage ========================="
-echo "done!"
-echo "now copy: cp ${INSTALLDIR}/arch/* to the cp2k/arch/ directory"
-echo "to use this toolchain or the cp2k version compiled with it you will first need to execute at the prompt:"
-echo "source ${SETUPFILE}"
-echo "to build CP2K you should change directory cd cp2k/makefiles/"
-echo "make -j${nprocs}" 'ARCH=local VERSION="sdbg sopt ssmp popt pdbg psmp"'
+cd "${ROOTDIR}"
+
+# -------------------------
+# print out user instructions
+# -------------------------
+
+cat <<EOF
+========================== usage =========================
+Done!
+Now copy:
+  cp ${INSTALLDIR}/arch/* to the cp2k/arch/ directory
+To use the installed tools and libraries and cp2k version
+compiled with it you will first need to execute at the prompt:
+  source ${SETUPFILE}
+To build CP2K you should change directory:
+  cd cp2k/makefiles/
+  make -j ${nprocs} ARCH=local VERSION="${arch_vers}"
+
+arch files for GPU enabled CUDA versions are named "local_cuda.*"
+arch files for valgrind versions are named "local_valgrind.*"
+arch files for coverage versions are named "local_coverage.*"
+EOF
 
 #EOF
