@@ -196,8 +196,8 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="CUTOUT", &
-         description="Degrees of freedom at the beginning and the end of the structure where the "//&
-         "density should not be changed.", &
+         description="Degrees of freedom at the beginning and the end of the structure (in the number of atoms) "//&
+         "where the density should not be changed.", &
          usage="CUTOUT <integer> <integer>", &
          n_var=2, default_i_vals=(/0, 0/))
     CALL section_add_keyword(section, keyword)

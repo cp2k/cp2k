@@ -112,7 +112,8 @@ CONTAINS
 
     ALLOCATE(transport_env)
     CALL transport_init_read_input(input,transport_env)
-    CALL transport_init_contact_params(qs_env, transport_env)
+    CALL transport_set_contact_params(qs_env, transport_env)
+    CALL transport_set_cutout_indices(transport_env)
     CALL cp_dbcsr_init(transport_env%template_matrix_sym)
     CALL cp_dbcsr_init(transport_env%template_matrix_nosym)
     CALL cp_dbcsr_init(transport_env%csr_sparsity)
@@ -270,8 +271,8 @@ CONTAINS
                                   transport_env%row_dist, &
                                   csr_sparsity = transport_env%csr_sparsity, &
                                   numnodes = transport_env%params%tasks_per_point, &
-                                  start_cut_row = transport_env%params%cutout(1),&
-                                  end_cut_row = transport_env%params%cutout(2))
+                                  start_cut_row = transport_env%cutout_indices(1),&
+                                  end_cut_row = transport_env%cutout_indices(2))
 
     CALL cp_csr_print_sparsity(transport_env%s_matrix, unit_nr)
 
@@ -517,12 +518,11 @@ CONTAINS
 !> \param[inout] transport_env transport environment
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
-  SUBROUTINE transport_init_contact_params(qs_env, transport_env)
+  SUBROUTINE transport_set_contact_params(qs_env, transport_env)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'transport_init_contact_params', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_contact_params', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, iat, ikind, natom, nkind
@@ -559,7 +559,34 @@ CONTAINS
     transport_env%params%nsgf = C_LOC(transport_env%nsgf(1))
     transport_env%params%zeff = C_LOC(transport_env%zeff(1))
 
-  END SUBROUTINE transport_init_contact_params
+  END SUBROUTINE transport_set_contact_params
+
+! *****************************************************************************
+!> \brief sets matrix cutout indices 
+!> \param[inout] transport_env transport environment
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE transport_set_cutout_indices(transport_env)
+    TYPE(transport_env_type), INTENT(INOUT)  :: transport_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'transport_set_cutout_indices', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: natom
+    INTEGER, DIMENSION(2)                    :: co_natom
+    LOGICAL                                  :: invalid_cutout
+
+    natom = SIZE(transport_env%nsgf)
+    co_natom = transport_env%params%cutout
+
+    invalid_cutout = (co_natom(1) .LT. 0) .OR. (co_natom(1) .GT. natom) .OR. &
+                     (co_natom(2) .LT. 0) .OR. (co_natom(2) .GT. natom)
+    IF (invalid_cutout) CPABORT("Invalid cutout.")
+
+    transport_env%cutout_indices(1) = SUM(transport_env%nsgf(1:co_natom(1)))
+    transport_env%cutout_indices(2) = SUM(transport_env%nsgf(natom-co_natom(2)+1:natom))
+
+  END SUBROUTINE transport_set_cutout_indices
 
 END MODULE transport
 

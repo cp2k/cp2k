@@ -79,6 +79,7 @@ MODULE transport_env_types
      TYPE(csr_type)                   :: p_matrix
      LOGICAL                          :: csr_screening
      INTEGER                          :: row_dist
+     INTEGER, DIMENSION(2)            :: cutout_indices
      INTEGER, DIMENSION(:), POINTER   :: contacts_data => NULL()
      INTEGER, DIMENSION(:), POINTER   :: nsgf => NULL()
      REAL(dp), DIMENSION(:), POINTER  :: zeff => NULL()
