@@ -32,7 +32,7 @@ MODULE pao_main
        pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, &
        pao_check_trace_ps, pao_print_atom_info, pao_read_preopt_dm, &
        pao_test_convergence
-  USE pao_param,                       ONLY: pao_calc_grad,&
+  USE pao_param,                       ONLY: pao_calc_U,&
                                              pao_param_finalize,&
                                              pao_param_init,&
                                              pao_update_AB
@@ -208,7 +208,7 @@ CONTAINS
           icycle = icycle + 1
           ! calc new gradient
           CALL pao_calc_outer_grad_lnv(qs_env, ls_scf_env, matrix_M)
-          CALL pao_calc_grad(pao, matrix_M)
+          CALL pao_calc_U(pao, matrix_M, pao%matrix_G)
           CALL cp_dbcsr_release(matrix_M)
           CALL pao_check_grad(pao, qs_env, ls_scf_env)
 

@@ -31,7 +31,7 @@ MODULE pao_param_fock
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_fock'
 
-  PUBLIC :: pao_param_init_fock, pao_param_finalize_fock, pao_calc_U_fock
+  PUBLIC :: pao_param_init_fock, pao_param_finalize_fock, pao_calc_U_block_fock
 
 CONTAINS
 
@@ -109,7 +109,7 @@ CONTAINS
 !> \param M1 ...
 !> \param G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_fock(pao, iatom, penalty, min_gap, V, U, M1, G)
+  SUBROUTINE pao_calc_U_block_fock(pao, iatom, penalty, min_gap, V, U, M1, G)
     TYPE(pao_env_type), POINTER              :: pao
     INTEGER                                  :: iatom
     REAL(dp), INTENT(INOUT)                  :: penalty, min_gap
@@ -117,7 +117,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), OPTIONAL, &
       POINTER                                :: M1, G
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_fock', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_block_fock', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, m, n
@@ -236,6 +236,6 @@ CONTAINS
     DEALLOCATE(H, H_evals, H_evecs)
 
     CALL timestop(handle)
-  END SUBROUTINE pao_calc_U_fock
+  END SUBROUTINE pao_calc_U_block_fock
 
 END MODULE pao_param_fock

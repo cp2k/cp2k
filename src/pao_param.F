@@ -18,7 +18,6 @@ MODULE pao_param
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max,&
-                                             mp_min,&
                                              mp_sum
   USE pao_input,                       ONLY: pao_exp_param
   USE pao_param_exp,                   ONLY: pao_calc_U_exp,&
@@ -38,7 +37,7 @@ MODULE pao_param
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param'
 
   PUBLIC :: pao_update_AB
-  PUBLIC :: pao_param_init, pao_param_finalize, pao_calc_U, pao_calc_grad
+  PUBLIC :: pao_param_init, pao_param_finalize, pao_calc_U
 
 CONTAINS
 
@@ -61,7 +60,7 @@ CONTAINS
 
     CALL timeset(routineN,handle)
 
-    CALL pao_calc_U(pao, penalty) !update matrix_U = Function of matrix_X
+    CALL pao_calc_U(pao, penalty=penalty) !update matrix_U = Function of matrix_X
 
     !update matrix_A
     CALL cp_dbcsr_init(matrix_tmp)
@@ -132,113 +131,40 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate new matrix U
 !> \param pao ...
+!> \param matrix_M ...
+!> \param matrix_G ...
 !> \param penalty ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U(pao, penalty)
+  SUBROUTINE pao_calc_U(pao, matrix_M, matrix_G, penalty)
     TYPE(pao_env_type), POINTER              :: pao
-    REAL(dp), INTENT(INOUT)                  :: penalty
+    TYPE(cp_dbcsr_type), OPTIONAL            :: matrix_M, matrix_G
+    REAL(dp), INTENT(INOUT), OPTIONAL        :: penalty
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: acol, arow, group, handle, &
-                                                iatom, n1, n2
-    LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_U, block_X
-    REAL(KIND=dp)                            :: min_gap
-    TYPE(cp_dbcsr_iterator)                  :: iter
+    INTEGER                                  :: group, handle
+    REAL(dp)                                 :: my_penalty
 
     CALL timeset(routineN,handle)
+    my_penalty = 0.0_dp
 
-    min_gap = HUGE(dp)
-    penalty = 0.0_dp
+    SELECT CASE(pao%parameterization)
+     CASE(pao_exp_param)
+       CALL pao_calc_U_exp(pao, matrix_M, matrix_G)
+     CASE DEFAULT
+       CALL pao_calc_U_linpot(pao, my_penalty, matrix_M, matrix_G)
+    END SELECT
 
-    CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
-       IF(arow /= acol) CPABORT("encountered off-diagonal block")
-       iatom = arow
-       n1 = SIZE(block_X,1)
-       n2 = SIZE(block_X,2)
-
-       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
-       CPASSERT(ASSOCIATED(block_U))
-
-       SELECT CASE(pao%parameterization)
-        CASE(pao_exp_param)
-          CALL pao_calc_U_exp(pao, iatom, block_X, block_U)
-        CASE DEFAULT
-          CALL pao_calc_U_linpot(pao, iatom, penalty, min_gap, block_X, block_U)
-       END SELECT
-    END DO
-
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
-    CALL mp_sum(penalty,group)
-    CALL mp_min(min_gap,group)
-
-    IF(pao%iw>0 .AND. min_gap<HUGE(dp))&
-       WRITE(pao%iw,*) "PAO| min_gap:", min_gap
+    IF(PRESENT(penalty)) THEN
+       group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
+       CALL mp_sum(my_penalty, group)
+       penalty = my_penalty
+    ENDIF
 
     CALL pao_assert_unitary(pao, pao%matrix_U, pao%matrix_Y)
     CALL timestop(handle)
   END SUBROUTINE pao_calc_U
-
-
-! *****************************************************************************
-!> \brief Calculate the gradient G = dU/dX
-!> \param pao ...
-!> \param matrix_M ...
-! *****************************************************************************
-  SUBROUTINE pao_calc_grad(pao, matrix_M)
-    TYPE(pao_env_type), POINTER              :: pao
-    TYPE(cp_dbcsr_type)                      :: matrix_M
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_grad', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: acol, arow, group, handle, &
-                                                iatom
-    LOGICAL                                  :: found
-    REAL(dp)                                 :: min_gap, penalty
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_G, block_M, block_U, &
-                                                block_X
-    TYPE(cp_dbcsr_iterator)                  :: iter
-
-    CALL timeset(routineN,handle)
-
-    min_gap = HUGE(dp)
-    penalty = 0.0_dp
-
-    CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
-       IF(arow /= acol) CPABORT("encountered off-diagonal block")
-       iatom = arow
-
-       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=arow, col=acol, block=block_U, found=found)
-       CPASSERT(ASSOCIATED(block_U))
-       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_G, row=arow, col=acol, block=block_G, found=found)
-       CPASSERT(ASSOCIATED(block_G))
-       CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=arow, col=acol, block=block_M, found=found)
-       ! M blocks might be not present if they are filtered to zero, deal with .NOT.ASSOCIATED(block_M) explicitly later on
-
-       SELECT CASE(pao%parameterization)
-         CASE(pao_exp_param)
-           CALL pao_calc_U_exp(pao, iatom, block_X, block_U, block_M, block_G)
-         CASE DEFAULT
-           CALL pao_calc_U_linpot(pao, iatom, penalty, min_gap, block_X, block_U, block_M, block_G)
-       END SELECT
-    END DO
-    CALL cp_dbcsr_iterator_stop(iter)
-
-    group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(matrix_M)))
-    CALL mp_min(min_gap,group)
-    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| min_gap:", min_gap
-
-    CALL timestop(handle)
-  END SUBROUTINE pao_calc_grad
 
 
 ! *****************************************************************************

@@ -10,19 +10,22 @@
 MODULE pao_param_linpot
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_frobenius_norm, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set
+       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_frobenius_norm, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_mp_group
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_min
   USE pao_input,                       ONLY: pao_fock_param,&
                                              pao_rotinv_param
   USE pao_linpot_full,                 ONLY: linpot_full_calc_term,&
                                              linpot_full_count_terms
   USE pao_linpot_rotinv,               ONLY: linpot_rotinv_calc_term,&
                                              linpot_rotinv_count_terms
-  USE pao_param_fock,                  ONLY: pao_calc_U_fock,&
+  USE pao_param_fock,                  ONLY: pao_calc_U_block_fock,&
                                              pao_param_finalize_fock,&
                                              pao_param_init_fock
   USE pao_types,                       ONLY: pao_env_type
@@ -153,64 +156,83 @@ CONTAINS
 ! *****************************************************************************
 !> \brief Calculate new matrix U and optinally its gradient G
 !> \param pao ...
-!> \param iatom ...
 !> \param penalty ...
-!> \param min_eval ...
-!> \param block_X ...
-!> \param block_U ...
-!> \param block_M1 ...
-!> \param block_G ...
+!> \param matrix_M ...
+!> \param matrix_G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_linpot(pao, iatom, penalty, min_eval, block_X, block_U, block_M1, block_G)
+  SUBROUTINE pao_calc_U_linpot(pao, penalty, matrix_M, matrix_G)
     TYPE(pao_env_type), POINTER              :: pao
-    INTEGER, INTENT(IN)                      :: iatom
-    REAL(dp), INTENT(INOUT)                  :: penalty, min_eval
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_X, block_U
-    REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: block_M1, block_G
+    REAL(dp), INTENT(INOUT)                  :: penalty
+    TYPE(cp_dbcsr_type), OPTIONAL            :: matrix_M, matrix_G
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_linpot', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, n
+    INTEGER                                  :: acol, arow, group, handle, &
+                                                iatom, n
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:), POINTER          :: vec_M2, vec_V
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_M2, block_V, &
-                                                block_V_terms
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_G, block_M1, block_M2, &
+                                                block_U, block_V, &
+                                                block_V_terms, block_X
+    REAL(KIND=dp)                            :: min_gap
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
 
-    n = SIZE(block_U, 1)
+    min_gap = HUGE(dp)
 
-    ! calculate potential V
-    ALLOCATE(vec_V(n*n))
-    vec_V(:) = 0.0_dp
-    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=block_V_terms, found=found)
-    IF(SIZE(block_V_terms)>0)& ! protect against corner-case of zero pao parameters
-      vec_V = MATMUL(block_V_terms, block_X(:,1))
-    block_V(1:n,1:n) => vec_V(:) ! map vector into matrix
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+       IF(arow /= acol) CPABORT("pao_calc_U_linpot: encountered off-diagonal block")
+       iatom = arow
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
+       CPASSERT(ASSOCIATED(block_U))
+       n = SIZE(block_U, 1)
 
-    ! symmetrize
-    IF(MAXVAL(ABS(block_V-TRANSPOSE(block_V))/MAX(1.0_dp,MAXVAL(ABS(block_V)))) > 1e-12)&
-        CPABORT("block_V not symmetric")
-    block_V = 0.5_dp*( block_V + TRANSPOSE(block_V) ) ! symmetrize exactly
-
-    IF(.NOT. PRESENT(block_G))THEN
-       CALL pao_calc_U_fock(pao, iatom, penalty, min_eval, block_V, block_U)
-
-    ELSE  ! TURNING POINT (if calc grad) --------------------------------------
-
-       CPASSERT(PRESENT(block_M1))
-       ALLOCATE(vec_M2(n*n))
-       block_M2(1:n,1:n) => vec_M2(:) ! map vector into matrix
-       CALL pao_calc_U_fock(pao, iatom, penalty, min_eval, block_V, block_U, block_M1, block_M2)
-       IF(MAXVAL(ABS(block_M2-TRANSPOSE(block_M2)))>1e-14_dp) CPABORT("Expect symmetric matrix")
+       ! calculate potential V
+       ALLOCATE(vec_V(n*n))
+       vec_V(:) = 0.0_dp
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_V_terms, row=iatom, col=iatom, block=block_V_terms, found=found)
        IF(SIZE(block_V_terms)>0)& ! protect against corner-case of zero pao parameters
-         block_G(:,1) = MATMUL(vec_M2, block_V_terms)
-       DEALLOCATE(vec_M2)
-    ENDIF
+         vec_V = MATMUL(block_V_terms, block_X(:,1))
+       block_V(1:n,1:n) => vec_V(:) ! map vector into matrix
 
-    DEALLOCATE(vec_V)
+       ! symmetrize
+       IF(MAXVAL(ABS(block_V-TRANSPOSE(block_V))/MAX(1.0_dp,MAXVAL(ABS(block_V)))) > 1e-12)&
+           CPABORT("block_V not symmetric")
+       block_V = 0.5_dp*( block_V + TRANSPOSE(block_V) ) ! symmetrize exactly
+
+       IF(.NOT. PRESENT(matrix_G))THEN
+          CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U)
+
+       ELSE  ! TURNING POINT (if calc grad) ------------------------------------
+          CPASSERT(PRESENT(matrix_M))
+          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
+          CPASSERT(ASSOCIATED(block_G))
+          CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M1, found=found)
+          ! don't check ASSOCIATED(block_M1), it might have been filtered out.
+
+          ALLOCATE(vec_M2(n*n))
+          block_M2(1:n,1:n) => vec_M2(:) ! map vector into matrix
+          CALL pao_calc_U_block_fock(pao, iatom, penalty, min_gap, block_V, block_U, block_M1, block_M2)
+          IF(MAXVAL(ABS(block_M2-TRANSPOSE(block_M2)))>1e-14_dp) CPABORT("Expect symmetric matrix")
+          IF(SIZE(block_V_terms)>0)& ! protect against corner-case of zero pao parameters
+            block_G(:,1) = MATMUL(vec_M2, block_V_terms)
+          DEALLOCATE(vec_M2)
+       ENDIF
+
+       DEALLOCATE(vec_V)
+
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+    ! print smallest homo-lumo gap encountered by fock-layer
+    group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
+    CALL mp_min(min_gap, group)
+    IF(pao%iw>0) WRITE(pao%iw,*) "PAO| min_gap:", min_gap
+
     CALL timestop(handle)
 
   END SUBROUTINE pao_calc_U_linpot

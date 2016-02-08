@@ -14,7 +14,8 @@ MODULE pao_param_exp
        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
+       cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE pao_types,                       ONLY: pao_env_type
@@ -124,20 +125,14 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Calculate new matrix U and optinally its gradient G
+!> \brief Calculate new matrix U and optionally its gradient G
 !> \param pao ...
-!> \param iatom ...
-!> \param block_X ...
-!> \param block_U ...
-!> \param block_M ...
-!> \param block_G ...
+!> \param matrix_M ...
+!> \param matrix_G ...
 ! *****************************************************************************
-  SUBROUTINE pao_calc_U_exp(pao, iatom, block_X, block_U, block_M, block_G)
+  SUBROUTINE pao_calc_U_exp(pao, matrix_M, matrix_G)
     TYPE(pao_env_type), POINTER              :: pao
-    INTEGER                                  :: iatom
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_X, block_U
-    REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: block_M, block_G
+    TYPE(cp_dbcsr_type), OPTIONAL            :: matrix_M, matrix_G
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_exp', &
       routineP = moduleN//':'//routineN
@@ -145,78 +140,93 @@ CONTAINS
     COMPLEX(dp)                              :: denom
     COMPLEX(dp), DIMENSION(:), POINTER       :: evals
     COMPLEX(dp), DIMENSION(:, :), POINTER    :: block_D, evecs
-    INTEGER                                  :: handle, i, j, k, M, N
+    INTEGER                                  :: acol, arow, handle, i, iatom, &
+                                                j, k, M, N
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_G_full, block_tmp, &
-                                                block_U0, block_X_full, &
-                                                block_Y
+    REAL(dp), DIMENSION(:, :), POINTER :: block_G, block_G_full, block_M, &
+      block_tmp, block_U, block_U0, block_X, block_X_full, block_Y
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
     CALL timeset(routineN,handle)
 
-    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=block_Y, found=found)
-    CPASSERT(ASSOCIATED(block_Y))
-    N=SIZE(block_Y, 1)
-    M=SIZE(block_Y, 2)
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+       IF(arow /= acol) CPABORT("pao_calc_U_exp: encountered off-diagonal block")
+       iatom = arow
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U, row=iatom, col=iatom, block=block_U, found=found)
+       CPASSERT(ASSOCIATED(block_U))
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
+       CPASSERT(ASSOCIATED(block_U0))
+       CALL cp_dbcsr_get_block_p(matrix=pao%matrix_Y, row=iatom, col=iatom, block=block_Y, found=found)
+       CPASSERT(ASSOCIATED(block_Y))
 
-    CALL cp_dbcsr_get_block_p(matrix=pao%matrix_U0, row=iatom, col=iatom, block=block_U0, found=found)
-    CPASSERT(ASSOCIATED(block_U0))
+       N=SIZE(block_Y, 1)
+       M=SIZE(block_Y, 2)
 
-    ! block_X stores only rotations between occupied and virtuals
-    ! hence, we first have to build the full anti-symmetric exponent block
-    ALLOCATE(block_X_full(N,N))
-    block_X_full(:,:) = 0.0_dp
-    block_X_full(1:M, M+1:N) = block_X
-    block_X_full(M+1:N, 1:M) = -TRANSPOSE(block_X)
+       ! block_X stores only rotations between occupied and virtuals
+       ! hence, we first have to build the full anti-symmetric exponent block
+       ALLOCATE(block_X_full(N,N))
+       block_X_full(:,:) = 0.0_dp
+       block_X_full(1:M, M+1:N) = block_X
+       block_X_full(M+1:N, 1:M) = -TRANSPOSE(block_X)
 
-    ! diagonalize block_X_full
-    ALLOCATE(evals(N), evecs(N,N))
-    CALL diag_antisym(block_X_full, evecs, evals)
+       ! diagonalize block_X_full
+       ALLOCATE(evals(N), evecs(N,N))
+       CALL diag_antisym(block_X_full, evecs, evals)
 
-    ! construct rotation matrix
-    block_U(:,:) = 0.0_dp
-    DO k=1, N
-       DO i=1, N
-          DO j=1, N
-             block_U(i,j) = block_U(i,j) + REAL(EXP(evals(k)) * evecs(i,k) * CONJG(evecs(j,k)), dp)
-          ENDDO
-       ENDDO
-    ENDDO
-
-    block_U = MATMUL(block_U0, block_U) ! prepend initial guess rotation
-
-    ! TURNING POINT (if calc grad) ------------------------------------------
-    IF(PRESENT(block_G))THEN
-       CPASSERT(PRESENT(block_M))
-
-       ALLOCATE(block_D(N,N), block_tmp(N,N), block_G_full(N,N))
-       DO i=1, N
-          DO j=1, N
-             denom = evals(i) - evals(j)
-             IF(i==j) THEN
-                block_D(i,i) = EXP(evals(i)) ! diagonal elements
-             ELSE IF(ABS(denom) > 1e-10_dp) THEN
-                block_D(i,j) = (EXP(evals(i)) - EXP(evals(j))) / denom
-             ELSE
-                block_D(i,j) = 1.0_dp ! limit according to L'Hospital's rule
-             ENDIF
+       ! construct rotation matrix
+       block_U(:,:) = 0.0_dp
+       DO k=1, N
+          DO i=1, N
+             DO j=1, N
+                block_U(i,j) = block_U(i,j) + REAL(EXP(evals(k)) * evecs(i,k) * CONJG(evecs(j,k)), dp)
+             ENDDO
           ENDDO
        ENDDO
 
-       IF (ASSOCIATED(block_M)) THEN
-          block_tmp = MATMUL(TRANSPOSE(block_U0), block_M)
-       ELSE
-          block_tmp = 0.0_dp
+       block_U = MATMUL(block_U0, block_U) ! prepend initial guess rotation
+
+       ! TURNING POINT (if calc grad) ------------------------------------------
+       IF(PRESENT(matrix_G))THEN
+          CPASSERT(PRESENT(matrix_M))
+          CALL cp_dbcsr_get_block_p(matrix=pao%matrix_G, row=iatom, col=iatom, block=block_G, found=found)
+          CPASSERT(ASSOCIATED(block_G))
+          CALL cp_dbcsr_get_block_p(matrix=matrix_M, row=iatom, col=iatom, block=block_M, found=found)
+          ! don't check ASSOCIATED(block_M), it might have been filtered out.
+
+          ALLOCATE(block_D(N,N), block_tmp(N,N), block_G_full(N,N))
+          DO i=1, N
+             DO j=1, N
+                denom = evals(i) - evals(j)
+                IF(i==j) THEN
+                   block_D(i,i) = EXP(evals(i)) ! diagonal elements
+                ELSE IF(ABS(denom) > 1e-10_dp) THEN
+                   block_D(i,j) = (EXP(evals(i)) - EXP(evals(j))) / denom
+                ELSE
+                   block_D(i,j) = 1.0_dp ! limit according to L'Hospital's rule
+                ENDIF
+             ENDDO
+          ENDDO
+
+          IF (ASSOCIATED(block_M)) THEN
+             block_tmp = MATMUL(TRANSPOSE(block_U0), block_M)
+          ELSE
+             block_tmp = 0.0_dp
+          ENDIF
+          block_G_full = fold_derivatives(block_tmp, block_D, evecs)
+
+          ! return only gradient for rotations between occupied and virtuals
+          IF(M < N)& ! catch special case N==M
+             block_G = block_G_full(1:M, M+1:N)
+
+          DEALLOCATE(block_D, block_tmp, block_G_full)
        ENDIF
-       block_G_full = fold_derivatives(block_tmp, block_D, evecs)
 
-       ! return only gradient for rotations between occupied and virtuals
-       IF(M < N)& ! catch special case N==M
-          block_G = block_G_full(1:M, M+1:N)
+       DEALLOCATE(block_X_full, evals, evecs)
 
-       DEALLOCATE(block_D, block_tmp, block_G_full)
-    ENDIF
-
-    DEALLOCATE(block_X_full, evals, evecs)
+    END DO
+    CALL cp_dbcsr_iterator_stop(iter)
 
     CALL timestop(handle)
   END SUBROUTINE pao_calc_U_exp
