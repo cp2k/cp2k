@@ -2666,6 +2666,7 @@
 #else
     MARK_USED(source)
     MARK_USED(win)
+    MARK_USED(myproc)
     MARK_USED(origin_datatype)
     MARK_USED(target_datatype)
 
