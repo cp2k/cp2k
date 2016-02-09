@@ -2589,12 +2589,12 @@
 !>      The argument must be a pointer to be sure that we do not get
 !>      temporaries. They must point to contiguous memory.
 ! *****************************************************************************
-  SUBROUTINE mp_rget_lv(base,source,win,win_data,disp,request,&
+  SUBROUTINE mp_rget_lv(base,source,win,win_data,myproc,disp,request,&
        origin_datatype, target_datatype)
     INTEGER(KIND=int_8), DIMENSION(:), POINTER                      :: base
     INTEGER, INTENT(IN)                                 :: source, win
     INTEGER(KIND=int_8), DIMENSION(:), POINTER                      :: win_data
-    INTEGER, INTENT(IN), OPTIONAL                       :: disp
+    INTEGER, INTENT(IN), OPTIONAL                       :: myproc, disp
     INTEGER, INTENT(OUT)                                :: request
     TYPE(mp_type_descriptor_type), INTENT(IN), OPTIONAL :: origin_datatype, target_datatype
 
@@ -2607,8 +2607,8 @@
                                                 handle_origin_datatype, &
                                                 handle_target_datatype, &
                                                 origin_len, target_len
+    LOGICAL                                  :: do_local_copy
     INTEGER(kind=mpi_address_kind)           :: disp_aint
-    INTEGER(KIND=int_8)                                  :: foo(1)
 #endif
 
     ierr = 0
@@ -2616,7 +2616,6 @@
 
 #if defined(__parallel)
     t_start = m_walltime ( )
-    MARK_USED(win_data)
 
 #if __MPI_VERSION > 2
     len = SIZE(base)
@@ -2638,11 +2637,23 @@
     ENDIF
     IF (len>0) THEN
        lower1=LBOUND(base,1)
-       CALL mpi_rget(base(lower1),origin_len,handle_origin_datatype,source,disp_aint,&
-            target_len,handle_target_datatype,win,request,ierr)
+       do_local_copy = .FALSE.
+       IF (PRESENT(myproc).AND. .NOT.PRESENT(origin_datatype).AND. .NOT.PRESENT(target_datatype)) THEN
+          IF (myproc.EQ.source) do_local_copy = .TRUE.
+       ENDIF
+       IF (do_local_copy) THEN
+          !$OMP PARALLEL WORKSHARE DEFAULT(none) SHARED(base,win_data,disp_aint,len)
+          base(:) = win_data(disp_aint+1:disp_aint+len)
+          !$OMP END PARALLEL WORKSHARE
+          request = mp_request_null
+          ierr = 0
+       ELSE
+          CALL mpi_rget(base(lower1),origin_len,handle_origin_datatype,source,disp_aint,&
+               target_len,handle_target_datatype,win,request,ierr)
+       ENDIF
     ELSE
-       CALL mpi_rget(foo,len,MPI_INTEGER8,source,disp_aint,&
-            len,MPI_INTEGER8,win,request,ierr)
+       request = mp_request_null
+       ierr = 0
     ENDIF
 #else
     request = mp_request_null

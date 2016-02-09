@@ -4170,6 +4170,7 @@ MODULE dbcsr_mm_cannon
                       CALL mp_rget(meta_get,recv_prow,&
                            right_meta_win,&
                            rma_buffers_orig%right_meta,&
+                           right_myprow,&
                            right_refs(imeta_displ,recv_vcol_displ,recv_vrow_displ),&
                            right_get_requests(1,right_ngets))
                       meta_offset = right_meta_size
@@ -4182,6 +4183,7 @@ MODULE dbcsr_mm_cannon
                       CALL dbcsr_rget_any(data_get,recv_prow,&
                            right_data_win,&
                            rma_buffers_orig%right_data,&
+                           right_myprow,&
                            right_refs(idata_displ,recv_vcol_displ,recv_vrow_displ),&
                            right_get_requests(2,right_ngets))
                       IF (metronome.GT.0) THEN
@@ -4289,6 +4291,7 @@ MODULE dbcsr_mm_cannon
                       CALL mp_rget(meta_get,recv_pcol,&
                            left_meta_win,&
                            rma_buffers_orig%left_meta,&
+                           left_mypcol,&
                            left_refs(imeta_displ,recv_vrow_displ,recv_vcol_displ),&
                            left_get_requests(1,left_ngets))
                       meta_offset = left_meta_size
@@ -4301,6 +4304,7 @@ MODULE dbcsr_mm_cannon
                       CALL dbcsr_rget_any(data_get,recv_pcol,&
                            left_data_win,&
                            rma_buffers_orig%left_data,&
+                           left_mypcol,&
                            left_refs(idata_displ,recv_vrow_displ,recv_vcol_displ),&
                            left_get_requests(2,left_ngets))
                       IF (metronome.GT.0) THEN

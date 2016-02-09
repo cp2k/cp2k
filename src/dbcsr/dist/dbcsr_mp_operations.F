@@ -523,18 +523,19 @@ CONTAINS
 !> \param source ...
 !> \param win ...
 !> \param win_data ...
+!> \param myproc ...
 !> \param disp ...
 !> \param request ...
 !> \param origin_datatype ...
 !> \param target_datatype ...
 ! *****************************************************************************
-  SUBROUTINE dbcsr_rget_any(base,source,win,win_data,disp,request,&
+  SUBROUTINE dbcsr_rget_any(base,source,win,win_data,myproc,disp,request,&
        origin_datatype,target_datatype)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: base
     INTEGER, INTENT(IN)                      :: source
     INTEGER, INTENT(INOUT)                   :: win
     TYPE(dbcsr_data_obj), INTENT(IN)         :: win_data
-    INTEGER, INTENT(IN), OPTIONAL            :: disp
+    INTEGER, INTENT(IN), OPTIONAL            :: myproc, disp
     INTEGER, INTENT(OUT)                     :: request
     TYPE(mp_type_descriptor_type), &
       INTENT(IN), OPTIONAL                   :: origin_datatype, &
@@ -549,13 +550,17 @@ CONTAINS
 
     SELECT CASE (dbcsr_data_get_type (base))
     CASE (dbcsr_type_real_4)
-       CALL mp_rget (base%d%r_sp, source, win, win_data%d%r_sp, disp, request, origin_datatype, target_datatype)
+       CALL mp_rget (base%d%r_sp, source, win, win_data%d%r_sp, myproc, &
+            disp, request, origin_datatype, target_datatype)
     CASE (dbcsr_type_real_8)
-       CALL mp_rget (base%d%r_dp, source, win, win_data%d%r_dp, disp, request, origin_datatype, target_datatype)
+       CALL mp_rget (base%d%r_dp, source, win, win_data%d%r_dp, myproc, &
+            disp, request, origin_datatype, target_datatype)
     CASE (dbcsr_type_complex_4)
-       CALL mp_rget (base%d%c_sp, source, win, win_data%d%c_sp, disp, request, origin_datatype, target_datatype)
+       CALL mp_rget (base%d%c_sp, source, win, win_data%d%c_sp, myproc, &
+            disp, request, origin_datatype, target_datatype)
     CASE (dbcsr_type_complex_8)
-       CALL mp_rget (base%d%c_dp, source, win, win_data%d%c_dp, disp, request, origin_datatype, target_datatype)
+       CALL mp_rget (base%d%c_dp, source, win, win_data%d%c_dp, myproc, &
+            disp, request, origin_datatype, target_datatype)
     CASE default
        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
             routineN, "Incorrect data type", __LINE__)
