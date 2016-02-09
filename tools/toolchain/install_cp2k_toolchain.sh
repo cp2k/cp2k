@@ -230,29 +230,6 @@ the entire ./build directory.
   |  COMPILED WITH THIS TOOLCHAIN                                  |
   +----------------------------------------------------------------+
 
-TROUBLESHOOTING:
-
-Below are solutions to some of the common problems you may encounter when running
-this script.
-
-* The script terminated with an error message while installing a particular
-  package.
-
-  Look at the error message. If it does not indicate the reason for failure
-  then it is likely that some error occured during compilation of the package.
-  You can look at the compiler log in the file make.log in the source directory
-  of the package in ./build.
-
-  One of the causes on some systems may be the fact that too many parallel
-  make processes were initiated.  By default the script tries to use
-  all of the processors on you node. You can override this behaviour using
-  -j option.
-
-* The script tailed at a tarball downloading stage
-
-  Try run again with --no-check-certificate option. See the help section
-  for this option for details.
-
 EOF
 }
 
