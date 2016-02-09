@@ -54,6 +54,7 @@ MODULE dbcsr_ptr_util
   PUBLIC :: memory_zero
   PUBLIC :: pointer_view
   PUBLIC :: pointer_rank_remap2
+  PUBLIC :: memory_copy
             
 
   INTERFACE ensure_array_size

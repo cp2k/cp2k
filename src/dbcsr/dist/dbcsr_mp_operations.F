@@ -26,6 +26,7 @@ MODULE dbcsr_mp_operations
        dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
        dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
        dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
+  USE dbcsr_ptr_util,                  ONLY: memory_copy
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_mp_obj,&
                                              dbcsr_type_complex_4,&

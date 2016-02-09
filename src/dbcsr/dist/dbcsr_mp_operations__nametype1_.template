@@ -144,9 +144,11 @@
          send_cnt = scount(dst+1)
          IF (send_cnt .GT. 0) THEN
             send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
-            tag = 4*mypcol
-            CALL mp_isend (send_data_p, pcol, grp, row_sr(nrow_sr), tag)
-            nrow_sr = nrow_sr+1
+            IF (pcol.NE.mypcol) THEN
+               tag = 4*mypcol
+               CALL mp_isend (send_data_p, pcol, grp, row_sr(nrow_sr), tag)
+               nrow_sr = nrow_sr+1
+            ENDIF
          ENDIF
          !
          pcol = MODULO (mypcol-i, npcols)
@@ -154,9 +156,13 @@
          recv_cnt = rcount(src+1)
          IF (recv_cnt .GT. 0) THEN
             recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
-            tag = 4*pcol
-            CALL mp_irecv (recv_data_p, pcol, grp, row_rr(nrow_rr), tag)
-            nrow_rr = nrow_rr+1
+            IF (pcol.NE.mypcol) THEN
+               tag = 4*pcol
+               CALL mp_irecv (recv_data_p, pcol, grp, row_rr(nrow_rr), tag)
+               nrow_rr = nrow_rr+1
+            ELSE
+               CALL memory_copy(recv_data_p,send_data_p,recv_cnt)
+            ENDIF
          ENDIF
       ENDDO
       ! go through my pcol and exchange
@@ -168,9 +174,11 @@
          send_cnt = scount(dst+1)
          IF (send_cnt .GT. 0) THEN
             send_data_p => sb( 1+sdispl(dst+1) : 1+sdispl(dst+1)+send_cnt-1 )
-            tag = 4*myprow+1
-            CALL mp_isend (send_data_p, prow, grp, col_sr(ncol_sr), tag)
-            ncol_sr = ncol_sr + 1
+            IF (prow.NE.myprow) THEN
+               tag = 4*myprow+1
+               CALL mp_isend (send_data_p, prow, grp, col_sr(ncol_sr), tag)
+               ncol_sr = ncol_sr + 1
+            ENDIF
          ENDIF
          !
          prow = MODULO (myprow-i, nprows)
@@ -178,9 +186,13 @@
          recv_cnt = rcount(src+1)
          IF (recv_cnt .GT. 0) THEN
             recv_data_p => rb( 1+rdispl(src+1) : 1+rdispl(src+1)+recv_cnt-1 )
-            tag = 4*prow+1
-            CALL mp_irecv (recv_data_p, prow, grp, col_rr(ncol_rr), tag)
-            ncol_rr = ncol_rr + 1
+            IF (prow.NE.myprow) THEN
+               tag = 4*prow+1
+               CALL mp_irecv (recv_data_p, prow, grp, col_rr(ncol_rr), tag)
+               ncol_rr = ncol_rr + 1
+            ELSE
+               CALL memory_copy(recv_data_p,send_data_p,recv_cnt)
+            ENDIF
          ENDIF
       ENDDO
     END SUBROUTINE most_point_to_point

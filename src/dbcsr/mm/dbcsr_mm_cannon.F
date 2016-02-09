@@ -3485,22 +3485,20 @@ MODULE dbcsr_mm_cannon
     CHARACTER(len=*), PARAMETER :: routineN = 'cannon_multiply_low_rma', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, data_type, data_type_byte, dst_icol, dst_irow, dst_p, &
-      grp_left, grp_right, handle, handle2, handle3, handle4, &
-      index_row_max_epss, ithread, left_col_mult, left_col_nimages, &
-      left_data_offset, left_data_size, left_data_win, left_max_data_size, &
-      left_max_meta_size, left_meta_offset, left_meta_size, left_meta_win, &
-      left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, &
-      left_npcols, left_nprows, left_nrequests, left_row_mult, &
-      left_row_nimages, left_vcol, left_vrow, meta_size_image, metronome, &
-      min_nimages, mynode, nblkrows_local, nblks, nsteps_k, nthreads, &
-      numnodes, nvirt_k
-    INTEGER :: recv_pcol, recv_prow, recv_vcol, recv_vcol_displ, recv_vrow, &
-      recv_vrow_displ, right_col_mult, right_col_nimages, right_data_offset, &
-      right_data_size, right_data_win, right_max_data_size, &
-      right_max_meta_size, right_meta_offset, right_meta_size, &
-      right_meta_win, right_myfirstvcol, right_myfirstvrow, right_mypcol, &
-      right_myprow, right_npcols, right_nprows, right_nrequests, &
+    INTEGER :: blk, data_offset, data_type, data_type_byte, dst_icol, &
+      dst_irow, dst_p, grp_left, grp_right, handle, handle2, handle3, &
+      handle4, index_row_max_epss, ithread, left_col_mult, left_col_nimages, &
+      left_data_size, left_data_win, left_max_data_size, left_max_meta_size, &
+      left_meta_size, left_meta_win, left_myfirstvcol, left_myfirstvrow, &
+      left_mypcol, left_myprow, left_ngets, left_npcols, left_nprows, &
+      left_row_mult, left_row_nimages, left_vcol, left_vrow, meta_offset, &
+      meta_size_image, metronome, min_nimages, mynode, nblkrows_local, nblks, &
+      nsteps_k, nthreads, numnodes, nvirt_k, recv_pcol
+    INTEGER :: recv_prow, recv_vcol, recv_vcol_displ, recv_vrow, &
+      recv_vrow_displ, right_col_mult, right_col_nimages, right_data_size, &
+      right_data_win, right_max_data_size, right_max_meta_size, &
+      right_meta_size, right_meta_win, right_myfirstvcol, right_myfirstvrow, &
+      right_mypcol, right_myprow, right_ngets, right_npcols, right_nprows, &
       right_row_mult, right_row_nimages, right_vcol, right_vrow, row, &
       size_guess, size_threads_index, src_vcol, src_vrow, v_ci, v_ci_next, &
       v_i, v_ki, v_ki_next, v_ri, v_ri_next
@@ -4051,9 +4049,7 @@ MODULE dbcsr_mm_cannon
     DEALLOCATE(right_max_meta_size_merged,left_max_meta_size_merged)
     !
     ALLOCATE (right_get_requests(2,(min_nimages*right_col_nimages)/2+1))
-    right_get_requests = mp_request_null
     ALLOCATE (left_get_requests(2,(left_row_nimages*min_nimages)/2+1))
-    left_get_requests = mp_request_null           
     !
     ! Setup the receive data pointers
     CALL dbcsr_data_init(data_get)
@@ -4093,9 +4089,8 @@ MODULE dbcsr_mm_cannon
        wait_right: IF (metronome .GT. 0) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for right"
           !
-          IF (right_nrequests.GT.0) THEN
-             CALL mp_waitall (right_get_requests(:,1:right_nrequests))
-             right_get_requests(:,1:right_nrequests) = mp_request_null
+          IF (right_ngets.GT.0) THEN
+             CALL mp_waitall (right_get_requests(:,1:right_ngets))
           ENDIF
        ENDIF wait_right
        ! Right matrix transfer. Transfer in all but the last loop
@@ -4108,15 +4103,14 @@ MODULE dbcsr_mm_cannon
              CALL timestop(handle3)
           ENDIF
           !
-          right_meta_offset = 0
+          meta_offset = 0
           right_meta_size = 0
-          right_data_offset = 0
+          data_offset = 0
           right_data_size = 0
-          right_nrequests = 0
+          right_ngets = 0
           !
           ! Take first cluster global virtual coordinates
           CALL image_calculator (imgdist_right,&
-               pcol=recv_pcol,&
                vprow=rma_buffers_comm%right_vprow,&
                vpcol=rma_buffers_comm%right_vpcol,&
                myvprow=right_myfirstvrow,&
@@ -4171,32 +4165,32 @@ MODULE dbcsr_mm_cannon
                    ENDDO
                    !
                    IF (.NOT.is_contiguous) THEN
-                      right_nrequests = right_nrequests + 1
-                      meta_get => rma_buffers_comm%right_meta(right_meta_offset+1:right_meta_size)
+                      right_ngets = right_ngets + 1
+                      meta_get => rma_buffers_comm%right_meta(meta_offset+1:right_meta_size)
                       CALL mp_rget(meta_get,recv_prow,&
                            right_meta_win,&
                            rma_buffers_orig%right_meta,&
                            right_refs(imeta_displ,recv_vcol_displ,recv_vrow_displ),&
-                           right_get_requests(2,right_nrequests))
-                      right_meta_offset = right_meta_size
+                           right_get_requests(1,right_ngets))
+                      meta_offset = right_meta_size
                       CALL dbcsr_data_set_pointer(&
                            area=data_get,&
-                           rsize=right_data_size-right_data_offset,&
+                           rsize=right_data_size-data_offset,&
                            csize=1,&
                            pointee=rma_buffers_comm%right_data,&
-                           source_lb=right_data_offset+1)
+                           source_lb=data_offset+1)
                       CALL dbcsr_rget_any(data_get,recv_prow,&
                            right_data_win,&
                            rma_buffers_orig%right_data,&
                            right_refs(idata_displ,recv_vcol_displ,recv_vrow_displ),&
-                           right_get_requests(1,right_nrequests))
+                           right_get_requests(2,right_ngets))
                       IF (metronome.GT.0) THEN
                          CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
-                              right_data_size-right_data_offset,&
+                              right_data_size-data_offset,&
                               dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
                          dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                       ENDIF
-                      right_data_offset = right_data_size
+                      data_offset = right_data_size
                       set_displ = .TRUE.
                    ENDIF
                 ELSE
@@ -4214,9 +4208,8 @@ MODULE dbcsr_mm_cannon
        ! the first loop iteration.
        wait_left: IF (metronome .GT. 0) THEN
           IF (debug_mod) WRITE (*,'(1X,A)')routineN//" waiting for left"
-          IF (left_nrequests.GT.0) THEN
-             CALL mp_waitall (left_get_requests(:,1:left_nrequests))
-             left_get_requests(:,1:left_nrequests) = mp_request_null
+          IF (left_ngets.GT.0) THEN
+             CALL mp_waitall (left_get_requests(:,1:left_ngets))
           ENDIF
        ENDIF wait_left
        ! Left matrix transfer. Transfer in all but the last loop
@@ -4229,15 +4222,14 @@ MODULE dbcsr_mm_cannon
              CALL timestop(handle3)
           ENDIF
           !
-          left_meta_offset = 0
+          meta_offset = 0
           left_meta_size = 0
-          left_data_offset = 0
+          data_offset = 0
           left_data_size = 0
-          left_nrequests = 0
+          left_ngets = 0
           !
           ! Take first cluster global virtual coordinates
           CALL image_calculator (imgdist_left,&
-               prow=recv_prow,&
                vprow=rma_buffers_comm%left_vprow,&
                vpcol=rma_buffers_comm%left_vpcol,&
                myvprow=left_myfirstvrow,&
@@ -4292,32 +4284,32 @@ MODULE dbcsr_mm_cannon
                    ENDDO
                    !
                    IF (.NOT.is_contiguous) THEN
-                      left_nrequests = left_nrequests + 1
-                      meta_get => rma_buffers_comm%left_meta(left_meta_offset+1:left_meta_size)
+                      left_ngets = left_ngets + 1
+                      meta_get => rma_buffers_comm%left_meta(meta_offset+1:left_meta_size)
                       CALL mp_rget(meta_get,recv_pcol,&
                            left_meta_win,&
                            rma_buffers_orig%left_meta,&
                            left_refs(imeta_displ,recv_vrow_displ,recv_vcol_displ),&
-                           left_get_requests(2,left_nrequests))
-                      left_meta_offset = left_meta_size
+                           left_get_requests(1,left_ngets))
+                      meta_offset = left_meta_size
                       CALL dbcsr_data_set_pointer(&
                            area=data_get,&
-                           rsize=left_data_size-left_data_offset,&
+                           rsize=left_data_size-data_offset,&
                            csize=1,&
                            pointee=rma_buffers_comm%left_data,&
-                           source_lb=left_data_offset+1)
+                           source_lb=data_offset+1)
                       CALL dbcsr_rget_any(data_get,recv_pcol,&
                            left_data_win,&
                            rma_buffers_orig%left_data,&
                            left_refs(idata_displ,recv_vrow_displ,recv_vcol_displ),&
-                           left_get_requests(1,left_nrequests))
+                           left_get_requests(2,left_ngets))
                       IF (metronome.GT.0) THEN
                          CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
-                              left_data_size-left_data_offset,&
+                              left_data_size-data_offset,&
                               dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
                          dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
                       ENDIF
-                      left_data_offset = left_data_size
+                      data_offset = left_data_size
                       set_displ = .TRUE.
                    ENDIF
                 ELSE
@@ -4390,8 +4382,8 @@ MODULE dbcsr_mm_cannon
 !$omp shared (min_nimages,rma_buffers_calc, &
 !$omp         left_norms,right_norms,use_comm_thread, &
 !$omp         metronome,nsteps_k,multrec,nthreads,&
-!$omp         right_get_requests,left_get_requests,right_nrequests, &
-!$omp         left_nrequests) &
+!$omp         right_get_requests,left_get_requests,&
+!$omp         right_ngets,left_ngets) &
 !$omp private (ithread,v_ki) &
 !$omp reduction (+: flop)
           ithread = 0
@@ -4411,8 +4403,8 @@ MODULE dbcsr_mm_cannon
                   b_norms=right_norms(:,v_ki))
 !$omp master
              IF (use_comm_thread) THEN
-                CALL mp_testany(right_get_requests(:,1:right_nrequests))
-                CALL mp_testany(left_get_requests(:,1:left_nrequests))
+                CALL mp_testany(right_get_requests(:,1:right_ngets))
+                CALL mp_testany(left_get_requests(:,1:left_ngets))
              ENDIF
 !$omp end master
           ENDDO
