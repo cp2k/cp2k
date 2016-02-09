@@ -145,4 +145,3 @@
     over the compilation stages of already installed packages if the
     user terminated the toolchain script at the middle of a run and
     then restarted the script.
-

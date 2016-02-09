@@ -23,7 +23,7 @@
    --with-PKG options after the --install-all option. e.g.:
 
        ./install_CP2K_toolchain.sh --install-all --with-mkl=system
-       
+
    will set the script to look for a system MKL library to link, while
    compile other packages from scratch.
 
