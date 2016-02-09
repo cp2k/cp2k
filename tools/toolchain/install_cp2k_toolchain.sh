@@ -113,7 +113,7 @@ The --enable-FEATURE options follow the rules:
   --enable-cuda           Turn on GPU (CUDA) support.
                           Default = no
   --enable-cray           Turn on or off support for CRAY Linux Environment
-                          (CLE) manually. Be default the script will automatically
+                          (CLE) manually. By default the script will automatically
                           detect if your system is CLE, and provide support
                           accordingly.
 
