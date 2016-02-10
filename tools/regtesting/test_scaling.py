@@ -14,19 +14,24 @@ from subprocess import call
 #===============================================================================
 def main():
     if(len(sys.argv) < 4):
-        print("Usage: test_scaling.py [--dry-run] <threshold> <exe_dir> <inp_file1> ... <inp_fileN>")
+        print("Usage: test_scaling.py [--dry-run] <threshold> <exe_dir> <inp_file1> <ref_energy1> ... <inp_fileN> <ref_energyN>")
         sys.exit(1)
 
     if(sys.argv[1] == "--dry-run"):
         dry_run = True
         threshold = float(sys.argv[2])
         exe_dir = sys.argv[3]
-        inp_files = sys.argv[4:]
+        rest_args = sys.argv[4:]
     else:
         dry_run = False
         threshold = float(sys.argv[1])
         exe_dir = sys.argv[2]
-        inp_files = sys.argv[3:]
+        rest_args = sys.argv[3:]
+
+    inp_files = []; ref_energies = []
+    while(rest_args):
+        inp_files.append(rest_args.pop(0))
+        ref_energies.append(float(rest_args.pop(0)))
 
     configs = [(8, 1, "popt"),
                (8, 1, "psmp"),
@@ -37,7 +42,7 @@ def main():
 
     error = False
     max_diff_rel = 0.0
-    for inp_fn in inp_files:
+    for inp_fn, ref_energy in zip(inp_files, ref_energies):
         print("\nRunning tests for %s ..."%inp_fn)
         runtimes = []
         summary = []
@@ -48,7 +53,7 @@ def main():
             try:
                 if(not dry_run):
                     run_cp2k(exe_dir, inp_fn, out_fn, *c)
-                t = parse_output(out_fn)
+                t = parse_output(out_fn, ref_energy)
                 runtimes.append(t)
                 summary.append("%s: runtime %.f sec"%(label, t))
                 plotpoints.append('PlotPoint: name="%s", plot="perf", label="%s", y=%f, yerr=0.0'%(label, label, t))
@@ -89,10 +94,20 @@ def run_cp2k(exe_dir, inp_fn, out_fn, nranks, nthreads, version):
         raise(Exception("Run crashed"))
 
 #===============================================================================
-def parse_output(out_fn):
+def parse_output(out_fn, ref_energy):
     output = open(out_fn).read()
+
+    # check final energy
+    energy = float(re.findall("\n\s+Total energy:(.*)\n",output)[-1].strip())
+    print "Final total energy: %.14f"%energy
+    if(abs(energy-ref_energy)/abs(ref_energy) > 1e-10): # hardcoded tolerance
+        raise(Exception("Energy is wrong"))
+
+    # extract timing report
     timing_report = re.search(r"\n( -+\n - +-\n - +T I M I N G +-\n([^\n]*\n){4}.* -+)\n", output, re.DOTALL).group(1)
     print timing_report+"\n"
+
+    # extract total runtime
     runtime = float(re.findall("\n CP2K      (.*)\n", output)[-1].split()[-1])
     return(runtime)
 
