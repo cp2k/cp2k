@@ -256,7 +256,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_poisson_solve', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: alpha, beta, handle, i, ig, ng
+    INTEGER                                  :: alpha, beta, handle, i
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: has_dielectric
     REAL(KIND=dp)                            :: ffa
@@ -276,7 +276,6 @@ CONTAINS
 
     has_dielectric = poisson_params%has_dielectric
 
-    NULLIFY (pw_grid,rhog)
     ! point pw
     pw_pool => poisson_env%pw_pools(poisson_env%pw_level)%pool
     pw_grid => pw_pool % pw_grid
@@ -286,9 +285,8 @@ CONTAINS
           CPABORT("vhartree has a different grid than the poisson solver")
     END IF
     ! density in G space
+    NULLIFY (rhog)
     CALL pw_pool_create_pw ( pw_pool, rhog, use_data=COMPLEXDATA1D,in_space = RECIPROCALSPACE)
-    ! apply the greens function
-    ng = SIZE ( pw_grid % gsq )
 
     SELECT CASE (poisson_env%used_grid)
     CASE (use_gs_grid)
@@ -302,9 +300,7 @@ CONTAINS
                                     in_space=RECIPROCALSPACE)
              CALL pw_copy(rhog,tmpg)
           END IF
-          DO ig=1,ng
-             rhog%cc(ig) = rhog%cc(ig)*poisson_env%green_fft%influence_fn%cc(ig)
-          END DO
+          rhog%cc(:) = rhog%cc(:)*poisson_env%green_fft%influence_fn%cc(:)
           IF (PRESENT(vhartree)) THEN
              CALL pw_transfer(rhog,vhartree)
              IF (PRESENT(ehartree)) THEN
