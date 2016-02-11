@@ -80,9 +80,7 @@ MODULE md_run
                                              release_reftraj
   USE reftraj_util,                    ONLY: initialize_reftraj,&
                                              write_output_reftraj
-  USE rt_propagation,                  ONLY: rt_prop_setup,&
-                                             rt_write_input_restart
-  USE rt_propagation_output,           ONLY: rt_prop_output
+  USE rt_propagation,                  ONLY: rt_prop_setup
   USE simpar_methods,                  ONLY: read_md_section
   USE simpar_types,                    ONLY: create_simpar_type,&
                                              release_simpar_type,&
@@ -508,10 +506,6 @@ CONTAINS
        IF (should_stop) THEN
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes)
           CALL md_output(md_env,md_section,force_env%root_section,should_stop)
-          IF(ehrenfest_md)THEN
-             CALL rt_prop_output(force_env%qs_env,ehrenfest)
-             CALL rt_write_input_restart(md_env,force_env)
-          END IF
           EXIT
        END IF
 
