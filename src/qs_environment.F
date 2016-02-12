@@ -1043,13 +1043,6 @@ CONTAINS
                        nelectron_spin=nelectron_spin)
 
     ! Check and set number of added (unoccupied) MOs
-    IF(scf_control%added_mos(1) > n_ao - n_mo(1))&
-       CALL cp_warn(__LOCATION__,&
-            "More added MOs requested than available. "//&
-            "The full set of unoccupied MOs will be used.")
-    scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao - n_mo(1))
-    n_mo(1) = n_mo(1) + scf_control%added_mos(1)
-
     IF (dft_control%nspins == 2) THEN
       IF (scf_control%added_mos(2) > 0) THEN
         n_mo_add = scf_control%added_mos(2)
@@ -1060,6 +1053,24 @@ CONTAINS
          CPWARN("More added MOs requested for beta spin than available.")
       scf_control%added_mos(2) = MIN(n_mo_add,n_ao - n_mo(2))
       n_mo(2) = n_mo(2) + scf_control%added_mos(2)
+    END IF
+
+    ! proceed alpha orbitals after the beta orbitals; this is essential to avoid
+    ! reduction in the number of available unoccupied molecular orbitals.
+    ! E.g. n_ao = 10, nelectrons = 10, multiplicity = 3 implies n_mo(1) = 6, n_mo(2) = 4;
+    ! added_mos(1:2) = (6,undef) should increase the number of molecular orbitals as
+    ! n_mo(1) = min(n_ao, n_mo(1) + added_mos(1)) = 10, n_mo(2) = 10.
+    ! However, if we try to proceed alpha orbitals first, this leads us n_mo(1:2) = (10,8)
+    ! due to the following assignment instruction above:
+    !   IF (scf_control%added_mos(2) > 0) THEN ... ELSE; n_mo_add = scf_control%added_mos(1); END IF
+    IF(scf_control%added_mos(1) > n_ao - n_mo(1))&
+       CALL cp_warn(__LOCATION__,&
+            "More added MOs requested than available. "//&
+            "The full set of unoccupied MOs will be used.")
+    scf_control%added_mos(1) = MIN(scf_control%added_mos(1),n_ao - n_mo(1))
+    n_mo(1) = n_mo(1) + scf_control%added_mos(1)
+
+    IF (dft_control%nspins == 2) THEN
       IF(n_mo(2) > n_mo(1))&
          CALL cp_warn(__LOCATION__,&
               "More beta than alpha MOs requested. "//&
