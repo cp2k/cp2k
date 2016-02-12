@@ -316,6 +316,13 @@ CONTAINS
        END DO ! ipair
     END DO ! ipe
 
+    ! the constructed matrix is upper triangular, fill it up to full
+    DO ii = 2, SIZE(atomic_matrix, 1)
+       DO jj = 1, ii-1
+          atomic_matrix(ii,jj) = atomic_matrix(jj,ii)
+       END DO
+    END DO
+
     ! cleanup rest of the temporary arrays
     DEALLOCATE(recv_buf)
     DEALLOCATE(recv_sizes)
@@ -395,23 +402,34 @@ CONTAINS
        iatom_global = halo_atoms(iatom)
        DO jatom = 1, natoms_in_halo
           jatom_global = halo_atoms(jatom)
-          CALL fb_matrix_data_get(matrix_storage, &
-                                  iatom_global, &
-                                  jatom_global, &
-                                  blk_p, &
-                                  found)
-          ! copy data to atomic_matrix if found
-          IF (found) THEN
-             DO jj = 1, SIZE(blk_p, 2)
-                icol = blk_col_start(jatom) + jj - 1
-                DO ii = 1, SIZE(blk_p, 1)
-                   irow = blk_row_start(iatom) + ii - 1
-                   atomic_matrix(irow,icol) = blk_p(ii,jj)
-                END DO ! ii
-             END DO ! jj
+          ! atomic matrices are symmetric, fill only the top
+          ! triangular part
+          IF (jatom_global .GE. iatom_global) THEN
+             CALL fb_matrix_data_get(matrix_storage, &
+                                     iatom_global, &
+                                     jatom_global, &
+                                     blk_p, &
+                                     found)
+             ! copy data to atomic_matrix if found
+             IF (found) THEN
+                DO jj = 1, SIZE(blk_p, 2)
+                   icol = blk_col_start(jatom) + jj - 1
+                   DO ii = 1, SIZE(blk_p, 1)
+                      irow = blk_row_start(iatom) + ii - 1
+                      atomic_matrix(irow,icol) = blk_p(ii,jj)
+                   END DO ! ii
+                END DO ! jj
+             END IF
           END IF
        END DO ! jatom
     END DO ! iatom
+
+    ! the constructed matrix is upper triangular, fill it up to full
+    DO ii = 2, SIZE(atomic_matrix, 1)
+       DO jj = 1, ii-1
+          atomic_matrix(ii,jj) = atomic_matrix(jj,ii)
+       END DO
+    END DO
 
     CALL timestop(handle)
 
@@ -456,7 +474,7 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: found, transpose
+    LOGICAL                                  :: found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
     TYPE(fb_com_tasks_obj)                   :: com_tasks_recv, com_tasks_send
 
@@ -509,30 +527,37 @@ CONTAINS
        iatom_global = halo_atoms(iatom)
        DO jatom = 1, natoms_in_halo
           jatom_global = halo_atoms(jatom)
-          ! find the source proc that supposed to own the block
-          ! (iatom_global, jatom_global)
-          transpose = .FALSE.
-          CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
-                                               iatom_global, &
-                                               jatom_global, &
-                                               processor=src)
-          ! we must encode the global atom indices rather the halo atomic indices
-          ! in each task, because halo atomic indices are local to each halo, and
-          ! each processor is working on a different halo local to them. So
-          ! one processor would not have the information about the halo on another
-          ! processor, rendering the halo atomic indices rather useless outside
-          ! the local processor.
-          tasks_recv(TASK_DEST,itask) = dest
-          tasks_recv(TASK_SRC,itask) = src
+          ! atomic matrix is symmetric, and only upper triangular part
+          ! is stored in DBCSR matrix
+          IF (jatom_global .GE. iatom_global) THEN
+             ! find the source proc that supposed to own the block
+             ! (iatom_global, jatom_global)
+             CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
+                                                  iatom_global, &
+                                                  jatom_global, &
+                                                  processor=src)
+             ! we must encode the global atom indices rather the halo
+             ! atomic indices in each task, because halo atomic
+             ! indices are local to each halo, and each processor is
+             ! working on a different halo local to them. So one
+             ! processor would not have the information about the halo
+             ! on another processor, rendering the halo atomic indices
+             ! rather useless outside the local processor.
+             tasks_recv(TASK_DEST,itask) = dest
+             tasks_recv(TASK_SRC,itask) = src
 
-          CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
-                                        iatom_global, jatom_global, &
-                                        nblkrows_total)
-          ! calculation of cost not implemented at the moment
-          tasks_recv(TASK_COST,itask) = 0
-          itask = itask + 1
+             CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
+                                           iatom_global, jatom_global, &
+                                           nblkrows_total)
+             ! calculation of cost not implemented at the moment
+             tasks_recv(TASK_COST,itask) = 0
+             itask = itask + 1
+          END IF
        END DO ! jatom
     END DO ! iatom
+
+    ! get the actual number of tasks
+    ntasks_recv = itask - 1
 
     ! create tasks
     CALL fb_com_tasks_create(com_tasks_recv)
@@ -599,13 +624,11 @@ CONTAINS
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
                                        atom_pairs=atom_pairs_send, &
                                        natoms_encode=nencode, &
-                                       send_or_recv="send", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="send")
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
                                        natoms_encode=nencode, &
-                                       send_or_recv="recv", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="recv")
 
     ! cleanup
     CALL fb_com_tasks_release(com_tasks_recv)
@@ -655,7 +678,7 @@ CONTAINS
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks_recv, tasks_send
     INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: found, transpose
+    LOGICAL                                  :: found
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat_block
     TYPE(fb_atomic_halo_obj), DIMENSION(:), &
       POINTER                                :: halos
@@ -663,7 +686,7 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    
+
     NULLIFY(halo_atoms, tasks_send, tasks_recv)
     CALL fb_com_tasks_nullify(com_tasks_send)
     CALL fb_com_tasks_nullify(com_tasks_recv)
@@ -711,31 +734,37 @@ CONTAINS
           iatom_global = halo_atoms(iatom)
           DO jatom = 1, natoms_in_halo
              jatom_global = halo_atoms(jatom)
-             ! find the source proc that supposed to own the block
-             ! (iatom_global, jatom_global)
-             transpose = .FALSE.
-             CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
-                                                  iatom_global, &
-                                                  jatom_global, &
-                                                  processor=src)
-             ! we must encode the global atom indices rather the halo
-             ! atomic indices in each task, because halo atomic indices
-             ! are local to each halo, and each processor is working on a
-             ! different halo local to them. So one processor would not
-             ! have the information about the halo on another processor,
-             ! rendering the halo atomic indices rather useless outside
-             ! the local processor.
-             tasks_recv(TASK_DEST,itask) = dest
-             tasks_recv(TASK_SRC,itask) = src
-             CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
-                                           iatom_global, jatom_global, &
-                                           nblkrows_total)
-             ! calculation of cost not implemented at the moment
-             tasks_recv(TASK_COST,itask) = 0
-             itask = itask + 1
+             ! atomic matrices are always symmetric, treat it as such.
+             ! so only deal with upper triangular parts
+             IF (jatom_global .GE. iatom_global) THEN
+                ! find the source proc that supposed to own the block
+                ! (iatom_global, jatom_global)
+                CALL cp_dbcsr_get_stored_coordinates(dbcsr_mat, &
+                                                     iatom_global, &
+                                                     jatom_global, &
+                                                     processor=src)
+                ! we must encode the global atom indices rather the halo
+                ! atomic indices in each task, because halo atomic indices
+                ! are local to each halo, and each processor is working on a
+                ! different halo local to them. So one processor would not
+                ! have the information about the halo on another processor,
+                ! rendering the halo atomic indices rather useless outside
+                ! the local processor.
+                tasks_recv(TASK_DEST,itask) = dest
+                tasks_recv(TASK_SRC,itask) = src
+                CALL fb_com_tasks_encode_pair(tasks_recv(TASK_PAIR,itask), &
+                                              iatom_global, jatom_global, &
+                                              nblkrows_total)
+                ! calculation of cost not implemented at the moment
+                tasks_recv(TASK_COST,itask) = 0
+                itask = itask + 1
+             END IF
           END DO ! jatom
        END DO ! iatom
     END DO ! ihalo
+
+    ! set the actual number of tasks obtained
+    ntasks_recv = itask - 1
 
     ! create tasks
     CALL fb_com_tasks_create(com_tasks_recv)
@@ -801,13 +830,11 @@ CONTAINS
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_send, &
                                        atom_pairs=atom_pairs_send, &
                                        natoms_encode=nencode, &
-                                       send_or_recv="send", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="send")
     CALL fb_com_tasks_build_atom_pairs(com_tasks=com_tasks_recv, &
                                        atom_pairs=atom_pairs_recv, &
                                        natoms_encode=nencode, &
-                                       send_or_recv="recv", &
-                                       symmetric=.FALSE.)
+                                       send_or_recv="recv")
 
     ! cleanup
     CALL fb_com_tasks_release(com_tasks_recv)

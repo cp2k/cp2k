@@ -16,14 +16,13 @@ MODULE qs_fb_env_methods
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_allocate_matrix_set, cp_dbcsr_col_block_sizes, &
        cp_dbcsr_create, cp_dbcsr_deallocate_matrix_set, &
-       cp_dbcsr_desymmetrize, cp_dbcsr_distribution, cp_dbcsr_finalize, &
-       cp_dbcsr_get_info, cp_dbcsr_get_matrix_type, cp_dbcsr_init, &
-       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_nfullcols_total, &
-       cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type, dbcsr_type_no_symmetry
+       cp_dbcsr_distribution, cp_dbcsr_finalize, cp_dbcsr_get_info, &
+       cp_dbcsr_get_matrix_type, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_nfullcols_total, cp_dbcsr_nfullrows_total, cp_dbcsr_p_type, &
+       cp_dbcsr_release, cp_dbcsr_reserve_blocks, cp_dbcsr_row_block_sizes, &
+       cp_dbcsr_set, cp_dbcsr_type, dbcsr_type_no_symmetry
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm,&
@@ -165,8 +164,6 @@ CONTAINS
                                                 eigenvalues_filtered, occ, &
                                                 occ_filtered
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
-    TYPE(cp_dbcsr_p_type)                    :: matrix_ks_desymm, &
-                                                matrix_s_desymm
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_filter
     TYPE(cp_dbcsr_type)                      :: matrix_filtered_ks, &
@@ -277,23 +274,6 @@ CONTAINS
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                        mu=fermi_level, &
                        maxocc=maxocc)
-
-       ! ----------------------------------------------------------------------
-       ! desymmetrise matrix first to avoid the complex and hard to
-       ! understand DBCSR symmetric layout first.
-       !
-       !TODO:LT:2015/02/04: This is inefficient, need to use symmetry!
-       !
-       NULLIFY(matrix_ks_desymm%matrix)
-       ALLOCATE(matrix_ks_desymm%matrix)
-       CALL cp_dbcsr_init(matrix_ks_desymm%matrix)
-       CALL cp_dbcsr_desymmetrize(matrix_ks(ispin)%matrix, matrix_ks_desymm%matrix)
-       NULLIFY(matrix_s_desymm%matrix)
-       ALLOCATE(matrix_s_desymm%matrix)
-       CALL cp_dbcsr_init(matrix_s_desymm%matrix)
-       CALL cp_dbcsr_desymmetrize(matrix_s(1)%matrix, matrix_s_desymm%matrix)
-       ! ----------------------------------------------------------------------
-
        ! get filter matrix name
        WRITE (spin_string, FMT="(I1)") ispin
        name = TRIM("FILTER MATRIX SPIN "//spin_string)
@@ -301,25 +281,11 @@ CONTAINS
        CALL uppercase(name)
        ! calculate filter matrix (matrix_s(1) is the overlap, the rest
        ! in the array are its derivatives)
-!BEG:ORIG:LT:2015/01/2
-       ! CALL fb_fltrmat_build(H_mat=matrix_ks(ispin)%matrix, &
-       !                       S_mat=matrix_s(1)%matrix, &
-       !                       atomic_halos=atomic_halos, &
-       !                       trial_fns=trial_fns, &
-       !                       para_env=para_env, &
-       !                       particle_set=particle_set, &
-       !                       fermi_level=fermi_level, &
-       !                       filter_temp=filter_temp, &
-       !                       name=name, &
-       !                       filter_mat=matrix_filter(ispin)%matrix,
-       !                       tolerance=eps_default)
-!END:ORIG:LT:2015/01/2
-!BEG:REPL:LT:2015/01/2
        CALL fb_env_get(fb_env=fb_env, &
                        collective_com=collective_com)
        IF (collective_com) THEN
-          CALL fb_fltrmat_build_2(H_mat=matrix_ks_desymm%matrix, &
-                                  S_mat=matrix_s_desymm%matrix, &
+          CALL fb_fltrmat_build_2(H_mat=matrix_ks(ispin)%matrix, &
+                                  S_mat=matrix_s(1)%matrix, &
                                   atomic_halos=atomic_halos, &
                                   trial_fns=trial_fns, &
                                   para_env=para_env, &
@@ -330,8 +296,8 @@ CONTAINS
                                   filter_mat=matrix_filter(ispin)%matrix, &
                                   tolerance=eps_default)
        ELSE
-          CALL fb_fltrmat_build(H_mat=matrix_ks_desymm%matrix, &
-                                S_mat=matrix_s_desymm%matrix, &
+          CALL fb_fltrmat_build(H_mat=matrix_ks(ispin)%matrix, &
+                                S_mat=matrix_s(1)%matrix, &
                                 atomic_halos=atomic_halos, &
                                 trial_fns=trial_fns, &
                                 para_env=para_env, &
@@ -342,16 +308,6 @@ CONTAINS
                                 filter_mat=matrix_filter(ispin)%matrix, &
                                 tolerance=eps_default)
        END IF
-!END:REPL:LT:2015/01/2
-
-       ! ----------------------------------------------------------------------
-       ! Deallocate the desymmetrised matrices
-       CALL cp_dbcsr_release(matrix_ks_desymm%matrix)
-       CALL cp_dbcsr_release(matrix_s_desymm%matrix)
-       DEALLOCATE(matrix_ks_desymm%matrix)
-       DEALLOCATE(matrix_s_desymm%matrix)
-       ! ----------------------------------------------------------------------
-
     END DO ! ispin
 
     ! ----------------------------------------------------------------------

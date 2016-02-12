@@ -776,36 +776,32 @@ CONTAINS
 !>                      the local matrix blocks to be sent or the
 !>                      remote matrix blocks to be received for this MPI
 !>                      process
-!> \param symmetric whether the matrix the blocks are to be taken from
-!>                   is symmetric
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
 ! *****************************************************************************
   SUBROUTINE fb_com_tasks_build_atom_pairs(com_tasks, &
                                            atom_pairs, &
                                            natoms_encode, &
-                                           send_or_recv, &
-                                           symmetric)
+                                           send_or_recv)
     TYPE(fb_com_tasks_obj), INTENT(IN)       :: com_tasks
     TYPE(fb_com_atom_pairs_obj), &
       INTENT(INOUT)                          :: atom_pairs
     INTEGER, INTENT(IN)                      :: natoms_encode
     CHARACTER(len=*), INTENT(IN)             :: send_or_recv
-    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
 
     CHARACTER(LEN=*), PARAMETER :: &
       routineN = 'fb_com_tasks_build_atom_pairs', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: acol, arow, handle, iatom, &
-                                                ii, itask, jatom, npairs, &
-                                                ntasks, rank, rank_pos
+    INTEGER                                  :: handle, iatom, ii, itask, &
+                                                jatom, npairs, ntasks, rank, &
+                                                rank_pos
     INTEGER(KIND=int_8)                      :: pair
     INTEGER(KIND=int_8), DIMENSION(:), &
       POINTER                                :: pairs
     INTEGER(KIND=int_8), DIMENSION(:, :), &
       POINTER                                :: tasks
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_index
-    LOGICAL                                  :: check_ok, my_symmetric
+    LOGICAL                                  :: check_ok
 
     CALL timeset(routineN, handle)
 
@@ -824,12 +820,6 @@ CONTAINS
        rank_pos = TASK_SRC
     END IF
 
-    IF (PRESENT(symmetric)) THEN
-       my_symmetric = symmetric
-    ELSE
-       my_symmetric = .FALSE.
-    END IF
-
     CALL fb_com_tasks_get(com_tasks=com_tasks, &
                           ntasks=ntasks, &
                           tasks=tasks)
@@ -842,22 +832,9 @@ CONTAINS
     DO itask = 1, ntasks
        pair = tasks(TASK_PAIR,itask)
        CALL fb_com_tasks_decode_pair(pair, iatom, jatom, natoms_encode)
-
-       IF (my_symmetric) THEN
-          IF (iatom .LE. jatom) THEN
-             arow = iatom
-             acol = jatom
-          ELSE
-             arow = jatom
-             acol = iatom
-          END IF
-       ELSE
-          arow = iatom
-          acol = jatom
-       END IF
        rank = INT(tasks(rank_pos,itask))
        CALL fb_com_atom_pairs_encode(pairs(itask), &
-                                     rank, arow, acol, natoms_encode)
+                                     rank, iatom, jatom, natoms_encode)
     END DO
 
     ! sort atom_pairs so that the pairs are ordered process blocks and
