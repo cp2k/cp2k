@@ -365,7 +365,8 @@ CONTAINS
              ENDDO
              IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
    
-             CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear)
+             IF (.NOT. scf_control%diagonalization%mom) &
+                CALL set_mo_occupation(mo_array,smear=qs_env%scf_control%smear)
    
              DO ispin=1,nspin
    
@@ -383,10 +384,7 @@ CONTAINS
 
        ! Maximum Overlap Method
        IF (scf_control%diagonalization%mom) THEN
-          ! activate MOM immediately as we already have old molecular orbitals;
-          ! this behaviour can be modified via your input file
-          CALL do_mom_guess(nspins=nspin, mos=mo_array, &
-               scf_control=scf_control, p_rmpv=p_rmpv, scf_iter=1)
+          CALL do_mom_guess(nspin, mo_array, scf_control, p_rmpv)
        ENDIF
 
        did_guess = .TRUE.
@@ -605,10 +603,7 @@ CONTAINS
        END IF
 
        IF (scf_control%diagonalization%mom) THEN
-          ! by default activate MOM since the second SCF iteration, as 'old'
-          ! molecular orbitals will be available after the first iteration
-          CALL do_mom_guess(nspins=nspin, mos=mo_array, &
-               scf_control=scf_control, p_rmpv=p_rmpv, scf_iter=2)
+          CALL do_mom_guess(nspin, mo_array, scf_control, p_rmpv)
        ENDIF
 
        CALL cp_print_key_finished_output(output_unit,logger,subsys_section,&

@@ -198,8 +198,8 @@ MODULE input_constants
                                               molecular_guess=10
 
   ! Projection formulas for the maximum overlap method
-  INTEGER, PARAMETER, PUBLIC               :: momproj_sum=0,&
-                                              momproj_norm=1
+  INTEGER, PARAMETER, PUBLIC               :: momproj_norm=0,&
+                                              momproj_sum=1
 
   INTEGER, PARAMETER, PUBLIC               :: almo_frz_none=0,&
                                               almo_frz_isolated=1,&

@@ -16,6 +16,7 @@ MODULE qs_mom_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_maxabsval,&
                                              cp_fm_release,&
                                              cp_fm_type,&
                                              cp_fm_vectorsnorm,&
@@ -121,8 +122,8 @@ CONTAINS
     CHARACTER(len=3)                         :: str_prefix
     INTEGER                                  :: handle, homo, iorb, lfomo, &
                                                 nao, nmo, norbs
-    REAL(KIND=dp)                            :: maxocc
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occ_nums
+    REAL(kind=dp)                            :: maxocc
+    REAL(kind=dp), DIMENSION(:), POINTER     :: occ_nums
 
     CALL timeset(routineN, handle)
 
@@ -134,10 +135,10 @@ CONTAINS
     ! the following assertion should never raise an exception
     CPASSERT(SIZE(deocc_orb_set) == SIZE(occ_orb_set))
 
-    IF (deocc_orb_set(1) /= 0 .AND. occ_orb_set(1) /= 0) THEN
+    ! MOM does not follow aufbau principle producing non-uniformly occupied orbitals
+    CALL set_mo_set(mo_set=mo_set, uniform_occupation=.FALSE.)
 
-       ! MOM does not follow aufbau principle producing non-uniform orbitals occupation
-       CALL set_mo_set(mo_set=mo_set, uniform_occupation=.FALSE.)
+    IF (deocc_orb_set(1) /= 0 .AND. occ_orb_set(1) /= 0) THEN
        CALL get_mo_set(mo_set=mo_set, maxocc=maxocc, &
           nao=nao, nmo=nmo, occupation_numbers=occ_nums)
 
@@ -231,24 +232,25 @@ CONTAINS
 !> \param mos         array of molecular orbitals
 !> \param scf_control SCF control variables
 !> \param p_rmpv      density matrix to be computed
-!> \param scf_iter    default SCF iteration to activate the MOM
 !> \par History
 !>      01.2016 created [Sergey Chulkov]
 ! *****************************************************************************
-  SUBROUTINE do_mom_guess(nspins, mos, scf_control, p_rmpv, scf_iter)
+  SUBROUTINE do_mom_guess(nspins, mos, scf_control, p_rmpv)
     INTEGER, INTENT(in)                      :: nspins
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: p_rmpv
-    INTEGER, INTENT(in)                      :: scf_iter
 
     CHARACTER(len=*), PARAMETER :: routineN = 'do_mom_guess', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=10)                        :: str_iter
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, ispin, scf_iter
+    LOGICAL                                  :: is_mo
+    REAL(kind=dp)                            :: maxa
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
 
     CALL timeset(routineN, handle)
 
@@ -284,32 +286,55 @@ CONTAINS
             " electronic state or inconsistent number of electrons")
     ENDIF
 
-    ! procees alpha orbitals
-    IF (nspins >= 1) THEN
+    is_mo = .FALSE.
+    ! by default activate MOM at the second SCF iteration as the
+    ! 'old' molecular orbitals are unavailable from the very beginning
+    scf_iter = 2
+    ! check if the molecular orbitals are actually there
+    ! by finding at least one MO coefficient > 0
+    DO ispin = 1,nspins
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+       CALL cp_fm_maxabsval(mo_coeff, maxa)
+       ! is_mo |= maxa > 0.0_dp
+       IF (maxa > 0.0_dp) THEN
+          is_mo = .TRUE.
+          ! we already have the molecular orbitals (e.g. from a restart file);
+          ! activate MOM immediately if the input keyword START_ITER is not given
+          scf_iter = 1
+          EXIT
+       ENDIF
+    ENDDO
+
+    ! proceed alpha orbitals
+    IF (nspins >= 1) &
        CALL mom_reoccupy_orbitals(mos(1)%mo_set, &
             scf_control%diagonalization%mom_deoccA, &
             scf_control%diagonalization%mom_occA, 'alpha')
 
-       CALL calculate_density_matrix(mos(1)%mo_set, p_rmpv(1)%matrix)
-    ENDIF
-
-    ! procees beta orbitals (if any)
-    IF (nspins >= 2) THEN
+    ! proceed beta orbitals (if any)
+    IF (nspins >= 2) &
        CALL mom_reoccupy_orbitals(mos(2)%mo_set, &
             scf_control%diagonalization%mom_deoccB, &
             scf_control%diagonalization%mom_occB, 'beta')
 
-       CALL calculate_density_matrix(mos(2)%mo_set, p_rmpv(2)%matrix)
+    ! recompute the density matrix if the molecular orbitals are here;
+    ! otherwise do nothing to prevent zeroing out the density matrix
+    ! obtained from atomic guess
+    IF (is_mo) THEN
+       DO ispin = 1,nspins
+          CALL calculate_density_matrix(mos(ispin)%mo_set, p_rmpv(ispin)%matrix)
+       ENDDO
     ENDIF
 
-    ! adjust the SCF iteration to activate the method if it has been set inappropriately
+    ! adjust the start SCF iteration number if needed
     IF (scf_control%diagonalization%mom_start < scf_iter) THEN
        IF (scf_control%diagonalization%mom_start > 0) THEN
-          ! the inappropriately iteration number has been provided through the input file
+          ! inappropriate iteration number has been provided through the input file;
+          ! fix it and issue a warning message
           CALL integer_to_string(scf_iter, str_iter)
           CALL cp_warn(__LOCATION__, &
-            "MOM procedure cannot be activated prior to SCF iteration no. "//&
-            TRIM(str_iter)//" due to the initial SCF guess method used.")
+            "The maximum overlap method will be activated at the SCF iteration No. "//&
+            TRIM(str_iter)//" due to the SCF guess method used.")
        ENDIF
        scf_control%diagonalization%mom_start = scf_iter
     ENDIF

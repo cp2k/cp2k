@@ -130,11 +130,12 @@ CONTAINS
 
     CALL keyword_create(keyword, name="PROJ_FORMULA",&
          description="Projection formula to be used",&
-         usage="SCF_GUESS RESTART", default_i_val=momproj_sum,&
-         enum_c_vals=s2a("SUM","NORM"),&
-         enum_desc=s2a("The one proposed in the original paper", &
-         "The one which ignores the phase of molecular orbitals"), &
-         enum_i_vals=(/momproj_sum, momproj_norm/))
+         usage="SCF_GUESS RESTART", default_i_val=momproj_norm,&
+         enum_c_vals=s2a("NORM","SUM"),&
+         enum_desc=s2a(&
+           "The one which ignores the phase of molecular orbitals: proj_j = \sqrt(\sum_i overlap(i, j)^2)",&
+           "The one proposed in the original paper: proj_j = |\sum_i overlap(i, j)|"),&
+         enum_i_vals=(/momproj_norm, momproj_sum/))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
