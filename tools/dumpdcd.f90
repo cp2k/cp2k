@@ -16,6 +16,7 @@ PROGRAM dumpdcd
 !          - Added -displacement (-disp) flag (26.06.2012,MK)
 !          - Dump the atomic displacements (CORD file) or temperatures (VEL file as x-coordinates of a DCD file (28.06.2012,MK)
 !          - FRC to CORD (-frc2cord flag) hack added (28.01.2016,MK)
+!          - Option -eformat added (15.02.2016,MK)
 !
 ! Note: For -ekin a XYZ file is required to obtain the atomic labels.
 !       The -info and the -debug flags provide a more detailed output which is especially handy for tracing problems.
@@ -54,6 +55,7 @@ PROGRAM dumpdcd
   ! Variables
   CHARACTER(LEN=4)                                   :: id_dcd
   CHARACTER(LEN=10)                                  :: unit_string
+  CHARACTER(LEN=17)                                  :: fmt_string
   CHARACTER(LEN=default_string_length)               :: arg,dcd_file_name,message,out_file_name,output_format,&
                                                         remark_xyz,string,xyz_file_name
   CHARACTER(LEN=5), DIMENSION(:), ALLOCATABLE        :: atomic_label
@@ -62,7 +64,7 @@ PROGRAM dumpdcd
                                                         iatom,iskip,istat,istep,last_frame,narg,&
                                                         natom_dcd,natom_xyz,ndcd_file,nframe,&
                                                         nframe_read,nremark,stride
-  LOGICAL                                            :: apply_pbc,debug,dump_frame,ekin,eo,have_atomic_labels,&
+  LOGICAL                                            :: apply_pbc,debug,dump_frame,eformat,ekin,eo,have_atomic_labels,&
                                                         info,opened,output_format_dcd,output_format_xmol,&
                                                         pbc0,print_atomic_displacements,print_scaled_coordinates,&
                                                         print_scaled_pbc_coordinates,trace_atoms,vel2cord
@@ -79,6 +81,7 @@ PROGRAM dumpdcd
   pbc0 = .FALSE.
   debug = .FALSE.
   dump_frame = .TRUE.
+  eformat = .FALSE.
   ekin = .FALSE.
   eo = .FALSE.
   info = .FALSE.
@@ -107,6 +110,7 @@ PROGRAM dumpdcd
   output_format_xmol = .FALSE.
   remark_dcd(:) = ""
   remark_xyz = ""
+  fmt_string = ""
   dt = 0.0_sp
   a = 0.0_dp
   b = 0.0_dp
@@ -140,6 +144,9 @@ PROGRAM dumpdcd
       CYCLE dcd_file_loop
     CASE ("-displacements","-disp")
       print_atomic_displacements = .TRUE.
+      CYCLE dcd_file_loop
+    CASE ("-eformat")
+      eformat = .TRUE.
       CYCLE dcd_file_loop
     CASE ("-ekin")
       ekin = .TRUE.
@@ -277,6 +284,13 @@ PROGRAM dumpdcd
     END IF
     IF (.NOT.apply_pbc.AND.print_scaled_pbc_coordinates) THEN
       CALL abort_program(routine_name,"The -spc flag requires the specification of a -pbc flag")
+    END IF
+
+    ! Use optionally an ES format
+    IF (eformat) THEN
+      fmt_string = "(A5,3(1X,ES14.6))"
+    ELSE
+      fmt_string = "(A5,3(1X, F14.6))"
     END IF
 
     ! Open output units as requested
@@ -679,7 +693,7 @@ PROGRAM dumpdcd
                 WRITE (UNIT=output_unit,FMT="(T2,I0,/,A,2(I0,A))")&
                   natom_dcd,"Frame: ",nframe_read + 1,", Step: ",nframe,", "//TRIM(remark_xyz)
                 DO iatom=1,natom_dcd
-                  WRITE (UNIT=output_unit,FMT="(A5,3(1X,F14.6))") ADJUSTL(atomic_label(iatom)),r(iatom,1:3)
+                  WRITE (UNIT=output_unit,FMT=fmt_string) ADJUSTL(atomic_label(iatom)),r(iatom,1:3)
                 END DO
               ELSE
                 IF (info) THEN
@@ -688,15 +702,15 @@ PROGRAM dumpdcd
                 END IF
                 IF (print_scaled_coordinates) THEN
                   DO iatom=1,natom_dcd
-                    WRITE (UNIT=output_unit,FMT="(A5,3(1X,F14.6))") ADJUSTL(atomic_label(iatom)),s(iatom,1:3)
+                    WRITE (UNIT=output_unit,FMT=fmt_string) ADJUSTL(atomic_label(iatom)),s(iatom,1:3)
                   END DO
                 ELSE IF (print_scaled_pbc_coordinates) THEN
                   DO iatom=1,natom_dcd
-                    WRITE (UNIT=output_unit,FMT="(A5,3(1X,F14.6))") ADJUSTL(atomic_label(iatom)),s_pbc(iatom,1:3)
+                    WRITE (UNIT=output_unit,FMT=fmt_string) ADJUSTL(atomic_label(iatom)),s_pbc(iatom,1:3)
                   END DO
                 ELSE
                   DO iatom=1,natom_dcd
-                    WRITE (UNIT=output_unit,FMT="(A5,3(1X,F14.6))") ADJUSTL(atomic_label(iatom)),r(iatom,1:3)
+                    WRITE (UNIT=output_unit,FMT=fmt_string) ADJUSTL(atomic_label(iatom)),r(iatom,1:3)
                   END DO
                 END IF
               END IF
@@ -1068,6 +1082,7 @@ CONTAINS
      "",&
      " -debug, -d                     : Print debug information",&
      " -ekin                          : Dump just the ""temperature"" of each atom",&
+     " -eformat                       : Print coordinates in scientific format",&
      " -eo                            : Write standard output and standard error to the same logical unit",&
      " -first_frame, -ff <int>        : Number of the first frame which is dumped",&
      " -help, -h                      : Print this information",&
