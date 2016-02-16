@@ -1700,6 +1700,137 @@
     CALL mp_timestop(handle)
   END SUBROUTINE mp_allgather_i34
 
+
+! *****************************************************************************
+!> \brief Gathers rank-2 data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-2 data to send
+!> \param msgin ...
+!> \param gid ...
+!> \note see mp_allgather_i12
+! *****************************************************************************
+  SUBROUTINE mp_allgather_i22(msgout, msgin,gid)
+    INTEGER(KIND=int_4), INTENT(IN)                      :: msgout(:, :)
+    INTEGER(KIND=int_4), INTENT(OUT)                     :: msgin(:, :)
+    INTEGER, INTENT(IN)                      :: gid
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_allgather_i22', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: rcount, scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    scount = SIZE (msgout(:,:))
+    rcount = scount
+    CALL MPI_ALLGATHER(msgout, scount, MPI_INTEGER, &
+                       msgin , rcount, MPI_INTEGER, &
+                       gid, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ "//routineN )
+#else
+    MARK_USED(gid)
+    msgin(:,:) = msgout(:,:)
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_allgather_i22
+
+! *****************************************************************************
+!> \brief Gathers rank-2 data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-2 data to send
+!> \param msgin ...
+!> \param gid ...
+!> \param request ...
+!> \note see mp_allgather_i12
+! *****************************************************************************
+  SUBROUTINE mp_iallgather_i22(msgout, msgin, gid, request)
+    INTEGER(KIND=int_4), INTENT(IN)                      :: msgout(:, :)
+    INTEGER(KIND=int_4), INTENT(OUT)                     :: msgin(:, :)
+    INTEGER, INTENT(IN)                      :: gid
+    INTEGER, INTENT(OUT)                     :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_i22', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: rcount, scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    scount = SIZE (msgout(:,:))
+    rcount = scount
+    CALL MPI_IALLGATHER(msgout, scount, MPI_INTEGER, &
+                       msgin , rcount, MPI_INTEGER, &
+                       gid, request, ierr )
+#else
+    request = mp_request_null
+    CPABORT("mp_rget requires MPI-3 standard")
+#endif
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
+#else
+    MARK_USED(gid)
+    msgin(:,:) = msgout(:,:)
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iallgather_i22
+
+! *****************************************************************************
+!> \brief Gathers rank-3 data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-3 data to send
+!> \param msgin ...
+!> \param gid ...
+!> \param request ...
+!> \note see mp_allgather_i12
+! *****************************************************************************
+  SUBROUTINE mp_iallgather_i33(msgout, msgin, gid, request)
+    INTEGER(KIND=int_4), INTENT(IN)                      :: msgout(:, :, :)
+    INTEGER(KIND=int_4), INTENT(OUT)                     :: msgin(:, :, :)
+    INTEGER, INTENT(IN)                      :: gid
+    INTEGER, INTENT(OUT)                     :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_i33', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: rcount, scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    scount = SIZE (msgout(:,:,:))
+    rcount = scount
+    CALL MPI_IALLGATHER(msgout, scount, MPI_INTEGER, &
+                       msgin , rcount, MPI_INTEGER, &
+                       gid, request, ierr )
+#else
+    request = mp_request_null
+    CPABORT("mp_rget requires MPI-3 standard")
+#endif
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
+#else
+    MARK_USED(gid)
+    msgin(:,:,:) = msgout(:,:,:)
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iallgather_i33
+
 ! *****************************************************************************
 !> \brief Gathers vector data from all processes and all processes receive the
 !>        same data

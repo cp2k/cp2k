@@ -1114,6 +1114,12 @@ CONTAINS
     imgdist%i%has_global_vrow_map = .FALSE.
     imgdist%i%has_global_vcol_map = .FALSE.
     !
+!$  IF (dbcsr_distribution_has_threads(dist)) THEN
+!$     imgdist%i%main%d%num_threads = dist%d%num_threads
+!$     imgdist%i%main%d%has_thread_dist = .TRUE.
+!$     imgdist%i%main%d%thread_dist = dist%d%thread_dist
+!$     CALL array_hold(imgdist%i%main%d%thread_dist)
+!$  ENDIF
   END SUBROUTINE dbcsr_create_image_dist
 
 

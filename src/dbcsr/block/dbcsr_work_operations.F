@@ -229,6 +229,9 @@ CONTAINS
     hijack = ASSOCIATED(matrix%m%index)
     IF (PRESENT (reuse)) hijack = reuse
 
+    my_make_index = .TRUE.
+    IF (PRESENT(make_index)) my_make_index = make_index
+
     IF (.NOT.hijack) THEN
        CALL dbcsr_init (matrix%m)
        matrix%m%refcount = 1
@@ -403,16 +406,18 @@ CONTAINS
 !$          array_data(matrix%m%row_blk_size))
 !$  ENDIF
     ! Set up some data.
-    CALL meta_from_dist (new_meta, dist, array_data(matrix%m%row_blk_size), &
-                         array_data(matrix%m%col_blk_size))
-    matrix%m%nblkrows_total  = new_meta(dbcsr_slot_nblkrows_total )
-    matrix%m%nblkcols_total  = new_meta(dbcsr_slot_nblkcols_total )
-    matrix%m%nfullrows_total = new_meta(dbcsr_slot_nfullrows_total)
-    matrix%m%nfullcols_total = new_meta(dbcsr_slot_nfullcols_total)
-    matrix%m%nblkrows_local  = new_meta(dbcsr_slot_nblkrows_local )
-    matrix%m%nblkcols_local  = new_meta(dbcsr_slot_nblkcols_local )
-    matrix%m%nfullrows_local = new_meta(dbcsr_slot_nfullrows_local)
-    matrix%m%nfullcols_local = new_meta(dbcsr_slot_nfullcols_local)
+    IF (my_make_index) THEN
+       CALL meta_from_dist (new_meta, dist, array_data(matrix%m%row_blk_size), &
+                            array_data(matrix%m%col_blk_size))
+       matrix%m%nblkrows_total  = new_meta(dbcsr_slot_nblkrows_total )
+       matrix%m%nblkcols_total  = new_meta(dbcsr_slot_nblkcols_total )
+       matrix%m%nfullrows_total = new_meta(dbcsr_slot_nfullrows_total)
+       matrix%m%nfullcols_total = new_meta(dbcsr_slot_nfullcols_total)
+       matrix%m%nblkrows_local  = new_meta(dbcsr_slot_nblkrows_local )
+       matrix%m%nblkcols_local  = new_meta(dbcsr_slot_nblkcols_local )
+       matrix%m%nfullrows_local = new_meta(dbcsr_slot_nfullrows_local)
+       matrix%m%nfullcols_local = new_meta(dbcsr_slot_nfullcols_local)
+    ENDIF
     my_nze = 0; IF (PRESENT (nze)) my_nze = nze
     matrix%m%nblks = 0
     matrix%m%nze = 0
@@ -439,17 +444,21 @@ CONTAINS
           CALL dbcsr_data_set_size_referenced (matrix%m%data_area, 0)
        ENDIF
        !
-       NULLIFY (matrix%m%index)
-       CALL ensure_array_size (matrix%m%index, lb=1, ub=dbcsr_num_slots,&
-            zero_pad = .TRUE., memory_type = matrix%m%index_memory_type)
+       IF (my_make_index) THEN
+          NULLIFY (matrix%m%index)
+          CALL ensure_array_size (matrix%m%index, lb=1, ub=dbcsr_num_slots,&
+               zero_pad = .TRUE., memory_type = matrix%m%index_memory_type)
+       ENDIF
     ENDIF
-    CALL dbcsr_assert (LBOUND (matrix%m%index, 1) .LE. 1&
-         .AND. UBOUND (matrix%m%index, 1) .GE. dbcsr_num_slots,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Index is not large enough",__LINE__)
-    matrix%m%index(1:dbcsr_num_slots) = 0
-    matrix%m%index(1:dbcsr_meta_size) = new_meta(1:dbcsr_meta_size)
-    matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
+    IF (my_make_index) THEN
+       CALL dbcsr_assert (LBOUND (matrix%m%index, 1) .LE. 1&
+            .AND. UBOUND (matrix%m%index, 1) .GE. dbcsr_num_slots,&
+            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
+            "Index is not large enough",__LINE__)
+       matrix%m%index(1:dbcsr_num_slots) = 0
+       matrix%m%index(1:dbcsr_meta_size) = new_meta(1:dbcsr_meta_size)
+       matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
+    ENDIF
     !
     matrix%m%symmetry = .FALSE.
     matrix%m%negate_real = .FALSE.
@@ -486,8 +495,6 @@ CONTAINS
     matrix%m%has_global_rows = .FALSE.
     matrix%m%has_local_cols  = .FALSE.
     matrix%m%has_global_cols = .FALSE.
-    my_make_index = .TRUE.
-    IF (PRESENT(make_index)) my_make_index = make_index
     IF (my_make_index) THEN
        CALL dbcsr_make_index_exist (matrix%m)
     ENDIF

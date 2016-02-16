@@ -433,6 +433,7 @@ MODULE dbcsr_data_methods_low
     IF (.NOT. ASSOCIATED (area%d)) THEN
        RETURN
     ENDIF
+!$omp atomic
     area%d%refcount = area%d%refcount + 1
   END SUBROUTINE dbcsr_data_hold
 

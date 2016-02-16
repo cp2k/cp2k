@@ -282,6 +282,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+!$omp atomic
     dist%d%refcount = dist%d%refcount + 1
   END SUBROUTINE dbcsr_distribution_hold
 

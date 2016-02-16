@@ -201,7 +201,9 @@
     IF(mem_type%acc_hostalloc .AND. n>1) THEN
        CALL acc_hostmem_allocate(mem, n, mem_type%acc_stream)
     ELSE IF(mem_type%mpi) THEN
+!$omp critical(allocate)
        CALL mp_allocate(mem, n)
+!$omp end critical(allocate)
     ELSE
        ALLOCATE(mem(n))
     ENDIF

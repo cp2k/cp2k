@@ -121,9 +121,10 @@ CONTAINS
 !> \brief ...
 !> \param array ...
 ! *****************************************************************************
-  PURE SUBROUTINE array_hold_i1d (array)
+  SUBROUTINE array_hold_i1d (array)
     TYPE(array_i1d_obj), INTENT(INOUT)       :: array
 
+!$omp atomic
     array%low%refcount = array%low%refcount + 1
   END SUBROUTINE array_hold_i1d
 ! *****************************************************************************

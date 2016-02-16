@@ -453,9 +453,11 @@ MODULE dbcsr_mm_multrec
     t_a_l = left%nblks
     t_b_f = 1
     t_b_l = right%nblks
-    !$ ithread = OMP_GET_THREAD_NUM()
-    !$ t_a_f = left%thr_c(ithread+1)+1
-    !$ t_a_l = left%thr_c(ithread+2)
+    !$ IF (ASSOCIATED(left%thr_c)) THEN
+    !$   ithread = OMP_GET_THREAD_NUM()
+    !$   t_a_f = left%thr_c(ithread+1)+1
+    !$   t_a_l = left%thr_c(ithread+2)
+    !$ ENDIF
     IF (this%local_indexing) THEN
        CALL sparse_multrec(this, left, right,&
             1, left%nblkrows_local,&

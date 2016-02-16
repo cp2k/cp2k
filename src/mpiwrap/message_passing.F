@@ -130,7 +130,7 @@ MODULE message_passing
 
   ! message passing
   PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
-  PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather
+  PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
   PUBLIC :: mp_isend, mp_irecv
   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
   PUBLIC :: mp_gatherv
@@ -297,22 +297,38 @@ MODULE message_passing
      MODULE PROCEDURE &
           mp_allgather_i,&
           mp_allgather_i12, mp_allgather_i23, mp_allgather_i34,&
+          mp_allgather_i22,&
           mp_allgather_l,&
           mp_allgather_l12, mp_allgather_l23, mp_allgather_l34,&
+          mp_allgather_l22,&
           mp_allgather_r,&
           mp_allgather_r12, mp_allgather_r23, mp_allgather_r34,&
+          mp_allgather_r22,&
           mp_allgather_d,&
           mp_allgather_d12, mp_allgather_d23, mp_allgather_d34,&
+          mp_allgather_d22,&
           mp_allgather_c,&
           mp_allgather_c12, mp_allgather_c23, mp_allgather_c34,&
+          mp_allgather_c22,&
           mp_allgather_z,&
           mp_allgather_z12, mp_allgather_z23, mp_allgather_z34,&
+          mp_allgather_z22,&
           mp_allgatherv_iv,&
           mp_allgatherv_lv,&
           mp_allgatherv_rv,&
           mp_allgatherv_dv,&
           mp_allgatherv_cv,&
           mp_allgatherv_zv
+  END INTERFACE
+
+  INTERFACE mp_iallgather
+     MODULE PROCEDURE &
+          mp_iallgather_i22, mp_iallgather_l22, &
+          mp_iallgather_r22, mp_iallgather_d22, &
+          mp_iallgather_c22, mp_iallgather_z22, & 
+          mp_iallgather_i33, mp_iallgather_l33, &
+          mp_iallgather_r33, mp_iallgather_d33, &
+          mp_iallgather_c33, mp_iallgather_z33 
   END INTERFACE
 
   INTERFACE mp_scatter
