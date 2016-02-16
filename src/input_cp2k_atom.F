@@ -850,6 +850,8 @@ CONTAINS
     NULLIFY(subsection)
     CALL create_gthpotential_section(subsection)
     CALL section_add_subsection(section, subsection)
+    CALL section_release(subsection)
+
     NULLIFY(subsection)
     CALL create_ecp_section(subsection)
     CALL section_add_subsection(section, subsection)
