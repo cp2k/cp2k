@@ -15,8 +15,9 @@ MODULE atom_electronic_structure
                                              atom_print_state,&
                                              atom_print_zmp_iteration
   USE atom_types,                      ONLY: &
-       GTH_PSEUDO, NO_PSEUDO, atom_type, create_opgrid, create_opmat, &
-       opgrid_type, opmat_type, release_opgrid, release_opmat, set_atom
+       atom_type, create_opgrid, create_opmat, ecp_pseudo, gth_pseudo, &
+       no_pseudo, opgrid_type, opmat_type, release_opgrid, release_opmat, &
+       set_atom, upf_pseudo
   USE atom_utils,                      ONLY: &
        atom_denmat, atom_density, atom_read_external_density, &
        atom_read_external_vxc, atom_read_zmp_restart, atom_solve, atom_trace, &
@@ -200,7 +201,7 @@ CONTAINS
           CASE (do_dkh0_atom, do_dkh1_atom,do_dkh2_atom,do_dkh3_atom,do_dkh4_atom,do_dkh5_atom)
             hcore%op = atom%integrals%hdkh
         END SELECT
-      CASE (GTH_PSEUDO)
+      CASE (gth_pseudo, upf_pseudo, ecp_pseudo)
         hcore%op = atom%integrals%kin + atom%integrals%core + atom%integrals%hnl
     END SELECT
     ! add confinement potential (not included in relativistic transformations)
@@ -261,10 +262,10 @@ CONTAINS
       SELECT CASE (atom%potential%ppot_type)
         CASE DEFAULT
           CPABORT("")
-        CASE (NO_PSEUDO)
+        CASE (no_pseudo)
           atom%energy%eploc = 0._dp
           atom%energy%epnl = 0._dp
-        CASE (GTH_PSEUDO)
+        CASE (gth_pseudo, upf_pseudo, ecp_pseudo)
           atom%energy%eploc = atom_trace(atom%integrals%core,atom%orbitals%pmat)
           atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat)
       END SELECT
@@ -512,7 +513,7 @@ CONTAINS
     SELECT CASE (atom%potential%ppot_type)
       CASE DEFAULT
         CPABORT("")
-      CASE (NO_PSEUDO)
+      CASE (no_pseudo)
         SELECT CASE (reltyp)
           CASE DEFAULT
             CPABORT("")
@@ -523,12 +524,14 @@ CONTAINS
           CASE (do_dkh0_atom, do_dkh1_atom,do_dkh2_atom,do_dkh3_atom,do_dkh4_atom,do_dkh5_atom)
             hcore%op = atom%integrals%hdkh
         END SELECT
-      CASE (GTH_PSEUDO)
+      CASE (gth_pseudo)
         hcore%op = atom%integrals%kin + atom%integrals%core + atom%integrals%hnl
         IF(atom%potential%gth_pot%lsdpot) THEN
           lsdpot=.TRUE.
           hlsd%op = atom%integrals%clsd
         END IF
+      CASE (upf_pseudo, ecp_pseudo)
+        hcore%op = atom%integrals%kin + atom%integrals%core + atom%integrals%hnl
     END SELECT
     ! add confinement potential (not included in relativistic transformations)
     IF ( atom%potential%confinement ) THEN
@@ -602,10 +605,10 @@ CONTAINS
       SELECT CASE (atom%potential%ppot_type)
         CASE DEFAULT
           CPABORT("")
-        CASE (NO_PSEUDO)
+        CASE (no_pseudo)
           atom%energy%eploc = 0._dp
           atom%energy%epnl = 0._dp
-        CASE (GTH_PSEUDO)
+        CASE (gth_pseudo, upf_pseudo, ecp_pseudo)
           atom%energy%eploc = atom_trace(atom%integrals%core,atom%orbitals%pmat)
           atom%energy%epnl = atom_trace(atom%integrals%hnl,atom%orbitals%pmat)
       END SELECT

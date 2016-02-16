@@ -21,10 +21,10 @@ MODULE atom_energy
                                              atom_print_potential,&
                                              atom_write_pseudo_param
   USE atom_types,                      ONLY: &
-       GTH_PSEUDO, atom_basis_type, atom_gthpot_type, atom_integrals, &
+       atom_basis_type, atom_gthpot_type, atom_integrals, &
        atom_optimization_type, atom_orbitals, atom_p_type, &
        atom_potential_type, atom_state, atom_type, create_atom_orbs, &
-       create_atom_type, init_atom_basis, init_atom_potential, &
+       create_atom_type, gth_pseudo, init_atom_basis, init_atom_potential, &
        read_atom_opt_section, release_atom_basis, release_atom_potential, &
        release_atom_type, set_atom
   USE atom_utils,                      ONLY: &
@@ -426,7 +426,7 @@ CONTAINS
           CALL cp_print_key_finished_output(iw,logger,atom_section,"PRINT%RESPONSE_BASIS")
 
           ! generate a UPF file
-         iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%UPF_FILE",extension=".upf",&
+          iw = cp_print_key_unit_nr(logger,atom_section,"PRINT%UPF_FILE",extension=".upf",&
               file_position="REWIND")
           IF (iw>0) THEN
             CALL atom_write_upf(atom_info(in,im)%atom,iw)
@@ -596,6 +596,7 @@ CONTAINS
     WRITE(iw,'(" ",79("*"))')
 
   END SUBROUTINE atom_response_basis
+
 ! *****************************************************************************
 !> \brief ...
 !> \param atom ...
@@ -621,7 +622,7 @@ CONTAINS
     TYPE(atom_gthpot_type), POINTER          :: pot
 
     IF(.NOT.atom%pp_calc) RETURN
-    IF(atom%potential%ppot_type /= GTH_PSEUDO) RETURN
+    IF(atom%potential%ppot_type /= gth_pseudo) RETURN
     pot => atom%potential%gth_pot
     CPASSERT(.NOT.pot%lsdpot)
 
@@ -896,7 +897,6 @@ CONTAINS
          WRITE(string,"(A,A2,A,A1)") TRIM(ADJUSTL(tag)),'="',TRIM(ADJUSTL(str)),'"'
        END IF
      END IF
-
   END SUBROUTINE compose
 ! *****************************************************************************
 

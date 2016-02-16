@@ -8,9 +8,11 @@
 !>      for the atomic code
 ! *****************************************************************************
 MODULE atom_xc
-  USE atom_types,                      ONLY: GTH_PSEUDO,&
-                                             atom_type,&
-                                             opmat_type
+ 
+  USE atom_types,                      ONLY: atom_type,&
+                                             gth_pseudo,&
+                                             opmat_type,&
+                                             upf_pseudo
 ! ZMP added coulomb_potential_numeric
   USE atom_utils,                      ONLY: atom_core_density,&
                                              atom_density,&
@@ -219,7 +221,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     nlcc=.FALSE.
-    IF ( atom%potential%ppot_type==GTH_PSEUDO ) THEN
+    IF ( atom%potential%ppot_type==gth_pseudo ) THEN
       nlcc = atom%potential%gth_pot%nlcc
     END IF
 
@@ -407,8 +409,10 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     nlcc=.FALSE.
-    IF ( atom%potential%ppot_type==GTH_PSEUDO ) THEN
+    IF ( atom%potential%ppot_type==gth_pseudo ) THEN
       nlcc = atom%potential%gth_pot%nlcc
+    ELSE IF ( atom%potential%ppot_type==upf_pseudo ) THEN
+      CPABORT("")
     END IF
 
     IF ( ASSOCIATED(xc_section) ) THEN

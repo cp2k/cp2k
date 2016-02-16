@@ -11,23 +11,22 @@
 !>
 ! *****************************************************************************
 MODULE atom_types
+  USE atom_upf,                        ONLY: atom_read_upf,&
+                                             atom_upfpot_type
   USE cp_linked_list_val,              ONLY: cp_sll_val_next,&
                                              cp_sll_val_type
   USE cp_parser_methods,               ONLY: parser_get_next_line,&
                                              parser_get_object,&
+                                             parser_read_line,&
                                              parser_search_string,&
                                              parser_test_next_token
   USE cp_parser_types,                 ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_release
-  USE input_constants,                 ONLY: barrier_conf,&
-                                             contracted_gto,&
-                                             gaussian,&
-                                             geometrical_gto,&
-                                             no_conf,&
-                                             numerical,&
-                                             poly_conf,&
-                                             slater
+  USE input_constants,                 ONLY: &
+       barrier_conf, contracted_gto, do_gapw_log, ecp_pseudo, gaussian, &
+       geometrical_gto, gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, &
+       slater, upf_pseudo
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_list_get,&
@@ -40,7 +39,8 @@ MODULE atom_types
   USE mathconstants,                   ONLY: dfac,&
                                              fac,&
                                              pi
-  USE periodic_table,                  ONLY: ptable
+  USE periodic_table,                  ONLY: get_ptable_info,&
+                                             ptable
   USE qs_grid_atom,                    ONLY: allocate_grid_atom,&
                                              create_grid_atom,&
                                              deallocate_grid_atom,&
@@ -59,8 +59,6 @@ MODULE atom_types
                                                         CGTO_BASIS=101,&
                                                         STO_BASIS=102,&
                                                         NUM_BASIS=103
-  INTEGER, PARAMETER                                 :: NO_PSEUDO=0,&
-                                                        GTH_PSEUDO=1
 
 !> Provides all information about a basis set
 ! *****************************************************************************
@@ -116,6 +114,22 @@ MODULE atom_types
     REAL(KIND = dp), DIMENSION(4,10)           :: cval_lpot
   END TYPE atom_gthpot_type
 
+  TYPE atom_ecppot_type
+    CHARACTER (LEN=2)                             :: symbol
+    CHARACTER (LEN=default_string_length)         :: pname
+    INTEGER, DIMENSION(0:3)                       :: econf
+    REAL(dp)                                      :: zion
+    INTEGER                                       :: lmax
+    INTEGER                                       :: nloc  ! # terms
+    INTEGER, DIMENSION(1:10)                      :: nrloc ! r**(n-2)
+    REAL(dp), DIMENSION(1:10)                     :: aloc  ! coefficient
+    REAL(dp), DIMENSION(1:10)                     :: bloc  ! exponent
+    INTEGER, DIMENSION(0:10)                      :: npot  ! # terms
+    INTEGER, DIMENSION(1:10,0:10)                 :: nrpot ! r**(n-2)
+    REAL(dp), DIMENSION(1:10,0:10)                :: apot  ! coefficient
+    REAL(dp), DIMENSION(1:10,0:10)                :: bpot  ! exponent
+  END TYPE atom_ecppot_type
+
   TYPE atom_potential_type
     INTEGER                                       :: ppot_type
     LOGICAL                                       :: confinement
@@ -124,6 +138,8 @@ MODULE atom_types
     REAL(dp)                                      :: rcon
     REAL(dp)                                      :: scon
     TYPE(atom_gthpot_type)                        :: gth_pot
+    TYPE(atom_ecppot_type)                        :: ecp_pot
+    TYPE(atom_upfpot_type)                        :: upf_pot
   END TYPE atom_potential_type
 
 !> Provides all information on states and occupation
@@ -230,6 +246,7 @@ MODULE atom_types
     LOGICAL                                       :: do_zmp, doread, read_vxc, dm
     CHARACTER(LEN=default_string_length)          :: ext_file, ext_vxc_file, &
                                                      zmp_restart_file
+!
     INTEGER                                       :: method_type
     INTEGER                                       :: relativistic
     INTEGER                                       :: coulomb_integral_type
@@ -238,6 +255,7 @@ MODULE atom_types
     REAL(KIND=dp)                                 :: lambda
     REAL(KIND=dp)                                 :: rho_diff_integral
     REAL(KIND=dp)                                 :: weight, zmpgrid_tol, zmpvxcgrid_tol
+!
     TYPE(atom_basis_type), POINTER                :: basis
     TYPE(atom_potential_type), POINTER            :: potential
     TYPE(atom_state), POINTER                     :: state
@@ -258,14 +276,14 @@ MODULE atom_types
   PUBLIC :: atom_optimization_type
   PUBLIC :: create_atom_type, release_atom_type, set_atom
   PUBLIC :: create_atom_orbs
-  PUBLIC :: init_atom_basis, release_atom_basis
+  PUBLIC :: init_atom_basis, atom_basis_gridrep, release_atom_basis
   PUBLIC :: init_atom_potential, release_atom_potential
   PUBLIC :: read_atom_opt_section
   PUBLIC :: Clementi_geobas
   PUBLIC :: GTO_BASIS, CGTO_BASIS, STO_BASIS, NUM_BASIS
   PUBLIC :: opmat_type, create_opmat, release_opmat
   PUBLIC :: opgrid_type, create_opgrid, release_opgrid
-  PUBLIC :: NO_PSEUDO, GTH_PSEUDO
+  PUBLIC :: no_pseudo, gth_pseudo, upf_pseudo, ecp_pseudo
 
 ! *****************************************************************************
 
@@ -660,6 +678,143 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE init_atom_basis
+
+! *****************************************************************************
+!> \brief ...
+!> \param basis ...
+!> \param gbasis ...
+!> \param r ...
+!> \param rab ...
+! *****************************************************************************
+  SUBROUTINE atom_basis_gridrep(basis,gbasis,r,rab)
+    TYPE(atom_basis_type), INTENT(IN)        :: basis
+    TYPE(atom_basis_type), INTENT(INOUT)     :: gbasis
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, rab
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_gridrep', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, k, l, m, n1, n2, n3, &
+                                                ngp, nl, nr, quadtype
+    REAL(KIND=dp)                            :: al, ear, pf, rk
+
+    NULLIFY(gbasis%am,gbasis%cm,gbasis%as,gbasis%ns,gbasis%bf,gbasis%dbf,gbasis%ddbf)
+
+    ! copy basis info
+    gbasis%basis_type    = basis%basis_type
+    gbasis%nbas(0:3)     = basis%nbas(0:3)
+    gbasis%nprim(0:3)    = basis%nprim(0:3)
+    IF(ASSOCIATED(basis%am)) THEN
+       n1 = SIZE(basis%am,1)
+       n2 = SIZE(basis%am,2)
+       ALLOCATE(gbasis%am(n1,0:n2-1))
+       gbasis%am = basis%am
+    END IF
+    IF(ASSOCIATED(basis%cm)) THEN
+       n1 = SIZE(basis%cm,1)
+       n2 = SIZE(basis%cm,2)
+       n3 = SIZE(basis%cm,3)
+       ALLOCATE(gbasis%cm(n1,n2,0:n3-1))
+       gbasis%cm = basis%cm
+    END IF
+    IF(ASSOCIATED(basis%as)) THEN
+       n1 = SIZE(basis%as,1)
+       n2 = SIZE(basis%as,2)
+       ALLOCATE(gbasis%as(n1,0:n2-1))
+       gbasis%as = basis%as
+    END IF
+    IF(ASSOCIATED(basis%ns)) THEN
+       n1 = SIZE(basis%ns,1)
+       n2 = SIZE(basis%ns,2)
+       ALLOCATE(gbasis%ns(n1,0:n2-1))
+       gbasis%ns = basis%ns
+    END IF
+    gbasis%eps_eig       = basis%eps_eig
+    gbasis%geometrical   = basis%geometrical
+    gbasis%aval          = basis%aval
+    gbasis%cval          = basis%cval
+    gbasis%start(0:3)    = basis%start(0:3)
+
+    ! get information on quadrature type and number of grid points
+    ! allocate and initialize the atomic grid
+    NULLIFY(gbasis%grid)
+    CALL allocate_grid_atom(gbasis%grid)
+    ngp = SIZE(r)
+    quadtype = do_gapw_log
+    IF(ngp <= 0)&
+       CPABORT("# point radial grid < 0")
+    CALL create_grid_atom(gbasis%grid,ngp,1,1,0,quadtype)
+    gbasis%grid%nr = ngp
+    gbasis%grid%rad(:) = r(:)
+    gbasis%grid%rad2(:) = r(:)*r(:)
+    gbasis%grid%wr(:) = rab(:)*gbasis%grid%rad2(:)
+
+    ! initialize basis function on a radial grid
+    nr = gbasis%grid%nr
+    m  = MAXVAL(gbasis%nbas)
+    ALLOCATE (gbasis%bf(nr,m,0:3))
+    ALLOCATE (gbasis%dbf(nr,m,0:3))
+    ALLOCATE (gbasis%ddbf(nr,m,0:3))
+    gbasis%bf =  0._dp
+    gbasis%dbf = 0._dp
+    gbasis%ddbf = 0._dp
+
+    SELECT CASE (gbasis%basis_type)
+      CASE DEFAULT
+         CPABORT("")
+      CASE (GTO_BASIS)
+         DO l=0,3
+           DO i=1,gbasis%nbas(l)
+             al  = gbasis%am(i,l)
+             DO k=1,nr
+               rk  = gbasis%grid%rad(k)
+               ear = EXP(-al*gbasis%grid%rad(k)**2)
+               gbasis%bf(k,i,l) = rk**l * ear
+               gbasis%dbf(k,i,l) = ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear
+               gbasis%ddbf(k,i,l) = ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                 2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear
+             END DO
+           END DO
+         END DO
+      CASE (CGTO_BASIS)
+         DO l=0,3
+           DO i=1,gbasis%nprim(l)
+             al  = gbasis%am(i,l)
+             DO k=1,nr
+               rk  = gbasis%grid%rad(k)
+               ear = EXP(-al*gbasis%grid%rad(k)**2)
+               DO j=1,gbasis%nbas(l)
+                 gbasis%bf(k,j,l) = gbasis%bf(k,j,l) + rk**l * ear*gbasis%cm(i,j,l)
+                 gbasis%dbf(k,j,l) = gbasis%dbf(k,j,l) &
+                   + ( REAL(l,dp)*rk**(l-1) - 2._dp*al*rk**(l+1) ) * ear*gbasis%cm(i,j,l)
+                 gbasis%ddbf(k,j,l) = gbasis%ddbf(k,j,l) + ( REAL(l*(l-1),dp)*rk**(l-2) - &
+                   2._dp*al*REAL(2*l+1,dp)*rk**(l) + 4._dp*al*rk**(l+2)) * ear*gbasis%cm(i,j,l)
+               END DO
+             END DO
+           END DO
+         END DO
+      CASE (STO_BASIS)
+         DO l=0,3
+           DO i=1,gbasis%nbas(l)
+             al  = gbasis%as(i,l)
+             nl  = gbasis%ns(i,l)
+             pf  = (2._dp*al)**nl * SQRT(2._dp*al/fac(2*nl))
+             DO k=1,nr
+               rk  = gbasis%grid%rad(k)
+               ear = rk**(nl-1) * EXP(-al*rk)
+               gbasis%bf(k,i,l) = pf * ear
+               gbasis%dbf(k,i,l) = pf * ( REAL(nl-1,dp)/rk - al ) * ear
+               gbasis%ddbf(k,i,l) = pf * ( REAL( (nl-2)*(nl-1),dp)/rk/rk &
+                 - al*REAL( 2*(nl-1),dp)/rk + al*al ) * ear
+             END DO
+           END DO
+         END DO
+      CASE (NUM_BASIS)
+         gbasis%basis_type = NUM_BASIS
+         CPABORT("")
+    END SELECT
+
+  END SUBROUTINE atom_basis_gridrep
 
 ! *****************************************************************************
 !> \brief ...
@@ -2039,7 +2194,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: pseudo_fn, pseudo_name
     INTEGER                                  :: ic
     REAL(dp), DIMENSION(:), POINTER          :: convals
-    TYPE(section_vals_type), POINTER         :: gth_potential_section
+    TYPE(section_vals_type), POINTER         :: ecp_potential_section, &
+                                                gth_potential_section
 
     IF ( zval > 0 ) THEN
       CALL section_vals_val_get(potential_section,"PSEUDO_TYPE",i_val=potential%ppot_type)
@@ -2051,6 +2207,17 @@ CONTAINS
            gth_potential_section => section_vals_get_subs_vals(potential_section,"GTH_POTENTIAL")
            CALL read_gth_potential(ptable(zval)%symbol,potential%gth_pot,&
                  pseudo_name,pseudo_fn,gth_potential_section)
+        CASE (ecp_pseudo)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_FILE_NAME",c_val=pseudo_fn)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_NAME",c_val=pseudo_name)
+           ecp_potential_section => section_vals_get_subs_vals(potential_section,"ECP")
+           CALL read_ecp_potential(ptable(zval)%symbol,potential%ecp_pot,&
+                 pseudo_name,pseudo_fn,ecp_potential_section)
+        CASE (upf_pseudo)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_FILE_NAME",c_val=pseudo_fn)
+           CALL section_vals_val_get(potential_section,"POTENTIAL_NAME",c_val=pseudo_name)
+           CALL atom_read_upf(potential%upf_pot,pseudo_fn)
+           potential%upf_pot%pname = pseudo_name
         CASE (no_pseudo)
           ! do nothing
         CASE DEFAULT
@@ -2432,6 +2599,157 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_gth_potential
+! *****************************************************************************
+!> \brief ...
+!> \param element_symbol ...
+!> \param potential ...
+!> \param pseudo_name ...
+!> \param pseudo_file ...
+!> \param potential_section ...
+! *****************************************************************************
+  SUBROUTINE read_ecp_potential(element_symbol,potential,pseudo_name,pseudo_file,&
+                            potential_section)
+
+    CHARACTER(LEN=*), INTENT(IN)             :: element_symbol
+    TYPE(atom_ecppot_type), INTENT(INOUT)    :: potential
+    CHARACTER(LEN=*), INTENT(IN)             :: pseudo_name, pseudo_file
+    TYPE(section_vals_type), POINTER         :: potential_section
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ecp_potential', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=240)                       :: line
+    CHARACTER(len=5*default_string_length)   :: line_att
+    CHARACTER(LEN=LEN(element_symbol))       :: symbol
+    CHARACTER(LEN=LEN(pseudo_name))          :: apname
+    INTEGER                                  :: i, ic, l, ncore, nel
+    LOGICAL                                  :: found, is_ok, read_from_input
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(cp_sll_val_type), POINTER           :: list
+    TYPE(val_type), POINTER                  :: val
+
+    apname = pseudo_name
+    symbol = element_symbol
+    CALL get_ptable_info(symbol,number=ncore)
+
+    potential%symbol = symbol
+    potential%pname = apname
+    potential%econf = 0
+    potential%zion  = 0
+    potential%lmax  = -1
+    potential%nloc  = 0
+    potential%nrloc = 0
+    potential%aloc  = 0.0_dp
+    potential%bloc  = 0.0_dp
+    potential%npot  = 0
+    potential%nrpot = 0
+    potential%apot  = 0.0_dp
+    potential%bpot  = 0.0_dp
+
+    read_from_input = .FALSE.
+    CALL section_vals_get(potential_section,explicit=read_from_input)
+    IF (read_from_input) THEN
+      CALL section_vals_list_get(potential_section,"_DEFAULT_KEYWORD_",list=list)
+      ! number of electrons (mandatory line)
+      is_ok=cp_sll_val_next(list,val)
+      CPASSERT(is_ok)
+      CALL val_get(val,c_val=line_att)
+      CALL remove_word(line_att)
+      CALL remove_word(line_att)
+      ! read number of electrons
+      READ(line_att,*) nel
+      potential%zion  = REAL(ncore - nel,KIND=dp)
+      ! local potential (mandatory block)
+      is_ok=cp_sll_val_next(list,val)
+      CPASSERT(is_ok)
+      CALL val_get(val,c_val=line_att)
+      DO i=1,10
+        IF(.NOT.cp_sll_val_next(list,val)) EXIT
+        CALL val_get(val,c_val=line_att)
+        IF(INDEX(line_att,element_symbol) == 0) THEN
+          potential%nloc = potential%nloc+1
+          ic = potential%nloc
+          READ(line_att,*) potential%nrloc(ic),potential%bloc(ic),potential%aloc(ic)
+        ELSE
+          EXIT
+        END IF
+      END DO
+      ! read potentials 
+      DO
+        CALL val_get(val,c_val=line_att)
+        IF(INDEX(line_att,element_symbol) == 0) THEN
+          potential%npot(l) = potential%npot(l)+1
+          ic = potential%npot(l)
+          READ(line_att,*) potential%nrpot(ic,l),potential%bpot(ic,l),potential%apot(ic,l)
+        ELSE
+          potential%lmax = potential%lmax+1
+          l = potential%lmax
+        END IF
+        IF(.NOT.cp_sll_val_next(list,val)) EXIT
+      END DO
+
+    ELSE
+
+      NULLIFY(parser)
+      CALL parser_create(parser,pseudo_file)
+
+      search_loop: DO
+        CALL parser_search_string(parser,TRIM(apname),.TRUE.,found,line)
+        IF (found) THEN
+          match_loop: DO
+            CALL parser_get_object(parser,line,newline=.TRUE.)
+            IF(TRIM(line) == element_symbol) THEN
+              CALL parser_get_object(parser,line,lower_to_upper=.TRUE.)
+              CPASSERT(TRIM(line) == "NELEC")
+              ! read number of electrons
+              CALL parser_get_object(parser,nel)
+              potential%zion  = REAL(ncore - nel,KIND=dp)
+              ! read local potential flag line "<XX> ul"
+              CALL parser_get_object(parser,line,newline=.TRUE.)
+              ! read local potential
+              DO i=1,10
+                CALL parser_read_line(parser,1)
+                IF(parser_test_next_token(parser)=="STR") EXIT
+                potential%nloc = potential%nloc+1
+                ic = potential%nloc
+                CALL parser_get_object(parser,potential%nrloc(ic))
+                CALL parser_get_object(parser,potential%bloc(ic))
+                CALL parser_get_object(parser,potential%aloc(ic))
+              END DO
+              ! read potentials (start with l loop)
+              DO l=0,10
+                CALL parser_get_object(parser,symbol)
+                IF(symbol == element_symbol) THEN
+                  ! new l block
+                  potential%lmax = potential%lmax+1
+                  DO i=1,10
+                    CALL parser_read_line(parser,1)
+                    IF(parser_test_next_token(parser)=="STR") EXIT
+                    potential%npot(l) = potential%npot(l)+1
+                    ic = potential%npot(l)
+                    CALL parser_get_object(parser,potential%nrpot(ic,l))
+                    CALL parser_get_object(parser,potential%bpot(ic,l))
+                    CALL parser_get_object(parser,potential%apot(ic,l))
+                  END DO
+                ELSE
+                  EXIT
+                END IF
+              END DO
+              EXIT search_loop
+            ELSE IF(line == "END") THEN
+              CPABORT("Element not found in ECP library")
+            END IF
+          END DO match_loop
+        ELSE
+          CPABORT("ECP type not found in library")
+        END IF
+
+      END DO search_loop
+
+      CALL parser_release(parser)
+    END IF
+
+  END SUBROUTINE read_ecp_potential
 ! *****************************************************************************
 
 END MODULE atom_types

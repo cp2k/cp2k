@@ -9,9 +9,9 @@
 ! *****************************************************************************
 MODULE atom_output
   USE atom_types,                      ONLY: &
-       CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
        atom_basis_type, atom_gthpot_type, atom_potential_type, atom_state, &
-       atom_type
+       atom_type, cgto_basis, ecp_pseudo, gth_pseudo, gto_basis, no_pseudo, &
+       num_basis, sto_basis, upf_pseudo
   USE atom_utils,                      ONLY: get_maxl_occ,&
                                              get_maxn_occ
   USE cp_files,                        ONLY: close_file,&
@@ -598,9 +598,9 @@ CONTAINS
     INTEGER                                  :: i, j, k, l
 
     SELECT CASE (potential%ppot_type)
-      CASE (NO_PSEUDO)
+      CASE (no_pseudo)
         WRITE(iw,'(/," ",28("*"),A,27("*"))') " All Electron Potential "
-      CASE (GTH_PSEUDO)
+      CASE (gth_pseudo)
         WRITE(iw,'(/," ",29("*"),A,29("*"))') " GTH Pseudopotential "
         WRITE(iw,'(T10,A,T76,F5.1)') " Core Charge ",potential%gth_pot%zion
         WRITE(iw,'(T10,A,T66,F15.6)') " Rc ",potential%gth_pot%rc
@@ -636,6 +636,30 @@ CONTAINS
                WRITE(iw,'(T21,A60)') ADJUSTR(pline)
              END DO
           END IF
+        END DO
+      CASE (upf_pseudo)
+        WRITE(iw,'(/," ",29("*"),A,29("*"))') " UPF Pseudopotential "
+        DO k=1,potential%upf_pot%maxinfo 
+          WRITE(iw,'(A80)') potential%upf_pot%info(k)
+        END DO
+      CASE (ecp_pseudo)
+        WRITE(iw,'(/," ",26("*"),A,27("*"))') " Effective Core Potential "
+        WRITE(iw,'(T10,A,T76,F5.1)') " Core Charge ",potential%ecp_pot%zion
+        DO k=1,potential%ecp_pot%nloc
+          IF(k==1) THEN
+            WRITE(iw,'(T10,A,T40,I3,T49,2F16.8)') " Local Potential ",potential%ecp_pot%nrloc(k),&
+              potential%ecp_pot%bloc(k),potential%ecp_pot%aloc(k)
+          ELSE
+            WRITE(iw,'(T40,I3,T49,2F16.8)') potential%ecp_pot%nrloc(k),&
+              potential%ecp_pot%bloc(k),potential%ecp_pot%aloc(k)
+          END IF
+        END DO
+        DO l=0,potential%ecp_pot%lmax
+          WRITE(iw,'(T10,A,I3)') " ECP l-value ",l
+          DO k=1,potential%ecp_pot%npot(l)
+            WRITE(iw,'(T40,I3,T49,2F16.8)') potential%ecp_pot%nrpot(k,l),&
+              potential%ecp_pot%bpot(k,l),potential%ecp_pot%apot(k,l)
+          END DO
         END DO
       CASE DEFAULT
         CPABORT("")

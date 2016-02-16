@@ -19,8 +19,9 @@ MODULE input_cp2k_atom
        do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, &
        do_gapw_gct, do_gapw_log, do_nonrel_atom, do_numeric, do_rhf_atom, &
        do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
-       do_uhf_atom, do_uks_atom, do_zoramp_atom, gaussian, geometrical_gto, &
-       gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, slater
+       do_uhf_atom, do_uks_atom, do_zoramp_atom, ecp_pseudo, gaussian, &
+       geometrical_gto, gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, &
+       slater, upf_pseudo
   USE input_cp2k_xc,                   ONLY: create_xc_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -818,13 +819,17 @@ CONTAINS
 
     CALL keyword_create(keyword, name="PSEUDO_TYPE",&
          description="Pseudopotential type",&
-         usage="PSEUDO_TYPE (NONE|GTH)",&
+         usage="PSEUDO_TYPE (NONE|GTH|UPF|ECP)",&
          default_i_val=no_pseudo,&
          enum_c_vals=(/"NONE                     ",&
-                       "GTH                      "/),&
-         enum_i_vals= (/ no_pseudo, gth_pseudo /),&
+                       "GTH                      ",&
+                       "UPF                      ",&
+                       "ECP                      "/),&
+         enum_i_vals= (/ no_pseudo, gth_pseudo, upf_pseudo, ecp_pseudo /),&
          enum_desc=s2a("Do not use pseudopotentials",&
-                       "Use Goedecker-Teter-Hutter pseudopotentials"))
+                       "Use Goedecker-Teter-Hutter pseudopotentials",&
+                       "Use UPF norm-conserving pseudopotentials",&
+                       "Use ECP semi-local pseudopotentials"))
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -844,6 +849,9 @@ CONTAINS
 
     NULLIFY(subsection)
     CALL create_gthpotential_section(subsection)
+    CALL section_add_subsection(section, subsection)
+    NULLIFY(subsection)
+    CALL create_ecp_section(subsection)
     CALL section_add_subsection(section, subsection)
     CALL section_release(subsection)
 
@@ -872,6 +880,30 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
   END SUBROUTINE create_gthpotential_section
+
+! *****************************************************************************
+!> \brief Creates the &ECP section
+!> \param section the section to create
+!> \author jgh
+! *****************************************************************************
+  SUBROUTINE create_ecp_section(section)
+    TYPE(section_type), POINTER              :: section
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ecp_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+
+    CALL section_create(section,name="ECP",&
+         description="Section used to specify ECP's.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+         description="Effective Core Potentials definition",&
+         repeats=.TRUE.,type_of_var=lchar_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+  END SUBROUTINE create_ecp_section
 
 ! *****************************************************************************
 !> \brief Creates the &BASIS section

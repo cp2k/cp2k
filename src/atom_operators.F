@@ -16,8 +16,10 @@ MODULE atom_operators
        sg_kinnuc, sg_nuclear, sg_overlap, sg_proj_ol, sto_kinetic, &
        sto_nuclear, sto_overlap
   USE atom_types,                      ONLY: &
-       CGTO_BASIS, GTH_PSEUDO, GTO_BASIS, NO_PSEUDO, NUM_BASIS, STO_BASIS, &
-       atom_basis_type, atom_integrals, atom_potential_type, atom_state
+       atom_basis_gridrep, atom_basis_type, atom_integrals, &
+       atom_potential_type, atom_state, cgto_basis, ecp_pseudo, gth_pseudo, &
+       gto_basis, no_pseudo, num_basis, release_atom_basis, sto_basis, &
+       upf_pseudo
   USE atom_utils,                      ONLY: atom_solve,&
                                              coulomb_potential_numeric,&
                                              integrate_grid,&
@@ -373,12 +375,12 @@ CONTAINS
         CASE (GTO_BASIS)
 
           SELECT CASE (potential%ppot_type)
-            CASE (NO_PSEUDO)
+            CASE (no_pseudo, ecp_pseudo)
               DO l=0,3
                 n = integrals%n(l)
                 CALL sg_nuclear ( integrals%core(1:n,1:n,l), l, basis%am(1:n,l), basis%am(1:n,l) )
               END DO
-            CASE (GTH_PSEUDO)
+            CASE (gth_pseudo)
               alpha = 1._dp/potential%gth_pot%rc/SQRT(2._dp)
               DO l=0,3
                 n = integrals%n(l)
@@ -426,6 +428,8 @@ CONTAINS
 
                 DEALLOCATE (omat,spmat)
               END DO
+            CASE (upf_pseudo)
+              CALL upfint_setup(integrals,basis,potential)
             CASE DEFAULT
               CPABORT("")
           END SELECT
@@ -433,7 +437,7 @@ CONTAINS
         CASE (CGTO_BASIS)
 
           SELECT CASE (potential%ppot_type)
-            CASE (NO_PSEUDO)
+            CASE (no_pseudo, ecp_pseudo)
               DO l=0,3
                 n = integrals%n(l)
                 m = basis%nprim(l)
@@ -444,7 +448,7 @@ CONTAINS
 
                 DEALLOCATE (omat)
               END DO
-            CASE (GTH_PSEUDO)
+            CASE (gth_pseudo)
               alpha = 1._dp/potential%gth_pot%rc/SQRT(2._dp)
               DO l=0,3
                 n = integrals%n(l)
@@ -499,6 +503,8 @@ CONTAINS
                   DEALLOCATE (omat,spmat,xmat)
                 END IF
               END DO
+            CASE (upf_pseudo)
+              CALL upfint_setup(integrals,basis,potential)
             CASE DEFAULT
               CPABORT("")
           END SELECT
@@ -506,13 +512,13 @@ CONTAINS
         CASE (STO_BASIS)
 
           SELECT CASE (potential%ppot_type)
-            CASE (NO_PSEUDO)
+            CASE (no_pseudo, ecp_pseudo)
               DO l=0,3
                 n = integrals%n(l)
                 CALL sto_nuclear ( integrals%core(1:n,1:n,l), basis%ns(1:n,l), basis%as(1:n,l),&
                                    basis%ns(1:n,l), basis%as(1:n,l) )
               END DO
-            CASE (GTH_PSEUDO)
+            CASE (gth_pseudo)
               rad => basis%grid%rad
               m = basis%grid%nr
               ALLOCATE (cpot(1:m))
@@ -582,6 +588,8 @@ CONTAINS
 
               DEALLOCATE (cpot)
 
+            CASE (upf_pseudo)
+              CALL upfint_setup(integrals,basis,potential)
             CASE DEFAULT
               CPABORT("")
           END SELECT
@@ -590,11 +598,112 @@ CONTAINS
           CPABORT("")
       END SELECT
 
+      ! add ecp_pseudo using numerical representation of basis
+      IF(potential%ppot_type == ecp_pseudo) THEN
+        ! scale 1/r potential
+        integrals%core = -potential%ecp_pot%zion*integrals%core
+        ! local potential
+        m = basis%grid%nr
+        rad => basis%grid%rad
+        ALLOCATE (cpot(1:m))
+        cpot = 0._dp
+        DO k=1,potential%ecp_pot%nloc
+          n = potential%ecp_pot%nrloc(k)
+          alpha = potential%ecp_pot%bloc(k)
+          cpot(:) = cpot + potential%ecp_pot%aloc(k)*rad**(n-2) * EXP(-alpha*rad**2)
+        END DO
+        CALL numpot_matrix(integrals%core,cpot,basis,0)
+        ! non local pseudopotential
+        DO l=0,MIN(potential%ecp_pot%lmax,3)
+          cpot = 0._dp
+          DO k=1,potential%ecp_pot%npot(l)
+            n = potential%ecp_pot%nrpot(k,l)
+            alpha = potential%ecp_pot%bpot(k,l)
+            cpot(:) = cpot + potential%ecp_pot%apot(k,l)*rad**(n-2) * EXP(-alpha*rad**2)
+          END DO
+          DO i=1,basis%nbas(l)
+            DO j=i,basis%nbas(l)
+              integrals%hnl(i,j,l) = integrate_grid(cpot,basis%bf(:,i,l),basis%bf(:,j,l),basis%grid)
+              integrals%hnl(j,i,l) = integrals%hnl(i,j,l)
+            END DO
+          END DO
+        END DO
+        DEALLOCATE(cpot)
+      END IF
+
     END IF
 
     CALL timestop(handle)
 
   END SUBROUTINE atom_ppint_setup
+! *****************************************************************************
+!> \brief ...
+!> \param integrals ...
+!> \param basis ...
+!> \param potential ...
+! *****************************************************************************
+  SUBROUTINE upfint_setup(integrals,basis,potential)
+    TYPE(atom_integrals), INTENT(INOUT)      :: integrals
+    TYPE(atom_basis_type), INTENT(INOUT)     :: basis
+    TYPE(atom_potential_type), INTENT(IN)    :: potential
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'upfint_setup', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=4)                         :: ptype
+    INTEGER                                  :: i, j, k1, k2, la, lb, m, n
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: spmat
+    TYPE(atom_basis_type)                    :: gbasis
+
+! get basis representation on UPF grid
+
+    CALL atom_basis_gridrep(basis,gbasis,potential%upf_pot%r,potential%upf_pot%rab)
+
+    ! local pseudopotential
+    integrals%core = 0._dp
+    CALL numpot_matrix(integrals%core,potential%upf_pot%vlocal,gbasis,0)
+
+    ptype = ADJUSTL(TRIM(potential%upf_pot%pseudo_type))
+    IF(ptype(1:2) == "NC") THEN
+      ! non local pseudopotential
+      n = MAXVAL(integrals%n(:))
+      m = potential%upf_pot%number_of_proj
+      ALLOCATE (spmat(n,m))
+      spmat = 0.0_dp
+      DO i=1,m
+        la = potential%upf_pot%lbeta(i)
+        DO j=1,gbasis%nbas(la)
+          spmat(j,i) = integrate_grid(potential%upf_pot%beta(:,i),gbasis%bf(:,j,la),gbasis%grid)
+        END DO
+      END DO
+      DO i=1,m
+        la = potential%upf_pot%lbeta(i)
+        DO j=1,m
+          lb = potential%upf_pot%lbeta(j)
+          IF(la==lb) THEN
+            DO k1=1,gbasis%nbas(la)
+              DO k2=1,gbasis%nbas(la)
+                integrals%hnl(k1,k2,la) = integrals%hnl(k1,k2,la) + &
+                  spmat(k1,i)*potential%upf_pot%dion(i,j)*spmat(k2,j)
+              END DO
+            END DO
+          END IF
+        END DO
+      END DO
+      DEALLOCATE (spmat)
+    ELSE IF(ptype(1:2) == "SL") THEN
+      DO la=0,potential%upf_pot%l_max
+        CALL numpot_matrix(integrals%core,potential%upf_pot%vsemi(:,la+1),gbasis,0)
+      END DO
+    ELSE
+      CPABORT("")
+    END IF
+
+    ! release basis representation on UPF grid
+    CALL release_atom_basis(gbasis)
+
+  END SUBROUTINE upfint_setup
 ! *****************************************************************************
 !> \brief ...
 !> \param integrals ...
