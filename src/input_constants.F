@@ -965,6 +965,9 @@ MODULE input_constants
                                               injmethod_evp    = 21,&
                                               injmethod_beyn   = 22,& 
                                               injsign_positive =  1,&
-                                              injsign_negative = -1
+                                              injsign_negative = -1,&
+                                              rlaxisint_GaussChebyshev = 31,&
+                                              rlaxisint_trapezoidal    = 32,&
+                                              rlaxisint_readfromfile   = 33
 
 END MODULE input_constants

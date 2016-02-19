@@ -46,22 +46,30 @@ MODULE transport_env_types
      REAL(C_DOUBLE)  :: evoltfactor
      INTEGER(C_INT)  :: method
      INTEGER(C_INT)  :: injection_method
+     INTEGER(C_INT)  :: rlaxis_integration_method
      INTEGER(C_INT)  :: linear_solver
      INTEGER(C_INT)  :: n_abscissae
      INTEGER(C_INT)  :: n_kpoint
      INTEGER(C_INT)  :: num_interval
      INTEGER(C_INT)  :: num_contacts
      INTEGER(C_INT)  :: tasks_per_point
+     INTEGER(C_INT)  :: n_points_beyn
+     INTEGER(C_INT)  :: one_circle
      INTEGER(C_INT)  :: cutout(2)
      REAL(C_DOUBLE)  :: colzero_threshold
      REAL(C_DOUBLE)  :: eps_limit
+     REAL(C_DOUBLE)  :: eps_limit_cc
      REAL(C_DOUBLE)  :: eps_decay
      REAL(C_DOUBLE)  :: eps_singularity_curvatures
      REAL(C_DOUBLE)  :: eps_mu
      REAL(C_DOUBLE)  :: eps_eigval_degen
+     REAL(C_DOUBLE)  :: eps_fermi
      REAL(C_DOUBLE)  :: energy_interval
      REAL(C_DOUBLE)  :: min_interval
      REAL(C_DOUBLE)  :: temperature
+     REAL(C_DOUBLE)  :: n_rand_beyn
+     REAL(C_DOUBLE)  :: n_rand_cc_beyn
+     REAL(C_DOUBLE)  :: svd_cutoff
      TYPE(C_PTR)     :: contacts_data
      TYPE(C_PTR)     :: nsgf
      TYPE(C_PTR)     :: zeff

@@ -139,20 +139,25 @@ CONTAINS
 
     INTEGER                                  :: handle, i, n_contacts
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: contact_explicit, injecting
-    TYPE(section_vals_type), POINTER         :: contact_section, &
+    LOGICAL                                  :: contact_explicit, injecting, &
+                                                one_circle
+    TYPE(section_vals_type), POINTER         :: beyn_section, &
+                                                contact_section, &
                                                 transport_section
 
     CALL timeset(routineN,handle)
 
     transport_section => section_vals_get_subs_vals(input,"DFT%TRANSPORT")
     contact_section => section_vals_get_subs_vals(transport_section, "CONTACT")
+    beyn_section => section_vals_get_subs_vals(transport_section, "BEYN")
     CALL section_vals_get(contact_section, explicit=contact_explicit, n_repetition=n_contacts)
     
     NULLIFY(i_vals)
 ! read from input
     CALL section_vals_val_get(transport_section,"TRANSPORT_METHOD",i_val=transport_env%params%method)
     CALL section_vals_val_get(transport_section,"INJECTION_METHOD",i_val=transport_env%params%injection_method)
+    CALL section_vals_val_get(transport_section,"REAL_AXIS_INTEGRATION_METHOD",&
+                                                i_val=transport_env%params%rlaxis_integration_method)
     CALL section_vals_val_get(transport_section,"LINEAR_SOLVER",i_val=transport_env%params%linear_solver)
     CALL section_vals_val_get(transport_section,"N_ABSCISSAE",i_val=transport_env%params%n_abscissae)
     CALL section_vals_val_get(transport_section,"N_KPOINTS",i_val=transport_env%params%n_kpoint)
@@ -160,18 +165,33 @@ CONTAINS
     CALL section_vals_val_get(transport_section,"TASKS_PER_POINT",i_val=transport_env%params%tasks_per_point)
     CALL section_vals_val_get(transport_section,"COLZERO_THRESHOLD",r_val=transport_env%params%colzero_threshold)
     CALL section_vals_val_get(transport_section,"EPS_LIMIT",r_val=transport_env%params%eps_limit)
+    CALL section_vals_val_get(transport_section,"EPS_LIMIT_CC",r_val=transport_env%params%eps_limit_cc)
     CALL section_vals_val_get(transport_section,"EPS_DECAY",r_val=transport_env%params%eps_decay)
     CALL section_vals_val_get(transport_section,"EPS_SINGULARITY_CURVATURES",&
                                                 r_val=transport_env%params%eps_singularity_curvatures)
     CALL section_vals_val_get(transport_section,"EPS_MU",r_val=transport_env%params%eps_mu)
     CALL section_vals_val_get(transport_section,"EPS_EIGVAL_DEGEN",r_val=transport_env%params%eps_eigval_degen)
+    CALL section_vals_val_get(transport_section,"EPS_FERMI",r_val=transport_env%params%eps_fermi)
     CALL section_vals_val_get(transport_section,"ENERGY_INTERVAL",r_val=transport_env%params%energy_interval)
     CALL section_vals_val_get(transport_section,"MIN_INTERVAL",r_val=transport_env%params%min_interval)
     CALL section_vals_val_get(transport_section,"TEMPERATURE",r_val=transport_env%params%temperature)
+
     CALL section_vals_val_get(transport_section,"ROW_DISTRIBUTION",i_val=transport_env%row_dist)
     CALL section_vals_val_get(transport_section,"CSR_SCREENING",l_val=transport_env%csr_screening)
+
     CALL section_vals_val_get(transport_section,"CUTOUT",i_vals=i_vals)
     transport_env%params%cutout = i_vals
+
+    CALL section_vals_val_get(beyn_section,"N_POINTS_BEYN",i_val=transport_env%params%n_points_beyn)
+    CALL section_vals_val_get(beyn_section,"N_RAND",r_val=transport_env%params%n_rand_beyn)
+    CALL section_vals_val_get(beyn_section,"N_RAND_CC",r_val=transport_env%params%n_rand_cc_beyn)
+    CALL section_vals_val_get(beyn_section,"SVD_CUTOFF",r_val=transport_env%params%svd_cutoff)
+    CALL section_vals_val_get(beyn_section,"ONE_CIRCLE",l_val=one_circle)
+    IF (one_circle) THEN 
+       transport_env%params%one_circle = 1
+    ELSE
+       transport_env%params%one_circle = 0
+    END IF
 
     IF (contact_explicit) THEN
        transport_env%params%num_contacts = n_contacts
