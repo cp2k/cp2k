@@ -266,7 +266,8 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="START",&
-         description="Index of the atom where the contact unit cell starts.",&
+         description="Index of the atom where the contact unit cell starts. Atoms are assumed to "//&
+         "be indexed starting from zero.",&
          usage="START <integer>", default_i_val=-1)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
@@ -343,7 +344,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="ONE_CIRCLE",&
          description="Set to .TRUE. if only one circle instead of two should be used in the Beyn solver.",&
-         default_l_val=.FALSE., lone_keyword_l_val = .FALSE.)
+         default_l_val=.FALSE., lone_keyword_l_val = .TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
