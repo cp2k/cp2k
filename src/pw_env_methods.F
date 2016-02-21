@@ -653,8 +653,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
         WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
          "POISSON| Boundary Condition","NEUMANN"
       CASE DEFAULT
-        CPABORT("Invalid boundary conditions for the implicit (iterative) poisson solver.")
+        CPABORT("Invalid boundary conditions for the implicit (generalized) poisson solver.")
       END SELECT
+      WRITE (UNIT=iounit,FMT="(T2,A,T71,I10)")&
+       "POISSON| Maximum number of iterations", poisson_params%ps_implicit_params%max_iter
+      WRITE (UNIT=iounit,FMT="(T2,A,T51,ES30.2)")&
+       "POISSON| Convergence threshold", poisson_params%ps_implicit_params%tol
       IF (poisson_params%dielectric_params%dielec_functiontype .EQ. rho_dependent) THEN
          WRITE (UNIT=iounit,FMT="(T2,A,T51,F30.2)")&
           "POISSON| Dielectric Constant", poisson_params%dielectric_params%eps0
@@ -671,6 +675,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
          END DO
          WRITE(UNIT=iounit,FMT='(A1,/)')
       END IF
+      WRITE (UNIT=iounit,FMT="(T2,A,T51,ES30.2)")&
+       "POISSON| Relaxation parameter", poisson_params%ps_implicit_params%omega
     CASE(pw_poisson_none)
       WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
        "POISSON| Solver","NONE"

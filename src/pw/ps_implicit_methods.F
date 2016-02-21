@@ -290,6 +290,7 @@ CONTAINS
        CALL pw_copy(res_new, res_old)
 
     END DO
+    CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
        CALL pw_copy(v_new, ps_implicit_env%initial_guess)
@@ -441,6 +442,7 @@ CONTAINS
        CALL pw_copy(res_new, res_old)
 
     END DO
+    CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
     CALL pw_shrink(dct_env%dests_shrink, dct_env%srcs_shrink, dct_env%bounds_local_shftd, &
                    v_new_xpndd, v_new)
@@ -713,6 +715,7 @@ CONTAINS
        Btxlambda_old3D(:,:,:) = Btxlambda_new3D
 
     END DO
+    CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
        CALL pw_copy(v_new, ps_implicit_env%initial_guess)
@@ -993,6 +996,7 @@ CONTAINS
        Btxlambda_old3D(:,:,:) = Btxlambda_new3D
 
     END DO
+    CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
     CALL pw_shrink(dct_env%dests_shrink, dct_env%srcs_shrink, dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
@@ -1991,6 +1995,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_output', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: low_print_level = 1
 
     INTEGER                                  :: handle
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2004,17 +2009,14 @@ CONTAINS
        outp_unit = -1
     ENDIF
 
-    IF ((outp_unit .GT. 0) .AND. (iter .EQ. 1)) THEN
-       WRITE(outp_unit,'(T3,A)') &
-            "POISSON|   iter        pres error      nabs error        E_hartree    delta E"
-    END IF
+    IF (logger%iter_info%print_level .GT. low_print_level) THEN
+       IF ((outp_unit .GT. 0) .AND. (iter .EQ. 1)) THEN
+          WRITE(outp_unit,'(T3,A)') &
+               "POISSON|   iter        pres error      nabs error        E_hartree    delta E"
+       END IF
 
-    IF (outp_unit .GT. 0) THEN
-       IF ((ABS(pres_error) < 1.0E-8_dp) .OR. (ABS(pres_error) >= 1.0E5_dp)) THEN
+       IF (outp_unit .GT. 0) THEN
           WRITE(outp_unit,'(T3,A,I6,5X,E13.4,3X,E13.4)',ADVANCE='NO') &
-               "POISSON| ", iter, pres_error, nabs_error
-       ELSE
-          WRITE(outp_unit,'(T3,A,I6,5X,F13.8,3X,F13.8)',ADVANCE='NO') &
                "POISSON| ", iter, pres_error, nabs_error
        END IF
     END IF
@@ -2040,15 +2042,63 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ps_implicit_report_ehartree', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: low_print_level = 1
 
     INTEGER                                  :: handle
+    TYPE(cp_logger_type), POINTER            :: logger
 
+    logger => cp_get_default_logger()
     CALL timeset(routineN,handle)
-    IF (outp_unit .GT. 0) WRITE(outp_unit, '(F19.10,E10.2)') &
-                          ehartree, ehartree - ps_implicit_env%ehartree
+    IF (logger%iter_info%print_level .GT. low_print_level) THEN
+       IF (outp_unit .GT. 0) WRITE(outp_unit, '(F19.10,E10.2)') &
+                             ehartree, ehartree - ps_implicit_env%ehartree
+    END IF
     CALL timestop(handle)
 
   END SUBROUTINE ps_implicit_report_ehartree
+
+! *****************************************************************************
+!> \brief  reports the final number of iteration
+!> \param iter the iteration number after exiting the main loop  
+!> \param max_iter maximum number of iterations
+!> \param outp_unit output unit
+!> \par History
+!>       02.2016 created [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
+
+    INTEGER, INTENT(IN)                      :: iter, max_iter, outp_unit
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routineN = 'ps_implicit_print_convergence_msg', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=12)                        :: msg
+    INTEGER                                  :: handle, last_iter
+
+    CALL timeset(routineN,handle)
+
+    last_iter = iter - 1
+    IF (last_iter .EQ. 1) THEN
+       msg = " iteration. "
+    ELSE 
+       msg = " iterations."
+    END IF
+
+    IF (outp_unit .GT. 0) THEN
+       IF (last_iter .EQ. max_iter) THEN
+          WRITE(outp_unit,'(T3,A)') &
+               "POISSON| No convergence achieved within the maximum number of iterations."
+       END IF 
+       IF (last_iter .LT. max_iter) THEN
+          WRITE(outp_unit,'(T3,A,I0,A)') &
+               "POISSON| Poisson solver converged in ", last_iter, msg
+       END IF
+    END IF
+    CALL timestop(handle)
+
+  END SUBROUTINE ps_implicit_print_convergence_msg
 
 ! *****************************************************************************
 !> \brief  computes the derivative of a function using FFT
