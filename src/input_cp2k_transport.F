@@ -223,7 +223,7 @@ CONTAINS
          enum_c_vals=s2a( "Gauss_Chebyshev", "Trapezoidal_rule", "Read"),&
          enum_desc=s2a("Gauss-Chebyshev integration between singularity points.",&
                        "Trapezoidal rule on the total range.",&
-                       "Read integration points from a file."),&
+                       "Read integration points from a file (named E.dat)."),&
          enum_i_vals=(/rlaxisint_GaussChebyshev, rlaxisint_trapezoidal, rlaxisint_readfromfile/))
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
@@ -266,9 +266,9 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="START",&
-         description="Index of the atom where the contact unit cell starts. Atoms are assumed to "//&
-         "be indexed starting from zero.",&
-         usage="START <integer>", default_i_val=-1)
+         description="Index of the first atom in the contact unit cell. Set to 0 to define the contact "//&
+         "unit cell as the first/last N_ATOMS of the structure (after cutout)",&
+         usage="START <integer>", default_i_val=0)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 

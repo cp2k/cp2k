@@ -54,7 +54,7 @@ MODULE transport_env_types
      INTEGER(C_INT)  :: num_contacts
      INTEGER(C_INT)  :: tasks_per_point
      INTEGER(C_INT)  :: n_points_beyn
-     INTEGER(C_INT)  :: one_circle
+     INTEGER(C_INT)  :: ncrc_beyn
      INTEGER(C_INT)  :: cutout(2)
      REAL(C_DOUBLE)  :: colzero_threshold
      REAL(C_DOUBLE)  :: eps_limit

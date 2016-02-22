@@ -137,10 +137,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'transport_init_read_input', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, n_contacts
+    INTEGER :: contact_bandwidth, contact_injsign, contact_natoms, &
+      contact_start, handle, i, n_contacts
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: contact_explicit, injecting, &
-                                                one_circle
+    LOGICAL                                  :: contact_explicit, &
+                                                injecting_contact, one_circle
     TYPE(section_vals_type), POINTER         :: beyn_section, &
                                                 contact_section, &
                                                 transport_section
@@ -188,25 +189,26 @@ CONTAINS
     CALL section_vals_val_get(beyn_section,"SVD_CUTOFF",r_val=transport_env%params%svd_cutoff)
     CALL section_vals_val_get(beyn_section,"ONE_CIRCLE",l_val=one_circle)
     IF (one_circle) THEN 
-       transport_env%params%one_circle = 1
+       transport_env%params%ncrc_beyn = 1
     ELSE
-       transport_env%params%one_circle = 0
+       transport_env%params%ncrc_beyn = 2
     END IF
 
     IF (contact_explicit) THEN
        transport_env%params%num_contacts = n_contacts
        ALLOCATE(transport_env%contacts_data(5*n_contacts))
        DO i = 1, n_contacts
-          CALL section_vals_val_get(contact_section,"BANDWIDTH",i_rep_section=i,&
-                                                i_val=transport_env%contacts_data((i-1)*5+1))
-          CALL section_vals_val_get(contact_section,"START",i_rep_section=i,&
-                                                i_val=transport_env%contacts_data((i-1)*5+2))
-          CALL section_vals_val_get(contact_section,"N_ATOMS",i_rep_section=i,&
-                                                i_val=transport_env%contacts_data((i-1)*5+3))
-          CALL section_vals_val_get(contact_section,"INJECTION_SIGN",i_rep_section=i,&
-                                                i_val=transport_env%contacts_data((i-1)*5+4))
-          CALL section_vals_val_get(contact_section,"INJECTING_CONTACT",i_rep_section=i,l_val=injecting)
-          IF (injecting) THEN 
+          CALL section_vals_val_get(contact_section,"BANDWIDTH",i_rep_section=i,i_val=contact_bandwidth)
+          CALL section_vals_val_get(contact_section,"START",i_rep_section=i,i_val=contact_start)
+          CALL section_vals_val_get(contact_section,"N_ATOMS",i_rep_section=i,i_val=contact_natoms)
+          CALL section_vals_val_get(contact_section,"INJECTION_SIGN",i_rep_section=i,i_val=contact_injsign)
+          CALL section_vals_val_get(contact_section,"INJECTING_CONTACT",i_rep_section=i,l_val=injecting_contact)
+
+          transport_env%contacts_data((i-1)*5+1) = contact_bandwidth
+          transport_env%contacts_data((i-1)*5+2) = contact_start - 1 ! C indexing
+          transport_env%contacts_data((i-1)*5+3) = contact_natoms
+          transport_env%contacts_data((i-1)*5+4) = contact_injsign
+          IF (injecting_contact) THEN 
              transport_env%contacts_data((i-1)*5+5) = 1
           ELSE 
              transport_env%contacts_data((i-1)*5+5) = 0
