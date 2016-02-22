@@ -2225,6 +2225,7 @@ MODULE helium_methods
     ALLOCATE(helium%rho_rstr(jtmp,itmp,itmp,itmp))
     ALLOCATE(helium%rho_incr(jtmp,helium%atoms,helium%beads))
 
+    helium%rho_incr(:,:,:) = 0.0_dp
     helium%rho_inst(:,:,:,:) = 0.0_dp
     helium%rho_accu(:,:,:,:) = 0.0_dp
     helium%rho_rstr(:,:,:,:) = 0.0_dp
