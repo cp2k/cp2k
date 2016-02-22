@@ -1773,8 +1773,13 @@
                        msgin , rcount, MPI_DOUBLE_COMPLEX, &
                        gid, request, ierr )
 #else
+    MARK_USED(msgout)
+    MARK_USED(msgin)
+    MARK_USED(rcount)
+    MARK_USED(scount)
+    MARK_USED(gid)
     request = mp_request_null
-    CPABORT("mp_rget requires MPI-3 standard")
+    CPABORT("mp_iallgather requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
 #else
@@ -1819,8 +1824,13 @@
                        msgin , rcount, MPI_DOUBLE_COMPLEX, &
                        gid, request, ierr )
 #else
+    MARK_USED(msgout)
+    MARK_USED(msgin)
+    MARK_USED(rcount)
+    MARK_USED(scount)
+    MARK_USED(gid)
     request = mp_request_null
-    CPABORT("mp_rget requires MPI-3 standard")
+    CPABORT("mp_iallgather requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
 #else
@@ -2787,6 +2797,14 @@
        ierr = 0
     ENDIF
 #else
+    MARK_USED(source)
+    MARK_USED(win)
+    MARK_USED(disp)
+    MARK_USED(myproc)
+    MARK_USED(origin_datatype)
+    MARK_USED(target_datatype)
+    MARK_USED(win_data)
+
     request = mp_request_null
     CPABORT("mp_rget requires MPI-3 standard")
 #endif

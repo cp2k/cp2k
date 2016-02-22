@@ -29,6 +29,10 @@ MODULE message_passing
 
 #include "../base/base_uses.f90"
 
+#if defined(__parallel) && !defined(__MPI_VERSION)
+#define __MPI_VERSION 3
+#endif
+
 #if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
   USE mpi  ! compiler *errors* mean mpi installation and fortran compiler mismatch: see INSTALL (-D__HAS_NO_MPI_MOD)
 ! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
@@ -3278,6 +3282,7 @@ CONTAINS
 #if __MPI_VERSION > 2
     CALL mpi_win_lock_all(MPI_MODE_NOCHECK,win,ierr)
 #else
+    MARK_USED(win)
     CPABORT("mp_win_lock_all requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_lock_all @ "//routineN )
@@ -3311,6 +3316,7 @@ CONTAINS
 #if __MPI_VERSION > 2
     CALL mpi_win_unlock_all(win,ierr)
 #else
+    MARK_USED(win)
     CPABORT("mp_win_unlock_all requires MPI-3 standard")
 #endif
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_win_unlock_all @ "//routineN )

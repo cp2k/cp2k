@@ -4449,12 +4449,6 @@ MODULE dbcsr_mm_cannon
                   a_norms=left_norms(:,v_ki),&
                   b_norms=right_norms(:,v_ki),&
                   do_rec=do_rec)
-!$omp master
-             IF (use_comm_thread) THEN
-                CALL mp_testany(right_get_requests(:,1:right_ngets))
-                CALL mp_testany(left_get_requests(:,1:left_ngets))
-             ENDIF
-!$omp end master
           ENDDO
           !
           IF(metronome==nsteps_k) THEN
