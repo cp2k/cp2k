@@ -120,7 +120,7 @@ CONTAINS
 #endif
 #if defined(__parallel)
     flags=TRIM(flags)//" parallel"
-#if __MPI_VERSION > 2
+#if !defined(__MPI_VERSION) || (__MPI_VERSION > 2)
     flags=TRIM(flags)//" mpi3"
 #else
     flags=TRIM(flags)//" mpi2"

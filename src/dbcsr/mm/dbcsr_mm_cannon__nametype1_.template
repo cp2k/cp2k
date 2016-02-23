@@ -118,10 +118,8 @@
 !> \param meta ...
 !> \param data ...
 !> \param refs ...
-!> \param img_map_row ...
-!> \param img_map_col ...
-!> \param img_offset_rows ...
-!> \param img_offset_cols ...
+!> \param img_map ...
+!> \param img_offset ...
 !> \param row_blk_size ...
 !> \param col_blk_size ...
 !> \param local_row ...
@@ -131,8 +129,8 @@
 ! *****************************************************************************
   SUBROUTINE calc_max_image_norms_[nametype1](meta,data,&
      refs_size,refs_displ,&
-     img_map_row,img_map_col,&
-     img_offset_rows,img_offset_cols,&
+     img_map,&
+     img_offset,&
      row_blk_size,col_blk_size,&
      local_row,local_col,&
      max_norms, is_left)
@@ -140,8 +138,7 @@
   [type1], DIMENSION(:), &
        INTENT(IN)                         :: data
   INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER :: refs_size, refs_displ
-  INTEGER, DIMENSION(:), INTENT(IN)       :: img_map_row, img_map_col,&
-                                             img_offset_rows, img_offset_cols, &
+  INTEGER, DIMENSION(:), INTENT(IN)       :: img_map, img_offset, &
                                              row_blk_size, col_blk_size, &
                                              local_row, local_col
   REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT) :: max_norms
@@ -155,9 +152,9 @@
   !$omp parallel default(none) &
   !$omp          private (mi, ui, nblks, blk, row, col, bps, bpe,&
   !$omp                   rowi, coli) &
-  !$omp          shared (max_norms, data, meta, refs_size, img_offset_rows,&
-  !$omp                  img_map_row, img_map_col, refs_displ,&
-  !$omp                  img_offset_cols, row_blk_size, col_blk_size,&
+  !$omp          shared (max_norms, data, meta, refs_size, img_offset,&
+  !$omp                  img_map, refs_displ,&
+  !$omp                  row_blk_size, col_blk_size,&
   !$omp                  local_row, local_col, is_left)
   IF (is_left) THEN
      rowi => mi
@@ -189,8 +186,13 @@
                 refs_displ(imeta_displ,mi,ui):3)
            DO blk = 1, nblks
               IF (bps(blk).NE.0) THEN
-                 bpe = bps(blk) + row_blk_size(local_row(img_map_row(row(blk)+img_offset_rows(rowi))))*&
-                      col_blk_size(local_col(img_map_col(col(blk)+img_offset_cols(coli)))) - 1
+                 IF (is_left) THEN
+                    bpe = bps(blk) + row_blk_size(local_row(row(blk)))*&
+                         col_blk_size(local_col(img_map(col(blk)+img_offset(coli)))) - 1
+                 ELSE
+                    bpe = bps(blk) + row_blk_size(local_row(img_map(row(blk)+img_offset(rowi))))*&
+                         col_blk_size(local_col(col(blk))) - 1
+                 ENDIF
                  max_norms(mi,ui) = MAX(max_norms(mi,ui),&
                       SQRT (REAL(SUM(ABS(data(bps(blk)+refs_displ(idata_displ,mi,ui):&
                                               bpe+refs_displ(idata_displ,mi,ui)))**2), KIND=sp)))
