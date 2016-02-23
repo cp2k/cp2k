@@ -60,6 +60,7 @@
 
   END SUBROUTINE mp_shift_rm
 
+
 ! *****************************************************************************
 !> \brief Shift around the data in msg
 !> \param[in,out] msg         Data to shift

@@ -29,6 +29,7 @@ MODULE message_passing
 
 #include "../base/base_uses.f90"
 
+
 #if defined(__parallel) && !defined(__MPI_VERSION)
 #define __MPI_VERSION 3
 #endif
