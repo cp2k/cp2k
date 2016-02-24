@@ -1720,17 +1720,19 @@ CONTAINS
     INTEGER                                  :: ierr
 #if defined(__parallel)
     INTEGER                                  :: count
-    INTEGER                                  :: status(MPI_STATUS_SIZE)
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
 #endif
 
     ierr = 0
 
 #if defined(__parallel)
     count = SIZE(requests)
+    ALLOCATE (status(MPI_STATUS_SIZE,count))
 
     CALL mpi_testall_internal(count,requests,flag,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall_1 @ mp_testall" )
+    DEALLOCATE (status)
 #else
     MARK_USED(requests)
     flag = .TRUE.
@@ -1752,7 +1754,7 @@ CONTAINS
     INTEGER, INTENT(in)                      :: count
     INTEGER, DIMENSION(count), INTENT(inout) :: array_of_requests
     LOGICAL, INTENT(out)                     :: flag
-    INTEGER, DIMENSION(MPI_STATUS_SIZE), &
+    INTEGER, DIMENSION(MPI_STATUS_SIZE,count), &
       INTENT(out)                            :: status
     INTEGER, INTENT(out)                     :: ierr
 
