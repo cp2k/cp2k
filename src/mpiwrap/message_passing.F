@@ -1728,7 +1728,7 @@ CONTAINS
 #if defined(__parallel)
     count = SIZE(requests)
 
-    CALL mpi_testall(count,requests,flag,status,ierr)
+    CALL mpi_testall_internal(count,requests,flag,status,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall_1 @ mp_testall" )
 #else
@@ -1736,6 +1736,30 @@ CONTAINS
     flag = .TRUE.
 #endif
   END FUNCTION mp_testall_1
+
+! *****************************************************************************
+!> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1
+!>        the issue is with the rank or requests
+!> \param count ...
+!> \param array_of_requests ...
+!> \param flag ...
+!> \param status ...
+!> \param ierr ...
+!> \author Alfio Lazzaro
+! *****************************************************************************
+#if defined(__parallel)
+  SUBROUTINE mpi_testall_internal(count, array_of_requests, flag, status, ierr)
+    INTEGER, INTENT(in)                      :: count
+    INTEGER, DIMENSION(count), INTENT(inout) :: array_of_requests
+    LOGICAL, INTENT(out)                     :: flag
+    INTEGER, DIMENSION(MPI_STATUS_SIZE), &
+      INTENT(out)                            :: status
+    INTEGER, INTENT(out)                     :: ierr
+
+    CALL mpi_testall(count,array_of_requests,flag,status,ierr)
+
+  END SUBROUTINE mpi_testall_internal
+#endif
 
 ! *****************************************************************************
 !> \brief tests for completion of the given requests
