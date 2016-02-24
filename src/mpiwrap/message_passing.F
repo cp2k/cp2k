@@ -1703,7 +1703,8 @@ CONTAINS
   END SUBROUTINE mp_waitany
 
 ! *****************************************************************************
-!> \brief tests for completion of the given requests
+!> \brief Tests for completion of the given requests.
+!> \brief We use mpi_test so that we can use a single status.
 !> \param requests ...
 !> \retval flag ...
 !> \par History
@@ -1719,49 +1720,25 @@ CONTAINS
 
     INTEGER                                  :: ierr
 #if defined(__parallel)
-    INTEGER                                  :: count
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: status
+    INTEGER                                  :: count, ireq
+    INTEGER                                  :: status(MPI_STATUS_SIZE)
 #endif
 
     ierr = 0
+    flag = .TRUE.
 
 #if defined(__parallel)
     count = SIZE(requests)
-    ALLOCATE (status(MPI_STATUS_SIZE,count))
-
-    CALL mpi_testall_internal(count,requests,flag,status,ierr)
-    ! we do not check the status
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall_1 @ mp_testall" )
-    DEALLOCATE (status)
+    DO ireq=1, count
+       CALL mpi_test(requests(ireq),flag,status,ierr)
+       ! we do not check the status
+       IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall_1 @ mp_testall" )
+       IF (.NOT.flag) EXIT
+    ENDDO
 #else
-    MARK_USED(requests)
-    flag = .TRUE.
+    requests = mp_request_null
 #endif
   END FUNCTION mp_testall_1
-
-! *****************************************************************************
-!> \brief wrapper needed to deal with interfaces as present in openmpi 1.8.1
-!>        the issue is with the rank or requests
-!> \param count ...
-!> \param array_of_requests ...
-!> \param flag ...
-!> \param status ...
-!> \param ierr ...
-!> \author Alfio Lazzaro
-! *****************************************************************************
-#if defined(__parallel)
-  SUBROUTINE mpi_testall_internal(count, array_of_requests, flag, status, ierr)
-    INTEGER, INTENT(in)                      :: count
-    INTEGER, DIMENSION(count), INTENT(inout) :: array_of_requests
-    LOGICAL, INTENT(out)                     :: flag
-    INTEGER, DIMENSION(MPI_STATUS_SIZE,count), &
-      INTENT(out)                            :: status
-    INTEGER, INTENT(out)                     :: ierr
-
-    CALL mpi_testall(count,array_of_requests,flag,status,ierr)
-
-  END SUBROUTINE mpi_testall_internal
-#endif
 
 ! *****************************************************************************
 !> \brief tests for completion of the given requests
