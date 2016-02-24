@@ -47,7 +47,11 @@ case "$with_metis" in
 esac
 if [ "$with_metis" != "__DONTUSE__" ] ; then
     METIS_LIBS="-lmetis"
-    if [ "$with_metis" != "__SYSTEM__" ] ; then
+    # we assume if in __INSTALL__ mode, then METIS should have been
+    # installed from ParMETIS, and this means we don't need to setup
+    # the system paths for METIS
+    if [ "$with_metis" != "__SYSTEM__" ] && \
+       [ "$with_metis" != "__INSTALL__" ] ; then
         cat <<EOF > "${BUILDDIR}/setup_metis"
 prepend_path PATH "$pkg_install_dir/bin"
 prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
