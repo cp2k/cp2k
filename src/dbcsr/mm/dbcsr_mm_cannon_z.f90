@@ -133,6 +133,7 @@
      img_offset,&
      row_blk_size,col_blk_size,&
      local_row,local_col,&
+     slot_coo_l,&
      max_norms, is_left)
   INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: meta
   COMPLEX(kind=real_8), DIMENSION(:), &
@@ -141,6 +142,7 @@
   INTEGER, DIMENSION(:), INTENT(IN)       :: img_map, img_offset, &
                                              row_blk_size, col_blk_size, &
                                              local_row, local_col
+  INTEGER, INTENT(IN)                     :: slot_coo_l
   REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT) :: max_norms
   LOGICAL                                 :: is_left
 
@@ -153,7 +155,7 @@
   !$omp          private (mi, ui, nblks, blk, row, col, bps, bpe,&
   !$omp                   rowi, coli) &
   !$omp          shared (max_norms, data, meta, refs_size, img_offset,&
-  !$omp                  img_map, refs_displ,&
+  !$omp                  img_map, refs_displ, slot_coo_l,&
   !$omp                  row_blk_size, col_blk_size,&
   !$omp                  local_row, local_col, is_left)
   IF (is_left) THEN
@@ -172,17 +174,14 @@
         max_norms(mi,ui) = 0.0_sp
         IF (refs_size(imeta_size,mi,ui).NE.0) THEN
            nblks = meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
-           row => meta(meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_coo_l)+&
-                refs_displ(imeta_displ,mi,ui):&
-                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_num_slots)+&
+           row => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l:&
+                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
                 refs_displ(imeta_displ,mi,ui):3)
-           col => meta(meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_coo_l)+&
-                refs_displ(imeta_displ,mi,ui)+1:&
-                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_num_slots)+&
+           col => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l+1:&
+                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
                 refs_displ(imeta_displ,mi,ui):3)
-           bps => meta(meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_coo_l)+&
-                refs_displ(imeta_displ,mi,ui)+2:&
-                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_num_slots)+&
+           bps => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l+2:&
+                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
                 refs_displ(imeta_displ,mi,ui):3)
            DO blk = 1, nblks
               IF (bps(blk).NE.0) THEN

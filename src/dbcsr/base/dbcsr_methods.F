@@ -14,7 +14,6 @@
 ! *****************************************************************************
 MODULE dbcsr_methods
   USE array_types,                     ONLY: array_data,&
-                                             array_exists,&
                                              array_nullify,&
                                              array_release
   USE btree_I8_k_cp2d_v,               ONLY: btree_destroy_c => btree_delete,&
@@ -31,7 +30,6 @@ MODULE dbcsr_methods
                                              dbcsr_caller_error,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
@@ -286,20 +284,6 @@ CONTAINS
           CALL array_release (matrix%m%row_blk_offset)
           CALL array_release (matrix%m%col_blk_offset)
           CALL dbcsr_distribution_release(matrix%m%dist)
-          IF (matrix%m%local_indexing) THEN
-             CALL dbcsr_assert (array_exists (matrix%m%local_rows),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Global row mapping should exist", __LINE__)
-             CALL dbcsr_assert (array_exists (matrix%m%global_rows),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Global row mapping should exist", __LINE__)
-             CALL dbcsr_assert (array_exists (matrix%m%local_cols),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Global column mapping should exist", __LINE__)
-             CALL dbcsr_assert (array_exists (matrix%m%global_cols),&
-                  dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                  "Global column mapping should exist", __LINE__)
-          ENDIF
           CALL dbcsr_release_locals (matrix)
           matrix%m%valid = .FALSE.
           CALL dbcsr_init (matrix%m)

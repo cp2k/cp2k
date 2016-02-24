@@ -138,6 +138,7 @@ MODULE message_passing
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
   PUBLIC :: mp_isend, mp_irecv
   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
+  PUBLIC :: mp_testall
   PUBLIC :: mp_gatherv
   PUBLIC :: mp_send, mp_recv
 
@@ -187,6 +188,10 @@ MODULE message_passing
 
   INTERFACE mp_waitall
      MODULE PROCEDURE mp_waitall_1, mp_waitall_2
+  END INTERFACE
+
+  INTERFACE mp_testall
+     MODULE PROCEDURE mp_testall_1
   END INTERFACE
 
   INTERFACE mp_testany
@@ -1697,6 +1702,40 @@ CONTAINS
     CALL mp_timestop(handle)
   END SUBROUTINE mp_waitany
 
+! *****************************************************************************
+!> \brief tests for completion of the given requests
+!> \param requests ...
+!> \retval flag ...
+!> \par History
+!>      24.2016 created
+!> \author Alfio Lazzaro
+! *****************************************************************************
+  FUNCTION mp_testall_1(requests) RESULT(flag)
+    INTEGER, DIMENSION(:), INTENT(inout)  :: requests
+    LOGICAL                               :: flag
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testall_1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ierr
+#if defined(__parallel)
+    INTEGER                                  :: count
+    INTEGER                                  :: status(MPI_STATUS_SIZE)
+#endif
+
+    ierr = 0
+
+#if defined(__parallel)
+    count = SIZE(requests)
+
+    CALL mpi_testall(count,requests,flag,status,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall_1 @ mp_testall" )
+#else
+    MARK_USED(requests)
+    flag = .TRUE.
+#endif
+  END FUNCTION mp_testall_1
 
 ! *****************************************************************************
 !> \brief tests for completion of the given requests
