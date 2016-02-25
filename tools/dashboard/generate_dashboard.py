@@ -319,6 +319,7 @@ def parse_report(report_txt, report_type):
 #===============================================================================
 def send_notification(report, addressbook, last_ok, svn_log, name, s):
     rev_end = report['revision'] if(report['revision']) else max(svn_log.keys())
+    if(rev_end==last_ok): return # probably a flapping tester
     authors = set([svn_log[r]['author'] for r in range(last_ok+1, rev_end+1)])
     emails = [addressbook[a] for a in authors]
     print("Sending email to: "+", ".join(emails))
