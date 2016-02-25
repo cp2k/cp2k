@@ -71,7 +71,8 @@ PROGRAM cp2k_shell
   TYPE(cp_para_env_type), POINTER          :: para_env
   TYPE(cp_logger_type), POINTER            :: logger
   CHARACTER(LEN=default_path_length)       :: cmdStr, inp_filename, out_filename
-  CHARACTER(LEN=default_string_length)     :: cmd,units,line
+  CHARACTER(LEN=default_string_length)     :: cmd,units
+  CHARACTER(LEN=10*default_string_length)  :: line
   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: pos,pos2
   REAL(KIND=dp)                            :: e_pot,err
   REAL(KIND=dp)                            :: e_fact,pos_fact
