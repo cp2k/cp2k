@@ -78,6 +78,12 @@ cat <<EOF > ${INSTALLDIR}/valgrind.supp
    ...
    fun:MPIR_Process_status
 }
+{
+   BuggyLD
+   Memcheck:Cond
+   ...
+   fun:expand_dynamic_string_token
+}
 EOF
 # also need to give links to the .supp file in setup file
 cat <<EOF >> ${SETUPFILE}
