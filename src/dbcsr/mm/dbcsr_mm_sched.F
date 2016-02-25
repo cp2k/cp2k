@@ -50,7 +50,8 @@ MODULE dbcsr_mm_sched
   USE dbcsr_types,                     ONLY: dbcsr_type,&
                                              dbcsr_work_type
   USE kinds,                           ONLY: int_4,&
-                                             int_8
+                                             int_8,&
+                                             real_8
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_environ,&
                                              mp_max,&
@@ -655,15 +656,15 @@ MODULE dbcsr_mm_sched
     END DO
 
     total = report%cpu_flop + report%smm_flop + report%acc_flop
-    WRITE (output_unit,"(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
-       " flops total", total,&
+    WRITE (output_unit,"(A,T30,EN20.6,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+       " flops total", REAL(total,KIND=real_8),&
        100*REAL(report%cpu_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
        100*REAL(report%smm_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
        100*REAL(report%acc_flop)/REAL(MAX(INT(1,KIND=int_8),total))
 
     total = report%max_cpu_flop + report%max_smm_flop + report%max_acc_flop
-    WRITE (output_unit,"(A,T30,I20,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
-       " flops max/rank", total,&
+    WRITE (output_unit,"(A,T30,EN20.6,5X,F5.1,'%',4X,F5.1,'%',4X,F5.1,'%')")&
+       " flops max/rank", REAL(total,KIND=real_8),&
        100*REAL(report%max_cpu_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
        100*REAL(report%max_smm_flop)/REAL(MAX(INT(1,KIND=int_8),total)),&
        100*REAL(report%max_acc_flop)/REAL(MAX(INT(1,KIND=int_8),total))
