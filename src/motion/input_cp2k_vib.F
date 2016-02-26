@@ -64,7 +64,11 @@ CONTAINS
 
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="VIBRATIONAL_ANALYSIS",&
-         description="Section to setup parameters to perform a Normal Modes analysis.",&
+         description="Section to setup parameters to perform a Normal Modes, vibrational, or phonon analysis. "//&
+                     "Vibrations are computed using finite differences, "//&
+                     "which implies a very tight (e.g. 1E-8) threshold is needed for EPS_SCF to get accurate low frequencies. "//&
+                     "The analysis assumes a stationary state (minimum or TS),"//&
+                     " i.e. tight geometry optimization (MAX_FORCE) is needed as well.",&
          n_keywords=1, n_subsections=0, repeats=.FALSE.)
     NULLIFY(keyword, subsection)
 
@@ -103,7 +107,7 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="INTENSITIES",&
-         description="Calculation of the IR-Intensities. Calculation of dipols has to be specified explicitly ",&
+         description="Calculation of the IR-Intensities. Calculation of dipoles has to be specified explicitly ",&
          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
