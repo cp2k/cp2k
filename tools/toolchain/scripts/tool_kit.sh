@@ -359,7 +359,7 @@ EOF
 }
 
 # check if a flag is allowed for the current version of
-# gcc. returns 0 if allowed and 1 if not
+# g++. returns 0 if allowed and 1 if not
 check_gcc_flag() {
     local __flag=$1
     local __CC=${CC:-gcc}
@@ -372,6 +372,22 @@ int main() {
 }
 EOF
 }
+
+# check if a flag is allowed for the current version of
+# gcc. returns 0 if allowed and 1 if not
+check_gxx_flag() {
+    local __flag=$1
+    local __CXX=${CXX:-g++}
+    # no need to do a full compilation, just -E -cpp would do for
+    # checking flags
+    cat <<EOF | $__CC -E -cpp $__flag -xc - >&- 2>&-
+#include <stdio.h>
+int main() {
+  printf("PASS\n");
+}
+EOF
+}
+
 
 # given a list of flags, only print out what is allowed by the current
 # version of gfortran
@@ -395,6 +411,20 @@ allowed_gcc_flags() {
     local __result=''
     for __flag in $__flags ; do
         if (check_gcc_flag $__flag) ; then
+            [ -z "$__result" ] && __result="$__flag" || __result="$__result $__flag"
+        fi
+    done
+    echo $__result
+}
+
+# given a list of flags, only print out what is allowed by the current
+# version of gcc
+allowed_gxx_flags() {
+    local __flags=$@
+    local __flag=''
+    local __result=''
+    for __flag in $__flags ; do
+        if (check_gxx_flag $__flag) ; then
             [ -z "$__result" ] && __result="$__flag" || __result="$__result $__flag"
         fi
     done
