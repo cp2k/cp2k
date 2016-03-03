@@ -555,7 +555,7 @@ if [ $ENABLE_TSAN = "__TRUE__" ] ; then
 fi
 
 # valgrind conflicts
-if [ "$ENABLE_VALGRIND" != "__TRUE__" ] ; then
+if [ "$ENABLE_VALGRIND" = "__TRUE__" ] ; then
     if [ "$with_reflapack" = "__DONTUSE__" ] ; then
         echo "reflapack is automatically installed when valgrind is enabled"
         with_reflapack="__INSTALL__"
