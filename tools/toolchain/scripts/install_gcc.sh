@@ -41,7 +41,7 @@ case "$with_gcc" in
                                  --disable-multilib --disable-bootstrap \
                                  --enable-lto \
                                  --enable-plugins \
-                                 > config.log 2>&1
+                                 > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             # thread sanitizer

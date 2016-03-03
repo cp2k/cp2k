@@ -41,7 +41,7 @@ case "$with_libint" in
                         --with-cc="$CC $CFLAGS" \
                         --with-cc-optflags="$CFLAGS" \
                         --with-cxx-optflags="$CXXFLAGS" \
-                        > config.log 2>&1
+                        > configure.log 2>&1
             make -j $NPROCS >  make.log 2>&1
             make install > install.log 2>&1
             cd ..

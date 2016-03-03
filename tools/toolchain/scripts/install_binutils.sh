@@ -30,7 +30,7 @@ case "$with_binutils" in
             tar -xzf binutils-${binutils_ver}.tar.gz
             cd binutils-${binutils_ver}
             ./configure --prefix="${pkg_install_dir}" \
-                        --enable-gold --enable-plugins > config.log 2>&1
+                        --enable-gold --enable-plugins > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ..

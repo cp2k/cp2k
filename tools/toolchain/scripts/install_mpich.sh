@@ -35,7 +35,7 @@ case "$with_mpich" in
             (
                 unset F90
                 unset F90FLAGS
-                ./configure --prefix="${pkg_install_dir}" > config.log 2>&1
+                ./configure --prefix="${pkg_install_dir}" > configure.log 2>&1
                 make -j $NPROCS > make.log 2>&1
                 make -j $NPROCS install > install.log 2>&1
             )

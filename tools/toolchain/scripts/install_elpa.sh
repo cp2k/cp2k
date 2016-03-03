@@ -75,7 +75,7 @@ case "$with_elpa" in
                          CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
                          LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
                          LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
-                         > config.log 2>&1
+                         > configure.log 2>&1
             make -j $NPROCS >  make.log 2>&1
             make install > install.log 2>&1
             # threaded version
@@ -93,7 +93,7 @@ case "$with_elpa" in
                              CXXFLAGS="${CXXFLAGS} ${MATH_CFLAGS} ${SCALAPACK_CFLAGS}" \
                              LDFLAGS="-Wl,--enable-new-dtags ${MATH_LDFLAGS} ${SCALAPACK_LDFLAGS} ${cray_ldflags}" \
                              LIBS="${SCALAPACK_LIBS} ${MATH_LIBS}" \
-                             > config.log 2>&1
+                             > configure.log 2>&1
                 make -j $NPROCS >  make.log 2>&1
                 make install > install.log 2>&1
             fi

@@ -82,7 +82,7 @@ case "$with_quip" in
             echo "CPLUSPLUSFLAGS += -g" >> arch/Makefile.linux_${quip_arch}_gfortran
             export QUIP_ARCH=linux_${quip_arch}_gfortran
             # hit enter a few times to accept defaults
-            echo -e "${MATH_LDFLAGS} ${MATH_LIBS} \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > config.log
+            echo -e "${MATH_LDFLAGS} ${MATH_LIBS} \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | make config > configure.log
             # make -j does not work :-(
             make > make.log 2>&1
             ! [ -d "${pkg_install_dir}/include" ] && mkdir -p "${pkg_install_dir}/include"

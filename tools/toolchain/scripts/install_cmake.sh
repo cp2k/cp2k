@@ -37,7 +37,7 @@ case "$with_cmake" in
                 cp CMakeLists.txt CMakeLists.txt.orig
                 sed -i 's/option(BUILD_CursesDialog "Build the CMake Curses Dialog ccmake" ON)/option(BUILD_CursesDialog "Build the CMake Curses Dialog ccmake" OFF)/g' CMakeLists.txt
             fi
-            ./bootstrap --prefix="${pkg_install_dir}" > config.log 2>&1
+            ./bootstrap --prefix="${pkg_install_dir}" > configure.log 2>&1
             make -j $NPROCS >  make.log 2>&1
             make install > install.log 2>&1
             cd ..
