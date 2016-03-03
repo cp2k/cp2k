@@ -1035,7 +1035,7 @@ compiled with it you will first need to execute at the prompt:
   source ${SETUPFILE}
 To build CP2K you should change directory:
   cd cp2k/makefiles/
-  make -j ${nprocs} ARCH=local VERSION="${arch_vers}"
+  make -j ${NPROCS} ARCH=local VERSION="${arch_vers}"
 
 arch files for GPU enabled CUDA versions are named "local_cuda.*"
 arch files for valgrind versions are named "local_valgrind.*"
