@@ -359,7 +359,7 @@ EOF
 }
 
 # check if a flag is allowed for the current version of
-# g++. returns 0 if allowed and 1 if not
+# gcc. returns 0 if allowed and 1 if not
 check_gcc_flag() {
     local __flag=$1
     local __CC=${CC:-gcc}
@@ -374,7 +374,7 @@ EOF
 }
 
 # check if a flag is allowed for the current version of
-# gcc. returns 0 if allowed and 1 if not
+# g++. returns 0 if allowed and 1 if not
 check_gxx_flag() {
     local __flag=$1
     local __CXX=${CXX:-g++}
@@ -387,7 +387,6 @@ int main() {
 }
 EOF
 }
-
 
 # given a list of flags, only print out what is allowed by the current
 # version of gfortran
@@ -418,7 +417,7 @@ allowed_gcc_flags() {
 }
 
 # given a list of flags, only print out what is allowed by the current
-# version of gcc
+# version of g++
 allowed_gxx_flags() {
     local __flags=$@
     local __flag=''
