@@ -632,9 +632,9 @@ END SUBROUTINE create_ewald_section
          enum_c_vals=s2a( 'XYZ', 'XY', 'XZ', 'YZ', 'X', 'Y', 'Z' ), &
          enum_i_vals=(/ neumannXYZ, neumannXY, neumannXZ, neumannYZ, neumannX, neumannY, neumannZ /), &
          description="Directions in which homogeneous Neumann conditions are imposed. In the remaining directions "//&
-                     "periodic conditions will be enforced. Having specified MIXED or NEUMANN as BOUNDARY_CONDITIONS, "&
-                     "the keyword is meant to be used to combine periodic and homogeneous Neumann conditions at the "&
-                     "boundaries of the simulation cell.", &
+               "periodic conditions will be enforced. Having specified MIXED or NEUMANN as BOUNDARY_CONDITIONS, "//&
+               "the keyword is meant to be used to combine periodic and homogeneous Neumann conditions at the "//&
+               "boundaries of the simulation cell.", &
          usage="NEUMANN_DIRECTIONS <direction>", default_i_val=neumannXYZ)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
