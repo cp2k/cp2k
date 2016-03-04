@@ -1300,7 +1300,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_pdos', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: xas_mittle 
+    CHARACTER(LEN=default_string_length)     :: xas_mittle
     INTEGER                                  :: ispin
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1308,7 +1308,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-
 
     NULLIFY(atomic_kind_set,particle_set,qs_kind_set)
     xas_mittle = 'xasat'//TRIM(ADJUSTL(cp_to_string(iatom)))//'_'

@@ -128,6 +128,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param dft_section ...
 !> \param ispin ...
+!> \param xas_mittle ...
 !> \date    26.02.2008
 !> \par History:
 !>       -
@@ -150,7 +151,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: dft_section
     INTEGER, INTENT(IN), OPTIONAL            :: ispin
-    CHARACTER(LEN=default_string_length),&
+    CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: xas_mittle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos', &

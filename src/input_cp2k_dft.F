@@ -1949,6 +1949,10 @@ CONTAINS
   END SUBROUTINE create_mo_cubes_section
 
 
+! *****************************************************************************
+!> \brief ...
+!> \param print_key ...
+! *****************************************************************************
   SUBROUTINE create_pdos_section(print_key)
 
     TYPE(section_type), POINTER              :: print_key
