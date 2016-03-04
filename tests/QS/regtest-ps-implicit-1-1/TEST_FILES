@@ -1,6 +1,9 @@
 # testing implicit (generalized) Poisson solver
 Ar_periodic.inp                                        1      2e-9            -21.074667254237461
 Ar_mixed_periodic_aa_planar.inp                        1     1e-12            -21.074667262658934 
-Ar_mixed_cuboidal.inp             1     4e-12            -21.074470225560631
-Ar_mixed_cylindrical.inp          1     5e-12            -21.074471695486011
+Ar_mixed_cuboidal.inp                                  1     4e-12            -21.074470225560631
+Ar_mixed_cylindrical.inp                               1     5e-12            -21.074471695486011
+Ar_neumann_x_periodic_yz.inp                           1     1e-12            -21.074686294717196 
+Ar_neumann_z_periodic_xy.inp                           1     1e-12            -21.074686294717189
+Ar_neumann_yz_periodic_x_dirichlet_xaacyl.inp          1     1e-12            -21.074388295545386
 #EOF

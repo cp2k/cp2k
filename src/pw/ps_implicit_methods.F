@@ -17,10 +17,9 @@ MODULE ps_implicit_methods
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
-  USE dct,                             ONLY: dct_type,&
-                                             dct_type_init,&
-                                             pw_expand,&
-                                             pw_shrink
+  USE dct,                             ONLY: &
+       dct_type, dct_type_init, neumannX, neumannXY, neumannXYZ, neumannXZ, &
+       neumannY, neumannYZ, neumannZ, pw_expand, pw_shrink
   USE dielectric_methods,              ONLY: dielectric_create
   USE dielectric_types,                ONLY: dielectric_type
   USE dirichlet_bc_methods,            ONLY: dirichlet_boundary_region_setup
@@ -104,7 +103,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: boundary_condition, handle, &
-                                                j, n_contacts
+                                                j, n_contacts, &
+                                                neumann_directions
     TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
 
     CALL timeset(routineN,handle)
@@ -116,6 +116,7 @@ CONTAINS
 
        ps_implicit_env%do_dbc_cube = poisson_params%dbc_params%do_dbc_cube
        boundary_condition = poisson_params%ps_implicit_params%boundary_condition
+       neumann_directions = poisson_params%ps_implicit_params%neumann_directions
 
 ! create dielectric
        NULLIFY(ps_implicit_env%dielectric)
@@ -157,7 +158,7 @@ CONTAINS
 
 ! dct env
        IF (boundary_condition .EQ. MIXED_BC .OR. boundary_condition .EQ. NEUMANN_BC) THEN
-          CALL dct_type_init(pw_pool%pw_grid, ps_implicit_env%dct_env)
+          CALL dct_type_init(pw_pool%pw_grid, neumann_directions, ps_implicit_env%dct_env)
        END IF
 
 ! prepare dirichlet bc
@@ -337,12 +338,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iter, max_iter, &
+                                                neumann_directions, &
                                                 outp_unit, times_called
     LOGICAL                                  :: reached_max_iter, &
                                                 reached_tol, &
                                                 use_zero_initial_guess
     REAL(dp)                                 :: nabs_error, omega, &
-                                                pres_error, tol
+                                                pres_error, tol, vol_scfac
     TYPE(dct_type), POINTER                  :: dct_env
     TYPE(dielectric_type), POINTER           :: dielectric
     TYPE(greens_fn_type), POINTER            :: green
@@ -366,7 +368,17 @@ CONTAINS
     omega = poisson_env%parameters%ps_implicit_params%omega
     max_iter = poisson_env%parameters%ps_implicit_params%max_iter
     use_zero_initial_guess = poisson_env%parameters%ps_implicit_params%zero_initial_guess
+    neumann_directions = poisson_env%parameters%ps_implicit_params%neumann_directions
     times_called = ps_implicit_env%times_called
+
+    SELECT CASE (neumann_directions)
+    CASE (neumannXYZ)
+       vol_scfac = 8.0_dp
+    CASE (neumannXY, neumannXZ, neumannYZ)
+       vol_scfac = 4.0_dp
+    CASE (neumannX, neumannY, neumannZ)
+       vol_scfac = 2.0_dp
+    END SELECT
 
     CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid)
 
@@ -389,9 +401,11 @@ CONTAINS
        CALL pw_copy(ps_implicit_env%initial_guess, v_old)
     END IF
 
-    CALL pw_expand(dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
+    CALL pw_expand(neumann_directions, &
+                   dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                    dct_env%flipg_stat, dct_env%bounds_shftd, density, density_xpndd)
-    CALL pw_expand(dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
+    CALL pw_expand(neumann_directions, &
+                   dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                    dct_env%flipg_stat, dct_env%bounds_shftd, v_new, v_new_xpndd)
 
     g%cr3d = fourpi * density_xpndd%cr3d / dielectric%eps%cr3d
@@ -426,8 +440,8 @@ CONTAINS
        CALL ps_implicit_output(iter, pres_error, nabs_error, outp_unit)
        IF (PRESENT(ehartree)) THEN
           CALL ps_implicit_compute_ehartree(density_xpndd, v_new_xpndd, ehartree)  
-          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree / 8.0_dp)
-          ps_implicit_env%ehartree = ehartree / 8.0_dp
+          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree / vol_scfac)
+          ps_implicit_env%ehartree = ehartree / vol_scfac
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
@@ -447,8 +461,8 @@ CONTAINS
     END DO
     CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-    CALL pw_shrink(dct_env%dests_shrink, dct_env%srcs_shrink, dct_env%bounds_local_shftd, &
-                   v_new_xpndd, v_new)
+    CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+                   dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
        CALL pw_copy(v_new_xpndd, ps_implicit_env%initial_guess)
@@ -457,8 +471,8 @@ CONTAINS
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
 ! veps has to be computed for the expanded data and then shrinked otherwise we loose accuracy
     CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
-    CALL pw_shrink(dct_env%dests_shrink, dct_env%srcs_shrink, dct_env%bounds_local_shftd, &
-                   v_eps_xpndd, ps_implicit_env%v_eps)
+    CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+                   dct_env%bounds_local_shftd, v_eps_xpndd, ps_implicit_env%v_eps)
 
     CALL pw_pool_give_back_pw(pw_pool_xpndd, g)
     CALL pw_pool_give_back_pw(pw_pool_xpndd, v_old)
@@ -765,18 +779,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_size, handle, iter, j, lb1, lb2, lb3, max_iter, &
-      n_contacts, n_tiles_tot, ng, ngpts_local, nt, nt_tot, outp_unit, &
-      times_called, ub1, ub2, ub3
+      n_contacts, n_tiles_tot, neumann_directions, ng, ngpts_local, nt, &
+      nt_tot, outp_unit, times_called, ub1, ub2, ub3
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, DIMENSION(2, 3)                 :: bounds_local
     INTEGER, DIMENSION(3)                    :: npts_local
     LOGICAL                                  :: reached_max_iter, &
                                                 reached_tol, &
                                                 use_zero_initial_guess
-    REAL(dp)                                 :: Axvbar_avg, ehartree, eta, &
-                                                g_avg, gminusAxvbar_avg, &
-                                                nabs_error, omega, &
-                                                pres_error, tol
+    REAL(dp) :: Axvbar_avg, ehartree, eta, g_avg, gminusAxvbar_avg, &
+      nabs_error, omega, pres_error, tol, vol_scfac
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: Btxlambda_new, Btxlambda_old, &
       Bxv_bar, Bxv_new, lambda0, lambda_new, lambda_newNeta, lambda_old, &
       QSxlambda, v_bar1D, v_D, v_new1D, w
@@ -813,8 +825,18 @@ CONTAINS
     omega = poisson_params%ps_implicit_params%omega
     max_iter = poisson_params%ps_implicit_params%max_iter
     use_zero_initial_guess = poisson_params%ps_implicit_params%zero_initial_guess
+    neumann_directions = poisson_params%ps_implicit_params%neumann_directions
     times_called = ps_implicit_env%times_called
  
+    SELECT CASE (neumann_directions)
+    CASE (neumannXYZ)
+       vol_scfac = 8.0_dp
+    CASE (neumannXY, neumannXZ, neumannYZ)
+       vol_scfac = 4.0_dp
+    CASE (neumannX, neumannY, neumannZ)
+       vol_scfac = 2.0_dp
+    END SELECT
+
     n_contacts = SIZE(ps_implicit_env%contacts)
     n_tiles_tot = 0
     DO j = 1 , n_contacts
@@ -881,9 +903,11 @@ CONTAINS
        lambda0(:) = ps_implicit_env%initial_lambda
     END IF
 
-    CALL pw_expand(dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
+    CALL pw_expand(neumann_directions, &
+                   dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                    dct_env%flipg_stat, dct_env%bounds_shftd, density, density_xpndd)
-    CALL pw_expand(dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
+    CALL pw_expand(neumann_directions, &
+                   dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                    dct_env%flipg_stat, dct_env%bounds_shftd, v_new, v_new_xpndd)
 
     g%cr3d = fourpi * density_xpndd%cr3d / dielectric%eps%cr3d
@@ -956,9 +980,9 @@ CONTAINS
        IF (PRESENT(electric_enthalpy)) THEN
           CALL ps_implicit_compute_ehartree(dielectric, density_xpndd, Btxlambda_new3D, v_new_xpndd, &
                                             ehartree, electric_enthalpy)  
-          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree / 8.0_dp)
-          ps_implicit_env%ehartree = ehartree / 8.0_dp
-          ps_implicit_env%electric_enthalpy = electric_enthalpy / 8.0_dp
+          CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree / vol_scfac)
+          ps_implicit_env%ehartree = ehartree / vol_scfac
+          ps_implicit_env%electric_enthalpy = electric_enthalpy / vol_scfac
        ELSE
           IF (outp_unit .GT. 0) WRITE(outp_unit, '(A1,/)')
        END IF
@@ -1001,7 +1025,8 @@ CONTAINS
     END DO
     CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-    CALL pw_shrink(dct_env%dests_shrink, dct_env%srcs_shrink, dct_env%bounds_local_shftd, v_new_xpndd, v_new)
+    CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+                   dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
     IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
        CALL pw_copy(v_new_xpndd, ps_implicit_env%initial_guess)
@@ -1012,7 +1037,8 @@ CONTAINS
     IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
     CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
-    CALL pw_shrink(dct_env%dests_shrink, dct_env%srcs_shrink, dct_env%bounds_local_shftd, v_eps_xpndd, ps_implicit_env%v_eps)
+    CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+                   dct_env%bounds_local_shftd, v_eps_xpndd, ps_implicit_env%v_eps)
 
     CALL pw_pool_give_back_pw(pw_pool_xpndd, g)
     CALL pw_pool_give_back_pw(pw_pool_xpndd, v_old)
@@ -1090,14 +1116,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: data_size, handle, i, indx1, indx2, info, j, k, l, lb1, lb2, &
-      lb3, n_contacts, n_tiles, n_tiles_tot, ngpts_local, ub1, ub2, ub3, &
-      unit_nr
+      lb3, n_contacts, n_tiles, n_tiles_tot, neumann_directions, ngpts_local, &
+      ub1, ub2, ub3, unit_nr
     INTEGER(KIND=int_8)                      :: ngpts
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv
     INTEGER, DIMENSION(2, 3)                 :: bounds, bounds_local
     INTEGER, DIMENSION(3)                    :: npts, npts_local
     LOGICAL                                  :: done_preparing
-    REAL(dp)                                 :: tile_volume
+    REAL(dp)                                 :: tile_volume, vol_scfac
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Bxunit_vec, test_vec, work_arr
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: QAinvxBt, R
     TYPE(cp_logger_type), POINTER            :: logger
@@ -1127,6 +1153,17 @@ CONTAINS
        bounds_local = dct_pw_grid%bounds_local
        bounds = dct_pw_grid%bounds
        dct_env => ps_implicit_env%dct_env
+
+       neumann_directions = poisson_params%ps_implicit_params%neumann_directions
+
+       SELECT CASE (neumann_directions)
+       CASE (neumannXYZ)
+          vol_scfac = 8.0_dp
+       CASE (neumannXY, neumannXZ, neumannYZ)
+          vol_scfac = 4.0_dp
+       CASE (neumannX, neumannY, neumannZ)
+          vol_scfac = 2.0_dp
+       END SELECT
    
 ! evaluate indices for converting 3D arrays into 1D arrays
        lb1 = bounds_local(1,1);     ub1 = bounds_local(2,1)
@@ -1184,11 +1221,12 @@ CONTAINS
              tile_pw => ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw
 
              CALL pw_pool_create_pw(pw_pool_xpndd, pw_in, use_data=REALDATA3D, in_space=REALSPACE)
-             CALL pw_expand(dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
+             CALL pw_expand(neumann_directions, &
+                            dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                             dct_env%flipg_stat, dct_env%bounds_shftd, tile_pw, pw_in)
 
              tile_volume = ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%volume
-             CALL pw_scale(pw_in, 1.0_dp / (8.0_dp * tile_volume))    ! normalize tile_pw
+             CALL pw_scale(pw_in, 1.0_dp / (vol_scfac * tile_volume))    ! normalize tile_pw
              ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1+i-1) = RESHAPE(pw_in%cr3d, (/data_size/))
 
              CALL pw_pool_create_pw(pw_pool_xpndd, pw_out, use_data=REALDATA3D, in_space=REALSPACE)

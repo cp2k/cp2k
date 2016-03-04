@@ -31,7 +31,14 @@ MODULE pw_env_methods
                                              init_cube_info,&
                                              return_cube_max_iradius
   USE d3_poly,                         ONLY: init_d3_poly_module
-  USE dct,                             ONLY: setup_dct_pw_grids
+  USE dct,                             ONLY: neumannX,&
+                                             neumannXY,&
+                                             neumannXYZ,&
+                                             neumannXZ,&
+                                             neumannY,&
+                                             neumannYZ,&
+                                             neumannZ,&
+                                             setup_dct_pw_grids
   USE dielectric_types,                ONLY: derivative_cd3,&
                                              derivative_cd5,&
                                              derivative_cd7,&
@@ -156,9 +163,9 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3)                         :: string
-    INTEGER :: blocked_id, blocked_id_input, grid_span, handle, i, &
-      igrid_level, iounit, ncommensurate, ngrid_level, xc_deriv_method_id, &
-      xc_smooth_method_id
+    INTEGER :: blocked_id, blocked_id_input, boundary_condition, grid_span, &
+      handle, i, igrid_level, iounit, ncommensurate, ngrid_level, &
+      xc_deriv_method_id, xc_smooth_method_id
     INTEGER, DIMENSION(2)                    :: distribution_layout
     INTEGER, DIMENSION(3)                    :: higher_grid_layout
     LOGICAL :: efg_present, linres_present, odd, set_vdw_pool, should_output, &
@@ -521,7 +528,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC) .OR. &
       (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC)) THEN
      CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid,&
-                          my_cell%hmat, pw_env%poisson_env%dct_pw_grid)
+                          my_cell%hmat, poisson_params%ps_implicit_params%neumann_directions,&
+                          pw_env%poisson_env%dct_pw_grid)
   END IF
   ! setup real space grid for finite difference derivatives of dielectric constant function
   IF ( poisson_params%has_dielectric .AND. &
@@ -637,46 +645,74 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
         CPABORT("Invalid periodicity for wavelet solver selected")
       END SELECT
     CASE(pw_poisson_implicit)
-      WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
-       "POISSON| Solver","IMPLICIT (GENERALIZED)"
-      SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
-      CASE (PERIODIC_BC)
-        WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
-         "POISSON| Boundary Condition","PERIODIC"
-      CASE (MIXED_BC)
-        WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
-         "POISSON| Boundary Condition","MIXED"
-      CASE (MIXED_PERIODIC_BC)
-        WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
-         "POISSON| Boundary Condition","PERIODIC & DIRICHLET"
-      CASE (NEUMANN_BC)
-        WRITE (UNIT=iounit,FMT="(T2,A,T51,A30)")&
-         "POISSON| Boundary Condition","NEUMANN"
+      WRITE(UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
+         "POISSON| Solver","IMPLICIT (GENERALIZED)"
+      boundary_condition = poisson_params%ps_implicit_params%boundary_condition
+      SELECT CASE (boundary_condition)
+      CASE(PERIODIC_BC)
+        WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)")&
+           "POISSON| Boundary Condition","PERIODIC"
+      CASE(NEUMANN_BC, MIXED_BC)
+        IF (boundary_condition .EQ. NEUMANN_BC) THEN
+           WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)")&
+              "POISSON| Boundary Condition","NEUMANN"
+        ELSE
+           WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)")&
+              "POISSON| Boundary Condition","MIXED"
+        END IF
+        SELECT CASE (poisson_params%ps_implicit_params%neumann_directions)
+        CASE(neumannXYZ)
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| homogeneous Neumann directions","X, Y, Z"
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| periodic directions","NONE"
+        CASE(neumannXY)
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| homogeneous Neumann directions","X, Y"
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| periodic directions","Z"
+        CASE(neumannXZ)
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| homogeneous Neumann directions","X, Z"
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| periodic directions","Y"
+        CASE(neumannYZ)
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| homogeneous Neumann directions","Y, Z"
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| periodic directions","X"
+        CASE(neumannX)
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| homogeneous Neumann directions","X"
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| periodic directions","Y, Z"
+        CASE(neumannY)
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| homogeneous Neumann directions","Y"
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| periodic directions","X, Z"
+        CASE(neumannZ)
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| homogeneous Neumann directions","Z"
+          WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)") "POISSON| periodic directions","X, Y"
+        CASE DEFAULT
+          CPABORT("Invalid combination of Neumann and periodic conditions.")
+        END SELECT
+      CASE(MIXED_PERIODIC_BC)
+        WRITE(UNIT=iounit,FMT="(T2,A,T51,A30)")&
+           "POISSON| Boundary Condition","PERIODIC & DIRICHLET"
       CASE DEFAULT
-        CPABORT("Invalid boundary conditions for the implicit (generalized) poisson solver.")
+         CPABORT("Invalid boundary conditions for the implicit (generalized) poisson solver.")
       END SELECT
-      WRITE (UNIT=iounit,FMT="(T2,A,T71,I10)")&
-       "POISSON| Maximum number of iterations", poisson_params%ps_implicit_params%max_iter
-      WRITE (UNIT=iounit,FMT="(T2,A,T51,ES30.2)")&
-       "POISSON| Convergence threshold", poisson_params%ps_implicit_params%tol
+      WRITE(UNIT=iounit,FMT="(T2,A,T71,I10)")&
+         "POISSON| Maximum number of iterations", poisson_params%ps_implicit_params%max_iter
+      WRITE(UNIT=iounit,FMT="(T2,A,T51,ES30.2)")&
+         "POISSON| Convergence threshold", poisson_params%ps_implicit_params%tol
       IF (poisson_params%dielectric_params%dielec_functiontype .EQ. rho_dependent) THEN
-         WRITE (UNIT=iounit,FMT="(T2,A,T51,F30.2)")&
-          "POISSON| Dielectric Constant", poisson_params%dielectric_params%eps0
+         WRITE(UNIT=iounit,FMT="(T2,A,T51,F30.2)")&
+            "POISSON| Dielectric Constant", poisson_params%dielectric_params%eps0
       ELSE
          WRITE(UNIT=iounit,FMT="(T2,A,T31,F9.2)",ADVANCE='NO') &
-          "POISSON| Dielectric Constants", poisson_params%dielectric_params%eps0
+           "POISSON| Dielectric Constants", poisson_params%dielectric_params%eps0
          DO i = 1, poisson_params%dielectric_params%n_aa_cuboidal
-           WRITE(UNIT=iounit,FMT="(F9.2)",ADVANCE='NO') &
-            poisson_params%dielectric_params%aa_cuboidal_eps(i)
+            WRITE(UNIT=iounit,FMT="(F9.2)",ADVANCE='NO') &
+                 poisson_params%dielectric_params%aa_cuboidal_eps(i)
          END DO
          DO i = 1, poisson_params%dielectric_params%n_xaa_annular
-           WRITE(UNIT=iounit,FMT="(F9.2)",ADVANCE='NO') &
-            poisson_params%dielectric_params%xaa_annular_eps(i)
+             WRITE(UNIT=iounit,FMT="(F9.2)",ADVANCE='NO') &
+                 poisson_params%dielectric_params%xaa_annular_eps(i)
          END DO
          WRITE(UNIT=iounit,FMT='(A1,/)')
       END IF
-      WRITE (UNIT=iounit,FMT="(T2,A,T51,ES30.2)")&
-       "POISSON| Relaxation parameter", poisson_params%ps_implicit_params%omega
+      WRITE(UNIT=iounit,FMT="(T2,A,T51,ES30.2)")&
+           "POISSON| Relaxation parameter", poisson_params%ps_implicit_params%omega
     CASE(pw_poisson_none)
       WRITE (UNIT=iounit,FMT="(/,T2,A,T51,A30)")&
        "POISSON| Solver","NONE"

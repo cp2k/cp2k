@@ -215,6 +215,8 @@ CONTAINS
     CALL section_vals_val_get(ps_implicit_section, "max_iter", i_val=params%ps_implicit_params%max_iter)
     CALL section_vals_val_get(ps_implicit_section, "tol", r_val=params%ps_implicit_params%tol)
     CALL section_vals_val_get(ps_implicit_section, "omega", r_val=params%ps_implicit_params%omega)
+    CALL section_vals_val_get(ps_implicit_section, "neumann_directions", &
+                              i_val=params%ps_implicit_params%neumann_directions)
 
     ! parsing DIELECTRIC subsection
     dielectric_section => section_vals_get_subs_vals(ps_implicit_section, "DIELECTRIC")

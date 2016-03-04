@@ -689,7 +689,8 @@ END SUBROUTINE calc_p3m_charge
           CALL pw_green_release(poisson_env%green_fft)
           CALL pw_grid_release(poisson_env%mt_super_ref_pw_grid)
           CALL ps_wavelet_release(poisson_env%wavelet)
-          CALL ps_implicit_release(poisson_env%implicit_env)
+          CALL ps_implicit_release(poisson_env%implicit_env, &
+                                   poisson_env%parameters%ps_implicit_params)
           CALL pw_grid_release(poisson_env%dct_pw_grid)
           CALL rs_grid_release(poisson_env%diel_rs_grid)
           DEALLOCATE(poisson_env)

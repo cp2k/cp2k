@@ -27,6 +27,13 @@ MODULE input_cp2k_poisson
                                              low_print_level,&
                                              medium_print_level
   USE cp_units,                        ONLY: cp_unit_to_cp2k
+  USE dct,                             ONLY: neumannX,&
+                                             neumannXY,&
+                                             neumannXYZ,&
+                                             neumannXZ,&
+                                             neumannY,&
+                                             neumannYZ,&
+                                             neumannZ
   USE dielectric_types,                ONLY: &
        derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft, &
        derivative_fft_use_deps, derivative_fft_use_drho, rho_dependent, &
@@ -574,7 +581,7 @@ END SUBROUTINE create_ewald_section
     CALL section_create(section,name="IMPLICIT",&
          description="Parameters for the implicit (generalized) Poisson solver.",&
          citations=(/BaniHashemian2016/),&
-         n_keywords=4, n_subsections=2, repeats=.FALSE.)
+         n_keywords=6, n_subsections=2, repeats=.FALSE.)
 
     NULLIFY(subsection, keyword)
 
@@ -618,6 +625,17 @@ END SUBROUTINE create_ewald_section
     CALL keyword_create(keyword, name="OR_PARAMETER", variants=s2a('omega'), &
          description="Over-relaxation parameter (large epsilon requires smaller omega ~0.1).", &
          usage="OR_PARAMETER <real>", default_r_val=1.0_dp)
+    CALL section_add_keyword(section, keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="NEUMANN_DIRECTIONS", &
+         enum_c_vals=s2a( 'XYZ', 'XY', 'XZ', 'YZ', 'X', 'Y', 'Z' ), &
+         enum_i_vals=(/ neumannXYZ, neumannXY, neumannXZ, neumannYZ, neumannX, neumannY, neumannZ /), &
+         description="Directions in which homogeneous Neumann conditions are imposed. In the remaining directions "//&
+                     "periodic conditions will be enforced. Having specified MIXED or NEUMANN as BOUNDARY_CONDITIONS, "&
+                     "the keyword is meant to be used to combine periodic and homogeneous Neumann conditions at the "&
+                     "boundaries of the simulation cell.", &
+         usage="NEUMANN_DIRECTIONS <direction>", default_i_val=neumannXYZ)
     CALL section_add_keyword(section, keyword)
     CALL keyword_release(keyword)
 

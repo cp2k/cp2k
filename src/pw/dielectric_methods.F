@@ -286,6 +286,7 @@ CONTAINS
 !> \param diel_rs_grid real space grid for finite difference derivative
 !> \param pw_pool_orig pool of plane wave grid
 !> \param dct_pw_grid ...
+!> \param neumann_directions ...
 !> \param recv_msgs_bnds bounds of the messages to be received (pw_expand)
 !> \param dests_expand list of the destination processes (pw_expand)
 !> \param srcs_expand list of the source processes (pw_expand)
@@ -299,16 +300,19 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! *****************************************************************************
   SUBROUTINE dielectric_compute_neumann(dielectric, diel_rs_grid, pw_pool_orig, &
-                        dct_pw_grid, recv_msgs_bnds, dests_expand, srcs_expand, &
-                        flipg_stat, bounds_shftd, rho, rho_core)
+                    dct_pw_grid, neumann_directions, recv_msgs_bnds, &
+                    dests_expand, srcs_expand, flipg_stat, bounds_shftd, rho, rho_core)
 
     TYPE(dielectric_type), INTENT(INOUT), &
       POINTER                                :: dielectric
     TYPE(realspace_grid_type), POINTER       :: diel_rs_grid
     TYPE(pw_pool_type), INTENT(IN), POINTER  :: pw_pool_orig
     TYPE(pw_grid_type), INTENT(IN), POINTER  :: dct_pw_grid
-    INTEGER, DIMENSION(2, 3, 4), INTENT(IN)  :: recv_msgs_bnds
-    INTEGER, DIMENSION(4), INTENT(IN)        :: dests_expand, srcs_expand, &
+    INTEGER, INTENT(IN)                      :: neumann_directions
+    INTEGER, DIMENSION(:, :, :), &
+      INTENT(IN), POINTER                    :: recv_msgs_bnds
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      POINTER                                :: dests_expand, srcs_expand, &
                                                 flipg_stat
     INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bounds_shftd
     TYPE(pw_type), INTENT(IN), POINTER       :: rho
@@ -356,7 +360,7 @@ CONTAINS
     ! expand rho_elec
     NULLIFY(rho_elec_rs_xpndd)
     CALL pw_pool_create_pw(pw_pool_xpndd, rho_elec_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
-    CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+    CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                    rho_elec_rs, rho_elec_rs_xpndd)
 
     IF (PRESENT(rho_core)) THEN
@@ -366,7 +370,7 @@ CONTAINS
       ! expand rho_core
       NULLIFY(rho_core_rs_xpndd)
       CALL pw_pool_create_pw(pw_pool_xpndd, rho_core_rs_xpndd, use_data=REALDATA3D, in_space=REALSPACE)
-      CALL pw_expand(recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+      CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                    rho_core_rs, rho_core_rs_xpndd)
 
       IF (dielectric%params%dielec_core_correction) THEN
