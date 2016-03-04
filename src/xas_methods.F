@@ -1278,6 +1278,17 @@ CONTAINS
 
   END SUBROUTINE xas_print_cubes
 
+! *****************************************************************************
+!> \brief write the PDOS after the XAS SCF, i.e., with one excited core
+!> \param qs_env ...
+!> \param xas_section ...
+!> \param mos mos from which the eigenvalues and expansion coeffiecients are obtained
+!> \param iatom index of the atom that has been excited
+!> \par History
+!>      03.2016 created [MI]
+!> \author MI
+! *****************************************************************************
+
   SUBROUTINE xas_pdos(qs_env,xas_section, mos, iatom)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
