@@ -138,7 +138,7 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE calculate_projected_dos(mo_set,atomic_kind_set,qs_kind_set,particle_set,qs_env,&
-                                 dft_section,ispin)
+                                 dft_section,ispin,xas_mittle)
 
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -150,6 +150,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: dft_section
     INTEGER, INTENT(IN), OPTIONAL            :: ispin
+    CHARACTER(LEN=default_string_length),&
+      INTENT(IN), OPTIONAL                   :: xas_mittle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_projected_dos', &
       routineP = moduleN//':'//routineN
@@ -687,7 +689,11 @@ CONTAINS
       IF (maxl<0) CYCLE
 
       IF(PRESENT(ispin)) THEN
-        my_mittle =TRIM(spin(ispin))//"_k"//TRIM(ADJUSTL(cp_to_string(ikind)))
+        IF(PRESENT(xas_mittle)) THEN
+          my_mittle =TRIM(xas_mittle)//TRIM(spin(ispin))//"_k"//TRIM(ADJUSTL(cp_to_string(ikind)))
+        ELSE
+          my_mittle =TRIM(spin(ispin))//"_k"//TRIM(ADJUSTL(cp_to_string(ikind)))
+        END IF
         my_spin = ispin
       ELSE
         my_mittle ="k"//TRIM(ADJUSTL(cp_to_string(ikind)))
@@ -752,7 +758,11 @@ CONTAINS
       IF (ldos_p(ildos)%ldos%maxl>0) THEN
 
         IF(PRESENT(ispin)) THEN
+          IF(PRESENT(xas_mittle)) THEN
+          my_mittle =TRIM(xas_mittle)//TRIM(spin(ispin))//"_list"//TRIM(ldos_index(ildos))
+          ELSE
           my_mittle =TRIM(spin(ispin))//"_list"//TRIM(ldos_index(ildos))
+          END IF
           my_spin = ispin
         ELSE
           my_mittle ="list"//TRIM(ldos_index(ildos))
@@ -818,7 +828,11 @@ CONTAINS
         CALL mp_sum(np_tot,para_env%group)
         CALL mp_sum(r_ldos_p(ildos)%ldos%pdos_array,para_env%group)
         IF(PRESENT(ispin)) THEN
+          IF(PRESENT(xas_mittle)) THEN
+          my_mittle =TRIM(xas_mittle)//TRIM(spin(ispin))//"_r_list"//TRIM(r_ldos_index(ildos))
+          ELSE
           my_mittle =TRIM(spin(ispin))//"_r_list"//TRIM(r_ldos_index(ildos))
+          END IF
           my_spin = ispin
         ELSE
           my_mittle ="r_list"//TRIM(r_ldos_index(ildos))

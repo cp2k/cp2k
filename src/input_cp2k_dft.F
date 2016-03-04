@@ -1540,98 +1540,7 @@ CONTAINS
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
 
-
-    CALL cp_print_key_section_create(print_key,"PDOS",&
-         description="Print out the DOS projected per kind and per angular momentum  ",&
-         print_level=debug_print_level,common_iter_levels=1,filename="")
-    CALL keyword_create(keyword, name="COMPONENTS",&
-         description="Print out pdos distinguishing all angular momentum components.",&
-         usage="COMPONENTS", default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="APPEND",&
-         description="Append the pdos obtained at different iterations to the pdos  output file."//&
-         "By defaut the file is overwritten",&
-         usage="APPEND", default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="NLUMO",&
-         description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline//&
-         "CAUTION: Setting this value to be higher than the number of states present may cause a Cholesky error.",&
-         usage="NLUMO integer",default_i_val=0)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="OUT_EACH_MO",&
-         description="Output on the status of the calculation every OUT_EACH_MO states. If -1 no output",&
-         usage="OUT_EACH_MO integer",default_i_val=-1)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-!
-    CALL section_create(subsection,name="LDOS",&
-          description="Controls the printing of local PDOS, projected on subsets"//&
-          " of atoms given through lists",&
-          n_keywords=4, n_subsections=0, repeats=.TRUE.)
-    CALL keyword_create(keyword, name="COMPONENTS",&
-         description="Print out pdos distinguishing all angular momentum components.",&
-         usage="COMPONENTS", default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(subsection,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="LIST",&
-         description="Specifies a list of indexes of atoms where to project the DOS  ",&
-         usage="LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
-         n_var=-1,  repeats=.TRUE.)
-    CALL section_add_keyword(subsection,keyword)
-    CALL keyword_release(keyword)
-
-    CALL section_add_subsection(print_key,subsection)
-    CALL section_release(subsection)
-
-    CALL section_create(subsection,name="R_LDOS",&
-          description="Controls the printing of local PDOS, projected on 3D volume in real space,"//&
-          " the volume is defined in terms of position with respect to atoms in the lists",&
-          n_keywords=4, n_subsections=0, repeats=.TRUE.)
-
-    CALL keyword_create(keyword, name="LIST",&
-         description="Specifies a list of indexes of atoms used to define the real space volume  ",&
-         usage="LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
-         n_var=-1,  repeats=.TRUE.)
-    CALL section_add_keyword(subsection,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="XRANGE",&
-         description="range of positions in Cartesian direction x: all grid points within "//&
-         " this range from at least one atom of the list are considered",&
-         usage="XRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t)
-    CALL section_add_keyword(subsection,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="YRANGE",&
-         description="range of positions in Cartesian direction y: all grid points within "//&
-         " this range from at least one atom of the list are considered",&
-         usage="YRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t)
-    CALL section_add_keyword(subsection,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="ZRANGE",&
-         description="range of positions in Cartesian direction z: all grid points within "//&
-         " this range from at least one atom of the list are considered",&
-         usage="ZRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t)
-    CALL section_add_keyword(subsection,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="ERANGE",&
-         description="only project states with the eigenvalues in the given interval. "//&
-                     "Default is all states.",&
-                     usage="ERANGE -1.0 1.0",unit_str="hartree",n_var=2,type_of_var=real_t)
-    CALL section_add_keyword(subsection,keyword)
-    CALL keyword_release(keyword)
-
-
-    CALL section_add_subsection(print_key,subsection)
-    CALL section_release(subsection)
-
+    CALL create_pdos_section(print_key)
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
 
@@ -2038,6 +1947,113 @@ CONTAINS
     CALL keyword_release(keyword)
 
   END SUBROUTINE create_mo_cubes_section
+
+
+  SUBROUTINE create_pdos_section(print_key)
+
+    TYPE(section_type), POINTER              :: print_key
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_pdos_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    NULLIFY(subsection)
+    NULLIFY(keyword)
+ 
+    CALL cp_print_key_section_create(print_key,"PDOS",&
+         description="Print out the DOS projected per kind and per angular momentum  ",&
+         print_level=debug_print_level,common_iter_levels=1,filename="")
+    CALL keyword_create(keyword, name="COMPONENTS",&
+         description="Print out pdos distinguishing all angular momentum components.",&
+         usage="COMPONENTS", default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="APPEND",&
+         description="Append the pdos obtained at different iterations to the pdos  output file."//&
+         "By defaut the file is overwritten",&
+         usage="APPEND", default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="NLUMO",&
+         description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline//&
+         "CAUTION: Setting this value to be higher than the number of states present may cause a Cholesky error.",&
+         usage="NLUMO integer",default_i_val=0)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="OUT_EACH_MO",&
+         description="Output on the status of the calculation every OUT_EACH_MO states. If -1 no output",&
+         usage="OUT_EACH_MO integer",default_i_val=-1)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+!
+    CALL section_create(subsection,name="LDOS",&
+          description="Controls the printing of local PDOS, projected on subsets"//&
+          " of atoms given through lists",&
+          n_keywords=4, n_subsections=0, repeats=.TRUE.)
+    CALL keyword_create(keyword, name="COMPONENTS",&
+         description="Print out pdos distinguishing all angular momentum components.",&
+         usage="COMPONENTS", default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="LIST",&
+         description="Specifies a list of indexes of atoms where to project the DOS  ",&
+         usage="LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
+         n_var=-1,  repeats=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL section_add_subsection(print_key,subsection)
+    CALL section_release(subsection)
+
+    CALL section_create(subsection,name="R_LDOS",&
+          description="Controls the printing of local PDOS, projected on 3D volume in real space,"//&
+          " the volume is defined in terms of position with respect to atoms in the lists",&
+          n_keywords=4, n_subsections=0, repeats=.TRUE.)
+
+    CALL keyword_create(keyword, name="LIST",&
+         description="Specifies a list of indexes of atoms used to define the real space volume  ",&
+         usage="LIST {integer}  {integer} ..  {integer} ",type_of_var=integer_t,&
+         n_var=-1,  repeats=.TRUE.)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="XRANGE",&
+         description="range of positions in Cartesian direction x: all grid points within "//&
+         " this range from at least one atom of the list are considered",&
+         usage="XRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="YRANGE",&
+         description="range of positions in Cartesian direction y: all grid points within "//&
+         " this range from at least one atom of the list are considered",&
+         usage="YRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="ZRANGE",&
+         description="range of positions in Cartesian direction z: all grid points within "//&
+         " this range from at least one atom of the list are considered",&
+         usage="ZRANGE -10.0 10.0",unit_str="angstrom",n_var=2,type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="ERANGE",&
+         description="only project states with the eigenvalues in the given interval. "//&
+                     "Default is all states.",&
+                     usage="ERANGE -1.0 1.0",unit_str="hartree",n_var=2,type_of_var=real_t)
+    CALL section_add_keyword(subsection,keyword)
+    CALL keyword_release(keyword)
+
+
+    CALL section_add_subsection(print_key,subsection)
+    CALL section_release(subsection)
+
+  END SUBROUTINE create_pdos_section
 
 ! *****************************************************************************
 !> \brief ...
@@ -6512,6 +6528,10 @@ CONTAINS
     CALL cp_print_key_section_create(print_key,"XAS_SPECTRUM",&
          description="Controls the dumping of the CLS output files containing the absorption spectra",&
          print_level=low_print_level,common_iter_levels=3,filename="")
+    CALL section_add_subsection(subsection,print_key)
+    CALL section_release(print_key)
+
+    CALL create_pdos_section(print_key)
     CALL section_add_subsection(subsection,print_key)
     CALL section_release(print_key)
 

@@ -98,6 +98,7 @@ MODULE xas_methods
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rRc_xyz_ao
+  USE qs_pdos,                         ONLY: calculate_projected_dos
   USE qs_scf,                          ONLY: scf_env_cleanup
   USE qs_scf_initialization,           ONLY: qs_scf_env_initialize
   USE qs_scf_types,                    ONLY: qs_scf_env_type,&
@@ -1123,6 +1124,12 @@ CONTAINS
            iatom,append_cube)
     END IF
 
+    IF(BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
+      "PRINT%PDOS"),cp_p_file)) THEN
+      CALL xas_pdos(qs_env,xas_section,mos,iatom)
+    END IF
+
+
     DEALLOCATE (op_sm)
 
   END SUBROUTINE cls_calculate_spectrum
@@ -1271,6 +1278,42 @@ CONTAINS
 
   END SUBROUTINE xas_print_cubes
 
+  SUBROUTINE xas_pdos(qs_env,xas_section, mos, iatom)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: xas_section
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    INTEGER, INTENT(IN)                      :: iatom
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xas_pdos', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: xas_mittle 
+    INTEGER                                  :: ispin
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+
+
+    NULLIFY(atomic_kind_set,particle_set,qs_kind_set)
+    xas_mittle = 'xasat'//TRIM(ADJUSTL(cp_to_string(iatom)))//'_'
+
+    CALL get_qs_env(qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
+                    qs_kind_set=qs_kind_set)
+
+    DO ispin = 1,2
+      CALL calculate_projected_dos(mos(ispin)%mo_set,atomic_kind_set,qs_kind_set,particle_set,qs_env,&
+                                 xas_section,ispin,xas_mittle)
+    END DO
+
+
+  END SUBROUTINE xas_pdos
 ! *****************************************************************************
 !> \brief Calculation of the spectrum when the dipole approximation
 !>      in the velocity form is used.

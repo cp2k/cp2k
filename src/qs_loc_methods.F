@@ -961,10 +961,10 @@ CONTAINS
        unit_out_c = cp_print_key_unit_nr(logger,print_key,"",middle_name=filename,&
             extension=".cube",file_position=my_pos,log_filename=.FALSE.)
        IF(SIZE(centers,1)==6) THEN
-          WRITE(title,'(A7,I5.5,A1,I1.1,A1,6F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
+          WRITE(title,'(A7,I5.5,A2,I1.1,A1,6F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
        ELSE
-          WRITE(title,'(A7,I5.5,A1,I1.1,A1,3F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
+          WRITE(title,'(A7,I5.5,A2,I1.1,A1,3F10.4)') "WFN ",ivector,"_s",my_ispin," ",&
                centers(1:3,istate)*angstrom
        END IF
        CALL cp_pw_to_cube(wf_r%pw,unit_out_c,title,&
