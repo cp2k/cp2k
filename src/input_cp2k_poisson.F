@@ -11,8 +11,9 @@
 ! *****************************************************************************
 MODULE input_cp2k_poisson
   USE bibliography,                    ONLY: &
-       Aguado2003, Blochl1995, Darden1993, Essmann1995, Ewald1921, &
-       Genovese2006, Genovese2007, Laino2008, Martyna1999, Toukmaji1996
+       Aguado2003, BaniHashemian2016, Blochl1995, Darden1993, Essmann1995, &
+       Ewald1921, Genovese2006, Genovese2007, Laino2008, Martyna1999, &
+       Toukmaji1996
   USE cell_types,                      ONLY: use_perd_none,&
                                              use_perd_x,&
                                              use_perd_xy,&
@@ -572,6 +573,7 @@ END SUBROUTINE create_ewald_section
     CPASSERT(.NOT.ASSOCIATED(section))
     CALL section_create(section,name="IMPLICIT",&
          description="Parameters for the implicit (generalized) Poisson solver.",&
+         citations=(/BaniHashemian2016/),&
          n_keywords=4, n_subsections=2, repeats=.FALSE.)
 
     NULLIFY(subsection, keyword)

@@ -76,7 +76,7 @@ MODULE bibliography
        Luber2014, Berghold2011, DelBen2015b, Campana2009,              &
        Schiffmann2015, Bruck2014, Rappe1992, Ceriotti2012,             &
        Ceriotti2010, Walewski2014, Monkhorst1976, MacDonald1978,       &
-       Gilbert2008, Schonherr2014, Ceriotti2014
+       Gilbert2008, Schonherr2014, Ceriotti2014, BaniHashemian2016, Kapil2016
 
 
 CONTAINS
@@ -3318,6 +3318,56 @@ CONTAINS
           "UT WOS:000331919100033",&
           "ER"),&
           DOI="10.1016/j.cpc.2013.10.027")
+
+     CALL add_reference(key=BaniHashemian2016, ISI_record=s2a(&
+          "PT J",&
+          "AU Bani-Hashemian, MH",&
+          "   Bruck, S",&
+          "   Luisier, M",&
+          "   VandeVondele, J",&
+          "AF Bani-Hashemian, Mohammad Hossein",&
+          "   Brueck, Sascha",&
+          "   Luisier, Mathieu",&
+          "   VandeVondele, Joost",&
+          "TI A generalized Poisson solver for first-principles device simulations",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "SN 0021-9606",&
+          "EI 1089-7690",&
+          "PD JAN 28",&
+          "PY 2016",&
+          "VL 144",&
+          "IS 4",&
+          "AR 044113",&
+          "DI 10.1063/1.4940796",&
+          "UT WOS:000369893100016",&
+          "PM 26827208",&
+          "ER"),&
+          DOI="10.1063/1.4940796")
+
+     CALL add_reference(key=Kapil2016, ISI_record=s2a(&
+          "PT J",&
+          "AU Kapil, V",&
+          "   VandeVondele, J",&
+          "   Ceriotti, M",&
+          "AF Kapil, V.",&
+          "   VandeVondele, J.",&
+          "   Ceriotti, M.",&
+          "TI Accurate molecular dynamics and nuclear quantum effects at low cost by",&
+          "   multiple steps in real and imaginary time: Using density functional",&
+          "   theory to accelerate wavefunction methods",&
+          "SO JOURNAL OF CHEMICAL PHYSICS",&
+          "SN 0021-9606",&
+          "EI 1089-7690",&
+          "PD FEB 7",&
+          "PY 2016",&
+          "VL 144",&
+          "IS 5",&
+          "AR 054111",&
+          "DI 10.1063/1.4941091",&
+          "UT WOS:000369893900013",&
+          "PM 26851912",&
+          "ER"),&
+          DOI="10.1063/1.4941091")
 
   END SUBROUTINE add_all_references
 

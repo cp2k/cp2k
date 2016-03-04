@@ -12,7 +12,8 @@
 !> \author Hossein Bani-Hashemian
 ! *****************************************************************************
 MODULE ps_implicit_methods
-
+  USE bibliography,                    ONLY: BaniHashemian2016,&
+                                             cite_reference
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type
@@ -107,6 +108,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool_xpndd
 
     CALL timeset(routineN,handle)
+
+    CALL cite_reference(BaniHashemian2016)
 
     IF (.NOT. ASSOCIATED(ps_implicit_env)) THEN
        ALLOCATE(ps_implicit_env)
