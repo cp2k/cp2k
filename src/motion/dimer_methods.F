@@ -16,7 +16,8 @@ MODULE dimer_methods
                                              cp_print_key_unit_nr
   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                              cp_subsys_type
-  USE dimer_types,                     ONLY: dimer_env_type
+  USE dimer_types,                     ONLY: dimer_env_type,&
+                                             dimer_fixed_atom_control
   USE dimer_utils,                     ONLY: get_theta
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get
@@ -190,10 +191,10 @@ CONTAINS
 !> \param gradient ...
 !> \param print_section ...
 !> \par History
-!>      none
+!>      2016/03/02 [LTong] added fixed atom constraint for gradient
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE  remove_rot_transl_component (gopt_env,gradient,print_section)
+  SUBROUTINE remove_rot_transl_component (gopt_env,gradient,print_section)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:)              :: gradient
     TYPE(section_vals_type), POINTER         :: print_section
@@ -237,6 +238,8 @@ CONTAINS
           DEALLOCATE(mat)
        END IF
     END IF
+    ! apply constraint
+    CALL dimer_fixed_atom_control(gradient, subsys)
     CALL timestop(handle)
   END SUBROUTINE remove_rot_transl_component
 

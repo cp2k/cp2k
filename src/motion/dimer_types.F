@@ -10,8 +10,17 @@
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
 MODULE dimer_types
-  
+
+  USE cell_types,                      ONLY: use_perd_x,&
+                                             use_perd_xy,&
+                                             use_perd_xyz,&
+                                             use_perd_xz,&
+                                             use_perd_y,&
+                                             use_perd_yz,&
+                                             use_perd_z
   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                             cp_subsys_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_first_rotation_step
   USE input_section_types,             ONLY: section_vals_get,&
@@ -19,6 +28,10 @@ MODULE dimer_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
   USE parallel_rng_types,              ONLY: random_numbers
 #include "../base/base_uses.f90"
 
@@ -32,7 +45,8 @@ MODULE dimer_types
   PUBLIC :: dimer_env_type,&
             dimer_env_create,&
             dimer_env_retain,&
-            dimer_env_release
+            dimer_env_release,&
+            dimer_fixed_atom_control
 
 ! *****************************************************************************
 !> \brief Type containing all informations abour the rotation of the Dimer
@@ -90,16 +104,16 @@ CONTAINS
 ! *****************************************************************************
 !> \brief ...
 !> \param dimer_env ...
-!> \param natom ...
+!> \param subsys ...
 !> \param globenv ...
 !> \param dimer_section ...
 !> \par History
-!>      none
+!>      2016/03/03 [LTong] changed input natom to subsys
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! *****************************************************************************
-  SUBROUTINE dimer_env_create(dimer_env, natom, globenv, dimer_section)
+  SUBROUTINE dimer_env_create(dimer_env, subsys, globenv, dimer_section)
     TYPE(dimer_env_type), POINTER            :: dimer_env
-    INTEGER, INTENT(IN)                      :: natom
+    TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: dimer_section
 
@@ -107,7 +121,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, isize, j, k, n_rep_val, &
-                                                unit_nr
+                                                natom, unit_nr
     LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: norm, xval(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: array
@@ -122,6 +136,8 @@ CONTAINS
     ! Setup NVEC
     NULLIFY(dimer_env%nvec, dimer_env%rot%g0, dimer_env%rot%g1, dimer_env%rot%g1p,&
          dimer_env%tsl%tls_vec)
+    ! get natom
+    CALL cp_subsys_get(subsys=subsys, natom=natom)
     ! Allocate the working arrays
     ALLOCATE(dimer_env%nvec(natom*3))
     ALLOCATE(dimer_env%rot%g0(natom*3))
@@ -168,15 +184,21 @@ CONTAINS
     IF(norm<=EPSILON(0.0_dp))&
        CPABORT("The norm of the dimer vector is 0! Calculation cannot proceed further.")
     dimer_env%nvec = dimer_env%nvec / norm
-    dimer_env%rot%rotation_step= do_first_rotation_step
+    ! set nvec components to zero for the corresponding constraints
+    CALL dimer_fixed_atom_control(dimer_env%nvec, subsys)
+    dimer_env%rot%rotation_step = do_first_rotation_step
     CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr)
     CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&
          l_val=dimer_env%rot%interpolate_gradient)
     CALL section_vals_val_get(dimer_section,"ANGLE_TOLERANCE",&
          r_val=dimer_env%rot%angle_tol)
+    ! initialise values
     dimer_env%cg_rot%norm_h         = 1.0_dp
     dimer_env%cg_rot%norm_theta     = 0.0_dp
     dimer_env%cg_rot%norm_theta_old = 0.0_dp
+    dimer_env%rot%g0 = 0.0_dp
+    dimer_env%rot%g1 = 0.0_dp
+    dimer_env%rot%g1p = 0.0_dp
     ALLOCATE(dimer_env%cg_rot%nvec_old(natom*3))
   END SUBROUTINE dimer_env_create
 
@@ -236,5 +258,81 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE dimer_env_release
+
+! *****************************************************************************
+!> \brief Set parts of a given array vec to zero according to fixed atom constraints.
+!>        When atoms are (partially) fixed then the relevant components of
+!>        nvec should be set to zero.  Furthermore, the relevent components
+!>        of the gradient in CG should also be set to zero.
+!> \param vec : vector to be modified
+!> \param subsys : subsys type object used by CP2k
+!> \par History
+!>      2016/03/03 [LTong] created
+!> \author Lianheng Tong [LTong]
+! *****************************************************************************
+  SUBROUTINE dimer_fixed_atom_control(vec, subsys)
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: vec
+    TYPE(cp_subsys_type), POINTER            :: subsys
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dimer_fixed_atom_control', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ii, ikind, ind, iparticle, &
+                                                nfixed_atoms, nkinds
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    NULLIFY(molecule_kinds, molecule_kind, fixd_list)
+
+    ! need to get constraint information from molecule information
+    CALL cp_subsys_get(subsys=subsys, &
+                       molecule_kinds_new=molecule_kinds)
+    molecule_kind_set => molecule_kinds%els
+
+    ! get total number of fixed atoms
+    ! nkinds is the kinds of molecules, not atoms
+    nkinds = molecule_kinds%n_els
+    DO ikind = 1, nkinds
+       molecule_kind => molecule_kind_set(ikind)
+       CALL get_molecule_kind(molecule_kind, &
+                              nfixd=nfixed_atoms, &
+                              fixd_list=fixd_list)
+       IF (ASSOCIATED(fixd_list)) THEN
+          DO ii = 1, nfixed_atoms
+             IF (.NOT.fixd_list(ii)%restraint%active) THEN
+                iparticle = fixd_list(ii)%fixd
+                ind = (iparticle - 1) * 3
+                ! apply constraint to nvec
+                SELECT CASE (fixd_list(ii)%itype)
+                CASE (use_perd_x)
+                   vec(ind+1) = 0.0_dp
+                CASE (use_perd_y)
+                   vec(ind+2) = 0.0_dp
+                CASE (use_perd_z)
+                   vec(ind+3) = 0.0_dp
+                CASE (use_perd_xy)
+                   vec(ind+1) = 0.0_dp
+                   vec(ind+2) = 0.0_dp
+                CASE (use_perd_xz)
+                   vec(ind+1) = 0.0_dp
+                   vec(ind+3) = 0.0_dp
+                CASE (use_perd_yz)
+                   vec(ind+2) = 0.0_dp
+                   vec(ind+3) = 0.0_dp
+                CASE (use_perd_xyz)
+                   vec(ind+1) = 0.0_dp
+                   vec(ind+2) = 0.0_dp
+                   vec(ind+3) = 0.0_dp
+                END SELECT
+             END IF ! .NOT.fixd_list(ii)%restraint%active
+          END DO ! ii
+       END IF ! ASSOCIATED(fixd_list)
+    END DO ! ikind
+  END SUBROUTINE dimer_fixed_atom_control
 
 END MODULE dimer_types

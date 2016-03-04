@@ -145,7 +145,7 @@ CONTAINS
              ! already defined for cp2k..
              natom = force_env_get_natom(force_env)
              dimer_section => section_vals_get_subs_vals(geo_opt_section,"TRANSITION_STATE%DIMER")
-             CALL dimer_env_create(gopt_env%dimer_env, natom, globenv, dimer_section)
+             CALL dimer_env_create(gopt_env%dimer_env, subsys, globenv, dimer_section)
 
              ! Setup the GEO_OPT environment for the rotation of the Dimer
              rot_opt_section => section_vals_get_subs_vals(dimer_section,"ROT_OPT")
