@@ -36,12 +36,26 @@ case "$with_openblas" in
             # threaded version. Unfortunately, neither is thread-safe
             # (i.e. the CP2K ssmp and psmp version need to link to
             # something else, the omp version is unused)
-            make -j $NPROCS \
-                 USE_THREAD=0 \
-                 CC=${CC} \
-                 FC=${FC} \
-                 PREFIX="${pkg_install_dir}" \
-                 > make.serial.log 2>&1
+            #
+            # First attempt to make openblas using auto detected
+            # TARGET, if this fails, then make with forced
+            # TARGET=NEHALEM
+            ( make -j $NPROCS \
+                   USE_THREAD=0 \
+                   CC=${CC} \
+                   FC=${FC} \
+                   PREFIX="${pkg_install_dir}" \
+                   > make.serial.log 2>&1 \
+            ) || ( \
+                make -j $NPROCS clean; \
+                make -j $NPROCS \
+                     TARGET=NEHALEM \
+                     USE_THREAD=0 \
+                     CC=${CC} \
+                     FC=${FC} \
+                     PREFIX="${pkg_install_dir}" \
+                     > make.serial.log 2>&1 \
+            )
             make -j $NPROCS \
                  USE_THREAD=0 \
                  CC=${CC} \
