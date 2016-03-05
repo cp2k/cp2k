@@ -1,0 +1,118 @@
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT 
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS 
+    POTENTIAL_FILE_NAME GTH_POTENTIALS 
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &QS
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &SCF
+      MAX_SCF 10
+      EPS_SCF 1.0E-6
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_SINGLE_INVERSE
+        MINIMIZER DIIS
+        N_DIIS 7
+      &END OT
+      &OUTER_SCF
+        MAX_SCF 1
+        EPS_SCF 1.0E-06
+      &END OUTER_SCF
+      &PRINT
+        &RESTART
+          LOG_PRINT_KEY
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      POISSON_SOLVER MT
+      PERIODIC NONE
+      &MT
+      &END MT
+    &END POISSON
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.00 10.00 10.00
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      N         -0.0005   0.0003    0.0
+      C          1.220   -0.0003    0.0
+      H          0.8654   1.1478    0.0
+    &END COORD
+    &KIND N
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+    &KIND C
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+    &KIND H
+      BASIS_SET DZVP-GTH
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  PROJECT HCN-TS-FIX
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+    TYPE TRANSITION_STATE
+    MAX_ITER 2
+    OPTIMIZER CG
+    &CG
+      MAX_STEEP_STEPS 1
+      &LINE_SEARCH
+        TYPE 2PNT
+      &END LINE_SEARCH
+    &END CG
+    &TRANSITION_STATE
+      METHOD DIMER
+      &DIMER
+        DR 0.0001
+        ANGLE_TOLERANCE [deg] 0.1
+#        INTERPOLATE_GRADIENT 
+        &ROT_OPT
+          OPTIMIZER CG
+          MAX_ITER 1
+          &CG
+            MAX_STEEP_STEPS 0
+            &LINE_SEARCH
+              TYPE 2PNT
+            &END LINE_SEARCH
+          &END CG
+        &END ROT_OPT
+      &END DIMER
+    &END TRANSITION_STATE
+  &END GEO_OPT
+  &CONSTRAINT
+    &FIXED_ATOMS
+      COMPONENTS_TO_FIX XYZ
+      LIST 2..2
+    &END FIXED_ATOMS
+  &END CONSTRAINT
+  &PRINT
+    &TRAJECTORY
+      FILENAME __STD_OUT__
+      &EACH
+        GEO_OPT    1
+      &END EACH
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+
+
+
+

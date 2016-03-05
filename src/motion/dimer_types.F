@@ -180,12 +180,12 @@ CONTAINS
           END DO
        END DO
     END IF
+    ! set nvec components to zero for the corresponding constraints
+    CALL dimer_fixed_atom_control(dimer_env%nvec, subsys)
     norm = SQRT(SUM(dimer_env%nvec**2))
     IF(norm<=EPSILON(0.0_dp))&
        CPABORT("The norm of the dimer vector is 0! Calculation cannot proceed further.")
     dimer_env%nvec = dimer_env%nvec / norm
-    ! set nvec components to zero for the corresponding constraints
-    CALL dimer_fixed_atom_control(dimer_env%nvec, subsys)
     dimer_env%rot%rotation_step = do_first_rotation_step
     CALL section_vals_val_get(dimer_section,"DR",r_val=dimer_env%dr)
     CALL section_vals_val_get(dimer_section,"INTERPOLATE_GRADIENT",&

@@ -1,6 +1,11 @@
 hcn_ts.inp                                             7      3e-10           -0.58467641930000003
 hcn_ts_r.inp                                           7      1e-07                    0.084182408
-#  chain of two coordination numbers
+# dimer method with fixed atom constraints
+hcn_ts_fix_e.inp                                       7      1e-07            -0.0641022960
+hcn_ts_fix_x.inp                                      63      1e-14             1.2200000000
+hcn_ts_fix_y.inp                                      64      1e-14            -0.0003000000
+hcn_ts_fix_z.inp                                      65      1e-14             0.0000000000
+# chain of two coordination numbers
 hcn_md.inp                                             1      2e-14             -16.50121471894339
 hcn_meta_coord.inp                                     1      4e-14            -16.651136320178662
 hcn_meta_chaincoord.inp                                1      7e-14             -16.64019903515767
