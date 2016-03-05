@@ -49,7 +49,7 @@
    tries to use all of the processors on you node. You can override
    this behaviour using -j option.
 
-** The script tailed at a tarball downloading stage
+** The script failed at a tarball downloading stage
 
    Try run again with --no-check-certificate option. See the help
    section for this option for details.
