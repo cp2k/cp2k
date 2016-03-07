@@ -505,7 +505,13 @@ CONTAINS
 
        IF (should_stop) THEN
           CALL cp_iterate(logger%iter_info,last=.TRUE.,iter_nr=itimes)
-          CALL md_output(md_env,md_section,force_env%root_section,should_stop)
+          !In Ehrenfest molecular dynamics the external control is only checked after a converged propagation
+          !The restart needs to be written in order to be consistent with the mos/density matrix for the restart
+          IF(run_type_id==ehrenfest) THEN
+             CALL md_output(md_env,md_section,force_env%root_section,.FALSE.)
+          ELSE
+             CALL md_output(md_env,md_section,force_env%root_section,should_stop)
+          ENDIF
           EXIT
        END IF
 
