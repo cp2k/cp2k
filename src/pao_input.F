@@ -90,6 +90,10 @@ CONTAINS
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","CG_INIT_STEPS",pao%cg_init_steps
     IF(pao%cg_init_steps<1) CPABORT("PAO: CG_INIT_STEPS < 1")
 
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CG_RESET_LIMIT",r_val=pao%cg_reset_limit)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","CG_RESET_LIMIT",pao%cg_reset_limit
+    IF(pao%cg_reset_limit<0.0_dp) CPABORT("PAO: CG_RESET_LIMIT < 0")
+
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CHECK_UNITARY_TOL",r_val=pao%check_unitary_tol)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","CHECK_UNITARY_TOL",pao%check_unitary_tol
 
@@ -282,6 +286,13 @@ CONTAINS
          description="Number of steepest descent steps before starting the"//&
          " conjugate gradients optimization.",&
          default_i_val=2)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="CG_RESET_LIMIT",&
+         description="The CG is reseted if the cosine of the angle between the last "//&
+                     "search direction and the new gradient is larger that the limit.",&
+         default_r_val=0.1_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

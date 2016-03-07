@@ -310,8 +310,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_CG_beta', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: trace_G_mix, trace_G_new, &
-                                                trace_G_prev
+    REAL(KIND=dp)                            :: change, trace_D, &
+                                                trace_D_Gnew, trace_G_mix, &
+                                                trace_G_new, trace_G_prev
 
     IF(icycle <= pao%cg_init_steps) THEN
        IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| warming up with steepest descent"
@@ -320,9 +321,13 @@ CONTAINS
        CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G, trace_G_new)
        CALL cp_dbcsr_trace(pao%matrix_G_prev, pao%matrix_G_prev, trace_G_prev)
        CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G_prev, trace_G_mix)
+       CALL cp_dbcsr_trace(pao%matrix_D, pao%matrix_G, trace_D_Gnew)
+       CALL cp_dbcsr_trace(pao%matrix_D, pao%matrix_D, trace_D)
        IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_G_new ", trace_G_new
        IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_G_prev ", trace_G_prev
        IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_G_mix ", trace_G_mix
+       IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_D ", trace_D
+       IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| trace_D_Gnew", trace_D_Gnew
 
        IF(trace_G_prev/=0.0_dp) THEN
           beta = (trace_G_new - trace_G_mix) / trace_G_prev  !Polak–Ribiere
@@ -332,6 +337,13 @@ CONTAINS
           IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| resetting because beta < 0"
           beta = 0.0_dp
        ENDIF
+
+       change = trace_D_Gnew**2 / trace_D*trace_G_new
+       IF(change > pao%cg_reset_limit) THEN
+          IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| resetting because change > CG_RESET_LIMIT"
+          beta = 0.0_dp
+       ENDIF
+
     ENDIF
 
     IF(pao%iw_cg>0) WRITE(pao%iw_cg,*) "PAO|CG| beta: ", beta
