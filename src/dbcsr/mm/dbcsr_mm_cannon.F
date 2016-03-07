@@ -4795,23 +4795,29 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief ...
-!> \param matrix_set ...
-!> \param ns ...
+!> \param meta_buffer ...
+!> \param img_refs_rows ...
+!> \param img_refs_cols ...
+!> \param refs_size ...
+!> \param refs_displ ...
+!> \param size_index_unmerged ...
+!> \param has_threads ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE setup_rec_index_images (meta_buffer, img_refs_rows, img_refs_cols, &
        refs_size, refs_displ, size_index_unmerged, has_threads)
-    INTEGER, DIMENSION(:), INTENT(INOUT) :: meta_buffer
-    INTEGER, DIMENSION(:), INTENT(IN)    :: img_refs_rows, img_refs_cols
-    INTEGER, DIMENSION(:), INTENT(IN)    :: refs_size, refs_displ
-    LOGICAL, INTENT(IN)                  :: has_threads
-    INTEGER, INTENT(IN)                  :: size_index_unmerged
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: meta_buffer
+    INTEGER, DIMENSION(:), INTENT(IN)        :: img_refs_rows, img_refs_cols, &
+                                                refs_size, refs_displ
+    INTEGER, INTENT(IN)                      :: size_index_unmerged
+    LOGICAL, INTENT(IN)                      :: has_threads
 
     CHARACTER(len=*), PARAMETER :: routineN = 'setup_rec_index_images', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                              :: handle, in, t_f, t_l, t_size, &
-                                            nblkrows_local, nblkcols_local
+    INTEGER                                  :: handle, in, nblkcols_local, &
+                                                nblkrows_local, t_f, t_l, &
+                                                t_size
 
     !$ INTEGER                           :: ithread
 
