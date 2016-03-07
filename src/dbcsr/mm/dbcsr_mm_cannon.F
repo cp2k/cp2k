@@ -860,7 +860,7 @@ MODULE dbcsr_mm_cannon
        nimages_match = dbcsr_distribution_num_local_row_clusters(matrix_right%m%dist)*&
             dbcsr_mp_nprows (dbcsr_distribution_mp (matrix_right%m%dist))
     ELSE
-       ! 2D clustering
+       ! 1D clustering
        nimages_match = dbcsr_distribution_get_num_images_1d(&
             dbcsr_nfullcols_total(matrix_left),&
             dbcsr_nblkcols_total(matrix_left),&

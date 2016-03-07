@@ -1160,6 +1160,7 @@ CONTAINS
     ALLOCATE(cluster_to_col(ncluster))
     ALLOCATE(sorted_cost(ncluster))
     ALLOCATE(piv_cost(ncluster))
+    cluster_cost(:) = 0
 
     icluster=0
     CALL cluster_recurse(coords, scaled_coords, cell, costs, atom_to_cluster, ncluster, icluster, cluster_cost)
