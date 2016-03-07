@@ -6,6 +6,7 @@ import os, os.path
 from formatting import normalizeFortranFile
 from formatting import replacer
 from formatting import addSynopsis
+from formatting import normalizeExtended
 from sys import argv
 
 operatorsStr=r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
@@ -51,7 +52,7 @@ def upcaseKeywords(infile,outfile,logFile=sys.stdout):
         e.text=line
         raise
 
-def prettifyFile(infile,normalize_use=1, upcase_keywords=1,
+def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, upcase_keywords=1,
              interfaces_dir=None,replace=None,logFile=sys.stdout):
     """prettifyes the fortran source in infile into a temporary file that is
     returned. It can be the same as infile.
@@ -70,6 +71,15 @@ def prettifyFile(infile,normalize_use=1, upcase_keywords=1,
         if replace:
             tmpfile2=os.tmpfile()
             replacer.replaceWords(ifile,tmpfile2,logFile=logFile)
+            tmpfile2.seek(0)
+            if tmpfile:
+                tmpfile.close()
+            tmpfile=tmpfile2
+            ifile=tmpfile
+        if normalize_extended: # extended needs to be done first
+            tmpfile2=os.tmpfile()
+            normalizeExtended.format_extended_ffile(ifile,tmpfile2,logFile=logFile,
+                                                    indent_size=indent,orig_filename=orig_filename)
             tmpfile2.seek(0)
             if tmpfile:
                 tmpfile.close()
@@ -119,7 +129,7 @@ def prettifyFile(infile,normalize_use=1, upcase_keywords=1,
         raise
 
 def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
-                   upcase_keywords=1, interfaces_dir=None,
+                   normalize_extended=0,indent=2,upcase_keywords=1, interfaces_dir=None,
                    replace=None,logFile=sys.stdout):
     """Same as prettify, but inplace, replaces only if needed"""
     if not os.path.exists(bkDir):
@@ -127,8 +137,8 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
     if not os.path.isdir(bkDir):
         raise Error("bk-dir must be a directory, was "+bkDir)
     infile=open(fileName,'r')
-    outfile=prettifyFile(infile, normalize_use,
-                         upcase_keywords, interfaces_dir, replace)
+    outfile=prettifyFile(infile, normalize_use, normalize_extended,
+                         indent, upcase_keywords, interfaces_dir, replace)
     if (infile==outfile):
         return
     infile.seek(0)
@@ -168,12 +178,12 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
 
                    
 if __name__ == '__main__':
-    defaultsDict={'upcase':1,'normalize-use':1,'replace':1,
+    defaultsDict={'upcase':1,'normalize-use':1,'extended':0,'indent':2,'replace':1,
                   'interface-dir':None,
                   'backup-dir':'preprettify'}
     usageDesc=("usage:\n"+sys.argv[0]+ """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]replace]
-    [--interface-dir=~/cp2k/obj/platform/target] [--help]
+    [--[no-]extended] --indent=2 [--interface-dir=~/cp2k/obj/platform/target] [--help]
     [--backup-dir=bk_dir] file1 [file2 ...]
 
     replaces file1,... with their prettified version after performing on
@@ -189,16 +199,20 @@ if __name__ == '__main__':
         sys.exit(0)
     args=[]
     for arg in sys.argv[1:]:
-        m=re.match(r"--(no-)?(normalize-use|upcase|replace)",arg)
+        m=re.match(r"--(no-)?(normalize-use|upcase|replace|extended)",arg)
         if m:
             defaultsDict[m.groups()[1]]=not m.groups()[0]
         else:
-            m=re.match(r"--(interface-dir|backup-dir)=(.*)",arg)
+            m=re.match(r"--(indent)=(.*)",arg)
             if m:
-                path=os.path.abspath(os.path.expanduser(m.groups()[1]))
-                defaultsDict[m.groups()[0]]=path
+                defaultsDict[m.groups()[0]]=int(m.groups()[1])
             else:
-                args.append(arg)
+                m=re.match(r"--(interface-dir|backup-dir)=(.*)",arg)
+                if m:
+                    path=os.path.abspath(os.path.expanduser(m.groups()[1]))
+                    defaultsDict[m.groups()[0]]=path
+                else:
+                    args.append(arg)
     if len(args)<1:
         print usageDesc
     else:
@@ -221,6 +235,8 @@ if __name__ == '__main__':
                     try:
                         prettfyInplace(fileName,bkDir,
                                    normalize_use=defaultsDict['normalize-use'],
+                                   normalize_extended=defaultsDict['extended'],
+                                   indent=defaultsDict['indent'],
                                    upcase_keywords=defaultsDict['upcase'],
                                    interfaces_dir=defaultsDict['interface-dir'],
                                    replace=defaultsDict['replace'])

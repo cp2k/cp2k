@@ -5,6 +5,7 @@ import re
 import string
 from sys import argv
 from cStringIO import StringIO
+from collections import deque
 
 rUse=0
 rVar=0
@@ -14,41 +15,102 @@ useParseRe=re.compile(
     flags=re.IGNORECASE)
 commonUsesRe=re.compile("^#include *\"([^\"]*(cp_common_uses.f90|base_uses.f90))\"")
 localNameRe=re.compile(" *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$")
+typeRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",re.IGNORECASE)#$
 
-def readFortranLine(infile):
-    """Reads a group of connected lines (connected with &)
-    returns a touple with the joined line, and a list with the original lines.
-    Doesn't support multiline character constants!"""
-    lineRe=re.compile(
-        r"(?:(?P<preprocessor>#.*\n?)| *(&)?(?P<core>(?:!\$|[^&!\"']+|\"[^\"]*\"|'[^']*')*)(?P<continue>&)? *(?P<comment>!.*)?\n?)",#$
-        re.IGNORECASE)
-    joinedLine=""
-    comments=None
-    lines=[]
-    continuation=0
-    while 1:
-        line=infile.readline().replace("\t",8*" ")
-        if not line: break
-        lines.append(line)
-        m=lineRe.match(line)
-        if not m or m.span()[1]!=len(line):
-            raise SyntaxError("unexpected line format:"+repr(line))
-        if m.group("preprocessor"):
-            if len(lines)>1:
-                raise SyntaxError("continuation to a preprocessor line not supported "+repr(line))
-            comments=line
-            break
-        coreAtt=m.group("core")
-        joinedLine = joinedLine.rstrip("\n") + coreAtt
-        if coreAtt and not coreAtt.isspace(): continuation=0
-        if m.group("continue"): continuation=1
-        if m.group("comment"):
-            if comments:
-                comments+="\n"+m.group("comment")
-            else:
-                comments=m.group("comment")
-        if not continuation: break
-    return (joinedLine,comments,lines)
+class CharFilter(object):
+    """
+    An iterator to wrap the iterator returned by `enumerate`
+    and ignore comments and characters inside strings
+    """
+
+    def __init__(self, it):
+        self._it = it
+        self._instring = ''
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        pos, char = self._it.next()
+
+        if not self._instring and char == '!':
+            raise StopIteration
+
+        # detect start/end of a string
+        if char == '"' or char == "'":
+            if self._instring == char:
+                self._instring = ''
+            elif not self._instring:
+                self._instring = char
+
+        if self._instring:
+            return self.__next__()
+
+        return (pos, char)
+
+    def next(self):
+        return self.__next__()
+
+class InputStream(object):
+    """
+    Class to read logical Fortran lines from a Fortran file.
+    """
+    def __init__(self, infile):
+        self.line_buffer = deque([])
+        self.infile = infile
+        self.line_nr = 0
+
+    def nextFortranLine(self):
+        """Reads a group of connected lines (connected with &, separated by newline or semicolon)
+        returns a touple with the joined line, and a list with the original lines.
+        Doesn't support multiline character constants!
+        """
+        lineRe=re.compile(
+            r"(?:(?P<preprocessor>#.*\n?)| *(&)?(?P<core>(?:!\$|[^&!\"']+|\"[^\"]*\"|'[^']*')*)(?P<continue>&)? *(?P<comment>!.*)?\n?)",#$
+            re.IGNORECASE)
+        joinedLine=""
+        comments=None
+        lines=[]
+        continuation=0
+
+        while 1:
+            if not self.line_buffer:
+                line=self.infile.readline().replace("\t",8*" ")
+                self.line_nr += 1
+
+                line_start = 0
+                for pos, char in CharFilter(enumerate(line)):
+                    if char == ';' or pos + 1 == len(line):
+                        self.line_buffer.append(line[line_start:pos+1])
+                        line_start = pos+1
+
+                if(line_start < len(line)): self.line_buffer.append(line[line_start:]) # append comment
+
+            if self.line_buffer:
+                line = self.line_buffer.popleft()
+
+            if not line: break
+
+            lines.append(line)
+            m=lineRe.match(line)
+            if not m or m.span()[1]!=len(line):
+                raise SyntaxError("unexpected line format:"+repr(line))
+            if m.group("preprocessor"):
+                if len(lines)>1:
+                    raise SyntaxError("continuation to a preprocessor line not supported "+repr(line))
+                comments=line
+                break
+            coreAtt=m.group("core")
+            joinedLine = joinedLine.rstrip("\n") + coreAtt
+            if coreAtt and not coreAtt.isspace(): continuation=0
+            if m.group("continue"): continuation=1
+            if m.group("comment"):
+                if comments:
+                    comments+="\n"+m.group("comment")
+                else:
+                    comments=m.group("comment")
+            if not continuation: break
+        return (joinedLine,comments,lines)
 
 def parseRoutine(inFile):
     """Parses a routine"""
@@ -57,7 +119,6 @@ def parseRoutine(inFile):
     startRoutineRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?",re.IGNORECASE)#$
     typeBeginRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)[,( ]",
                            re.IGNORECASE)
-    typeRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",re.IGNORECASE)#$
     attributeRe=re.compile(r" *, *(?P<attribute>[a-zA-Z_0-9]+) *(?:\( *(?P<param>(?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*)\))? *",re.IGNORECASE)
     ignoreRe=re.compile(r" *(?:|implicit +none *)$",re.IGNORECASE)
     interfaceStartRe=re.compile(r" *interface *$",re.IGNORECASE)
@@ -77,8 +138,9 @@ def parseRoutine(inFile):
              'use':[]
              }
     includeRe=re.compile(r"#? *include +[\"'](?P<file>.+)[\"'] *$",re.IGNORECASE)
+    stream = InputStream(inFile)
     while 1:
-        (jline,comments,lines)=readFortranLine(inFile)
+        (jline,comments,lines)=stream.nextFortranLine()
         if len(lines)==0: break
         if startRe.match(jline):break
         routine['preRoutine'].extend(lines)
@@ -86,8 +148,9 @@ def parseRoutine(inFile):
         if m:
             try:
                 subF=file(m.group('file'))
+                subStream = InputStream(subF)
                 while 1:
-                    (subjline,subcomments,sublines)=readFortranLine(subF)
+                    (subjline,subcomments,sublines)=subStream.nextFortranLine()
                     if not sublines:
                         break
                     routine['strippedCore'].append(subjline)
@@ -112,7 +175,7 @@ def parseRoutine(inFile):
         if (not routine['result'])and(routine['kind'].lower()=="function"):
             routine['result']=routine['name']
     while 1:
-        (jline,comments,lines)=readFortranLine(inFile)
+        (jline,comments,lines)=stream.nextFortranLine()
         if len(lines)==0: break
         if lines[0].lower().startswith("#include"): break
         if not ignoreRe.match(jline):
@@ -162,7 +225,7 @@ def parseRoutine(inFile):
                 istart=lines
                 interfaceDeclFile=StringIO()
                 while 1:
-                    (jline,comments,lines)=readFortranLine(inFile)
+                    (jline,comments,lines)=stream.nextFortranLine()
                     if interfaceEndRe.match(jline):
                         iend=lines
                         break
@@ -201,6 +264,7 @@ def parseRoutine(inFile):
         elif comments:
             routine['declComments'].append(comments)
     containsRe=re.compile(r" *contains *$",re.IGNORECASE)
+
     while len(lines)>0:
         if endRe.match(jline):
             routine['end']=lines
@@ -213,8 +277,9 @@ def parseRoutine(inFile):
         if m:
             try:
                 subF=file(m.group('file'))
+                subStream = InputStream(subF)
                 while 1:
-                    (subjline,subcomments,sublines)=readFortranLine(subF)
+                    (subjline,subcomments,sublines)=subStream.nextFortranLine()
                     if not sublines:
                         break
                     routine['strippedCore'].append(subjline)
@@ -224,7 +289,7 @@ def parseRoutine(inFile):
                 print "error trying to follow include ",m.group('file')
                 print "warning this might lead to the removal of used variables"
                 traceback.print_exc()
-        (jline,comments,lines)=readFortranLine(inFile)
+        (jline,comments,lines)=stream.nextFortranLine()
     return routine
 
 def findWord(word,text,options=re.IGNORECASE):
@@ -676,8 +741,9 @@ def parseUse(inFile):
     modules=[]
     origLines=[]
     commonUses=""
+    stream = InputStream(inFile)
     while 1:
-        (jline,comments,lines)=readFortranLine(inFile)
+        (jline,comments,lines)=stream.nextFortranLine()
         lineNr=lineNr+len(lines)
         if not lines: break
         origLines.append("".join(lines))
