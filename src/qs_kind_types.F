@@ -1195,7 +1195,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: sup_basis_set, tmp_basis_set
     TYPE(section_vals_type), POINTER :: basis_section, bs_section, &
       dft_plus_u_section, dft_section, enforce_occupation_section, &
-      kgpot_section, potential_section, spin_section
+      kgpot_section, pao_pot_section, potential_section, spin_section
 
     CALL timeset(routineN,handle)
 
@@ -1352,12 +1352,10 @@ CONTAINS
 
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="PAO_BASIS_SIZE", i_val=qs_kind%pao_basis_size)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="PAO_POTENTIAL_MAXL", i_val=qs_kind%pao_potential_maxl)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="PAO_POTENTIAL_NEIGHBORS", i_val=qs_kind%pao_potential_neighbors)
-       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
-            keyword_name="PAO_POTENTIAL_BETA", r_val=qs_kind%pao_potential_beta)
+       pao_pot_section => section_vals_get_subs_vals(kind_section,"PAO_POTENTIAL", i_rep_section=k_rep)
+       CALL section_vals_val_get(pao_pot_section, keyword_name="MAXL", i_val=qs_kind%pao_potential_maxl)
+       CALL section_vals_val_get(pao_pot_section, keyword_name="NEIGHBORS", i_val=qs_kind%pao_potential_neighbors)
+       CALL section_vals_val_get(pao_pot_section, keyword_name="BETA", r_val=qs_kind%pao_potential_beta)
 
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="ELEC_CONF",n_rep_val=i)
