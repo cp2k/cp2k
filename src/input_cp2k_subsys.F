@@ -1255,11 +1255,11 @@ CONTAINS
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
+    NULLIFY(subsection)
     CALL create_pao_potential_section(subsection)
     CALL section_add_subsection(section,subsection)
     CALL section_release(subsection)
 
-    NULLIFY(subsection)
     CALL create_basis_section(subsection)
     CALL section_add_subsection(section, subsection)
     CALL section_release(subsection)
