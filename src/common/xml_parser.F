@@ -927,7 +927,6 @@ INTEGER FUNCTION xml_find_attrib( attribs, no_attribs, name, value )
 
 END FUNCTION xml_find_attrib
 
-RECURSIVE &
 ! *****************************************************************************
 !> \brief Routine to read the XML file as a whole and distribute processing
 !>        the contents over three user-defined subroutines
@@ -940,7 +939,7 @@ RECURSIVE &
 !> \param lunrep ...
 !> \param error Indicates if there was an error or not
 ! *****************************************************************************
-SUBROUTINE xml_process( filename, attribs, DATA, startfunc, datafunc, endfunc, lunrep, error )
+RECURSIVE SUBROUTINE xml_process( filename, attribs, DATA, startfunc, datafunc, endfunc, lunrep, error )
     CHARACTER(len=*)                         :: filename
     CHARACTER(len=*), DIMENSION(:, :)        :: attribs
     CHARACTER(len=*), DIMENSION(:)           :: DATA
