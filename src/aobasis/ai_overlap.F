@@ -16,9 +16,13 @@
 MODULE ai_overlap
   USE ai_os_rr,                        ONLY: os_rr_ovlp
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             twopi
   USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
+                                             nco,&
+                                             ncoset,&
+                                             nso
+  USE orbital_transformation_matrices, ONLY: orbtramat
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -28,7 +32,7 @@ MODULE ai_overlap
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_overlap'
 
 ! *** Public subroutines ***
-  PUBLIC :: overlap, overlap_ab, overlap_aab
+  PUBLIC :: overlap, overlap_ab, overlap_aab, overlap_ab_s, overlap_ab_sp
 
 CONTAINS
 
@@ -1940,5 +1944,177 @@ CONTAINS
     DEALLOCATE(rr)
 
   END SUBROUTINE overlap_abbb
+
+! *****************************************************************************
+!> \brief   Calculation of the two-center overlap integrals [a|b] over
+!>          Spherical Gaussian-type functions. 
+!> \param la         Max L on center A
+!> \param zeta       Exponents on center A
+!> \param lb         Max L on center B
+!> \param zetb       Exponents on center B
+!> \param rab        Distance vector A-B
+!> \param sab        Final overlap integrals
+!> \date    01.03.2016
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_ab_s(la,zeta,lb,zetb,rab,sab)
+    INTEGER, INTENT(IN)                      :: la
+    REAL(KIND=dp), INTENT(IN)                :: zeta
+    INTEGER, INTENT(IN)                      :: lb
+    REAL(KIND=dp), INTENT(IN)                :: zetb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: sab
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab_s', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nca, ncb, nsa, nsb
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: cab
+    REAL(KIND=dp), DIMENSION(1)              :: rpgf, za, zb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c2sa, c2sb
+
+    rpgf(1) = HUGE(1._dp)
+    za(1) = zeta
+    zb(1) = zetb
+
+    nca = nco(la)
+    ncb = nco(lb)
+    ALLOCATE(cab(nca,ncb))
+    nsa = nso(la)
+    nsb = nso(lb)
+    
+    CALL overlap_ab(la,la,1,rpgf,za,lb,lb,1,rpgf,zb,rab,cab)
+
+    c2sa => orbtramat(la)%c2s
+    c2sb => orbtramat(lb)%c2s
+    sab(1:nsa,1:nsb) = MATMUL(c2sa(1:nsa,1:nca),&
+                              MATMUL(cab(1:nca,1:ncb),TRANSPOSE(c2sb(1:nsb,1:ncb))))
+
+    DEALLOCATE(cab)
+
+  END SUBROUTINE overlap_ab_s
+
+! *****************************************************************************
+!> \brief   Calculation of the overlap integrals [a|b] over
+!>          cubic periodic Spherical Gaussian-type functions. 
+!> \param la         Max L on center A
+!> \param zeta       Exponents on center A
+!> \param lb         Max L on center B
+!> \param zetb       Exponents on center B
+!> \param alat       Lattice constant
+!> \param sab        Final overlap integrals
+!> \date    01.03.2016
+!> \author  JGH
+! *****************************************************************************
+  SUBROUTINE overlap_ab_sp(la,zeta,lb,zetb,alat,sab)
+    INTEGER, INTENT(IN)                      :: la
+    REAL(KIND=dp), INTENT(IN)                :: zeta
+    INTEGER, INTENT(IN)                      :: lb
+    REAL(KIND=dp), INTENT(IN)                :: zetb, alat
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: sab
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab_sp', &
+      routineP = moduleN//':'//routineN
+
+    COMPLEX(KIND=dp)                         :: zfg
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: fun, gun
+    INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
+                                                ia, ib, l, l1, l2, na, nb, &
+                                                nca, ncb, nmax, nsa, nsb
+    REAL(KIND=dp)                            :: oa, ob, ovol, zm
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fexp, gexp, gval
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: cab
+    REAL(KIND=dp), DIMENSION(0:3, 0:3)       :: fgsum
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c2sa, c2sb
+
+    nca = nco(la)
+    ncb = nco(lb)
+    ALLOCATE(cab(nca,ncb))
+    cab = 0.0_dp
+    nsa = nso(la)
+    nsb = nso(lb)
+
+    zm = MIN(zeta,zetb)
+    nmax = NINT(1.81_dp*alat*SQRT(zm) + 1.0_dp)
+    ALLOCATE(fun(-nmax:nmax,0:la),gun(-nmax:nmax,0:lb),&
+             fexp(-nmax:nmax),gexp(-nmax:nmax),gval(-nmax:nmax))
+
+    oa = 1._dp/zeta
+    ob = 1._dp/zetb
+    DO i=-nmax,nmax
+      gval(i) = twopi/alat*REAL(i,KIND=dp)
+      fexp(i) = SQRT(oa*pi)*EXP(-0.25_dp*oa*gval(i)**2)
+      gexp(i) = SQRT(ob*pi)*EXP(-0.25_dp*ob*gval(i)**2)
+    END DO
+    DO l=0,la
+      IF(l==0) THEN
+        fun(:,l) = CMPLX(1.0_dp,0.0_dp,KIND=dp)
+      ELSEIF(l==1) THEN
+        fun(:,l) = CMPLX(0.0_dp,0.5_dp*oa*gval(:),KIND=dp)
+      ELSEIF(l==2) THEN
+        fun(:,l) = CMPLX(-(0.5_dp*oa*gval(:))**2,0.0_dp,KIND=dp)
+        fun(:,l) = fun(:,l) + CMPLX(0.5_dp*oa,0.0_dp,KIND=dp)
+      ELSEIF(l==3) THEN
+        fun(:,l) = CMPLX(0.0_dp,-(0.5_dp*oa*gval(:))**3,KIND=dp)
+        fun(:,l) = fun(:,l) + CMPLX(0.0_dp,0.75_dp*oa*oa*gval(:),KIND=dp)
+      ELSE
+        CPABORT("l value too high")
+      END IF
+    END DO
+    DO l=0,lb
+      IF(l==0) THEN
+        gun(:,l) = CMPLX(1.0_dp,0.0_dp,KIND=dp)
+      ELSEIF(l==1) THEN
+        gun(:,l) = CMPLX(0.0_dp,0.5_dp*ob*gval(:),KIND=dp)
+      ELSEIF(l==2) THEN
+        gun(:,l) = CMPLX(-(0.5_dp*ob*gval(:))**2,0.0_dp,KIND=dp)
+        gun(:,l) = gun(:,l) + CMPLX(0.5_dp*ob,0.0_dp,KIND=dp)
+      ELSEIF(l==3) THEN
+        gun(:,l) = CMPLX(0.0_dp,-(0.5_dp*ob*gval(:))**3,KIND=dp)
+        gun(:,l) = gun(:,l) + CMPLX(0.0_dp,0.75_dp*ob*ob*gval(:),KIND=dp)
+      ELSE
+        CPABORT("l value too high")
+      END IF
+    END DO
+
+    fgsum = 0.0_dp
+    DO l1=0,la
+      DO l2=0,lb
+        zfg = SUM(CONJG(fun(:,l1))*fexp(:)*gun(:,l2)*gexp(:))
+        fgsum(l1,l2) = REAL(zfg,KIND=dp)
+      END DO
+    END DO
+
+    na = ncoset(la-1)
+    nb = ncoset(lb-1)
+    DO ax = 0,la 
+      DO ay = 0,la-ax
+        az = la - ax - ay
+        ia = coset(ax,ay,az) - na
+        DO bx = 0,lb 
+          DO by = 0,lb-bx
+             bz = lb - bx - by
+             ib = coset(bx,by,bz) - nb
+             cab(ia,ib) = fgsum(ax,bx)*fgsum(ay,by)*fgsum(az,bz)
+          END DO
+        END DO
+      END DO
+    END DO
+
+    c2sa => orbtramat(la)%c2s
+    c2sb => orbtramat(lb)%c2s
+    sab(1:nsa,1:nsb) = MATMUL(c2sa(1:nsa,1:nca),&
+                              MATMUL(cab(1:nca,1:ncb),TRANSPOSE(c2sb(1:nsb,1:ncb))))
+    ovol = 1._dp/(alat**3)
+    sab(1:nsa,1:nsb) = ovol*sab(1:nsa,1:nsb)
+
+    DEALLOCATE(cab,fun,gun,fexp,gexp,gval)
+
+  END SUBROUTINE overlap_ab_sp
 
 END MODULE ai_overlap

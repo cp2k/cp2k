@@ -50,6 +50,7 @@ MODULE atom_operators
 
   PUBLIC :: atom_int_setup, atom_ppint_setup, atom_int_release, atom_ppint_release
   PUBLIC :: atom_relint_setup, atom_relint_release
+  PUBLIC :: contract2
 
 ! *****************************************************************************
 

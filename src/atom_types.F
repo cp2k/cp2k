@@ -2261,7 +2261,7 @@ CONTAINS
     ELSE IF(potential%conf_type==barrier_conf) THEN
        potential%acon = 200.0_dp
        potential%rcon = 4.0_dp
-       potential%scon = 8.0_dp
+       potential%scon = 12.0_dp
        potential%confinement = .TRUE.
        CALL section_vals_val_get(potential_section,"CONFINEMENT",r_vals=convals)
        IF ( SIZE (convals) >= 1 ) THEN

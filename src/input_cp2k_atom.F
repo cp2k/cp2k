@@ -293,6 +293,22 @@ CONTAINS
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
 
+    CALL cp_print_key_section_create(print_key,"ANALYZE_BASIS",&
+         description="Calculates some basis set analysis data",&
+         print_level=high_print_level,filename="__STD_OUT__")
+    CALL keyword_create(keyword, name="OVERLAP_CONDITION_NUMBER",&
+         description="Condition number of the basis set overlap matrix calculated for a cubic crystal",&
+         usage="OVERLAP_CONDITION_NUMBER <logical>",type_of_var=logical_t,default_l_val=.FALSE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="COMPLETENESS",&
+         description="Calculate a completeness estimate for the basis set.",&
+         usage="COMPLETENESS <logical>",type_of_var=logical_t,default_l_val=.FALSE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+
     CALL cp_print_key_section_create(print_key,"FIT_PSEUDO",&
          description="Controls the printing of FIT PSEUDO task",&
          print_level=medium_print_level,filename="__STD_OUT__")
