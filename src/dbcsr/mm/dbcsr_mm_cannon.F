@@ -250,7 +250,7 @@ MODULE dbcsr_mm_cannon
   END INTERFACE
 
   INTERFACE setup_rec_index
-     MODULE PROCEDURE setup_rec_index_1d
+     MODULE PROCEDURE setup_rec_index_images
      MODULE PROCEDURE setup_rec_index_2d
   END INTERFACE
 
@@ -1940,14 +1940,14 @@ MODULE dbcsr_mm_cannon
           meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks) = &
                (local_refs_size(imeta_size,mi,ui)-size_index_unmerged)/3
           nblocks = nblocks+meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
-          IF (is_left) THEN
-             ! first thread
-             meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+1) = 0
-             DO it=0, nthreads-1
-                meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+it+2) = &
-                     (refs(imeta_size,mi,ui,ilocal_proc,it)-local_refs_displ(imeta_displ,mi,ui)-1)/3
-             ENDDO
-          ENDIF
+!$        IF (is_left) THEN
+!$           ! first thread
+!$           meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+1) = 0
+!$           DO it=0, nthreads-1
+!$              meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+it+2) = &
+!$                   (refs(imeta_size,mi,ui,ilocal_proc,it)-local_refs_displ(imeta_displ,mi,ui)-1)/3
+!$           ENDDO
+!$        ENDIF
        ENDDO
        !
        max_nblocks = MAX(max_nblocks,nblocks)
@@ -2000,6 +2000,12 @@ MODULE dbcsr_mm_cannon
                     0:dbcsr_mp_nprows(mp_obj)*nimages_unmerged-1))
           CALL mp_iallgather(right_local_max_norms,right_max_norms,mygrp,requests(6))          
        ENDIF
+    ENDIF
+    !
+    IF (nimages_merged.EQ.1) THEN
+       CALL setup_rec_index (meta_buffer, img_refs_rows, img_refs_cols, &
+            local_refs_size(imeta_size,1,:),local_refs_displ(imeta_displ,1,:), &
+            size_index_unmerged, is_left)
     ENDIF
     !
     DEALLOCATE(img_refs_cols)
@@ -4793,58 +4799,69 @@ MODULE dbcsr_mm_cannon
 !> \param ns ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
-  SUBROUTINE setup_rec_index_1d (matrix_set, ns)
-    TYPE(dbcsr_1d_array_type), INTENT(INOUT) :: matrix_set
-    INTEGER, INTENT(IN)                      :: ns
+  SUBROUTINE setup_rec_index_images (meta_buffer, img_refs_rows, img_refs_cols, &
+       refs_size, refs_displ, size_index_unmerged, has_threads)
+    INTEGER, DIMENSION(:), INTENT(INOUT) :: meta_buffer
+    INTEGER, DIMENSION(:), INTENT(IN)    :: img_refs_rows, img_refs_cols
+    INTEGER, DIMENSION(:), INTENT(IN)    :: refs_size, refs_displ
+    LOGICAL, INTENT(IN)                  :: has_threads
+    INTEGER, INTENT(IN)                  :: size_index_unmerged
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_rec_index_1d', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_rec_index_images', &
       routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
 
-    INTEGER                                  :: handle, in, t_f, t_l, t_size
+    INTEGER                              :: handle, in, t_f, t_l, t_size, &
+                                            nblkrows_local, nblkcols_local
 
-!$  INTEGER                                  :: ithread
-    LOGICAL                                  :: thread_redist
+    !$ INTEGER                           :: ithread
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    DO in = 1, ns
-       IF (dbg) THEN
-          WRITE(*,*)routineN//" m, n, size",&
-               SIZE(matrix_set%mats(in)%m%coo_l),&
-               dbcsr_nblkrows_local(matrix_set%mats(in)),&
-               dbcsr_nblkcols_local(matrix_set%mats(in)),&
-               matrix_set%mats(in)%m%nblks
-       ENDIF
+    IF (has_threads) THEN
+       nblkrows_local = img_refs_rows(1)
+    ELSE
+       nblkcols_local = img_refs_cols(1)
+    ENDIF
+    !
+    DO in = 1, SIZE(refs_size)
+       IF (refs_size(in).EQ.0) CYCLE
+       t_size = meta_buffer(refs_displ(in)+dbcsr_slot_nblks)
        IF (careful_mod) THEN
-          IF(SIZE(matrix_set%mats(in)%m%coo_l) .NE. matrix_set%mats(in)%m%nblks*3)&
-               CPABORT("Block count mismatch.")
+          IF(refs_size(in)-size_index_unmerged .NE. t_size*3)&
+             CPABORT("Block count mismatch.")
        ENDIF
-       thread_redist = ASSOCIATED (matrix_set%mats(in)%m%thr_c)
-       t_size = SIZE(matrix_set%mats(in)%m%coo_l)/3
+       IF (has_threads) THEN
+          nblkcols_local = img_refs_cols(in)
+       ELSE
+          nblkrows_local = img_refs_rows(in)
+       ENDIF
        t_f = 1
        t_l = t_size
-       !$OMP PARALLEL IF (thread_redist) DEFAULT (none) &
+       !$OMP PARALLEL IF (has_threads) DEFAULT (none) &
        !$OMP PRIVATE (ithread) &
        !$OMP FIRSTPRIVATE (t_f, t_l, t_size) &
-       !$OMP SHARED (matrix_set, in, thread_redist)
-       !$ ithread = OMP_GET_THREAD_NUM()
-       !$ IF (thread_redist) THEN
-       !$    t_f = matrix_set%mats(in)%m%thr_c(ithread+1)+1
-       !$    t_l = matrix_set%mats(in)%m%thr_c(ithread+2)
+       !$OMP SHARED (meta_buffer, in, has_threads, refs_displ, &
+       !$OMP         size_index_unmerged, nblkrows_local, nblkcols_local)
+       !$ ithread = OMP_GET_THREAD_NUM()+dbcsr_slot_nblks+1
+       !$ IF (has_threads) THEN
+       !$    t_f = meta_buffer(refs_displ(in)+ithread)+1
+       !$    t_l = meta_buffer(refs_displ(in)+ithread+1)
        !$ ENDIF
        t_size =  t_l - t_f + 1
        !$OMP BARRIER
        IF (t_size .GT. 0) THEN
-          CALL rec_sort_index(1,dbcsr_nblkrows_local(matrix_set%mats(in)),&
-               1, dbcsr_nblkcols_local(matrix_set%mats(in)),&
-               t_size, matrix_set%mats(in)%m%coo_l((t_f*3-2):(t_l*3)),0)
+          CALL rec_sort_index(1,nblkrows_local,&
+                              1,nblkcols_local,&
+                              t_size,&
+                              meta_buffer(refs_displ(in)+size_index_unmerged+t_f*3-2:&
+                                          refs_displ(in)+size_index_unmerged+t_l*3),&
+                              0)
        ENDIF
        !$OMP END PARALLEL
     ENDDO
     CALL timestop(handle)
-  END SUBROUTINE setup_rec_index_1d
+  END SUBROUTINE setup_rec_index_images
 
 ! *****************************************************************************
 !> \brief ...
@@ -5882,9 +5899,6 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_repoint_index (image)
        image%valid = .TRUE.
     ENDDO images_unmerge
-    IF (nimages_merged.EQ.1) THEN
-       CALL setup_rec_index (images, nimages_unmerged)
-    ENDIF
     !
     CALL timestop(handle)
   END SUBROUTINE merge_images
