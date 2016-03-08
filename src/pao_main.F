@@ -96,6 +96,7 @@ CONTAINS
     CALL pao_build_selector(qs_env, pao%matrix_Y)
 
     IF(pao%istep>0) THEN ! was there a previous MD step?
+       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| reusing matrix_X from last MD step"
        CALL pao_param_init(pao, qs_env, reuse_matrix_X=.TRUE.)
     ELSE
        CALL pao_param_init(pao, qs_env, reuse_matrix_X=.FALSE.)

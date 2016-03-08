@@ -18,7 +18,8 @@ MODULE pao_param_linpot
        cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type, &
        dbcsr_distribution_mp, dbcsr_mp_group
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_min
+  USE message_passing,                 ONLY: mp_min,&
+                                             mp_sum
   USE pao_input,                       ONLY: pao_fock_param,&
                                              pao_rotinv_param
   USE pao_linpot_full,                 ONLY: linpot_full_calc_term,&
@@ -181,6 +182,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     min_gap = HUGE(dp)
+    group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
 
     CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
@@ -228,8 +230,10 @@ CONTAINS
     END DO
     CALL cp_dbcsr_iterator_stop(iter)
 
+    ! sum penalty energies across ranks
+    CALL mp_sum(penalty, group)
+
     ! print smallest homo-lumo gap encountered by fock-layer
-    group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
     CALL mp_min(min_gap, group)
     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| min_gap:", min_gap
 

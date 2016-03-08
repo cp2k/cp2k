@@ -43,6 +43,7 @@ MODULE mathlib
 
   PUBLIC :: angle,&
             binomial,&
+            multinomial,&
             det_3x3,&
             dihedral_angle,&
             gcd,&
@@ -153,6 +154,34 @@ CONTAINS
     END IF
 
   END FUNCTION binomial
+
+! *****************************************************************************
+!> \brief Calculates the multinomial coefficients
+!> \param n ...
+!> \param k ...
+!> \retval res ...
+!> \author Ole Schuett
+! *****************************************************************************
+  FUNCTION multinomial(n,k) RESULT(res)
+
+    INTEGER, INTENT(IN)                      :: n
+    INTEGER, DIMENSION(:), INTENT(IN)        :: k
+    REAL(KIND=dp)                            :: res
+
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: denom
+
+    IF (ALL(k>=0) .AND. SUM(k)==n) THEN
+       denom = 1.0_dp
+       DO i=1, SIZE(k)
+         denom = denom * fac(k(i))
+       ENDDO
+       res = fac(n) / denom
+    ELSE
+       res = 0.0_dp
+    END IF
+
+  END FUNCTION multinomial
 
 ! *****************************************************************************
 !> \brief   The rotation matrix rotmat which rotates a vector about a

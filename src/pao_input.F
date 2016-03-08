@@ -37,7 +37,8 @@ MODULE pao_input
 
   INTEGER, PARAMETER, PUBLIC               :: pao_rotinv_param=101,&
                                               pao_fock_param=102,&
-                                              pao_exp_param=103
+                                              pao_exp_param=103,&
+                                              pao_gth_param=104
 
 CONTAINS
 
@@ -86,6 +87,10 @@ CONTAINS
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","PENALTY_STRENGTH",pao%penalty_strength
     IF(pao%penalty_strength<0.0_dp) CPABORT("PAO: PENALTY_STRENGTH < 0")
 
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%REGULARIZATION",r_val=pao%regularization)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","REGULARIZATION",pao%regularization
+    IF(pao%regularization<0.0_dp) CPABORT("PAO: REGULARIZATION < 0")
+
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CG_INIT_STEPS",i_val=pao%cg_init_steps)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","CG_INIT_STEPS",pao%cg_init_steps
     IF(pao%cg_init_steps<1) CPABORT("PAO: CG_INIT_STEPS < 1")
@@ -125,6 +130,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     SELECT CASE(id)
+      CASE(pao_gth_param)
+        s = "GTH"
       CASE(pao_rotinv_param)
         s = "ROTINV"
       CASE(pao_fock_param)
@@ -186,9 +193,10 @@ CONTAINS
     ! Parametrization **********************************************************
     CALL keyword_create(keyword, name="PARAMETERIZATION",&
          description="Parametrization of the mapping between the primary and the PAO basis.",&
-         enum_c_vals=s2a("ROTINV","FOCK","EXP"),&
-         enum_i_vals=(/pao_rotinv_param, pao_fock_param, pao_exp_param/),&
-         enum_desc=s2a("Rotational invariant parametrization",&
+         enum_c_vals=s2a("GTH", "ROTINV","FOCK","EXP"),&
+         enum_i_vals=(/pao_gth_param, pao_rotinv_param, pao_fock_param, pao_exp_param/),&
+         enum_desc=s2a("Parametrization based on GTH pseudo potentials",&
+                       "Rotational invariant parametrization",&
                        "Fock matrix parametrization",&
                        "Original matrix exponential parametrization"),&
          default_i_val=pao_rotinv_param)
@@ -204,6 +212,12 @@ CONTAINS
     CALL keyword_create(keyword, name="PENALTY_STRENGTH",&
          description="Strength of the penalty term which prevents degenerate eigenvalues.",&
          default_r_val=0.005_dp)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="REGULARIZATION",&
+         description="Strength of the regularization term which keeps block_X small.",&
+         default_r_val=0.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

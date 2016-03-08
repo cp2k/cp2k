@@ -9,20 +9,26 @@
 ! *****************************************************************************
 MODULE pao_param
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
-       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
-       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
-       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
-       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
+       cp_dbcsr_add, cp_dbcsr_create, cp_dbcsr_distribution, &
+       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
+       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
+       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
+       cp_dbcsr_release, cp_dbcsr_trace, cp_dbcsr_type, &
+       dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_log_handling,                 ONLY: cp_to_string
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_sum
-  USE pao_input,                       ONLY: pao_exp_param
+  USE message_passing,                 ONLY: mp_max
+  USE pao_input,                       ONLY: pao_exp_param,&
+                                             pao_fock_param,&
+                                             pao_gth_param,&
+                                             pao_rotinv_param
   USE pao_param_exp,                   ONLY: pao_calc_U_exp,&
                                              pao_param_finalize_exp,&
                                              pao_param_init_exp
+  USE pao_param_gth,                   ONLY: pao_calc_U_gth,&
+                                             pao_param_finalize_gth,&
+                                             pao_param_init_gth
   USE pao_param_linpot,                ONLY: pao_calc_U_linpot,&
                                              pao_param_finalize_linpot,&
                                              pao_param_init_linpot
@@ -96,13 +102,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init', &
       routineP = moduleN//':'//routineN
 
-!IF(pao%istep>=0) RETURN ! was there a previous pao-run, eg. during MD ?
-
     SELECT CASE(pao%parameterization)
       CASE(pao_exp_param)
         CALL pao_param_init_exp(pao, qs_env, reuse_matrix_X)
-      CASE DEFAULT
+      CASE(pao_fock_param, pao_rotinv_param)
         CALL pao_param_init_linpot(pao, qs_env, reuse_matrix_X)
+      CASE(pao_gth_param)
+        CALL pao_param_init_gth(pao, qs_env, reuse_matrix_X)
+      CASE DEFAULT
+        CPABORT("PAO: unkown parametrization")
     END SELECT
 
   END SUBROUTINE pao_param_init
@@ -121,8 +129,12 @@ CONTAINS
     SELECT CASE(pao%parameterization)
       CASE(pao_exp_param)
         CALL pao_param_finalize_exp(pao)
-      CASE DEFAULT
+      CASE(pao_fock_param, pao_rotinv_param)
         CALL pao_param_finalize_linpot(pao)
+      CASE(pao_gth_param)
+        CALL pao_param_finalize_gth(pao)
+      CASE DEFAULT
+        CPABORT("PAO: unkown parametrization")
     END SELECT
 
   END SUBROUTINE pao_param_finalize
@@ -143,8 +155,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: group, handle
-    REAL(dp)                                 :: my_penalty
+    INTEGER                                  :: handle
+    REAL(dp)                                 :: my_penalty, reg_energy, &
+                                                trace_X
 
     CALL timeset(routineN,handle)
     my_penalty = 0.0_dp
@@ -152,15 +165,27 @@ CONTAINS
     SELECT CASE(pao%parameterization)
      CASE(pao_exp_param)
        CALL pao_calc_U_exp(pao, matrix_M, matrix_G)
-     CASE DEFAULT
+     CASE(pao_fock_param, pao_rotinv_param)
        CALL pao_calc_U_linpot(pao, my_penalty, matrix_M, matrix_G)
+     CASE(pao_gth_param)
+       CALL pao_calc_U_gth(pao, my_penalty, matrix_M, matrix_G)
+     CASE DEFAULT
+        CPABORT("PAO: unkown parametrization")
     END SELECT
 
-    IF(PRESENT(penalty)) THEN
-       group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_U)))
-       CALL mp_sum(my_penalty, group)
-       penalty = my_penalty
+    ! add regularization energy
+    IF(PRESENT(penalty) .AND. pao%regularization/=0.0_dp) THEN
+       CALL cp_dbcsr_trace(pao%matrix_X, pao%matrix_X, trace_X)
+       reg_energy = pao%regularization * trace_X
+       my_penalty = my_penalty + reg_energy
+       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| regularization energy:", reg_energy
     ENDIF
+
+    IF(PRESENT(penalty)) penalty = my_penalty
+
+    ! add regularization gradient
+    IF(PRESENT(matrix_G) .AND. pao%regularization/=0.0_dp) &
+       CALL cp_dbcsr_add(matrix_G, pao%matrix_X, 1.0_dp, 2.0_dp*pao%regularization)
 
     CALL pao_assert_unitary(pao, pao%matrix_U, pao%matrix_Y)
     CALL timestop(handle)
