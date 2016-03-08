@@ -799,9 +799,9 @@ if __name__ == '__main__':
         try:
             print "normalizing body of", fileName
 
-            with open(fileName, 'r') as infile, \
-                    open(os.path.join(outDir, os.path.basename(fileName)), 'w') as outfile:
-                format_extended_ffile(infile, outfile)
+            with open(fileName, 'r') as infile:
+                with open(os.path.join(outDir, os.path.basename(fileName)), 'w') as outfile:
+                    format_extended_ffile(infile, outfile)
         except:
             print "error for file", fileName
             raise
