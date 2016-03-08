@@ -209,9 +209,10 @@ END SUBROUTINE calc_max_image_norms_s
 !> \param buffer ...
 !> \param norms ..
 ! *****************************************************************************
-  SUBROUTINE calc_image_norms_s(images,norms)
+  SUBROUTINE calc_image_norms_s(images,norms,uf,ul)
   TYPE(dbcsr_1d_array_type), INTENT(IN)    :: images
   REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT) :: norms
+  INTEGER, INTENT(IN)                      :: uf, ul
 
   INTEGER, DIMENSION(:), POINTER    :: row, col, bps, rbs, cbs, &
                                        local_rows, local_cols
@@ -221,9 +222,8 @@ END SUBROUTINE calc_max_image_norms_s
   !$omp parallel default(none) &
   !$omp private(ui,row,col,bps,blk,bpe,data,&
   !$omp         rbs,cbs,local_rows,local_cols) &
-  !$omp shared(norms,images)
-  !$omp do schedule(dynamic)
-  DO ui=1,SIZE(norms,2)
+  !$omp shared(norms,images,uf,ul)
+  DO ui=uf,ul
      IF (images%mats(ui)%m%nblks.EQ.0) CYCLE
      row => images%mats(ui)%m%coo_l(1::3)
      col => images%mats(ui)%m%coo_l(2::3)
@@ -233,6 +233,7 @@ END SUBROUTINE calc_max_image_norms_s
      local_rows => array_data(images%mats(ui)%m%local_rows)
      local_cols => array_data(images%mats(ui)%m%local_cols)
      DATA => dbcsr_get_data_p_s (images%mats(ui)%m%data_area)
+     !$omp do
      DO blk = 1, images%mats(ui)%m%nblks
         IF (bps(blk).NE.0) THEN
            bpe = bps(blk) + rbs(local_rows(row(blk))) * cbs(local_cols(col(blk))) - 1
@@ -241,8 +242,8 @@ END SUBROUTINE calc_max_image_norms_s
            norms(blk,ui) = 0.0_sp
         ENDIF
      ENDDO
+     !$omp end do
   ENDDO
-  !$omp end do
   !$omp end parallel
 
 END SUBROUTINE calc_image_norms_s

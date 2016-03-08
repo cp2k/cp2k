@@ -1721,7 +1721,7 @@ CONTAINS
     INTEGER                                  :: ierr
 #if defined(__parallel)
     INTEGER                                  :: count, ireq
-    INTEGER                                  :: status(MPI_STATUS_SIZE)
+    INTEGER, SAVE                            :: status(MPI_STATUS_SIZE)
 #endif
 
     ierr = 0
