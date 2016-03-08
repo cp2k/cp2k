@@ -116,7 +116,7 @@ LINEBREAK_STR = r"(&)[\s]*(?:!.*)?$"
 
 # Note: exclusion of +/- in real literals and sign operator
 PLUSMINUS_RE = re.compile(
-    r"((?<=[\w\)\]])|^)(?<![\d\.]\w)\s*(\+|-)\s*", RE_FLAGS)
+    r"(?<=[\w\)\]])(?<![\d\.]\w)\s*(\+|-)\s*", RE_FLAGS)
 REL_OP_RE = re.compile(
     r"\s*(\.(?:EQ|NE|LT|LE|GT|GE)\.|(?:==|\/=|<(?!=)|<=|(?<!=)>(?!=)|>=))\s*", RE_FLAGS)
 LOG_OP_RE = re.compile(r"\s*(\.(?:AND|OR|EQV|NEQV)\.)\s*", RE_FLAGS)
@@ -584,7 +584,6 @@ def format_single_fline(f_line, linebreak_pos, filename, line_nr):
         for pos, part in enumerate(line_parts):
             if not re.match(r"['\"!]", part, RE_FLAGS):  # exclude comments, strings
                 partsplit = lr_re.split(part)
-                partsplit = [p for p in partsplit if p.strip(' ')]
                 line_parts[pos] = ' '.join(partsplit)
 
     line = ''.join(line_parts)
