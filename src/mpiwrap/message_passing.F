@@ -191,7 +191,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_testall
-     MODULE PROCEDURE mp_testall_1
+     MODULE PROCEDURE mp_testall_t2
   END INTERFACE
 
   INTERFACE mp_testany
@@ -1711,34 +1711,33 @@ CONTAINS
 !>      24.2016 created
 !> \author Alfio Lazzaro
 ! *****************************************************************************
-  FUNCTION mp_testall_1(requests) RESULT(flag)
-    INTEGER, DIMENSION(:), INTENT(inout)  :: requests
+  FUNCTION mp_testall_t2(requests) RESULT(flag)
+    INTEGER, DIMENSION(2), INTENT(inout)  :: requests
     LOGICAL                               :: flag
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mp_testall_1', &
-      routineP = moduleN//':'//routineN
+    INTEGER                               :: ierr
 
-    INTEGER                                  :: ierr
 #if defined(__parallel)
-    INTEGER                                  :: count, ireq
-    INTEGER, SAVE                            :: status(MPI_STATUS_SIZE)
+    LOGICAL                               :: flag1
 #endif
 
     ierr = 0
     flag = .TRUE.
 
 #if defined(__parallel)
-    count = SIZE(requests)
-    DO ireq=1, count
-       CALL mpi_test(requests(ireq),flag,status,ierr)
-       ! we do not check the status
-       IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall_1 @ mp_testall" )
-       IF (.NOT.flag) EXIT
-    ENDDO
+    CALL mpi_test(requests(1),flag,MPI_STATUSES_IGNORE,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall @ mp_testall_t2" )
+    !
+    CALL mpi_test(requests(2),flag1,MPI_STATUSES_IGNORE,ierr)
+    ! we do not check the status
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall @ mp_testall_t2" )
+    !
+    flag = flag .AND. flag1
 #else
     requests = mp_request_null
 #endif
-  END FUNCTION mp_testall_1
+  END FUNCTION mp_testall_t2
 
 ! *****************************************************************************
 !> \brief tests for completion of the given requests

@@ -484,7 +484,7 @@ MODULE dbcsr_mm_multrec
 
     CALL dbcsr_mm_csr_purge_stacks(this%csr, left, right)
 
-    flop = this%flop
+    flop = flop+this%flop
     !
     IF (ASSOCIATED (this%k_sizes) .AND. this%local_indexing) &
          DEALLOCATE (this%k_sizes)
