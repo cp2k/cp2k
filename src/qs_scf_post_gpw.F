@@ -100,7 +100,8 @@ MODULE qs_scf_post_gpw
                                              mulliken_population_analysis
   USE preconditioner_types,            ONLY: preconditioner_type
   USE ps_implicit_types,               ONLY: MIXED_BC,&
-                                             MIXED_PERIODIC_BC
+                                             MIXED_PERIODIC_BC,&
+                                             NEUMANN_BC
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_grids,                        ONLY: get_pw_grid_info
@@ -2184,13 +2185,10 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER :: after, boundary_condition, handle, i, iat, id, ikind, img, &
-      iso, ispin, iw, j, l, n_cstr, n_tiles, nd(3), ngto, niso, nkind, np, &
-      nr, output_unit, print_level, unit_nr
-    LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
-      do_dirichlet_bc_cube, do_kpoints, has_dirichlet_bc, has_implicit_ps, &
-      omit_headers, print_it, print_total_density, rho_r_valid, tile_cubes, &
-      write_ks, write_xc, xrd_interface
+    INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, &
+      nd(3), ngto, niso, nkind, np, nr, output_unit, print_level, unit_nr
+    LOGICAL :: append_cube, do_kpoints, omit_headers, print_it, &
+      print_total_density, rho_r_valid, write_ks, write_xc, xrd_interface
     REAL(KIND=dp)                            :: q_max, rho_hard, rho_soft, &
                                                 rho_total, rho_total_rspace, &
                                                 udvol, volume
@@ -2218,12 +2216,10 @@ CONTAINS
                                                 rho_elec_rspace, wf_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
     TYPE(pw_p_type), POINTER                 :: rho0_s_gs, rho_core, vee
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(pw_type), POINTER                   :: dirichlet_tile, &
-                                                v_hartree_rspace
+    TYPE(pw_type), POINTER                   :: v_hartree_rspace
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(qs_kind_type), POINTER              :: qs_kind
@@ -2696,148 +2692,8 @@ CONTAINS
        CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_g%pw)
     END IF
 
-    ! Write the dielectric constant into a cube file
-    do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                               "DFT%PRINT%DIELECTRIC_CUBE"),cp_p_file)
-    has_implicit_ps = .FALSE.
-    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-    IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
-
-    IF (has_implicit_ps .AND. do_dielectric_cube) THEN
-       append_cube = section_get_lval(input,"DFT%PRINT%DIELECTRIC_CUBE%APPEND")
-       my_pos_cube="REWIND"
-       IF(append_cube) THEN
-          my_pos_cube="APPEND"
-       END IF
-       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIELECTRIC_CUBE",&
-            extension=".cube", middle_name="DIELCTRIC_CONSTANT", file_position=my_pos_cube)
-       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-
-       CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r%pw)
-
-       CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIELECTRIC CONSTANT", particles=particles,&
-            stride=section_get_ivals(dft_section, "PRINT%DIELECTRIC_CUBE%STRIDE"))
-       CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIELECTRIC_CUBE")
-
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-    ENDIF
-
-    ! Write Dirichlet constraint charges into a cube file
-    do_cstr_charge_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                               "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE"),cp_p_file)
-    has_implicit_ps = .FALSE.
-    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-    IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
-
-    has_dirichlet_bc = .FALSE.
-    IF (has_implicit_ps) THEN
-       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
-       IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
-          has_dirichlet_bc = .TRUE.
-       END IF
-    END IF
-
-    IF (has_implicit_ps .AND. do_cstr_charge_cube .AND. has_dirichlet_bc) THEN
-       append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE%APPEND")
-       my_pos_cube="REWIND"
-       IF(append_cube) THEN
-          my_pos_cube="APPEND"
-       END IF
-       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE",&
-            extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube)
-       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-
-       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
-       SELECT CASE (boundary_condition)
-       CASE (MIXED_PERIODIC_BC)
-          CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r%pw)
-       CASE (MIXED_BC)
-          CALL pw_shrink(pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                         pw_env%poisson_env%implicit_env%dct_env%dests_shrink, &
-                         pw_env%poisson_env%implicit_env%dct_env%srcs_shrink, &
-                         pw_env%poisson_env%implicit_env%dct_env%bounds_local_shftd, &
-                         poisson_env%implicit_env%cstr_charge, aux_r%pw)
-       END SELECT
-
-       CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles,&
-            stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"))
-       CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_CSTR_CHARGE_CUBE")
-
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-    ENDIF
-
-    ! Write Dirichlet type constranits into cube files
-    has_implicit_ps = .FALSE.
-    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-    IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
-
-    do_dirichlet_bc_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
-                               "DFT%PRINT%DIRICHLET_BC_CUBE"),cp_p_file)
-    has_dirichlet_bc = .FALSE.
-    IF (has_implicit_ps) THEN
-       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
-       IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
-          has_dirichlet_bc = .TRUE.
-       END IF
-    END IF
-
-    IF (has_implicit_ps .AND. has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
-       append_cube = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%APPEND")
-       my_pos_cube="REWIND"
-       IF(append_cube) THEN
-          my_pos_cube="APPEND"
-       END IF
-       tile_cubes = section_get_lval(input,"DFT%PRINT%DIRICHLET_BC_CUBE%TILE_CUBES")
-
-       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
-       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
-       CALL pw_zero(aux_r%pw)
-       
-       IF (tile_cubes) THEN
-          ! one cube file per tile
-          n_cstr = SIZE(poisson_env%implicit_env%contacts)
-          DO j = 1 , n_cstr
-             n_tiles = poisson_env%implicit_env%contacts(j)%dirichlet_bc%n_tiles
-             DO i = 1, n_tiles
-                filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
-                                    "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
-                unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
-                             extension=".cube", middle_name=filename, file_position=my_pos_cube)
-   
-                CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r%pw)
-   
-                CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
-                CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
-             END DO
-          END DO
-       ELSE 
-          ! a single cube file 
-          NULLIFY(dirichlet_tile)
-          CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE)
-          CALL pw_zero(dirichlet_tile)
-          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%DIRICHLET_BC_CUBE", &
-               extension=".cube", middle_name="DIRICHLET_CSTR", file_position=my_pos_cube)
-
-          n_cstr = SIZE(poisson_env%implicit_env%contacts)
-          DO j = 1 , n_cstr
-             n_tiles = poisson_env%implicit_env%contacts(j)%dirichlet_bc%n_tiles
-             DO i = 1, n_tiles
-                CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, dirichlet_tile)
-                CALL pw_axpy(dirichlet_tile, aux_r%pw)
-             END DO
-          END DO
-
-          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
-                                   stride=section_get_ivals(dft_section, "PRINT%DIRICHLET_BC_CUBE%STRIDE"))
-          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%DIRICHLET_BC_CUBE")
-          CALL pw_pool_give_back_pw(auxbas_pw_pool, dirichlet_tile)
-       END IF
-
-       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
-    ENDIF
+    ! Write cube files from the implicit Poisson solver
+    CALL qs_scf_post_ps_implicit(input, logger, qs_env)
 
     CALL section_vals_val_get(input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
     ! Write the density matrices
@@ -3126,5 +2982,201 @@ CONTAINS
     DEALLOCATE(smat,v,ipiv,afun)
 
   END SUBROUTINE project_function_b
+
+! *****************************************************************************
+!> \brief Performs printing of cube files related to the implicit Poisson solver
+!> \param input input 
+!> \param logger the logger
+!> \param qs_env the qs_env in which the qs_env lives
+!> \par History
+!>      03.2016 refactored from write_mo_free_results [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE qs_scf_post_ps_implicit(input, logger, qs_env)
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_environment_type), POINTER       :: qs_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_ps_implicit', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
+    INTEGER                                  :: boundary_condition, handle, &
+                                                i, j, n_cstr, n_tiles, unit_nr
+    LOGICAL :: append_cube, do_cstr_charge_cube, do_dielectric_cube, &
+      do_dirichlet_bc_cube, has_dirichlet_bc, has_implicit_ps, tile_cubes
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type)                          :: aux_r
+    TYPE(pw_poisson_type), POINTER           :: poisson_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: dirichlet_tile
+    TYPE(qs_subsys_type), POINTER            :: subsys
+    TYPE(section_vals_type), POINTER         :: dft_section
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(pw_env, auxbas_pw_pool, dft_section, particles)
+
+    dft_section => section_vals_get_subs_vals(input,"DFT")
+    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, subsys=subsys)
+    CALL qs_subsys_get(subsys,particles=particles)
+    CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
+    has_implicit_ps = .FALSE.
+    CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+    IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
+
+    ! Write the dielectric constant into a cube file
+    do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                               "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE"),cp_p_file)
+    IF (has_implicit_ps .AND. do_dielectric_cube) THEN
+       append_cube = section_get_lval(input,"DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
+       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE",&
+            extension=".cube", middle_name="DIELCTRIC_CONSTANT", file_position=my_pos_cube)
+       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
+
+       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+       SELECT CASE (boundary_condition)
+       CASE (MIXED_PERIODIC_BC)
+          CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r%pw)
+       CASE (MIXED_BC, NEUMANN_BC)
+          CALL pw_shrink(pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
+                         pw_env%poisson_env%implicit_env%dct_env%dests_shrink, &
+                         pw_env%poisson_env%implicit_env%dct_env%srcs_shrink, &
+                         pw_env%poisson_env%implicit_env%dct_env%bounds_local_shftd, &
+                         poisson_env%implicit_env%dielectric%eps, aux_r%pw)
+       END SELECT
+
+       CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIELECTRIC CONSTANT", particles=particles,&
+            stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE%STRIDE"))
+       CALL cp_print_key_finished_output(unit_nr, logger, input,&
+            "DFT%PRINT%IMPLICIT_PSOLVER%DIELECTRIC_CUBE")
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+    ENDIF
+
+    ! Write Dirichlet constraint charges into a cube file
+    do_cstr_charge_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                               "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE"),cp_p_file)
+
+    has_dirichlet_bc = .FALSE.
+    IF (has_implicit_ps) THEN
+       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+       IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
+          has_dirichlet_bc = .TRUE.
+       END IF
+    END IF
+
+    IF (has_implicit_ps .AND. do_cstr_charge_cube .AND. has_dirichlet_bc) THEN
+       append_cube = section_get_lval(input, &
+                   "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
+       unit_nr=cp_print_key_unit_nr(logger,input,&
+            "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE",&
+            extension=".cube", middle_name="dirichlet_cstr_charge", file_position=my_pos_cube)
+       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
+
+       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+       SELECT CASE (boundary_condition)
+       CASE (MIXED_PERIODIC_BC)
+          CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r%pw)
+       CASE (MIXED_BC)
+          CALL pw_shrink(pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
+                         pw_env%poisson_env%implicit_env%dct_env%dests_shrink, &
+                         pw_env%poisson_env%implicit_env%dct_env%srcs_shrink, &
+                         pw_env%poisson_env%implicit_env%dct_env%bounds_local_shftd, &
+                         poisson_env%implicit_env%cstr_charge, aux_r%pw)
+       END SELECT
+
+       CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles,&
+            stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE%STRIDE"))
+       CALL cp_print_key_finished_output(unit_nr, logger, input, &
+            "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_CSTR_CHARGE_CUBE")
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+    ENDIF
+
+    ! Write Dirichlet type constranits into cube files
+    do_dirichlet_bc_cube = BTEST(cp_print_key_should_output(logger%iter_info,input,&
+                               "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE"),cp_p_file)
+    has_dirichlet_bc = .FALSE.
+    IF (has_implicit_ps) THEN
+       boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
+       IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
+          has_dirichlet_bc = .TRUE.
+       END IF
+    END IF
+
+    IF (has_implicit_ps .AND. has_dirichlet_bc .AND. do_dirichlet_bc_cube) THEN
+       append_cube = section_get_lval(input,"DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%APPEND")
+       my_pos_cube="REWIND"
+       IF(append_cube) THEN
+          my_pos_cube="APPEND"
+       END IF
+       tile_cubes = section_get_lval(input,"DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%TILE_CUBES")
+
+       CALL pw_env_get(pw_env, poisson_env=poisson_env, auxbas_pw_pool=auxbas_pw_pool)
+       CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, use_data=REALDATA3D, in_space=REALSPACE)
+       CALL pw_zero(aux_r%pw)
+       
+       IF (tile_cubes) THEN
+          ! one cube file per tile
+          n_cstr = SIZE(poisson_env%implicit_env%contacts)
+          DO j = 1 , n_cstr
+             n_tiles = poisson_env%implicit_env%contacts(j)%dirichlet_bc%n_tiles
+             DO i = 1, n_tiles
+                filename = "dirichlet_cstr_"//TRIM(ADJUSTL(cp_to_string(j)))//&
+                                    "_tile_"//TRIM(ADJUSTL(cp_to_string(i)))
+                unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", &
+                             extension=".cube", middle_name=filename, file_position=my_pos_cube)
+   
+                CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, aux_r%pw)
+   
+                CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+                     stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"))
+                CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                     "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE")
+             END DO
+          END DO
+       ELSE 
+          ! a single cube file 
+          NULLIFY(dirichlet_tile)
+          CALL pw_pool_create_pw(auxbas_pw_pool, dirichlet_tile, use_data=REALDATA3D, in_space=REALSPACE)
+          CALL pw_zero(dirichlet_tile)
+          unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE", &
+               extension=".cube", middle_name="DIRICHLET_CSTR", file_position=my_pos_cube)
+
+          n_cstr = SIZE(poisson_env%implicit_env%contacts)
+          DO j = 1 , n_cstr
+             n_tiles = poisson_env%implicit_env%contacts(j)%dirichlet_bc%n_tiles
+             DO i = 1, n_tiles
+                CALL pw_copy(poisson_env%implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, dirichlet_tile)
+                CALL pw_axpy(dirichlet_tile, aux_r%pw)
+             END DO
+          END DO
+
+          CALL cp_pw_to_cube(aux_r%pw, unit_nr, "DIRICHLET TYPE CONSTRAINT", particles=particles, &
+               stride=section_get_ivals(dft_section, "PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE%STRIDE"))
+          CALL cp_print_key_finished_output(unit_nr, logger, input, &
+               "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE")
+          CALL pw_pool_give_back_pw(auxbas_pw_pool, dirichlet_tile)
+       END IF
+
+       CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE qs_scf_post_ps_implicit
 
 END MODULE qs_scf_post_gpw

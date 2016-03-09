@@ -47,15 +47,21 @@
       &END IMPLICIT
     &END POISSON
     &PRINT
-      &DIELECTRIC_CUBE off
-        STRIDE 1 1 1
-      &END DIELECTRIC_CUBE
+      &IMPLICIT_PSOLVER
+        &DIELECTRIC_CUBE off
+          STRIDE 1 1 1
+        &END DIELECTRIC_CUBE
+        &DIRICHLET_BC_CUBE off
+          TILE_CUBES .false.
+          STRIDE 1 1 1
+        &END DIRICHLET_BC_CUBE
+        &DIRICHLET_CSTR_CHARGE_CUBE off
+          STRIDE 1 1 1
+        &END DIRICHLET_CSTR_CHARGE_CUBE
+      &END IMPLICIT_PSOLVER
       &V_HARTREE_CUBE off
         STRIDE 1 1 1
       &END V_HARTREE_CUBE
-      &DIRICHLET_BC_CUBE off
-        STRIDE 1 1 1
-      &END DIRICHLET_BC_CUBE
     &END PRINT
     &MGRID
       CUTOFF 80

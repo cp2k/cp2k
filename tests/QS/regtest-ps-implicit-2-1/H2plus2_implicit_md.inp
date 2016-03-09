@@ -40,18 +40,20 @@
     &END POISSON
 
     &PRINT
+      &IMPLICIT_PSOLVER
+        &DIELECTRIC_CUBE off
+          STRIDE 1 1 1
+        &END DIELECTRIC_CUBE
+      &END IMPLICIT_PSOLVER
+      &V_HARTREE_CUBE off
+        STRIDE 1 1 1
+      &END V_HARTREE_CUBE
       &E_DENSITY_CUBE off
         STRIDE 1 1 1
       &END E_DENSITY_CUBE
       &TOT_DENSITY_CUBE off
         STRIDE 1 1 1
       &END TOT_DENSITY_CUBE
-      &DIELECTRIC_CUBE off
-        STRIDE 1 1 1
-      &END DIELECTRIC_CUBE
-      &V_HARTREE_CUBE off
-        STRIDE 1 1 1
-      &END V_HARTREE_CUBE
     &END PRINT
     &MGRID
       CUTOFF 250

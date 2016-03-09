@@ -522,7 +522,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, external_para_env)
   IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_PERIODIC_BC) .OR. &
       (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC)) THEN
      pw_env%poisson_env%parameters%dbc_params%do_dbc_cube = &
-        BTEST(cp_print_key_should_output(logger%iter_info,input,"DFT%PRINT%DIRICHLET_BC_CUBE"),cp_p_file)
+             BTEST(cp_print_key_should_output(logger%iter_info,input,&
+             "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE"),cp_p_file)
   END IF
   ! setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT) 
   IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC) .OR. &

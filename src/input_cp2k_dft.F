@@ -11,15 +11,16 @@
 ! *****************************************************************************
 MODULE input_cp2k_dft
   USE bibliography,                    ONLY: &
-       Andreussi2012, Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, &
-       Dewar1977, Dewar1985, Dudarev1997, Dudarev1998, Elstner1998, &
-       Fattebert2002, Guidon2010, Hu2007, Hunt2003, Iannuzzi2005, &
-       Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, Krack2002, &
-       Kunert2003, Lippert1997, Lippert1999, Perdew1981, Porezag1995, &
-       Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, Seifert1996, &
-       Souza2002, Stengel2009, Stewart1982, Stewart1989, Stewart2007, &
-       Thiel1992, Tozer1996, Umari2002, VandeVondele2003, VandeVondele2005a, &
-       VandeVondele2005b, VandeVondele2006, Weber2008, Zhao1994, Zhechkov2005
+       Andreussi2012, Avezac2005, BaniHashemian2016, Bengtsson1999, &
+       Blochl1995, Brelaz1979, Dewar1977, Dewar1985, Dudarev1997, &
+       Dudarev1998, Elstner1998, Fattebert2002, Guidon2010, Hu2007, Hunt2003, &
+       Iannuzzi2005, Iannuzzi2006, Iannuzzi2007, Kolafa2004, Krack2000, &
+       Krack2002, Kunert2003, Lippert1997, Lippert1999, Perdew1981, &
+       Porezag1995, Repasky2002, Rocha2006, Schenter2008, Schiffmann2015, &
+       Seifert1996, Souza2002, Stengel2009, Stewart1982, Stewart1989, &
+       Stewart2007, Thiel1992, Tozer1996, Umari2002, VandeVondele2003, &
+       VandeVondele2005a, VandeVondele2005b, VandeVondele2006, Weber2008, &
+       Zhao1994, Zhechkov2005
   USE cp_output_handling,              ONLY: add_last_numeric,&
                                              cp_print_key_section_create,&
                                              debug_print_level,&
@@ -1387,83 +1388,11 @@ CONTAINS
 
     CALL section_add_subsection(section,print_key)
     CALL section_release(print_key)
-
-    ! dielectric constant function
-    CALL cp_print_key_section_create(print_key,"dielectric_cube",&
-         description="Controls the printing of a cube file with dielectric constant from "//&
-         "the implicit Poisson solver.", &
-         print_level=high_print_level,filename="")
-
-    CALL keyword_create(keyword, name="stride",&
-         description="The stride (X,Y,Z) used to write the cube file "//&
-         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-         " 1 number valid for all components.",&
-         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="APPEND",&
-         description="append the cube files when they already exist",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
-
-    ! dirichlet type constraints
-    CALL cp_print_key_section_create(print_key,"dirichlet_bc_cube",&
-         description="Controls the printing of cube files with unit step functions (constraints) "//&
-         "representing Dirichlet-type (boundary) regions defined in the implicit (generalized) Poisson "//&
-         "solver section. The regions remain unchanged throughout the calculations. If the Dirichlet "//&
-         " regions are relatively large and/or the number of partitions is quite high, in order to save memory,"//&
-         " generate the cube files in early steps and perform the rest of the calculations with this keyword"//&
-         " switched off.", &
-         print_level=high_print_level,filename="")
-
-    CALL keyword_create(keyword, name="TILE_CUBES",&
-         description="Print tiles that tessellate the Dirichlet regions into cube files. If TRUE, "//&
-         "generates cube files as many as the total number of tiles.",&
-         usage="TILE_CUBES <logical>",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="stride",&
-         description="The stride (X,Y,Z) used to write the cube file "//&
-         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-         " 1 number valid for all components.",&
-         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="APPEND",&
-         description="append the cube files when they already exist",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
-
-    ! charge introduced by Lagrange multipliers
-    CALL cp_print_key_section_create(print_key,"dirichlet_cstr_charge_cube",&
-         description="Controls the printing of cube files with penalty charges induced to "//&
-         "Dirichlet regions by Lagrange multipliers (implicit Poisson solver).", &
-         print_level=high_print_level,filename="")
-
-    CALL keyword_create(keyword, name="stride",&
-         description="The stride (X,Y,Z) used to write the cube file "//&
-         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
-         " 1 number valid for all components.",&
-         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="APPEND",&
-         description="append the cube files when they already exist",&
-         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+   
+! cube files for data generated by the implicit (generalized) Poisson solver 
+    CALL create_implicit_psolver_section(subsection)
+    CALL section_add_subsection(section,subsection)
+    CALL section_release(subsection)
 
 ! ZMP adding the print section for  the v_xc cube
     CALL cp_print_key_section_create(print_key,"v_xc_cube",&
@@ -7338,5 +7267,110 @@ CONTAINS
 
 
   END SUBROUTINE create_sccs_section
+
+! *****************************************************************************
+!> \brief Creates the section for cube files related to the implicit Poisson solver.
+!> \param section the section to be created
+!> \par History
+!>      03.2016 refactored from create_print_dft_section [Hossein Bani-Hashemian]
+!> \author Mohammad Hossein Bani-Hashemian
+! *****************************************************************************
+  SUBROUTINE create_implicit_psolver_section(section)
+    TYPE(section_type), POINTER              :: section
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_implicit_psolver_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    CPASSERT(.NOT.ASSOCIATED(section))
+    CALL section_create(section,name="IMPLICIT_PSOLVER",&
+         description="Controls printing of cube files for data from the implicit "//&
+         "(generalized) Poisson solver.",&
+         citations=(/BaniHashemian2016/),&
+         n_keywords=0, n_subsections=3, repeats=.FALSE.)
+
+    NULLIFY(keyword, print_key)
+
+    ! dielectric constant function
+    CALL cp_print_key_section_create(print_key,"DIELECTRIC_CUBE",&
+         description="Controls the printing of a cube file with dielectric constant from "//&
+         "the implicit (generalized) Poisson solver.", &
+         print_level=high_print_level,filename="")
+
+    CALL keyword_create(keyword, name="stride",&
+         description="The stride (X,Y,Z) used to write the cube file "//&
+         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+         " 1 number valid for all components.",&
+         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="APPEND",&
+         description="append the cube files when they already exist",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+
+    ! dirichlet type constraints
+    CALL cp_print_key_section_create(print_key,"DIRICHLET_BC_CUBE",&
+         description="Controls the printing of cube files with unit step functions (constraints) "//&
+         "representing Dirichlet-type (boundary) regions defined in the implicit (generalized) Poisson "//&
+         "solver section. The regions remain unchanged throughout the calculations. If the Dirichlet "//&
+         " regions are relatively large and/or the number of partitions is quite high, in order to save memory,"//&
+         " generate the cube files in early steps and perform the rest of the calculations with this keyword"//&
+         " switched off.", &
+         print_level=high_print_level,filename="")
+
+    CALL keyword_create(keyword, name="TILE_CUBES",&
+         description="Print tiles that tessellate the Dirichlet regions into cube files. If TRUE, "//&
+         "generates cube files as many as the total number of tiles.",&
+         usage="TILE_CUBES <logical>",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="stride",&
+         description="The stride (X,Y,Z) used to write the cube file "//&
+         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+         " 1 number valid for all components.",&
+         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="APPEND",&
+         description="append the cube files when they already exist",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+
+    ! charge introduced by Lagrange multipliers
+    CALL cp_print_key_section_create(print_key,"DIRICHLET_CSTR_CHARGE_CUBE",&
+         description="Controls the printing of cube files with penalty charges induced to "//&
+         "Dirichlet regions by Lagrange multipliers (implicit Poisson solver).", &
+         print_level=high_print_level,filename="")
+
+    CALL keyword_create(keyword, name="stride",&
+         description="The stride (X,Y,Z) used to write the cube file "//&
+         "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"//&
+         " 1 number valid for all components.",&
+         usage="STRIDE 2 2 2",n_var=-1,default_i_vals=(/2,2,2/), type_of_var=integer_t)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+    CALL keyword_create(keyword, name="APPEND",&
+         description="append the cube files when they already exist",&
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(print_key,keyword)
+    CALL keyword_release(keyword)
+
+    CALL section_add_subsection(section,print_key)
+    CALL section_release(print_key)
+
+  END SUBROUTINE create_implicit_psolver_section
 
 END MODULE input_cp2k_dft
