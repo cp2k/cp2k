@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import gzip
 from os import path
 from datetime import datetime
@@ -45,5 +46,9 @@ def main():
     f.close()
     print("Wrote "+fn_out)
 
-main()
+#===============================================================================
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 #EOF

@@ -127,6 +127,8 @@ def evaluateInstantiationFile(instantiationFile,bkDir,logFile=sys.stdout,outDir=
 if __name__ == '__main__':
     if len(sys.argv)<2:
         print "usage:", sys.argv[0]," [--backup-dir=bk_dir] template1.instantiation [template2.instantiation ...]"
+    elif(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+        pass #TODO implement selftest
     else:
         if(sys.argv[1].startswith("--backup-dir=")):
             bkDir = sys.argv[1].split("=",1)[1]

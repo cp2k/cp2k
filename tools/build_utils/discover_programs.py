@@ -57,6 +57,9 @@ def has_main_function(fn):
     m = re_main.search(content)
     return(m != None)
 
-
-main()
+#===============================================================================
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 #EOF

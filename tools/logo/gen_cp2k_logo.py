@@ -6,6 +6,7 @@
 # author: Ole Schuett
 
 import os
+import sys
 
 #-------------------------------------------------------------------------------
 def main():
@@ -63,5 +64,8 @@ def gen_povray():
 
 
 #-------------------------------------------------------------------------------
-main()
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 #EOF

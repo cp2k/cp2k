@@ -41,6 +41,8 @@ def replaceWords(infile,outfile,replacements=repl,
 if __name__ == '__main__':
     if len(sys.argv)<2:
         print "usage:", sys.argv[0]," file_in file_out"
+    elif(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+        pass #TODO implement selftest
     else:
         infile=open(sys.argv[1],'r')
         outfile=open(sys.argv[2],'w')

@@ -120,6 +120,9 @@ def similar(a, b):
     diffs = len(a_parts) - sum([i==j for i,j in zip(a_parts, b_parts)])
     return(diffs ==  1) # at most one field may differ
 
-
-main()
+#===============================================================================
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 #EOF

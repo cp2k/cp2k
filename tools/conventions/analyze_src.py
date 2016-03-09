@@ -103,6 +103,8 @@ def main():
                 print("Text file %s contains DOS linebreaks"%absfn[len(cp2k_dir):])
 
 #===============================================================================
-
-main()
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 #EOF

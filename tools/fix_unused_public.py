@@ -145,8 +145,10 @@ def parse_file(fn):
 
     return({"mod":mods, "use":uses, "pub":publics})
 
-
-#=============================================================================
-main()
+#===============================================================================
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 
 #EOF

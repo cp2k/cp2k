@@ -111,5 +111,9 @@ def parse_output(out_fn, ref_energy):
     runtime = float(re.findall("\n CP2K      (.*)\n", output)[-1].split()[-1])
     return(runtime)
 
-main()
+#===============================================================================
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 #EOF
