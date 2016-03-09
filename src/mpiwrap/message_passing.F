@@ -1725,11 +1725,11 @@ CONTAINS
     flag = .TRUE.
 
 #if defined(__parallel)
-    CALL mpi_test(requests(1),flag,MPI_STATUSES_IGNORE,ierr)
+    CALL mpi_test(requests(1),flag,MPI_STATUS_IGNORE,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall @ mp_testall_t2" )
     !
-    CALL mpi_test(requests(2),flag1,MPI_STATUSES_IGNORE,ierr)
+    CALL mpi_test(requests(2),flag1,MPI_STATUS_IGNORE,ierr)
     ! we do not check the status
     IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_testall @ mp_testall_t2" )
     !
