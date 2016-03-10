@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 import sys
 import re
 import string
@@ -996,28 +994,4 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
         logFile.write("Processing file '"+inFile.name+"'\n")
         raise
 
-if __name__ == '__main__':
-    import os.path
-    if len(sys.argv)<2:
-        print "usage:", sys.argv[0]," out_dir file1 [file2 ...]"
-    else:
-        outDir=sys.argv[1]
-        if not os.path.isdir(outDir):
-            print "out_dir must be a directory"
-            print "usage:", sys.argv[0]," out_dir file1 [file2 ...]"
-        else:
-            for fileName in sys.argv[2:]:
-                try:
-                    print "normalizing",fileName
-                    infile=open(fileName,'r')
-                    outfile=open(os.path.join(outDir,
-                                              os.path.basename(fileName)),'w')
-                    rewriteFortranFile(infile,outfile)
-                    infile.close()
-                    outfile.close()
-                except:
-                    print "error for file", fileName
-            print "*** "*6
-            print "removedUse=",rUse
-            print "removedVar=",rVar
-                # print "done"
+#EOF

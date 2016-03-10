@@ -39,7 +39,9 @@ def main():
 	print("Number of jobs submitted: %d"%n_submits)
 
 #===============================================================================
-
-main()
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
 
 #EOF

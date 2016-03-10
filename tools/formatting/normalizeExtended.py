@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
   Impose white space conventions and indentation based on scopes / subunits
 
@@ -779,28 +777,4 @@ def format_extended_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, or
         # rm subsequent blank lines
         skip_blank = is_empty and not comments
 
-#=========================================================================
-
-if __name__ == '__main__':
-    import os.path
-
-    if len(sys.argv) < 2:
-        print "usage:", sys.argv[0], " out_dir file1 [file2 ...]"
-        sys.exit(1)
-
-    outDir = sys.argv[1]
-    if not os.path.isdir(outDir):
-        print "out_dir must be a directory"
-        print "usage:", sys.argv[0], " out_dir file1 [file2 ...]"
-        sys.exit(1)
-
-    for fileName in sys.argv[2:]:
-        try:
-            print "normalizing body of", fileName
-
-            with open(fileName, 'r') as infile:
-                with open(os.path.join(outDir, os.path.basename(fileName)), 'w') as outfile:
-                    format_extended_ffile(infile, outfile)
-        except:
-            print "error for file", fileName
-            raise
+#EOF

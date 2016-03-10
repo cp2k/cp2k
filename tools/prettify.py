@@ -176,8 +176,8 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
     infile.close()
     outfile.close()
 
-                   
-if __name__ == '__main__':
+
+def main():
     defaultsDict={'upcase':1,'normalize-use':1,'extended':0,'indent':2,'replace':1,
                   'interface-dir':None,
                   'backup-dir':'preprettify'}
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     If requested the replacements performed by the replacer.py script
     are also preformed.
     """+str(defaultsDict))
-    
+
     replace=None
     if "--help" in sys.argv:
         print usageDesc
@@ -248,3 +248,12 @@ if __name__ == '__main__':
                         sys.stdout.write('-'*60+"\n")
                         sys.stdout.write("Processing file '"+fileName+"'\n")
             sys.exit(failure>0)
+
+
+#===============================================================================
+if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+    pass #TODO implement selftest
+else:
+    main()
+
+#EOF

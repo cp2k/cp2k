@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 import sys
 from sys import argv
 
@@ -260,11 +258,4 @@ def addSynopsisInDir(interfaceDir, outDir,filePaths,logFile=sys.stdout):
                     logFile.write("+++ error renaming"+outFilePath+"\n")
     return fileMapping
 
-if __name__ == '__main__':
-    if len(sys.argv)<4:
-        print "usage:", sys.argv[0]," interface_dir out_dir sourcefile1.F [sourcefile2.F ...]"
-    else:
-        interfaceDir=sys.argv[1]
-        outDir=sys.argv[2]
-        addSynopsisInDir(interfaceDir, outDir,sys.argv[3:],sys.stdout)
-
+#EOF

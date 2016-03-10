@@ -791,9 +791,13 @@ def maple2f90(code,replacements={}):
     c1="\n".join(lc1)+"\n"
     return c1
 
+#===============================================================================
 if __name__=="__main__":
-    replacements={}
-    for i in range(len(renamedVar)):
-        replacements[renamedVar[i]]=origNames[i]
-    print maple2f90(code,replacements)
-    
+    if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+        pass #TODO implement selftest
+    else:
+        replacements={}
+        for i in range(len(renamedVar)):
+            replacements[renamedVar[i]]=origNames[i]
+        print maple2f90(code,replacements)
+#EOF
