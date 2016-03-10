@@ -5,7 +5,7 @@ import sys
 import os
 from os import path
 from glob import glob
-from itertools import product, chain
+from itertools import chain
 from optparse import OptionParser
 
 from kernels.cusmm_dnt_largeDB  import Kernel_dnt_largeDB
@@ -14,8 +14,9 @@ from kernels.cusmm_dnt_medium   import Kernel_dnt_medium
 from kernels.cusmm_dnt_small    import Kernel_dnt_small
 from kernels.cusmm_dnt_tiny     import Kernel_dnt_tiny
 
+
 #===============================================================================
-def main():
+def main(argv):
     triples  = combinations(23)                 # blocked H2O (benchmark)
     triples += combinations(6)                  # idem min basis
     triples += combinations(14,16,29)           # RPA water
@@ -35,7 +36,7 @@ def main():
         default="parameters_K20X.txt",
         help="Default: %default")
 
-    (options, args) = parser.parse_args()
+    (options, args) = parser.parse_args(argv)
     assert(len(args)==0)
     param_fn = options.params
 
@@ -77,11 +78,11 @@ def gen_library(plan):
         header += '#include "%s"\n'%i
     header += "\n\n"
 
-    all_kernels = plan.values()
+    all_kernels = [plan[k] for k in sorted(plan.keys())]
 
     # write part files
     LAUNCHERS_PER_OBJ = 100
-    for i in range(len(all_kernels)/LAUNCHERS_PER_OBJ + 1):
+    for i in range(len(all_kernels)//LAUNCHERS_PER_OBJ + 1):
         a = i*LAUNCHERS_PER_OBJ
         b = min((i+1)*LAUNCHERS_PER_OBJ, len(all_kernels))
         output = header
@@ -273,7 +274,7 @@ def gen_transpose(sizes):
 
 #===============================================================================
 def get_includes(plan):
-    includes = list(set(["./kernels/"+kern.include() for kern in plan.values() ]))
+    includes = sorted(set(["./kernels/"+kern.include() for kern in plan.values() ]))
     includes += ["./kernels/cusmm_common.h", "./kernels/cusmm_transpose.h", "../include/libsmm_acc.h"]
     return(includes)
 
@@ -300,10 +301,21 @@ def combinations(*sizes):
      return(list(product(sizes, sizes, sizes)))
 
 #===============================================================================
+def product(*args):
+    """ Python 2.4 workaround """
+    # product('ABCD', 'xy') --> Ax Ay Bx By Cx Cy Dx Dy
+    pools = map(tuple, args)
+    result = [[]]
+    for pool in pools:
+        result = [x+[y] for x in result for y in pool]
+    for prod in result:
+        yield tuple(prod)
+
+#===============================================================================
 if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
+    main(argv=[])
 else:
-    main()
+    main(argv=sys.argv[1:])
 
 #EOF
 

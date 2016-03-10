@@ -8,7 +8,7 @@ class Kernel_dnt_largeDB2(object):
         self.name  = "cusmm_dnt_largeDB2_"
         self.name += "_".join([str(params[k]) for k in sorted(params.keys())])
         assert(self.threads * self.minblocks <= 2048)
-        min_threads = ((self.m+self.tile_m-1)/self.tile_m) * ((self.n+self.tile_n-1)/self.tile_n)
+        min_threads = ((self.m+self.tile_m-1)//self.tile_m) * ((self.n+self.tile_n-1)//self.tile_n)
         assert(min_threads <= self.threads)
         assert(self.tile_m <= self.v)
         assert(self.tile_n <= self.w)
@@ -60,7 +60,7 @@ class Kernel_dnt_largeDB2(object):
                     for tn in range(1,7):
 
                         # invalid: not enough threads to cover result matrix
-                        min_threads = ((m+tm-1)/tm) * ((n+tn-1)/tn)
+                        min_threads = ((m+tm-1)//tm) * ((n+tn-1)//tn)
                         if(min_threads > threads): continue
 
                         #heuristic: too many threads unused during calculation
@@ -82,7 +82,7 @@ class Kernel_dnt_largeDB2(object):
                                 if (v < tm): continue
 
                                 #heuristic: too many registers used
-                                n_regs = tm*tn + (w*m+threads-1)/threads + (w*n+threads-1)/threads
+                                n_regs = tm*tn + (w*m+threads-1)//threads + (w*n+threads-1)//threads
                                 if(n_regs*threads*minblocks > 15000): continue
 
                                 # invalid: uses too much shared memory
