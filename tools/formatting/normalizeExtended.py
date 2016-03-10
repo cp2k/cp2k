@@ -434,12 +434,29 @@ def inspect_ffile_format(infile, indent_size):
 
 #=========================================================================
 
-def format_single_fline(f_line, linebreak_pos, filename, line_nr):
+def format_single_fline(f_line, whitespace, linebreak_pos, filename, line_nr):
     """
     format a single Fortran line. Takes a logical Fortran line as input
     as well as the positions of the linebreaks. Filename and line_nr just
     for error messages. Imposes white space formatting and inserts linebreaks.
+    The higher whitespace, the more white space characters inserted. Right now
+    whitespace = 0, 1, 2 are supported.
     """
+
+    # define whether to put whitespaces around operators:
+    # 0: comma, semicolon
+    # 1: assignment operators
+    # 2: relational operators
+    # 3: logical operators
+    # 4: arithm. operators plus and minus  
+    if whitespace==0:
+      spacey = [0,0,0,0,0]
+    elif whitespace==1:
+      spacey = [1,1,1,1,0]
+    elif whitespace==2:
+      spacey = [1,1,1,1,1]
+    else:
+      raise NotImplementedError("unknown value for whitespace")
 
     level = 0
     lines_out = []
@@ -519,7 +536,7 @@ def format_single_fline(f_line, linebreak_pos, filename, line_nr):
         if char == ',' or char == ';':
             lhs = line_ftd[:pos + offset]
             rhs = line_ftd[pos + 1 + offset:]
-            line_ftd = lhs.rstrip(' ') + char + ' ' + rhs.lstrip(' ')
+            line_ftd = lhs.rstrip(' ') + char + ' '*spacey[0] + rhs.lstrip(' ')
             line_ftd = line_ftd.rstrip(' ')
 
         # format .NOT.
@@ -527,7 +544,7 @@ def format_single_fline(f_line, linebreak_pos, filename, line_nr):
             lhs = line_ftd[:pos + offset]
             rhs = line_ftd[pos + 5 + offset:]
             line_ftd = lhs.rstrip(
-                ' ') + line[pos:pos + 5] + ' ' + rhs.lstrip(' ')
+                ' ') + line[pos:pos + 5] + ' '*spacey[3] + rhs.lstrip(' ')
 
         # strip whitespaces from '=' and prepare assignment operator
         # formatting
@@ -548,10 +565,10 @@ def format_single_fline(f_line, linebreak_pos, filename, line_nr):
         lhs = line_ftd[:pos + offset]
         rhs = line_ftd[pos + 1 + is_pointer + offset:]
         if is_pointer:
-            assign_op = ' => '  # pointer assignment
+            assign_op = '=>'  # pointer assignment
         else:
-            assign_op = ' = '  # assignment
-        line_ftd = lhs.rstrip(' ') + assign_op + rhs.lstrip(' ')
+            assign_op = '='  # assignment
+        line_ftd = lhs.rstrip(' ') + ' '*spacey[1] + assign_op + ' '*spacey[1] + rhs.lstrip(' ')
         # offset w.r.t. unformatted line
 
     line = line_ftd
@@ -578,11 +595,11 @@ def format_single_fline(f_line, linebreak_pos, filename, line_nr):
             line_parts.append(line[str_end + 1:])
 
     # Two-sided operators
-    for lr_re in LR_OPS_RE:
+    for n_op, lr_re in enumerate(LR_OPS_RE):
         for pos, part in enumerate(line_parts):
             if not re.match(r"['\"!]", part, RE_FLAGS):  # exclude comments, strings
                 partsplit = lr_re.split(part)
-                line_parts[pos] = ' '.join(partsplit)
+                line_parts[pos] = (' '*spacey[n_op+2]).join(partsplit)
 
     line = ''.join(line_parts)
 
@@ -632,7 +649,7 @@ def format_single_fline(f_line, linebreak_pos, filename, line_nr):
 
 #=========================================================================
 
-def format_extended_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, orig_filename=None):
+def format_extended_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, whitespace=2, orig_filename=None):
     """
     main method to be invoked for formatting a Fortran file
     """
@@ -729,7 +746,7 @@ def format_extended_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, or
                              1 for _ in range(0, len(linebreak_pos))]
 
             lines = format_single_fline(
-                f_line, linebreak_pos, orig_filename, stream.line_nr)
+                f_line, whitespace, linebreak_pos, orig_filename, stream.line_nr)
 
             # we need to insert comments in formatted lines
             for pos, (line, comment) in enumerate(zip(lines, comment_lines)):

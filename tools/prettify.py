@@ -45,7 +45,7 @@ def upcaseKeywords(infile,outfile,logFile=sys.stdout):
         if not line: break
         outfile.write(upcaseStringKeywords(line))
 
-def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, upcase_keywords=1,
+def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, whitespace=2, upcase_keywords=1,
              interfaces_dir=None,replace=None,logFile=sys.stdout):
     """prettifyes the fortran source in infile into a temporary file that is
     returned. It can be the same as infile.
@@ -72,7 +72,8 @@ def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, upcase
         if normalize_extended: # extended needs to be done first
             tmpfile2=os.tmpfile()
             normalizeExtended.format_extended_ffile(ifile,tmpfile2,logFile=logFile,
-                                                    indent_size=indent,orig_filename=orig_filename)
+                                                    indent_size=indent,whitespace=whitespace,
+                                                    orig_filename=orig_filename)
             tmpfile2.seek(0)
             if tmpfile:
                 tmpfile.close()
@@ -80,7 +81,7 @@ def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, upcase
             ifile=tmpfile
         if normalize_use:
             tmpfile2=os.tmpfile()
-            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile2,logFile,
+            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile2,indent,logFile,
                                                     orig_filename=orig_filename)
             tmpfile2.seek(0)
             if tmpfile:
@@ -122,7 +123,8 @@ def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, upcase
         raise
 
 def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
-                   normalize_extended=0,indent=2,upcase_keywords=1, interfaces_dir=None,
+                   normalize_extended=0,indent=2,whitespace=2,
+                   upcase_keywords=1, interfaces_dir=None,
                    replace=None,logFile=sys.stdout):
     """Same as prettify, but inplace, replaces only if needed"""
     if not os.path.exists(bkDir):
@@ -131,7 +133,7 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
         raise Error("bk-dir must be a directory, was "+bkDir)
     infile=open(fileName,'r')
     outfile=prettifyFile(infile, normalize_use, normalize_extended,
-                         indent, upcase_keywords, interfaces_dir, replace)
+                         indent, whitespace, upcase_keywords, interfaces_dir, replace)
     if (infile==outfile):
         return
     infile.seek(0)
@@ -169,14 +171,15 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
     infile.close()
     outfile.close()
 
-
 def main():
-    defaultsDict={'upcase':1,'normalize-use':1,'extended':0,'indent':2,'replace':1,
+    defaultsDict={'upcase':1,'normalize-use':1,
+                  'extended':0,'indent':2, 'whitespace':2,
+                  'replace':1,
                   'interface-dir':None,
                   'backup-dir':'preprettify'}
     usageDesc=("usage:\n"+sys.argv[0]+ """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]replace]
-    [--[no-]extended] --indent=2 [--interface-dir=~/cp2k/obj/platform/target] [--help]
+    [--[no-]extended] --indent=2 --whitespace=2 [--interface-dir=~/cp2k/obj/platform/target] [--help]
     [--backup-dir=bk_dir] file1 [file2 ...]
 
     replaces file1,... with their prettified version after performing on
@@ -196,7 +199,7 @@ def main():
         if m:
             defaultsDict[m.groups()[1]]=not m.groups()[0]
         else:
-            m=re.match(r"--(indent)=(.*)",arg)
+            m=re.match(r"--(indent|whitespace)=(.*)",arg)
             if m:
                 defaultsDict[m.groups()[0]]=int(m.groups()[1])
             else:
@@ -230,6 +233,7 @@ def main():
                                    normalize_use=defaultsDict['normalize-use'],
                                    normalize_extended=defaultsDict['extended'],
                                    indent=defaultsDict['indent'],
+                                   whitespace=defaultsDict['whitespace'],
                                    upcase_keywords=defaultsDict['upcase'],
                                    interfaces_dir=defaultsDict['interface-dir'],
                                    replace=defaultsDict['replace'])
