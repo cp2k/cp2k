@@ -179,7 +179,7 @@ class F90Indenter(object):
                 valid_new = True
                 scopes.append(what_new)
                 if debug:
-                    print f_line
+                    print(f_line)
                 break
 
         # check statements that continue scope
@@ -194,7 +194,7 @@ class F90Indenter(object):
                     if what == what_con:
                         valid_con = True
                         if debug:
-                            print f_line
+                            print(f_line)
                         break
 
         # check statements that end scope
@@ -209,7 +209,7 @@ class F90Indenter(object):
                     if what == what_end:
                         valid_end = True
                         if debug:
-                            print f_line
+                            print(f_line)
                         break
 
         # deal with line breaks
@@ -767,7 +767,7 @@ def format_extended_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, or
                               (": auto indentation and whitespace formatting failed due to 132 chars limit, "
                                "please insert line break. ***\n"))
             if debug:
-                print ' ' * ind_use + line,
+                print(' ' * ind_use + line)
         # no indentation of blank lines
         if re.search(r";\s*$", f_line, RE_FLAGS):
             do_indent = False

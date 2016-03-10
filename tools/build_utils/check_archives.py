@@ -41,7 +41,7 @@ def main():
                 if(line == "__.SYMDEF SORTED"): continue  # needed for MacOS
                 assert(line.endswith(".o"))
                 if(line[:-2] not in src_basenames):
-                    print "Could not find source for object %s in archive %s , removing archive."%(line, archive_fn)
+                    print("Could not find source for object %s in archive %s , removing archive."%(line, archive_fn))
                     os.remove(archive_fn)
                     break
 

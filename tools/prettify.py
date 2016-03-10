@@ -40,17 +40,10 @@ def upcaseStringKeywords(line):
 
 def upcaseKeywords(infile,outfile,logFile=sys.stdout):
     """Writes infile to outfile with all the fortran keywords upcased"""
-    lineNr=0
-    try:
-        while 1:
-            line=infile.readline()
-            lineNr=lineNr+1
-            if not line: break
-            outfile.write(upcaseStringKeywords(line))
-    except SyntaxError, e:
-        e.lineno=lineNr
-        e.text=line
-        raise
+    while 1:
+        line=infile.readline()
+        if not line: break
+        outfile.write(upcaseStringKeywords(line))
 
 def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, upcase_keywords=1,
              interfaces_dir=None,replace=None,logFile=sys.stdout):
@@ -195,7 +188,7 @@ def main():
 
     replace=None
     if "--help" in sys.argv:
-        print usageDesc
+        print(usageDesc)
         sys.exit(0)
     args=[]
     for arg in sys.argv[1:]:
@@ -214,7 +207,7 @@ def main():
                 else:
                     args.append(arg)
     if len(args)<1:
-        print usageDesc
+        print(usageDesc)
     else:
         bkDir=defaultsDict['backup-dir']
         if not os.path.exists(bkDir):
@@ -224,13 +217,13 @@ def main():
             except:
                 assert(os.path.exists(bkDir))
         if not os.path.isdir(bkDir):
-            print "bk-dir must be a directory"
-            print usageDesc
+            print("bk-dir must be a directory")
+            print(usageDesc)
         else:
             failure=0
             for fileName in args:
                 if not os.path.isfile(fileName):
-                    print "file",fileName,"does not exists!"
+                    print("file",fileName,"does not exists!")
                 else:
                     try:
                         prettfyInplace(fileName,bkDir,
@@ -251,9 +244,9 @@ def main():
 
 
 #===============================================================================
-if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-    pass #TODO implement selftest
-else:
-    main()
-
+if(__name__ == '__main__'):
+    if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
+        pass #TODO implement selftest
+    else:
+        main()
 #EOF

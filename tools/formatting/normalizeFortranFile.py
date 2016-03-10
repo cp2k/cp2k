@@ -2,8 +2,11 @@ import sys
 import re
 import string
 from sys import argv
-from cStringIO import StringIO
 from collections import deque
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 rUse=0
 rVar=0
@@ -155,8 +158,8 @@ def parseRoutine(inFile):
                 subF.close()
             except:
                 import traceback
-                print "error trying to follow include ",m.group('file')
-                print "warning this might lead to the removal of used variables"
+                print("error trying to follow include ",m.group('file'))
+                print("warning this might lead to the removal of used variables")
                 traceback.print_exc()
     if jline:
         routine['begin']=lines
@@ -284,8 +287,8 @@ def parseRoutine(inFile):
                 subF.close()
             except:
                 import traceback
-                print "error trying to follow include ",m.group('file')
-                print "warning this might lead to the removal of used variables"
+                print("error trying to follow include ",m.group('file'))
+                print("warning this might lead to the removal of used variables")
                 traceback.print_exc()
         (jline,comments,lines)=stream.nextFortranLine()
     return routine
@@ -335,7 +338,7 @@ def enforceDeclDependecies(declarations):
                     for ivar2 in range(len(declarations[idecl2]['vars'])):
                         ii+=1
                         if ii>100000:
-                            raise StandardError,"could not enforce all constraints"
+                            raise Error("could not enforce all constraints")
                         m=varRe.match(declarations[idecl2]['vars'][ivar2])
                         if (ivar==0 and
                             findWord(m.group('var').lower(),typeParam)!=-1):
@@ -613,7 +616,7 @@ def cleanDeclarations(routine,logFile=sys.stdout):
             if argDeclDict.has_key(arg):
                 argDecl.append(argDeclDict[arg])
             else:
-                print "warning, implicitly typed argument '",arg,"' in routine",routine['name']
+                print("warning, implicitly typed argument '",arg,"' in routine",routine['name'])
         if routine['kind'].lower()=='function':
             aDecl=argDecl[:-1]
         else:
@@ -749,7 +752,7 @@ def parseUse(inFile):
         m=useParseRe.match(jline)
         if m:
             if comments:
-                print "jline",jline,"lines",lines
+                print("jline",jline,"lines",lines)
             useAtt={'module':m.group('module'),'comments':[]}
 
             if m.group('only'):
@@ -956,7 +959,7 @@ def rewriteFortranFile(inFile,outFile,logFile=sys.stdout,orig_filename=None):
         nonStPrep=0
         for line in modulesDict['origLines']:
             if (re.search('^#',line) and not commonUsesRe.match(line)):
-                print 'noMatch',repr(line)
+                print('noMatch',repr(line))
                 nonStPrep=1
         if nonStPrep:
             logFile.write("*** use statements contains preprocessor directives, not cleaning ***\n")
