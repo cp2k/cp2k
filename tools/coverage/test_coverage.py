@@ -37,8 +37,8 @@ def main():
 
     if(not path.exists(ref_fn)):
         open(ref_fn, "w").write(pformat(coverage))
-        print "Summary: Wrote new reference file"
-        print "Status: UNKNOWN"
+        print("Summary: Wrote new reference file")
+        print("Status: UNKNOWN")
         sys.exit(0)
 
     ref_coverage = eval(open(ref_fn).read())
@@ -68,8 +68,8 @@ def main():
 
     assert("Total:" in lines[-2])
     total_coverage = float(lines[-2].split("|")[1].split("%")[0])
-    print "Summary: Found %d issues, total coverage is at %.1f%%."%(issues, total_coverage)
-    print "Status: "+ ("OK" if(issues==0) else "FAILED")
+    print("Summary: Found %d issues, total coverage is at %.1f%%."%(issues, total_coverage))
+    print("Status: "+ ("OK" if(issues==0) else "FAILED"))
 
     open(ref_fn, "w").write(pformat(new_ref_coverage))
 

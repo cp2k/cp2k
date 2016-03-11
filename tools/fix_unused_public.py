@@ -109,7 +109,7 @@ def clean_publics(fn, unused):
     new_content = new_content[:-1] # remove last line break
 
     if(new_content != content):
-        print "Fixed: ", fn
+        print("Fixed: ", fn)
         f = open(fn, "w")
         f.write(new_content)
 
@@ -131,7 +131,7 @@ def parse_file(fn):
     for m in matches:
         uses.append((m.strip(), ("*",)))
         if(m.strip() not in ("iso_c_binding", "f77_blas", )):
-            print "missing ONLY-clause: ", fn, m
+            print("missing ONLY-clause: ", fn, m)
 
     matches = re_useonly.findall(content)
     for m in matches:

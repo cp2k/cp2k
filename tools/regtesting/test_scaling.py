@@ -99,13 +99,13 @@ def parse_output(out_fn, ref_energy):
 
     # check final energy
     energy = float(re.findall("\n\s+Total energy:(.*)\n",output)[-1].strip())
-    print "Final total energy: %.14f"%energy
+    print("Final total energy: %.14f"%energy)
     if(abs(energy-ref_energy)/abs(ref_energy) > 1e-10): # hardcoded tolerance
         raise(Exception("Energy is wrong"))
 
     # extract timing report
     timing_report = re.search(r"\n( -+\n - +-\n - +T I M I N G +-\n([^\n]*\n){4}.* -+)\n", output, re.DOTALL).group(1)
-    print timing_report+"\n"
+    print(timing_report+"\n")
 
     # extract total runtime
     runtime = float(re.findall("\n CP2K      (.*)\n", output)[-1].split()[-1])

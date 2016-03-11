@@ -19,7 +19,7 @@ def main():
     test_subdirs = [l.split()[0] for l in lines if l[0]!="#"]
     for d in test_subdirs:
         fn = tests_dir+d+"/TEST_FILES"
-        print "Working on: "+fn
+        print("Working on: "+fn)
         content = open(fn).read()
         output = ""
         for line in content.strip().split("\n"):

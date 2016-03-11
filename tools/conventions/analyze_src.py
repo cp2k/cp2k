@@ -47,8 +47,8 @@ def main():
             # check banner
             if((fn_ext in ("F", ) and not content.startswith(BANNER_F)) or
                (fn_ext in ("c", "cu", "cpp", "h", "hpp") and not content.startswith(BANNER_C))):
-                    print fn+": Copyright banner malformed"
-                    #print '"'+ '"\n"'.join(content.split("\n")[:4]) + '"'
+                    print(fn+": Copyright banner malformed")
+                    #print('"'+ '"\n"'.join(content.split("\n")[:4]) + '"')
 
             # find all flags
             for line in content.split("\n"):
@@ -66,7 +66,7 @@ def main():
     flags = [f for f in flags if not flag_exceptions_re.match(f)]
 
     #print("Found %d flags."%len(flags))
-    #print flags
+    #print(flags)
 
     install_txt = open(path.join(cp2k_dir, "INSTALL")).read()
     cp2k_info = open(path.join(cp2k_dir, "src/cp2k_info.F")).read()

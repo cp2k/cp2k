@@ -5,11 +5,15 @@
 
 from datetime import datetime
 from glob import glob
-import ConfigParser
 import numpy as np
 import gzip
 import sys
 import re
+
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 
 #===============================================================================
 def main():
@@ -28,7 +32,7 @@ def main():
 
     # find eligible testers
     tester_names = list()
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     config.read("dashboard.conf")
     def get_sortkey(s): return config.getint(s, "sortkey")
     for s in sorted(config.sections(), key=get_sortkey):

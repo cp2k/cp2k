@@ -15,7 +15,7 @@ def main():
     # run povray
     for res in (100,300, 500, 800):
         cmd = "povray -D +UA +H%d +W%d +Q11 +A +Ocp2k_logo_%d.png logo.pov"%(res,res, res)
-        print "Running: "+cmd
+        print("Running: "+cmd)
         os.system(cmd)
 
 #-------------------------------------------------------------------------------

@@ -6,10 +6,8 @@
 #
 # author: Ole Schuett
 
-import ConfigParser
 import sys
 import os
-import urllib2
 import smtplib
 from email.mime.text import MIMEText
 import re
@@ -17,13 +15,26 @@ import gzip
 from datetime import datetime, timedelta
 import subprocess
 import traceback
-from urllib import urlencode
-from urllib2 import urlopen
 from os import path
 from pprint import pformat
 from xml.dom import minidom
 from glob import glob
 import itertools
+
+try:
+    from urllib.parse import urlencode
+except ImportError:
+    from urllib import urlencode
+
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
+
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 
 import matplotlib as mpl
 mpl.use('Agg')  # change backend, to run without X11
@@ -45,7 +56,7 @@ def main():
         assert(sys.argv[5] == "--full-archive")
         full_archive = True
 
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     config.read(config_fn)
 
     if(full_archive):
@@ -82,7 +93,7 @@ def gen_frontpage(config, log, abook_fn, status_fn, outdir):
         return config.getint(s, "sortkey")
 
     for s in sorted(config.sections(), key=get_sortkey):
-        print "Working on summary entry of: "+s
+        print("Working on summary entry of: "+s)
         name        = config.get(s,"name")
         host        = config.get(s,"host")
         report_type = config.get(s,"report_type")
@@ -150,19 +161,19 @@ def gen_archive(config, log, outdir, full_archive=False):
     log_index = dict([(r['num'], r) for r in log])
 
     if(full_archive):
-        print "Doing the full archive index pages"
+        print("Doing the full archive index pages")
         trunk_revision = None # trunk_version changes too quickly, leave it out.
         out_fn = "index_full.html"
         other_index_link = '<p>View <a href="index.html">recent archive</a></p>'
     else:
-        print "Doing recent archive index pages"
+        print("Doing recent archive index pages")
         trunk_revision = log[0]['num']
         out_fn = "index.html"
         other_index_link = '<p>View <a href="index_full.html">full archive</a></p>'
 
     url_list = ""
     for s in config.sections():
-        print "Working on archive page of: "+s
+        print("Working on archive page of: "+s)
         name        = config.get(s,"name")
         report_type = config.get(s,"report_type")
         info_url    = config.get(s,"info_url") if(config.has_option(s,"info_url")) else None
@@ -258,7 +269,7 @@ def gen_plots(all_reports, log, outdir, full_archive):
     rev_end = log[0]['num']
     rev_start = min(all_reports.keys()) if(full_archive) else rev_end-100
     for pname, p in plots.items():
-        print "Working on plot: "+pname
+        print("Working on plot: "+pname)
         fig = plt.figure(figsize=(12,4))
         fig.subplots_adjust(bottom=0.18, left=0.06, right=0.70)
         fig.suptitle(p['title'], fontsize=14, fontweight='bold', x=0.4)
@@ -298,7 +309,7 @@ def retrieve_report(report_url):
     try:
         return urlopen(report_url, timeout=5).read()
     except:
-        print traceback.print_exc()
+        print(traceback.print_exc())
         return None
 
 #===============================================================================
@@ -313,7 +324,7 @@ def parse_report(report_txt, report_type):
         else:
             raise(Exception("Unknown report_type"))
     except:
-        print traceback.print_exc()
+        print(traceback.print_exc())
         return( {'status':'UNKNOWN', 'summary':'Error while parsing report.', 'revision':None} )
 
 #===============================================================================
@@ -518,7 +529,7 @@ def ticket_cell(label):
             tid = int(link.strip("/ ").split("/")[-1])
             output += '<a href="%s" title="%s">#%d</a>, '%(link, title, tid)
     except:
-        print traceback.print_exc()
+        print(traceback.print_exc())
         output += "N/A "
     output += '<a href="%s"'%new_url
     output += ' style="text-decoration:none;font-weight:bold;font-size:larger;"'

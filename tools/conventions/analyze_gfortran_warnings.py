@@ -77,9 +77,9 @@ def check_warnings(fn):
             assert(parts[0] == "Procedure")
             routine = parts[1].strip("'‘’").upper()
             if(may_call_implicit(loc, routine)): continue
-            print "%s: Routine %s called with an implicit interface."%(loc_short, routine)
+            print("%s: Routine %s called with an implicit interface."%(loc_short, routine))
         else:
-            print "%s: %s"%(loc_short, warning) # unknown warning, just output
+            print("%s: %s"%(loc_short, warning)) # unknown warning, just output
 
 #===============================================================================
 def may_call_implicit(loc, routine):

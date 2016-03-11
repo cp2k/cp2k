@@ -21,22 +21,22 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
     inComment=0
     try:
       while 1:
-	match=directive.search(line)
-	if not match:
-	  outfile.write(line)
-	  break
-	if match.groups()[4]: # it is a comment
-	  outfile.write(line[:match.end()])
-	  line=line[match.end():]
-	  inComment=1
-	elif match.groups()[2]: # the template description
-	  outfile.write(line)
-	  outfile.write("! ARGS:\n")
-	  for arg in match.groups()[3].split(","):
-	    arg=arg.strip()
-	    if not subs.has_key(arg):
-	      logFile.write("ERROR: missing required argument:"+arg+"\n")
-	      outfile.write("! ERROR argument '"+arg+"' missing\n") 
+        match=directive.search(line)
+        if not match:
+          outfile.write(line)
+          break
+        if match.groups()[4]: # it is a comment
+          outfile.write(line[:match.end()])
+          line=line[match.end():]
+          inComment=1
+        elif match.groups()[2]: # the template description
+          outfile.write(line)
+          outfile.write("! ARGS:\n")
+          for arg in match.groups()[3].split(","):
+            arg=arg.strip()
+            if not subs.has_key(arg):
+              logFile.write("ERROR: missing required argument:"+arg+"\n")
+              outfile.write("! ERROR argument '"+arg+"' missing\n") 
           kList=subs.keys()
           kList.sort()
           for arg in kList:
@@ -50,22 +50,22 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
             else:
               outfile.write('!  '+arg+' = "'+sost[0]+'"\n')
           outfile.write("\n")
-	  break
-	elif not match.groups()[1]:
-	  if not inComment:
-	    logFile.write("WARNING, ingnoring empty group at line %d\n"%lineNr)
-	  outfile.write(line[:match.end()])
-	  line=line[match.end():]
-	else:
-	  if subs.has_key(match.groups()[1]):
-	    outfile.write(line[:match.start()]+subs[match.groups()[1]])
-	    line=line[match.end():]
-	  else:
-	    if not inComment:
-	      logFile.write("WARNING ignoring unknown token '%s' at line %d\n"%
+          break
+        elif not match.groups()[1]:
+          if not inComment:
+            logFile.write("WARNING, ingnoring empty group at line %d\n"%lineNr)
+          outfile.write(line[:match.end()])
+          line=line[match.end():]
+        else:
+          if subs.has_key(match.groups()[1]):
+            outfile.write(line[:match.start()]+subs[match.groups()[1]])
+            line=line[match.end():]
+          else:
+            if not inComment:
+              logFile.write("WARNING ignoring unknown token '%s' at line %d\n"%
                             (match.groups()[1],lineNr))
-	    outfile.write(line[:match.end()])
-	    line=line[match.end():]
+            outfile.write(line[:match.end()])
+            line=line[match.end():]
     except:
       logFile.write("error in '%s' at line %d\n"%(infile.name,lineNr))
       outfile.close()
@@ -126,7 +126,7 @@ def evaluateInstantiationFile(instantiationFile,bkDir,logFile=sys.stdout,outDir=
 
 if __name__ == '__main__':
     if len(sys.argv)<2:
-        print "usage:", sys.argv[0]," [--backup-dir=bk_dir] template1.instantiation [template2.instantiation ...]"
+        print("usage:", sys.argv[0]," [--backup-dir=bk_dir] template1.instantiation [template2.instantiation ...]")
     elif(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
         pass #TODO implement selftest
     else:
@@ -139,6 +139,5 @@ if __name__ == '__main__':
 
         for name in files:
             evaluateInstantiationFile(name,bkDir,sys.stdout)
-# Local Variables:
-# py-indent-offset: 2
-# End:
+
+#EOF

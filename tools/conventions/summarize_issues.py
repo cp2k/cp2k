@@ -33,21 +33,21 @@ def main():
     unused_supp  = [i for i in suppress if(i not in issues)]
 
     for i in issues_supp:
-        print i+" (suppressed)"
+        print(i+" (suppressed)")
 
     #for i in unused_supp:
-    #    print i+" (unused suppression)"
-    print "There are %d unused suppressions.\n"%len(unused_supp)
+    #    print(i+" (unused suppression)")
+    print("There are %d unused suppressions.\n"%len(unused_supp))
 
     for i in issues_shown:
-        print i
+        print(i)
 
     n = len(issues_shown)
     m = len(issues_supp)
-    print '\nPlot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"'
-    print 'PlotPoint: name="coding", plot="supps", label="Coding Conventions", y=%d, yerr=0'%m
-    print "Summary: Found %d issues (%d suppressed)"%(n, m)
-    print "Status: " + ("OK" if n==0 else "FAILED")
+    print('\nPlot: name="supps", title="Suppressed Convention Violations", ylabel="# suppressions"')
+    print('PlotPoint: name="coding", plot="supps", label="Coding Conventions", y=%d, yerr=0'%m)
+    print("Summary: Found %d issues (%d suppressed)"%(n, m))
+    print("Status: " + ("OK" if n==0 else "FAILED"))
 
 
 #===============================================================================

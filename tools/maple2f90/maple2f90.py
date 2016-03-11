@@ -768,7 +768,7 @@ def maple2f90(code,replacements={}):
     varNameRe=re.compile(r"([a-zA-Z][a-zA-Z0-9_]*)")
     c2=varNameRe.split(c1)
     for i in range(len(c2)):
-        if replacements.has_key(c2[i]):
+        if c2[i] in replacements.keys():
             c2[i]=replacements[c2[i]]
     c1="".join(c2)
     vars=re.findall(r" *([a-zA-Z][a-zA-Z0-9_]*) *=",c1)
@@ -793,11 +793,12 @@ def maple2f90(code,replacements={}):
 
 #===============================================================================
 if __name__=="__main__":
-    if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
-        pass #TODO implement selftest
-    else:
-        replacements={}
-        for i in range(len(renamedVar)):
-            replacements[renamedVar[i]]=origNames[i]
-        print maple2f90(code,replacements)
+    replacements={}
+    for i in range(len(renamedVar)):
+        replacements[renamedVar[i]]=origNames[i]
+    output = maple2f90(code,replacements)
+
+    # print output unless we are selftesting
+    if(len(sys.argv)!=2 or sys.argv[-1]!="--selftest"):
+        print(output)
 #EOF

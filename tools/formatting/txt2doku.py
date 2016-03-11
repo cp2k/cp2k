@@ -7,7 +7,6 @@
 
 import sys
 import re
-import httplib
 from os.path import normpath
 
 #-------------------------------------------------------------------------------
@@ -70,19 +69,6 @@ def note_box(m):
 #-------------------------------------------------------------------------------
 def linkify(line):
     return re.sub(r'(?<= )(cp2k/[a-zA-Z0-9_/.]+)(?=$| )', r"[[ src>\1 ]]", line)
-
-#-------------------------------------------------------------------------------
-#def src_file_exists(fn):
-#    assert(fn.startswith("cp2k/"))
-#    c = httplib.HTTPConnection('sourceforge.net')
-#    c.request("HEAD", "/p/cp2k/code/HEAD/tree/trunk/"+fn)
-#    r = c.getresponse()
-#    if(r.status in (200, 301) ):  #301 forwards e.g. cp2k -> cp2k/
-#        return(True)
-#    elif(r.status == 404):
-#        return(False)
-#    else:
-#        raise(Exception("Unexpected http code: %d"%r.status))
 
 #-------------------------------------------------------------------------------
 if(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):

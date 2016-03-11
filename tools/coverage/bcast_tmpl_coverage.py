@@ -26,7 +26,7 @@ def main():
         curr_record.append(line)
         if(line.startswith("SF:")):
             curr_fn = line[3:]
-            #print curr_fn
+            #print(curr_fn)
         elif(line.startswith("end_of_record")):
             if(not records.has_key(curr_fn)):
                 records[curr_fn] = list()
@@ -52,14 +52,14 @@ def main():
             prev_line_nums = curr_line_nums
             curr_fn = line[3:]
             curr_line_nums = []
-            #print curr_fn
+            #print(curr_fn)
         elif(line[:3] in ("FN:", "DA:")):
             lineno = int(line[3:].split(",")[0])
             curr_line_nums.append(lineno)
         elif(line.startswith("end_of_record")):
             if(similar(curr_fn, prev_fn) and curr_line_nums==prev_line_nums):
                 groups[-1] += curr_group
-                print "Broadcasting: "+path.basename(prev_fn), "<->",path.basename(curr_fn)
+                print("Broadcasting: "+path.basename(prev_fn), "<->",path.basename(curr_fn))
             else:
                 groups.append(curr_group)
             curr_group = [] # start a new group
