@@ -1,0 +1,115 @@
+&FORCE_EVAL
+
+  METHOD Quickstep
+
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 100
+    &END MGRID
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      MAX_SCF 4
+      SCF_GUESS ATOMIC
+      &OT
+        MINIMIZER DIIS
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+     POISSON_SOLVER PERIODIC
+     PERIODIC XYZ
+    &END POISSON
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 9.0  9.0  9.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+ O         1.628251        2.207621        3.406674
+ H         1.954667        1.664101        4.141434
+ H         1.989905        1.756902        2.631377
+ O         1.985458        2.897307       -0.592069
+ H         2.714523        2.470551       -1.049004
+ H         2.125553        2.756644        0.364397
+ C         0.016062        3.044969        1.269806
+ O         0.016062        3.044969        2.669807
+ O         1.072613        3.044969        0.659806
+ H         0.911731        3.044969        2.986475
+ C        -1.239675        3.044969        0.544806
+ H        -2.067401        3.044969        1.252471
+ H        -1.297362        3.934134       -0.081276
+ H        -1.297362        2.155804       -0.081276
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+
+    &KIND C
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+
+    &COLVAR
+     &ACID_HYDRONIUM_DISTANCE
+      HYDROGENS 2 3 5 6 10  
+      OXYGENS_WATER 1 4    
+      OXYGENS_ACID 8 9   
+     &END
+    &END
+  &END SUBSYS
+
+&END FORCE_EVAL
+
+&GLOBAL
+  PROJECT _acid_water_meta
+  RUN_TYPE MD
+  IOLEVEL  LOW
+&END GLOBAL
+
+&MOTION
+ &MD
+   ENSEMBLE NVT
+   STEPS 2
+   TIMESTEP 0.5
+   TEMPERATURE 330
+   TEMP_KIND
+   &THERMOSTAT
+       REGION MOLECULE
+       TYPE CSVR
+       &CSVR
+         TIMECON 500
+       &END CSVR
+   &END
+  &END MD
+  #############
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS T
+      NT_HILLS 40
+      SLOW_GROWTH
+      WW 0.0005 
+      HILL_TAIL_CUTOFF 2
+      P_EXPONENT  8     
+      Q_EXPONENT  20   
+      &METAVAR
+        COLVAR 1
+        SCALE 0.2 
+      &END
+    &END METADYN
+  &END FREE_ENERGY
+&END MOTION

@@ -22,9 +22,9 @@ MODULE molecule_kind_types
                                              use_perd_yz,&
                                              use_perd_z
   USE colvar_types,                    ONLY: &
-       angle_colvar_id, colvar_counters, combine_colvar_id, coord_colvar_id, &
-       dfunct_colvar_id, dist_colvar_id, gyration_colvar_id, &
-       hydronium_colvar_id, plane_distance_colvar_id, &
+       acid_hyd_dist_colvar_id, angle_colvar_id, colvar_counters, &
+       combine_colvar_id, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
+       gyration_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
        plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
        reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, &
        xyz_diag_colvar_id, xyz_outerdiag_colvar_id
@@ -255,6 +255,7 @@ CONTAINS
     ncolv%nxyz_diag      = 0
     ncolv%nxyz_outerdiag = 0
     ncolv%nhydronium     = 0
+    ncolv%nacid_hyd_dist = 0
     ncolv%nreactionpath  = 0
     ncolv%ncombinecvs    = 0
     ncolv%nrestraint     = 0
@@ -293,6 +294,8 @@ CONTAINS
              ncolv%nxyz_outerdiag = ncolv%nxyz_outerdiag + 1
           CASE(hydronium_colvar_id)
              ncolv%nhydronium = ncolv%nhydronium + 1
+          CASE(acid_hyd_dist_colvar_id)
+             ncolv%nacid_hyd_dist = ncolv%nacid_hyd_dist + 1
           CASE(reaction_path_colvar_id)
              ncolv%nreactionpath = ncolv%nreactionpath + 1
           CASE(combine_colvar_id)
@@ -314,6 +317,7 @@ CONTAINS
                  ncolv%nxyz_diag       +&
                  ncolv%nxyz_outerdiag  +&
                  ncolv%nhydronium      +&
+                 ncolv%nacid_hyd_dist  +&
                  ncolv%nreactionpath   +&
                  ncolv%ncombinecvs     +&
                  ncolv%npopulation     +&

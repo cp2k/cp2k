@@ -4,4 +4,5 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 H2O-IP-meta.inp                   2     2e-11                 -17.1588389952
+acid_water_meta.inp               1 
 #EOF
