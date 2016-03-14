@@ -3,6 +3,7 @@
 import sys
 import re, tempfile
 import os, os.path
+import hashlib
 from formatting import normalizeFortranFile
 from formatting import replacer
 from formatting import addSynopsis
@@ -78,67 +79,81 @@ def prettifyFile(infile, normalize_use=1, reformat=0, indent=2, whitespace=2, up
     ifile=infile
     orig_filename=infile.name
     tmpfile=None
-    try:
-        if replace:
-            tmpfile2=os.tmpfile()
-            replacer.replaceWords(ifile,tmpfile2,logFile=logFile)
-            tmpfile2.seek(0)
-            if tmpfile:
-                tmpfile.close()
-            tmpfile=tmpfile2
-            ifile=tmpfile
-        if reformat: # reformat needs to be done first
-            tmpfile2=os.tmpfile()
-            reformatFortranFile.reformat_ffile(ifile,tmpfile2,logFile=logFile,
-                                                    indent_size=indent,whitespace=whitespace,
-                                                    orig_filename=orig_filename)
-            tmpfile2.seek(0)
-            if tmpfile:
-                tmpfile.close()
-            tmpfile=tmpfile2
-            ifile=tmpfile
-        if normalize_use:
-            tmpfile2=os.tmpfile()
-            normalizeFortranFile.rewriteFortranFile(ifile,tmpfile2,indent,logFile,
-                                                    orig_filename=orig_filename)
-            tmpfile2.seek(0)
-            if tmpfile:
-                tmpfile.close()
-            tmpfile=tmpfile2
-            ifile=tmpfile
-        if upcase_keywords:
-            tmpfile2=os.tmpfile()
-            upcaseKeywords(ifile,tmpfile2,upcase_omp,logFile)
-            tmpfile2.seek(0)
-            if tmpfile:
-                tmpfile.close()
-            tmpfile=tmpfile2
-            ifile=tmpfile
-        if interfaces_dir:
-            fileName=os.path.basename(infile.name)
-            fileName=fileName[:fileName.rfind(".")]
-            try:
-                interfaceFile=open(os.path.join(interfaces_dir,
-                                                fileName+".int"),"r")
-            except:
-                logFile.write("error opening file "+
-                              os.path.join(interfaces_dir,
-                                           fileName+".int")+"\n")
-                logFile.write("skipping addSynopsis step for "+fileName+"\n")
-                interfaceFile=None
-            if interfaceFile:
+    max_pretty_iter = 5
+    n_pretty_iter = 0
+
+    while True:
+        n_pretty_iter += 1
+        hash_prev = hashlib.md5()
+        hash_prev.update(ifile.read())
+        ifile.seek(0)
+        try:
+            if replace:
                 tmpfile2=os.tmpfile()
-                addSynopsis.addSynopsisToFile(interfaceFile,ifile,
-                                              tmpfile2,logFile=logFile)
+                replacer.replaceWords(ifile,tmpfile2,logFile=logFile)
                 tmpfile2.seek(0)
                 if tmpfile:
                     tmpfile.close()
                 tmpfile=tmpfile2
                 ifile=tmpfile
-        return ifile
-    except:
-        logFile.write("error processing file '"+infile.name+"'\n")
-        raise
+            if reformat: # reformat needs to be done first
+                tmpfile2=os.tmpfile()
+                reformatFortranFile.reformat_ffile(ifile,tmpfile2,logFile=logFile,
+                                                        indent_size=indent,whitespace=whitespace,
+                                                        orig_filename=orig_filename)
+                tmpfile2.seek(0)
+                if tmpfile:
+                    tmpfile.close()
+                tmpfile=tmpfile2
+                ifile=tmpfile
+            if normalize_use:
+                tmpfile2=os.tmpfile()
+                normalizeFortranFile.rewriteFortranFile(ifile,tmpfile2,indent,logFile,
+                                                        orig_filename=orig_filename)
+                tmpfile2.seek(0)
+                if tmpfile:
+                    tmpfile.close()
+                tmpfile=tmpfile2
+                ifile=tmpfile
+            if upcase_keywords:
+                tmpfile2=os.tmpfile()
+                upcaseKeywords(ifile,tmpfile2,upcase_omp,logFile)
+                tmpfile2.seek(0)
+                if tmpfile:
+                    tmpfile.close()
+                tmpfile=tmpfile2
+                ifile=tmpfile
+            if interfaces_dir:
+                fileName=os.path.basename(infile.name)
+                fileName=fileName[:fileName.rfind(".")]
+                try:
+                    interfaceFile=open(os.path.join(interfaces_dir,
+                                                    fileName+".int"),"r")
+                except:
+                    logFile.write("error opening file "+
+                                  os.path.join(interfaces_dir,
+                                               fileName+".int")+"\n")
+                    logFile.write("skipping addSynopsis step for "+fileName+"\n")
+                    interfaceFile=None
+                if interfaceFile:
+                    tmpfile2=os.tmpfile()
+                    addSynopsis.addSynopsisToFile(interfaceFile,ifile,
+                                                  tmpfile2,logFile=logFile)
+                    tmpfile2.seek(0)
+                    if tmpfile:
+                        tmpfile.close()
+                    tmpfile=tmpfile2
+                    ifile=tmpfile
+            hash_next = hashlib.md5()
+            hash_next.update(ifile.read())
+            ifile.seek(0)
+            if hash_prev.digest() == hash_next.digest():
+                return ifile
+            elif n_pretty_iter >= max_pretty_iter:
+                raise RuntimeError("Prettify did not converge in", max_pretty_iter, "steps.")
+        except:
+            logFile.write("error processing file '"+infile.name+"'\n")
+            raise
 
 def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
                    reformat=0,indent=2,whitespace=2,
