@@ -6,7 +6,7 @@ import os, os.path
 from formatting import normalizeFortranFile
 from formatting import replacer
 from formatting import addSynopsis
-from formatting import normalizeExtended
+from formatting import reformatFortranFile
 from sys import argv
 
 operatorsStr=r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
@@ -15,9 +15,19 @@ keywordsStr="(?:a(?:llocat(?:able|e)|ssign(?:|ment))|c(?:a(?:ll|se)|haracter|los
 
 intrinsic_procStr=r"(?:a(?:bs|c(?:har|os)|djust[lr]|i(?:mag|nt)|ll(?:|ocated)|n(?:int|y)|s(?:in|sociated)|tan2?)|b(?:it_size|test)|c(?:eiling|har|mplx|o(?:njg|sh?|unt)|shift)|d(?:ate_and_time|ble|i(?:gits|m)|ot_product|prod)|e(?:oshift|psilon|xp(?:|onent))|f(?:loor|raction)|huge|i(?:a(?:char|nd)|b(?:clr|its|set)|char|eor|n(?:dex|t)|or|shftc?)|kind|l(?:bound|en(?:|_trim)|g[et]|l[et]|og(?:|10|ical))|m(?:a(?:tmul|x(?:|exponent|loc|val))|erge|in(?:|exponent|loc|val)|od(?:|ulo)|vbits)|n(?:earest|int|ot)|p(?:ack|r(?:e(?:cision|sent)|oduct))|r(?:a(?:dix|n(?:dom_(?:number|seed)|ge))|e(?:peat|shape)|rspacing)|s(?:ca(?:le|n)|e(?:lected_(?:int_kind|real_kind)|t_exponent)|hape|i(?:gn|nh?|ze)|p(?:acing|read)|qrt|um|ystem_clock)|t(?:anh?|iny|r(?:ans(?:fer|pose)|im))|u(?:bound|npack)|verify)(?= *\()"
 
+ompDir=r"(?:atomic|barrier|c(?:apture|ritical)|do|end|flush|if|master|num_threads|ordered|parallel|read|s(?:ection(?:|s)|ingle)|t(?:ask(?:|wait|yield)|hreadprivate)|update|w(?:orkshare|rite)|!\$omp)"
+
+ompClause=r"(?:a|co(?:llapse|py(?:in|private))|default|fi(?:nal|rstprivate)|i(?:and|eor|or)|lastprivate|m(?:ax|ergeable|in)|n(?:one|owait)|ordered|private|reduction|shared|untied|\.(?:and|eqv|neqv|or)\.)"
+
+ompEnv=r"omp_(?:dynamic|max_active_levels|n(?:ested|um_threads)|proc_bind|s(?:tacksize|chedule)|thread_limit|wait_policy)"
+
+# FIXME: does not correctly match operator '.op.' if it is not separated by whitespaces.
 toUpcaseRe=re.compile("(?<![A-Za-z0-9_%#])(?<!% )(?P<toUpcase>"+operatorsStr+
                       "|"+ keywordsStr +"|"+ intrinsic_procStr +
                       ")(?![A-Za-z0-9_%])",flags=re.IGNORECASE)
+toUpcaseOMPRe=re.compile("(?<![A-Za-z0-9_%#])(?P<toUpcase>"
+                         +ompDir+"|"+ompClause+"|"+ompEnv + 
+                         ")(?![A-Za-z0-9_%])",flags=re.IGNORECASE)
 linePartsRe=re.compile("(?P<commands>[^\"'!]*)(?P<comment>!.*)?"+
                        "(?P<string>(?P<qchar>[\"']).*?(?P=qchar))?")
 
@@ -38,15 +48,23 @@ def upcaseStringKeywords(line):
         start=start+m.end()
     return res
 
-def upcaseKeywords(infile,outfile,logFile=sys.stdout):
+def upcaseOMP(line):
+    """Upcases OpenMP stuff."""
+    return toUpcaseOMPRe.sub(lambda match: match.group("toUpcase").upper(),line)
+
+def upcaseKeywords(infile,outfile,upcase_omp,logFile=sys.stdout):
     """Writes infile to outfile with all the fortran keywords upcased"""
     while 1:
         line=infile.readline()
         if not line: break
-        outfile.write(upcaseStringKeywords(line))
+        line = upcaseStringKeywords(line)
+        if upcase_omp:
+            if normalizeFortranFile.ompDirRe.match(line):
+                line=upcaseOMP(line)
+        outfile.write(line)
 
-def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, whitespace=2, upcase_keywords=1,
-             interfaces_dir=None,replace=None,logFile=sys.stdout):
+def prettifyFile(infile, normalize_use=1, reformat=0, indent=2, whitespace=2, upcase_keywords=1,
+                 upcase_omp=0, interfaces_dir=None,replace=None,logFile=sys.stdout):
     """prettifyes the fortran source in infile into a temporary file that is
     returned. It can be the same as infile.
     if normalize_use normalizes the use statements (defaults to true)
@@ -69,9 +87,9 @@ def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, whites
                 tmpfile.close()
             tmpfile=tmpfile2
             ifile=tmpfile
-        if normalize_extended: # extended needs to be done first
+        if reformat: # reformat needs to be done first
             tmpfile2=os.tmpfile()
-            normalizeExtended.format_extended_ffile(ifile,tmpfile2,logFile=logFile,
+            reformatFortranFile.reformat_ffile(ifile,tmpfile2,logFile=logFile,
                                                     indent_size=indent,whitespace=whitespace,
                                                     orig_filename=orig_filename)
             tmpfile2.seek(0)
@@ -90,7 +108,7 @@ def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, whites
             ifile=tmpfile
         if upcase_keywords:
             tmpfile2=os.tmpfile()
-            upcaseKeywords(ifile,tmpfile2,logFile)
+            upcaseKeywords(ifile,tmpfile2,upcase_omp,logFile)
             tmpfile2.seek(0)
             if tmpfile:
                 tmpfile.close()
@@ -123,8 +141,8 @@ def prettifyFile(infile, normalize_use=1, normalize_extended=0, indent=2, whites
         raise
 
 def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
-                   normalize_extended=0,indent=2,whitespace=2,
-                   upcase_keywords=1, interfaces_dir=None,
+                   reformat=0,indent=2,whitespace=2,
+                   upcase_keywords=1, upcase_omp=0, interfaces_dir=None,
                    replace=None,logFile=sys.stdout):
     """Same as prettify, but inplace, replaces only if needed"""
     if not os.path.exists(bkDir):
@@ -132,8 +150,9 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
     if not os.path.isdir(bkDir):
         raise Error("bk-dir must be a directory, was "+bkDir)
     infile=open(fileName,'r')
-    outfile=prettifyFile(infile, normalize_use, normalize_extended,
-                         indent, whitespace, upcase_keywords, interfaces_dir, replace)
+    outfile=prettifyFile(infile, normalize_use, reformat,
+                         indent, whitespace, upcase_keywords, upcase_omp,
+                         interfaces_dir, replace)
     if (infile==outfile):
         return
     infile.seek(0)
@@ -171,22 +190,41 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
     infile.close()
     outfile.close()
 
+# FIXME: 'use' statements means not only use, but also variable declarations, add this to docu
 def main():
-    defaultsDict={'upcase':1,'normalize-use':1,
-                  'extended':0,'indent':2, 'whitespace':2,
-                  'replace':1,
-                  'interface-dir':None,
+    # future defaults
+    defaultsDict={'upcase':1,'normalize-use':1,'omp-upcase':1,
+                  'reformat':1, 'indent':3, 'whitespace':1,
+                  'replace':1, 'interface-dir':None,
                   'backup-dir':'preprettify'}
+
+    # current defaults (FIXME: change to future defaults)
+    defaultsDict={'upcase':1,'normalize-use':1,'omp-upcase':0,
+                  'reformat':0, 'indent':2, 'whitespace':1,
+                  'replace':1, 'interface-dir':None,
+                  'backup-dir':'preprettify'}
+
     usageDesc=("usage:\n"+sys.argv[0]+ """
-    [--[no-]upcase] [--[no-]normalize-use] [--[no-]replace]
-    [--[no-]extended] --indent=2 --whitespace=2 [--interface-dir=~/cp2k/obj/platform/target] [--help]
+    [--[no-]upcase] [--[no-]normalize-use] [--[no-]omp-upcase] [--[no-]replace]
+    [--[no-]reformat] --indent=3 --whitespace=1 [--interface-dir=~/cp2k/obj/platform/target] [--help]
     [--backup-dir=bk_dir] file1 [file2 ...]
 
-    replaces file1,... with their prettified version after performing on
-    them upcase of the fortran keywords, and normalizion the use statements.
-    If the interface direcory is given updates also the synopsis.
-    If requested the replacements performed by the replacer.py script
-    are also preformed.
+    Auto-format F90 source file1, file2, ...:
+    - normalization of use statements (--normalize-use) (FIXME: give more detailed description)
+    - upcasing fortran keywords (--upcase)
+    - auto-indentation, auto-alignment and whitespace formatting (--reformat).
+      Amount of whitespace controlled by --whitespace = 0, 1, 2. 
+      For indenting with a relative width of n columns specify --indent=n.
+      For manual formatting of specific lines:
+      - disable auto-alignment by starting line continuation with an ampersand '&'
+      - completely disable reformatting by adding a comment '!&'
+      For manual formatting of a code block, use:
+      - start a manually formatted block with a '!&<' comment and close it with a '!&>' comment
+    - upcasing OMP directives (--omp-upcase)
+    - If requested the replacements performed by the replacer.py script are also performed (--replace) (FIXME: ???)
+    - If the interface direcory is given updates also the synopsis. (--interface-dir) (FIXME: ???)
+
+    Defaults:
     """+str(defaultsDict))
 
     replace=None
@@ -195,7 +233,7 @@ def main():
         sys.exit(0)
     args=[]
     for arg in sys.argv[1:]:
-        m=re.match(r"--(no-)?(normalize-use|upcase|replace|extended)",arg)
+        m=re.match(r"--(no-)?(normalize-use|upcase|omp-upcase|replace|reformat)",arg)
         if m:
             defaultsDict[m.groups()[1]]=not m.groups()[0]
         else:
@@ -208,7 +246,10 @@ def main():
                     path=os.path.abspath(os.path.expanduser(m.groups()[1]))
                     defaultsDict[m.groups()[0]]=path
                 else:
-                    args.append(arg)
+                    if arg.startswith('--'):
+                        print('unknown option',arg)
+                    else:
+                        args.append(arg)
     if len(args)<1:
         print(usageDesc)
     else:
@@ -231,10 +272,11 @@ def main():
                     try:
                         prettfyInplace(fileName,bkDir,
                                    normalize_use=defaultsDict['normalize-use'],
-                                   normalize_extended=defaultsDict['extended'],
+                                   reformat=defaultsDict['reformat'],
                                    indent=defaultsDict['indent'],
                                    whitespace=defaultsDict['whitespace'],
                                    upcase_keywords=defaultsDict['upcase'],
+                                   upcase_omp=defaultsDict['omp-upcase'],
                                    interfaces_dir=defaultsDict['interface-dir'],
                                    replace=defaultsDict['replace'])
                     except:
