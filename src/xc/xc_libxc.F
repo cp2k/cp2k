@@ -1192,7 +1192,7 @@ CONTAINS
                 e_0(ii) = e_0(ii) + sc*exc*rho(ii)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1201,7 +1201,7 @@ CONTAINS
                 e_rho(ii) = e_rho(ii) + sc*vrho
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1211,7 +1211,7 @@ CONTAINS
                 e_rho(ii) = e_rho(ii) + sc*vrho
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1220,7 +1220,7 @@ CONTAINS
                 e_rho_rho(ii) = e_rho_rho(ii) + sc*v2rho2
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1232,7 +1232,7 @@ CONTAINS
                 e_rho_rho(ii) = e_rho_rho(ii) + sc*v2rho2
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-3) THEN
           !$omp do
           DO ii=1,npoints
@@ -1241,7 +1241,7 @@ CONTAINS
                 e_rho_rho_rho(ii) = e_rho_rho_rho(ii) + sc*v3rho3
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==3) THEN
           !$omp do
           DO ii=1,npoints
@@ -1253,7 +1253,7 @@ CONTAINS
                 e_rho_rho_rho(ii) = e_rho_rho_rho(ii) + sc*v3rho3
              END IF
           END DO
-          !$end do
+          !$omp end do
        END IF
     CASE(XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
        IF (grad_deriv==0) THEN
@@ -1264,7 +1264,7 @@ CONTAINS
                 e_0(ii) = e_0(ii) + sc*exc*rho(ii)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1274,7 +1274,7 @@ CONTAINS
                 e_ndrho(ii) = e_ndrho(ii) + sc*2.0_dp*vsigma*norm_drho(ii)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1291,7 +1291,7 @@ CONTAINS
                 e_ndrho(ii) = e_ndrho(ii) + sc*2.0_dp*vsigma*norm_drho(ii)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1312,7 +1312,7 @@ CONTAINS
                    sc*2.0_dp*(2.0_dp*norm_drho(ii)**2*v2sigma2 + vsigma)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1337,7 +1337,7 @@ CONTAINS
                    sc*2.0_dp*(2.0_dp*norm_drho(ii)**2*v2sigma2 + vsigma)
              END IF
           END DO
-          !$end do
+          !$omp end do
        END IF
     CASE(XC_FAMILY_MGGA)
        IF (grad_deriv==0) THEN
@@ -1350,7 +1350,7 @@ CONTAINS
                 e_0(ii) = e_0(ii) + sc*exc*rho(ii)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1364,7 +1364,7 @@ CONTAINS
                 e_tau(ii) = e_tau(ii) + sc*vtau
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1385,7 +1385,7 @@ CONTAINS
                 e_tau(ii) = e_tau(ii) + sc*vtau
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1418,7 +1418,7 @@ CONTAINS
                 e_tau_tau(ii) = e_tau_tau(ii) + sc*v2tau2
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1457,7 +1457,7 @@ CONTAINS
                 e_tau_tau(ii) = e_tau_tau(ii) + sc*v2tau2
              END IF
           END DO
-          !$end do
+          !$omp end do
        END IF
     CASE default
        CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
@@ -1650,7 +1650,7 @@ CONTAINS
                 e_0(ii) = e_0(ii) + sc*exc*(rhov(1,1) + rhov(2,1))
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1664,7 +1664,7 @@ CONTAINS
                 e_rhob(ii) = e_rhob(ii) + sc*vrho(2,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1679,7 +1679,7 @@ CONTAINS
                 e_rhob(ii) = e_rhob(ii) + sc*vrho(2,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1694,7 +1694,7 @@ CONTAINS
                 e_rhob_rhob(ii) = e_rhob_rhob(ii) + sc*v2rho2(3,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1713,7 +1713,7 @@ CONTAINS
                 e_rhob_rhob(ii) = e_rhob_rhob(ii) + sc*v2rho2(3,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-3) THEN
           !$omp do
           DO ii=1,npoints
@@ -1729,7 +1729,7 @@ CONTAINS
                 e_rhob_rhob_rhob(ii) = e_rhob_rhob_rhob(ii) + sc*v3rho3(4,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==3) THEN
           !$omp do
           DO ii=1,npoints
@@ -1751,7 +1751,7 @@ CONTAINS
                 e_rhob_rhob_rhob(ii) = e_rhob_rhob_rhob(ii) + sc*v3rho3(4,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        END IF
     CASE(XC_FAMILY_GGA, XC_FAMILY_HYB_GGA)
        IF (grad_deriv==0) THEN
@@ -1772,7 +1772,7 @@ CONTAINS
                 e_0(ii) = e_0(ii) + sc*exc*(rhov(1,1) + rhov(2,1))
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1797,7 +1797,7 @@ CONTAINS
                    sc*(2.0_dp*vsigma(3,1) - vsigma(2,1))*my_norm_drhob
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==1) THEN
           !$omp do
           DO ii=1,npoints
@@ -1828,7 +1828,7 @@ CONTAINS
                    sc*(2.0_dp*vsigma(3,1) - vsigma(2,1))*my_norm_drhob
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1882,7 +1882,7 @@ CONTAINS
                    4.0_dp*v2sigma2(6,1) - 4.0_dp*v2sigma2(5,1) + v2sigma2(4,1)))
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==2) THEN
           !$omp do
           DO ii=1,npoints
@@ -1945,7 +1945,7 @@ CONTAINS
                    4.0_dp*v2sigma2(6,1) - 4.0_dp*v2sigma2(5,1) + v2sigma2(4,1)))
              END IF
           END DO
-          !$end do
+          !$omp end do
        END IF
     CASE(XC_FAMILY_MGGA)
        IF (grad_deriv==0) THEN
@@ -1975,7 +1975,7 @@ CONTAINS
                 e_0(ii) = e_0(ii) + sc*exc*(rhov(1,1) + rhov(2,1))
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-1) THEN
           !$omp do
           DO ii=1,npoints
@@ -2013,7 +2013,7 @@ CONTAINS
                 e_tau_b(ii) = e_tau_b(ii) + sc*vtau(2,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==1) THEN
           !$omp do
           DO ii=1,npoints
@@ -2060,7 +2060,7 @@ CONTAINS
                 e_tau_b(ii) = e_tau_b(ii) + sc*vtau(2,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==-2) THEN
           !$omp do
           DO ii=1,npoints
@@ -2167,7 +2167,7 @@ CONTAINS
                 e_tau_b_tau_b(ii) = e_tau_b_tau_b(ii) + sc*v2tau2(3,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        ELSE IF (grad_deriv==2) THEN
           !$omp do
           DO ii=1,npoints
@@ -2287,7 +2287,7 @@ CONTAINS
                 e_tau_b_tau_b(ii) = e_tau_b_tau_b(ii) + sc*v2tau2(3,1)
              END IF
           END DO
-          !$end do
+          !$omp end do
        END IF
     CASE default
        CPABORT(TRIM(func_name)//": this XC_FAMILY is currently not supported.")
