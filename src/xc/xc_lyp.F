@@ -356,7 +356,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
                 + ( t4 * t124 / 0.72e2_dp ) * sc
         END IF
      END DO
-     !$end do
+     !$omp end do
   CASE default
      !$omp do
      DO ii=1,npoints
