@@ -67,7 +67,8 @@ CONTAINS
                                                 idx, iterm, jatom, n, natoms
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes_pri, col_blk_size, &
                                                 nterms, row_blk_size
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, vec_V_terms
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, block_X, &
+                                                vec_V_terms
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -125,7 +126,17 @@ CONTAINS
                             row_blk_size=row_blk_size,&
                             col_blk_size=col_blk_size)
        CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
-       CALL cp_dbcsr_set(pao%matrix_X, 0.1_dp) ! TODO: improve initial guess
+
+       ! initial guess
+       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
+       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+          iatom = arow; CPASSERT(arow==acol)
+          DO iterm=1, nterms(iatom)
+             CALL gth_initial_guess(qs_env, iatom, iterm, guess=block_X(1,iterm))
+          ENDDO
+       ENDDO
+       CALL cp_dbcsr_iterator_stop(iter)
     ENDIF
 
     DEALLOCATE(row_blk_size, col_blk_size, nterms)
@@ -289,7 +300,8 @@ CONTAINS
 
     IF(MOD(maxl,2)/=0) &
       CPABORT("GTH parametrization requires even-numbered PAO_POTENTIAL%MAXL")
-    nterms = maxl/2 + 1
+
+    nterms = 6*(maxl/2 + 1)
 
   END SUBROUTINE gth_count_terms
 
@@ -307,7 +319,8 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: block_V
     INTEGER, INTENT(IN)                      :: iatom, jatom, kterm
 
-    INTEGER                                  :: jkind, lpot
+    INTEGER                                  :: jkind, lpot, max_shell, &
+                                                min_shell, shells
     REAL(KIND=dp)                            :: beta, norm2, pot_beta, R_vdw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -317,17 +330,61 @@ CONTAINS
     CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
     CALL get_atomic_kind(particle_set(jatom)%atomic_kind, rvdw=R_vdw, kind_number=jkind)
     CALL get_qs_kind(qs_kind_set(jkind), pao_potential_beta=pot_beta)
-
-    lpot = 2*(kterm-1)
     beta = 0.5_dp / (R_vdw*pot_beta)**2
 
-    CALL calc_gaussian(qs_env, block_V, iatom, jatom, lpot=lpot, beta=beta)
+    lpot = 2*( (kterm-1)/6 )
+    shells = MOD(kterm-1,6)
+
+    ! TODO: generalize for higher shells
+    SELECT CASE(shells)
+     CASE(0)
+       min_shell=0 ; max_shell=0
+     CASE(1)
+       min_shell=1 ; max_shell=1
+     CASE(2)
+       min_shell=2 ; max_shell=2
+     CASE(3)
+       min_shell=0 ; max_shell=1
+     CASE(4)
+       min_shell=0 ; max_shell=2
+     CASE(5)
+       min_shell=1 ; max_shell=2
+     CASE DEFAULT
+        CPABORT("too many shells")
+    END SELECT
+
+    CALL calc_gaussian(qs_env, block_V, iatom, jatom, lpot=lpot, beta=beta,&
+                       min_shell=min_shell, max_shell=max_shell)
 
     ! normalize
     norm2 = (2.0_dp*beta)**(-0.5_dp - lpot) * gamma1(lpot)
     block_V = block_V / SQRT(norm2)
 
   END SUBROUTINE gth_calc_term
+
+
+! *****************************************************************************
+!> \brief Calculates the initial guess for the requested potential term
+!> \param qs_env ...
+!> \param iatom ...
+!> \param kterm ...
+!> \param guess ...
+! *****************************************************************************
+  SUBROUTINE gth_initial_guess(qs_env, iatom, kterm, guess)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: iatom, kterm
+    REAL(KIND=dp), INTENT(OUT)               :: guess
+
+    MARK_USED(qs_env)
+    MARK_USED(iatom)
+
+    IF(kterm==1) THEN
+       guess = 1.0_dp
+    ELSE
+       guess = 0.0_dp
+    ENDIF
+
+   END SUBROUTINE gth_initial_guess
 
 
 ! *****************************************************************************
@@ -338,12 +395,15 @@ CONTAINS
 !> \param jatom remote atom on which the Gaussian is centered
 !> \param lpot polynomial prefactor, r**lpot
 !> \param beta exponent of the Gaussian
+!> \param min_shell ...
+!> \param max_shell ...
 ! *****************************************************************************
-  SUBROUTINE calc_gaussian(qs_env, block_V, iatom, jatom, lpot, beta)
+  SUBROUTINE calc_gaussian(qs_env, block_V, iatom, jatom, lpot, beta, min_shell, max_shell)
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: block_V
     INTEGER, INTENT(IN)                      :: iatom, jatom, lpot
     REAL(dp), INTENT(IN)                     :: beta
+    INTEGER, INTENT(IN)                      :: min_shell, max_shell
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calc_gaussian', &
       routineP = moduleN//':'//routineN
@@ -401,6 +461,8 @@ CONTAINS
      DO jset=1, basis_set%nset
      DO ishell=1, basis_set%nshell(iset)
      DO jshell=1, basis_set%nshell(jset)
+        IF(MIN(basis_set%l(ishell,iset), basis_set%l(jshell,jset)) /= min_shell) CYCLE
+        IF(MAX(basis_set%l(ishell,iset), basis_set%l(jshell,jset)) /= max_shell) CYCLE
 
         ! setup iset
         la1_max = basis_set%l(ishell,iset)

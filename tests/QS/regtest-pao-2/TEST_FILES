@@ -4,8 +4,7 @@ H2O_pao_exp.inp                   11     1e-08    -17.202700812326320
 H2O_pao_fock.inp                  11     1e-08    -17.202700812326320
 H2O_pao_rotinv.inp                11     1e-08    -17.202700812326320
 H2O_pao_eq_prim.inp               11     3e-09    -17.202700812326320
-# gth-param can not reproduce the ref-result
-H2O_pao_gth.inp                   11     1e-12    -17.192175297261947
+H2O_pao_gth.inp                   11     9e-05    -17.202700812326320
 #
 # rotated system, energy changes slightly due to grid and cell
 #

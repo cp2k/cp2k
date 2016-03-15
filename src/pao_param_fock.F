@@ -150,13 +150,6 @@ CONTAINS
     H_evecs = H
     CALL diamat_all(H_evecs, H_evals)
 
-    ! normalize sign of eigenvectors
-    ! The total enegies are unaffacted by this,
-    ! however pao_check_grad_param() gets confused by spontaneous sign flips.
-    DO i=1, n
-       H_evecs(:,i) =  H_evecs(:,i) * SIGN(1.0_dp, H_evecs(i,i))
-    ENDDO
-
     ! the eigenvectors of H become the rotation matrix U
     U = H_evecs
 

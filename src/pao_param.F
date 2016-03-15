@@ -9,12 +9,11 @@
 ! *****************************************************************************
 MODULE pao_param
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_multiply, &
-       cp_dbcsr_release, cp_dbcsr_trace, cp_dbcsr_type, &
-       dbcsr_distribution_mp, dbcsr_mp_group
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_release, &
+       cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
   USE cp_log_handling,                 ONLY: cp_to_string
   USE dm_ls_scf_types,                 ONLY: ls_mstruct_type
   USE kinds,                           ONLY: dp
@@ -156,8 +155,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    REAL(dp)                                 :: my_penalty, reg_energy, &
-                                                trace_X
+    REAL(dp)                                 :: my_penalty
 
     CALL timeset(routineN,handle)
     my_penalty = 0.0_dp
@@ -173,19 +171,7 @@ CONTAINS
         CPABORT("PAO: unkown parametrization")
     END SELECT
 
-    ! add regularization energy
-    IF(PRESENT(penalty) .AND. pao%regularization/=0.0_dp) THEN
-       CALL cp_dbcsr_trace(pao%matrix_X, pao%matrix_X, trace_X)
-       reg_energy = pao%regularization * trace_X
-       my_penalty = my_penalty + reg_energy
-       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| regularization energy:", reg_energy
-    ENDIF
-
     IF(PRESENT(penalty)) penalty = my_penalty
-
-    ! add regularization gradient
-    IF(PRESENT(matrix_G) .AND. pao%regularization/=0.0_dp) &
-       CALL cp_dbcsr_add(matrix_G, pao%matrix_X, 1.0_dp, 2.0_dp*pao%regularization)
 
     CALL pao_assert_unitary(pao, pao%matrix_U, pao%matrix_Y)
     CALL timestop(handle)

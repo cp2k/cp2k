@@ -87,10 +87,6 @@ CONTAINS
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","PENALTY_STRENGTH",pao%penalty_strength
     IF(pao%penalty_strength<0.0_dp) CPABORT("PAO: PENALTY_STRENGTH < 0")
 
-    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%REGULARIZATION",r_val=pao%regularization)
-    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,E10.1)") " PAO|","REGULARIZATION",pao%regularization
-    IF(pao%regularization<0.0_dp) CPABORT("PAO: REGULARIZATION < 0")
-
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%CG_INIT_STEPS",i_val=pao%cg_init_steps)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,T71,I10)") " PAO|","CG_INIT_STEPS",pao%cg_init_steps
     IF(pao%cg_init_steps<1) CPABORT("PAO: CG_INIT_STEPS < 1")
@@ -212,12 +208,6 @@ CONTAINS
     CALL keyword_create(keyword, name="PENALTY_STRENGTH",&
          description="Strength of the penalty term which prevents degenerate eigenvalues.",&
          default_r_val=0.005_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-
-    CALL keyword_create(keyword, name="REGULARIZATION",&
-         description="Strength of the regularization term which keeps block_X small.",&
-         default_r_val=0.0_dp)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
