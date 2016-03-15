@@ -1968,7 +1968,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab_s', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER :: huge4 = HUGE(1._dp) / 4._dp
+    REAL(KIND=dp), PARAMETER                 :: huge4 = HUGE(1._dp) / 4._dp
 
     INTEGER                                  :: nca, ncb, nsa, nsb
     REAL(KIND=dp), ALLOCATABLE, &
