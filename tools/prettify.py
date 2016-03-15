@@ -1,14 +1,21 @@
 #!/usr/bin/env python
 
 import sys
-import re, tempfile
-import os, os.path
-import md5
+import re
+import tempfile
+import os
+import os.path
+
+try:
+    from hashlib import md5
+except ImportError:
+    from md5 import new as md5
+
 from formatting import normalizeFortranFile
 from formatting import replacer
 from formatting import addSynopsis
 from formatting import reformatFortranFile
-from sys import argv
+
 
 operatorsStr=r"\.(?:and|eqv?|false|g[et]|l[et]|n(?:e(?:|qv)|ot)|or|true)\."
 
@@ -84,7 +91,7 @@ def prettifyFile(infile, normalize_use=1, reformat=0, indent=2, whitespace=2, up
 
     while True:
         n_pretty_iter += 1
-        hash_prev = md5.new()
+        hash_prev = md5()
         hash_prev.update(ifile.read())
         ifile.seek(0)
         try:
@@ -144,7 +151,7 @@ def prettifyFile(infile, normalize_use=1, reformat=0, indent=2, whitespace=2, up
                         tmpfile.close()
                     tmpfile=tmpfile2
                     ifile=tmpfile
-            hash_next = md5.new()
+            hash_next = md5()
             hash_next.update(ifile.read())
             ifile.seek(0)
             if hash_prev.digest() == hash_next.digest():
