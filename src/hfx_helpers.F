@@ -93,55 +93,6 @@ MODULE hfx_helpers
   END SUBROUTINE next_image_cell_perd
 
 ! *****************************************************************************
-!> \brief - Auxiliary function for getting the occupation of a sparse matrix
-!> \param matrix ...
-!> \param para_env ...
-!> \retval get_occupation ...
-!> \par History
-!>      12.2008 created [Manuel Guidon]
-!> \author Manuel Guidon
-! *****************************************************************************
-FUNCTION get_occupation(matrix,para_env)
-    TYPE(cp_dbcsr_type), POINTER             :: matrix
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(dp)                                 :: get_occupation
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'get_occupation', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: group, mype, natom, &
-                                                nblock_sum, nblock_tot, npe
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nblock, nelement
-
-    group = para_env%group
-    mype = para_env%mepos + 1
-    npe = para_env%num_pe
-
-    ! *** Allocate work storage ***
-    ALLOCATE (nblock(npe))
-    nblock(:) = 0
-
-    ALLOCATE (nelement(npe))
-    nelement(:) = 0
-
-    nblock(mype) = cp_dbcsr_get_num_blocks(matrix)
-    nelement(mype) = cp_dbcsr_get_data_size(matrix)
-    CALL cp_dbcsr_get_info(matrix=matrix,nblkrows_total=natom)
-    CALL mp_sum(nblock,group)
-    CALL mp_sum(nelement,group)
-
-    nblock_sum = SUM(nblock)
-
-    IF (cp_dbcsr_get_matrix_type(matrix) == dbcsr_type_symmetric) THEN
-      nblock_tot = natom*(natom + 1)/2
-    ELSE
-      nblock_tot = natom*natom
-    END IF
-
-    get_occupation = 100.0_dp*REAL(nblock_sum,dp)/REAL(nblock_tot,dp)
-  END FUNCTION get_occupation
-
-! *****************************************************************************
 
 
 END MODULE hfx_helpers
