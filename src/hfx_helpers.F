@@ -10,17 +10,7 @@
 !> \author Manuel Guidon
 ! *****************************************************************************
 MODULE hfx_helpers
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_get_data_size,&
-                                             cp_dbcsr_get_info,&
-                                             cp_dbcsr_get_matrix_type,&
-                                             cp_dbcsr_get_num_blocks,&
-                                             cp_dbcsr_type,&
-                                             dbcsr_type_symmetric
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
 #include "./base/base_uses.f90"
-
   IMPLICIT NONE
   PRIVATE
 
