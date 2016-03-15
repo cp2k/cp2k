@@ -10,14 +10,13 @@ svn revert -R .
 svn up
 svn info
 
+rm -rf preprettify
+
 find ./src/ -type f -not -path "*/preprettify/*" -not -path "*/.svn/*" -print0 | xargs -0 md5sum > checksums.md5
 md5sum ./data/POTENTIAL >> checksums.md5
 
-find ./src/ -type f -name "*instantiation"       -not -path "*/.svn/*" -print0 | xargs -0 ./tools/instantiateTemplates.py
-
-rm -rf preprettify
-
 cd makefiles
+make --jobs=20 templates
 make --jobs=20 pretty
 cd ..
 
