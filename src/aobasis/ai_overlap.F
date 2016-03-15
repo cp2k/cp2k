@@ -1968,6 +1968,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'overlap_ab_s', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER :: huge4 = HUGE(1._dp) / 4._dp
 
     INTEGER                                  :: nca, ncb, nsa, nsb
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1975,7 +1976,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1)              :: rpgf, za, zb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c2sa, c2sb
 
-    rpgf(1) = HUGE(1._dp)
+    rpgf(1) = huge4
     za(1) = zeta
     zb(1) = zetb
 
