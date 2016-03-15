@@ -3,7 +3,7 @@
 import sys
 import re, tempfile
 import os, os.path
-import hashlib
+import md5
 from formatting import normalizeFortranFile
 from formatting import replacer
 from formatting import addSynopsis
@@ -84,7 +84,7 @@ def prettifyFile(infile, normalize_use=1, reformat=0, indent=2, whitespace=2, up
 
     while True:
         n_pretty_iter += 1
-        hash_prev = hashlib.md5()
+        hash_prev = md5.new()
         hash_prev.update(ifile.read())
         ifile.seek(0)
         try:
@@ -144,7 +144,7 @@ def prettifyFile(infile, normalize_use=1, reformat=0, indent=2, whitespace=2, up
                         tmpfile.close()
                     tmpfile=tmpfile2
                     ifile=tmpfile
-            hash_next = hashlib.md5()
+            hash_next = md5.new()
             hash_next.update(ifile.read())
             ifile.seek(0)
             if hash_prev.digest() == hash_next.digest():
