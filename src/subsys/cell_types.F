@@ -845,10 +845,10 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE pbc_cp2k_plumed_getset_cell(cell, set) 
-    TYPE(cell_type), ALLOCATABLE             :: cell
+    TYPE(cell_type), POINTER                 :: cell
     LOGICAL                                  :: set
 
-    TYPE(cell_type), ALLOCATABLE, SAVE       :: stored_cell
+    TYPE(cell_type), POINTER, SAVE           :: stored_cell
 
     IF (set .EQV. .TRUE.) THEN
         stored_cell => cell
