@@ -166,7 +166,7 @@ MODULE qs_kind_types
 ! *****************************************************************************
   TYPE qs_kind_p_type
      TYPE(qs_kind_type),DIMENSION(:),&
-          POINTER                             :: qs_kind_set
+          ALLOCATABLE                             :: qs_kind_set
   END TYPE qs_kind_p_type
 
   ! Public subroutines

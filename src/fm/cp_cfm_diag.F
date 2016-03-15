@@ -54,13 +54,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
+    COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE  :: work
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: m
     INTEGER                                  :: handle, info, liwork, &
                                                 lrwork, lwork, n
-    INTEGER, DIMENSION(:), POINTER           :: iwork
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
+    INTEGER, DIMENSION(:), ALLOCATABLE           :: iwork
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: rwork
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: descm, descv
     COMPLEX(KIND=dp), DIMENSION(:, :), &

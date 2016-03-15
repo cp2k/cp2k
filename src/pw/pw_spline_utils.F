@@ -790,7 +790,8 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo)
     INTEGER, DIMENSION(3)                    :: s
     LOGICAL                                  :: has_boundary, yderiv, zderiv
     REAL(kind=dp)                            :: in_val_f, in_val_l
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+    REAL(kind=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: l_boundary, tmp, u_boundary
 
   zderiv=ALL(weights(:,:,1)==0.0_dp)
   yderiv=ALL(weights(:,1,:)==0.0_dp)
@@ -2887,8 +2888,9 @@ END SUBROUTINE pw_nn_compose_r
       my_sharpen, my_smooth_boundary, my_transpose
     REAL(kind=dp)                            :: in_val_f, in_val_l, &
                                                 in_val_tmp, w_j, w_k
+    REAL(kind=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: l_boundary, tmp, u_boundary
     REAL(kind=dp), DIMENSION(-1:1)           :: w
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: in_val, out_val
 

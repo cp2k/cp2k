@@ -119,13 +119,13 @@ MODULE pint_types
      TYPE(rng_stream_type), POINTER :: randomG
      TYPE(gle_type), POINTER        :: gle
      REAL(KIND=dp), DIMENSION(e_num_ids) :: energy
-     REAL(KIND=dp), DIMENSION(:), POINTER :: mass,e_pot_bead
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: mass,e_pot_bead
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: x,v,f,mass_beads,&
           mass_fict,ux,ux_t,uv,uv_t,uv_new,uf,uf_h, external_f
-      REAL(KIND=dp), DIMENSION(:), POINTER :: centroid
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: centroid
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: tx,tv,tv_t,tv_old,tv_new,tf
-     REAL(KIND=dp), DIMENSION(:), POINTER :: Q ! dim p, make it (p,ndim)?
-     REAL(KIND=dp), DIMENSION(:), POINTER :: rtmp_ndim, rtmp_natom
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: Q ! dim p, make it (p,ndim)?
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: rtmp_ndim, rtmp_natom
      REAL(KIND=dp), DIMENSION(:), POINTER :: iwsinex, wsinex, cosex
      TYPE(pile_therm_type), POINTER :: pile_therm
      TYPE(piglet_therm_type), POINTER :: piglet_therm
@@ -153,7 +153,7 @@ MODULE pint_types
      INTEGER :: id_nr,ref_count,p
      REAL(KIND=dp) :: Q_bead, Q_centroid, modefactor, harm
      REAL(KIND=dp), DIMENSION(:,:), POINTER :: x2u, u2x
-     REAL(KIND=dp), DIMENSION(:), POINTER :: lambda
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: lambda
   END TYPE normalmode_env_type
 
   ! ***************************************************************************
@@ -191,10 +191,10 @@ MODULE pint_types
   TYPE pile_therm_type
     INTEGER                              :: ref_count
     REAL(KIND=dp)                        :: lamb, tau, thermostat_energy
-    REAL(KIND=dp), DIMENSION(:), POINTER :: c1
-    REAL(KIND=dp), DIMENSION(:), POINTER :: c2
-    REAL(KIND=dp), DIMENSION(:), POINTER :: g_fric
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: massfact
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: c1
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: c2
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: g_fric
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: massfact
     TYPE(rng_stream_type), POINTER       :: gaussian_rng_stream
   END TYPE pile_therm_type
 

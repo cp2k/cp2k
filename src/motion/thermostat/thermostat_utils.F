@@ -1911,7 +1911,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, icheck, ncheck
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: work, work2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work, work2
 
     ALLOCATE(work(para_env%num_pe))
     DO i = 1, number
@@ -1956,7 +1956,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, icheck, j, ncheck
-    INTEGER, DIMENSION(:, :), POINTER        :: work, work2
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: work, work2
 
     ALLOCATE(work(number1,para_env%num_pe))
     DO i = 1, number2

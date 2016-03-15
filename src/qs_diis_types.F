@@ -49,7 +49,7 @@ MODULE qs_diis_types
 !> \author fawzi
 ! *****************************************************************************
   TYPE qs_diis_buffer_p_type
-     TYPE(qs_diis_buffer_type), POINTER :: diis_buffer
+     TYPE(qs_diis_buffer_type), ALLOCATABLE :: diis_buffer
   END TYPE qs_diis_buffer_p_type
 
 ! *****************************************************************************
@@ -67,7 +67,7 @@ MODULE qs_diis_types
   END TYPE qs_diis_buffer_type_sparse
 
   TYPE qs_diis_buffer_p_type_sparse
-     TYPE(qs_diis_buffer_type_sparse), POINTER       :: diis_buffer
+     TYPE(qs_diis_buffer_type_sparse), ALLOCATABLE       :: diis_buffer
   END TYPE qs_diis_buffer_p_type_sparse
 
 CONTAINS

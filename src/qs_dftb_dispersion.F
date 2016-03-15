@@ -111,7 +111,7 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, handle, &
                                                 iatom, ikind, jatom, jkind, &
                                                 natom, nkind
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     LOGICAL                                  :: use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: define_kind
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: rc_kind

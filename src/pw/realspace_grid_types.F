@@ -149,8 +149,8 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: lb_real                   ! lower bounds of the real local data
      INTEGER, DIMENSION (3) :: ub_real                   ! upper bounds of the real local data
 
-     INTEGER, DIMENSION (:), POINTER :: px,py,pz         ! index translators
-     REAL(KIND=dp), DIMENSION ( :, :, : ), POINTER :: r   ! the grid
+     INTEGER, DIMENSION (:), ALLOCATABLE :: px,py,pz         ! index translators
+     REAL(KIND=dp), DIMENSION ( :, :, : ), ALLOCATABLE :: r   ! the grid
 
   END TYPE realspace_grid_type
 

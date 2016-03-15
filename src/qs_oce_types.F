@@ -24,11 +24,11 @@ MODULE qs_oce_types
 
 ! *****************************************************************************
   TYPE qlist_type
-    TYPE(block_p_type), DIMENSION(:), POINTER :: sac
-    REAL(KIND = dp), DIMENSION(:), POINTER    :: r2
-    REAL(KIND = dp), DIMENSION(:,:), POINTER  :: r
+    TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sac
+    REAL(KIND = dp), DIMENSION(:), ALLOCATABLE    :: r2
+    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE  :: r
     INTEGER                                   :: n
-    INTEGER, DIMENSION(:), POINTER            :: index_list,list
+    INTEGER, DIMENSION(:), ALLOCATABLE            :: index_list,list
   END TYPE qlist_type
 
 ! *****************************************************************************

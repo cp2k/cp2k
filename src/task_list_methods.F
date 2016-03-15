@@ -145,7 +145,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
                                                 orb_basis_set
     TYPE(kpoint_type), POINTER               :: kpoints
@@ -2169,7 +2169,7 @@ CONTAINS
                                                 img, ipgf, iset, j, jatom, &
                                                 jpgf, jset
     INTEGER(KIND=int_8)                      :: natom8, nim8
-    INTEGER, DIMENSION(:), POINTER           :: index
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index
 
 ! calculate list of atom pairs
 ! fill pair list taking into acount symmetry

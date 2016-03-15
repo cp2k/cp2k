@@ -473,8 +473,9 @@ CONTAINS
     INTEGER :: dim_op, handle, i, iatom, imo, imoloc, ispin, j, l_spin, lb, &
       my_nspins, nao, naosub, natoms, nmo, nmosub, nspins, s_spin, ub
     REAL(KIND=dp)                            :: my_occ, occ_imo
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vecbuffer
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupations
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
@@ -704,13 +705,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cosab, rpgfa, rpgfb, sinab, &
                                                 sphi_a, sphi_b, work, zeta, &
                                                 zetb
-    TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: op_cos, op_sin
+    TYPE(block_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: op_cos, op_sin
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: op_sm_set
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -1049,7 +1050,8 @@ CONTAINS
       output_unit, rst_unit, source
     LOGICAL                                  :: file_exists
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vecbuffer
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: print_key
 

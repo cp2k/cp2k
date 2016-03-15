@@ -1536,7 +1536,8 @@ CONTAINS
                                                 maxocc, ra(3), rac(3), rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: max_overlap, sto_state_overlap
     REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vecbuffer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(:), &

@@ -98,7 +98,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -469,7 +469,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -861,7 +861,7 @@ CONTAINS
       POINTER                                :: op_dip
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -1138,7 +1138,7 @@ CONTAINS
       POINTER                                :: op_dip
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -1417,7 +1417,7 @@ CONTAINS
       POINTER                                :: op_dip_der
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator

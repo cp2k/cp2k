@@ -199,9 +199,9 @@ CONTAINS
                                                 ishell, lmax, lshell, nao, &
                                                 natom, nset, nset_max, nsgf, &
                                                 nshell_max
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: nso_info
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
-    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 

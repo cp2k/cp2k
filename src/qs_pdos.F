@@ -111,11 +111,11 @@ MODULE qs_pdos
   END TYPE r_ldos_type
 
   TYPE ldos_p_type
-     TYPE(ldos_type), POINTER :: ldos
+     TYPE(ldos_type), ALLOCATABLE :: ldos
   END TYPE ldos_p_type
 
   TYPE r_ldos_p_type
-     TYPE(r_ldos_type), POINTER :: ldos
+     TYPE(r_ldos_type), ALLOCATABLE :: ldos
   END TYPE r_ldos_p_type
 CONTAINS
 
@@ -177,7 +177,7 @@ CONTAINS
                                                 do_virt, ionode, &
                                                 separate_components, &
                                                 should_output
-    LOGICAL, DIMENSION(:, :), POINTER        :: read_r
+    LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: read_r
     REAL(KIND=dp)                            :: dh(3,3), dvol, e_fermi, r(3), &
                                                 r_vec(3), ratom(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, evals_virt, &

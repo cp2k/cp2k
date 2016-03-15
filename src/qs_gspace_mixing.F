@@ -827,8 +827,8 @@ CONTAINS
                                                 work
     REAL(dp), DIMENSION(:), POINTER          :: p_metric
     REAL(dp), DIMENSION(:, :), POINTER       :: fmat, weight
-    TYPE(cp_1d_z_p_type), DIMENSION(:), &
-      POINTER                                :: tmp_z
+    TYPE(cp_1d_z_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: tmp_z
     TYPE(cp_1d_z_p_type), DIMENSION(:, :), &
       POINTER                                :: delta_res, u_vec, z_vec
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g

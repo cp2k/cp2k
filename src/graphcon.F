@@ -39,24 +39,24 @@ MODULE graphcon
 ! *****************************************************************************
     TYPE vertex
        INTEGER :: kind
-       INTEGER, POINTER, DIMENSION(:) :: bonds
+       INTEGER, ALLOCATABLE, DIMENSION(:) :: bonds
     END TYPE vertex
 
 ! *****************************************************************************
     TYPE class
-       INTEGER, DIMENSION(:), POINTER :: reference
-       INTEGER, DIMENSION(:), POINTER :: unordered
+       INTEGER, DIMENSION(:), ALLOCATABLE :: reference
+       INTEGER, DIMENSION(:), ALLOCATABLE :: unordered
        INTEGER :: kind
        INTEGER :: Nele
        LOGICAL :: first
        INTEGER, DIMENSION(:), POINTER :: order
-       INTEGER, DIMENSION(:), POINTER :: q
+       INTEGER, DIMENSION(:), ALLOCATABLE :: q
     END TYPE class
 
 ! *****************************************************************************
     TYPE superclass
        INTEGER :: Nele
-       INTEGER, DIMENSION(:), POINTER :: classes
+       INTEGER, DIMENSION(:), ALLOCATABLE :: classes
     END TYPE
 
 CONTAINS

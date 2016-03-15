@@ -42,7 +42,7 @@ MODULE input_enumeration_types
 
   TYPE enumeration_type
      INTEGER :: id_nr, ref_count
-     CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: c_vals
+     CHARACTER(len=default_string_length), DIMENSION(:), ALLOCATABLE :: c_vals
      TYPE(char_array), DIMENSION(:), POINTER :: desc => Null()
      INTEGER, DIMENSION(:), POINTER :: i_vals
      LOGICAL :: strict

@@ -63,7 +63,7 @@ MODULE qs_ks_qmmm_types
 !> \author Teodoro Laino
 ! *****************************************************************************
   TYPE qs_ks_qmmm_env_p_type
-     TYPE(qs_ks_qmmm_env_type), POINTER :: ks_env
+     TYPE(qs_ks_qmmm_env_type), ALLOCATABLE :: ks_env
   END TYPE qs_ks_qmmm_env_p_type
 CONTAINS
 

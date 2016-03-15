@@ -460,7 +460,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     REAL(KIND=dp)                            :: a
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: zet_max, zet_min
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: zet_max, zet_min
 
     ALLOCATE(zet_max(nvar),zet_min(nvar))
     

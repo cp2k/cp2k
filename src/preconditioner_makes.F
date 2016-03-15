@@ -640,8 +640,8 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, ene
 
     INTEGER                                  :: handle, k, n
     REAL(KIND=dp)                            :: max_ev, min_ev, pre_shift
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrices
+    TYPE(cp_dbcsr_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: matrices
     TYPE(cp_dbcsr_type), TARGET              :: dbcsr_cThc, dbcsr_hc, &
                                                 dbcsr_sc, mo_dbcsr
     TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi

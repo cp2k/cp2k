@@ -187,7 +187,7 @@ MODULE qs_efield_local
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(efield_berry_type), POINTER         :: efield
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator

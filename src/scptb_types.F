@@ -63,7 +63,7 @@ MODULE scptb_types
   TYPE scp_kind_vector_type
      INTEGER                                           :: natom
      INTEGER                                           :: nbasis
-     REAL(dp), DIMENSION(:,:), POINTER                 :: vmat
+     REAL(dp), DIMENSION(:,:), ALLOCATABLE                 :: vmat
   END TYPE scp_kind_vector_type
 
   TYPE scp_vector_type
@@ -571,7 +571,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE scp_vector_sync(vec, para_env)
     TYPE(scp_vector_type)                    :: vec
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_para_env_type), ALLOCATABLE      :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'scp_vector_sync', &
       routineP = moduleN//':'//routineN

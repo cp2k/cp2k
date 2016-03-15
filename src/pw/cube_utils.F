@@ -34,7 +34,7 @@ MODULE cube_utils
             compute_cube_center
 
   TYPE :: cube_ptr
-       INTEGER, POINTER, DIMENSION(:) :: p
+       INTEGER, ALLOCATABLE, DIMENSION(:) :: p
   END TYPE cube_ptr
 
   TYPE :: cube_info_type

@@ -97,9 +97,9 @@ CONTAINS
                                                 any_tersoff
     REAL(KIND=dp)                            :: drij, embed, pot_loc, &
                                                 pot_quip, qr, rab2_max, rij(3)
+    REAL(KIND=dp), ALLOCATABLE               :: fembed( : )
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: glob_cell_v
-    REAL(KIND=dp), POINTER                   :: fembed( : )
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(eam_type), DIMENSION(:), POINTER    :: eam_data
     TYPE(fist_neighbor_type), POINTER        :: nonbonded

@@ -321,10 +321,10 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vks_pw_spline
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: jrho2_r, jrho3_r, nrho1_r, &
                                                 nrho2_r, nrho3_r
-    TYPE(pw_p_type), DIMENSION(:, :), &
-      POINTER                                :: vks_pw_spline
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -595,9 +595,9 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: bind_pw_spline
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: brho1_r, rho_r
-    TYPE(pw_p_type), DIMENSION(:, :), &
-      POINTER                                :: bind_pw_spline
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -820,9 +820,9 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: pw_gspace_work, &
                                                 shift_pw_rspace
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: shift_pw_gspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: epr_rho_r, jrho1_g
-    TYPE(pw_p_type), DIMENSION(:, :), &
-      POINTER                                :: shift_pw_gspace
     TYPE(pw_p_type), POINTER                 :: rho_gspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools

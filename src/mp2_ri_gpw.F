@@ -2570,7 +2570,8 @@ MODULE mp2_ri_gpw
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: rec_col_row_info
     INTEGER, DIMENSION(:), POINTER           :: col_indices_rec, &
                                                 row_indices_rec
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_BI, rec_BI
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: local_BI, rec_BI
 
     ALLOCATE(rec_col_row_info(0:max_row_col_local,2))
 

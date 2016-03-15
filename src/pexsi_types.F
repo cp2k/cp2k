@@ -97,7 +97,7 @@ MODULE pexsi_types
     INTEGER                                  :: nspin, num_ranks_per_pole, mp_group
 
     TYPE(cp_dbcsr_type), DIMENSION(:), &
-      POINTER                                :: max_ev_vector
+      ALLOCATABLE                                :: max_ev_vector
     TYPE(cp_dbcsr_type)                      :: csr_sparsity
     INTEGER, DIMENSION(2)                    :: mp_dims
 

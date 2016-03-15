@@ -73,7 +73,7 @@ MODULE qs_kpp1_env_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_kpp1_env_p_type
-     TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
+     TYPE(qs_kpp1_env_type), ALLOCATABLE :: kpp1_env
   END TYPE qs_kpp1_env_p_type
 
 CONTAINS

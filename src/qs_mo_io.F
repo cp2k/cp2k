@@ -317,9 +317,9 @@ CONTAINS
 
     INTEGER :: handle, iatom, ikind, imat, iset, ishell, ispin, lmax, lshell, &
       max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: nso_info
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
-    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
 
@@ -702,12 +702,13 @@ CONTAINS
       my_mult, nao, nao_read, natom_read, nelectron, nelectron_read, nmo, &
       nmo_read, nnshell, nset, nset_max, nshell_max, nspin, nspin_read, &
       offset_read, source
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: nso_info, offset_info
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
-    INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
     LOGICAL                                  :: minbas, natom_match, use_this
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eig_read, occ_read
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter
@@ -1040,7 +1041,8 @@ CONTAINS
                                                 p_eval, p_evec, p_occ, &
                                                 should_output
     REAL(KIND=dp)                            :: gap
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(qs_dftb_atom_type), POINTER         :: dftb_parameter

@@ -793,14 +793,14 @@ CONTAINS
     TYPE(cp_result_p_type), DIMENSION(:), &
       POINTER                                :: results
     TYPE(cp_result_type), POINTER            :: loc_results, results_mix
-    TYPE(cp_subsys_p_type), DIMENSION(:), &
-      POINTER                                :: subsystems
+    TYPE(cp_subsys_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: subsystems
     TYPE(cp_subsys_type), POINTER            :: subsys_mix
     TYPE(mixed_energy_type), POINTER         :: mixed_energy
     TYPE(mixed_force_type), DIMENSION(:), &
       POINTER                                :: global_forces
     TYPE(particle_list_p_type), &
-      DIMENSION(:), POINTER                  :: particles
+      ALLOCATABLE, DIMENSION(:)              :: particles
     TYPE(particle_list_type), POINTER        :: particles_mix
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 gen_section, mapping_section, &

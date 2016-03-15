@@ -91,7 +91,7 @@ MODULE tmc_types
     INTEGER                                       :: nr_temp
     REAL(KIND=dp), DIMENSION(:), POINTER          :: Temp
     TYPE(cell_type), POINTER                      :: cell
-    REAL(KIND=dp), DIMENSION(:), POINTER          :: sub_box_size
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE          :: sub_box_size
     TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: atoms
     
     INTEGER                                       :: nr_elem_mv
@@ -122,7 +122,7 @@ MODULE tmc_types
   TYPE tmc_atom_type
     CHARACTER(LEN=default_string_length)   :: name
     REAL(KIND = dp)                        :: mass
-    !TYPE(atomic_kind_type), POINTER :: atomic_kind
+    !TYPE(atomic_kind_type), ALLOCATABLE :: atomic_kind
   END TYPE
 
   ! to estimate the prior acceptance

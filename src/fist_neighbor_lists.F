@@ -758,8 +758,7 @@ CONTAINS
     INTEGER                                  :: handle, iab, id_kind, ikind, &
                                                 ipair, jkind, max_alloc_size, &
                                                 npairs, nscale, tmp
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj
-    INTEGER, DIMENSION(:), POINTER           :: work
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indj, work
     INTEGER, DIMENSION(:, :), POINTER        :: list_copy
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 

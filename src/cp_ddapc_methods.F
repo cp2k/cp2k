@@ -863,8 +863,9 @@ CONTAINS
     REAL(KIND=dp)                            :: center(3), eps_in, eps_out, &
                                                 factor, mass, mycos, r1, r2, &
                                                 Rs, rvec(3)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: cost, LocP
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cost, LocP
 
     fixed_center = .FALSE.
     output_unit= cp_logger_get_default_io_unit()

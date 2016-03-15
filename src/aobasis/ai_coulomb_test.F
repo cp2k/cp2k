@@ -53,13 +53,13 @@ CONTAINS
                                                 lc_max, lc_min, ll, n, npgfa, &
                                                 npgfb, npgfc, npgfd
     REAL(KIND=dp)                            :: perf, rac2, t, tend, tstart
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: f, rpgf, zeta, zetb, zetc, &
+                                                zetd
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: vac
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: v
     REAL(KIND=dp), DIMENSION(3)              :: ra, rb, rc, rd
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgf, zeta, zetb, zetc, zetd
 
     IF ( iw>0 ) WRITE(iw,'(/,A)') " Test of Electron Repulsion Integrals (ERI) "
 

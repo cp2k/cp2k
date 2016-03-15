@@ -593,11 +593,12 @@ CONTAINS
     REAL(KIND=dp)                            :: bondparm_factor, cell_v(3), &
                                                 dr(3), ksign, my_maxrad, r2, &
                                                 r2_min, rbond, rbond2, tmp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pbc_coord
     REAL(KIND=dp), DIMENSION(1, 1)           :: r_max, r_minsq
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pbc_coord
-    TYPE(array2_list_type), DIMENSION(:), &
-      POINTER                                :: bond_list
+    TYPE(array2_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -958,9 +959,8 @@ CONTAINS
     CHARACTER(LEN=10)                        :: ctmp1, ctmp2, ctmp3
     INTEGER                                  :: handle, i, idim, itype, j, &
                                                 mol_natom, natom, nsize
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mol_info_tmp
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: mol_info, mol_info_tmp
     INTEGER, DIMENSION(:), POINTER           :: mol_map, mol_map_o, wrk
-    INTEGER, DIMENSION(:, :), POINTER        :: mol_info
     LOGICAL, DIMENSION(:), POINTER           :: icheck
     TYPE(array1_list_type), DIMENSION(:), &
       POINTER                                :: bond_list
@@ -1908,8 +1908,8 @@ CONTAINS
                                                 nbond, nimpr, nsize, &
                                                 output_unit
     LOGICAL                                  :: accept_impr
-    TYPE(array1_list_type), DIMENSION(:), &
-      POINTER                                :: bond_list
+    TYPE(array1_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -2017,8 +2017,8 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, handle, i, &
                                                 ionfo, iw, natom, nbond, &
                                                 nphi, ntheta, output_unit
-    TYPE(array1_list_type), DIMENSION(:), &
-      POINTER                                :: bond_list, phi_list, &
+    TYPE(array1_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: bond_list, phi_list, &
                                                 theta_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger

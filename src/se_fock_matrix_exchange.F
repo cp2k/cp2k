@@ -87,8 +87,8 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, handle, iatom, icol, ikind, &
       integral_screening, irow, jatom, jkind, natom, natorb_a, nkind, nspins
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(2)                    :: size_p_block_a
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: anag, check, defined, found, &
                                                 switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
@@ -117,7 +117,7 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_p_type), &
-      DIMENSION(:), POINTER                  :: se_kind_list
+      ALLOCATABLE, DIMENSION(:)              :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 

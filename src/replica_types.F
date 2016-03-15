@@ -101,10 +101,10 @@ MODULE replica_types
      CHARACTER(LEN=default_path_length)                :: original_project_name
      TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history
      TYPE(cp_result_p_type),DIMENSION(:),POINTER       :: results
-     INTEGER, DIMENSION(:), POINTER                    :: local_rep_indices
+     INTEGER, DIMENSION(:), ALLOCATABLE                    :: local_rep_indices
      INTEGER, DIMENSION(:), POINTER                    :: replica_owner, force_rank, &
                                                           inter_rep_rank
-     LOGICAL, DIMENSION(:), POINTER                    :: rep_is_local
+     LOGICAL, DIMENSION(:), ALLOCATABLE                    :: rep_is_local
      TYPE(cp_para_cart_type), POINTER                  :: cart
      TYPE(cp_para_env_type), POINTER                   :: para_env, para_env_f,&
                                                           para_env_inter_rep

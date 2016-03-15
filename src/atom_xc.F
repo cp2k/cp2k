@@ -81,9 +81,10 @@ CONTAINS
 
     INTEGER                                  :: extunit, handle, ir, nr, z
     REAL(KIND=dp)                            :: int1, int2
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rho
     REAL(KIND=dp), DIMENSION(:), POINTER     :: deltarho, rho_dum, vxc, vxc1, &
                                                 vxc2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
 
     CALL timeset(routineN,handle)
 
@@ -154,7 +155,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: extunit, handle, ir, nr
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rho
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: rho
 
     CALL timeset(routineN,handle)
     nr = atom%basis%grid%nr
@@ -206,7 +208,7 @@ CONTAINS
     LOGICAL                                  :: lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxc
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: exc, vxc
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: drho, lap, rho, tau
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: taumat, xcpot
@@ -394,7 +396,7 @@ CONTAINS
     LOGICAL                                  :: lsd, nlcc
     REAL(KIND=dp)                            :: density_cut, gradient_cut, &
                                                 tau_cut
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: exc, vxca, vxcb, xfun
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: exc, vxca, vxcb, xfun
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: drho, lap, rho, tau
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: taumat, xcpot

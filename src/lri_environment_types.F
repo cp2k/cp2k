@@ -45,9 +45,9 @@ MODULE lri_environment_types
      ! number of spherical fit basis functions (bi)
      INTEGER                                                 :: nfb
      ! expansion coeffs for RI density
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: avec
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                    :: avec
      ! projection coeffs for RI density: SUM_ab (ab,i)*Pab
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: tvec
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                    :: tvec
      ! integral (ai) * sinv * tvec
      REAL(KIND=dp)                                           :: nst
      ! Lagrange parameter
@@ -88,13 +88,13 @@ MODULE lri_environment_types
      ! derivative d(ai,bi)/dA
      REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dsab
      ! derivative of fit coeff dacoef/dpmatrix
-     REAL(KIND=dp), DIMENSION(:,:,:), POINTER                :: dacoef
+     REAL(KIND=dp), DIMENSION(:,:,:), ALLOCATABLE                :: dacoef
      ! inverse of integrals (ai,bi)
      REAL(KIND=dp), DIMENSION(:,:), POINTER                  :: sinv
      ! integral (ai) / (bi), dim(1..nfa,nfa+1..nfa+nfb)
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: n
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                    :: n
      ! sinv * (ai)
-     REAL(KIND=dp), DIMENSION(:), POINTER                    :: sn
+     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE                    :: sn
      ! (ai) * sinv * (ai)
      REAL(KIND=dp)                                           :: nsn
      ! dmax: max deviation for integrals of primitive gtos; for debugging
@@ -129,7 +129,7 @@ MODULE lri_environment_types
 
   TYPE lri_list_type
      INTEGER                                                 :: nkind
-     TYPE(lri_atom_type), DIMENSION(:), POINTER              :: lri_atom
+     TYPE(lri_atom_type), DIMENSION(:), ALLOCATABLE              :: lri_atom
   END TYPE lri_list_type
 
   TYPE lri_list_p_type

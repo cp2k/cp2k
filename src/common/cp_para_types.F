@@ -75,8 +75,8 @@ MODULE cp_para_types
   TYPE cp_para_cart_type
      LOGICAL :: owns_group
      INTEGER :: ndims, rank, ntask
-     INTEGER, DIMENSION(:), POINTER :: mepos, source, num_pe
-     LOGICAL, DIMENSION(:), POINTER :: periodic
+     INTEGER, DIMENSION(:), ALLOCATABLE :: mepos, source, num_pe
+     LOGICAL, DIMENSION(:), ALLOCATABLE :: periodic
      INTEGER :: group, ref_count
   END TYPE cp_para_cart_type
 

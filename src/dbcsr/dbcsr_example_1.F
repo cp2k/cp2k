@@ -38,7 +38,7 @@ PROGRAM dbcsr_example_1
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, nblkrows_total, nblkcols_total, io_unit
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
-  INTEGER, DIMENSION(:,:), POINTER         :: pgrid
+  INTEGER, DIMENSION(:,:), ALLOCATABLE         :: pgrid
   INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
   TYPE(dbcsr_distribution_obj)             :: dist
   TYPE(dbcsr_mp_obj)                       :: mp_env

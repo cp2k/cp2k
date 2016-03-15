@@ -21,7 +21,7 @@ MODULE hartree_local_types
 
 ! *****************************************************************************
   TYPE ecoul_1center_type
-    TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
+    TYPE(rho_atom_coeff), ALLOCATABLE   :: Vh1_h, Vh1_s
     REAL(dp)                        :: ecoul_1_h, ecoul_1_s, &
                                        ecoul_1_z, ecoul_1_0
   END TYPE ecoul_1center_type

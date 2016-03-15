@@ -126,7 +126,7 @@ MODULE qs_resp
   END TYPE resp_type
 
   TYPE resp_p_type
-   TYPE (resp_type), POINTER              ::  p_resp
+   TYPE (resp_type), ALLOCATABLE              ::  p_resp
   END TYPE resp_p_type
 
 CONTAINS

@@ -20,8 +20,8 @@ MODULE powell
     INTEGER            :: unit
     INTEGER            :: maxfun
     REAL(dp)           :: rhobeg, rhoend
-    REAL(dp), DIMENSION(:), POINTER  :: w
-    REAL(dp), DIMENSION(:), POINTER  :: xopt
+    REAL(dp), DIMENSION(:), ALLOCATABLE  :: w
+    REAL(dp), DIMENSION(:), ALLOCATABLE  :: xopt
     ! local variables
     INTEGER            :: np, nh, nptm, nftest, idz, itest, nf, nfm, nfmm, &
                           nfsav, knew, kopt, ksave, ktemp

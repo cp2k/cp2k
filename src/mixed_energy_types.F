@@ -25,7 +25,7 @@ MODULE mixed_energy_types
 
 ! *****************************************************************************
   TYPE mixed_force_type
-     REAL(KIND=dp), DIMENSION(:,:), POINTER         :: forces
+     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: forces
   END TYPE mixed_force_type
 
 ! Public data types

@@ -92,8 +92,7 @@ CONTAINS
     INTEGER :: after, atom_a, atom_b, handle, i, iatom, icol, icor, ikind, &
       inode, irow, itype, iw, j, jatom, jkind, natom, natorb_a, nkind, nr_a, &
       nra, nrb
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nrt
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, nrt
     LOGICAL                                  :: defined, found, omit_headers, &
                                                 use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined

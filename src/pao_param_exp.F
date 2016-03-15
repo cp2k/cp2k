@@ -51,7 +51,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes_diff, &
                                                 blk_sizes_pao, blk_sizes_pri
     LOGICAL                                  :: found
-    REAL(dp), DIMENSION(:), POINTER          :: evals
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: evals
     REAL(dp), DIMENSION(:, :), POINTER       :: block_H, block_N, block_U0
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
@@ -138,8 +138,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(dp)                              :: denom
-    COMPLEX(dp), DIMENSION(:), POINTER       :: evals
-    COMPLEX(dp), DIMENSION(:, :), POINTER    :: block_D, evecs
+    COMPLEX(dp), ALLOCATABLE, DIMENSION(:)   :: evals
+    COMPLEX(dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: block_D, evecs
     INTEGER                                  :: acol, arow, handle, i, iatom, &
                                                 j, k, M, N
     LOGICAL                                  :: found
@@ -285,7 +286,7 @@ CONTAINS
 
     COMPLEX(dp), DIMENSION(:, :), POINTER    :: matrix_c
     INTEGER                                  :: N
-    REAL(dp), DIMENSION(:), POINTER          :: evals_r
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: evals_r
 
     IF(MAXVAL(ABS(matrix+TRANSPOSE(matrix)))>1e-14_dp) CPABORT("Expected anti-symmetric matrix")
     N = SIZE(matrix, 1)
@@ -312,13 +313,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'zheevd_wrapper', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
-    COMPLEX(KIND=dp), DIMENSION(:, :), &
-      POINTER                                :: A
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:)                           :: work
+    COMPLEX(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: A
     INTEGER                                  :: handle, info, liwork, lrwork, &
                                                 lwork, n
-    INTEGER, DIMENSION(:), POINTER           :: iwork
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rwork
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rwork
 
     CALL timeset(routineN,handle)
 

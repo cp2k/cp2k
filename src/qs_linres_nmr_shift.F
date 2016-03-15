@@ -125,9 +125,9 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type)                          :: pw_gspace_work, &
                                                 shift_pw_rspace
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: shift_pw_gspace
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: jrho1_g
-    TYPE(pw_p_type), DIMENSION(:, :), &
-      POINTER                                :: shift_pw_gspace
     TYPE(pw_p_type), POINTER                 :: jrho_gspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools

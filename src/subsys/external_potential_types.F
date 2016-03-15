@@ -161,7 +161,7 @@ MODULE external_potential_types
   END TYPE gth_potential_type
 
   TYPE all_potential_p_type
-     TYPE(all_potential_type), POINTER          :: all_potential
+     TYPE(all_potential_type), ALLOCATABLE          :: all_potential
   END TYPE all_potential_p_type
 
   TYPE gth_potential_p_type
@@ -169,7 +169,7 @@ MODULE external_potential_types
   END TYPE gth_potential_p_type
 
   TYPE local_potential_p_type
-     TYPE(local_potential_type), POINTER        :: local_potential
+     TYPE(local_potential_type), ALLOCATABLE        :: local_potential
   END TYPE local_potential_p_type
 
 ! *****************************************************************************

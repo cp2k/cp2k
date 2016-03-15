@@ -28,7 +28,7 @@ MODULE cp_parser_buffer_types
                                              istat
      INTEGER, DIMENSION(:), POINTER       :: input_line_numbers
      CHARACTER(LEN=max_line_length), &
-          DIMENSION(:), POINTER           :: input_lines
+          DIMENSION(:), ALLOCATABLE           :: input_lines
      TYPE(buffer_type), POINTER           :: sub_buffer
   END TYPE buffer_type
 

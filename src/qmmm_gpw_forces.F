@@ -1697,9 +1697,10 @@ CONTAINS
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
                                                 K, ngrids
     REAL(KIND=dp)                            :: Coord_save
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Num_Forces
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     ALLOCATE(Num_Forces(3,num_mm_atoms))
@@ -1820,9 +1821,10 @@ CONTAINS
     INTEGER                                  :: handle, I, igrid, IndMM, J, &
                                                 K, ngrids
     REAL(KIND=dp)                            :: Coord_save
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: Num_Forces
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Num_Forces
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
 
     ALLOCATE(Num_Forces(3,num_mm_atoms))

@@ -134,7 +134,8 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
+    TYPE(cp_dbcsr_type), ALLOCATABLE, &
+      OPTIONAL                               :: matrix_p
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: matrixkp_p
     TYPE(section_vals_type), POINTER         :: qs_input

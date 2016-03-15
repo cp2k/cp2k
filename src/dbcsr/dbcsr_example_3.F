@@ -45,7 +45,7 @@ PROGRAM dbcsr_example_3
        prow, pcol, nblkrows_total, nblkcols_total, node_holds_blk, max_nze, nze, &
        row, col, row_s, col_s, io_unit
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
-  INTEGER, DIMENSION(:,:), POINTER         :: pgrid
+  INTEGER, DIMENSION(:,:), ALLOCATABLE         :: pgrid
   INTEGER, DIMENSION(:), POINTER           :: col_dist, row_dist
   TYPE(dbcsr_distribution_obj)             :: dist
   TYPE(dbcsr_mp_obj)                       :: mp_env

@@ -207,7 +207,8 @@ CONTAINS
                                      skip_nuclear_density)
     TYPE(pw_p_type), INTENT(INOUT)           :: rho_tot_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: lri_rho_g
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: lri_rho_g
     LOGICAL, INTENT(IN), OPTIONAL            :: skip_nuclear_density
 
     CHARACTER(*), PARAMETER :: routineN = 'calc_lri_rho_tot_gspace', &
@@ -247,7 +248,8 @@ CONTAINS
   SUBROUTINE print_lri_density_cube(qs_env, rho_r, lri)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: rho_r
     LOGICAL, INTENT(IN)                      :: lri
 
     CHARACTER(*), PARAMETER :: routineN = 'print_lri_density_cube', &

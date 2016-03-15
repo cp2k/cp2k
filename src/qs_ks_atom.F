@@ -121,7 +121,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
                                                 orb_basis
     TYPE(kpoint_type), POINTER               :: kpoints

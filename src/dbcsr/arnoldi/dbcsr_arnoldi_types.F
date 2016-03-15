@@ -34,7 +34,7 @@ MODULE dbcsr_arnoldi_types
      LOGICAL                                 :: generalized_ev
      LOGICAL                                 :: iram
      LOGICAL                                 :: has_initial_vector
-     INTEGER, DIMENSION(:), POINTER          :: selected_ind    ! list of indicies matching the selection criterium
+     INTEGER, DIMENSION(:), ALLOCATABLE          :: selected_ind    ! list of indicies matching the selection criterium
   END TYPE arnoldi_control
 
   TYPE arnoldi_data_d

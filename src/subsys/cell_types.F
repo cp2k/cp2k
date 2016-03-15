@@ -580,7 +580,7 @@ CONTAINS
   FUNCTION pbc2(r,cell,nl) RESULT(r_pbc)
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
-    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), ALLOCATABLE             :: cell
     INTEGER, DIMENSION(3), INTENT(IN)        :: nl
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc
 
@@ -845,10 +845,10 @@ CONTAINS
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE pbc_cp2k_plumed_getset_cell(cell, set) 
-    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), ALLOCATABLE             :: cell
     LOGICAL                                  :: set
 
-    TYPE(cell_type), POINTER, SAVE           :: stored_cell
+    TYPE(cell_type), ALLOCATABLE, SAVE       :: stored_cell
 
     IF (set .EQV. .TRUE.) THEN
         stored_cell => cell

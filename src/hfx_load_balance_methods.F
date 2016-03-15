@@ -178,10 +178,10 @@ MODULE hfx_load_balance_methods
       tmp_block, total_block_self_cost
     INTEGER(int_8), ALLOCATABLE, &
       DIMENSION(:)                           :: buffer_in, buffer_out
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:), SAVE                     :: cost_matrix
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
-    INTEGER(int_8), DIMENSION(:), POINTER, &
-      SAVE                                   :: cost_matrix
     INTEGER(int_8), SAVE                     :: shm_global_quartet_counter, &
                                                 shm_local_quartet_counter
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rcount, rdispl, tmp_index, &
@@ -196,15 +196,15 @@ MODULE hfx_load_balance_methods
                                                 log10_eps_schwarz, log_2, &
                                                 pmax_blocks
     TYPE(hfx_block_range_type), &
-      DIMENSION(:), POINTER                  :: blocks_guess, tmp_blocks, &
+      ALLOCATABLE, DIMENSION(:)              :: blocks_guess, tmp_blocks, &
                                                 tmp_blocks2
     TYPE(hfx_block_range_type), &
       DIMENSION(:), POINTER, SAVE            :: shm_blocks
+    TYPE(hfx_distribution), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: full_dist
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER, SAVE         :: full_dist
     TYPE(pair_list_type)                     :: list_ij, list_kl
     TYPE(pair_set_list_type), ALLOCATABLE, &
       DIMENSION(:)                           :: set_list_ij, set_list_kl
@@ -1542,21 +1542,21 @@ END SUBROUTINE hfx_permute_binning
     INTEGER :: data_from, dest, end_idx, handle, i, ibin, icpu, iprocess, j, &
       mepos, my_bin_size, my_global_start_idx, my_process_id, n_processes, &
       nbins, ncpu, req(2), source, start_idx
+    INTEGER(int_8), ALLOCATABLE, &
+      DIMENSION(:), SAVE                     :: cost_matrix
     INTEGER(int_8), DIMENSION(:), POINTER    :: local_cost_matrix, recbuffer, &
                                                 sendbuffer, swapbuffer
-    INTEGER(int_8), DIMENSION(:), POINTER, &
-      SAVE                                   :: cost_matrix
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_pos
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: bins_per_rank
     INTEGER, ALLOCATABLE, DIMENSION(:, :), &
       SAVE                                   :: bin_histogram
     INTEGER, DIMENSION(:), POINTER, SAVE     :: shm_distribution_vector
     INTEGER, SAVE                            :: max_bin_size
+    TYPE(hfx_distribution), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: full_dist
     TYPE(hfx_distribution), DIMENSION(:), &
       POINTER                                :: binned_dist, ptr_to_tmp_dist, &
                                                 tmp_dist
-    TYPE(hfx_distribution), &
-      DIMENSION(:, :), POINTER, SAVE         :: full_dist
 
 !$OMP BARRIER
 !$OMP MASTER
@@ -1892,7 +1892,7 @@ END SUBROUTINE hfx_permute_binning
     INTEGER                                  :: i, itmp, j, nstep
     INTEGER(int_8), DIMENSION(:), POINTER    :: my_cost_cpu, tmp_cost, &
                                                 tmp_cpu_cost
-    INTEGER, DIMENSION(:), POINTER           :: tmp_cpu_index, tmp_index
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_cpu_index, tmp_index
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     nstep=MAX(1,INT(number_of_processes)/2)

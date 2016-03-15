@@ -101,7 +101,8 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_nl
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces
-    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: matrix_p
+    TYPE(cp_dbcsr_type), ALLOCATABLE, &
+      OPTIONAL                               :: matrix_p
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: matrixkp_p
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eps_filter
@@ -125,13 +126,13 @@ CONTAINS
     REAL(KIND=dp)                            :: f0, ff, rab2, tab
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: kab, pab, qab
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: dab
     REAL(KIND=dp), DIMENSION(3)              :: force_a, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: k_block, p_block, rpgfa, &
                                                 rpgfb, scon_a, scon_b, zeta, &
                                                 zetb
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: dab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist

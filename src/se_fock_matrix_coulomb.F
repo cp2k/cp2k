@@ -128,8 +128,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, ispin, itype, &
       jatom, jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, &
       nspins
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, se_natorb
     LOGICAL                                  :: anag, atener, check, defined, &
                                                 found, switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
@@ -165,7 +164,7 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_p_type), &
-      DIMENSION(:), POINTER                  :: se_kind_list
+      ALLOCATABLE, DIMENSION(:)              :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 
@@ -503,7 +502,7 @@ CONTAINS
     INTEGER :: atom_a, ewald_type, forces_g_size, handle, iatom, ikind, &
       ilist, indi, indj, ispin, itype, iw, jint, natoms, natorb_a, nkind, &
       nlocal_particles, node, nparticle_local, nspins, size_1c_int
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, found, &
                                                 use_virial
     LOGICAL, DIMENSION(3)                    :: task
@@ -880,8 +879,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, iatom, ikind, inode, itype, jatom, &
       jkind, natom, natorb_a, natorb_a2, natorb_b, natorb_b2, nkind, nspins, &
       size1, size2
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, se_natorb
     LOGICAL                                  :: anag, atener, check, defined, &
                                                 found, switch, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
@@ -916,7 +914,7 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_p_type), &
-      DIMENSION(:), POINTER                  :: se_kind_list
+      ALLOCATABLE, DIMENSION(:)              :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
     CALL timeset(routineN,handle)
@@ -1253,8 +1251,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, ewald_type, handle, iatom, ikind, inode, &
       ispin, itype, jatom, jkind, natoms, natorb_a, natorb_a2, natorb_b, &
       natorb_b2, nkind, nlocal_particles, nspins
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: se_natorb
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, se_natorb
     LOGICAL                                  :: anag, atener, check, defined, &
                                                 found, switch
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
@@ -1294,7 +1291,7 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_p_type), &
-      DIMENSION(:), POINTER                  :: se_kind_list
+      ALLOCATABLE, DIMENSION(:)              :: se_kind_list
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
     CALL timeset(routineN,handle)

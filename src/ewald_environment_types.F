@@ -81,7 +81,7 @@ MODULE ewald_environment_types
 !> \author CJM
 ! *****************************************************************************
   TYPE ewald_environment_p_type
-     TYPE(ewald_environment_type), POINTER :: ewald_env
+     TYPE(ewald_environment_type), ALLOCATABLE :: ewald_env
   END TYPE ewald_environment_p_type
 
 ! *** Public data types ***

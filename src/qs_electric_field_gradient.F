@@ -121,7 +121,8 @@ CONTAINS
     TYPE(pw_p_type)                          :: dvr2rs, rho_tot_gspace, &
                                                 structure_factor, &
                                                 v_hartree_gspace
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: dvr2, dvspl
+    TYPE(pw_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: dvr2, dvspl
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond

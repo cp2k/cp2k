@@ -527,7 +527,7 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: file_tmp, iter
     INTEGER                                  :: iatom, istate, natom, nstate, &
                                                 unit_out_s
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_state
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_state
     REAL(dp)                                 :: r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Qii, ziimax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: diag

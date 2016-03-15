@@ -90,7 +90,7 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, handle, iab, &
                                                 iatom, ikind, itype, jatom, &
                                                 jkind, natom, nkind
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     LOGICAL                                  :: anag, atener, defined, &
                                                 use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: se_defined
@@ -121,7 +121,7 @@ CONTAINS
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
     TYPE(semi_empirical_p_type), &
-      DIMENSION(:), POINTER                  :: se_kind_param
+      ALLOCATABLE, DIMENSION(:)              :: se_kind_param
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(virial_type), POINTER               :: virial
 

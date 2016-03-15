@@ -115,7 +115,7 @@ CONTAINS
                                                 j, k, N, natoms
     LOGICAL                                  :: found
     REAL(dp)                                 :: v, w
-    REAL(dp), DIMENSION(:), POINTER          :: evals
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: evals
     REAL(dp), DIMENSION(:, :), POINTER       :: A, block_N, block_N_inv, &
                                                 block_S
     TYPE(cp_dbcsr_iterator)                  :: iter

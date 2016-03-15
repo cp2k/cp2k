@@ -60,7 +60,7 @@ MODULE atomic_kind_types
 ! *****************************************************************************
   TYPE atomic_kind_p_type
      TYPE(atomic_kind_type),DIMENSION(:),&
-          POINTER                             :: atomic_kind_set
+          ALLOCATABLE                             :: atomic_kind_set
   END TYPE atomic_kind_p_type
 
   ! Public subroutines

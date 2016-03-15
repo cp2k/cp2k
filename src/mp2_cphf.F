@@ -1457,8 +1457,8 @@ MODULE mp2_cphf
                                                 x_norm, x_norm_b, xi_b
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: A_small, b_small, xi_Axi
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: Ax, Ax_ab, Ax_ba, Ax_bb, xn, &
+    TYPE(cp_fm_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: Ax, Ax_ab, Ax_ba, Ax_bb, xn, &
                                                 xn_b
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp, fm_struct_tmp_b
     TYPE(cp_fm_type), POINTER                :: Ap, Ap_b, b_i, b_i_b, pk, &

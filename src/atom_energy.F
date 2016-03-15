@@ -106,8 +106,8 @@ CONTAINS
     TYPE(atom_integrals), POINTER            :: ae_int, pp_int
     TYPE(atom_optimization_type)             :: optimization
     TYPE(atom_orbitals), POINTER             :: orbitals
-    TYPE(atom_p_type), DIMENSION(:, :), &
-      POINTER                                :: atom_info
+    TYPE(atom_p_type), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: atom_info
     TYPE(atom_potential_type), POINTER       :: ae_pot, p_pot
     TYPE(atom_state), POINTER                :: state
     TYPE(cp_logger_type), POINTER            :: logger

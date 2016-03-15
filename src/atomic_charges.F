@@ -135,10 +135,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE print_multipoles(particle_set, qs_kind_set, scr, charge, dipole, quadrupole)
 
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
+    TYPE(particle_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: particle_set
+    TYPE(qs_kind_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: qs_kind_set
     INTEGER                                  :: scr
     REAL(KIND=dp), DIMENSION(:), OPTIONAL    :: charge
     REAL(KIND=dp), DIMENSION(:, :), OPTIONAL :: dipole

@@ -39,11 +39,11 @@ MODULE admm_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'admm_types'
 
   TYPE eigvals_type
-    REAL(dp), DIMENSION(:), POINTER          :: DATA
+    REAL(dp), DIMENSION(:), ALLOCATABLE          :: DATA
   END TYPE
 
   TYPE eigvals_p_type
-    TYPE(eigvals_type), POINTER              :: eigvals
+    TYPE(eigvals_type), ALLOCATABLE              :: eigvals
   END TYPE
 
 ! *****************************************************************************

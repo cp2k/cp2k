@@ -44,7 +44,7 @@ PROGRAM dbcsr_test_csr_conversions
 
   INTEGER                      :: mp_comm, group, numnodes, mynode, &
                                   prow, pcol, io_unit
-  INTEGER, DIMENSION(:,:), POINTER         :: pgrid
+  INTEGER, DIMENSION(:,:), ALLOCATABLE         :: pgrid
 
   INTEGER, DIMENSION(2)                    :: npdims, myploc, coord
   TYPE(dbcsr_mp_obj)           :: mp_env

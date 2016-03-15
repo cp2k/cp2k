@@ -28,7 +28,7 @@ MODULE dg_types
 
 ! *****************************************************************************
   TYPE dg_p_type
-    TYPE ( dg_type ), POINTER :: dg
+    TYPE ( dg_type ), ALLOCATABLE :: dg
   END TYPE dg_p_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dg_types'

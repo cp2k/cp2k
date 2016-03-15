@@ -134,7 +134,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(nexp_max)       :: alpha_ppl
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: ap_iterator, nl_iterator

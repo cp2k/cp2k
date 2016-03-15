@@ -535,13 +535,12 @@ CONTAINS
     INTEGER :: hand1, hand2, hand3, hand4, hand5, hand6, handle, i, ia, ib, &
       ik, imo, imo_low, imo_up, info, it, j, jt, liwork, lwork, nblock, ndim, &
       nmo, nmo_converged, nmo_nc, nmob, num_blocks
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken
-    INTEGER, DIMENSION(:), POINTER           :: iwork
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itaken, iwork
     LOGICAL                                  :: my_check_moconv_only
     REAL(dp)                                 :: max_norm, min_norm, vmax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: a_block, b_block, q_mat, t_mat
     REAL(dp), DIMENSION(:), POINTER          :: c_res, t_eval
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_loc, b_loc
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: v_mat

@@ -611,7 +611,7 @@ CONTAINS
 
     INTEGER                                  :: i, isize, jsize, jsize1, jsize2, j
         TYPE(charge_mono_type), DIMENSION(:),&
-         POINTER                             :: charge_typ_bk
+         ALLOCATABLE                             :: charge_typ_bk
 
     IF (ASSOCIATED(charge_typ)) THEN
        isize = SIZE(charge_typ)
@@ -918,7 +918,7 @@ SUBROUTINE debug_ewald_multipoles_fields2(ewald_env, ewald_pw, nonbond_env, cell
   CHARACTER(len=*), PARAMETER :: routineN = 'debug_ewald_multipoles_fields', &
       routineP = "ewalds_multipole_debug"//':'//routineN
 
-  REAL(KIND=dp), POINTER, DIMENSION(:)     :: efield0
+  REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: efield0
   REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ldipoles
   REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: lquadrupoles
   REAL(KIND=dp)                            :: energy_local, energy_glob, e_neut,&

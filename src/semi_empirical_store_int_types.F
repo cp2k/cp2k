@@ -45,9 +45,9 @@ MODULE semi_empirical_store_int_types
      REAL(KIND=dp), POINTER, DIMENSION(:)        :: max_val_buffer, uncompressed_container
      TYPE(hfx_memory_type)                       :: memory_parameter
      TYPE(hfx_cache_type), DIMENSION(:), &
-          POINTER                                :: integral_caches
+          ALLOCATABLE                                :: integral_caches
      TYPE(hfx_container_type), DIMENSION(:), &
-          POINTER                                :: integral_containers
+          ALLOCATABLE                                :: integral_containers
   END TYPE semi_empirical_si_type
 
 

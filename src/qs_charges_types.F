@@ -41,7 +41,7 @@ MODULE qs_charges_types
      REAL(KIND = dp) :: total_rho_core_rspace, total_rho_gspace
      REAL(KIND = dp) :: total_rho0_soft_rspace, total_rho0_hard_lebedev
      REAL(KIND = dp) :: total_rho_soft_gspace
-     REAL(KIND = dp), DIMENSION(:), POINTER  :: total_rho1_hard,&
+     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE  :: total_rho1_hard,&
                                                 total_rho1_soft
      REAL(KIND = dp) :: background
   END TYPE qs_charges_type

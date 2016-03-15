@@ -122,8 +122,8 @@ MODULE qs_ot_types
      TYPE(cp_dbcsr_type), POINTER :: matrix_buf1_ortho
      TYPE(cp_dbcsr_type), POINTER :: matrix_buf2_ortho
 
-     REAL(KIND = dp),  DIMENSION(:), POINTER :: evals
-     REAL(KIND = dp),  DIMENSION(:), POINTER :: dum
+     REAL(KIND = dp),  DIMENSION(:), ALLOCATABLE :: evals
+     REAL(KIND = dp),  DIMENSION(:), ALLOCATABLE :: dum
 
      ! matrix os valid
      LOGICAL os_valid
@@ -150,12 +150,12 @@ MODULE qs_ot_types
 
      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER :: matrix_h_e, matrix_h_x
 
-     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: ls_diis
+     REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE  :: ls_diis
      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: lss_diis
-     REAL(KIND = dp), DIMENSION(:),   POINTER  :: c_diis
-     REAL(KIND = dp), DIMENSION(:),   POINTER  :: c_broy
-     REAL(KIND = dp), DIMENSION(:),   POINTER  :: energy_h
-     INTEGER,  DIMENSION(:),   POINTER         :: ipivot
+     REAL(KIND = dp), DIMENSION(:),   ALLOCATABLE  :: c_diis
+     REAL(KIND = dp), DIMENSION(:),   ALLOCATABLE  :: c_broy
+     REAL(KIND = dp), DIMENSION(:),   ALLOCATABLE  :: energy_h
+     INTEGER,  DIMENSION(:),   ALLOCATABLE         :: ipivot
 
      REAL(KIND = dp)  :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
      INTEGER          :: line_search_left,line_search_right,line_search_mid
@@ -193,8 +193,8 @@ MODULE qs_ot_types
      REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_dx
      REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx
      REAL ( KIND = dp ), POINTER, DIMENSION ( : ) :: ener_gx_old
-     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_e
-     REAL ( KIND = dp ), POINTER, DIMENSION ( :, : ) :: ener_h_x
+     REAL ( KIND = dp ), ALLOCATABLE, DIMENSION ( :, : ) :: ener_h_e
+     REAL ( KIND = dp ), ALLOCATABLE, DIMENSION ( :, : ) :: ener_h_x
   END TYPE qs_ot_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_types'

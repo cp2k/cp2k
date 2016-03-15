@@ -96,7 +96,7 @@ MODULE fist_environment_types
 !> \author CJM
 ! *****************************************************************************
   TYPE fist_environment_p_type
-     TYPE(fist_environment_type), POINTER :: fist_env
+     TYPE(fist_environment_type), ALLOCATABLE :: fist_env
   END TYPE fist_environment_p_type
 
 ! *** Public data types ***

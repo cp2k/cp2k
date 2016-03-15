@@ -31,8 +31,8 @@ MODULE gaussian_gridlevels
 ! *****************************************************************************
   TYPE gridlevel_info_type
      INTEGER                         :: ngrid_levels
-     REAL(KIND = dp), POINTER, DIMENSION(:) :: cutoff
-     INTEGER(KIND=int_8) , POINTER, DIMENSION(:) :: count
+     REAL(KIND = dp), ALLOCATABLE, DIMENSION(:) :: cutoff
+     INTEGER(KIND=int_8) , ALLOCATABLE, DIMENSION(:) :: count
      INTEGER(KIND=int_8)                         :: total_count
      REAL(KIND = dp)                  :: rel_cutoff
      TYPE(section_vals_type), POINTER :: print_section
@@ -82,8 +82,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env)
     TYPE(gridlevel_info_type)                :: gridlevel_info
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
+    TYPE(cp_para_env_type), ALLOCATABLE, &
+      OPTIONAL                               :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_gaussian_gridlevel', &
       routineP = moduleN//':'//routineN

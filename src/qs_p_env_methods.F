@@ -375,8 +375,8 @@ CONTAINS
 
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: psi0
+    TYPE(cp_fm_p_type), ALLOCATABLE, &
+      DIMENSION(:), OPTIONAL                 :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout), OPTIONAL                :: Hrho_psi0d
 

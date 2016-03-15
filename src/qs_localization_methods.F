@@ -71,10 +71,10 @@ MODULE qs_localization_methods
   PRIVATE
 
    TYPE set_c_1d_type
-     COMPLEX(KIND=dp), POINTER, DIMENSION(:) :: c_array
+     COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:) :: c_array
    END TYPE
    TYPE set_c_2d_type
-     COMPLEX(KIND=dp), POINTER, DIMENSION(:,:) :: c_array
+     COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: c_array
    END TYPE
 
 CONTAINS

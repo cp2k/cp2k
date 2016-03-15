@@ -504,7 +504,7 @@ MODULE qs_rho_atom_methods
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_p_type), &
-      DIMENSION(:), POINTER                  :: basis_set_list
+      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b, &
                                                 orb_basis_set
     TYPE(kpoint_type), POINTER               :: kpoints
@@ -516,8 +516,8 @@ MODULE qs_rho_atom_methods
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
-    TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: p_block_spin
+    TYPE(rho_atom_coeff), ALLOCATABLE, &
+      DIMENSION(:)                           :: p_block_spin
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
 
@@ -1153,7 +1153,7 @@ MODULE qs_rho_atom_methods
 ! *****************************************************************************
   SUBROUTINE set2zero_rho_atom_rad(rho_atom_set,iatom,ispin)
 
-!    TYPE(rho_atom_type), POINTER             :: rho_atom
+!    TYPE(rho_atom_type), ALLOCATABLE             :: rho_atom
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     INTEGER, INTENT(IN)                      :: iatom, ispin

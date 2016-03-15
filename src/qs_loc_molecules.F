@@ -78,17 +78,17 @@ CONTAINS
     INTEGER :: akind, counter, first_atom, i, iatom, ikind, imol, imol_now, &
       istate, j, local_location, natom, natom_loc, natom_max, nkind, nmol, &
       nstate, output_unit, reference
-    INTEGER, POINTER                         :: wfc_to_atom_map( : )
+    INTEGER, ALLOCATABLE                     :: wfc_to_atom_map( : )
     LOGICAL                                  :: do_berry, ghost
     REAL(KIND=dp)                            :: charge_tot, dipole(3), dr(3), &
                                                 mydist(2), ria( 3 ), theta, &
                                                 zeff, zwfc
+    REAL(KIND=dp), ALLOCATABLE               :: distance( : ), r( :, : )
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charge_set
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: dipole_set
     REAL(KIND=dp), DIMENSION(3)              :: ci, gvec, rcc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ref_point
-    REAL(KIND=dp), POINTER                   :: distance( : ), r( :, : )
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger

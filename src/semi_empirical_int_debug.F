@@ -27,7 +27,7 @@ SUBROUTINE check_rotmat_der( sepi, sepj, rjiv, ij_matrix, do_invert)
   IMPLICIT NONE
   TYPE(semi_empirical_type), POINTER       :: sepi, sepj
   REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rjiv
-  TYPE(rotmat_type), POINTER               :: ij_matrix
+  TYPE(rotmat_type), ALLOCATABLE               :: ij_matrix
   LOGICAL, INTENT(IN)                      :: do_invert
 
   CHARACTER(len=*), PARAMETER :: moduleN='semi_empirical_int_debug',&
