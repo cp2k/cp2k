@@ -75,7 +75,8 @@ MODULE colvar_types
                                 hbp_colvar_id                 = 21,&
                                 ring_puckering_colvar_id      = 22,&
                                 mindist_colvar_id             = 23,&
-                                acid_hyd_dist_colvar_id       = 24
+                                acid_hyd_dist_colvar_id       = 24,&
+                                acid_hyd_shell_colvar_id      = 25
 
 
 ! *****************************************************************************
@@ -207,6 +208,18 @@ MODULE colvar_types
   END TYPE acid_hyd_dist_colvar_type
 
 ! *****************************************************************************
+  TYPE acid_hyd_shell_colvar_type
+     INTEGER                         :: n_oxygens_water,&
+                                        n_oxygens_acid,&
+                                        n_hydrogens,&
+                                        pwoh, qwoh, paoh, qaoh, &
+                                        poo, qoo, pcut, qcut, pm, qm
+     INTEGER, POINTER, DIMENSION (:) :: i_oxygens_water, i_oxygens_acid, &
+                                        i_hydrogens
+     REAL(KIND=dp)                   :: rwoh, raoh, roo, lambda, nc, nh
+  END TYPE acid_hyd_shell_colvar_type
+
+! *****************************************************************************
   TYPE reaction_path_colvar_type
      INTEGER                                  :: type_id
      INTEGER                                  :: n_components, nr_frames, subset
@@ -335,6 +348,7 @@ MODULE colvar_types
      TYPE(qparm_colvar_type), POINTER            :: qparm_param
      TYPE(hydronium_colvar_type), POINTER        :: hydronium_param
      TYPE(acid_hyd_dist_colvar_type), POINTER    :: acid_hyd_dist_param
+     TYPE(acid_hyd_shell_colvar_type), POINTER   :: acid_hyd_shell_param
      TYPE(reaction_path_colvar_type),POINTER     :: reaction_path_param
      TYPE(combine_colvar_type), POINTER          :: combine_cvs_param
      TYPE(rmsd_colvar_type), POINTER             :: rmsd_param
@@ -365,7 +379,8 @@ MODULE colvar_types
      INTEGER :: ndfunct
      INTEGER :: nqparm
      INTEGER :: nhydronium
-     INTEGER :: nacid_hyd_dist ! DG
+     INTEGER :: nacid_hyd_dist 
+     INTEGER :: nacid_hyd_shell 
      INTEGER :: nreactionpath
      INTEGER :: ncombinecvs
      INTEGER :: nrestraint
@@ -414,6 +429,7 @@ CONTAINS
     NULLIFY(colvar%u_param)
     NULLIFY(colvar%hydronium_param)
     NULLIFY(colvar%acid_hyd_dist_param)
+    NULLIFY(colvar%acid_hyd_shell_param)
     NULLIFY(colvar%reaction_path_param)
     NULLIFY(colvar%combine_cvs_param)
     NULLIFY(colvar%rmsd_param)
@@ -465,6 +481,8 @@ CONTAINS
        ALLOCATE(colvar%hydronium_param)
     CASE(acid_hyd_dist_colvar_id)
        ALLOCATE(colvar%acid_hyd_dist_param)
+    CASE(acid_hyd_shell_colvar_id)
+       ALLOCATE(colvar%acid_hyd_shell_param)
     CASE(reaction_path_colvar_id)
        ALLOCATE(colvar%reaction_path_param)
     CASE(distance_from_path_colvar_id)
@@ -795,59 +813,14 @@ CONTAINS
        np = colvar%acid_hyd_dist_param%n_oxygens_water &
            +colvar%acid_hyd_dist_param%n_oxygens_acid &
            +colvar%acid_hyd_dist_param%n_hydrogens
-       ! Number of real atoms involved in the colvar
-       colvar%n_atom_s=0
-       DO ii=1,colvar%acid_hyd_dist_param%n_oxygens_water
-          i = colvar%acid_hyd_dist_param%i_oxygens_water(ii)
-          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
-       ENDDO
-       DO ii=1,colvar%acid_hyd_dist_param%n_oxygens_acid
-          i = colvar%acid_hyd_dist_param%i_oxygens_acid(ii)
-          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
-       ENDDO
-       DO ii=1,colvar%acid_hyd_dist_param%n_hydrogens
-          i = colvar%acid_hyd_dist_param%i_hydrogens(ii)
-          colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
-       ENDDO
        ALLOCATE(list(np))
-       idum = 0
-       DO ii=1,colvar%acid_hyd_dist_param%n_oxygens_water
-          idum = idum + 1
-          i = colvar%acid_hyd_dist_param%i_oxygens_water(ii)
-          list(idum) = i
-          IF(ANY(colvar%acid_hyd_dist_param%i_hydrogens==i))&
-             CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and HYDROGENS list")
-          IF(ANY(colvar%acid_hyd_dist_param%i_oxygens_acid==i))&
-             CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and OXYGENS_ACID list")
-       ENDDO
-       DO ii=1,colvar%acid_hyd_dist_param%n_oxygens_acid
-          idum = idum + 1
-          i = colvar%acid_hyd_dist_param%i_oxygens_acid(ii)
-          list(idum) = i
-          IF(ANY(colvar%acid_hyd_dist_param%i_hydrogens==i))&
-             CPABORT("COLVAR: atoms doubled in OXYGENS_ACID and HYDROGENS list")
-       ENDDO
-       DO ii=1,colvar%acid_hyd_dist_param%n_hydrogens
-          idum = idum + 1
-          i = colvar%acid_hyd_dist_param%i_hydrogens(ii)
-          list(idum) = i
-       ENDDO
-       CPASSERT(idum==np)
-       DO i=1,np
-          DO ii=i+1,np
-             IF(list(i) == list(ii)) THEN 
-                IF(i <= colvar%acid_hyd_dist_param%n_oxygens_water)&
-                   CPABORT("atoms doubled in OXYGENS_WATER list")
-                IF(i > colvar%acid_hyd_dist_param%n_oxygens_water&
-                  .AND.i <= colvar%acid_hyd_dist_param%n_oxygens_water&
-                            +colvar%acid_hyd_dist_param%n_oxygens_acid)&
-                   CPABORT("atoms doubled in OXYGENS_ACID list")
-                IF(i > colvar%acid_hyd_dist_param%n_oxygens_water&
-                       +colvar%acid_hyd_dist_param%n_oxygens_acid)&
-                   CPABORT("atoms doubled in HYDROGENS list")
-             ENDIF
-          ENDDO
-       ENDDO
+       CALL setup_acid_hydronium_colvars(colvar,acid_hyd_dist_colvar_id,list)
+    CASE(acid_hyd_shell_colvar_id)
+       np = colvar%acid_hyd_shell_param%n_oxygens_water &
+           +colvar%acid_hyd_shell_param%n_oxygens_acid &
+           +colvar%acid_hyd_shell_param%n_hydrogens
+       ALLOCATE(list(np))
+       CALL setup_acid_hydronium_colvars(colvar,acid_hyd_shell_colvar_id,list)
     CASE(rmsd_colvar_id)
        np = colvar%rmsd_param%n_atoms
        ! Number of real atoms involved in the colvar
@@ -1053,6 +1026,100 @@ CONTAINS
   END SUBROUTINE colvar_setup
 
 ! *****************************************************************************
+!> \brief Finalize the setup of the collective variable for the dissociation
+!>        of a carboxylic acid in water
+!> \param colvar the colvar to initialize
+!> \param colvar_id ...
+!> \param list ...
+!> \author Dorothea Golze 
+! *****************************************************************************
+  SUBROUTINE setup_acid_hydronium_colvars(colvar,colvar_id,list)
+    TYPE(colvar_type), POINTER               :: colvar
+    INTEGER, INTENT(IN)                      :: colvar_id
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: list
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_acid_hydronium_colvars', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, idum, ii, n_hydrogens, &
+                                                n_oxygens_acid, &
+                                                n_oxygens_water, np
+    INTEGER, DIMENSION(:), POINTER           :: i_hydrogens, i_oxygens_acid, &
+                                                i_oxygens_water
+
+    NULLIFY(i_oxygens_water,i_oxygens_acid,i_hydrogens)
+
+    SELECT CASE(colvar_id)
+    CASE(acid_hyd_dist_colvar_id)
+       n_oxygens_water = colvar%acid_hyd_dist_param%n_oxygens_water
+       n_oxygens_acid = colvar%acid_hyd_dist_param%n_oxygens_acid
+       n_hydrogens = colvar%acid_hyd_dist_param%n_hydrogens
+       i_oxygens_water => colvar%acid_hyd_dist_param%i_oxygens_water
+       i_oxygens_acid => colvar%acid_hyd_dist_param%i_oxygens_acid
+       i_hydrogens => colvar%acid_hyd_dist_param%i_hydrogens
+    CASE(acid_hyd_shell_colvar_id)
+       n_oxygens_water = colvar%acid_hyd_shell_param%n_oxygens_water
+       n_oxygens_acid = colvar%acid_hyd_shell_param%n_oxygens_acid
+       n_hydrogens = colvar%acid_hyd_shell_param%n_hydrogens
+       i_oxygens_water => colvar%acid_hyd_shell_param%i_oxygens_water
+       i_oxygens_acid => colvar%acid_hyd_shell_param%i_oxygens_acid
+       i_hydrogens => colvar%acid_hyd_shell_param%i_hydrogens
+    END SELECT
+
+    np = n_oxygens_water + n_oxygens_acid + n_hydrogens
+    ! Number of real atoms involved in the colvar
+    colvar%n_atom_s=0
+    DO ii=1,n_oxygens_water
+       i = i_oxygens_water(ii)
+       colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+    ENDDO
+    DO ii=1,n_oxygens_acid
+       i = i_oxygens_acid(ii)
+       colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+    ENDDO
+    DO ii=1,n_hydrogens
+       i = i_hydrogens(ii)
+       colvar%n_atom_s=colvar%n_atom_s+COLV_SIZE(colvar,i)
+    ENDDO
+    idum = 0
+    DO ii=1,n_oxygens_water
+       idum = idum + 1
+       i = i_oxygens_water(ii)
+       list(idum) = i
+       IF(ANY(i_hydrogens==i))&
+          CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and HYDROGENS list")
+       IF(ANY(i_oxygens_acid==i))&
+          CPABORT("COLVAR: atoms doubled in OXYGENS_WATER and OXYGENS_ACID list")
+    ENDDO
+    DO ii=1,n_oxygens_acid
+       idum = idum + 1
+       i = i_oxygens_acid(ii)
+       list(idum) = i
+       IF(ANY(i_hydrogens==i))&
+          CPABORT("COLVAR: atoms doubled in OXYGENS_ACID and HYDROGENS list")
+    ENDDO
+    DO ii=1,n_hydrogens
+       idum = idum + 1
+       i = i_hydrogens(ii)
+       list(idum) = i
+    ENDDO
+    CPASSERT(idum==np)
+    DO i=1,np
+       DO ii=i+1,np
+          IF(list(i) == list(ii)) THEN 
+             IF(i <= n_oxygens_water)&
+                CPABORT("atoms doubled in OXYGENS_WATER list")
+             IF(i > n_oxygens_water.AND.i <= n_oxygens_water + n_oxygens_acid)&
+                CPABORT("atoms doubled in OXYGENS_ACID list")
+             IF(i > n_oxygens_water + n_oxygens_acid)&
+                CPABORT("atoms doubled in HYDROGENS list")
+          ENDIF
+       ENDDO
+    ENDDO
+    
+  END SUBROUTINE setup_acid_hydronium_colvars
+
+! *****************************************************************************
 !> \brief Gives back the size of an array of integer. If not associated gives back 1
 !> \param colvar ...
 !> \param i ...
@@ -1181,6 +1248,11 @@ CONTAINS
        DEALLOCATE(colvar%acid_hyd_dist_param%i_oxygens_acid)
        DEALLOCATE(colvar%acid_hyd_dist_param%i_hydrogens)
        DEALLOCATE(colvar%acid_hyd_dist_param)
+    CASE (acid_hyd_shell_colvar_id)
+       DEALLOCATE(colvar%acid_hyd_shell_param%i_oxygens_water)
+       DEALLOCATE(colvar%acid_hyd_shell_param%i_oxygens_acid)
+       DEALLOCATE(colvar%acid_hyd_shell_param%i_hydrogens)
+       DEALLOCATE(colvar%acid_hyd_shell_param)
     CASE (reaction_path_colvar_id, distance_from_path_colvar_id)
        IF(colvar%reaction_path_param%dist_rmsd .OR. colvar%reaction_path_param%rmsd) THEN
          DEALLOCATE(colvar%reaction_path_param%r_ref)
@@ -1467,6 +1539,34 @@ CONTAINS
       colvar_out%acid_hyd_dist_param%i_oxygens_water  = colvar_in%acid_hyd_dist_param%i_oxygens_water + my_offset
       colvar_out%acid_hyd_dist_param%i_oxygens_acid   = colvar_in%acid_hyd_dist_param%i_oxygens_acid + my_offset
       colvar_out%acid_hyd_dist_param%i_hydrogens      = colvar_in%acid_hyd_dist_param%i_hydrogens + my_offset
+    CASE(acid_hyd_shell_colvar_id)
+      colvar_out%acid_hyd_shell_param%n_hydrogens     = colvar_in%acid_hyd_shell_param%n_hydrogens
+      colvar_out%acid_hyd_shell_param%n_oxygens_water = colvar_in%acid_hyd_shell_param%n_oxygens_water
+      colvar_out%acid_hyd_shell_param%n_oxygens_acid  = colvar_in%acid_hyd_shell_param%n_oxygens_acid
+      colvar_out%acid_hyd_shell_param%nc              = colvar_in%acid_hyd_shell_param%nc
+      colvar_out%acid_hyd_shell_param%nh              = colvar_in%acid_hyd_shell_param%nh
+      colvar_out%acid_hyd_shell_param%pwoh            = colvar_in%acid_hyd_shell_param%pwoh
+      colvar_out%acid_hyd_shell_param%qwoh            = colvar_in%acid_hyd_shell_param%qwoh
+      colvar_out%acid_hyd_shell_param%paoh            = colvar_in%acid_hyd_shell_param%paoh
+      colvar_out%acid_hyd_shell_param%qaoh            = colvar_in%acid_hyd_shell_param%qaoh
+      colvar_out%acid_hyd_shell_param%poo             = colvar_in%acid_hyd_shell_param%poo
+      colvar_out%acid_hyd_shell_param%qoo             = colvar_in%acid_hyd_shell_param%qoo
+      colvar_out%acid_hyd_shell_param%pm              = colvar_in%acid_hyd_shell_param%pm
+      colvar_out%acid_hyd_shell_param%qm              = colvar_in%acid_hyd_shell_param%qm
+      colvar_out%acid_hyd_shell_param%pcut            = colvar_in%acid_hyd_shell_param%pcut
+      colvar_out%acid_hyd_shell_param%qcut            = colvar_in%acid_hyd_shell_param%qcut
+      colvar_out%acid_hyd_shell_param%rwoh            = colvar_in%acid_hyd_shell_param%rwoh
+      colvar_out%acid_hyd_shell_param%raoh            = colvar_in%acid_hyd_shell_param%raoh
+      colvar_out%acid_hyd_shell_param%roo             = colvar_in%acid_hyd_shell_param%roo
+      ndim = SIZE(colvar_in%acid_hyd_shell_param%i_oxygens_water)
+      ALLOCATE(colvar_out%acid_hyd_shell_param%i_oxygens_water(ndim))
+      ndim = SIZE(colvar_in%acid_hyd_shell_param%i_oxygens_acid)
+      ALLOCATE(colvar_out%acid_hyd_shell_param%i_oxygens_acid(ndim))
+      ndim = SIZE(colvar_in%acid_hyd_shell_param%i_hydrogens)
+      ALLOCATE(colvar_out%acid_hyd_shell_param%i_hydrogens(ndim))
+      colvar_out%acid_hyd_shell_param%i_oxygens_water  = colvar_in%acid_hyd_shell_param%i_oxygens_water + my_offset
+      colvar_out%acid_hyd_shell_param%i_oxygens_acid   = colvar_in%acid_hyd_shell_param%i_oxygens_acid + my_offset
+      colvar_out%acid_hyd_shell_param%i_hydrogens      = colvar_in%acid_hyd_shell_param%i_hydrogens + my_offset
     CASE(reaction_path_colvar_id, distance_from_path_colvar_id)
        colvar_out%reaction_path_param%dist_rmsd = colvar_in%reaction_path_param%dist_rmsd
        colvar_out%reaction_path_param%rmsd = colvar_in%reaction_path_param%rmsd

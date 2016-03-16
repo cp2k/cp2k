@@ -22,12 +22,13 @@ MODULE molecule_kind_types
                                              use_perd_yz,&
                                              use_perd_z
   USE colvar_types,                    ONLY: &
-       acid_hyd_dist_colvar_id, angle_colvar_id, colvar_counters, &
-       combine_colvar_id, coord_colvar_id, dfunct_colvar_id, dist_colvar_id, &
-       gyration_colvar_id, hydronium_colvar_id, plane_distance_colvar_id, &
-       plane_plane_angle_colvar_id, population_colvar_id, qparm_colvar_id, &
-       reaction_path_colvar_id, rotation_colvar_id, torsion_colvar_id, &
-       xyz_diag_colvar_id, xyz_outerdiag_colvar_id
+       acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, angle_colvar_id, &
+       colvar_counters, combine_colvar_id, coord_colvar_id, dfunct_colvar_id, &
+       dist_colvar_id, gyration_colvar_id, hydronium_colvar_id, &
+       plane_distance_colvar_id, plane_plane_angle_colvar_id, &
+       population_colvar_id, qparm_colvar_id, reaction_path_colvar_id, &
+       rotation_colvar_id, torsion_colvar_id, xyz_diag_colvar_id, &
+       xyz_outerdiag_colvar_id
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -243,24 +244,25 @@ CONTAINS
 
     INTEGER                                  :: k
 
-    ncolv%ndist          = 0
-    ncolv%nangle         = 0
-    ncolv%ndfunct        = 0
-    ncolv%ntorsion       = 0
-    ncolv%ncoord         = 0
-    ncolv%nplane_dist    = 0
-    ncolv%nplane_angle   = 0
-    ncolv%nrot           = 0
-    ncolv%nqparm         = 0
-    ncolv%nxyz_diag      = 0
-    ncolv%nxyz_outerdiag = 0
-    ncolv%nhydronium     = 0
-    ncolv%nacid_hyd_dist = 0
-    ncolv%nreactionpath  = 0
-    ncolv%ncombinecvs    = 0
-    ncolv%nrestraint     = 0
-    ncolv%npopulation    = 0
-    ncolv%ngyration      = 0
+    ncolv%ndist           = 0
+    ncolv%nangle          = 0
+    ncolv%ndfunct         = 0
+    ncolv%ntorsion        = 0
+    ncolv%ncoord          = 0
+    ncolv%nplane_dist     = 0
+    ncolv%nplane_angle    = 0
+    ncolv%nrot            = 0
+    ncolv%nqparm          = 0
+    ncolv%nxyz_diag       = 0
+    ncolv%nxyz_outerdiag  = 0
+    ncolv%nhydronium      = 0
+    ncolv%nacid_hyd_dist  = 0
+    ncolv%nacid_hyd_shell = 0
+    ncolv%nreactionpath   = 0
+    ncolv%ncombinecvs     = 0
+    ncolv%nrestraint      = 0
+    ncolv%npopulation     = 0
+    ncolv%ngyration       = 0
 
     IF (ASSOCIATED(colv_list)) THEN
        DO k = 1, SIZE(colv_list)
@@ -296,6 +298,8 @@ CONTAINS
              ncolv%nhydronium = ncolv%nhydronium + 1
           CASE(acid_hyd_dist_colvar_id)
              ncolv%nacid_hyd_dist = ncolv%nacid_hyd_dist + 1
+          CASE(acid_hyd_shell_colvar_id)
+             ncolv%nacid_hyd_shell = ncolv%nacid_hyd_shell + 1
           CASE(reaction_path_colvar_id)
              ncolv%nreactionpath = ncolv%nreactionpath + 1
           CASE(combine_colvar_id)
@@ -318,6 +322,7 @@ CONTAINS
                  ncolv%nxyz_outerdiag  +&
                  ncolv%nhydronium      +&
                  ncolv%nacid_hyd_dist  +&
+                 ncolv%nacid_hyd_shell +&
                  ncolv%nreactionpath   +&
                  ncolv%ncombinecvs     +&
                  ncolv%npopulation     +&

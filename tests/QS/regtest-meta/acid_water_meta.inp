@@ -71,8 +71,14 @@
       OXYGENS_ACID 8 9   
      &END
     &END
+    &COLVAR
+     &ACID_HYDRONIUM_SHELL
+      HYDROGENS 2 3 5 6 10  
+      OXYGENS_WATER 1 4    
+      OXYGENS_ACID 8 9   
+     &END
+    &END
   &END SUBSYS
-
 &END FORCE_EVAL
 
 &GLOBAL
@@ -84,7 +90,7 @@
 &MOTION
  &MD
    ENSEMBLE NVT
-   STEPS 2
+   STEPS 3
    TIMESTEP 0.5
    TEMPERATURE 330
    TEMP_KIND
@@ -97,19 +103,22 @@
    &END
   &END MD
   #############
-  &FREE_ENERGY
-    &METADYN
-      DO_HILLS T
-      NT_HILLS 40
-      SLOW_GROWTH
-      WW 0.0005 
-      HILL_TAIL_CUTOFF 2
-      P_EXPONENT  8     
-      Q_EXPONENT  20   
-      &METAVAR
-        COLVAR 1
-        SCALE 0.2 
-      &END
-    &END METADYN
-  &END FREE_ENERGY
+ &FREE_ENERGY
+   &METADYN
+     DO_HILLS T
+     NT_HILLS 1
+     WW 0.1 
+     HILL_TAIL_CUTOFF 2
+     P_EXPONENT  8     
+     Q_EXPONENT  20   
+     &METAVAR
+       COLVAR 1
+       SCALE 0.1
+     &END
+     &METAVAR
+       COLVAR 2
+       SCALE 0.1 
+     &END
+   &END METADYN
+ &END FREE_ENERGY
 &END MOTION

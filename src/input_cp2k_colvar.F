@@ -18,6 +18,7 @@ MODULE input_cp2k_colvar
                                              cp_print_key_section_create,&
                                              high_print_level,&
                                              low_print_level
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants,                 ONLY: gaussian,&
                                              numerical,&
                                              rmsd_all,&
@@ -195,6 +196,10 @@ CONTAINS
     CALL section_release(subsection)
 
     CALL create_colvar_acid_hyd_dist_section(subsection)
+    CALL section_add_subsection(section, subsection)
+    CALL section_release(subsection)
+
+    CALL create_colvar_acid_hyd_shell_section(subsection)
     CALL section_add_subsection(section, subsection)
     CALL section_release(subsection)
 
@@ -1468,7 +1473,7 @@ CONTAINS
     NULLIFY(keyword)
 
     CALL keyword_create(keyword, name="OXYGENS_WATER",&
-         description="Specify indexes of atoms building the coordination variable."//&
+         description="Specifies indexes of atoms building the coordination variable."//&
          " Oxygens of water molecules. ",&
          usage="OXYGENS {integer} {integer} ..", repeats=.TRUE.,&
          n_var=-1, type_of_var=integer_t)
@@ -1476,16 +1481,16 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="OXYGENS_ACID",&
-         description="Specify indexes of atoms building the coordination variable."//&
-         " Oxygens of the carboxy groups.",&
+         description="Specifies indexes of atoms building the coordination variable."//&
+         " Oxygens of the carboxyl groups.",&
          usage="OXYGENS {integer} {integer} ..", repeats=.TRUE.,&
          n_var=-1, type_of_var=integer_t)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="HYDROGENS",&
-         description="Specify indexes of atoms building the coordination variable"//&
-         " Hydrogens of water molecules and the carboxy",&
+         description="Specifies indexes of atoms building the coordination variable."//&
+         " Hydrogens of the water molecules and of the carboxyl groups.",&
          usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE.,&
          n_var=-1, type_of_var=integer_t)
     CALL section_add_keyword(section,keyword)
@@ -1493,7 +1498,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="pWOH",&
          description="Sets the value of the numerator of the exponential factor"//&
-         "in the coordination function: number of hydrogens per water molecule.",&
+         " in the coordination function: number of hydrogens per water molecule.",&
          usage="pWOH {integer}",default_i_val=8,&
          n_var=1)
     CALL section_add_keyword(section,keyword)
@@ -1501,23 +1506,23 @@ CONTAINS
 
     CALL keyword_create(keyword, name="qWOH",&
          description="Sets the value of the denominator of the exponential factor"//&
-         "in the coordination function: number of hydrogens per water molecule.",&
+         " in the coordination function: number of hydrogens per water molecule.",&
          usage="qWOH {integer}",default_i_val=16,&
          n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="RWOH",&
-         description="Specify the rc parameter in the coordination function: "//&
+         description="Specify the rc parameter in the coordination function:"//&
          " number of hydrogens per water molecule.",&
-         usage="RWOH {real}",default_r_val=2.4_dp,&
-         n_var=1)
+         usage="RWOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
+         unit_str="internal_cp2k"), n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="pAOH",&
          description="Sets the value of the numerator of the exponential factor"//&
-         "in the coordination function: number of hydrogens per carboxy group.",&
+         " in the coordination function: number of hydrogens per carboxyl group.",&
          usage="pAOH {integer}",default_i_val=6,&
          n_var=1)
     CALL section_add_keyword(section,keyword)
@@ -1525,7 +1530,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="qAOH",&
          description="Sets the value of the denominator of the exponential factor"//&
-         "in the coordination function: number of hydrogens per carboxy group.",&
+         " in the coordination function: number of hydrogens per carboxyl group.",&
          usage="qAOH {integer}",default_i_val=14,&
          n_var=1)
     CALL section_add_keyword(section,keyword)
@@ -1533,8 +1538,186 @@ CONTAINS
 
     CALL keyword_create(keyword, name="RAOH",&
          description="Specify the rc parameter in the coordination function: "//&
-         " number of hydrogens per carboxy group.",&
-         usage="RAOH {real}",default_r_val=2.4_dp,&
+         " number of hydrogens per carboxyl group.",&
+         usage="RAOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
+         unit_str="internal_cp2k"), n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="pCUT",&
+         description="Sets the value of the numerator of the exponential factor"//&
+         " in the cutoff function.",&
+         usage="pCUT {integer}",default_i_val=6,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="qCUT",&
+         description="Sets the value of the denominator of the exponential factor"//&
+         " in the cutoff function.",&
+         usage="qCUT {integer}",default_i_val=12,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="NC",&
+         description="Specifies the NC parameter in the cutoff function.",&
+         usage="NC {real}",default_r_val=0.56_dp,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="LAMBDA",&
+         variants=(/"LAMBDA"/),&
+         description="Specifies the LAMBDA parameter carboxylic acid function.",&
+         usage="LAMBDA {real}",default_r_val=20.0_dp,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+  END SUBROUTINE create_colvar_acid_hyd_dist_section
+
+! *****************************************************************************
+!> \brief collective variables specifying the solvation of carboxylic acid;
+!>        number of oxygens in the 1st shell of the hydronium; Equation (3) in 
+!>        Supplementary Information of J. Am. Chem. Soc.,128,  2006, 11318
+!> \param section the section to be created
+!> \author Dorothea Golze
+! *****************************************************************************
+  SUBROUTINE create_colvar_acid_hyd_shell_section(section)
+    TYPE(section_type), POINTER              :: section
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_colvar_acid_hyd_shell_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+
+    CPASSERT(.NOT.ASSOCIATED(section))
+    CALL section_create(section,name="ACID_HYDRONIUM_SHELL",&
+         description="Section to define the dissociation of a carboxylic acid in"//&
+         " water. Number of oxygens in the 1st shell of the hydronium. Equation (3)"//&
+         " in Supplementary Info of J. Am. Chem. Soc.,128,  2006, 11318. Similar to"//&
+         " the HYDRONIUM colvar, but with modification for the acid.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+    NULLIFY(keyword)
+
+    CALL keyword_create(keyword, name="OXYGENS_WATER",&
+         description="Specifies indexes of atoms building the coordination variable."//&
+         " Oxygens of water molecules. ",&
+         usage="OXYGENS {integer} {integer} ..", repeats=.TRUE.,&
+         n_var=-1, type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="OXYGENS_ACID",&
+         description="Specifies indexes of atoms building the coordination variable."//&
+         " Oxygens of the carboxyl groups.",&
+         usage="OXYGENS {integer} {integer} ..", repeats=.TRUE.,&
+         n_var=-1, type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="HYDROGENS",&
+         description="Specifies indexes of atoms building the coordination variable. "//&
+         " Hydrogens of the water molecules and of the carboxyl groups.",&
+         usage="HYDROGENS {integer} {integer} ..", repeats=.TRUE.,&
+         n_var=-1, type_of_var=integer_t)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="pWOH",&
+         description="Sets the value of the numerator of the exponential factor"//&
+         " in the coordination function: number of hydrogens per water molecule.",&
+         usage="pWOH {integer}",default_i_val=8,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="qWOH",&
+         description="Sets the value of the denominator of the exponential factor"//&
+         " in the coordination function: number of hydrogens per water molecule.",&
+         usage="qWOH {integer}",default_i_val=16,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="RWOH",&
+         description="Specifies the rc parameter in the coordination function: "//&
+         " number of hydrogens per water molecule.",&
+         usage="RWOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
+         unit_str="internal_cp2k"), n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="pAOH",&
+         description="Sets the value of the numerator of the exponential factor"//&
+         " in the coordination function: number of hydrogens per carboxyl group.",&
+         usage="pAOH {integer}",default_i_val=6,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="qAOH",&
+         description="Sets the value of the denominator of the exponential factor"//&
+         " in the coordination function: number of hydrogens per carboxyl group.",&
+         usage="qAOH {integer}",default_i_val=14,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="RAOH",&
+         description="Specifies the rc parameter in the coordination function:"//&
+         " number of hydrogens per carboxyl group.",&
+         usage="RAOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
+         unit_str="internal_cp2k"), n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="pOO",&
+         description="Sets the value of the numerator of the exponential factor"//&
+         " in the coordination function: number of oxygens per water oxygen.",&
+         usage="pAOH {integer}",default_i_val=6,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="qOO",&
+         description="Sets the value of the denominator of the exponential factor"//&
+         " in the coordination function: number of oxygens per water oxygen.",&
+         usage="qAOH {integer}",default_i_val=12,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="ROO",&
+         description="Specifies the rc parameter in the coordination function:"//&
+         " number of oxygens per water oxygen.",&
+         usage="ROO {real}",default_r_val=cp_unit_to_cp2k(value=5.5_dp,&
+         unit_str="internal_cp2k"), n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="pM",&
+         description="Sets the value of the numerator of the exponential factor"//&
+         " in M function.",&
+         usage="pM {integer}",default_i_val=8,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="qM",&
+         description="Sets the value of the denominator of the exponential factor"//&
+         " in the M function.",&
+         usage="qM {integer}",default_i_val=16,&
+         n_var=1)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="NH",&
+         description="Specifies the NH parameter in the M function.",&
+         usage="NH {real}",default_r_val=2.2_dp,&
          n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
@@ -1556,21 +1739,21 @@ CONTAINS
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="NC",&
-         description="Specify the NC parameter in the cutoff function.",&
-         usage="NH {real}",default_r_val=0.56_dp,&
+         description="Specifies the NC parameter in the cutoff function.",&
+         usage="NC {real}",default_r_val=0.9_dp,&
          n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
     CALL keyword_create(keyword, name="LAMBDA",&
          variants=(/"LAMBDA"/),&
-         description="Specify the LAMBDA parameter carboxylic acid function.",&
-         usage="LAMBDA {real}",default_r_val=20.0_dp,&
+         description="Specifies the LAMBDA parameter carboxylic acid function.",&
+         usage="LAMBDA {real}",default_r_val=10.0_dp,&
          n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
-  END SUBROUTINE create_colvar_acid_hyd_dist_section
+  END SUBROUTINE create_colvar_acid_hyd_shell_section
 
 ! *****************************************************************************
 !> \brief ...

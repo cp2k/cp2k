@@ -11,3 +11,5 @@ new defaults for preconditioner
 H2O-IP-meta.inp
 #fix for generalized arnoldi ev
 H2O-IP-meta.inp
+#add acid_hydronium_shell collective variable
+acid_water_meta.inp
