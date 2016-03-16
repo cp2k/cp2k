@@ -219,7 +219,7 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_compression_type
-    INTEGER(int_8), DIMENSION(:), ALLOCATABLE    :: compressed_data
+    INTEGER(int_8), DIMENSION(:), POINTER    :: compressed_data
     INTEGER(int_8)                           :: element_pointer
     INTEGER                                  :: bit_pointer
   END TYPE
@@ -258,9 +258,9 @@ MODULE hfx_types
     REAL(dp), DIMENSION(:,:), POINTER        :: sphi
     INTEGER                                  :: nsgf_total
     INTEGER, DIMENSION(:,:), POINTER         :: nl
-    INTEGER, DIMENSION(:,:), ALLOCATABLE         :: nsgfl
+    INTEGER, DIMENSION(:,:), POINTER         :: nsgfl
     INTEGER, DIMENSION(:), POINTER           :: nshell
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE &
+    REAL(dp), DIMENSION(:,:,:,:), POINTER &
                                              :: sphi_ext
     REAL(dp), DIMENSION(:), POINTER          :: set_radius
     REAL(dp), DIMENSION(:,:), POINTER        :: pgf_radius
@@ -281,13 +281,13 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_p_kind
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE    :: p_kind
+    REAL(dp), DIMENSION(:,:,:,:), POINTER    :: p_kind
   END TYPE
 
 ! *****************************************************************************
   TYPE hfx_2D_map
-    INTEGER, DIMENSION(:), ALLOCATABLE           :: iatom_list
-    INTEGER, DIMENSION(:), ALLOCATABLE           :: jatom_list
+    INTEGER, DIMENSION(:), POINTER           :: iatom_list
+    INTEGER, DIMENSION(:), POINTER           :: jatom_list
   END TYPE
 
 ! *****************************************************************************
@@ -303,7 +303,7 @@ MODULE hfx_types
 
 ! *****************************************************************************
   TYPE hfx_pgf_list
-    TYPE(hfx_pgf_image), DIMENSION(:), ALLOCATABLE &
+    TYPE(hfx_pgf_image), DIMENSION(:), POINTER &
                                              :: image_list
     INTEGER                                  :: nimages
     REAL(dp)                                 :: zetapzetb
@@ -378,25 +378,25 @@ MODULE hfx_types
      TYPE(hfx_load_balance_type)              :: load_balance_parameter
      TYPE(hfx_general_type)                   :: general_parameter
      TYPE(hfx_container_type), DIMENSION(:),&
-                               ALLOCATABLE        :: maxval_container
+                               POINTER        :: maxval_container
      TYPE(hfx_cache_type), DIMENSION(:),&
-                           ALLOCATABLE            :: maxval_cache
+                           POINTER            :: maxval_cache
      TYPE(hfx_container_type), DIMENSION(:,:), &
-                               ALLOCATABLE        :: integral_containers
+                               POINTER        :: integral_containers
      TYPE(hfx_cache_type), DIMENSION(:,:),&
-                           ALLOCATABLE            :: integral_caches
+                           POINTER            :: integral_caches
      TYPE(hfx_container_type), DIMENSION(:),&
-                               ALLOCATABLE        :: maxval_container_forces
+                               POINTER        :: maxval_container_forces
      TYPE(hfx_cache_type), DIMENSION(:),&
-                           ALLOCATABLE            :: maxval_cache_forces
+                           POINTER            :: maxval_cache_forces
      TYPE(hfx_container_type), DIMENSION(:,:), &
-                               ALLOCATABLE        :: integral_containers_forces
+                               POINTER        :: integral_containers_forces
      TYPE(hfx_cache_type), DIMENSION(:,:),&
-                           ALLOCATABLE            :: integral_caches_forces
+                           POINTER            :: integral_caches_forces
 
-     TYPE(hfx_container_type), ALLOCATABLE        :: maxval_container_disk
+     TYPE(hfx_container_type), POINTER        :: maxval_container_disk
      TYPE(hfx_cache_type)                     :: maxval_cache_disk
-     TYPE(hfx_container_type), ALLOCATABLE, &
+     TYPE(hfx_container_type), POINTER, &
                                 DIMENSION(:)  :: integral_containers_disk
      TYPE(hfx_cache_type)                     :: integral_caches_disk(64)
 
@@ -406,15 +406,15 @@ MODULE hfx_types
                               POINTER         :: distribution_energy
      TYPE(hfx_distribution), DIMENSION(:),&
                               POINTER         :: distribution_forces
-     INTEGER, DIMENSION(:,:), ALLOCATABLE         :: is_assoc_atomic_block
+     INTEGER, DIMENSION(:,:), POINTER         :: is_assoc_atomic_block
      INTEGER                                  :: number_of_p_entries
      TYPE(hfx_basis_type), DIMENSION(:), &
                             POINTER           :: basis_parameter
      INTEGER                                  :: n_rep_hf
      LOGICAL                                  :: b_first_load_balance_energy, &
                                                  b_first_load_balance_forces
-     REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: full_ks_alpha
-     REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: full_ks_beta
+     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_alpha
+     REAL(dp), DIMENSION(:,:), POINTER        :: full_ks_beta
      TYPE(lib_int)                            :: lib
      TYPE(hfx_basis_info_type)                :: basis_info
      TYPE(hfx_screen_coeff_type), &
@@ -426,7 +426,7 @@ MODULE hfx_types
           DIMENSION(:,:), POINTER             :: screen_funct_coeffs_kind
      LOGICAL                                  :: screen_funct_is_initialized
      TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: initial_p
-     TYPE(hfx_p_kind), DIMENSION(:), ALLOCATABLE  :: initial_p_forces
+     TYPE(hfx_p_kind), DIMENSION(:), POINTER  :: initial_p_forces
      INTEGER, DIMENSION(:), POINTER           :: map_atom_to_kind_atom
      TYPE(hfx_2D_map), DIMENSION(:), POINTER  :: map_atoms_to_cpus
      INTEGER, DIMENSION(:,:), POINTER         :: atomic_block_offset
@@ -435,13 +435,13 @@ MODULE hfx_types
      TYPE(hfx_block_range_type), DIMENSION(:), &
                                  POINTER      :: blocks
      TYPE(hfx_task_list_type), DIMENSION(:), &
-                               ALLOCATABLE        :: task_list
-     REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: pmax_atom, pmax_atom_forces
+                               POINTER        :: task_list
+     REAL(dp), DIMENSION(:,:), POINTER        :: pmax_atom, pmax_atom_forces
      TYPE(lib_int)                            :: lib_int
      TYPE(lib_deriv)                          :: lib_deriv
-     REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: pmax_block
-     LOGICAL, DIMENSION(:,:), ALLOCATABLE         :: atomic_pair_list
-     LOGICAL, DIMENSION(:,:), ALLOCATABLE         :: atomic_pair_list_forces
+     REAL(dp), DIMENSION(:,:), POINTER        :: pmax_block
+     LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list
+     LOGICAL, DIMENSION(:,:), POINTER         :: atomic_pair_list_forces
   END TYPE hfx_type
 
   CONTAINS
@@ -461,7 +461,7 @@ MODULE hfx_types
 !>      09.2007 created [Manuel Guidon]
 !> \author Manuel Guidon
 !> \note
-!>      - All ALLOCATABLES and ALLOCATABLES are allocated, even if their size is
+!>      - All POINTERS and ALLOCATABLES are allocated, even if their size is
 !>        unknown at invocation time
 ! *****************************************************************************
   SUBROUTINE hfx_create(x_data,para_env, hfx_section,natom,atomic_kind_set, qs_kind_set, &
@@ -486,7 +486,7 @@ MODULE hfx_types
     INTEGER :: handle, i, i_thread, iatom, ikind, int_val, irep, jkind, &
       max_set, n_rep_hf, n_threads, natom_a, natom_b, nkind, nseta, nsetb, &
       pbc_shells, storage_id
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom2kind, kind_of
+    INTEGER, DIMENSION(:), POINTER           :: atom2kind, kind_of
     LOGICAL                                  :: logic_val, my_do_exx
     REAL(dp)                                 :: real_val
     TYPE(hfx_type), POINTER                  :: actual_x_data
