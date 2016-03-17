@@ -212,7 +212,6 @@ def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
     infile.close()
     outfile.close()
 
-# FIXME: 'use' statements means not only use, but also variable declarations, add this to docu
 def main():
     # future defaults
     defaultsDict={'upcase':1,'normalize-use':1,'omp-upcase':1,
@@ -232,19 +231,25 @@ def main():
     [--backup-dir=bk_dir] file1 [file2 ...]
 
     Auto-format F90 source file1, file2, ...:
-    - normalization of use statements (--normalize-use) (FIXME: give more detailed description)
-    - upcasing fortran keywords (--upcase)
-    - auto-indentation, auto-alignment and whitespace formatting (--reformat).
-      Amount of whitespace controlled by --whitespace = 0, 1, 2. 
-      For indenting with a relative width of n columns specify --indent=n.
-      For manual formatting of specific lines:
-      - disable auto-alignment by starting line continuation with an ampersand '&'
-      - completely disable reformatting by adding a comment '!&'
-      For manual formatting of a code block, use:
-      - start a manually formatted block with a '!&<' comment and close it with a '!&>' comment
-    - upcasing OMP directives (--omp-upcase)
-    - If requested the replacements performed by the replacer.py script are also performed (--replace) (FIXME: ???)
-    - If the interface direcory is given updates also the synopsis. (--interface-dir) (FIXME: ???)
+    --normalize-use
+             Sorting and alignment of variable declarations and USE statements, removal of unused list entries.
+    --upcase
+             Upcasing fortran keywords.
+    --reformat
+             Auto-indentation, auto-alignment and whitespace formatting.
+             Amount of whitespace controlled by --whitespace = 0, 1, 2.
+             For indenting with a relative width of n columns specify --indent=n.
+             For manual formatting of specific lines:
+             - disable auto-alignment by starting line continuation with an ampersand '&'.
+             - completely disable reformatting by adding a comment '!&'.
+             For manual formatting of a code block, use:
+             - start a manually formatted block with a '!&<' comment and close it with a '!&>' comment.
+    --omp-upcase
+             Upcasing OMP directives.
+    --replace
+             If requested the replacements performed by the replacer.py script are also performed. (FIXME: ???)
+    --interface-dir
+             If the interface direcory is given updates also the synopsis. (FIXME: ???)
 
     Defaults:
     """+str(defaultsDict))

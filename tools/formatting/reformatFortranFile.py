@@ -622,23 +622,20 @@ def format_single_fline(f_line, whitespace, linebreak_pos, ampersand_sep, filena
     linebreak_pos.sort(reverse=True)
     linebreak_pos_ftd = []
     while 1:
-        if pos_new == len(line) - 1 or pos_old == len(line_orig) - 1:
+        if pos_new == len(line) or pos_old == len(line_orig):
             break
+        assert line[pos_new] is line_orig[pos_old]
         if linebreak_pos and pos_old > linebreak_pos[-1]:
             linebreak_pos.pop()
             linebreak_pos_ftd.append(pos_new)
             continue
-
         if line[pos_new] is line_orig[pos_old]:
-            dowhile = True
-            while dowhile:
+            pos_new += 1
+            while pos_new < len(line) and line[pos_new] is ' ':
                 pos_new += 1
-                dowhile = line[pos_new] is ' '
-            dowhile = True
-            while dowhile:
+            pos_old += 1
+            while pos_old < len(line_orig) and line_orig[pos_old] is ' ':
                 pos_old += 1
-                dowhile = line_orig[pos_old] is ' '
-            assert line[pos_new] is line_orig[pos_old]
         elif line[pos_new] is ' ':
             pos_new += 1
         elif line_orig[pos_old] is ' ':
@@ -869,5 +866,31 @@ def reformat_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, whitespac
 
         # rm subsequent blank lines
         skip_blank = is_empty and not any(comments)
+
+
+if __name__ == '__main__':
+    import os.path
+    # is executable only for debugging purposes
+    # must be executed from ../ with python -m formatting/reformatFortranFile
+    if len(sys.argv) < 2:
+        print "usage:", sys.argv[0], " out_dir file1 [file2 ...]"
+        sys.exit(1)
+
+    outDir = sys.argv[1]
+    if not os.path.isdir(outDir):
+        print "out_dir must be a directory"
+        print "usage:", sys.argv[0], " out_dir file1 [file2 ...]"
+        sys.exit(1)
+
+    for fileName in sys.argv[2:]:
+        try:
+            print "reformatting", fileName
+
+            with open(fileName, 'r') as infile:
+                with open(os.path.join(outDir, os.path.basename(fileName)), 'w') as outfile:
+                    reformat_ffile(infile, outfile)
+        except:
+            print "error for file", fileName
+            raise
 
 # EOF
