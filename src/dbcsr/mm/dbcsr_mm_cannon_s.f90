@@ -126,6 +126,7 @@
 !> \param local_col ...
 !> \param max_norms ...
 !> \param is_left ...
+!> \param is_diagonal ...
 ! *****************************************************************************
   SUBROUTINE calc_max_image_norms_s(meta,DATA,&
      refs_size,refs_displ,&
@@ -134,17 +135,18 @@
      row_blk_size,col_blk_size,&
      local_row,local_col,&
      slot_coo_l,&
-     max_norms, is_left)
+     max_norms, is_left, off_diagonal)
   INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: meta
   REAL(kind=real_4), DIMENSION(:), &
        INTENT(IN)                         :: DATA
-  INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER :: refs_size, refs_displ
+  INTEGER, DIMENSION(:, :, :), &
+       POINTER, INTENT(IN)                :: refs_displ, refs_size
   INTEGER, DIMENSION(:), INTENT(IN)       :: img_map, img_offset, &
                                              row_blk_size, col_blk_size, &
                                              local_row, local_col
   INTEGER, INTENT(IN)                     :: slot_coo_l
   REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT) :: max_norms
-  LOGICAL                                 :: is_left
+  LOGICAL, INTENT(IN)                           :: is_left, off_diagonal
 
   INTEGER, DIMENSION(:), POINTER    :: row, col, bps
   INTEGER                           :: nblks, blk, bpe
@@ -157,7 +159,7 @@
   !$omp          shared (max_norms, data, meta, refs_size, img_offset,&
   !$omp                  img_map, refs_displ, slot_coo_l,&
   !$omp                  row_blk_size, col_blk_size,&
-  !$omp                  local_row, local_col, is_left)
+  !$omp                  local_row, local_col, is_left, off_diagonal)
   IF (is_left) THEN
      rowi => mi
   ELSE
@@ -172,7 +174,7 @@
      ENDIF
      DO mi = 1, SIZE(max_norms,1)
         max_norms(mi,ui) = 0.0_sp
-        IF (refs_size(imeta_size,mi,ui).NE.0) THEN
+        IF (refs_size(imeta_size,mi,ui).NE.0.AND.(off_diagonal.OR.ui.NE.mi)) THEN
            nblks = meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
            row => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l:&
                 meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&

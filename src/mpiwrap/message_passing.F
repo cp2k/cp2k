@@ -134,9 +134,9 @@ MODULE message_passing
   PUBLIC :: mp_probe
 
   ! message passing
-  PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
+  PUBLIC :: mp_bcast, mp_sum, mp_sum_partial, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync, mp_isum
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
-  PUBLIC :: mp_isend, mp_irecv
+  PUBLIC :: mp_isend, mp_irecv, mp_ibcast
   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
   PUBLIC :: mp_testall
   PUBLIC :: mp_gatherv
@@ -240,6 +240,15 @@ MODULE message_passing
      MODULE PROCEDURE mp_bcast_av, mp_bcast_am
   END INTERFACE
 
+  INTERFACE mp_ibcast
+     MODULE PROCEDURE mp_ibcast_i, mp_ibcast_iv,&
+                      mp_ibcast_l, mp_ibcast_lv,&
+                      mp_ibcast_r, mp_ibcast_rv,&
+                      mp_ibcast_d, mp_ibcast_dv,&
+                      mp_ibcast_c, mp_ibcast_cv,&
+                      mp_ibcast_z, mp_ibcast_zv
+  END INTERFACE
+
   INTERFACE mp_sum
      MODULE PROCEDURE mp_sum_i, mp_sum_iv, mp_sum_im, mp_sum_im3,mp_sum_im4,&
                       mp_sum_l, mp_sum_lv, mp_sum_lm, mp_sum_lm3,mp_sum_lm4,&
@@ -254,6 +263,15 @@ MODULE message_passing
                       mp_sum_root_cv, mp_sum_root_cm,&
                       mp_sum_root_zv, mp_sum_root_zm
      MODULE PROCEDURE mp_sum_b
+  END INTERFACE
+
+  INTERFACE mp_isum
+     MODULE PROCEDURE mp_isum_iv,&
+                      mp_isum_lv,&
+                      mp_isum_rv,&
+                      mp_isum_dv,&
+                      mp_isum_cv,&
+                      mp_isum_zv
   END INTERFACE
 
   INTERFACE mp_sum_partial

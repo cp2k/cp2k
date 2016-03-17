@@ -568,7 +568,7 @@
        lb_s = lb
        ub_s = ub
     ENDIF
-    dst%d%[base1]_[prec1](lb:ub) = src(lb_s:ub_s)
+    CALL memory_copy(dst%d%[base1]_[prec1](lb:ub),src(lb_s:ub_s),data_size)
   END SUBROUTINE dbcsr_data_set_a[nametype1]
 
 ! *****************************************************************************

@@ -770,6 +770,51 @@
   END SUBROUTINE mp_bcast_l
 
 ! *****************************************************************************
+!> \brief Broadcasts a datum to all processes.
+!> \param[in] msg             Datum to broadcast
+!> \param[in] source          Processes which broadcasts
+!> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_bcast
+! *****************************************************************************
+  SUBROUTINE mp_ibcast_l(msg,source,gid,request)
+    INTEGER(KIND=int_8)                                  :: msg
+    INTEGER                                  :: source, gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_ibcast_l', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+    msglen = 1
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    t_start = m_walltime ( )
+    CALL mpi_ibcast(msg,msglen,MPI_INTEGER8,source,gid,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ibcast @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(source)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_ibcast requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(msg)
+    MARK_USED(source)
+    MARK_USED(gid)
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_ibcast_l
+
+! *****************************************************************************
 !> \brief Broadcasts rank-1 data to all processes
 !> \param[in] msg             Data to broadcast
 !> \param source ...
@@ -801,6 +846,48 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_bcast_lv
+
+! *****************************************************************************
+!> \brief Broadcasts rank-1 data to all processes
+!> \param[in] msg             Data to broadcast
+!> \param source ...
+!> \param gid ...
+!> \note see mp_bcast_l1
+! *****************************************************************************
+  SUBROUTINE mp_ibcast_lv(msg,source,gid,request)
+    INTEGER(KIND=int_8)                                  :: msg( : )
+    INTEGER                                  :: source, gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_ibcast_lv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+    msglen = SIZE(msg)
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    t_start = m_walltime ( )
+    CALL mpi_ibcast(msg,msglen,MPI_INTEGER8,source,gid,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ibcast @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=2,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(source)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_ibcast requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(source)
+    MARK_USED(gid)
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_ibcast_lv
 
 ! *****************************************************************************
 !> \brief Broadcasts rank-2 data to all processes
@@ -937,6 +1024,53 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_sum_lv
+
+! *****************************************************************************
+!> \brief Element-wise sum of a rank-1 array on all processes.
+!> \param[in,out] msg         Vector to sum and result
+!> \param gid ...
+!> \note see mp_sum_l
+! *****************************************************************************
+  SUBROUTINE mp_isum_lv(msg,gid,request)
+    INTEGER(KIND=int_8), INTENT(INOUT)                   :: msg( : )
+    INTEGER, INTENT(IN)                      :: gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_isum_lv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: msglen
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    t_start = m_walltime ( )
+    msglen = SIZE(msg)
+    IF (msglen>0) THEN
+       CALL mpi_iallreduce(MPI_IN_PLACE,msg,msglen,MPI_INTEGER8,MPI_SUM,gid,request,ierr)
+       IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallreduce @ "//routineN )
+    ENDIF
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=3,count=1,time=t_end-t_start,msg_size=msglen*int_8_size)
+#else
+    MARK_USED(msg)
+    MARK_USED(msglen)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_isum requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(msg)
+    MARK_USED(gid)
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_isum_lv
 
 ! *****************************************************************************
 !> \brief Element-wise sum of a rank-2 array on all processes.
@@ -1773,6 +1907,7 @@
     CALL MPI_IALLGATHER(msgout, scount, MPI_INTEGER8, &
                        msgin , rcount, MPI_INTEGER8, &
                        gid, request, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
 #else
     MARK_USED(msgout)
     MARK_USED(msgin)
@@ -1782,7 +1917,6 @@
     request = mp_request_null
     CPABORT("mp_iallgather requires MPI-3 standard")
 #endif
-    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgather @ "//routineN )
 #else
     MARK_USED(gid)
     msgin(:,:) = msgout(:,:)

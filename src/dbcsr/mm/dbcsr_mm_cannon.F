@@ -48,10 +48,10 @@ MODULE dbcsr_mm_cannon
        dbcsr_data_get_size_referenced, dbcsr_data_hold, dbcsr_data_host2dev, &
        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
        dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
-       dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
-       dbcsr_get_data_p_z, dbcsr_scalar, dbcsr_scalar_are_equal, &
-       dbcsr_scalar_fill_all, dbcsr_scalar_negative, dbcsr_scalar_one, &
-       dbcsr_scalar_set_type, dbcsr_scalar_zero
+       dbcsr_data_valid, dbcsr_get_data_p_c, dbcsr_get_data_p_d, &
+       dbcsr_get_data_p_s, dbcsr_get_data_p_z, dbcsr_scalar, &
+       dbcsr_scalar_are_equal, dbcsr_scalar_fill_all, dbcsr_scalar_negative, &
+       dbcsr_scalar_one, dbcsr_scalar_set_type, dbcsr_scalar_zero
   USE dbcsr_data_types,                ONLY: dbcsr_datatype_sizeof
   USE dbcsr_dist_methods,              ONLY: &
        dbcsr_distribution_col_dist, dbcsr_distribution_get_num_images_1d, &
@@ -110,7 +110,8 @@ MODULE dbcsr_mm_cannon
        dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, &
        dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, &
        dbcsr_mp_numnodes, dbcsr_mp_pgrid
-  USE dbcsr_mp_operations,             ONLY: dbcsr_irecv_any,&
+  USE dbcsr_mp_operations,             ONLY: dbcsr_ibcast_any,&
+                                             dbcsr_irecv_any,&
                                              dbcsr_isend_any,&
                                              dbcsr_rget_any,&
                                              dbcsr_sendrecv_any,&
@@ -123,7 +124,8 @@ MODULE dbcsr_mm_cannon
                                              dbcsr_filter,&
                                              dbcsr_may_be_dense,&
                                              dbcsr_scale
-  USE dbcsr_ptr_util,                  ONLY: ensure_array_size
+  USE dbcsr_ptr_util,                  ONLY: ensure_array_size,&
+                                             memory_copy
   USE dbcsr_toollib,                   ONLY: uppercase
   USE dbcsr_transformations,           ONLY: dbcsr_make_dense,&
                                              dbcsr_make_dense_low,&
@@ -162,10 +164,10 @@ MODULE dbcsr_mm_cannon
   USE machine,                         ONLY: default_output_unit,&
                                              m_memory
   USE message_passing,                 ONLY: &
-       mp_allgather, mp_alltoall, mp_iallgather, mp_irecv, mp_isend, mp_max, &
-       mp_min, mp_request_null, mp_rget, mp_sendrecv, mp_sum, mp_testall, &
-       mp_testany, mp_waitall, mp_win_create, mp_win_free, mp_win_lock_all, &
-       mp_win_unlock_all
+       mp_allgather, mp_alltoall, mp_iallgather, mp_ibcast, mp_irecv, &
+       mp_isend, mp_isum, mp_max, mp_min, mp_request_null, mp_rget, &
+       mp_sendrecv, mp_sum, mp_testall, mp_testany, mp_wait, mp_waitall, &
+       mp_win_create, mp_win_free, mp_win_lock_all, mp_win_unlock_all
 #include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads,&
@@ -203,9 +205,9 @@ MODULE dbcsr_mm_cannon
   ! ab-panels and streams are shared between all threads
 
   TYPE dbcsr_rma_buffer
-     TYPE(dbcsr_data_obj)               :: DATA
+     TYPE(dbcsr_data_obj)               :: DATA, DATA_DIAG
      INTEGER                            :: vprow, vpcol
-     INTEGER, DIMENSION(:), POINTER     :: meta => Null()
+     INTEGER, DIMENSION(:), POINTER     :: meta => Null(), meta_diag => Null()
      INTEGER, DIMENSION(:, :), ALLOCATABLE :: get_requests, &
                                               get_requests_map, &
                                               offset
@@ -217,10 +219,6 @@ MODULE dbcsr_mm_cannon
   TYPE dbcsr_rma_buffers
      TYPE(dbcsr_rma_buffer)             :: left, right
      TYPE(dbcsr_data_obj)               :: trs_stackbuf
-
-     ! count and offset per each image
-     INTEGER, DIMENSION(:), POINTER       :: left_img_refs_rows => Null()
-     INTEGER, DIMENSION(:, :, :), POINTER ::  left_local_refs_displ => Null()
   END TYPE dbcsr_rma_buffers
 
   ! RMA buffers
@@ -233,15 +231,19 @@ MODULE dbcsr_mm_cannon
                                                 imeta_size = 2, &
                                                 ilocal_proc = 1, &
                                                 isym_proc = 2
-
-  INTEGER, ALLOCATABLE, DIMENSION(:, :, :), TARGET, PRIVATE, SAVE :: left_refs_size, right_refs_size, &
-       left_local_refs_size, right_local_refs_size
+  
+  INTEGER, ALLOCATABLE, DIMENSION(:), PRIVATE, SAVE :: left_total_row_counts
   INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET, PRIVATE, SAVE  :: left_refs_displ_unmerged, &
        right_refs_displ_unmerged, left_local_refs_displ_unmerged, right_local_refs_displ_unmerged
+  INTEGER, ALLOCATABLE, DIMENSION(:, :, :), TARGET, PRIVATE, SAVE :: left_refs_size, right_refs_size, &
+       left_local_refs_size, right_local_refs_size
   REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :), TARGET, PRIVATE, SAVE :: left_max_norms, right_max_norms, &
        left_local_max_norms, right_local_max_norms
 
-  INTEGER, DIMENSION(6), PRIVATE, SAVE   :: requests
+  INTEGER, DIMENSION(7), PRIVATE, SAVE   :: requests
+  INTEGER, DIMENSION(4), PRIVATE, SAVE   :: requests_diag
+  INTEGER, PRIVATE, SAVE                 :: left_data_win, right_data_win, &
+                                            left_meta_win, right_meta_win
   LOGICAL                                :: my_use_mpi_rma
 
   TYPE dbcsr_mm_multrec_type_p
@@ -1367,16 +1369,17 @@ MODULE dbcsr_mm_cannon
     CHARACTER(len=*), PARAMETER :: routineN = 'make_buffers_rma', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: blk, blk_p, bp, col, col_img, col_size, data_size, data_type, &
-      dst_proc, g2l_img_ref, grp, handle, it, ithread, meta_size, mygrp, &
-      mynode, mypcol, myprow, myt, nblkcols_local, nblkrows_local, nblocks, &
+    INTEGER :: blk, blk_p, bp, col, col_img, col_size, data_size, &
+      data_size_diag, data_type, dst_proc, g2l_img_ref, grp, handle, &
+      irequests_diag, it, ithread, meta_size, meta_size_diag, mygrp, mynode, &
+      mypcol, myprow, myt, nblkcols_local, nblkrows_local, nblocks, &
       ncols_images, nimages_merged, nimages_unmerged, nrows_images, &
-      nsymmetries, nthreads, nze, pcol, prow, row, row_img, row_size, &
-      size_index_unmerged, stored_col, stored_row, sym_p, symmetry_i, &
-      tr_col_size, tr_row_size
+      nsymmetries, nthreads, nze, pcol, pdiag, prow, request_data_size_diag, &
+      request_meta_size_diag, row, row_img, row_size, size_index_unmerged, &
+      stored_col, stored_row, sym_p, symmetry_i, tr_col_size, tr_row_size
     INTEGER, ALLOCATABLE, DIMENSION(:) :: g2l_map_cols, g2l_map_cols_merge, &
       g2l_map_rows, g2l_map_rows_merge, img_map, img_refs, img_refs_cols, &
-      tmp_img_offset
+      img_refs_rows, tmp_img_offset
     INTEGER, ALLOCATABLE, DIMENSION(:), &
       TARGET                                 :: meta_recv, meta_send
     INTEGER, ALLOCATABLE, &
@@ -1384,21 +1387,21 @@ MODULE dbcsr_mm_cannon
     INTEGER, ALLOCATABLE, &
       DIMENSION(:, :, :, :, :)               :: refs
     INTEGER, DIMENSION(2)                    :: recv_sym_size, sym_size
-    INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, img_refs_rows, &
-      local_cols, local_rows, meta_buffer, meta_buffer_p, row_dist, &
-      row_img_dist, threads_dist
+    INTEGER, DIMENSION(:), POINTER :: col_dist, col_img_dist, local_cols, &
+      local_rows, meta_buffer_p, row_dist, row_img_dist, threads_dist
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi, &
                                                 local_refs_displ_unmerged
     INTEGER, DIMENSION(:, :, :), POINTER     :: local_refs_displ, &
                                                 local_refs_size
     INTEGER, POINTER                         :: coli, rowi
     INTEGER, TARGET                          :: mi, ui
-    LOGICAL                                  :: tr
-    TYPE(dbcsr_data_obj), POINTER            :: data_buffer, data_buffer_p
+    LOGICAL                                  :: do_symmetry, is_diagonal, tr
+    TYPE(dbcsr_data_obj), POINTER            :: data_buffer_p
     TYPE(dbcsr_data_obj), TARGET             :: data_recv, data_send
     TYPE(dbcsr_distribution_obj)             :: set_dist
     TYPE(dbcsr_iterator)                     :: iter
     TYPE(dbcsr_mp_obj)                       :: mp_obj
+    TYPE(dbcsr_rma_buffer), POINTER          :: buffer
     TYPE(dbcsr_scalar_type)                  :: scale_neg_one
     TYPE(dbcsr_type)                         :: sm
 
@@ -1470,10 +1473,13 @@ MODULE dbcsr_mm_cannon
     !
     IF (dbcsr_has_symmetry(matrix)) THEN
        nsymmetries = 2
-       sym_p = blacs2mpi(mypcol,myprow)
+       do_symmetry = .TRUE.
     ELSE
        nsymmetries = 1
+       do_symmetry = .FALSE.
     ENDIF
+    sym_p = blacs2mpi(mypcol,myprow)
+    is_diagonal = sym_p.EQ.mynode
     !
     size_index_unmerged = dbcsr_slot_nblks
     !
@@ -1492,6 +1498,16 @@ MODULE dbcsr_mm_cannon
        local_refs_displ_unmerged => left_local_refs_displ_unmerged
        mygrp = dbcsr_mp_my_row_group (mp_obj)
        requests(5) = mp_request_null
+       requests(7) = mp_request_null
+       pdiag = myprow
+       irequests_diag = 1
+       !
+       ! Count the maximum possible multiplies per row for on-the-fly filtering
+       IF (otf_filtering) THEN
+          ALLOCATE(left_total_row_counts(nblkrows_local))
+          left_total_row_counts = 0
+       ENDIF
+       buffer => rma_buffers_orig%left
     ELSE
        ! merging over cols
        nimages_merged = ncols_images
@@ -1507,6 +1523,9 @@ MODULE dbcsr_mm_cannon
        local_refs_displ_unmerged => right_local_refs_displ_unmerged
        mygrp = dbcsr_mp_my_col_group (mp_obj)
        requests(6) = mp_request_null
+       pdiag = mypcol
+       irequests_diag = 3
+       buffer => rma_buffers_orig%right
     ENDIF
     !
     ! Evaluate maps for global -> local indexing (g2l_map_rows, g2l_map_cols)
@@ -1579,6 +1598,8 @@ MODULE dbcsr_mm_cannon
     ALLOCATE(local_refs_displ(idata_displ:imeta_displ,nimages_merged,nimages_unmerged))
     data_size = 0
     meta_size = 0
+    data_size_diag = 0
+    meta_size_diag = 0
     !
 !$omp parallel default (none) &
 !$omp private (ithread,myt,iter,row,col,blk,row_size,col_size,&
@@ -1587,11 +1608,10 @@ MODULE dbcsr_mm_cannon
 !$omp          tr_row_size,tr_col_size,prow,pcol,dst_proc,&
 !$omp          data_buffer_p,meta_buffer_p,&
 !$omp          mi,ui,it,nblocks) &
-!$omp shared (nthreads,refs,matrix,nsymmetries,&
+!$omp shared (nthreads,refs,matrix,nsymmetries,do_symmetry,&
 !$omp         row_img_dist,col_img_dist,imgdist,row_dist,col_dist,&
 !$omp         is_left,local_refs_size,nimages_merged,nimages_unmerged,&
-!$omp         data_size,meta_size,data_type,rma_buffers_orig,&
-!$omp         memtype_mpi_buffer,data_buffer,meta_buffer,sm,&
+!$omp         data_size,meta_size,data_type,memtype_mpi_buffer,sm,&
 !$omp         img_refs_cols,img_refs_rows,img_refs,img_map,&
 !$omp         g2l_map_cols,g2l_map_rows,recv_refs,grp,&
 !$omp         scale_value,scale_neg_one,data_send,data_recv,&
@@ -1600,8 +1620,13 @@ MODULE dbcsr_mm_cannon
 !$omp         locks,mynode,blacs2mpi,myprow,mypcol,sym_p,mygrp,&
 !$omp         left_refs_size,right_refs_size,local_refs_displ,&
 !$omp         left_refs_displ_unmerged,right_refs_displ_unmerged,&
-!$omp         local_refs_displ_unmerged,requests,&
-!$omp         g2l_map_cols_merge,g2l_map_rows_merge) &
+!$omp         local_refs_displ_unmerged,requests,is_diagonal,&
+!$omp         g2l_map_cols_merge,g2l_map_rows_merge,&
+!$omp         meta_size_diag,data_size_diag,pdiag,buffer,&
+!$omp         left_total_row_counts,otf_filtering,&
+!$omp         left_data_win,left_meta_win,right_data_win,&
+!$omp         right_meta_win,request_meta_size_diag,&
+!$omp         request_data_size_diag) &
 !$omp         reduction(max : max_nblocks)
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -1623,12 +1648,12 @@ MODULE dbcsr_mm_cannon
 !$  IF (is_left) THEN
 !$     size_index_unmerged = size_index_unmerged + nthreads + 1
 !$  ENDIF
-!$  IF (is_left.AND.nsymmetries.GT.1) THEN
+!$  IF (is_left.AND.do_symmetry) THEN
 !$     ALLOCATE(locks(0:nthreads-1))
 !$  ENDIF
 !$omp end master
 !$omp barrier
-!$  IF (is_left.AND.nsymmetries.GT.1) THEN
+!$  IF (is_left.AND.do_symmetry) THEN
 !$     call omp_init_lock(locks(ithread))
 !$  ENDIF
     !
@@ -1657,16 +1682,16 @@ MODULE dbcsr_mm_cannon
                myprow = row_dist(stored_row), myrowi = row_img,&
                mypcol = col_dist(stored_col), mycoli = col_img,&
                shifting = '0')
-          IF (nsymmetries.GT.1) THEN
+          IF (do_symmetry) THEN
              ! Avoid unnecessary copy of data for diagonal procs
-             IF (blacs2mpi(prow, pcol).EQ.mynode.OR.sym_p.EQ.mynode) THEN
+             IF (blacs2mpi(prow, pcol).EQ.mynode.OR.is_diagonal) THEN
                 dst_proc = ilocal_proc
              ELSE
                 ! Move data to remove symmetric proc
                 dst_proc = isym_proc
              ENDIF
           ENDIF
-!$        IF (is_left.AND.nsymmetries.GT.1) THEN
+!$        IF (is_left.AND.do_symmetry) THEN
 !$           myt = threads_dist(stored_row)
 !$        ENDIF
 !$omp atomic
@@ -1679,7 +1704,7 @@ MODULE dbcsr_mm_cannon
     ENDDO
     CALL dbcsr_iterator_stop(iter)
     ! Avoid unnecessary copy if data is already local
-    IF (nsymmetries.GT.1.AND.sym_p.NE.mynode) THEN
+    IF (do_symmetry.AND. .NOT.is_diagonal) THEN
 !$omp barrier
 !$omp master
        ALLOCATE(recv_refs(idata_size:imeta_size,&
@@ -1695,7 +1720,7 @@ MODULE dbcsr_mm_cannon
     !
     ! Store local data and meta dimensions
     local_refs_size(:,:,:) = local_refs_size(:,:,:) + refs(:,:,:,ithread+1,ilocal_proc)
-    IF (nsymmetries.GT.1.AND.sym_p.NE.mynode) THEN
+    IF (do_symmetry.AND. .NOT.is_diagonal) THEN
        local_refs_size(:,:,:) = local_refs_size(:,:,:) + recv_refs(:,:,:,ithread+1)
     ENDIF
 !$omp end critical(local_refs_acc)
@@ -1708,8 +1733,13 @@ MODULE dbcsr_mm_cannon
        local_refs_displ_unmerged(imeta_displ,ui) = meta_size
        local_refs_displ_unmerged(idata_displ,ui) = data_size
        DO mi = 1, nimages_merged
-          local_refs_displ(imeta_displ,mi,ui) = meta_size
-          local_refs_displ(idata_displ,mi,ui) = data_size
+          IF (is_diagonal.AND.ui.EQ.mi) THEN
+             local_refs_displ(imeta_displ,mi,ui) = meta_size_diag
+             local_refs_displ(idata_displ,mi,ui) = data_size_diag
+          ELSE
+             local_refs_displ(imeta_displ,mi,ui) = meta_size
+             local_refs_displ(idata_displ,mi,ui) = data_size
+          ENDIF
           ! Include stats slots
           IF (local_refs_size(imeta_size,mi,ui).EQ.0) THEN
              CYCLE
@@ -1717,32 +1747,36 @@ MODULE dbcsr_mm_cannon
              local_refs_size(imeta_size,mi,ui) = local_refs_size(imeta_size,mi,ui) + &
                   size_index_unmerged
           ENDIF
-          meta_size = meta_size + local_refs_size(imeta_size,mi,ui)
-          data_size = data_size + local_refs_size(idata_size,mi,ui)
+          IF (is_diagonal.AND.ui.EQ.mi) THEN
+             meta_size_diag = meta_size_diag+local_refs_size(imeta_size,mi,ui)
+             data_size_diag = data_size_diag+local_refs_size(idata_size,mi,ui)
+          ELSE
+             meta_size = meta_size + local_refs_size(imeta_size,mi,ui)
+             data_size = data_size + local_refs_size(idata_size,mi,ui)
+          ENDIF
        ENDDO
     ENDDO
     !
-    ! Allocate data and meta buffers and exchange refs
+    ! Bcast the diagonal sizes
+    CALL mp_ibcast(meta_size_diag,pdiag,mygrp,request_meta_size_diag)
+    CALL mp_ibcast(data_size_diag,pdiag,mygrp,request_data_size_diag)
+    !
+    ! Exchange refs
     IF (is_left) THEN
-       CALL rma_buffer_init(rma_buffers_orig%left,data_type,&
-                            data_size,&
-                            meta_size,&
-                            left_local_refs_displ=local_refs_displ,&
-                            left_img_refs_rows=img_refs_rows,&
-                            data_memory_type=memtype_mpi_buffer)
-       data_buffer => rma_buffers_orig%left%data
-       meta_buffer => rma_buffers_orig%left%meta
        CALL mp_iallgather(local_refs_size,left_refs_size,mygrp,requests(1))
        CALL mp_iallgather(local_refs_displ_unmerged,left_refs_displ_unmerged,mygrp,requests(2))
     ELSE
-       CALL rma_buffer_init(rma_buffers_orig%right,data_type,&
-                            data_size,&
-                            meta_size,&
-                            data_memory_type=memtype_mpi_buffer)
-       data_buffer => rma_buffers_orig%right%data
-       meta_buffer => rma_buffers_orig%right%meta
        CALL mp_iallgather(local_refs_size,right_refs_size,mygrp,requests(3))
        CALL mp_iallgather(local_refs_displ_unmerged,right_refs_displ_unmerged,mygrp,requests(4))
+    ENDIF
+    ! Allocate data and meta buffers
+    CALL rma_buffer_init(buffer,data_type,&
+                         data_size,meta_size,&
+                         data_memory_type=memtype_mpi_buffer)
+    IF (is_diagonal) THEN
+       CALL resize_buffer_diag(buffer,data_type,&
+                               data_size_diag,meta_size_diag,&
+                               data_memory_type=memtype_mpi_buffer)
     ENDIF
     !
     ! Change displacements for the first thread
@@ -1756,7 +1790,7 @@ MODULE dbcsr_mm_cannon
     ENDDO
     !
     ! Take offsets for symmetric case
-    IF (nsymmetries.GT.1.AND.sym_p.NE.mynode) THEN
+    IF (do_symmetry.AND. .NOT.is_diagonal) THEN
        sym_size(:) = 1
        recv_sym_size(:) = 1
        DO ui = 1, nimages_unmerged
@@ -1795,8 +1829,8 @@ MODULE dbcsr_mm_cannon
 !$omp end master
 !$omp barrier
     !
-    data_buffer_p => data_buffer
-    meta_buffer_p => meta_buffer
+    data_buffer_p => buffer%data
+    meta_buffer_p => buffer%meta
     !
     ! Copy data and meta in the buffers 
     CALL dbcsr_iterator_start(iter, matrix, shared=.TRUE.)
@@ -1823,11 +1857,19 @@ MODULE dbcsr_mm_cannon
                myprow = row_dist(stored_row), myrowi = row_img,&
                mypcol = col_dist(stored_col), mycoli = col_img,&
                shifting = '0')
-          IF (nsymmetries.GT.1) THEN
-             IF (blacs2mpi(prow, pcol).EQ.mynode.OR.sym_p.EQ.mynode) THEN
+          IF (do_symmetry.OR.is_diagonal) THEN
+             IF (is_diagonal) THEN
+                IF (ui.EQ.mi) THEN
+                   data_buffer_p => buffer%data_diag
+                   meta_buffer_p => buffer%meta_diag
+                ELSE
+                   data_buffer_p => buffer%data
+                   meta_buffer_p => buffer%meta
+                ENDIF
+             ELSEIF (blacs2mpi(prow, pcol).EQ.mynode) THEN
                 dst_proc = ilocal_proc
-                data_buffer_p => data_buffer
-                meta_buffer_p => meta_buffer
+                data_buffer_p => buffer%data
+                meta_buffer_p => buffer%meta
              ELSE
                 ! Move data to remove symmetric proc
                 dst_proc = isym_proc
@@ -1835,7 +1877,7 @@ MODULE dbcsr_mm_cannon
                 meta_buffer_p => meta_send
              ENDIF
           ENDIF
-!$        IF (is_left.AND.nsymmetries.GT.1) THEN
+!$        IF (is_left.AND.do_symmetry) THEN
 !$           myt = threads_dist(stored_row)
 !$           call omp_set_lock(locks(myt))
 !$        ENDIF
@@ -1861,7 +1903,19 @@ MODULE dbcsr_mm_cannon
           ENDIF
           !
           ! Set meta data (local indexing)
-          IF (nsymmetries.EQ.1.OR.blacs2mpi(prow, pcol).EQ.mynode) THEN
+          IF (do_symmetry.AND.blacs2mpi(prow, pcol).NE.mynode) THEN
+             ! For the symmetric case we need to swap rows and cols maps
+             IF (is_left) THEN
+                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)) = g2l_map_cols_merge(stored_row)
+                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+1) = g2l_map_rows(stored_col)
+             ELSE
+                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)) = g2l_map_cols(stored_row)
+                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+1) = g2l_map_rows_merge(stored_col)
+             ENDIF
+             ! The offset will be adjusted on the symmetric proc
+             meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+2) = &
+                  refs(idata_size,mi,ui,myt,dst_proc)
+          ELSE
              IF (is_left) THEN
                 meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+size_index_unmerged) = &
                      g2l_map_rows_merge(stored_row)
@@ -1875,29 +1929,17 @@ MODULE dbcsr_mm_cannon
              ENDIF
              meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+size_index_unmerged+2) = &
                   refs(idata_size,mi,ui,myt,dst_proc) - local_refs_displ(idata_displ,mi,ui)
-          ELSE
-             ! For the symmetric case we need to swap rows and cols maps
-             IF (is_left) THEN
-                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)) = g2l_map_cols_merge(stored_row)
-                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+1) = g2l_map_rows(stored_col)
-             ELSE
-                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)) = g2l_map_cols(stored_row)
-                meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+1) = g2l_map_rows_merge(stored_col)
-             ENDIF
-             ! The offset will be adjusted on the symmetric proc
-             meta_buffer_p(refs(imeta_size,mi,ui,myt,dst_proc)+2) = &
-                  refs(idata_size,mi,ui,myt,dst_proc)
           ENDIF
           refs(imeta_size,mi,ui,myt,dst_proc) = refs(imeta_size,mi,ui,myt,dst_proc) + 3
           refs(idata_size,mi,ui,myt,dst_proc) = refs(idata_size,mi,ui,myt,dst_proc) + nze
-!$        IF (is_left.AND.nsymmetries.GT.1) THEN
+!$        IF (is_left.AND.do_symmetry) THEN
 !$           call omp_unset_lock(locks(myt))
 !$        ENDIF
        ENDDO
     ENDDO
     CALL dbcsr_iterator_stop(iter)
     !
-    IF (nsymmetries.GT.1.AND.sym_p.NE.mynode) THEN
+    IF (do_symmetry.AND. .NOT.is_diagonal) THEN
 !$omp barrier
 !$omp master
        ! Send/recv data to the symmetric proc
@@ -1912,9 +1954,11 @@ MODULE dbcsr_mm_cannon
 !$omp end master
     ENDIF
 !$omp barrier
-!$  IF (is_left.AND.nsymmetries.GT.1) THEN
+!$  IF (is_left.AND.do_symmetry) THEN
 !$     call omp_destroy_lock(locks(ithread))    
 !$  ENDIF
+    !
+    meta_buffer_p => buffer%meta
     !
     ! Set stats slots
 !$omp do schedule(dynamic)
@@ -1929,41 +1973,58 @@ MODULE dbcsr_mm_cannon
           IF (local_refs_size(imeta_size,mi,ui).EQ.0) CYCLE
           !
           ! Insert symmetric data in local buffers
-          IF (nsymmetries.GT.1.AND.sym_p.NE.mynode) THEN
+          IF (do_symmetry.AND. .NOT.is_diagonal) THEN
              IF (recv_refs(imeta_size,mi,ui,nthreads).GT.1) THEN
                 DO it=0, nthreads-1
                    ! Copy meta, block by block
                    DO blk = recv_refs(imeta_size,mi,ui,it),recv_refs(imeta_size,mi,ui,it+1)-1,3
-                      meta_buffer(refs(imeta_size,mi,ui,it,ilocal_proc)+size_index_unmerged) = &
+                      buffer%meta(refs(imeta_size,mi,ui,it,ilocal_proc)+size_index_unmerged) = &
                            meta_recv(blk)
-                      meta_buffer(refs(imeta_size,mi,ui,it,ilocal_proc)+size_index_unmerged+1) = &
+                      buffer%meta(refs(imeta_size,mi,ui,it,ilocal_proc)+size_index_unmerged+1) = &
                            meta_recv(blk+1)
-                      meta_buffer(refs(imeta_size,mi,ui,it,ilocal_proc)+size_index_unmerged+2) = &
+                      buffer%meta(refs(imeta_size,mi,ui,it,ilocal_proc)+size_index_unmerged+2) = &
                            meta_recv(blk+2)-recv_refs(idata_size,mi,ui,it)+&
                            refs(idata_size,mi,ui,it,ilocal_proc)-local_refs_displ(idata_displ,mi,ui)
                       refs(imeta_size,mi,ui,it,ilocal_proc) = &
                            refs(imeta_size,mi,ui,it,ilocal_proc) + 3
                    ENDDO
                    ! Copy data
-                   CALL dbcsr_data_set(data_buffer,refs(idata_size,mi,ui,it,ilocal_proc),&
+                   CALL dbcsr_data_set(buffer%data,refs(idata_size,mi,ui,it,ilocal_proc),&
                         recv_refs(idata_size,mi,ui,it+1)-recv_refs(idata_size,mi,ui,it),&
                         data_recv,recv_refs(idata_size,mi,ui,it))
                 ENDDO
              ENDIF
           ENDIF
-          meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size) = &
+          IF (is_diagonal) THEN
+             IF (ui.EQ.mi) THEN
+                meta_buffer_p => buffer%meta_diag
+             ELSE
+                meta_buffer_p => buffer%meta
+             ENDIF
+          ENDIF
+          meta_buffer_p(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size) = &
                local_refs_size(imeta_size,mi,ui)
-          meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks) = &
+          meta_buffer_p(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks) = &
                (local_refs_size(imeta_size,mi,ui)-size_index_unmerged)/3
-          nblocks = nblocks+meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
-!$        IF (is_left) THEN
-!$           ! first thread
-!$           meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+1) = 0
+          nblocks = nblocks+meta_buffer_p(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
+          IF (is_left) THEN
+             ! first thread
+!$           meta_buffer_p(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+1) = 0
 !$           DO it=0, nthreads-1
-!$              meta_buffer(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+it+2) = &
+!$              meta_buffer_p(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks+it+2) = &
 !$                   (refs(imeta_size,mi,ui,it,ilocal_proc)-local_refs_displ(imeta_displ,mi,ui)-1)/3
 !$           ENDDO
-!$        ENDIF
+             ! Count the maximum possible multiplies per row for on-the-fly filtering
+             IF (otf_filtering) THEN
+                DO row = local_refs_displ(imeta_displ,mi,ui)+size_index_unmerged+1, &
+                     local_refs_displ(imeta_displ,mi,ui)+&
+                     meta_buffer_p(local_refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size),3
+!$omp atomic
+                   left_total_row_counts(meta_buffer_p(row)) = &
+                        left_total_row_counts(meta_buffer_p(row)) + 1
+                ENDDO
+             ENDIF
+          ENDIF
        ENDDO
        !
        max_nblocks = MAX(max_nblocks,nblocks)
@@ -1971,13 +2032,29 @@ MODULE dbcsr_mm_cannon
 !$omp end do
 !$omp end parallel
     DEALLOCATE(refs)
-    IF (nsymmetries.GT.1.AND.sym_p.NE.mynode) THEN
+    !
+    IF (is_left.AND.otf_filtering) THEN
+       CALL mp_isum(left_total_row_counts, mygrp, requests(7))
+    ENDIF
+    !
+    IF (nimages_merged.EQ.1) THEN
+       IF (is_diagonal) THEN
+          meta_buffer_p => buffer%meta_diag
+       ELSE
+          meta_buffer_p => buffer%meta
+       ENDIF
+       CALL setup_rec_index (meta_buffer_p, img_refs_rows, img_refs_cols, &
+            local_refs_size(imeta_size,1,:),local_refs_displ(imeta_displ,1,:), &
+            size_index_unmerged, is_left)
+    ENDIF
+    !
+    IF (do_symmetry.AND. .NOT.is_diagonal) THEN
        CALL dbcsr_data_release (data_recv)
        DEALLOCATE(meta_recv,recv_refs)
     ENDIF
     DEALLOCATE(g2l_map_rows,g2l_map_cols)
     DEALLOCATE(g2l_map_rows_merge,g2l_map_cols_merge)
-!$  IF (is_left.AND.nsymmetries.GT.1) THEN    
+!$  IF (is_left.AND.do_symmetry) THEN    
 !$     DEALLOCATE(locks)
 !$  ENDIF
     !
@@ -1985,7 +2062,7 @@ MODULE dbcsr_mm_cannon
     IF (otf_filtering.AND.use_mpi_filtering) THEN
        IF (is_left) THEN
           ALLOCATE(left_local_max_norms(nimages_merged,nimages_unmerged))
-          CALL calculate_max_image_norms(meta_buffer,data_buffer,&
+          CALL calculate_max_image_norms(buffer%meta,buffer%data,&
                                          local_refs_size,&
                                          local_refs_displ,&
                                          img_map,&
@@ -1995,13 +2072,14 @@ MODULE dbcsr_mm_cannon
                                          local_rows,&
                                          local_cols,&
                                          size_index_unmerged+1,&
-                                         left_local_max_norms,is_left)
+                                         left_local_max_norms,is_left,&
+                                         .NOT.is_diagonal)
           ALLOCATE (left_max_norms(myprow*nimages_merged:(myprow+1)*nimages_merged-1,&
                     0:dbcsr_mp_npcols(mp_obj)*nimages_unmerged-1))
           CALL mp_iallgather(left_local_max_norms,left_max_norms,mygrp,requests(5))
        ELSE
           ALLOCATE(right_local_max_norms(nimages_merged,nimages_unmerged))
-          CALL calculate_max_image_norms(meta_buffer,data_buffer,&
+          CALL calculate_max_image_norms(buffer%meta,buffer%data,&
                                          local_refs_size,&
                                          local_refs_displ,&
                                          img_map,&
@@ -2011,26 +2089,46 @@ MODULE dbcsr_mm_cannon
                                          local_rows,&
                                          local_cols,&
                                          size_index_unmerged+1,&
-                                         right_local_max_norms,is_left)
+                                         right_local_max_norms,is_left,&
+                                         .NOT.is_diagonal)
           ALLOCATE (right_max_norms(mypcol*nimages_merged:(mypcol+1)*nimages_merged-1,&
                     0:dbcsr_mp_nprows(mp_obj)*nimages_unmerged-1))
           CALL mp_iallgather(right_local_max_norms,right_max_norms,mygrp,requests(6))          
        ENDIF
     ENDIF
     !
-    IF (nimages_merged.EQ.1) THEN
-       CALL setup_rec_index (meta_buffer, img_refs_rows, img_refs_cols, &
-            local_refs_size(imeta_size,1,:),local_refs_displ(imeta_displ,1,:), &
-            size_index_unmerged, is_left)
-    ENDIF
-    !
     DEALLOCATE(img_refs_cols)
     DEALLOCATE(img_refs)
     DEALLOCATE(img_map)
-    IF (.NOT.is_left) THEN
-       DEALLOCATE(local_refs_displ)
-       DEALLOCATE(img_refs_rows)
+    DEALLOCATE(local_refs_displ)
+    DEALLOCATE(img_refs_rows)
+    !
+    ! Set RMA windows for the original data
+    ! Lock windows for read-only
+    IF (is_left) THEN
+       CALL dbcsr_win_create_any(buffer%data,mygrp,left_data_win)
+       CALL mp_win_create(buffer%meta,mygrp,left_meta_win)
+       CALL mp_win_lock_all(left_data_win)
+       CALL mp_win_lock_all(left_meta_win)
+    ELSE
+       ! Set RMA windows for the original data
+       CALL dbcsr_win_create_any(buffer%data,mygrp,right_data_win)
+       CALL mp_win_create(buffer%meta,mygrp,right_meta_win)
+       CALL mp_win_lock_all(right_data_win)
+       CALL mp_win_lock_all(right_meta_win)
     ENDIF
+    !
+    CALL mp_wait(request_meta_size_diag)
+    CALL mp_wait(request_data_size_diag)
+    IF (.NOT.is_diagonal) THEN
+       CALL resize_buffer_diag(buffer,data_type,&
+                               data_size_diag,meta_size_diag,&
+                               data_memory_type=memtype_mpi_buffer)       
+    ENDIF
+    !
+    ! Bcast the diagonal data
+    CALL mp_ibcast(buffer%meta_diag,pdiag,mygrp,requests_diag(irequests_diag))
+    CALL dbcsr_ibcast_any(buffer%data_diag,pdiag,mygrp,requests_diag(irequests_diag+1))
     !
     CALL timestop(handle)
   END SUBROUTINE make_buffers_rma
@@ -3598,46 +3696,43 @@ MODULE dbcsr_mm_cannon
 
     INTEGER :: blk, data_type, data_type_byte, grp_left, grp_right, handle, &
       handle2, handle3, iget, index_row_max_epss, ithread, left_col_mult, &
-      left_col_nimages, left_data_offset, left_data_size, left_data_win, &
-      left_max_data_size, left_max_meta_size, left_meta_offset, &
-      left_meta_size, left_meta_win, left_myfirstvcol, left_myfirstvrow, &
-      left_mypcol, left_myprow, left_npcols, left_nprows, left_nrequests, &
-      left_row_mult, left_row_nimages, left_v_i, left_vcol, left_vrow, &
-      meta_size_image, metronome, min_nimages, mynode, nblkrows_local, nblks, &
-      nsteps_k, nthreads, numnodes, nvirt_k, recv_pcol, recv_prow
-    INTEGER :: recv_vcol, recv_vcol_displ, recv_vrow, recv_vrow_displ, &
-      right_col_mult, right_col_nimages, right_data_offset, right_data_size, &
-      right_data_win, right_max_data_size, right_max_meta_size, &
-      right_meta_offset, right_meta_size, right_meta_win, right_myfirstvcol, &
-      right_myfirstvrow, right_mypcol, right_myprow, right_npcols, &
-      right_nprows, right_nrequests, right_row_mult, right_row_nimages, &
-      right_v_i, right_vcol, right_vrow, row, size_guess, size_index_merged, &
-      size_index_unmerged, v_ci, v_ki, v_ki_next, v_merged_next, v_ri
+      left_col_nimages, left_data_offset, left_data_offset_diag, &
+      left_data_size, left_max_data_size, left_max_meta_size, &
+      left_meta_offset, left_meta_offset_diag, left_meta_size, &
+      left_myfirstvcol, left_myfirstvrow, left_mypcol, left_myprow, &
+      left_npcols, left_nprows, left_nrequests, left_row_mult, &
+      left_row_nimages, left_v_i, left_vcol, left_vrow, meta_size_image, &
+      metronome, min_nimages, mynode, nblkrows_local, nsteps_k, nthreads, &
+      numnodes, nvirt_k, recv_vcol
+    INTEGER :: recv_vcol_displ, recv_vrow, recv_vrow_displ, right_col_mult, &
+      right_col_nimages, right_data_offset, right_data_offset_diag, &
+      right_data_size, right_max_data_size, right_max_meta_size, &
+      right_meta_offset, right_meta_offset_diag, right_meta_size, &
+      right_myfirstvcol, right_myfirstvrow, right_mypcol, right_myprow, &
+      right_npcols, right_nprows, right_nrequests, right_row_mult, &
+      right_row_nimages, right_v_i, right_vcol, right_vrow, row, size_guess, &
+      size_index_merged, size_index_unmerged, v_ci, v_ki, v_ri
     INTEGER(KIND=int_8)                      :: mem
     INTEGER, ALLOCATABLE, DIMENSION(:) :: indices_common_unmerged, &
       left_get_requests_images, left_max_meta_size_merged, &
-      right_get_requests_images, right_max_meta_size_merged, row_counts, &
-      total_row_counts
+      right_get_requests_images, right_max_meta_size_merged
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: left_recv_filtered, &
                                                 left_vunmerged, &
                                                 right_recv_filtered, &
                                                 right_vunmerged
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: left_vmerged, right_vmerged
-    INTEGER, DIMENSION(:), POINTER           :: meta_get, rowi
     INTEGER, DIMENSION(&
       dbcsr_slot_nblkrows_total:&
       dbcsr_slot_nfullcols_local)            :: left_global_indices, &
                                                 right_global_indices
-    INTEGER, &
-      DIMENSION(idata_displ:imeta_displ)     :: refs_displ_unmerged_first
-    LOGICAL                                  :: do_rec, is_contiguous, &
-                                                keep_sparsity, &
+    LOGICAL                                  :: do_rec, keep_sparsity, &
                                                 left_set_displ, &
                                                 otf_filtering, right_set_displ
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: common_unmerged
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: left_nofiltered, &
                                                 right_nofiltered
-    REAL(kind=sp)                            :: min_row_max_epss
+    REAL(kind=sp)                            :: filter_eps_sp, &
+                                                min_row_max_epss
     REAL(kind=sp), ALLOCATABLE, DIMENSION(:) :: row_max_epss
     REAL(kind=sp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: left_norms, right_norms
@@ -3653,8 +3748,6 @@ MODULE dbcsr_mm_cannon
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    NULLIFY(rowi)
-    NULLIFY(meta_get)
     NULLIFY(rma_buffers_calc, rma_buffers_comm, rma_buffers)
     !
     IF (PRESENT (retain_sparsity)) THEN
@@ -3686,8 +3779,6 @@ MODULE dbcsr_mm_cannon
        .NOT.rma_buffers_orig%right%is_valid.OR.&
        .NOT.ASSOCIATED(rma_buffers_orig%left%meta).OR.&
        .NOT.ASSOCIATED(rma_buffers_orig%right%meta).OR.&
-       .NOT.ASSOCIATED(rma_buffers_orig%left_local_refs_displ).OR.&
-       .NOT.ASSOCIATED(rma_buffers_orig%left_img_refs_rows).OR.&
        .NOT.ALLOCATED(left_refs_size).OR.&
        .NOT.ALLOCATED(right_refs_size).OR.&
        .NOT.ALLOCATED(left_local_refs_size).OR.&
@@ -3737,8 +3828,6 @@ MODULE dbcsr_mm_cannon
     CALL dbcsr_mp_grid_setup (right_mp_obj)
     !
     ! Dummy checks
-    IF(SIZE(rma_buffers_orig%left_img_refs_rows).NE.left_row_nimages)&
-       CPABORT("Number of images mismatch for the RMA algo!")
     ! subcommunicators
     IF(.NOT.dbcsr_mp_has_subgroups (right_mp_obj))&
          CPABORT("RMA requires rows subcommunicators for right matrix!")
@@ -3773,66 +3862,36 @@ MODULE dbcsr_mm_cannon
     !
     do_rec = min_nimages.EQ.1
     !
-    ! Count the maximum possible multiplies per row for on-the-fly filtering.
+    ! Wait refs and max norms (sent in make_buffers_rma)
+    CALL mp_waitall(requests)
+    ! Delete buffers used for collectives 
+    DEALLOCATE(right_local_refs_displ_unmerged,left_local_refs_displ_unmerged)
+    IF (otf_filtering.AND.use_mpi_filtering) THEN
+       DEALLOCATE(right_local_max_norms,left_local_max_norms)
+    ENDIF
+    DEALLOCATE(right_local_refs_size,left_local_refs_size)
+    !
+    ! Count the maximum possible multiplies per row for on-the-fly filtering
     IF (otf_filtering) THEN
        !
-       nblkrows_local = SUM(rma_buffers_orig%left_img_refs_rows(:))
-       ALLOCATE(row_max_epss(nblkrows_local),&
-                row_counts(nblkrows_local),&
-                total_row_counts(nblkrows_local))
-       ! Each prow member matrix counts the blocks present in each of its rows
-       total_row_counts = 0
+       nblkrows_local = SIZE(left_total_row_counts)
+       ALLOCATE(row_max_epss(nblkrows_local))
        index_row_max_epss = 1
-!$omp parallel default(none) &
-!$omp          private (v_ri, v_ci, blk, nblks, rowi, row_counts, row) &
-!$omp          shared (rma_buffers_orig,total_row_counts,left_row_nimages,&
-!$omp                  left_col_nimages,grp_left,index_row_max_epss,&
-!$omp                  row_max_epss,nblkrows_local,filter_eps,&
-!$omp                  left_local_refs_size,size_index_unmerged)
-       row_counts = 0
-!$omp do schedule(dynamic)
-       DO v_ci = 1, left_col_nimages
-          DO v_ri = 1, left_row_nimages
-             IF (left_local_refs_size(imeta_size,v_ri,v_ci).NE.0) THEN
-                nblks = rma_buffers_orig%left%meta(&
-                     rma_buffers_orig%left_local_refs_displ(imeta_displ,v_ri,v_ci)+dbcsr_slot_nblks)
-                rowi => rma_buffers_orig%left%meta(&
-                     rma_buffers_orig%left_local_refs_displ(imeta_displ,v_ri,v_ci)+&
-                     size_index_unmerged+1:&
-                     rma_buffers_orig%left%meta(&
-                         rma_buffers_orig%left_local_refs_displ(imeta_displ,v_ri,v_ci)+dbcsr_slot_size&
-                     )+&
-                     rma_buffers_orig%left_local_refs_displ(imeta_displ,v_ri,v_ci):3)
-                DO blk = 1, nblks
-                   row_counts(rowi(blk)) = row_counts(rowi(blk)) + 1 
-                ENDDO
-             ENDIF
-          ENDDO
-       ENDDO
-!$omp end do
-!$omp critical(total_row_counts_acc)
-       total_row_counts(:) = total_row_counts(:) + row_counts(:)
-!$omp end critical(total_row_counts_acc)
-!$omp barrier
-!$omp master
-       ! The counted blocks are then summed up
-       CALL mp_sum(total_row_counts, grp_left)
-!$omp end master
-!$omp barrier
+       filter_eps_sp = REAL(filter_eps,KIND=KIND(row_max_epss))
+!$omp parallel do default (none) &
+!$omp shared(nblkrows_local,row_max_epss,filter_eps_sp,&
+!$omp        left_total_row_counts) &
+!$omp reduction(max:index_row_max_epss)
        ! Determine the maximum per-block epsilon
-!$omp do reduction(max:index_row_max_epss)
        DO row = 1, nblkrows_local
           row_max_epss(row) = &
-               REAL(filter_eps/REAL(MAX(1,total_row_counts(row)),KIND=KIND(row_max_epss)),&
-               KIND=KIND(row_max_epss))
+               filter_eps_sp/REAL(MAX(1,left_total_row_counts(row)),KIND=KIND(row_max_epss))
           ! Use integers for a fast comparison
-          index_row_max_epss = MAX(index_row_max_epss,total_row_counts(row))
+          index_row_max_epss = MAX(index_row_max_epss,left_total_row_counts(row))
        ENDDO
-!$omp end do
-!$omp end parallel
-       min_row_max_epss = REAL(filter_eps/REAL(index_row_max_epss,KIND=KIND(row_max_epss)),&
-            KIND=KIND(row_max_epss))
-       DEALLOCATE (row_counts, total_row_counts)
+!$omp end parallel do
+       min_row_max_epss = filter_eps_sp/REAL(index_row_max_epss,KIND=KIND(row_max_epss))
+       DEALLOCATE (left_total_row_counts)
     ELSE
        !
        ! The array must be valid when passed to called subroutines.
@@ -3882,25 +3941,6 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_mempool_ensure_capacity(memtype_abpanel_2%pool, &
             capacity=left_col_nimages + right_row_nimages)
     ENDIF
-    !
-    ! Set RMA windows for the original data
-    CALL dbcsr_win_create_any(rma_buffers_orig%left%data,grp_left,left_data_win)
-    CALL mp_win_create(rma_buffers_orig%left%meta,grp_left,left_meta_win)
-    CALL dbcsr_win_create_any(rma_buffers_orig%right%data,grp_right,right_data_win)
-    CALL mp_win_create(rma_buffers_orig%right%meta,grp_right,right_meta_win)
-    CALL mp_win_lock_all(left_data_win)
-    CALL mp_win_lock_all(left_meta_win)
-    CALL mp_win_lock_all(right_data_win)
-    CALL mp_win_lock_all(right_meta_win)
-    !
-    ! Wait refs and max norms (sent in make_buffers_rma)
-    CALL mp_waitall(requests)
-    ! Delete buffers used for collectives 
-    DEALLOCATE(right_local_refs_displ_unmerged,left_local_refs_displ_unmerged)
-    IF (otf_filtering.AND.use_mpi_filtering) THEN
-       DEALLOCATE(right_local_max_norms,left_local_max_norms)
-    ENDIF
-    DEALLOCATE(right_local_refs_size,left_local_refs_size)
     !
     ! Pre-CANNON execution: filtering and resize buffers for communications
     CALL timeset(routineN//"_precannon", handle2)
@@ -3995,7 +4035,9 @@ MODULE dbcsr_mm_cannon
           ! multiplication of norms
           DO v_ri = 1, left_vunmerged(v_ki,metronome)
              DO v_ci = 1, right_vunmerged(v_ki,metronome)
-                IF (otf_filtering.AND.use_mpi_filtering) THEN
+                IF (otf_filtering.AND.use_mpi_filtering.AND.&
+                    left_vmerged(v_ri,v_ki,metronome).NE.recv_vcol.AND.&
+                    right_vmerged(v_ci,v_ki,metronome).NE.recv_vrow) THEN
                    IF (left_max_norms(left_vmerged(v_ri,v_ki,metronome),recv_vcol)*&
                         right_max_norms(right_vmerged(v_ci,v_ki,metronome),recv_vrow).LT.&
                         min_row_max_epss) CYCLE
@@ -4156,9 +4198,19 @@ MODULE dbcsr_mm_cannon
     ALLOCATE(common_unmerged(min_nimages))
     ALLOCATE(indices_common_unmerged(min_nimages))
     !
+    ! Wait for diagonal clusters data
+    CALL timeset(routineN//"_diag", handle2)
+    CALL mp_waitall(requests_diag)
+    CALL timestop(handle2)
+    !
     ! Here is the main loop
     !
     CALL timeset(routineN//"_loop", handle2)
+    !
+    right_meta_offset_diag = 0
+    right_data_offset_diag = 0
+    left_meta_offset_diag = 0
+    left_data_offset_diag = 0
     !
     grouped_k_index: DO metronome = 0, nsteps_k
        !
@@ -4213,183 +4265,26 @@ MODULE dbcsr_mm_cannon
           right_v_i = 0
           left_v_i = 0
           DO v_ki = 0, min_nimages-1
-             recv_vrow = v_ki+rma_buffers_comm%right%vprow
-             recv_prow = recv_vrow / right_row_nimages
-             refs_displ_unmerged_first(:) = 0
-             DO v_ci = 1, right_vunmerged(v_ki,metronome)
-                recv_vcol = right_vmerged(v_ci,v_ki,metronome)
-                right_v_i = right_v_i + 1
-                IF (right_nofiltered(v_ci,v_ki,metronome)) THEN
-                   IF (right_set_displ) THEN
-                      recv_vrow_displ = recv_vrow
-                      right_refs_displ_unmerged(:,recv_vrow_displ) = &
-                           right_refs_displ_unmerged(:,recv_vrow_displ) + &
-                           refs_displ_unmerged_first(:)
-                      refs_displ_unmerged_first(:) = 0
-                      right_set_displ = .FALSE.
-                      rma_buffers_comm%right%get_requests_map(1,rma_buffers_comm%right%nrequests+1) = &
-                           v_ki+1
-                   ENDIF
-                   !
-                   rma_buffers_comm%right%offset(idata_size:imeta_size,right_v_i+1) = &
-                        rma_buffers_comm%right%offset(idata_size:imeta_size,right_v_i) + &
-                        right_refs_size(idata_size:imeta_size,recv_vcol,recv_vrow)
-                   right_meta_size = right_meta_size + right_refs_size(imeta_size,recv_vcol,recv_vrow)
-                   right_data_size = right_data_size + right_refs_size(idata_size,recv_vcol,recv_vrow)
-                   !
-                   ! Check for contiguous data
-                   is_contiguous = .FALSE.
-                   v_merged_next = v_ci + 1
-                   v_ki_next = v_ki
-                   DO WHILE (.TRUE.)
-                      IF (v_merged_next.LE.right_vunmerged(v_ki_next,metronome)) THEN
-                         IF (right_nofiltered(v_merged_next,v_ki_next,metronome)) THEN
-                            is_contiguous = .TRUE.
-                         ENDIF
-                         EXIT
-                      ELSEIF (v_ki_next.LT.min_nimages-1) THEN
-                         v_ki_next = v_ki_next + 1
-                         IF (recv_prow.NE.((v_ki_next+rma_buffers_comm%right%vprow)/right_row_nimages)) EXIT
-                         v_merged_next = 1
-                      ELSE
-                         EXIT
-                      ENDIF
-                   ENDDO
-                   !
-                   IF (.NOT.is_contiguous) THEN
-                      rma_buffers_comm%right%nrequests = rma_buffers_comm%right%nrequests + 1
-                      rma_buffers_comm%right%get_requests_map(2,rma_buffers_comm%right%nrequests) = &
-                           v_ki+1
-                      meta_get => rma_buffers_comm%right%meta(right_meta_offset+1:right_meta_size)
-                      CALL mp_rget(meta_get,recv_prow,&
-                           right_meta_win,&
-                           rma_buffers_orig%right%meta,&
-                           right_myprow,&
-                           right_refs_displ_unmerged(imeta_displ,recv_vrow_displ),&
-                           rma_buffers_comm%right%get_requests(1,rma_buffers_comm%right%nrequests))
-                      right_meta_offset = right_meta_size
-                      CALL dbcsr_data_set_pointer(&
-                           area=data_get,&
-                           rsize=right_data_size-right_data_offset,&
-                           csize=1,&
-                           pointee=rma_buffers_comm%right%data,&
-                           source_lb=right_data_offset+1)
-                      CALL dbcsr_rget_any(data_get,recv_prow,&
-                           right_data_win,&
-                           rma_buffers_orig%right%data,&
-                           right_myprow,&
-                           right_refs_displ_unmerged(idata_displ,recv_vrow_displ),&
-                           rma_buffers_comm%right%get_requests(2,rma_buffers_comm%right%nrequests))
-                      IF (metronome.GT.0) THEN
-                         CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
-                              right_data_size-right_data_offset,&
-                              dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
-                         dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
-                      ENDIF
-                      right_data_offset = right_data_size
-                      right_set_displ = .TRUE.
-                   ENDIF
-                ELSE
-                   rma_buffers_comm%right%offset(:,right_v_i+1) = &
-                        rma_buffers_comm%right%offset(:,right_v_i)
-                   dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
-                ENDIF
-                refs_displ_unmerged_first(imeta_displ) = &
-                     refs_displ_unmerged_first(imeta_displ) + &
-                     right_refs_size(imeta_size,recv_vcol,recv_vrow)
-                refs_displ_unmerged_first(idata_displ) = &
-                     refs_displ_unmerged_first(idata_displ) + &
-                     right_refs_size(idata_size,recv_vcol,recv_vrow)
-             ENDDO
-             !
-             recv_vcol = v_ki+rma_buffers_comm%left%vpcol
-             recv_pcol = recv_vcol / left_col_nimages
-             refs_displ_unmerged_first(:) = 0
-             DO v_ri = 1, left_vunmerged(v_ki,metronome)
-                recv_vrow = left_vmerged(v_ri,v_ki,metronome)
-                left_v_i = left_v_i + 1
-                IF (left_nofiltered(v_ri,v_ki,metronome)) THEN
-                   IF (left_set_displ) THEN
-                      recv_vcol_displ = recv_vcol
-                      left_refs_displ_unmerged(:,recv_vcol_displ) = &
-                           left_refs_displ_unmerged(:,recv_vcol_displ) + &
-                           refs_displ_unmerged_first(:)
-                      refs_displ_unmerged_first(:) = 0
-                      left_set_displ = .FALSE.
-                      rma_buffers_comm%left%get_requests_map(1,rma_buffers_comm%left%nrequests+1) = &
-                           v_ki+1
-                   ENDIF
-                   !
-                   rma_buffers_comm%left%offset(idata_size:imeta_size,left_v_i+1) = &
-                        rma_buffers_comm%left%offset(idata_size:imeta_size,left_v_i) + &
-                        left_refs_size(idata_size:imeta_size,recv_vrow,recv_vcol)
-                   left_meta_size = left_meta_size + left_refs_size(imeta_size,recv_vrow,recv_vcol)
-                   left_data_size = left_data_size + left_refs_size(idata_size,recv_vrow,recv_vcol)
-                   !
-                   ! Check for contiguous meta
-                   is_contiguous = .FALSE.
-                   v_merged_next = v_ri + 1
-                   v_ki_next = v_ki
-                   DO WHILE (.TRUE.)
-                      IF (v_merged_next.LE.left_vunmerged(v_ki_next,metronome)) THEN
-                         IF (left_nofiltered(v_merged_next,v_ki_next,metronome)) THEN
-                            is_contiguous = .TRUE.
-                         ENDIF
-                         EXIT
-                      ELSEIF (v_ki_next.LT.min_nimages-1) THEN
-                         v_ki_next = v_ki_next + 1
-                         IF (recv_pcol.NE.((v_ki_next+rma_buffers_comm%left%vpcol)/left_col_nimages)) EXIT
-                         v_merged_next = 1
-                      ELSE
-                         EXIT
-                      ENDIF
-                   ENDDO
-                   !
-                   IF (.NOT.is_contiguous) THEN
-                      rma_buffers_comm%left%nrequests = rma_buffers_comm%left%nrequests + 1
-                      rma_buffers_comm%left%get_requests_map(2,rma_buffers_comm%left%nrequests) = &
-                           v_ki+1
-                      meta_get => rma_buffers_comm%left%meta(left_meta_offset+1:left_meta_size)
-                      CALL mp_rget(meta_get,recv_pcol,&
-                           left_meta_win,&
-                           rma_buffers_orig%left%meta,&
-                           left_mypcol,&
-                           left_refs_displ_unmerged(imeta_displ,recv_vcol_displ),&
-                           rma_buffers_comm%left%get_requests(1,rma_buffers_comm%left%nrequests))
-                      left_meta_offset = left_meta_size
-                      CALL dbcsr_data_set_pointer(&
-                           area=data_get,&
-                           rsize=left_data_size-left_data_offset,&
-                           csize=1,&
-                           pointee=rma_buffers_comm%left%data,&
-                           source_lb=left_data_offset+1)
-                      CALL dbcsr_rget_any(data_get,recv_pcol,&
-                           left_data_win,&
-                           rma_buffers_orig%left%data,&
-                           left_mypcol,&
-                           left_refs_displ_unmerged(idata_displ,recv_vcol_displ),&
-                           rma_buffers_comm%left%get_requests(2,rma_buffers_comm%left%nrequests))
-                      IF (metronome.GT.0) THEN
-                         CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(2,:),&
-                              left_data_size-left_data_offset,&
-                              dbcsr_mpi_statistics%data_size_breakdown(:,:,2),data_type_byte)
-                         dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
-                      ENDIF
-                      left_data_offset = left_data_size
-                      left_set_displ = .TRUE.
-                   ENDIF
-                ELSE
-                   rma_buffers_comm%left%offset(:,left_v_i+1) = &
-                        rma_buffers_comm%left%offset(:,left_v_i)
-                   dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
-                ENDIF
-                refs_displ_unmerged_first(imeta_displ) = &
-                     refs_displ_unmerged_first(imeta_displ) + &
-                     left_refs_size(imeta_size,recv_vrow,recv_vcol)
-                refs_displ_unmerged_first(idata_displ) = &
-                     refs_displ_unmerged_first(idata_displ) + &
-                     left_refs_size(idata_size,recv_vrow,recv_vcol)
-             ENDDO
+             ! Right 
+             CALL cannon_transfer_rma(v_ki,rma_buffers_comm%right%vprow,right_row_nimages,&
+                  right_vunmerged(:,metronome),right_vmerged(:,:,metronome),&
+                  right_v_i,right_nofiltered(:,:,metronome),right_set_displ,&
+                  recv_vrow_displ,right_refs_displ_unmerged,&
+                  rma_buffers_comm%right,right_refs_size,right_meta_size,right_data_size,&
+                  min_nimages,right_meta_offset,right_data_offset,&
+                  right_meta_win,right_data_win,right_myprow,metronome.GT.0,&
+                  data_get,data_type_byte,rma_buffers_orig%right,&
+                  right_meta_offset_diag,right_data_offset_diag)
+             ! Left
+             CALL cannon_transfer_rma(v_ki,rma_buffers_comm%left%vpcol,left_col_nimages,&
+                  left_vunmerged(:,metronome),left_vmerged(:,:,metronome),&
+                  left_v_i,left_nofiltered(:,:,metronome),left_set_displ,&
+                  recv_vcol_displ,left_refs_displ_unmerged,&
+                  rma_buffers_comm%left,left_refs_size,left_meta_size,left_data_size,&
+                  min_nimages,left_meta_offset,left_data_offset,&
+                  left_meta_win,left_data_win,left_mypcol,metronome.GT.0,&
+                  data_get,data_type_byte,rma_buffers_orig%left,&
+                  left_meta_offset_diag,left_data_offset_diag)
           ENDDO
        ENDIF xfer
        !
@@ -4559,6 +4454,193 @@ MODULE dbcsr_mm_cannon
 
 ! *****************************************************************************
 !> \brief ...
+!> \param v_ki ...
+!> \param vpunmerged ...
+!> \param unmerged_nimages ...
+!> \param vunmerged ...
+!> \param vmerged ...
+!> \param v_i ...
+!> \param nofiltered ...
+!> \param set_displ ...
+!> \param recv_vunmerged_displ ...
+!> \param refs_displ_unmerged ...
+!> \param buffer ...
+!> \param refs_size ...
+!> \param meta_size ...
+!> \param data_size ...
+!> \param min_nimages ...
+!> \param meta_offset ...
+!> \param data_offset ...
+!> \param meta_win ...
+!> \param data_win ...
+!> \param mypunmerged ...
+!> \param save_statistics ...
+!> \param data_get ...
+!> \param data_type_byte ...
+!> \param buffer_orig ...
+!> \param meta_offset_diag ...
+!> \param data_offset_diag ...
+!> \author Alfio Lazzaro
+! *****************************************************************************
+  SUBROUTINE cannon_transfer_rma(v_ki,vpunmerged,unmerged_nimages,&
+                                 vunmerged,vmerged,&
+                                 v_i,nofiltered,set_displ,&
+                                 recv_vunmerged_displ,refs_displ_unmerged,&
+                                 buffer,refs_size,meta_size,data_size,&
+                                 min_nimages,meta_offset,data_offset,&
+                                 meta_win,data_win,mypunmerged,save_statistics,&
+                                 data_get,data_type_byte,&
+                                 buffer_orig,meta_offset_diag,data_offset_diag)
+    INTEGER, INTENT(IN)                      :: v_ki, vpunmerged, &
+                                                unmerged_nimages
+    INTEGER, DIMENSION(0:), INTENT(IN)       :: vunmerged
+    INTEGER, DIMENSION(:, 0:), INTENT(IN)    :: vmerged
+    INTEGER, INTENT(INOUT)                   :: v_i
+    LOGICAL, DIMENSION(:, 0:), INTENT(IN)    :: nofiltered
+    LOGICAL, INTENT(INOUT)                   :: set_displ
+    INTEGER, INTENT(INOUT)                   :: recv_vunmerged_displ
+    INTEGER, ALLOCATABLE, DIMENSION(:, :), &
+      INTENT(INOUT)                          :: refs_displ_unmerged
+    TYPE(dbcsr_rma_buffer), INTENT(INOUT)    :: buffer
+    INTEGER, ALLOCATABLE, &
+      DIMENSION(:, :, :), INTENT(IN)         :: refs_size
+    INTEGER, INTENT(INOUT)                   :: meta_size, data_size
+    INTEGER, INTENT(IN)                      :: min_nimages
+    INTEGER, INTENT(INOUT)                   :: meta_offset, data_offset
+    INTEGER, INTENT(IN)                      :: meta_win, data_win, &
+                                                mypunmerged
+    LOGICAL, INTENT(IN)                      :: save_statistics
+    TYPE(dbcsr_data_obj)                     :: data_get
+    INTEGER, INTENT(IN)                      :: data_type_byte
+    TYPE(dbcsr_rma_buffer), INTENT(IN)       :: buffer_orig
+    INTEGER, INTENT(INOUT)                   :: meta_offset_diag, &
+                                                data_offset_diag
+
+    INTEGER                                  :: recv_punmerged, &
+                                                recv_vunmerged, ui, ui_next, &
+                                                v_ki_next
+    INTEGER, DIMENSION(:), POINTER           :: meta_get
+    INTEGER, &
+      DIMENSION(idata_displ:imeta_displ)     :: refs_displ_unmerged_first
+    LOGICAL                                  :: is_contiguous
+
+! Left  : merged => row, unmerged => col
+! Right : merged => col, unmerged => row
+
+    recv_vunmerged = v_ki + vpunmerged
+    recv_punmerged = recv_vunmerged / unmerged_nimages
+    refs_displ_unmerged_first(:) = 0
+    DO ui = 1, vunmerged(v_ki)
+       v_i = v_i + 1
+       IF (nofiltered(ui,v_ki)) THEN
+          buffer%offset(idata_size:imeta_size,v_i+1) = &
+               buffer%offset(idata_size:imeta_size,v_i) + &
+               refs_size(idata_size:imeta_size,vmerged(ui,v_ki),recv_vunmerged)
+          meta_size = meta_size + refs_size(imeta_size,vmerged(ui,v_ki),recv_vunmerged)
+          data_size = data_size + refs_size(idata_size,vmerged(ui,v_ki),recv_vunmerged)
+          !
+          ! Check for diagonal clusters and do the local copy
+          IF (vmerged(ui,v_ki).EQ.recv_vunmerged) THEN
+             buffer%nrequests = buffer%nrequests + 1
+             buffer%get_requests_map(1,buffer%nrequests) = v_ki+1
+             buffer%get_requests_map(2,buffer%nrequests) = v_ki+1
+             CALL memory_copy(buffer%meta(meta_offset+1:meta_size),&
+                  buffer_orig%meta_diag(meta_offset_diag+1:&
+                  meta_offset_diag+refs_size(imeta_size,vmerged(ui,v_ki),recv_vunmerged)),&
+                  refs_size(imeta_size,vmerged(ui,v_ki),recv_vunmerged))
+             meta_offset = meta_size
+             buffer%get_requests(1,buffer%nrequests) = mp_request_null
+             CALL dbcsr_data_set(buffer%data,data_offset+1,&
+                  refs_size(idata_size,vmerged(ui,v_ki),recv_vunmerged),&
+                  buffer_orig%data_diag,data_offset_diag+1)
+             data_offset = data_size
+             buffer%get_requests(2,buffer%nrequests) = mp_request_null
+          ELSE
+             IF (set_displ) THEN
+                recv_vunmerged_displ = recv_vunmerged
+                refs_displ_unmerged(:,recv_vunmerged_displ) = &
+                     refs_displ_unmerged(:,recv_vunmerged_displ) + &
+                     refs_displ_unmerged_first(:)
+                refs_displ_unmerged_first(:) = 0
+                set_displ = .FALSE.
+                buffer%get_requests_map(1,buffer%nrequests+1) = v_ki+1
+             ENDIF
+             !
+             ! Check for contiguous data
+             is_contiguous = .FALSE.
+             ui_next = ui + 1
+             v_ki_next = v_ki
+             DO WHILE (.TRUE.)
+                IF (ui_next.LE.vunmerged(v_ki_next)) THEN
+                   IF (nofiltered(ui_next,v_ki_next).AND.&
+                        vmerged(ui_next,v_ki_next).NE.v_ki_next+vpunmerged) THEN
+                      is_contiguous = .TRUE.
+                   ENDIF
+                   EXIT
+                ELSEIF (v_ki_next.LT.min_nimages-1) THEN
+                   v_ki_next = v_ki_next + 1
+                   IF (recv_punmerged.NE.((v_ki_next+vpunmerged)/unmerged_nimages)) EXIT
+                   ui_next = 1
+                ELSE
+                   EXIT
+                ENDIF
+             ENDDO
+             !
+             IF (.NOT.is_contiguous) THEN
+                buffer%nrequests = buffer%nrequests + 1
+                buffer%get_requests_map(2,buffer%nrequests) = v_ki+1
+                meta_get => buffer%meta(meta_offset+1:meta_size)
+                CALL mp_rget(meta_get,recv_punmerged,&
+                     meta_win,&
+                     buffer_orig%meta,&
+                     mypunmerged,&
+                     refs_displ_unmerged(imeta_displ,recv_vunmerged_displ),&
+                     buffer%get_requests(1,buffer%nrequests))
+                meta_offset = meta_size
+                CALL dbcsr_data_set_pointer(&
+                     area=data_get,&
+                     rsize=data_size-data_offset,&
+                     csize=1,&
+                     pointee=buffer%data,&
+                     source_lb=data_offset+1)
+                CALL dbcsr_rget_any(data_get,recv_punmerged,&
+                     data_win,&
+                     buffer_orig%data,&
+                     mypunmerged,&
+                     refs_displ_unmerged(idata_displ,recv_vunmerged_displ),&
+                     buffer%get_requests(2,buffer%nrequests))
+                IF (save_statistics) THEN
+                   CALL count_mpi_statistics(dbcsr_mpi_statistics%data_size(1,:),&
+                        data_size-data_offset,&
+                        dbcsr_mpi_statistics%data_size_breakdown(:,:,1),data_type_byte)
+                   dbcsr_mpi_statistics%nexchanged = dbcsr_mpi_statistics%nexchanged+1
+                ENDIF
+                data_offset = data_size
+                set_displ = .TRUE.
+             ENDIF
+          ENDIF
+       ELSE
+          buffer%offset(:,v_i+1) = buffer%offset(:,v_i)
+          dbcsr_mpi_statistics%nfiltered = dbcsr_mpi_statistics%nfiltered+1
+       ENDIF
+       IF (vmerged(ui,v_ki).EQ.recv_vunmerged) THEN
+          meta_offset_diag = meta_offset_diag + &
+               refs_size(imeta_size,vmerged(ui,v_ki),recv_vunmerged)
+          data_offset_diag = data_offset_diag + &
+               refs_size(idata_size,vmerged(ui,v_ki),recv_vunmerged)
+       ELSE
+          refs_displ_unmerged_first(imeta_displ) = &
+               refs_displ_unmerged_first(imeta_displ) + &
+               refs_size(imeta_size,vmerged(ui,v_ki),recv_vunmerged)
+          refs_displ_unmerged_first(idata_displ) = &
+               refs_displ_unmerged_first(idata_displ) + &
+               refs_size(idata_size,vmerged(ui,v_ki),recv_vunmerged)
+       ENDIF
+    ENDDO
+  END SUBROUTINE cannon_transfer_rma
+
+! *****************************************************************************
+!> \brief ...
 !> \param right_buffer ...
 !> \param left_buffer ...
 !> \param in_nrequests ...
@@ -4597,8 +4679,7 @@ MODULE dbcsr_mm_cannon
       TARGET                                 :: right_buffer, left_buffer
     INTEGER, INTENT(INOUT)                   :: in_nrequests
     TYPE(dbcsr_mm_multrec_type_p), &
-      ALLOCATABLE, DIMENSION(:), &
-      INTENT(INOUT)                          :: multrec
+      DIMENSION(0:), INTENT(INOUT)           :: multrec
     LOGICAL, INTENT(IN)                      :: do_rec
     INTEGER(KIND=int_8), INTENT(INOUT)       :: flop
     INTEGER, DIMENSION(:), INTENT(INOUT)     :: get_requests_images
@@ -4610,12 +4691,10 @@ MODULE dbcsr_mm_cannon
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: vmerged
     LOGICAL, INTENT(IN)                      :: otf_filtering
     INTEGER, INTENT(IN)                      :: data_type
-    REAL(kind=sp), ALLOCATABLE, &
-      DIMENSION(:, :), INTENT(INOUT), TARGET :: right_norms, left_norms
-    LOGICAL, ALLOCATABLE, DIMENSION(:), &
-      INTENT(INOUT)                          :: common_unmerged
-    INTEGER, ALLOCATABLE, DIMENSION(:), &
-      INTENT(INOUT)                          :: indices_common_unmerged
+    REAL(kind=sp), DIMENSION(:, :), &
+      INTENT(INOUT), TARGET                  :: right_norms, left_norms
+    LOGICAL, DIMENSION(:), INTENT(INOUT)     :: common_unmerged
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: indices_common_unmerged
     INTEGER, INTENT(IN), OPTIONAL            :: nthreads
 
     CHARACTER(len=*), PARAMETER :: routineN = 'wait_merge_calc_low', &
@@ -4702,7 +4781,6 @@ MODULE dbcsr_mm_cannon
     ENDDO
     !
     in_nrequests = nrequests
-
   END SUBROUTINE wait_merge_calc_low
 
 ! *****************************************************************************
@@ -4727,7 +4805,6 @@ MODULE dbcsr_mm_cannon
     mpi_statistics(1) = mpi_statistics(1) + REAL(data_size)
     mpi_statistics(2) = MIN(mpi_statistics(2),REAL(data_size))
     mpi_statistics(3) = MAX(mpi_statistics(3),REAL(data_size))
-
     IF (PRESENT(size_breakdown)) THEN
        data_size_bytes=data_size
        ! change in bytes
@@ -4749,7 +4826,6 @@ MODULE dbcsr_mm_cannon
           llimit=dbcsr_mpi_size_limits(ilimit)
        ENDDO
     ENDIF
-
   END SUBROUTINE count_mpi_statistics
 
 ! *****************************************************************************
@@ -5452,13 +5528,15 @@ MODULE dbcsr_mm_cannon
 !> \param slot_coo_l ...
 !> \param[out] max_norms     Max norms per image array
 !> \param is_left ...
+!> \param off_diagonal ...
+!> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE calculate_max_image_norms(meta,DATA,refs_size,refs_displ,&
                                        img_map,img_offset,&
                                        row_blk_size,col_blk_size,&
                                        local_rows,local_cols,&
                                        slot_coo_l,&
-                                       max_norms,is_left)
+                                       max_norms,is_left,off_diagonal)
     INTEGER, DIMENSION(:), INTENT(IN)        :: meta
     TYPE(dbcsr_data_obj), INTENT(IN)         :: DATA
     INTEGER, DIMENSION(:, :, :), &
@@ -5469,7 +5547,7 @@ MODULE dbcsr_mm_cannon
     INTEGER, INTENT(IN)                      :: slot_coo_l
     REAL(kind=sp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: max_norms
-    LOGICAL                                  :: is_left
+    LOGICAL                                  :: is_left, off_diagonal
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_max_image_norms', &
       routineP = moduleN//':'//routineN
@@ -5492,7 +5570,7 @@ MODULE dbcsr_mm_cannon
             row_blk_size,col_blk_size,&
             local_rows,local_cols,&
             slot_coo_l,&
-            max_norms,is_left)
+            max_norms,is_left,off_diagonal)
     CASE (dbcsr_type_real_8)
        CALL calc_max_image_norms_d(meta,dbcsr_get_data_p_d(DATA),&
             refs_size,refs_displ,&
@@ -5501,7 +5579,7 @@ MODULE dbcsr_mm_cannon
             row_blk_size,col_blk_size,&
             local_rows,local_cols,&
             slot_coo_l,&
-            max_norms,is_left)
+            max_norms,is_left,off_diagonal)
     CASE (dbcsr_type_complex_4)
        CALL calc_max_image_norms_c(meta,dbcsr_get_data_p_c(DATA),&
             refs_size,refs_displ,&
@@ -5510,7 +5588,7 @@ MODULE dbcsr_mm_cannon
             row_blk_size,col_blk_size,&
             local_rows,local_cols,&
             slot_coo_l,&
-            max_norms,is_left)
+            max_norms,is_left,off_diagonal)
     CASE (dbcsr_type_complex_8)
        CALL calc_max_image_norms_z(meta,dbcsr_get_data_p_z(DATA),&
             refs_size,refs_displ,&
@@ -5519,7 +5597,7 @@ MODULE dbcsr_mm_cannon
             row_blk_size,col_blk_size,&
             local_rows,local_cols,&
             slot_coo_l,&
-            max_norms,is_left)
+            max_norms,is_left,off_diagonal)
     CASE DEFAULT
        CPABORT("Invalid data type.")
     END SELECT
@@ -5534,6 +5612,7 @@ MODULE dbcsr_mm_cannon
 !> \param norms ...
 !> \param uf ...
 !> \param ul ...
+!> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE calculate_image_norms(images,data_type,norms,uf,ul)
     TYPE(dbcsr_1d_array_type), INTENT(IN)    :: images
@@ -5747,24 +5826,17 @@ MODULE dbcsr_mm_cannon
 !> \param data_type ...
 !> \param data_size ...
 !> \param meta_size ...
-!> \param left_local_refs_displ ...
-!> \param left_img_refs_rows ...
 !> \param requests_size ...
 !> \param data_memory_type ...
 !> \author Alfio Lazzaro
 ! *****************************************************************************
   SUBROUTINE rma_buffer_init(buffer, data_type, &
                              data_size, meta_size, &
-                             left_local_refs_displ, left_img_refs_rows, &
                              requests_size, &
                              data_memory_type)
     TYPE(dbcsr_rma_buffer), INTENT(INOUT)    :: buffer
     INTEGER, INTENT(IN)                      :: data_type, data_size, &
                                                 meta_size
-    INTEGER, DIMENSION(:, :, :), &
-      INTENT(IN), OPTIONAL, POINTER          :: left_local_refs_displ
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL, POINTER                      :: left_img_refs_rows
     INTEGER, INTENT(IN), OPTIONAL            :: requests_size
     TYPE(dbcsr_memtype_type), INTENT(IN)     :: data_memory_type
 
@@ -5774,6 +5846,7 @@ MODULE dbcsr_mm_cannon
        CALL dbcsr_data_new(buffer%data,data_type=data_type,&
             data_size=data_size,memory_type=data_memory_type)
        CALL dbcsr_data_set_size_referenced(buffer%data, data_size)
+       CALL dbcsr_data_init(buffer%data_diag)
        buffer%is_valid = .TRUE.
     ELSE
        CALL dbcsr_data_ensure_size(buffer%data,data_size,nocopy=.TRUE.)
@@ -5797,20 +5870,39 @@ MODULE dbcsr_mm_cannon
        ENDIF
        IF (.NOT.ALLOCATED(buffer%get_requests_map)) ALLOCATE(buffer%get_requests_map(2,requests_size))
     ENDIF
-    !
-    IF (PRESENT(left_local_refs_displ)) THEN
-       IF (ASSOCIATED(rma_buffers_orig%left_local_refs_displ)) &
-            DEALLOCATE(rma_buffers_orig%left_local_refs_displ)
-       rma_buffers_orig%left_local_refs_displ => left_local_refs_displ
-    ENDIF
-
-    IF (PRESENT(left_img_refs_rows)) THEN
-       IF (ASSOCIATED(rma_buffers_orig%left_img_refs_rows)) &
-            DEALLOCATE(rma_buffers_orig%left_img_refs_rows)
-       rma_buffers_orig%left_img_refs_rows => left_img_refs_rows
-    ENDIF
-
   END SUBROUTINE rma_buffer_init
+
+! *****************************************************************************
+!> \brief Resize diagonal buffer
+!>
+!> \param buffer ...
+!> \param data_type ...
+!> \param data_size_diag ...
+!> \param meta_size_diag ...
+!> \param data_memory_type ...
+!> \author Alfio Lazzaro
+! *****************************************************************************
+  SUBROUTINE resize_buffer_diag(buffer, data_type, &
+                                data_size_diag, meta_size_diag, &
+                                data_memory_type)
+    TYPE(dbcsr_rma_buffer), INTENT(INOUT)    :: buffer
+    INTEGER, INTENT(IN)                      :: data_type, data_size_diag, &
+                                                meta_size_diag
+    TYPE(dbcsr_memtype_type), INTENT(IN)     :: data_memory_type
+
+    IF (.NOT.buffer%is_valid) CPABORT("Buffer not initialized!")
+    !
+    IF (dbcsr_data_valid(buffer%data_diag)) THEN
+       CALL dbcsr_data_ensure_size(buffer%data_diag,data_size_diag,nocopy=.TRUE.)
+    ELSE
+       CALL dbcsr_data_new(buffer%data_diag,data_type=data_type,&
+            data_size=data_size_diag,memory_type=data_memory_type)
+       CALL dbcsr_data_set_size_referenced(buffer%data_diag, data_size_diag)
+    ENDIF
+    !
+    CALL ensure_array_size(buffer%meta_diag,ub=meta_size_diag,nocopy=.TRUE.,&
+         memory_type=memtype_mpi_buffer)
+  END SUBROUTINE resize_buffer_diag
 
 ! *****************************************************************************
 !> \brief Release RMA buffers
@@ -5823,19 +5915,31 @@ MODULE dbcsr_mm_cannon
 
     IF (buffers%left%is_valid) THEN
        CALL dbcsr_data_release(buffers%left%data)
+       IF (dbcsr_data_valid(buffers%left%data_diag)) &
+            CALL dbcsr_data_release(buffers%left%data_diag)
        buffers%left%is_valid = .FALSE.
     ENDIF
     IF (ASSOCIATED(buffers%left%meta)) THEN
        DEALLOCATE(buffers%left%meta)
        NULLIFY(buffers%left%meta)
     ENDIF
+    IF (ASSOCIATED(buffers%left%meta_diag)) THEN
+       DEALLOCATE(buffers%left%meta_diag)
+       NULLIFY(buffers%left%meta_diag)
+    ENDIF
     IF (buffers%right%is_valid) THEN
        CALL dbcsr_data_release(buffers%right%data)
+       IF (dbcsr_data_valid(buffers%right%data_diag)) &
+            CALL dbcsr_data_release(buffers%right%data_diag)
        buffers%right%is_valid = .FALSE.
     ENDIF
     IF (ASSOCIATED(buffers%right%meta)) THEN
        DEALLOCATE(buffers%right%meta)
        NULLIFY(buffers%right%meta)
+    ENDIF
+    IF (ASSOCIATED(buffers%right%meta_diag)) THEN
+       DEALLOCATE(buffers%right%meta_diag)
+       NULLIFY(buffers%right%meta_diag)
     ENDIF
     !
     IF (ALLOCATED(buffers%left%offset)) DEALLOCATE(buffers%left%offset)
@@ -5844,17 +5948,6 @@ MODULE dbcsr_mm_cannon
     IF (ALLOCATED(buffers%right%get_requests)) DEALLOCATE(buffers%right%get_requests)
     IF (ALLOCATED(buffers%left%get_requests_map)) DEALLOCATE(buffers%left%get_requests_map)
     IF (ALLOCATED(buffers%right%get_requests_map)) DEALLOCATE(buffers%right%get_requests_map)
-
-    IF (ASSOCIATED(buffers%left_img_refs_rows)) THEN
-       DEALLOCATE(buffers%left_img_refs_rows)
-       NULLIFY(buffers%left_img_refs_rows)
-    ENDIF
-
-    IF (ASSOCIATED(buffers%left_local_refs_displ)) THEN
-       DEALLOCATE(buffers%left_local_refs_displ)
-       NULLIFY(buffers%left_local_refs_displ)
-    ENDIF
-
   END SUBROUTINE rma_buffers_release
 
 ! *****************************************************************************

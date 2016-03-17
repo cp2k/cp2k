@@ -37,8 +37,8 @@ MODULE dbcsr_mp_operations
   USE kinds,                           ONLY: real_4,&
                                              real_8
   USE message_passing,                 ONLY: &
-       mp_allgather, mp_alltoall, mp_irecv, mp_isend, mp_rget, mp_sendrecv, &
-       mp_type_descriptor_type, mp_type_indexed_make_c, &
+       mp_allgather, mp_alltoall, mp_ibcast, mp_irecv, mp_isend, mp_rget, &
+       mp_sendrecv, mp_type_descriptor_type, mp_type_indexed_make_c, &
        mp_type_indexed_make_d, mp_type_indexed_make_r, &
        mp_type_indexed_make_z, mp_type_make, mp_waitall, mp_win_create
 #include "../../base/base_uses.f90"
@@ -56,7 +56,7 @@ MODULE dbcsr_mp_operations
   PUBLIC :: dbcsr_allgatherv
   PUBLIC :: dbcsr_sendrecv_any
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
-  PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any
+  PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any, dbcsr_ibcast_any
   PUBLIC :: dbcsr_mp_type_indexed_make_any
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
@@ -532,8 +532,7 @@ CONTAINS
   SUBROUTINE dbcsr_rget_any(base,source,win,win_data,myproc,disp,request,&
        origin_datatype,target_datatype)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: base
-    INTEGER, INTENT(IN)                      :: source
-    INTEGER, INTENT(INOUT)                   :: win
+    INTEGER, INTENT(IN)                      :: source, win
     TYPE(dbcsr_data_obj), INTENT(IN)         :: win_data
     INTEGER, INTENT(IN), OPTIONAL            :: myproc, disp
     INTEGER, INTENT(OUT)                     :: request
@@ -567,6 +566,35 @@ CONTAINS
     END SELECT
   END SUBROUTINE dbcsr_rget_any
 
+! *****************************************************************************
+!> \brief Bcast function of encapsulated data.
+!> \param base ...
+!> \param source ...
+!> \param grp ...
+!> \param request ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_ibcast_any(base,source,grp,request)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: base
+    INTEGER, INTENT(IN)                      :: source, grp
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_ibcast_any', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE (dbcsr_data_get_type (base))
+    CASE (dbcsr_type_real_4)
+       CALL mp_ibcast (base%d%r_sp, source, grp, request)
+    CASE (dbcsr_type_real_8)
+       CALL mp_ibcast (base%d%r_dp, source, grp, request)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_ibcast (base%d%c_sp, source, grp, request)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_ibcast (base%d%c_dp, source, grp, request)
+    CASE default
+       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
+            routineN, "Incorrect data type", __LINE__)
+    END SELECT
+  END SUBROUTINE dbcsr_ibcast_any
 
 ! *****************************************************************************
 !> \brief ...
