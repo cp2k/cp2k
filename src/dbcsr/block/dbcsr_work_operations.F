@@ -1592,8 +1592,8 @@ CONTAINS
     TYPE(dbcsr_data_obj), ALLOCATABLE, &
       DIMENSION(:), SAVE                     :: all_data_areas
     TYPE(dbcsr_work_type), POINTER           :: wm
-    TYPE(i_array_p), ALLOCATABLE, &
-      DIMENSION(:), SAVE                     :: all_blk_p, all_col_i, &
+    TYPE(i_array_p), DIMENSION(:), POINTER, &
+      SAVE                                   :: all_blk_p, all_col_i, &
                                                 all_row_p
 
 !   ---------------------------------------------------------------------------

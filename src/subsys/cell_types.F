@@ -580,7 +580,7 @@ CONTAINS
   FUNCTION pbc2(r,cell,nl) RESULT(r_pbc)
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
-    TYPE(cell_type), ALLOCATABLE             :: cell
+    TYPE(cell_type), POINTER                 :: cell
     INTEGER, DIMENSION(3), INTENT(IN)        :: nl
     REAL(KIND=dp), DIMENSION(3)              :: r_pbc
 

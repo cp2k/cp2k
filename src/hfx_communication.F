@@ -102,7 +102,7 @@ MODULE hfx_communication
                                                 sparse_block_beta
     TYPE(cp_dbcsr_iterator)                  :: iter
 
-!debREAL(dp), DIMENSION(:), ALLOCATABLE          :: full_density
+!debREAL(dp), DIMENSION(:), POINTER          :: full_density
 
     full_density = 0.0_dp
     ALLOCATE(sendbuffer(number_of_p_entries))

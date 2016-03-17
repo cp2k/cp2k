@@ -89,8 +89,8 @@ CONTAINS
                                                 nrow_global, nrow_local, nvirt
     INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
     REAL(KIND=dp)                            :: factor
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     REAL(KIND=dp), DIMENSION(3)              :: kvec
+    REAL(kind=dp), DIMENSION(:), POINTER     :: eigenvalues
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_type), POINTER               :: oo_c, oo_v, oo_vt
@@ -287,8 +287,8 @@ CONTAINS
 
     COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: eigenvalues_sqrt
     INTEGER                                  :: handle, i, nao, nmo
-    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     REAL(KIND=dp), DIMENSION(3)              :: kvec
+    REAL(kind=dp), DIMENSION(:), POINTER     :: eigenvalues
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_cfm_type), POINTER               :: oo_c, oo_v, oo_vt
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

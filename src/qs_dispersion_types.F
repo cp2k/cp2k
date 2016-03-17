@@ -101,7 +101,7 @@ MODULE qs_dispersion_types
   TYPE cn_atom_list
     REAL(KIND=dp)                          :: cnum
     INTEGER                                :: natom
-    INTEGER,DIMENSION(:), ALLOCATABLE          :: atom
+    INTEGER,DIMENSION(:), POINTER          :: atom
   END TYPE cn_atom_list
 
 ! *****************************************************************************

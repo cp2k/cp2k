@@ -106,11 +106,11 @@ CONTAINS
                                                 mass, pos0, rmass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Hessian, Hint1, Hint2
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: tmp_dip
     REAL(KIND=dp), DIMENSION(3)              :: D_deriv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: intensities
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D, dip_deriv, RotTrM
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: tmp_dip
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsys_type), POINTER            :: subsys
     TYPE(f_env_type), POINTER                :: f_env

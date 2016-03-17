@@ -86,7 +86,7 @@ MODULE mixed_environment_types
 !> \author fschiff
 ! *****************************************************************************
   TYPE mixed_environment_p_type
-     TYPE(mixed_environment_type), ALLOCATABLE :: mixed_env
+     TYPE(mixed_environment_type), POINTER :: mixed_env
   END TYPE mixed_environment_p_type
 
 ! *** Public data types ***

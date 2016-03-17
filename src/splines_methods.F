@@ -118,7 +118,7 @@ CONTAINS
 
     INTEGER                                  :: err, i, n
     REAL(KIND=dp)                            :: p, s
-    REAL(KIND=dp), ALLOCATABLE               :: ww( : )
+    REAL(KIND=dp), POINTER                   :: ww( : )
 
     n        = spl%n
     spl%xn   = spl%x1+ (n-1)*dx

@@ -1589,7 +1589,7 @@ MODULE helium_io
 ! *****************************************************************************
   SUBROUTINE helium_print_force_inst( helium )
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_print_force_inst', &
       routineP = moduleN//':'//routineN
@@ -1598,8 +1598,8 @@ MODULE helium_io
     INTEGER                                  :: handle, ia, ib, ic, idim, &
                                                 irank, offset, unit_nr
     LOGICAL                                  :: should_output
-    TYPE(cp_logger_type), ALLOCATABLE        :: logger
-    TYPE(section_vals_type), ALLOCATABLE     :: print_key
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: print_key
 
     CALL timeset(routineN,handle)
 

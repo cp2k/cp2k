@@ -171,9 +171,9 @@ MODULE qs_ks_methods
             calculate_w_matrix, calculate_w_matrix_ot, qs_ks_allocate_basics
 
   TYPE qs_potential_type
-    TYPE(pw_p_type), ALLOCATABLE :: v_efield_rspace, v_hartree_gspace, &
+    TYPE(pw_p_type), POINTER :: v_efield_rspace, v_hartree_gspace, &
           vppl_rspace, v_sic_rspace, v_spin_ddapc_rest_r
-    TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE   :: v_rspace_new, &
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_rspace_new, &
                                                 v_rspace_new_aux_fit, &
                                                 v_tau_rspace, &
                                                 v_tau_rspace_aux_fit
@@ -1386,7 +1386,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, imo
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigocc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
     TYPE(cp_fm_type), POINTER                :: weighted_vectors
 
     CALL timeset(routineN,handle)

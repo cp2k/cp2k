@@ -62,7 +62,7 @@ MODULE cp_blacs_env
      INTEGER :: group, my_pid, n_pid, ref_count
      TYPE(cp_para_env_type), POINTER :: para_env
      INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
-     INTEGER, DIMENSION(:,:), ALLOCATABLE :: mpi2blacs
+     INTEGER, DIMENSION(:,:), POINTER :: mpi2blacs
      LOGICAL :: repeatable
   END TYPE cp_blacs_env_type
 

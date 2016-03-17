@@ -40,7 +40,7 @@ MODULE lri_optimize_ri_basis_types
      ! amount of l quantum numbers per set
      INTEGER                                            :: nl
      ! number of contraction per l quantum number for a given set
-     INTEGER, DIMENSION(:), ALLOCATABLE                     :: ncont_l 
+     INTEGER, DIMENSION(:), POINTER                     :: ncont_l 
   END TYPE lri_subset_type
 
   TYPE lri_opt_type

@@ -77,7 +77,7 @@ MODULE distribution_1d_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE distribution_1d_p_type
-     TYPE(distribution_1d_type), ALLOCATABLE :: distribution_1d
+     TYPE(distribution_1d_type), POINTER :: distribution_1d
   END TYPE distribution_1d_p_type
 
 CONTAINS

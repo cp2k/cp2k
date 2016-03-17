@@ -171,7 +171,7 @@ MODULE cp_control_types
 ! *****************************************************************************
   TYPE period_efield_type
      LOGICAL                         :: displacement_field
-     REAL(KIND = dp), DIMENSION(:),ALLOCATABLE :: polarisation
+     REAL(KIND = dp), DIMENSION(:),POINTER :: polarisation
      REAL(kind=dp)                   :: strength
   END TYPE period_efield_type
 

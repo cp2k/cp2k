@@ -110,7 +110,7 @@ MODULE eip_environment_types
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
 ! *****************************************************************************
   TYPE eip_environment_p_type
-    TYPE(eip_environment_type), ALLOCATABLE :: eip_env_ptr
+    TYPE(eip_environment_type), POINTER :: eip_env_ptr
   END TYPE eip_environment_p_type
 
 CONTAINS
@@ -343,8 +343,8 @@ CONTAINS
     TYPE(eip_environment_type), POINTER      :: eip_env
     INTEGER, INTENT(IN), OPTIONAL            :: id_nr, eip_model
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: eip_energy, eip_energy_var
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :), OPTIONAL              :: eip_forces
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: eip_forces
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: coord_avg, coord_var, count
     TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
     TYPE(atomic_kind_type), DIMENSION(:), &

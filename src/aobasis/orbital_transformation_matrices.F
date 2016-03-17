@@ -44,7 +44,7 @@ MODULE orbital_transformation_matrices
   END TYPE orbtramat_type
 
   REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE  :: c2s_tramat, s2c_tramat
-  TYPE(orbtramat_type), DIMENSION(:), ALLOCATABLE :: orbtramat
+  TYPE(orbtramat_type), DIMENSION(:), POINTER :: orbtramat
 
   INTEGER, SAVE :: current_maxl = -1
 

@@ -85,7 +85,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE cp_cfm_schur_product_cc(matrix_a,matrix_b,matrix_c)
 
-    TYPE(cp_cfm_type), ALLOCATABLE           :: matrix_a, matrix_b, matrix_c
+    TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b, matrix_c
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product_cc', &
       routineP = moduleN//':'//routineN
@@ -313,7 +313,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: row_indices
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca
-    COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE  :: diag
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
 #else
     INTEGER                                  :: lda
 #endif
@@ -545,7 +545,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: row_indices
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca, descb
-    COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE  :: diag
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: diag
 #else
     INTEGER                                  :: lda, ldb
 #endif

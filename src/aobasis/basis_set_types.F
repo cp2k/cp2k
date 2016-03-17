@@ -96,7 +96,7 @@ MODULE basis_set_types
   END TYPE sto_basis_set_type
 
   TYPE sto_basis_set_p_type
-     TYPE(sto_basis_set_type), ALLOCATABLE :: sto_basis_set
+     TYPE(sto_basis_set_type), POINTER :: sto_basis_set
   END TYPE sto_basis_set_p_type
 
 ! *****************************************************************************
@@ -325,10 +325,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'combine_basis_sets', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=12), ALLOCATABLE, &
-      DIMENSION(:)                           :: cgf_symbol
-    CHARACTER(LEN=6), ALLOCATABLE, &
-      DIMENSION(:)                           :: sgf_symbol
+    CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
+    CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
     INTEGER :: iset, ishell, lshell, maxco, maxpgf, maxshell, nc, ncgf, &
       ncgfn, ncgfo, ns, nset, nsetn, nseto, nsgf, nsgfn, nsgfo
     TYPE(gto_basis_set_type), POINTER        :: bad, bout
@@ -1052,7 +1050,7 @@ CONTAINS
     CHARACTER(LEN=242)                       :: line2
     CHARACTER(len=default_path_length)       :: basis_set_file_name, tmp
     CHARACTER(LEN=default_path_length), &
-      ALLOCATABLE, DIMENSION(:)              :: cbasis
+      DIMENSION(:), POINTER                  :: cbasis
     CHARACTER(LEN=LEN(basis_set_name))       :: bsname
     CHARACTER(LEN=LEN(basis_set_name)+2)     :: bsname2
     CHARACTER(LEN=LEN(element_symbol))       :: symbol
@@ -1683,24 +1681,23 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: norm_type
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kind_radius
     INTEGER, INTENT(IN), OPTIONAL            :: ncgf, nset, nsgf
-    CHARACTER(LEN=12), ALLOCATABLE, &
-      DIMENSION(:), OPTIONAL                 :: cgf_symbol
-    CHARACTER(LEN=6), ALLOCATABLE, &
-      DIMENSION(:), OPTIONAL                 :: sgf_symbol
+    CHARACTER(LEN=12), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: cgf_symbol
+    CHARACTER(LEN=6), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sgf_symbol
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: norm_cgf, set_radius
-    INTEGER, ALLOCATABLE, DIMENSION(:), &
-      OPTIONAL                               :: lmax, lmin, lx, ly, lz, m, &
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: lmax, lmin, lx, ly, lz, m, &
                                                 ncgf_set, npgf, nsgf_set, &
                                                 nshell
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: cphi, pgf_radius, sphi, scon, &
                                                 zet
-    INTEGER, ALLOCATABLE, DIMENSION(:, :), &
-      OPTIONAL                               :: first_cgf, first_sgf, l, &
+    INTEGER, DIMENSION(:, :), OPTIONAL, &
+      POINTER                                :: first_cgf, first_sgf, l, &
                                                 last_cgf, last_sgf, n
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :), OPTIONAL           :: gcc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: gcc
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: short_kind_radius
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_gto_basis_set', &

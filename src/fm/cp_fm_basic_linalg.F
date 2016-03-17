@@ -181,7 +181,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: diag
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
 #else
     INTEGER                                  :: lda
 #endif
@@ -1066,7 +1066,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER, DIMENSION(9)                    :: desca
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     REAL(KIND=dp)                            :: alpha, beta
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: diag
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: diag
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
 #else
     LOGICAL                                  :: sign

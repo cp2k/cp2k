@@ -33,7 +33,7 @@ MODULE lgrid_types
   END TYPE lgrid_type
 
   TYPE lgrid_p_type
-     TYPE(lgrid_type), ALLOCATABLE :: l
+     TYPE(lgrid_type), POINTER :: l
   END TYPE lgrid_p_type
 
 CONTAINS

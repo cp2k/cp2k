@@ -147,8 +147,8 @@ CONTAINS
                                                 maxocc, occ, scale, trps1, &
                                                 zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: edftb
-    TYPE(atom_matrix_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: pmat
+    TYPE(atom_matrix_type), DIMENSION(:), &
+      POINTER                                :: pmat
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

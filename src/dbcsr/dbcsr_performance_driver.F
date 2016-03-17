@@ -43,7 +43,7 @@ PROGRAM dbcsr_performance_driver
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, io_unit, narg, handle
   INTEGER, DIMENSION(2)                    :: npdims, myploc
-  INTEGER, DIMENSION(:,:), ALLOCATABLE         :: pgrid
+  INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(dbcsr_mp_obj)                       :: mp_env
   CHARACTER(len=default_string_length)     :: args(100)
 

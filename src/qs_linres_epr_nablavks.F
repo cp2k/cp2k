@@ -146,11 +146,11 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), ALLOCATABLE :: rho_tot_gspace, v_coulomb_gspace, &
-      v_coulomb_gtemp, v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, &
-      v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_r, rho2_r, rho_r, &
                                                 v_rspace_new, v_tau_rspace
+    TYPE(pw_p_type), POINTER :: rho_tot_gspace, v_coulomb_gspace, &
+      v_coulomb_gtemp, v_coulomb_rtemp, v_hartree_gspace, v_hartree_gtemp, &
+      v_hartree_rtemp, v_xc_gtemp, v_xc_rtemp, wf_r
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_type), POINTER                   :: pwx, pwy, pwz

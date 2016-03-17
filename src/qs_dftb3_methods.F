@@ -80,8 +80,8 @@ CONTAINS
                                                 ia, iatom, ic, icol, ikind, &
                                                 irow, is, jatom, jkind, &
                                                 natom, nimg
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: cellind
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: found, use_virial
     REAL(KIND=dp)                            :: dr, eb3, eloc, fi, gmij, ua, &

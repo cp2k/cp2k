@@ -181,7 +181,7 @@ CONTAINS
                                                 iatom, idx, iterm, n, natoms
     INTEGER, DIMENSION(:), POINTER           :: nterms
     LOGICAL                                  :: found
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: world_G, world_X
+    REAL(dp), DIMENSION(:), POINTER          :: world_G, world_X
     REAL(dp), DIMENSION(:, :), POINTER       :: block_G, block_M1, block_M2, &
                                                 block_U, block_V, &
                                                 block_V_term, block_X, &
@@ -415,10 +415,10 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: rpgfa1, rpgfa2, zeta1, zeta2
     REAL(dp), DIMENSION(:, :), POINTER       :: sab
     REAL(KIND=dp)                            :: coeff
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rpgfb, zetb
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: saab
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: saab
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_type), POINTER        :: basis_set
     TYPE(particle_type), DIMENSION(:), &

@@ -86,7 +86,7 @@ MODULE xas_env_types
     REAL(dp), DIMENSION(:), POINTER :: all_evals
     REAL(dp), DIMENSION(:), POINTER :: unoccupied_evals
     REAL(dp), DIMENSION(:,:), POINTER :: spectrum
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: centers_wfn
+    REAL(dp), DIMENSION(:,:), POINTER :: centers_wfn
     TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER :: stogto_overlap
     TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER :: my_gto_basis
     TYPE( cp_fm_p_type ), DIMENSION(:),  POINTER :: groundstate_coeff

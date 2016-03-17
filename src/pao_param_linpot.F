@@ -381,9 +381,8 @@ CONTAINS
                                                 lwork, m, n, nrhs, rank
     INTEGER, DIMENSION(:), POINTER           :: jpvt
     REAL(KIND=dp)                            :: rcon
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: A
     REAL(KIND=dp), DIMENSION(:), POINTER     :: B, work
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: A
 
     CALL timeset(routineN,handle)
     NULLIFY(jpvt, work, B)

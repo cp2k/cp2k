@@ -284,8 +284,8 @@ CONTAINS
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: max_ev, min_ev
-    TYPE(cp_dbcsr_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: matrices
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrices
     TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
 
      CALL timeset(routineN, handle)

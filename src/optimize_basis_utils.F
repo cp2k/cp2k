@@ -1146,7 +1146,7 @@ CONTAINS
     INTEGER                                  :: icon1, icon2, il, ipgf, &
                                                 ishell, istart
     REAL(KIND=dp)                            :: gs_scale
-    REAL(KIND=dp), ALLOCATABLE               :: r_val
+    REAL(KIND=dp), POINTER                   :: r_val
 
       line_att=""
       CALL parser_get_object(parser,subset%n,newline=.TRUE.)

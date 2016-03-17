@@ -674,7 +674,7 @@ MODULE rpa_im_time
       n_entries_local_occ, n_entries_local_virt, offset, offset_occ, &
       offset_virt, proc_rec_static, proc_send_static, row, row_occ, row_size, &
       row_virt, size_occ, size_virt
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: proc_rec, proc_send
+    INTEGER, DIMENSION(:), POINTER           :: proc_rec, proc_send
     INTEGER, DIMENSION(:, :), POINTER        :: buffer_info_occ, &
                                                 buffer_info_virt, req_array
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer_data_occ, &
@@ -683,9 +683,9 @@ MODULE rpa_im_time
     REAL(KIND=dp), EXTERNAL                  :: DDOT
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_para_env_type), POINTER          :: para_env_exch
-    TYPE(integ_mat_buffer_type), ALLOCATABLE :: buffer_send
     TYPE(integ_mat_buffer_type), &
-      ALLOCATABLE, DIMENSION(:)              :: buffer_rec
+      DIMENSION(:), POINTER                  :: buffer_rec
+    TYPE(integ_mat_buffer_type), POINTER     :: buffer_send
 
     CALL timeset(routineN,handle)
 
@@ -1026,7 +1026,7 @@ MODULE rpa_im_time
     INTEGER                                  :: igroup, my_group_K_size, &
                                                 my_group_K_start, proc_rec_M, &
                                                 proc_send_M
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: my_group_K_rec, &
+    INTEGER, DIMENSION(:), POINTER           :: my_group_K_rec, &
                                                 my_group_K_send
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: trace_2d_rec, trace_2d_send
 

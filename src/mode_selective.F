@@ -60,21 +60,21 @@ MODULE mode_selective
   TYPE ms_vib_type
      INTEGER                                  :: mat_size
      INTEGER                                  :: select_id
-     INTEGER, DIMENSION(:), ALLOCATABLE           :: inv_atoms
+     INTEGER, DIMENSION(:), POINTER           :: inv_atoms
      REAL(KIND=dp)                            :: eps(2)
      REAL(KIND=dp)                            :: sel_freq
      REAL(KIND=dp),POINTER,DIMENSION(:, :)    :: b_vec
-     REAL(KIND=dp),ALLOCATABLE,DIMENSION(:, :)    :: delta_vec
-     REAL(KIND=dp),ALLOCATABLE,DIMENSION(:, :)    :: ms_force
+     REAL(KIND=dp),POINTER,DIMENSION(:, :)    :: delta_vec
+     REAL(KIND=dp),POINTER,DIMENSION(:, :)    :: ms_force
      REAL(KIND=dp), DIMENSION(:), POINTER     :: eig_bfgs
      REAL(KIND=dp), DIMENSION(:), POINTER     :: f_range
      REAL(KIND=dp), DIMENSION(:), POINTER     :: inv_range
-     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: step_b
-     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)     :: step_r
-     REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: b_mat
-     REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: dip_deriv
+     REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_b
+     REAL(KIND=dp), POINTER, DIMENSION(:)     :: step_r
+     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: b_mat
+     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dip_deriv
      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hes_bfgs
-     REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: s_mat
+     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: s_mat
      INTEGER                                  :: initial_guess
   END TYPE ms_vib_type
 
@@ -117,9 +117,9 @@ CONTAINS
                                                 ncoord
     LOGICAL                                  :: converged
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass, pos0
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: tmp_dip
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: tmp_deriv
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: tmp_dip
     TYPE(ms_vib_type)                        :: ms_vib
 
     CALL timeset(routineN,handle)
@@ -460,7 +460,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: hes_filename
     INTEGER                                  :: hesunit, i, j, jj, k, natoms, &
                                                 ncoord, output_unit, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmplist
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
     REAL(KIND=dp)                            :: my_val, norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: tmp
     TYPE(cp_logger_type), POINTER            :: logger
@@ -694,7 +694,7 @@ CONTAINS
     INTEGER                                  :: i, istat, iw, j, jj, k, &
                                                 nvibs, output_molden, &
                                                 output_unit, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmplist
+    INTEGER, DIMENSION(:), POINTER           :: tmplist
     REAL(KIND=dp)                            :: my_val, norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: freq, tmp
     REAL(KIND=dp), ALLOCATABLE, &

@@ -293,9 +293,9 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE HBP_colvar_type
     INTEGER                         :: nPoints ! number of the points in the path
-    INTEGER, ALLOCATABLE                :: ids(:,:) ! first is the Od, second the H, 
+    INTEGER, POINTER                :: ids(:,:) ! first is the Od, second the H, 
                                                 ! third the Oa and contains a row for each intermediate point in the path
-    REAL(KIND=dp),ALLOCATABLE           :: ewc(:) ! one for each point in the path
+    REAL(KIND=dp),POINTER           :: ewc(:) ! one for each point in the path
     REAL(KIND=dp)                   :: rcut
     REAL(KIND=dp)                   :: shift  ! shift applied for each term in the collective variable
   END TYPE HBP_colvar_type
@@ -303,7 +303,7 @@ MODULE colvar_types
 ! *****************************************************************************
   TYPE ring_puckering_colvar_type
      INTEGER                         :: nring
-     INTEGER, ALLOCATABLE, DIMENSION (:) :: atoms
+     INTEGER, POINTER, DIMENSION (:) :: atoms
      INTEGER                         :: iq
   END TYPE ring_puckering_colvar_type
 
@@ -520,7 +520,7 @@ CONTAINS
 
     INTEGER                                  :: i, idum, iend, ii, istart, j, &
                                                 np, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: list
+    INTEGER, DIMENSION(:), POINTER           :: list
 
     CPASSERT(ASSOCIATED(colvar))
     SELECT CASE(colvar%type_id)

@@ -135,7 +135,7 @@ CONTAINS
       DIMENSION(:)                           :: mint
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -378,7 +378,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -620,7 +620,7 @@ CONTAINS
                                                 zeta, zetb
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator
@@ -798,8 +798,8 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: kvec, qq, rcc, ria
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_cfm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: eigrmat
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: eigrmat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, rho_ao
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat

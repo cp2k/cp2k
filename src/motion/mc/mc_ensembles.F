@@ -164,15 +164,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1:nboxes)       :: bias_energy, energy_check, &
                                                 final_energy, initial_energy, &
                                                 last_bias_energy, old_energy
-    TYPE(cell_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: cell
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
     TYPE(cp_subsys_p_type), DIMENSION(:), &
       POINTER                                :: oldsys
     TYPE(cp_subsys_type), POINTER            :: biassys
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: bias_env, force_env
-    TYPE(mc_averages_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: averages
+    TYPE(mc_averages_p_type), DIMENSION(:), &
+      POINTER                                :: averages
     TYPE(mc_input_file_type), POINTER        :: mc_bias_file
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mc_moves_p_type), DIMENSION(:), &
@@ -1176,17 +1175,16 @@ CONTAINS
       exp_min_val, exponent, integral, previous_value, square_value, &
       trial_energy, triangle_value
     REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass
-    TYPE(cell_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: cell
-    TYPE(cp_subsys_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: subsys
-    TYPE(force_env_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: force_env
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell
+    TYPE(cp_subsys_p_type), DIMENSION(:), &
+      POINTER                                :: subsys
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env
     TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
     TYPE(mc_simulation_parameters_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: mc_par
+      DIMENSION(:), POINTER                  :: mc_par
     TYPE(particle_list_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: particles
+      DIMENSION(:), POINTER                  :: particles
 
 ! these are current magic numbers for how we compute the virial...
 ! we break it up into three parts to integrate the function so provide

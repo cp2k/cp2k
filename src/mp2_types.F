@@ -186,7 +186,7 @@ MODULE mp2_types
   END TYPE
 
   TYPE integ_mat_buffer_type_2D
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE  :: msg
+    REAL(KIND=dp), DIMENSION(:,:), POINTER  :: msg
     INTEGER :: proc
     INTEGER :: msg_req
   END TYPE

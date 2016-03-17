@@ -73,7 +73,7 @@ MODULE et_coupling_types
 !> \param rest_mat ...
 ! *****************************************************************************
     SUBROUTINE get_et_coupling_type(et_coupling,et_mo_coeff,rest_mat)
-    TYPE(et_coupling_type), ALLOCATABLE      :: et_coupling
+    TYPE(et_coupling_type), POINTER          :: et_coupling
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: et_mo_coeff
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &

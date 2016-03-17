@@ -425,8 +425,8 @@ CONTAINS
     INTEGER                                  :: handle, i, iatom, ibond, &
                                                 ionfo, iw, jatom, N, natom, &
                                                 nbond, nonfo, nphi, ntheta
-    TYPE(array1_list_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: ex_bend_list, ex_bond_list
+    TYPE(array1_list_type), DIMENSION(:), &
+      POINTER                                :: ex_bend_list, ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger

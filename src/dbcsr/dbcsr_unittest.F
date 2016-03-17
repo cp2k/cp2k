@@ -43,7 +43,7 @@ PROGRAM dbcsr_unittest
   INTEGER                                  :: mp_comm, group, numnodes, mynode, &
        prow, pcol, io_unit, handle
   INTEGER, DIMENSION(2)                    :: npdims, myploc
-  INTEGER, DIMENSION(:,:), ALLOCATABLE         :: pgrid
+  INTEGER, DIMENSION(:,:), POINTER         :: pgrid
   TYPE(dbcsr_mp_obj)                       :: mp_env
 
 

@@ -599,7 +599,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: conf
 
     INTEGER                                  :: i, ind
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_conf
+    INTEGER, DIMENSION(:, :), POINTER        :: tmp_conf
 
     ALLOCATE(tmp_conf(SIZE(conf,1),SIZE(main_conf)))
     tmp_conf = 0

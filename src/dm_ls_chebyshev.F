@@ -122,8 +122,8 @@ CONTAINS
     TYPE(cp_dbcsr_type)                      :: matrix_dummy1, matrix_F, &
                                                 matrix_tmp1, matrix_tmp2, &
                                                 matrix_tmp3
-    TYPE(cp_dbcsr_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: matrix_dummy2
+    TYPE(cp_dbcsr_type), DIMENSION(:), &
+      POINTER                                :: matrix_dummy2
     TYPE(cp_logger_type), POINTER            :: logger
 
     IF (.NOT.ls_scf_env%chebyshev%compute_chebyshev) RETURN

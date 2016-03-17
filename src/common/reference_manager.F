@@ -63,7 +63,7 @@ MODULE reference_manager
   ! useful to build arrays
 ! *****************************************************************************
   TYPE reference_p_type
-     TYPE(reference_type), ALLOCATABLE :: ref
+     TYPE(reference_type), POINTER :: ref
   END TYPE
 
   ! thebibliography

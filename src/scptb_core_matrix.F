@@ -81,12 +81,12 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iatom, ic, icol, icor, ikind, &
       inode, irow, j, jatom, jkind, l, li, ll, natom, nder, nimg, nkind, &
       nspins
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: defined, found, &
                                                 use_cell_mapping, use_virial
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: scptb_defined
+    LOGICAL, DIMENSION(:), POINTER           :: scptb_defined
     REAL(KIND=dp)                            :: dr, eps_filter, f0, kh, kij
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: hmt, kk, umt
@@ -115,7 +115,7 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(scptb_parameter_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: scptb_kind_param
+      DIMENSION(:), POINTER                  :: scptb_kind_param
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a
     TYPE(virial_type), POINTER               :: virial
 

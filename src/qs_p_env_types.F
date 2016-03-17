@@ -97,7 +97,7 @@ MODULE qs_p_env_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_p_env_p_type
-     TYPE(qs_p_env_type), ALLOCATABLE :: p_env
+     TYPE(qs_p_env_type), POINTER :: p_env
   END TYPE qs_p_env_p_type
 
 CONTAINS

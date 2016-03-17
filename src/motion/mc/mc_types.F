@@ -81,7 +81,7 @@ MODULE mc_types
   TYPE mc_simpar_type
 ! contains all the parameters needed for running Monte Carlo simulations
       PRIVATE
-      INTEGER,DIMENSION(:),ALLOCATABLE :: avbmc_atom
+      INTEGER,DIMENSION(:),POINTER :: avbmc_atom
       INTEGER :: nstep
       INTEGER :: iupvolume
       INTEGER :: iuptrans
@@ -115,12 +115,12 @@ MODULE mc_types
       CHARACTER ( LEN = default_path_length ) :: box2_file
       CHARACTER ( LEN = 200 ) :: fft_lib
       CHARACTER ( LEN = 50 ) :: PROGRAM
-      REAL ( dp ),DIMENSION(:),ALLOCATABLE :: pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,&
+      REAL ( dp ),DIMENSION(:),POINTER :: pmtraion_mol,pmtrans_mol,pmrot_mol,pmswap_mol,&
            pbias,pmavbmc_mol
       REAL ( dp ) :: discrete_step
       REAL ( dp ) :: rmvolume
-      REAL ( dp ),DIMENSION(:),ALLOCATABLE :: rmbond,rmangle,rmdihedral,rmrot,rmtrans
-      REAL ( dp ),DIMENSION(:),ALLOCATABLE :: eta
+      REAL ( dp ),DIMENSION(:),POINTER :: rmbond,rmangle,rmdihedral,rmrot,rmtrans
+      REAL ( dp ),DIMENSION(:),POINTER :: eta
       REAL ( dp ) :: temperature
       REAL ( dp ) :: pressure
       REAL ( dp ) :: pmavbmc
@@ -131,8 +131,8 @@ MODULE mc_types
       REAL ( dp ) :: pmtrans
       REAL ( dp ) :: BETA
       REAL ( dp ) :: rcut
-      REAL ( dp ),DIMENSION(:),ALLOCATABLE :: avbmc_rmin,avbmc_rmax
-      REAL ( dp ),DIMENSION(:),ALLOCATABLE :: virial_temps
+      REAL ( dp ),DIMENSION(:),POINTER :: avbmc_rmin,avbmc_rmax
+      REAL ( dp ),DIMENSION(:),POINTER :: virial_temps
       TYPE(mc_input_file_type),POINTER ::&
            mc_input_file,mc_bias_file
       TYPE(section_vals_type),POINTER :: input_file
@@ -153,10 +153,10 @@ MODULE mc_types
       INTEGER :: run_type_row,run_type_column,coord_row_start,coord_row_end,&
            cell_row,cell_column,global_row_end,in_use,nunits_empty,&
            motion_row_end,motion_row_start
-      INTEGER,DIMENSION(:),ALLOCATABLE :: mol_set_nmol_row,mol_set_nmol_column
-      CHARACTER ( LEN = default_string_length ),DIMENSION(:),ALLOCATABLE :: text
-      CHARACTER ( LEN = default_string_length ),DIMENSION(:),ALLOCATABLE :: atom_names_empty
-      REAL(dp),DIMENSION(:,:),ALLOCATABLE :: coordinates_empty
+      INTEGER,DIMENSION(:),POINTER :: mol_set_nmol_row,mol_set_nmol_column
+      CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: text
+      CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: atom_names_empty
+      REAL(dp),DIMENSION(:,:),POINTER :: coordinates_empty
    END TYPE mc_input_file_type
 
 ! *****************************************************************************
@@ -165,13 +165,13 @@ MODULE mc_types
 ! environments, and they know nothing about each other
       PRIVATE
       INTEGER :: nboxes
-      CHARACTER ( LEN = default_string_length ),DIMENSION(:),ALLOCATABLE :: names
+      CHARACTER ( LEN = default_string_length ),DIMENSION(:),POINTER :: names
       CHARACTER ( LEN = default_string_length ),&
-           DIMENSION(:,:),ALLOCATABLE :: atom_names
-      REAL ( dp ),DIMENSION(:,:),ALLOCATABLE :: conf_prob,mass
-      INTEGER, DIMENSION(:,:),ALLOCATABLE :: nchains
+           DIMENSION(:,:),POINTER :: atom_names
+      REAL ( dp ),DIMENSION(:,:),POINTER :: conf_prob,mass
+      INTEGER, DIMENSION(:,:),POINTER :: nchains
       INTEGER :: nmol_types,nchain_total
-      INTEGER,DIMENSION(:),ALLOCATABLE :: nunits,mol_type,nunits_tot,in_box
+      INTEGER,DIMENSION(:),POINTER :: nunits,mol_type,nunits_tot,in_box
  END TYPE mc_molecule_info_type
 
 ! *****************************************************************************
@@ -696,8 +696,8 @@ SUBROUTINE set_mc_par ( mc_par, rm,cl,&
       POINTER                                :: pbias
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: ensemble
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pmvol_box
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:), OPTIONAL                 :: eta
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eta
     TYPE(mc_input_file_type), OPTIONAL, &
       POINTER                                :: mc_input_file, mc_bias_file
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: exp_max_val, exp_min_val, &
@@ -1861,7 +1861,7 @@ SUBROUTINE mc_determine_molecule_info(force_env,mc_molecule_info,box_number,&
       DIMENSION(:), POINTER                  :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: particles
+      DIMENSION(:), POINTER                  :: particles
 
 ! how many simulation boxes do we have?
 

@@ -145,8 +145,8 @@ CONTAINS
     INTEGER                                  :: atm_a, atm_b, counter, first, &
                                                 handle2, i, j, k, last, &
                                                 natom, nbond
-    INTEGER, ALLOCATABLE                     :: map_bond_kind(:)
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: map_bond_kind(:)
     LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -248,8 +248,8 @@ CONTAINS
     INTEGER                                  :: atm_a, atm_b, atm_c, counter, &
                                                 first, handle2, i, j, k, &
                                                 last, natom, nbend
-    INTEGER, ALLOCATABLE                     :: map_bend_kind(:)
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: map_bend_kind(:)
     LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -359,8 +359,8 @@ CONTAINS
     INTEGER                                  :: atm_a, atm_b, atm_c, counter, &
                                                 first, handle2, i, j, k, &
                                                 last, natom, nub
-    INTEGER, ALLOCATABLE                     :: map_ub_kind(:)
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: map_ub_kind(:)
     LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -464,8 +464,8 @@ CONTAINS
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, handle2, i, &
                                                 j, k, last, natom, ntorsion
-    INTEGER, ALLOCATABLE                     :: map_torsion_kind(:)
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: map_torsion_kind(:)
     LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -588,8 +588,8 @@ CONTAINS
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, handle2, i, &
                                                 j, k, last, natom, nimpr
-    INTEGER, ALLOCATABLE                     :: map_impr_kind(:)
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: map_impr_kind(:)
     LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(impr_kind_type), DIMENSION(:), &
@@ -713,8 +713,8 @@ CONTAINS
     INTEGER                                  :: atm_a, atm_b, atm_c, atm_d, &
                                                 counter, first, handle2, i, &
                                                 j, k, last, natom, nopbend
-    INTEGER, ALLOCATABLE                     :: map_opbend_kind(:)
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    INTEGER, POINTER                         :: map_opbend_kind(:)
     LOGICAL                                  :: found
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind

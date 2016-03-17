@@ -207,12 +207,11 @@ MODULE qs_efield_berry
     LOGICAL                                  :: found, uniform, use_virial
     REAL(dp) :: charge, ci(3), cqi(3), dab, dd, ener_field, f0, fab, &
       fieldpol(3), focc, fpolvec(3), hmat(3,3), occ, qi(3), ti(3)
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: dcosab, dsinab
     REAL(dp), DIMENSION(3)                   :: forcea, forceb, kvec, ra, &
                                                 rab, rb, ria
     REAL(dp), DIMENSION(:, :), POINTER       :: cosab, iblock, rblock, sinab, &
                                                 work
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: dcosab, dsinab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
@@ -220,24 +219,24 @@ MODULE qs_efield_berry
       POINTER                                :: atomic_kind_set
     TYPE(block_p_type), DIMENSION(3, 2)      :: dcost, dsint
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_cfm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: eigrmat, inv_mat
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: eigrmat, inv_mat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: tempmat
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, mo_coeff_b, sinmat
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: mo_coeff_tmp, mo_derivs_tmp
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: inv_work, op_fm_set, opvec
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_coeff_tmp, mo_derivs_tmp
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: inv_work, op_fm_set, opvec
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(efield_berry_type), POINTER         :: efield
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -710,12 +709,11 @@ MODULE qs_efield_berry
     LOGICAL                                  :: found, uniform, use_virial
     REAL(dp) :: charge, ci(3), cqi(3), dab, dd, di(3), ener_field, fab, &
       fieldpol(3), focc, hmat(3,3), occ, omega, qi(3), rlog(3), zlog(3)
-    REAL(dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: dcosab, dsinab, force_tmp
     REAL(dp), DIMENSION(3)                   :: forcea, forceb, kvec, ra, &
                                                 rab, rb, ria
     REAL(dp), DIMENSION(:, :), POINTER       :: cosab, iblock, rblock, sinab, &
                                                 work
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: dcosab, dsinab, force_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
                                                 zeta, zetb
@@ -723,17 +721,17 @@ MODULE qs_efield_berry
       POINTER                                :: atomic_kind_set
     TYPE(block_p_type), DIMENSION(3, 2)      :: dcost, dsint
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_cfm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: eigrmat, inv_mat
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: eigrmat, inv_mat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, mo_derivs
     TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
       POINTER                                :: tempmat
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, mo_coeff_b, sinmat
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: mo_coeff_tmp
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: inv_work, mo_derivs_tmp, &
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_coeff_tmp
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: inv_work, mo_derivs_tmp, &
                                                 op_fm_set, opvec
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -741,7 +739,7 @@ MODULE qs_efield_berry
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(efield_berry_type), POINTER         :: efield
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos

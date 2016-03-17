@@ -236,7 +236,7 @@ CONTAINS
 !> \author I-Feng W. Kuo
 ! *****************************************************************************
   FUNCTION ter_a_ij(tersoff)
-    TYPE(tersoff_pot_type), ALLOCATABLE      :: tersoff
+    TYPE(tersoff_pot_type), POINTER          :: tersoff
     REAL(KIND=dp)                            :: ter_a_ij
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'ter_a_ij', &
@@ -758,11 +758,10 @@ CONTAINS
     INTEGER                                  :: handle, i, iend, igrp, ikind, &
                                                 ilist, ipair, istart, jkind, &
                                                 nkinds, npairs, npairs_tot
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: work_list, work_list2
+    INTEGER, DIMENSION(:), POINTER           :: work_list, work_list2
     INTEGER, DIMENSION(:, :), POINTER        :: list
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: rwork_list
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, cvi
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rwork_list
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot

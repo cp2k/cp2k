@@ -31,7 +31,7 @@ MODULE qs_tddfpt_types
 
 ! *****************************************************************************
   TYPE tddfpt_env_type
-     REAL(KIND=dp), DIMENSION(:), ALLOCATABLE               :: evals  ! eigenvalues
+     REAL(KIND=dp), DIMENSION(:), POINTER               :: evals  ! eigenvalues
      TYPE(cp_fm_p_type), DIMENSION(:,:), &
           POINTER                                       :: evecs  ! eigenvectors
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: invS   ! the inverse of the metric

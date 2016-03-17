@@ -153,8 +153,8 @@ CONTAINS
       inode, irow, iw, jatom, jkind, l1, l2, la, lb, llm, lmaxi, lmaxj, m, &
       n1, n2, n_urpoly, natom, natorb_a, natorb_b, nderivatives, ngrd, &
       ngrdcut, nimg, nkind, nmat, spdim
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(3)                    :: cell
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: defined, found, hb_sr_damp, &
                                                 omit_headers, use_virial
@@ -789,12 +789,12 @@ CONTAINS
       natorb_b, ngrd, ngrdcut, nkind
     LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: ddr, dgrd, dr, f0
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: dsblock1
     REAL(KIND=dp), DIMENSION(0:3)            :: skself
     REAL(KIND=dp), DIMENSION(3)              :: drij, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsblock, dsblockm, sblock, &
                                                 smatij, smatji
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: dsblock1
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(block_p_type), DIMENSION(2:10)      :: dsblocks
@@ -1008,8 +1008,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: pc_ener, zeff
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: qpot
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: qpot
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1421,8 +1421,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: defined, found
     REAL(KIND=dp)                            :: fi, gmij, zeff
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mcharge, qpot
     REAL(KIND=dp), DIMENSION(0:3)            :: eta_a
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mcharge, qpot
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges, dsblock, Forces_QM, &
                                                 pblock, sblock
     TYPE(atomic_kind_type), DIMENSION(:), &

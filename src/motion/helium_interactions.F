@@ -601,7 +601,7 @@ END SUBROUTINE helium_intpot_model_water
 ! *****************************************************************************
   FUNCTION helium_atom_action(helium,n,i) RESULT(res)
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: n, i
     REAL(KIND=dp)                            :: res
 
@@ -674,7 +674,7 @@ END SUBROUTINE helium_intpot_model_water
 ! *****************************************************************************
   FUNCTION helium_link_action(helium,n) RESULT(res)
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: n
     REAL(KIND=dp)                            :: res
 
@@ -731,7 +731,7 @@ END SUBROUTINE helium_intpot_model_water
 ! *****************************************************************************
   FUNCTION helium_total_action(helium) RESULT(res)
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
     REAL(KIND=dp)                            :: res
 
     INTEGER                                  :: i
@@ -756,7 +756,7 @@ END SUBROUTINE helium_intpot_model_water
 ! *****************************************************************************
   SUBROUTINE helium_delta_pos(helium,part,ref_bead,delta_bead,d)
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: part, ref_bead, delta_bead
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: d
 

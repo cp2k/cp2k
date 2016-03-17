@@ -123,7 +123,7 @@ CONTAINS
     INTEGER                                  :: handle, i, j, m, n
     LOGICAL                                  :: found
     REAL(dp)                                 :: alpha, beta, denom, diff, gap
-    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: H_evals
+    REAL(dp), DIMENSION(:), POINTER          :: H_evals
     REAL(dp), DIMENSION(:, :), POINTER       :: block_N, D1, D2, H, H0, &
                                                 H_evecs, M2, M3, M4, M5, M6, &
                                                 M7, Y

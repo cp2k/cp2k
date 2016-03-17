@@ -88,7 +88,7 @@ MODULE fparser
      INTEGER                            :: StackSize, &
                                            StackPtr
   END TYPE tComp
-  TYPE(tComp),   DIMENSION(:),  ALLOCATABLE :: Comp  ! Bytecode
+  TYPE(tComp),   DIMENSION(:),  POINTER :: Comp  ! Bytecode
   INTEGER,   DIMENSION(:),  ALLOCATABLE :: ipos  ! Associates function strings
   !
 CONTAINS

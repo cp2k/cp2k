@@ -635,9 +635,8 @@ CONTAINS
 
     INTEGER                                  :: i, ind, j, k, nvar
     REAL(KIND=dp)                            :: fac
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: awrk, eig, tmp
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: wrk
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: awrk, eig, tmp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: wrk
 
 ! Averages
 

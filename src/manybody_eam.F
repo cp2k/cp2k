@@ -61,8 +61,8 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: eam_kinds_index
     LOGICAL                                  :: do_eam
     REAL(KIND=dp)                            :: fac, rab2, rab2_max
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rho
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     TYPE(eam_pot_type), POINTER              :: eam_a, eam_b
     TYPE(eam_type), DIMENSION(:), POINTER    :: eam_data
     TYPE(fist_neighbor_type), POINTER        :: nonbonded

@@ -29,8 +29,8 @@ MODULE kg_min_heap
 
   TYPE heap_t
      INTEGER :: n
-     INTEGER, DIMENSION(:), ALLOCATABLE           :: index
-     TYPE(heap_node_e), DIMENSION(:), ALLOCATABLE :: nodes
+     INTEGER, DIMENSION(:), POINTER           :: index
+     TYPE(heap_node_e), DIMENSION(:), POINTER :: nodes
   END TYPE heap_t
 
   INTERFACE node_set

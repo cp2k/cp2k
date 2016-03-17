@@ -145,8 +145,8 @@ CONTAINS
     INTEGER                                  :: handle, ispin, iterm, k, &
                                                 k_alpha, k_beta, n_rep, &
                                                 Nelectron, Nspin, Nterms
-    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: occupations
     INTEGER, DIMENSION(:), POINTER           :: ivec
+    INTEGER, DIMENSION(:, :, :), POINTER     :: occupations
     LOGICAL                                  :: compute_virial, in_range, &
                                                 uniform_occupation
     REAL(KIND=dp)                            :: exc, total_rho
@@ -410,8 +410,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs, rho_ao, tmp_dbcsr
     TYPE(cp_dbcsr_type), POINTER             :: orb_density_matrix, orb_h
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: mo_derivs_local
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs_local
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: matrix_hv, matrix_v, mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &

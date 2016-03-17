@@ -453,10 +453,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     REAL(dp)                                 :: a_max, b_max, ip_energy, &
                                                 occ_estate
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: vecbuffer, vecbuffer2
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
                                                 occupation_numbers
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer2
     TYPE(cp_fm_type), POINTER                :: excvec_coeff, excvec_overlap, &
                                                 fm_work, mo_coeff
 

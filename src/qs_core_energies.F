@@ -79,8 +79,8 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE calculate_ptrace_gamma(hmat,pmat,ecore,nspin)
 
-    TYPE(cp_dbcsr_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: hmat, pmat
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: hmat, pmat
     REAL(KIND=dp), INTENT(OUT)               :: ecore
     INTEGER, INTENT(IN)                      :: nspin
 

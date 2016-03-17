@@ -223,7 +223,7 @@ MODULE qs_ks_types
 !> \author Fawzi Mohamed
 ! *****************************************************************************
   TYPE qs_ks_env_p_type
-     TYPE(qs_ks_env_type), ALLOCATABLE :: ks_env
+     TYPE(qs_ks_env_type), POINTER :: ks_env
   END TYPE qs_ks_env_p_type
 
 CONTAINS

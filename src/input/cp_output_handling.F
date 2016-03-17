@@ -130,10 +130,10 @@ MODULE cp_output_handling
 ! *****************************************************************************
   TYPE cp_out_flags_type
      INTEGER :: ref_count, id_nr, n_flags
-     CHARACTER(default_string_length), DIMENSION(:), ALLOCATABLE :: names
-     INTEGER, DIMENSION(:), ALLOCATABLE :: control_val
-     TYPE(section_vals_type), ALLOCATABLE :: input
-     TYPE(cp_logger_type), ALLOCATABLE :: logger
+     CHARACTER(default_string_length), DIMENSION(:), POINTER :: names
+     INTEGER, DIMENSION(:), POINTER :: control_val
+     TYPE(section_vals_type), POINTER :: input
+     TYPE(cp_logger_type), POINTER :: logger
      LOGICAL :: strict
      INTEGER :: default_val
   END TYPE cp_out_flags_type

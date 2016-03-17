@@ -679,10 +679,10 @@ CONTAINS
     LOGICAL                                  :: do_raman
     REAL(dp)                                 :: kvec(3), maxocc
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_cfm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: eigrmat
-    TYPE(cp_cfm_p_type), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: inv_mat
+    TYPE(cp_cfm_p_type), DIMENSION(:), &
+      POINTER                                :: eigrmat
+    TYPE(cp_cfm_p_type), DIMENSION(:, :), &
+      POINTER                                :: inv_mat
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(cp_dbcsr_type), POINTER             :: cosmat, sinmat

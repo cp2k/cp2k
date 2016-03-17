@@ -184,7 +184,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy
     INTEGER, DIMENSION(3)                    :: lb, ub
     REAL(KIND=dp)                            :: max_val_low, max_val_up
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rbuf, sbuf
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     CALL timeset(routineN,handle)
 
@@ -347,7 +347,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: cart_pos, lox, loy, min_x, &
                                                 min_y
     INTEGER, DIMENSION(3)                    :: lb, ub
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: rbuf, sbuf
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rbuf, sbuf
 
     CPASSERT(ASSOCIATED(wavelet))
 

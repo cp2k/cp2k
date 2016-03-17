@@ -107,8 +107,8 @@ CONTAINS
     REAL(KIND=dp)                            :: alpha, denom, e_igdotr, &
                                                 factor, four_alpha_sq, gauss, &
                                                 pref, q
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: charge
     REAL(KIND=dp), DIMENSION(3)              :: vec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

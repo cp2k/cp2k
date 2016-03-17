@@ -107,7 +107,7 @@ MODULE tmc_analysis_types
     INTEGER                                       :: conf_counter
     TYPE(tmc_atom_type), DIMENSION(:), POINTER    :: charges_inp
     REAL(KIND=dp), DIMENSION(:), POINTER          :: charges
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE          :: last_dip_cl
+    REAL(KIND=dp), DIMENSION(:), POINTER          :: last_dip_cl
     LOGICAL                                       :: print_cl_dip = .TRUE.
   END TYPE dipole_moment_type
 
@@ -118,9 +118,9 @@ MODULE tmc_analysis_types
     ! squared dipoles per volume
     REAL(KIND=dp)                                 :: mu2_pv_s
     ! dipole per square root ov volume per direction
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE          :: mu_psv, mu_pv, mu2_pv
+    REAL(KIND=dp), DIMENSION(:), POINTER          :: mu_psv, mu_pv, mu2_pv
     ! dipole dipole correlation matrix (per volume)
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE        :: mu2_pv_mat
+    REAL(KIND=dp), DIMENSION(:,:), POINTER        :: mu2_pv_mat
     
   END TYPE dipole_analysis_type
 

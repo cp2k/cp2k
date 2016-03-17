@@ -198,7 +198,7 @@ SUBROUTINE for_trans(nd,nt,x,y,m,cgt,cht)
     REAL(KIND=dp), INTENT(in)                :: x(0:nd-1)
     REAL(KIND=dp), INTENT(out)               :: y(0:nd-1)
     INTEGER                                  :: m
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cgt, cht
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: cgt, cht
 
     INTEGER                                  :: i, ind, j
 
@@ -295,7 +295,7 @@ END SUBROUTINE back_trans
 ! *****************************************************************************
 SUBROUTINE ftest(m,ch,cg,cgt,cht)
     INTEGER                                  :: m
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ch, cg, cgt, cht
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ch, cg, cgt, cht
 
     CHARACTER(len=*), PARAMETER              :: fmt22 = "(a,i3,i4,4(e17.10))"
 

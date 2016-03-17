@@ -1552,8 +1552,8 @@ CONTAINS
                                                 mepos, mypcol, myprow, &
                                                 npcol, nprow, num_pe, rb, tag
     INTEGER, DIMENSION(9)                    :: desc
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: vecbuf
-    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: newdat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: vecbuf
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: newdat
     INTEGER, EXTERNAL                        :: numroc
 #endif
 
@@ -1648,7 +1648,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__SCALAPACK)
     INTEGER                                  :: k, n_cols
-    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: vecbuf
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuf
 #endif
 
    CALL timeset(routineN,handle)

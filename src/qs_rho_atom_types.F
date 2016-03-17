@@ -48,7 +48,7 @@ MODULE qs_rho_atom_types
   END TYPE rho_atom_type
 
   TYPE rho_atom_p_type
-     TYPE(rho_atom_type), ALLOCATABLE       :: rho_atom
+     TYPE(rho_atom_type), POINTER       :: rho_atom
   END TYPE rho_atom_p_type
 
   PUBLIC :: allocate_rho_atom_set,&

@@ -106,7 +106,7 @@ CONTAINS
       iw, j, k, location, max_mol_num, mm_index, n, n_rep, n_var, natom, &
       natom_loc, nkind, nlinks, old_hash, old_mol, output_unit, qm_index, &
       unique_mol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: mm_link_atoms, qm_atom_index
+    INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms, qm_atom_index
     INTEGER, POINTER :: atm_map1(:), atm_map2(:), atm_map3(:), &
       map_atom_type(:), map_mol_hash(:), mm_indexes_n(:), mm_indexes_v(:), &
       mol_bnd(:,:), mol_hash(:), mol_num(:), new_position(:), order(:), &
@@ -963,11 +963,11 @@ CONTAINS
     CHARACTER(LEN=2)                         :: upper_sym_1
     CHARACTER(LEN=default_string_length)     :: atmname_upper
     CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:)              :: keyword
+      DIMENSION(:), POINTER                  :: keyword
     INTEGER                                  :: handle, i, i_rep, iatom, &
                                                 ielem_found, iw, n_rep, natom
     LOGICAL                                  :: user_defined
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mass
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: kind_section

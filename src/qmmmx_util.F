@@ -552,7 +552,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: kind_name
     CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE                            :: kind_name_a(:)
+      POINTER                                :: kind_name_a(:)
     INTEGER                                  :: ik
     LOGICAL                                  :: skip_kind
     REAL(dp), ALLOCATABLE                    :: r_max_a(:,:), r_minsq_a(:,:)

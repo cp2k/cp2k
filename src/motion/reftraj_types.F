@@ -54,7 +54,7 @@ MODULE reftraj_types
      REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: ref0_com_molecule
      REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: val_msd_kind
      REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: val_msd_molecule
-     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)   :: val_msd_region
+     REAL(KIND=dp), POINTER, DIMENSION(:,:)   :: val_msd_region
   END TYPE reftraj_msd_type
 
 ! *****************************************************************************

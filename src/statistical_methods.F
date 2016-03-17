@@ -456,8 +456,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE tests(xdata, globenv)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdata
-    TYPE(global_environment_type), &
-      ALLOCATABLE                            :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tests', &
       routineP = moduleN//':'//routineN

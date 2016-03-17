@@ -859,7 +859,7 @@ CONTAINS
   SUBROUTINE fb_atomic_halo_list_write(atomic_halos, para_env, fb_section)
     TYPE(fb_atomic_halo_list_obj), &
       INTENT(IN)                             :: atomic_halos
-    TYPE(cp_para_env_type), ALLOCATABLE      :: para_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: fb_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write', &

@@ -977,7 +977,7 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: r, rab, ra, rb,sab_max, sb, &
                                                 sb_pbc, sb_min, sb_max, rab_pbc, pd, sab_max_guard
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nlista, nlistb
-    TYPE(local_lists), DIMENSION(:), ALLOCATABLE :: lista, listb
+    TYPE(local_lists), DIMENSION(:), POINTER :: lista, listb
     TYPE(neighbor_list_p_type), &
       ALLOCATABLE, DIMENSION(:)              :: kind_a
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set

@@ -125,8 +125,7 @@ CONTAINS
     ! Diagonalise the symmetric n by n matrix using the LAPACK library.
 
     TYPE(cp_dbcsr_type), POINTER             :: matrix
-    TYPE(cp_dbcsr_type), ALLOCATABLE, &
-      OPTIONAL                               :: eigenvectors
+    TYPE(cp_dbcsr_type), OPTIONAL, POINTER   :: eigenvectors
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
     INTEGER, INTENT(IN), OPTIONAL            :: neig
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: work_syevx

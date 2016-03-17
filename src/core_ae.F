@@ -123,7 +123,7 @@ CONTAINS
                                                 zetb
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: ap_iterator, nl_iterator

@@ -132,10 +132,10 @@ CONTAINS
     TYPE(alist_type), POINTER                :: alist_ac, alist_bc
     TYPE(clist_type), POINTER                :: clist
     TYPE(gth_potential_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: potential
+      DIMENSION(:), POINTER                  :: potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set
+      DIMENSION(:), POINTER                  :: basis_set
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_iterator_p_type), &
       DIMENSION(:), POINTER                  :: nl_iterator

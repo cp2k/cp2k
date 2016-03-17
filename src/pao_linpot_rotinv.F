@@ -130,10 +130,11 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), POINTER       :: sab
     REAL(KIND=dp)                            :: c2s, pot_beta, pot_exp, &
                                                 R_vdw, y
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: neighbor_dist, rpgfb, zetb
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: saab
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: neighbor_dist
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rab_dir, rb
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgfb, zetb
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: saab
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_type), POINTER        :: basis_set
     TYPE(particle_type), DIMENSION(:), &

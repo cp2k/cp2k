@@ -65,7 +65,7 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, handle, &
                                                 iatom, ikind, jatom, jkind, &
                                                 natom, nkind
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: atener, defined, use_virial
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: scptb_defined
     REAL(KIND=dp)                            :: dr1, enuc, enucij, enuclear
@@ -88,7 +88,7 @@ CONTAINS
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
     TYPE(scptb_parameter_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: scptb_kind_param
+      DIMENSION(:), POINTER                  :: scptb_kind_param
     TYPE(scptb_parameter_type), POINTER      :: scptb_kind_a, scptb_kind_b
     TYPE(virial_type), POINTER               :: virial
 

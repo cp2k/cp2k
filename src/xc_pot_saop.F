@@ -151,8 +151,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: orbital_density_matrix, &
                                                 rho_struct_ao
-    TYPE(cp_fm_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: single_mo_coeff
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: single_mo_coeff
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals

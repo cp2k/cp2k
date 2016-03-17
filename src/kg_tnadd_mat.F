@@ -127,7 +127,7 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_kg
     TYPE(gto_basis_set_p_type), &
-      ALLOCATABLE, DIMENSION(:)              :: basis_set_list
+      DIMENSION(:), POINTER                  :: basis_set_list
     TYPE(gto_basis_set_type), POINTER        :: basis_set_a, basis_set_b
     TYPE(local_potential_type), POINTER      :: tnadd_potential
     TYPE(neighbor_list_iterator_p_type), &

@@ -272,8 +272,8 @@ CONTAINS
     INTEGER                                  :: handle, max_iter_internal, &
                                                 nrestarts
     TYPE(dbcsr_arnoldi_data)                 :: my_arnoldi
-    TYPE(dbcsr_obj_type_p), ALLOCATABLE, &
-      DIMENSION(:)                           :: arnoldi_matrices
+    TYPE(dbcsr_obj_type_p), DIMENSION(:), &
+      POINTER                                :: arnoldi_matrices
 
     CALL timeset(routineN, handle)
 

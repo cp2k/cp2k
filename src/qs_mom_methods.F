@@ -71,7 +71,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, norbs
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_iarr
+    INTEGER, DIMENSION(:), POINTER           :: tmp_iarr
 
     CALL timeset(routineN, handle)
 
@@ -383,8 +383,8 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER         :: mo_mo_fmstruct
     TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_orig, &
                                                 overlap, svec
-    TYPE(mo_set_p_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: mos_orig
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos_orig
 
     CALL timeset(routineN, handle)
 

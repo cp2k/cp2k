@@ -132,8 +132,8 @@ CONTAINS
 
     INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, ic, &
       icol, ikind, img, irow, is, jatom, jkind, natom, nimg, nmat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: cellind, periodic
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
     LOGICAL                                  :: do_ewald, found, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dr, fi, gmij, &
@@ -472,8 +472,8 @@ CONTAINS
                                                 ewald_type, handle, i, ia, &
                                                 iatom, ikind, jatom, jkind, &
                                                 natom, nmat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     INTEGER, DIMENSION(3)                    :: periodic
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind, kind_of
     LOGICAL                                  :: found, use_virial
     REAL(KIND=dp)                            :: alpha, deth, dfr, dr, fi, fr, &
                                                 gmij

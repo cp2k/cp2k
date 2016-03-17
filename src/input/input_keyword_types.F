@@ -86,7 +86,7 @@ MODULE input_keyword_types
 ! *****************************************************************************
   TYPE keyword_type
      INTEGER :: ref_count,id_nr
-     CHARACTER(LEN=default_string_length), DIMENSION(:), ALLOCATABLE:: names
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
      CHARACTER(LEN=usage_string_length) :: usage
      CHARACTER,DIMENSION(:),POINTER :: description => Null()
      INTEGER, POINTER, DIMENSION(:) :: citations

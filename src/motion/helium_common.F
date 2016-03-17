@@ -173,7 +173,7 @@ MODULE helium_common
 ! *****************************************************************************
   SUBROUTINE helium_pbc_trocta( helium, r )
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT)                          :: r
 
@@ -682,9 +682,9 @@ MODULE helium_common
 ! *****************************************************************************
   SUBROUTINE helium_norm_rho(helium,rho)
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: rho
+    TYPE(helium_solvent_type), POINTER       :: helium
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: rho
 
     CHARACTER(len=*), PARAMETER :: routineN = 'helium_norm_rho', &
       routineP = moduleN//':'//routineN
@@ -1413,7 +1413,7 @@ MODULE helium_common
 ! *****************************************************************************
   FUNCTION helium_bead_rij(helium, ia, ib, ja, jb) RESULT(rij)
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER, INTENT(IN)                      :: ia, ib, ja, jb
     REAL(KIND=dp)                            :: rij
 
@@ -2054,7 +2054,7 @@ MODULE helium_common
   FUNCTION helium_cycle_projected_area_pbc(helium,CYCLE) RESULT(area)
 
     TYPE(helium_solvent_type), POINTER       :: helium
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: CYCLE
+    INTEGER, DIMENSION(:), POINTER           :: CYCLE
     REAL(KIND=dp), DIMENSION(3)              :: area
 
     CHARACTER(len=*), PARAMETER :: &
@@ -2523,7 +2523,7 @@ MODULE helium_common
 ! *****************************************************************************
   FUNCTION helium_rperpendicular(helium,ia,ib) RESULT(rperp)
 
-    TYPE(helium_solvent_type), ALLOCATABLE   :: helium
+    TYPE(helium_solvent_type), POINTER       :: helium
     INTEGER                                  :: ia, ib
     REAL(KIND=dp), DIMENSION(3)              :: rperp
 
