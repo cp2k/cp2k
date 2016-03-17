@@ -1033,7 +1033,8 @@ CONTAINS
                  IF(ls_scf_env%has_s_preconditioner)&
                     CPABORT("S preconditioning not implemented in combination with the PEXSI library. ")
                  IF(ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic)&
-                    CPABORT("Molecular clustering not implemented in combination with the PEXSI library. ")
+                    CALL cp_abort(__LOCATION__,&
+                             "Molecular clustering not implemented in combination with the PEXSI library. ")
                  IF(ls_scf_env%ls_mstruct%single_precision)&
                     CPABORT("PEXSI library requires double precision datatype. ")
                  CALL density_matrix_pexsi(ls_scf_env%pexsi, ls_scf_env%matrix_p(ispin), ls_scf_env%pexsi%matrix_w(ispin),&

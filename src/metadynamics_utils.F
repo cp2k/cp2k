@@ -195,9 +195,11 @@ CONTAINS
             CALL cp_abort(__LOCATION__,"When using Well-Tempered metadynamics, "//&
                           "DELTA_T (or WTGAMMA) should be explicitly specified.")
          IF(meta_env%extended_lagrange)&
-            CPABORT("Well-Tempered metadynamics not possible with extended-lagrangian formulation.")
+            CALL cp_abort(__LOCATION__,&
+                   "Well-Tempered metadynamics not possible with extended-lagrangian formulation.")
          IF(meta_env%hills_env%min_disp > 0.0_dp)&
-            CPABORT("Well-Tempered metadynamics not possible with Adaptive hills.")
+            CALL cp_abort(__LOCATION__,&
+                   "Well-Tempered metadynamics not possible with Adaptive hills.")
        ENDIF
 
        CALL section_vals_val_get(metadyn_section,"COLVAR_AVG_TEMPERATURE_RESTART",&

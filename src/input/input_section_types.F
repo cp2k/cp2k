@@ -2004,8 +2004,10 @@ CONTAINS
        END DO
     END DO
     IF (.NOT.PRESENT(i_rep_low).AND.(.NOT.PRESENT(i_rep_high))) THEN
-     CPASSERT(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2))
-     CPASSERT(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2))
+       IF (.NOT.(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2))) &
+          CPABORT("")
+       IF (.NOT.(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2))) &
+          CPABORT("")
     END IF
     iend   = SIZE(section_vals_in%subs_vals,2)
     IF (PRESENT(i_rep_high)) iend=i_rep_high

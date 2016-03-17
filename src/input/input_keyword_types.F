@@ -313,7 +313,8 @@ CONTAINS
           PRESENT(lone_keyword_i_val).OR.PRESENT(lone_keyword_i_vals).OR.&
           PRESENT(lone_keyword_r_val).OR.PRESENT(lone_keyword_r_vals).OR.&
           PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals))&
-          CPABORT("you should pass either lone_keyword_val or a lone_keyword value, not both")
+          CALL cp_abort(__LOCATION__,&
+                        "you should pass either lone_keyword_val or a lone_keyword value, not both")
        keyword%lone_keyword_value => lone_keyword_val
        CALL val_retain(lone_keyword_val)
        IF (ASSOCIATED(lone_keyword_val%enum)) THEN

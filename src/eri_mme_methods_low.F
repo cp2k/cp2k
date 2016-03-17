@@ -993,7 +993,8 @@ CONTAINS
 
       DO iter2 = 1, max_iter + 1
         IF(iter2.GT.max_iter)&
-           CPABORT("Maximum number of iterations in bisection to determine cutoff has been exceeded")
+           CALL cp_abort(__LOCATION__,&
+              "Maximum number of iterations in bisection to determine cutoff has been exceeded")
 
         cutoff_mid = 0.5_dp*(cutoff_lr(1) + cutoff_lr(2))
         CALL cutoff_minimax_error(cutoff_mid, hmat, h_inv, vol, G_min, zet_mm, l_mm, zet_c, l_c, &
@@ -1471,7 +1472,8 @@ CONTAINS
         DO iter = 1, max_iter + 1
           IF (iter .GT. max_iter) THEN
             failed = .TRUE.
-            CPWARN("GR-switch calibration FAILED: Maximum number of iterations has been exceeded")
+            CALL cp_warn(__LOCATION__,&
+                         "GR-switch calibration FAILED: Maximum number of iterations has been exceeded")
             EXIT outerloop
           ENDIF
           alpha = 0.5_dp*(alpha_lr(1) + alpha_lr(2))

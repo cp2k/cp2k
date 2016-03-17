@@ -87,7 +87,8 @@ CONTAINS
 
     IF (PRESENT(require_consistent_energy_force)) THEN
        IF(require_consistent_energy_force)&
-          CPABORT("qmmmx_energy_and_forces got require_consistent_energy_force but force mixing is active. ")
+          CALL cp_abort(__LOCATION__,&
+           "qmmmx_energy_and_forces got require_consistent_energy_force but force mixing is active. ")
     ENDIF
 
     ! Possibly translate the system

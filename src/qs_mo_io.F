@@ -956,7 +956,8 @@ CONTAINS
           mos(ispin+1)%mo_set%lfomo = mos(ispin)%mo_set%lfomo
           nelectron = mos(ispin)%mo_set%nelectron
           IF (my_mult.NE.1) THEN
-             CPABORT("Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets).")
+             CALL cp_abort(__LOCATION__,&
+                     "Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets).")
           END IF
           IF(mos(ispin+1)%mo_set%nelectron < 0)THEN
              CPABORT("LSD: too few electrons for this multiplisity. ")

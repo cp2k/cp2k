@@ -672,7 +672,8 @@ CONTAINS
        END DO
     END IF
 
-    IF(ASSOCIATED(qmmm_env) .AND. ASSOCIATED(qmmmx_env)) CPABORT("get_part_ke: qmmm bug")
+    IF(ASSOCIATED(qmmm_env) .AND. ASSOCIATED(qmmmx_env))&
+      CPABORT("get_part_ke: qmmm bug")
   END SUBROUTINE get_part_ke
 
 ! *****************************************************************************

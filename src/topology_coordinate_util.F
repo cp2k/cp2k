@@ -344,7 +344,8 @@ CONTAINS
     my_ignore_outside_box = .FALSE.
     IF (PRESENT(ignore_outside_box)) my_ignore_outside_box = ignore_outside_box
     IF(.NOT.my_ignore_outside_box .AND. .NOT. check)&
-      CALL cp_abort(__LOCATION__, "A non-periodic calculation has been requested but the system size "//&
+      CALL cp_abort(__LOCATION__,&
+           "A non-periodic calculation has been requested but the system size "//&
            "exceeds the cell size in at least one of the non-periodic directions!")
     IF (do_center) THEN
        CALL section_vals_val_get(subsys_section,&

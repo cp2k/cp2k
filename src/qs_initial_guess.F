@@ -252,7 +252,8 @@ CONTAINS
                (((density_guess == restart_guess).OR.&
                 (density_guess == history_guess)).AND.&
                 (scf_control%level_shift == 0.0_dp))))) THEN
-       CPABORT("OT needs GUESS ATOMIC / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
+       CALL cp_abort(__LOCATION__,&
+             "OT needs GUESS ATOMIC / RANDOM / SPARSE / RESTART / HISTORY RESTART: other options NYI")
     END IF
 
     ! if a restart was requested, check that the file exists,

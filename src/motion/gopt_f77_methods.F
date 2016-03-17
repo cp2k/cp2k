@@ -250,7 +250,8 @@ USE cp_log_handling, ONLY: cp_logger_type
                 ! Only NVT ensemble is allowed..
                 CALL section_vals_val_get(gopt_env%motion_section,"MD%ENSEMBLE",i_val=ensemble)
                 IF(ensemble/=nvt_ensemble)&
-                 CPABORT("Cell optimization at finite temperature requires the NVT MD ensemble!")
+                  CALL cp_abort(__LOCATION__,&
+                         "Cell optimization at finite temperature requires the NVT MD ensemble!")
                 ! Perform a molecular dynamics
                 CALL gopt_new_logger_create(new_logger, gopt_env%force_env%root_section, para_env,&
                      project_name, id_run=mol_dyn_run)
