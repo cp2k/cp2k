@@ -24,13 +24,19 @@ MODULE pao_param
                                              pao_rotinv_param
   USE pao_param_exp,                   ONLY: pao_calc_U_exp,&
                                              pao_param_finalize_exp,&
-                                             pao_param_init_exp
+                                             pao_param_init_exp,&
+                                             pao_param_initguess_exp,&
+                                             pao_param_xblock_dims_exp
   USE pao_param_gth,                   ONLY: pao_calc_U_gth,&
                                              pao_param_finalize_gth,&
-                                             pao_param_init_gth
+                                             pao_param_init_gth,&
+                                             pao_param_initguess_gth,&
+                                             pao_param_xblock_dims_gth
   USE pao_param_linpot,                ONLY: pao_calc_U_linpot,&
                                              pao_param_finalize_linpot,&
-                                             pao_param_init_linpot
+                                             pao_param_init_linpot,&
+                                             pao_param_initguess_linpot,&
+                                             pao_param_xblock_dims_linpot
   USE pao_types,                       ONLY: pao_env_type
   USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
@@ -41,7 +47,7 @@ MODULE pao_param
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param'
 
-  PUBLIC :: pao_update_AB
+  PUBLIC :: pao_update_AB, pao_param_xblock_dims, pao_param_initial_guess
   PUBLIC :: pao_param_init, pao_param_finalize, pao_calc_U
 
 CONTAINS
@@ -91,23 +97,21 @@ CONTAINS
 !> \brief Initialize PAO parametrization
 !> \param pao ...
 !> \param qs_env ...
-!> \param reuse_matrix_X ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_init(pao, qs_env, reuse_matrix_X)
+  SUBROUTINE pao_param_init(pao, qs_env)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL                                  :: reuse_matrix_X
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init', &
       routineP = moduleN//':'//routineN
 
     SELECT CASE(pao%parameterization)
       CASE(pao_exp_param)
-        CALL pao_param_init_exp(pao, qs_env, reuse_matrix_X)
+        CALL pao_param_init_exp(pao, qs_env)
       CASE(pao_fock_param, pao_rotinv_param)
-        CALL pao_param_init_linpot(pao, qs_env, reuse_matrix_X)
+        CALL pao_param_init_linpot(pao, qs_env)
       CASE(pao_gth_param)
-        CALL pao_param_init_gth(pao, qs_env, reuse_matrix_X)
+        CALL pao_param_init_gth(pao, qs_env)
       CASE DEFAULT
         CPABORT("PAO: unkown parametrization")
     END SELECT
@@ -137,6 +141,63 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE pao_param_finalize
+
+
+! *****************************************************************************
+!> \brief Returns the dimension of Xblock for given atomic kind
+!> \param pao ...
+!> \param qs_env ...
+!> \param ikind ...
+!> \param rows ...
+!> \param cols ...
+! *****************************************************************************
+  SUBROUTINE pao_param_xblock_dims(pao, qs_env, ikind, rows, cols)
+    TYPE(pao_env_type), POINTER              :: pao
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: ikind
+    INTEGER, INTENT(OUT)                     :: rows, cols
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE(pao%parameterization)
+      CASE(pao_exp_param)
+        CALL pao_param_xblock_dims_exp(qs_env, ikind, rows, cols)
+      CASE(pao_fock_param, pao_rotinv_param)
+        CALL pao_param_xblock_dims_linpot(pao, qs_env, ikind, rows, cols)
+      CASE(pao_gth_param)
+        CALL pao_param_xblock_dims_gth(qs_env, ikind, rows, cols)
+      CASE DEFAULT
+        CPABORT("PAO: unkown parametrization")
+    END SELECT
+
+  END SUBROUTINE pao_param_xblock_dims
+
+
+! *****************************************************************************
+!> \brief Fills matrix_X with an initial guess
+!> \param pao ...
+!> \param qs_env ...
+! *****************************************************************************
+  SUBROUTINE pao_param_initial_guess(pao, qs_env)
+    TYPE(pao_env_type), POINTER              :: pao
+    TYPE(qs_environment_type), POINTER       :: qs_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initial_guess', &
+      routineP = moduleN//':'//routineN
+
+    SELECT CASE(pao%parameterization)
+      CASE(pao_exp_param)
+        CALL pao_param_initguess_exp(pao)
+      CASE(pao_fock_param, pao_rotinv_param)
+        CALL pao_param_initguess_linpot(pao, qs_env)
+      CASE(pao_gth_param)
+        CALL pao_param_initguess_gth(pao)
+      CASE DEFAULT
+        CPABORT("PAO: unkown parametrization")
+    END SELECT
+
+  END SUBROUTINE pao_param_initial_guess
 
 
 ! *****************************************************************************

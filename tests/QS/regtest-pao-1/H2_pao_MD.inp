@@ -21,7 +21,7 @@
         MAX_PAO 50
         EPS_PAO 1.0E-5
         PARAMETERIZATION ROTINV
-        READ_RESTART H2_pao_rotinv-1_0.pao
+        RESTART_FILE H2_pao_rotinv-1_0.pao
         &LINE_SEARCH
           METHOD ADAPT
         &END LINE_SEARCH

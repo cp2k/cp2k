@@ -46,6 +46,7 @@ MODULE pao_param_gth
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_gth'
 
   PUBLIC :: pao_param_init_gth, pao_param_finalize_gth, pao_calc_U_gth
+  PUBLIC :: pao_param_xblock_dims_gth, pao_param_initguess_gth
 
 CONTAINS
 
@@ -53,36 +54,38 @@ CONTAINS
 !> \brief Initialize the linear potential parametrization
 !> \param pao ...
 !> \param qs_env ...
-!> \param reuse_matrix_X ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_init_gth(pao, qs_env, reuse_matrix_X)
+  SUBROUTINE pao_param_init_gth(pao, qs_env)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL                                  :: reuse_matrix_X
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_gth', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, iatom, &
-                                                idx, iterm, jatom, n, natoms
+                                                idx, ikind, iterm, jatom, n, &
+                                                natoms
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes_pri, col_blk_size, &
                                                 nterms, row_blk_size
-    REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, block_X, &
-                                                vec_V_terms
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, vec_V_terms
     TYPE(cp_dbcsr_iterator)                  :: iter
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     CALL timeset(routineN,handle)
     CALL pao_param_init_fock(pao, qs_env)
 
     CALL get_qs_env(qs_env,&
                     matrix_s=matrix_s,&
+                    particle_set=particle_set,&
                     natom=natoms)
 
     ALLOCATE(row_blk_size(natoms), col_blk_size(natoms), nterms(natoms))
     DO iatom=1, natoms
-       CALL gth_count_terms(qs_env, iatom, nterms(iatom))
+       CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+       CALL gth_count_terms(qs_env, ikind, nterms(iatom))
     ENDDO
 
     ! allocate matrix_V_terms
@@ -114,30 +117,6 @@ CONTAINS
        ENDDO
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
-
-    ! allocate matrix_X unless it's reused
-    IF(.NOT. reuse_matrix_X) THEN
-       row_blk_size(:) = 1
-       col_blk_size(:) = nterms
-       CALL cp_dbcsr_init(pao%matrix_X)
-       CALL cp_dbcsr_create(pao%matrix_X,&
-                            template=matrix_s(1)%matrix,&
-                            matrix_type="N",&
-                            row_blk_size=row_blk_size,&
-                            col_blk_size=col_blk_size)
-       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
-
-       ! initial guess
-       CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
-       DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-          CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
-          iatom = arow; CPASSERT(arow==acol)
-          DO iterm=1, nterms(iatom)
-             CALL gth_initial_guess(qs_env, iatom, iterm, guess=block_X(1,iterm))
-          ENDDO
-       ENDDO
-       CALL cp_dbcsr_iterator_stop(iter)
-    ENDIF
 
     DEALLOCATE(row_blk_size, col_blk_size, nterms)
     CALL timestop(handle)
@@ -275,24 +254,42 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Calculates the number of potential terms on given atom
+!> \brief Returns the dimension of Xblock for given atomic kind
 !> \param qs_env ...
-!> \param iatom ...
+!> \param ikind ...
+!> \param rows ...
+!> \param cols ...
+! *****************************************************************************
+  SUBROUTINE pao_param_xblock_dims_gth(qs_env, ikind, rows, cols)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: ikind
+    INTEGER, INTENT(OUT)                     :: rows, cols
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims_gth', &
+      routineP = moduleN//':'//routineN
+
+    rows = 1
+    CALL gth_count_terms(qs_env, ikind, nterms=cols)
+
+  END SUBROUTINE pao_param_xblock_dims_gth
+
+
+! *****************************************************************************
+!> \brief Calculates the number of potential terms on given atomic kind
+!> \param qs_env ...
+!> \param ikind ...
 !> \param nterms ...
 ! *****************************************************************************
-  SUBROUTINE gth_count_terms(qs_env, iatom, nterms)
+  SUBROUTINE gth_count_terms(qs_env, ikind, nterms)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iatom
+    INTEGER, INTENT(IN)                      :: ikind
     INTEGER, INTENT(OUT)                     :: nterms
 
-    INTEGER                                  :: ikind, maxl
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+    INTEGER                                  :: maxl
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-    CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set)
-    CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
     CALL get_qs_kind(qs_kind_set(ikind), pao_potential_maxl=maxl)
 
     IF(maxl<0) &
@@ -364,27 +361,32 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Calculates the initial guess for the requested potential term
-!> \param qs_env ...
-!> \param iatom ...
-!> \param kterm ...
-!> \param guess ...
+!> \brief Calculate intial guess for matrix_X
+!> \param pao ...
 ! *****************************************************************************
-  SUBROUTINE gth_initial_guess(qs_env, iatom, kterm, guess)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iatom, kterm
-    REAL(KIND=dp), INTENT(OUT)               :: guess
+  SUBROUTINE pao_param_initguess_gth(pao)
+    TYPE(pao_env_type), POINTER              :: pao
 
-    MARK_USED(qs_env)
-    MARK_USED(iatom)
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_gth', &
+      routineP = moduleN//':'//routineN
 
-    IF(kterm==1) THEN
-       guess = 1.0_dp
-    ELSE
-       guess = 0.0_dp
-    ENDIF
+    INTEGER                                  :: acol, arow
+    REAL(dp), DIMENSION(:, :), POINTER       :: block_X
+    TYPE(cp_dbcsr_iterator)                  :: iter
 
-   END SUBROUTINE gth_initial_guess
+    CALL cp_dbcsr_iterator_start(iter, pao%matrix_X)
+    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+       CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
+       CPASSERT(arow==acol)
+       CPASSERT(SIZE(block_X,1)==1)
+
+       ! a simplistic guess, which at least makes the atom visible to others
+       block_X      = 0.0_dp
+       block_X(1,1) = 1.0_dp
+    ENDDO
+    CALL cp_dbcsr_iterator_stop(iter)
+
+  END SUBROUTINE pao_param_initguess_gth
 
 
 ! *****************************************************************************

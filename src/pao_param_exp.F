@@ -8,19 +8,21 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE pao_param_exp
+  USE basis_set_types,                 ONLY: gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_get_block_p, &
-       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_create, cp_dbcsr_get_block_p, cp_dbcsr_init, &
+       cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
-       cp_dbcsr_type
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE pao_types,                       ONLY: pao_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                             qs_kind_type
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -30,6 +32,7 @@ MODULE pao_param_exp
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_exp'
 
   PUBLIC :: pao_param_init_exp, pao_param_finalize_exp, pao_calc_U_exp
+  PUBLIC :: pao_param_xblock_dims_exp, pao_param_initguess_exp
 
 CONTAINS
 
@@ -37,19 +40,15 @@ CONTAINS
 !> \brief Initialize matrix exponential parametrization
 !> \param pao ...
 !> \param qs_env ...
-!> \param reuse_matrix_X ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_init_exp(pao, qs_env, reuse_matrix_X)
+  SUBROUTINE pao_param_init_exp(pao, qs_env)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: reuse_matrix_X
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_exp', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, natoms
-    INTEGER, DIMENSION(:), POINTER           :: blk_sizes_diff, &
-                                                blk_sizes_pao, blk_sizes_pri
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:), POINTER          :: evals
     REAL(dp), DIMENSION(:, :), POINTER       :: block_H, block_N, block_U0
@@ -67,25 +66,6 @@ CONTAINS
                     dft_control=dft_control)
 
     IF(dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
-
-    IF(reuse_matrix_X) THEN
-       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| reusing rotation matrices from last MD step"
-    ELSE
-       ! allocate matrix_X, considering only rotations between occupied and virtuals
-       ALLOCATE(blk_sizes_diff(natoms))
-       blk_sizes_pri => cp_dbcsr_row_block_sizes(pao%matrix_Y)
-       blk_sizes_pao => cp_dbcsr_col_block_sizes(pao%matrix_Y)
-       blk_sizes_diff = blk_sizes_pri - blk_sizes_pao
-       CALL cp_dbcsr_init(pao%matrix_X)
-       CALL cp_dbcsr_create(pao%matrix_X,&
-                            template=matrix_s(1)%matrix,&
-                            matrix_type="N",&
-                            row_blk_size=blk_sizes_pao,&
-                            col_blk_size=blk_sizes_diff)
-       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
-       CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
-       DEALLOCATE(blk_sizes_diff)
-    ENDIF
 
     ! allocate matrix_U0
     CALL cp_dbcsr_init(pao%matrix_U0)
@@ -122,6 +102,55 @@ CONTAINS
     CALL cp_dbcsr_release(pao%matrix_U0)
 
   END SUBROUTINE pao_param_finalize_exp
+
+
+! *****************************************************************************
+!> \brief Returns the dimension of Xblock for given atomic kind
+!> \param qs_env ...
+!> \param ikind ...
+!> \param rows ...
+!> \param cols ...
+! *****************************************************************************
+  SUBROUTINE pao_param_xblock_dims_exp(qs_env, ikind, rows, cols)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: ikind
+    INTEGER, INTENT(OUT)                     :: rows, cols
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims_exp', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: pao_basis_size, pri_basis_size
+    TYPE(gto_basis_set_type), POINTER        :: basis_set
+    TYPE(qs_kind_type), DIMENSION(:), &
+      POINTER                                :: qs_kind_set
+
+    CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+    CALL get_qs_kind(qs_kind_set(ikind),&
+                     basis_set=basis_set,&
+                     pao_basis_size=pao_basis_size)
+    pri_basis_size = basis_set%nsgf
+
+    ! we only consider rotations between occupied and virtuals
+    rows = pao_basis_size
+    cols = pri_basis_size - pao_basis_size
+
+  END SUBROUTINE pao_param_xblock_dims_exp
+
+
+! *****************************************************************************
+!> \brief Fills matrix_X with an initial guess
+!> \param pao ...
+! *****************************************************************************
+  SUBROUTINE pao_param_initguess_exp(pao)
+    TYPE(pao_env_type), POINTER              :: pao
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_exp', &
+      routineP = moduleN//':'//routineN
+
+    ! matrix_U0 contains actual intial guess
+    CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
+
+  END SUBROUTINE pao_param_initguess_exp
 
 
 ! *****************************************************************************

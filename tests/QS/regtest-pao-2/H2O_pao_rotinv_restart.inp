@@ -19,7 +19,7 @@
       PURIFICATION_METHOD TRS4
       EXTRAPOLATION_ORDER  1
       &PAO
-        READ_RESTART H2O_pao_rotinv-1_0.pao
+        RESTART_FILE H2O_pao_rotinv-1_0.pao
         PREOPT_DM_FILE H2O_ref2_LS_DM_SPIN_1_RESTART.dm
         EPS_PAO    5.0E-7
         MAX_PAO    1

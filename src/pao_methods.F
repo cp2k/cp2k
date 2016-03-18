@@ -19,7 +19,8 @@ MODULE pao_methods
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_multiply, cp_dbcsr_p_type, &
        cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, &
-       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_trace, cp_dbcsr_type
+       cp_dbcsr_row_block_sizes, cp_dbcsr_scale, cp_dbcsr_set, &
+       cp_dbcsr_trace, cp_dbcsr_type
   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                              cp_logger_type,&
                                              cp_to_string
@@ -34,7 +35,8 @@ MODULE pao_methods
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_max
-  USE pao_param,                       ONLY: pao_update_AB
+  USE pao_param,                       ONLY: pao_param_xblock_dims,&
+                                             pao_update_AB
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -56,7 +58,8 @@ MODULE pao_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_methods'
 
-  PUBLIC :: pao_print_atom_info, pao_build_orthogonalizer, pao_build_selector
+  PUBLIC :: pao_print_atom_info
+  PUBLIC :: pao_build_orthogonalizer, pao_build_selector, pao_build_matrix_X
   PUBLIC :: pao_test_convergence, pao_calc_CG_beta
   PUBLIC :: pao_calc_energy, pao_check_trace_ps
   PUBLIC :: pao_read_preopt_dm
@@ -246,6 +249,52 @@ CONTAINS
 
     CALL timestop(handle)
   END SUBROUTINE pao_build_selector
+
+
+! *****************************************************************************
+!> \brief Creates the matrix_X
+!> \param pao ...
+!> \param qs_env ...
+! *****************************************************************************
+  SUBROUTINE pao_build_matrix_X(pao, qs_env)
+    TYPE(pao_env_type), POINTER              :: pao
+    TYPE(qs_environment_type), POINTER       :: qs_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_matrix_X', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatom, ikind, natoms
+    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size
+    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    CALL get_qs_env(qs_env,&
+                    natom=natoms,&
+                    matrix_s=matrix_s,&
+                    particle_set=particle_set)
+
+    ALLOCATE(row_blk_size(natoms), col_blk_size(natoms))
+    DO iatom=1, natoms
+      CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+      CALL pao_param_xblock_dims(pao, qs_env, ikind,&
+                                 rows=row_blk_size(iatom),&
+                                 cols=col_blk_size(iatom))
+    ENDDO
+
+    CALL cp_dbcsr_init(pao%matrix_X)
+    CALL cp_dbcsr_create(pao%matrix_X,&
+                         template=matrix_s(1)%matrix,&
+                         matrix_type="N",&
+                         row_blk_size=row_blk_size,&
+                         col_blk_size=col_blk_size)
+    CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
+    CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
+
+    DEALLOCATE(row_blk_size, col_blk_size)
+
+   END SUBROUTINE pao_build_matrix_X
 
 
 ! *****************************************************************************

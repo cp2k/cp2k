@@ -28,13 +28,14 @@ MODULE pao_main
   USE pao_io,                          ONLY: pao_read_restart,&
                                              pao_write_restart
   USE pao_methods,                     ONLY: &
-       pao_build_orthogonalizer, pao_build_selector, pao_calc_CG_beta, &
-       pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, &
-       pao_check_trace_ps, pao_print_atom_info, pao_read_preopt_dm, &
-       pao_test_convergence
+       pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, &
+       pao_calc_CG_beta, pao_calc_energy, pao_calc_outer_grad_lnv, &
+       pao_check_grad, pao_check_trace_ps, pao_print_atom_info, &
+       pao_read_preopt_dm, pao_test_convergence
   USE pao_param,                       ONLY: pao_calc_U,&
                                              pao_param_finalize,&
                                              pao_param_init,&
+                                             pao_param_initial_guess,&
                                              pao_update_AB
   USE pao_types,                       ONLY: pao_env_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -94,13 +95,17 @@ CONTAINS
 
     CALL pao_build_orthogonalizer(pao, qs_env)
     CALL pao_build_selector(qs_env, pao%matrix_Y)
+    CALL pao_param_init(pao, qs_env)
 
     IF(pao%istep>0) THEN ! was there a previous MD step?
        IF(pao%iw>0) WRITE(pao%iw,*) "PAO| reusing matrix_X from last MD step"
-       CALL pao_param_init(pao, qs_env, reuse_matrix_X=.TRUE.)
     ELSE
-       CALL pao_param_init(pao, qs_env, reuse_matrix_X=.FALSE.)
-       CALL pao_read_restart(pao, qs_env)
+       CALL pao_build_matrix_X(pao, qs_env)
+       IF(LEN_TRIM(pao%restart_file)>0) THEN
+          CALL pao_read_restart(pao, qs_env)
+       ELSE
+          CALL pao_param_initial_guess(pao, qs_env)
+       ENDIF
     ENDIF
 
     CALL pao_print_atom_info(pao)

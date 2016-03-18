@@ -111,6 +111,9 @@ CONTAINS
     CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%PREOPT_DM_FILE",c_val=pao%preopt_dm_file)
     IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,A)") " PAO|","PREOPT_DM_FILE ",pao%preopt_dm_file
 
+    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%RESTART_FILE",c_val=pao%restart_file)
+    IF(pao%iw>0) WRITE (pao%iw,"(A,T40,A,A)") " PAO|","RESTART_FILE ",pao%restart_file
+
   END SUBROUTINE parse_pao_section
 
 ! *****************************************************************************
@@ -219,9 +222,9 @@ CONTAINS
     CALL keyword_release(keyword)
 
     ! Misc ********************************************************************
-    CALL keyword_create(keyword, name="READ_RESTART",&
+    CALL keyword_create(keyword, name="RESTART_FILE",&
          description="Reads given files as restart for PAO basis",&
-         repeats=.FALSE., default_c_val="restart.pao")
+         repeats=.FALSE., default_c_val="")
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 

@@ -22,15 +22,14 @@ MODULE pao_io
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
   USE pao_input,                       ONLY: id2str
+  USE pao_param,                       ONLY: pao_param_xblock_dims
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
@@ -63,22 +62,17 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: label
-    CHARACTER(LEN=default_path_length)       :: filename
     INTEGER                                  :: i, iatom, natoms, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: col_blk_sizes, row_blk_sizes
-    LOGICAL                                  :: explicit, found
+    LOGICAL                                  :: found
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X, buffer
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: input
 
     CALL get_qs_env(qs_env, input=input, para_env=para_env)
 
-    CALL section_vals_val_get(input,"DFT%LS_SCF%PAO%READ_RESTART",&
-       c_val=filename, explicit=explicit)
-
-    IF(.NOT. explicit) RETURN
-
-    IF(pao%iw>0) WRITE(pao%iw,'(A,A)') " PAO| Reading restart file: ", TRIM(filename)
+    CPASSERT(LEN_TRIM(pao%restart_file)>0)
+    IF(pao%iw>0) WRITE(pao%iw,'(A,A)') " PAO| Reading restart file: ", TRIM(pao%restart_file)
 
     row_blk_sizes => cp_dbcsr_row_block_sizes(pao%matrix_X)
     col_blk_sizes => cp_dbcsr_col_block_sizes(pao%matrix_X)
@@ -87,7 +81,7 @@ CONTAINS
 
     unit_nr = -1
     IF(para_env%mepos == para_env%source) THEN
-       CALL open_file(file_name=filename, file_status="OLD", file_form="FORMATTED",&
+       CALL open_file(file_name=pao%restart_file, file_status="OLD", file_form="FORMATTED",&
                       file_action="READ", unit_number=unit_nr)
 
        CALL read_restart_header(pao, qs_env, unit_nr)
@@ -323,7 +317,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: kindname
     INTEGER                                  :: iatom, ikind, pao_basis_size, &
                                                 pao_pot_maxl, &
-                                                pao_pot_neighbors, z
+                                                pao_pot_neighbors, Xcols, &
+                                                Xrows, z
     REAL(dp)                                 :: pao_pot_beta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -340,10 +335,13 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     qs_kind_set=qs_kind_set)
 
-    ! write kinds
+
     WRITE(unit_nr, "(A,5X,F20.10)") "Energy", energy
     WRITE(unit_nr, "(A,5X,I0)") "Step", pao%istep
     WRITE(unit_nr,"(A,5X,A10)") "Parametrization", id2str(pao%parameterization)
+
+    ! write kinds
+    WRITE(unit_nr, "(A,5X,I0)") "Nkinds", SIZE(atomic_kind_set)
     DO ikind=1, SIZE(atomic_kind_set)
        CALL get_atomic_kind(atomic_kind_set(ikind), name=kindname, z=z)
        CALL get_qs_kind(qs_kind_set(ikind),&
@@ -352,17 +350,20 @@ CONTAINS
                         pao_potential_neighbors=pao_pot_neighbors,&
                         pao_potential_beta=pao_pot_beta,&
                         basis_set=basis_set)
+       CALL pao_param_xblock_dims(pao, qs_env, ikind, Xrows, Xcols)
        WRITE(unit_nr,"(A,5X,I10,1X,A,1X,I3)") "Kind", ikind, TRIM(kindname), z
        WRITE(unit_nr,"(A,5X,I10,1X,A)") "PrimBasis", ikind, TRIM(basis_set%name)
        WRITE(unit_nr,"(A,5X,I10,1X,I3,1X,I3)",advance='no') "PaoBasis", ikind, pao_basis_size, pao_pot_maxl
        WRITE(unit_nr,"(1X,I3,1X,F20.16)") pao_pot_neighbors, pao_pot_beta
+       WRITE(unit_nr,"(A,5X,I10,1X,I3,1X,I3)") "DimXblock", ikind, Xrows, Xcols
     ENDDO
 
     ! write cell
     WRITE(unit_nr,fmt="(A,5X)",advance='no') "Cell"
     WRITE(unit_nr,*) cell%hmat * angstrom
 
-    ! write particle positions
+    ! write atoms
+    WRITE(unit_nr, "(A,5X,I0)") "Natoms", SIZE(particle_set)
     DO iatom=1, SIZE(particle_set)
        kindname = particle_set(iatom)%atomic_kind%name
        WRITE(unit_nr,fmt="(A,5X,I10,5X,A,1X)",advance='no') "Atom ", iatom, TRIM(kindname)

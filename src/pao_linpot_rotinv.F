@@ -39,33 +39,31 @@ MODULE pao_linpot_rotinv
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Initialize rotinv parametrization
+!> \brief Count number of terms for given atomic kind
 !> \param qs_env ...
-!> \param iatom ...
+!> \param ikind ...
 !> \param nterms ...
 ! *****************************************************************************
-  SUBROUTINE linpot_rotinv_count_terms(qs_env, iatom, nterms)
+  SUBROUTINE linpot_rotinv_count_terms(qs_env, ikind, nterms)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iatom
+    INTEGER, INTENT(IN)                      :: ikind
     INTEGER, INTENT(OUT)                     :: nterms
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linpot_rotinv_count_terms', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: dim_avail, ikind, iset, ishell, jneighbor, jset, jshell, li, &
-      lj, lpot, natoms, pot_maxl, pot_neighbors
+    INTEGER                                  :: dim_avail, iset, ishell, &
+                                                jneighbor, jset, jshell, li, &
+                                                lj, lpot, natoms, pot_maxl, &
+                                                pot_neighbors
     TYPE(gto_basis_set_type), POINTER        :: basis_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
      CALL get_qs_env(qs_env,&
                      natom=natoms,&
-                     qs_kind_set=qs_kind_set,&
-                     particle_set=particle_set)
+                     qs_kind_set=qs_kind_set)
 
-     CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
      CALL get_qs_kind(qs_kind_set(ikind),&
                       pao_potential_maxl=pot_maxl,&
                       pao_potential_neighbors=pot_neighbors,&

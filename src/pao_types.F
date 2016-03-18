@@ -9,7 +9,7 @@
 ! *****************************************************************************
 MODULE pao_types
   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_type
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE linesearch,                      ONLY: linesearch_type
 #include "./base/base_uses.f90"
@@ -37,7 +37,8 @@ MODULE pao_types
      INTEGER                          :: max_cycles = -1
      INTEGER                          :: parameterization = -1
      INTEGER                          :: cg_init_steps = -1
-     CHARACTER(LEN=default_string_length) :: preopt_dm_file = ""
+     CHARACTER(LEN=default_path_length) :: preopt_dm_file = ""
+     CHARACTER(LEN=default_path_length) :: restart_file = ""
 
      ! output units
      INTEGER                          :: iw = -1

@@ -8,6 +8,7 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE pao_param_linpot
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_dbcsr_interface,              ONLY: &
        cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
@@ -15,8 +16,8 @@ MODULE pao_param_linpot
        cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
        cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
-       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, cp_dbcsr_type, &
-       dbcsr_distribution_mp, dbcsr_mp_group
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_type, dbcsr_distribution_mp, &
+       dbcsr_mp_group
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_min,&
                                              mp_sum
@@ -30,6 +31,7 @@ MODULE pao_param_linpot
                                              pao_param_finalize_fock,&
                                              pao_param_init_fock
   USE pao_types,                       ONLY: pao_env_type
+  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
 #include "./base/base_uses.f90"
@@ -41,6 +43,7 @@ MODULE pao_param_linpot
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_linpot'
 
   PUBLIC :: pao_param_init_linpot, pao_param_finalize_linpot, pao_calc_U_linpot
+  PUBLIC :: pao_param_xblock_dims_linpot, pao_param_initguess_linpot
 
 CONTAINS
 
@@ -48,18 +51,17 @@ CONTAINS
 !> \brief Initialize the linear potential parametrization
 !> \param pao ...
 !> \param qs_env ...
-!> \param reuse_matrix_X ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_init_linpot(pao, qs_env, reuse_matrix_X)
+  SUBROUTINE pao_param_init_linpot(pao, qs_env)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: reuse_matrix_X
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_linpot', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, iatom, &
-                                                kterm, n, natoms, nterms
+                                                ikind, kterm, n, natoms, &
+                                                nterms
     INTEGER, DIMENSION(:), POINTER           :: blk_sizes_pri, col_blk_size, &
                                                 row_blk_size
     REAL(dp), DIMENSION(:, :), POINTER       :: block_V_term, block_V_terms
@@ -67,6 +69,8 @@ CONTAINS
     TYPE(cp_dbcsr_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
 
     CALL timeset(routineN,handle)
     CALL pao_param_init_fock(pao, qs_env)
@@ -74,36 +78,21 @@ CONTAINS
     CALL get_qs_env(qs_env,&
                     matrix_s=matrix_s,&
                     dft_control=dft_control,&
+                    particle_set=particle_set,&
                     natom=natoms)
 
     IF(dft_control%nspins /= 1) CPABORT("open shell not yet implemented")
 
-    ALLOCATE(row_blk_size(natoms), col_blk_size(natoms))
-
     ! figure out number of potential terms
+    ALLOCATE(row_blk_size(natoms), col_blk_size(natoms))
     DO iatom=1, natoms
-       CALL linpot_count_terms(pao, qs_env, iatom, nterms)
-       col_blk_size(iatom) = 1 ! a skinny matrix
-       row_blk_size(iatom) = nterms
+       CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
+       CALL linpot_count_terms(pao, qs_env, ikind, nterms)
+       col_blk_size(iatom) = nterms
     ENDDO
-
-    ! allocate matrix_X unless it's reused
-    IF(reuse_matrix_X) THEN
-       IF(pao%iw>0) WRITE(pao%iw,*) "PAO| reusing potential from last MD step"
-    ELSE
-       CALL cp_dbcsr_init(pao%matrix_X)
-       CALL cp_dbcsr_create(pao%matrix_X,&
-                            template=matrix_s(1)%matrix,&
-                            matrix_type="N",&
-                            row_blk_size=row_blk_size,&
-                            col_blk_size=col_blk_size)
-       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_X)
-       CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
-    ENDIF
 
     ! allocate matrix_V_terms
     blk_sizes_pri => cp_dbcsr_col_block_sizes(matrix_s(1)%matrix)
-    col_blk_size = row_blk_size
     row_blk_size = blk_sizes_pri**2
     CALL cp_dbcsr_init(pao%matrix_V_terms)
     CALL cp_dbcsr_create(pao%matrix_V_terms,&
@@ -130,8 +119,6 @@ CONTAINS
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
 
-    IF(.NOT. reuse_matrix_X) CALL linepot_initial_guess(pao, qs_env)
-
     CALL timestop(handle)
   END SUBROUTINE pao_param_init_linpot
 
@@ -152,6 +139,29 @@ CONTAINS
     ! pao%matrix_X is kept for the next MD step
 
   END SUBROUTINE pao_param_finalize_linpot
+
+
+! *****************************************************************************
+!> \brief Returns the dimension of Xblock for given atomic kind
+!> \param pao ...
+!> \param qs_env ...
+!> \param ikind ...
+!> \param rows ...
+!> \param cols ...
+! *****************************************************************************
+  SUBROUTINE pao_param_xblock_dims_linpot(pao, qs_env, ikind, rows, cols)
+    TYPE(pao_env_type), POINTER              :: pao
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    INTEGER, INTENT(IN)                      :: ikind
+    INTEGER, INTENT(OUT)                     :: rows, cols
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims_linpot', &
+      routineP = moduleN//':'//routineN
+
+    CALL linpot_count_terms(pao, qs_env, ikind, nterms=rows)
+    cols = 1
+
+  END SUBROUTINE pao_param_xblock_dims_linpot
 
 
 ! *****************************************************************************
@@ -246,13 +256,13 @@ CONTAINS
 !> \brief Internal routine, counts number of terms in potential parametrization
 !> \param pao ...
 !> \param qs_env ...
-!> \param iatom ...
+!> \param ikind ...
 !> \param nterms ...
 ! *****************************************************************************
-  SUBROUTINE linpot_count_terms(pao, qs_env, iatom, nterms)
+  SUBROUTINE linpot_count_terms(pao, qs_env, ikind, nterms)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iatom
+    INTEGER, INTENT(IN)                      :: ikind
     INTEGER, INTENT(OUT)                     :: nterms
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linpot_count_terms', &
@@ -260,9 +270,9 @@ CONTAINS
 
      SELECT CASE(pao%parameterization)
       CASE(pao_fock_param)
-        CALL linpot_full_count_terms(qs_env, iatom, nterms)
+        CALL linpot_full_count_terms(qs_env, ikind, nterms)
       CASE(pao_rotinv_param)
-        CALL linpot_rotinv_count_terms(qs_env, iatom, nterms)
+        CALL linpot_rotinv_count_terms(qs_env, ikind, nterms)
       CASE DEFAULT
         CPABORT("unkown parameterization")
      END SELECT
@@ -304,11 +314,11 @@ CONTAINS
 !> \param pao ...
 !> \param qs_env ...
 ! *****************************************************************************
-  SUBROUTINE linepot_initial_guess(pao, qs_env)
+  SUBROUTINE pao_param_initguess_linpot(pao, qs_env)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'linepot_initial_guess', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_linpot', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: acol, arow, handle, n
@@ -360,7 +370,7 @@ CONTAINS
     IF(pao%iw>0) WRITE(pao%iw,*) "PAO| Calculated initial guess, norm(X):", norm
 
     CALL timestop(handle)
-  END SUBROUTINE linepot_initial_guess
+  END SUBROUTINE pao_param_initguess_linpot
 
 
 ! *****************************************************************************

@@ -8,11 +8,8 @@
 !> \author Ole Schuett
 ! *****************************************************************************
 MODULE pao_linpot_full
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE basis_set_types,                 ONLY: gto_basis_set_type
   USE kinds,                           ONLY: dp
-  USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -30,37 +27,29 @@ MODULE pao_linpot_full
 CONTAINS
 
 ! *****************************************************************************
-!> \brief Initialize full linpot parametrization
+!> \brief Count number of terms for given atomic kind
 !> \param qs_env ...
-!> \param iatom ...
+!> \param ikind ...
 !> \param nterms ...
 ! *****************************************************************************
-  SUBROUTINE linpot_full_count_terms(qs_env, iatom, nterms)
+  SUBROUTINE linpot_full_count_terms(qs_env, ikind, nterms)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: iatom
+    INTEGER, INTENT(IN)                      :: ikind
     INTEGER, INTENT(OUT)                     :: nterms
 
     CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_count_terms', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ikind, n
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER                                  :: n
     TYPE(gto_basis_set_type), POINTER        :: basis_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
 
-     CALL get_qs_env(qs_env,&
-                      particle_set=particle_set,&
-                      qs_kind_set=qs_kind_set)
-
-     atomic_kind => particle_set(iatom)%atomic_kind
-     CALL get_atomic_kind(atomic_kind=atomic_kind, kind_number=ikind)
+     CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
      n = basis_set%nsgf
-
      nterms = n + n*(n-1)/2
+
   END SUBROUTINE linpot_full_count_terms
 
 
