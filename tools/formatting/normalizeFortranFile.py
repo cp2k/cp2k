@@ -18,6 +18,8 @@ commonUsesRe=re.compile("^#include *\"([^\"]*(cp_common_uses.f90|base_uses.f90))
 localNameRe=re.compile(" *(?P<localName>[a-zA-Z_0-9]+)(?: *= *> *[a-zA-Z_0-9]+)? *$")
 typeRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type) *(?P<parameters>\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))? *(?P<attributes>(?: *, *[a-zA-Z_0-9]+(?: *\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\))?)+)? *(?P<dpnt>::)?(?P<vars>[^\n]+)\n?",re.IGNORECASE)#$
 indentSize=2
+decllinelength=100
+decloffset=50
 
 ompDirRe = re.compile(r"^\s*(!\$omp)",re.IGNORECASE)
 ompRe = re.compile(r"^\s*(!\$)", re.IGNORECASE)
@@ -479,13 +481,13 @@ def writeCompactDeclaration(declaration,file):
             for var in d['vars']:
                 cur_len = sum([len(l) for l in dLine])
                 if(len(dLine) > 1 and cur_len + len(var) > 600):
-                    writeInCols(dLine,3*indentSize,79,0,file)
+                    writeInCols(dLine,3*indentSize,decllinelength,0,file)
                     file.write("\n")
                     dLine = [decl]
                 if(len(dLine) > 1):
                     dLine[-1] += ", "
                 dLine.append(var)
-            writeInCols(dLine,3*indentSize,79,0,file)
+            writeInCols(dLine,3*indentSize,decllinelength,0,file)
             file.write("\n")
 
 def writeExtendedDeclaration(declaration,file):
@@ -506,17 +508,17 @@ def writeExtendedDeclaration(declaration,file):
                 dLine[-1:]=[dLine[-1]+", "]
                 dLine.append(a)
 
-        indentAtt=writeInCols(dLine,3*indentSize,41 + 2*indentSize,0,file)
-        file.write(" "*(40+2*indentSize-indentAtt))
+        indentAtt=writeInCols(dLine,3*indentSize,decloffset+1 + 2*indentSize,0,file)
+        file.write(" "*(decloffset+2*indentSize-indentAtt))
         file.write(" :: ")
-        indentAtt=48
+        indentAtt=decloffset+8
 
         dLine=[]
         for var in d['vars'][:-1]:
             dLine.append(var+", ")
         dLine.append(d['vars'][-1])
 
-        writeInCols(dLine,44+2*indentSize,79,indentAtt,file)
+        writeInCols(dLine,decloffset+4+2*indentSize,decllinelength,indentAtt,file)
         file.write("\n")
 
 def writeDeclarations(parsedDeclarations,file):
@@ -527,7 +529,7 @@ def writeDeclarations(parsedDeclarations,file):
         for v in d['vars']:
             maxLenVar=max(maxLenVar,len(v))
             totalLen+=len(v)
-        if maxLenVar>30 or totalLen>75:
+        if maxLenVar>30 or totalLen>decllinelength-4:
             writeCompactDeclaration(d,file)
         else:
             writeExtendedDeclaration(d,file)
@@ -869,7 +871,7 @@ def writeUseShort(m,file):
         uLine.append(m['renames'][-1])
     else:
         uLine.append(indentSize*' ' +"USE "+m['module'])
-    writeInCols(uLine,5+indentSize,79,0,file)
+    writeInCols(uLine,5+indentSize,decllinelength,0,file)
     if m['comments']:
         file.write("\n")
         file.write('\n'.join(m['comments']))
@@ -942,13 +944,17 @@ def resetModuleN(moduleName,lines):
             "  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = '"+moduleName+"'",
             lines[i])
 
-def rewriteFortranFile(inFile,outFile,indent,logFile=sys.stdout,orig_filename=None):
+def rewriteFortranFile(inFile,outFile,indent,decl_linelength,decl_offset,logFile=sys.stdout,orig_filename=None):
     """rewrites the use statements and declarations of inFile to outFile.
     It sorts them and removes the repetitions."""
     import os.path
 
     global indentSize
+    global decloffset
+    global decllinelength
     indentSize=indent
+    decloffset=decl_offset
+    decllinelength=decl_linelength
 
     moduleRe=re.compile(r" *(?:module|program) +(?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
                         flags=re.IGNORECASE)
