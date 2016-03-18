@@ -873,24 +873,23 @@ if __name__ == '__main__':
     # is executable only for debugging purposes
     # must be executed from ../ with python -m formatting/reformatFortranFile
     if len(sys.argv) < 2:
-        print "usage:", sys.argv[0], " out_dir file1 [file2 ...]"
+        print("usage:", sys.argv[0], " out_dir file1 [file2 ...]")
         sys.exit(1)
 
     outDir = sys.argv[1]
     if not os.path.isdir(outDir):
-        print "out_dir must be a directory"
-        print "usage:", sys.argv[0], " out_dir file1 [file2 ...]"
+        print("out_dir must be a directory")
+        print("usage:", sys.argv[0], " out_dir file1 [file2 ...]")
         sys.exit(1)
 
     for fileName in sys.argv[2:]:
         try:
-            print "reformatting", fileName
-
-            with open(fileName, 'r') as infile:
-                with open(os.path.join(outDir, os.path.basename(fileName)), 'w') as outfile:
-                    reformat_ffile(infile, outfile)
+            print("reformatting", fileName)
+            infile = open(fileName, 'r')
+            outfile = open(os.path.join(outDir, os.path.basename(fileName)), 'w')
+            reformat_ffile(infile, outfile)
         except:
-            print "error for file", fileName
+            print("error for file", fileName)
             raise
 
 # EOF
