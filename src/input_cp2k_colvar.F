@@ -1516,7 +1516,7 @@ CONTAINS
          description="Specify the rc parameter in the coordination function:"//&
          " number of hydrogens per water molecule.",&
          usage="RWOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
-         unit_str="internal_cp2k"), n_var=1)
+         unit_str="bohr"),unit_str="bohr", n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -1540,7 +1540,7 @@ CONTAINS
          description="Specify the rc parameter in the coordination function: "//&
          " number of hydrogens per carboxyl group.",&
          usage="RAOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
-         unit_str="internal_cp2k"), n_var=1)
+         unit_str="bohr"),unit_str="bohr", n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -1647,7 +1647,7 @@ CONTAINS
          description="Specifies the rc parameter in the coordination function: "//&
          " number of hydrogens per water molecule.",&
          usage="RWOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
-         unit_str="internal_cp2k"), n_var=1)
+         unit_str="bohr"),unit_str="bohr",n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -1671,7 +1671,7 @@ CONTAINS
          description="Specifies the rc parameter in the coordination function:"//&
          " number of hydrogens per carboxyl group.",&
          usage="RAOH {real}",default_r_val=cp_unit_to_cp2k(value=2.4_dp,&
-         unit_str="internal_cp2k"), n_var=1)
+         unit_str="bohr"),unit_str="bohr",n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
@@ -1695,7 +1695,7 @@ CONTAINS
          description="Specifies the rc parameter in the coordination function:"//&
          " number of oxygens per water oxygen.",&
          usage="ROO {real}",default_r_val=cp_unit_to_cp2k(value=5.5_dp,&
-         unit_str="internal_cp2k"), n_var=1)
+         unit_str="bohr"),unit_str="bohr",n_var=1)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)
 
