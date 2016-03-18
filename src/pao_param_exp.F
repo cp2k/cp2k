@@ -147,8 +147,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_exp', &
       routineP = moduleN//':'//routineN
 
-    ! matrix_U0 contains actual intial guess
-    CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp)
+    CALL cp_dbcsr_set(pao%matrix_X, 0.0_dp) ! actual initial guess is matrix_U0
 
   END SUBROUTINE pao_param_initguess_exp
 
