@@ -35,8 +35,7 @@ MODULE dbcsr_test_methods
   USE dbcsr_dist_operations,           ONLY: dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
-                                             dbcsr_wrong_args_error
+                                             dbcsr_internal_error
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&
@@ -240,8 +239,7 @@ CONTAINS
              CALL dbcsr_block_conjg (dense, row_size=col_size, col_size=row_size, &
                   lb=col_offset, lb2=row_offset)
           CASE DEFAULT
-             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
-                  dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",__LINE__)
+             CPABORT("wrong matrix symmetry")
           END SELECT
        ENDIF
     ENDDO
@@ -337,8 +335,7 @@ CONTAINS
              CALL dbcsr_block_conjg (dense, row_size=col_size, col_size=row_size, &
                   lb=col_offset, lb2=row_offset)
           CASE DEFAULT
-             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
-                  dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",__LINE__)
+             CPABORT("wrong matrix symmetry")
           END SELECT
        ENDIF
     END DO
@@ -517,9 +514,7 @@ CONTAINS
                 CALL dbcsr_block_conjg (data_values_tr, row_size=col_blk_sizes(s_col), col_size=row_blk_sizes(s_row), &
                      lb=1)
              CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, &
-                     dbcsr_wrong_args_error, routineN, "wrong matrix symmetry",&
-                     __LINE__)
+                CPABORT("wrong matrix symmetry")
              END SELECT
              CALL dbcsr_put_block (matrix, s_row, s_col, data_values_tr, summation=.TRUE.)
           ENDIF

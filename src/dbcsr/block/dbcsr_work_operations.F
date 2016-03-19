@@ -261,8 +261,7 @@ CONTAINS
        CASE (dbcsr_type_complex_8)
           matrix%m%data_type = dbcsr_type_complex_8
        CASE DEFAULT
-         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-              routineN, "Invalid matrix type",__LINE__)
+         CPABORT("Invalid matrix type")
       END SELECT
     ELSE
        matrix%m%data_type = dbcsr_type_real_default
@@ -481,8 +480,7 @@ CONTAINS
        matrix%m%symmetry = .TRUE.
        matrix%m%negate_real = .TRUE.
     CASE DEFAULT
-       CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
-            dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__)
+       CPABORT("Invalid matrix type.")
     END SELECT
     matrix%m%bcsc = .FALSE.
     matrix%m%local_indexing = .FALSE.
@@ -1632,8 +1630,7 @@ CONTAINS
        CASE (dbcsr_type_complex_8)
           CALL tree_to_linear_z (wm)
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-               routineN, "Invalid data type",__LINE__)
+          CPABORT("Invalid data type")
        END SELECT
     ENDIF
     !

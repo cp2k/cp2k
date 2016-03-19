@@ -10,9 +10,6 @@
 ! *****************************************************************************
 MODULE dbcsr_multiply_api
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_failure_level,&
-                                             dbcsr_internal_error
   USE dbcsr_methods,                   ONLY: dbcsr_get_data_type
   USE dbcsr_mm_cannon,                 ONLY: dbcsr_mm_cannon_multiply,&
                                              dbcsr_multiply_clear_mempools => dbcsr_mm_cannon_clear_mempools,&
@@ -26,6 +23,8 @@ MODULE dbcsr_multiply_api
                                              real_8
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -151,8 +150,7 @@ MODULE dbcsr_multiply_api
             filter_eps=filter_eps,&
             flop=flop)
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_internal_error,&
-            routineP, "This combination of data types NYI",__LINE__)
+       CPABORT("This combination of data types NYI")
     ENDIF
   END SUBROUTINE dbcsr_multiply_d
 

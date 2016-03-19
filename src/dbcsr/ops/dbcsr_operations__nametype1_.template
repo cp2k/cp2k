@@ -131,8 +131,7 @@
         dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).NEQV. &
        (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
         dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) THEN
-       CALL dbcsr_assert (.FALSE.,dbcsr_fatal_level,&
-            dbcsr_unimplemented_error_nr, routineN, "Tracing general with symmetric matrix NYI",__LINE__)
+       CPABORT("Tracing general with symmetric matrix NYI")
     ENDIF
 
     a_row_blk_size => array_data (matrix_a%m%row_blk_size)
@@ -165,8 +164,7 @@
        IF(a_row_size.NE.b_row_size) THEN
           write(*,*) 'a_row_size',a_row_size
           write(*,*) 'b_row_size',b_row_size
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-               routineN, "matrices not consistent",__LINE__)
+          CPABORT("matrices not consistent")
        ENDIF
        b_blk = matrix_b%m%row_p(row)+1
        b_frst_blk = matrix_b%m%row_p(row)+1
@@ -184,8 +182,7 @@
              IF(a_col_size.NE.b_col_size)  THEN
                 write(*,*) 'a_col_size',a_col_size
                 write(*,*) 'b_col_size',b_col_size
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-                     routineN, "matrices not consistent",__LINE__)
+                CPABORT("matrices not consistent")
              ENDIF
              !
              nze = a_row_size*a_col_size
@@ -229,8 +226,7 @@
                         a_data_z(ABS(matrix_a%m%blk_p(a_blk))),1,&
                         b_data_z(ABS(matrix_b%m%blk_p(b_blk))),1)[conv2]
                 ELSE
-                   CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                        routineN, "combination of types NYI",__LINE__)
+                   CPABORT("combination of types NYI")
                 ENDIF
              ENDIF
           ENDIF

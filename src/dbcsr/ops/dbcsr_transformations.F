@@ -609,16 +609,13 @@ CONTAINS
        CALL dbcsr_get_data (matrix%m%data_area, r_dp)
     CASE (dbcsr_type_real_4)
        CALL dbcsr_get_data (matrix%m%data_area, r_sp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__)
+       CPABORT("Only real double precision")
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_get_data (matrix%m%data_area, c_dp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__)
+       CPABORT("Only real double precision")
     CASE (dbcsr_type_complex_4)
        CALL dbcsr_get_data (matrix%m%data_area, c_sp)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-            routineN,"Only real double precision",__LINE__)
+       CPABORT("Only real double precision")
     END SELECT
     row_blk_size => array_data (matrix%m%row_blk_size)
     col_blk_size => array_data (matrix%m%col_blk_size)
@@ -1929,8 +1926,7 @@ CONTAINS
             recv_data%d%c_dp(:), total_recv_count(2,:), rd_disp(:)-1,&
             mp_obj_new)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid matrix type",__LINE__)
+       CPABORT("Invalid matrix type")
     END SELECT
     CALL hybrid_alltoall_i1(send_meta(:), metalen*total_send_count(1,:), sm_disp(:)-1,&
          recv_meta(:), metalen*total_recv_count(1,:), rm_disp(:)-1, mp_obj_new)

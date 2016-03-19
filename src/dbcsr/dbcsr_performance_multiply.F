@@ -359,8 +359,7 @@ CONTAINS
          b_symm.EQ.dbcsr_type_no_symmetry)THEN
        my_sizes_m => sizes_m; my_sizes_n => sizes_n; my_sizes_k => sizes_k
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, " something wrong here... ",__LINE__)
+       CPABORT("something wrong here...")
     ENDIF
 
     ! Create the random matrices.

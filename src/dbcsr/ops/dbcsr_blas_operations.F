@@ -13,15 +13,13 @@
 !> - 2010-02-18 Moved from dbcsr_util
 ! *****************************************************************************
 MODULE dbcsr_blas_operations
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_wrong_args_error
   USE dbcsr_types,                     ONLY: dbcsr_data_obj,&
                                              dbcsr_type_complex_4,&
                                              dbcsr_type_complex_8,&
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE kinds,                           ONLY: int_8
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -86,8 +84,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL zlarnv( idist, iseed, n, x%d%c_dp)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid data type",__LINE__)
+       CPABORT("Invalid data type")
     END SELECT
 
   END SUBROUTINE dbcsr_lapack_larnv

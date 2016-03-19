@@ -23,7 +23,6 @@ MODULE dbcsr_test_multiply
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_new,&
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_io,                        ONLY: dbcsr_print
@@ -256,8 +255,7 @@ CONTAINS
                 my_sizes_n => sizes_n
                 my_sizes_k => sizes_k
              ELSE
-                CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-                     routineN, " something wrong here... ", __LINE__)
+                CPABORT(" something wrong here... ")
              END IF
 
              IF (.FALSE.) THEN
@@ -490,8 +488,7 @@ CONTAINS
     !
     ! Perform multiply
     IF (ALL(limits==0)) THEN
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, " limits shouldnt be 0 ",__LINE__)
+       CPABORT("limits shouldnt be 0")
     ELSE
        CALL dbcsr_multiply (transa, transb, alpha,&
             m_a, m_b, beta, m_c,&
@@ -544,8 +541,7 @@ CONTAINS
                ", ",dbcsr_get_matrix_type(m_c),&
                ") ... FAILED !"
           WRITE(io_unit, *) REPEAT("*",70)
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-               routineN, 'Test failed', __LINE__)
+          CPABORT('Test failed')
        END IF
     END IF
 
@@ -789,8 +785,7 @@ CONTAINS
        residual     = clange(norm, c_row_size, c_col_size, dense_c%d%c2_sp(1,1), ldc, work_sp)
        DEALLOCATE(work_sp)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect or 1-D data type", __LINE__)
+       CPABORT("Incorrect or 1-D data type")
     END SELECT
 
     IF (mynode.EQ.0) THEN

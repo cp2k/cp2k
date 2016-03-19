@@ -100,8 +100,7 @@ PROGRAM dbcsr_performance_driver
     CASE('dbcsr_multiply')
        CALL dbcsr_perf_multiply (group, mp_env, npdims, io_unit, narg, args)
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-          routineN, "operation not found", __LINE__)
+       CPABORT("operation not found")
   END SELECT
 
   !

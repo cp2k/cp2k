@@ -24,7 +24,6 @@ MODULE dbcsr_ptr_util
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
@@ -131,8 +130,7 @@ MODULE dbcsr_ptr_util
        CASE (dbcsr_type_complex_8)
           new_area%d%c_dp => area%d%c_dp(offset:offset+len-1)
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-               routineN, "Invalid data type.",__LINE__)
+          CPABORT("Invalid data type.")
        END SELECT
     ELSE
        SELECT CASE (area%d%data_type)
@@ -145,8 +143,7 @@ MODULE dbcsr_ptr_util
        CASE (dbcsr_type_complex_8)
           new_area%d%c_dp => area%d%c_dp(offset:)
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-               routineN, "Invalid data type.",__LINE__)
+          CPABORT("Invalid data type.")
        END SELECT
     ENDIF
     narea2 = new_area

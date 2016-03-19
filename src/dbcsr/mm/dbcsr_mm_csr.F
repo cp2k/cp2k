@@ -441,9 +441,7 @@ MODULE dbcsr_mm_csr
              ! to get new blocks.
              IF (careful_mod) THEN
                 IF (c_nze .EQ. 0 .OR. k_size .EQ. 0) THEN
-                   CALL dbcsr_assert (.FALSE.,&
-                        dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-                        "Can not call MM with LDx=0.", __LINE__)
+                   CPABORT("Can not call MM with LDx=0.")
                    CYCLE
                 ENDIF
              ENDIF

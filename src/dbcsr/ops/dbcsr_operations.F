@@ -498,8 +498,7 @@ CONTAINS
     CASE('right');right = .TRUE.
     CASE('left' );right = .FALSE.
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, &
-            routineN, "wrong side="//side,__LINE__)
+       CPABORT("wrong side="//side)
     END SELECT
     !
     ! let's go
@@ -654,9 +653,7 @@ CONTAINS
         dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).NEQV. &
        (dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_symmetric.OR.&
         dbcsr_get_matrix_type(matrix_b).EQ.dbcsr_type_antisymmetric)) THEN
-       CALL dbcsr_assert (.FALSE.,dbcsr_fatal_level,&
-            dbcsr_unimplemented_error_nr, routineN, "Summing general with symmetric matrix NYI",&
-            __LINE__)
+       CPABORT("Summing general with symmetric matrix NYI")
     ENDIF
 
     data_type_a = dbcsr_get_data_type(matrix_a)
@@ -773,8 +770,7 @@ CONTAINS
             alpha_scalar=dbcsr_scalar(REAL(alpha_scalar,real_4)),&
             beta_scalar=dbcsr_scalar(beta_scalar))
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI",__LINE__)
+       CPABORT("Invalid combination of data type, NYI")
     ENDIF
     CALL timestop(handle)
   END SUBROUTINE dbcsr_add_d
@@ -803,8 +799,7 @@ CONTAINS
             alpha_scalar=dbcsr_scalar(alpha_scalar),&
             beta_scalar=dbcsr_scalar(beta_scalar))
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI",__LINE__)
+       CPABORT("Invalid combination of data type, NYI")
     ENDIF
     CALL timestop(handle)
   END SUBROUTINE dbcsr_add_s
@@ -838,8 +833,7 @@ CONTAINS
             alpha_scalar=dbcsr_scalar(CMPLX(alpha_scalar,KIND=real_4)),&
             beta_scalar=dbcsr_scalar(CMPLX(beta_scalar,KIND=real_4)))
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI",__LINE__)
+       CPABORT("Invalid combination of data type, NYI")
     ENDIF
     CALL timestop(handle)
   END SUBROUTINE dbcsr_add_z
@@ -868,8 +862,7 @@ CONTAINS
             alpha_scalar=dbcsr_scalar(alpha_scalar),&
             beta_scalar=dbcsr_scalar(beta_scalar))
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI",__LINE__)
+       CPABORT("Invalid combination of data type, NYI")
     ENDIF
     CALL timestop(handle)
   END SUBROUTINE dbcsr_add_c
@@ -1020,17 +1013,12 @@ CONTAINS
                      "ASIN is undefined for |x|>1", __LINE__)
              a_data%d%r_dp(1:nze) = ASIN(a_data%d%r_dp(1:nze))
           CASE DEFAULT
-             CALL dbcsr_assert(.FALSE.,&
-                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
-                     "Unknown function of matrix elements", __LINE__)
+             CPABORT("Unknown function of matrix elements")
           END SELECT
        !CASE (dbcsr_type_complex_4)
        !CASE (dbcsr_type_complex_8)
        CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level,&
-                  dbcsr_unimplemented_error_nr, routineN,&
-                  "Operation is implemented only for dp real values",&
-                  __LINE__)
+          CPABORT("Operation is implemented only for dp real values")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -1140,8 +1128,7 @@ CONTAINS
           !CASE (dbcsr_type_complex_4)
           !CASE (dbcsr_type_complex_8)
        CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-               routineN,"Only real double precision",__LINE__)
+          CPABORT("Only real double precision")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -1491,8 +1478,7 @@ CONTAINS
           symmetry_consistent = .TRUE.
       END SELECT
     CASE DEFAULT
-      CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-           routineN, "Invalid data type.",__LINE__)
+      CPABORT("Invalid data type.")
     END SELECT 
 
   END FUNCTION symmetry_consistent
@@ -1529,8 +1515,7 @@ CONTAINS
         symmetry_compatible = .TRUE.
       END SELECT
     CASE DEFAULT
-      CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
-           dbcsr_wrong_args_error, routineP, "Invalid matrix type.",__LINE__)
+      CPABORT("Invalid matrix type.")
     END SELECT
 
   END FUNCTION symmetry_compatible
@@ -1750,8 +1735,7 @@ CONTAINS
              ENDIF
           ENDIF
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
-               routineN, "Trouble syncing iterators",__LINE__)
+          CPABORT("Trouble syncing iterators")
        END SELECT
     END DO
     CALL dbcsr_iterator_stop (src_iter)
@@ -2338,8 +2322,7 @@ CONTAINS
                 IF(nrm_s.LT.my_absolute*eps%r_sp) &
                      CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
              CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                     routineN,"Only Frobenius based filtering",__LINE__)
+                CPABORT("Only Frobenius based filtering")
              END SELECT
 
           CASE (dbcsr_type_real_8)
@@ -2355,8 +2338,7 @@ CONTAINS
                 IF(nrm_d.LT.my_absolute*eps%r_dp) &
                      CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
              CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                     routineN,"Only Frobenius based filtering",__LINE__)
+                CPABORT("Only Frobenius based filtering")
              END SELECT
 
           CASE (dbcsr_type_complex_4)
@@ -2372,8 +2354,7 @@ CONTAINS
                 IF(nrm_d.LT.my_absolute*eps%r_dp) &
                      CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
              CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                     routineN,"Only Frobenius based filtering",__LINE__)
+                CPABORT("Only Frobenius based filtering")
              END SELECT
 
           CASE (dbcsr_type_complex_8)
@@ -2389,13 +2370,11 @@ CONTAINS
                 IF(nrm_d.LT.my_absolute*eps%r_dp) &
                      CALL dbcsr_remove_block(matrix, row, col, blk_nze, blk)
              CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                     routineN,"Only Frobenius based filtering",__LINE__)
+                CPABORT("Only Frobenius based filtering")
              END SELECT
 
           CASE DEFAULT
-             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-                  routineN,"Wrong data type",__LINE__)
+             CPABORT("Wrong data type")
           END SELECT
        ENDDO
        CALL dbcsr_iterator_stop(iter)
@@ -2521,8 +2500,7 @@ CONTAINS
              !CASE (dbcsr_type_complex_4)
              !CASE (dbcsr_type_complex_8)
              CASE DEFAULT
-                CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                     routineN,"Only real values",__LINE__)
+                CPABORT("Only real values")
              END SELECT
           ENDDO
           CALL dbcsr_iterator_stop(iter)
@@ -2542,8 +2520,7 @@ CONTAINS
 
     CASE DEFAULT
 
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-            "this norm is NYI",__LINE__)
+       CPABORT("this norm is NYI")
 
     END SELECT
     CALL timestop(handle)
@@ -2685,8 +2662,7 @@ CONTAINS
           DO i=1,SIZE(data_c,1)
              buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_c(i,j))
              IF(any_sym.AND.row.NE.col) &
-                  CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                  routineN,"Only nonsymmetric matrix so far",__LINE__)
+                  CPABORT("Only nonsymmetric matrix so far")
              !     buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_c(i,j))
           ENDDO
           ENDDO
@@ -2697,14 +2673,12 @@ CONTAINS
           DO i=1,SIZE(data_z,1)
              buff_d(row_offset+i-1) = buff_d(row_offset+i-1) + ABS(data_z(i,j))
              IF(any_sym.AND.row.NE.col) &
-                  CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-                  routineN,"Only nonsymmetric matrix so far",__LINE__)
+                  CPABORT("Only nonsymmetric matrix so far")
              !     buff_d(col_offset+j-1) = buff_d(col_offset+j-1) + ABS(data_z(i,j))
           ENDDO
           ENDDO
        CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-               routineN,"Wrong data type",__LINE__)
+          CPABORT("Wrong data type")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -2757,8 +2731,7 @@ CONTAINS
           CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
           norm = MAX(norm,MAXVAL(ABS(data_z)))
        CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-               routineN,"Wrong data type",__LINE__)
+          CPABORT("Wrong data type")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -2823,19 +2796,16 @@ CONTAINS
           CALL dbcsr_iterator_next_block(iter, row, col, data_c, tr, blk)
           fac = 1.0_dp
           IF(any_sym.AND.row.NE.col) &
-               CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-               routineN,"Only nonsymmetric matrix so far",__LINE__)
+               CPABORT("Only nonsymmetric matrix so far")
           norm = norm + fac * REAL( SUM(CONJG(data_c)*data_c), KIND=real_8)
        CASE (dbcsr_type_complex_8)
           CALL dbcsr_iterator_next_block(iter, row, col, data_z, tr, blk)
           fac = 1.0_dp
           IF(any_sym.AND.row.NE.col) &
-               CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-               routineN,"Only nonsymmetric matrix so far",__LINE__)
+               CPABORT("Only nonsymmetric matrix so far")
           norm = norm + fac * REAL(SUM(CONJG(data_z)*data_z),KIND=real_8)
        CASE DEFAULT
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_unimplemented_error_nr, &
-               routineN,"Wrong data type",__LINE__)
+          CPABORT("Wrong data type")
        END SELECT
     ENDDO
     CALL dbcsr_iterator_stop(iter)
@@ -2889,8 +2859,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL mp_sum (matrix%m%data_area%d%c_dp, comm)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__)
+       CPABORT("Incorrect data type")
     END SELECT
     !
     CALL timestop(handle)
@@ -2932,8 +2901,7 @@ CONTAINS
        CALL dbcsr_trace_ab_s(matrix_a, matrix_b, trace_4, trans_a, trans_b, local_sum)
        trace = REAL(trace_4,real_8)
     ELSE
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid combination of data type, NYI",__LINE__)
+       CPABORT("Invalid combination of data type, NYI")
     ENDIF
     CALL timestop(handle)
   END SUBROUTINE dbcsr_trace_a_b_d
@@ -2967,8 +2935,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL dbcsr_trace (matrix_a, trace%c_dp)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Invalid data type.",__LINE__)
+       CPABORT("Invalid data type.")
     END SELECT
 
     CALL timestop(error_handle)

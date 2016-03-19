@@ -294,8 +294,7 @@ CONTAINS
                 CALL dbcsr_data_set_pointer (block, data_block_z%p)
              ENDIF
           CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
-                  routineN, "Only 2-D data for block pointers!",__LINE__)
+             CPABORT("Only 2-D data for block pointers!")
           END SELECT
        ENDIF
     ENDIF
@@ -423,8 +422,7 @@ CONTAINS
                summation)
        ENDIF
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid data type",__LINE__)
+       CPABORT("Invalid data type")
     END SELECT
     IF (careful_mod) CALL timestop (error_handle)
   END SUBROUTINE dbcsr_put_block_area

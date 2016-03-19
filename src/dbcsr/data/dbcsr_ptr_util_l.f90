@@ -232,12 +232,10 @@
        CALL timeset (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc) THEN
-       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Accelerator hostalloc not supported for 2D arrays.",__LINE__)
+       CPABORT("Accelerator hostalloc not supported for 2D arrays.")
        !CALL acc_hostmem_allocate(mem, n, mem_type%acc_stream)
     ELSE IF(mem_type%mpi) THEN
-       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "MPI allocate not supported for 2D arrays.",__LINE__)
+       CPABORT("MPI allocate not supported for 2D arrays.")
        !CALL mp_allocate(mem, n)
     ELSE
        ALLOCATE(mem(sizes(1), sizes(2)))
@@ -294,12 +292,10 @@
        CALL timeset (routineN, error_handle)
 
     IF(mem_type%acc_hostalloc) THEN
-       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "Accelerator host deallocate not supported for 2D arrays.",__LINE__)
+       CPABORT("Accelerator host deallocate not supported for 2D arrays.")
        !CALL acc_hostmem_deallocate(mem, mem_type%acc_stream)
     ELSE IF(mem_type%mpi) THEN
-       CALL dbcsr_assert(.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-          routineN, "MPI deallocate not supported for 2D arrays.",__LINE__)
+       CPABORT("MPI deallocate not supported for 2D arrays.")
        !CALL mp_deallocate(mem)
     ELSE
        DEALLOCATE(mem)

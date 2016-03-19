@@ -145,8 +145,7 @@ CONTAINS
              target_area%d%c_dp(i)=source_area%d%c_dp(i)
           ENDDO
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-               routineN, "Invalid data type",__LINE__)
+          CPABORT("Invalid data type")
        END SELECT
     ENDIF
     CALL timestop (error_handle)
@@ -222,8 +221,7 @@ CONTAINS
                 t_data_c(1:n) = CMPLX(0.0, s_data_d(1:n), KIND=real_4)
              ENDIF
           CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__)
+             CPABORT("Invalid data type")
           END SELECT
        CASE (dbcsr_type_real_4)
           CALL dbcsr_get_data (source_area, s_data_r)
@@ -249,8 +247,7 @@ CONTAINS
                 t_data_c(1:n) = CMPLX(0.0, s_data_r(1:n), KIND=real_4)
              ENDIF
           CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__)
+             CPABORT("Invalid data type")
           END SELECT
        CASE (dbcsr_type_complex_8)
           CALL dbcsr_get_data (source_area, s_data_z)
@@ -276,8 +273,7 @@ CONTAINS
              CALL dbcsr_get_data (target_area, t_data_c)
              t_data_c(1:n) = CMPLX(s_data_z(1:n), KIND=real_4)
           CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__)
+             CPABORT("Invalid data type")
           END SELECT
        CASE (dbcsr_type_complex_4)
           CALL dbcsr_get_data (source_area, s_data_c)
@@ -303,12 +299,10 @@ CONTAINS
              CALL dbcsr_get_data (target_area, t_data_c)
              t_data_c(1:n) = s_data_c(1:n)
           CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-                  routineN, "Invalid data type",__LINE__)
+             CPABORT("Invalid data type")
           END SELECT
        CASE default
-          CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error, &
-               routineN, "Invalid data type",__LINE__)
+          CPABORT("Invalid data type")
        END SELECT
     ENDIF
   END SUBROUTINE dbcsr_data_convert

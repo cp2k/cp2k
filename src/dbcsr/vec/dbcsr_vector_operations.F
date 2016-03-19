@@ -13,9 +13,6 @@
 MODULE dbcsr_vector_operations
   USE dbcsr_data_methods,              ONLY: dbcsr_scalar,&
                                              dbcsr_scalar_fill_all
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_fatal_level
   USE dbcsr_types,                     ONLY: dbcsr_obj,&
                                              dbcsr_scalar_type,&
                                              dbcsr_type_complex_4,&
@@ -29,6 +26,7 @@ MODULE dbcsr_vector_operations
                                              dbcsr_matrix_colvec_multiply_low
   USE kinds,                           ONLY: real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -84,8 +82,7 @@ CONTAINS
     CASE (dbcsr_type_real_8,dbcsr_type_real_4,dbcsr_type_complex_4,dbcsr_type_complex_8)
         ! We can convert the prefactors if necessary
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__)
+       CPABORT("Unknown data type in matrix")
     END SELECT
 
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)
@@ -122,8 +119,7 @@ CONTAINS
     CASE (dbcsr_type_real_8,dbcsr_type_real_4,dbcsr_type_complex_4,dbcsr_type_complex_8)
         ! We can convert the prefactors if necessary
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__)
+       CPABORT("Unknown data type in matrix")
     END SELECT
 
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)
@@ -158,13 +154,11 @@ CONTAINS
     matrix_type=matrix%m%data_type
     SELECT CASE (matrix_type)
     CASE (dbcsr_type_real_8,dbcsr_type_real_4)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Complex prefactors dissallowed for real matrices",__LINE__)
+       CPABORT("Complex prefactors dissallowed for real matrices")
     CASE (dbcsr_type_complex_4,dbcsr_type_complex_8)
         ! We can convert the prefactors if necessary
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__)
+       CPABORT("Unknown data type in matrix")
     END SELECT  
     
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)
@@ -199,13 +193,11 @@ CONTAINS
     matrix_type=matrix%m%data_type
     SELECT CASE (matrix_type)
     CASE (dbcsr_type_real_8,dbcsr_type_real_4)
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Complex prefactors dissallowed for real matrices",__LINE__)
+       CPABORT("Complex prefactors dissallowed for real matrices")
     CASE (dbcsr_type_complex_4,dbcsr_type_complex_8)
         ! We can convert the prefactors if necessary
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Unknown data type in matrix",__LINE__)
+       CPABORT("Unknown data type in matrix")
     END SELECT
 
     a=dbcsr_scalar(alpha); b=dbcsr_scalar(beta)

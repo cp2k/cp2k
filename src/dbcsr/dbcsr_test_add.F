@@ -21,7 +21,6 @@ MODULE dbcsr_test_add
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_new,&
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error
   USE dbcsr_io,                        ONLY: dbcsr_print
@@ -327,8 +326,7 @@ CONTAINS
     !
     ! Perform add
     IF (ALL (limits==0)) THEN
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, " limits shouldnt be 0 ",__LINE__)
+       CPABORT("limits shouldnt be 0")
     ELSE
        CALL  dbcsr_add(m_a, m_b, alpha, beta)
     ENDIF
@@ -366,8 +364,7 @@ CONTAINS
                 ", ",dbcsr_get_matrix_type( m_b ),&
                 ") ................. FAILED !"
           WRITE(io_unit, *) REPEAT("*",70)
-          CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error, &
-               routineN, 'Test failed', __LINE__)
+          CPABORT('Test failed')
        ENDIF
     ENDIF
 
@@ -570,8 +567,7 @@ CONTAINS
        residual     = REAL(clange(norm, row_size, col_size, dense_a%d%c2_sp(1,1), ld, work_sp), real_8)
        DEALLOCATE(work_sp)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect or 1-D data type", __LINE__)
+       CPABORT("Incorrect or 1-D data type")
     END SELECT
 
     IF(mynode.EQ.0) THEN

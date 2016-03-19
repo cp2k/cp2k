@@ -135,8 +135,7 @@ CONTAINS
     CASE ("NE")
        l = left .NE. right
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__)
+       CPABORT("Invalid relation specified: "//rel)
        l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
@@ -181,8 +180,7 @@ CONTAINS
     CASE ("IMP")
        l = .NOT. left .OR. right
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__)
+       CPABORT("Invalid relation specified: "//rel)
        l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN
@@ -245,8 +243,7 @@ CONTAINS
     CASE ("NOT")
        l = .NOT. right
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            "dbcsr_int_assert", "Invalid relation specified: "//rel, __LINE__)
+       CPABORT("Invalid relation specified: "//rel)
        l = .FALSE.
     END SELECT
     IF (.NOT. l) THEN

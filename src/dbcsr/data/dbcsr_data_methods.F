@@ -41,9 +41,7 @@ MODULE dbcsr_data_methods
        dbcsr_type_real_8
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_unimplemented_error_nr,&
                                              dbcsr_wrong_args_error
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
@@ -131,8 +129,7 @@ CONTAINS
          c_dp => area%d%c_dp(:area%d%ref_size)
          CALL acc_devmem_host2dev(area%d%acc_devmem, hostmem=c_dp, stream=area%d%memory_type%acc_stream)
        CASE default
-         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__)
+         CPABORT("Invalid data type.")
     END SELECT
 
     CALL acc_event_record(area%d%acc_ready, area%d%memory_type%acc_stream)
@@ -173,8 +170,7 @@ CONTAINS
          c_dp => area%d%c_dp(:area%d%ref_size)
          CALL acc_devmem_dev2host(area%d%acc_devmem, hostmem=c_dp, stream=area%d%memory_type%acc_stream)
        CASE default
-         CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-               routineN, "Invalid data type.",__LINE__)
+         CPABORT("Invalid data type.")
     END SELECT
 
   END SUBROUTINE dbcsr_data_dev2host
@@ -367,9 +363,7 @@ CONTAINS
                   nocopy=nocp, zero_pad=zero_pad,&
                   factor=factor)
           CASE default
-             CALL dbcsr_assert(.FALSE., dbcsr_failure_level,&
-                  dbcsr_unimplemented_error_nr, routineN,&
-                  "Invalid data type are supported",__LINE__)
+             CPABORT("Invalid data type are supported")
        END SELECT
 
 

@@ -19,7 +19,6 @@ MODULE dbcsr_mp_operations
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_mp_methods,                ONLY: &
        dbcsr_mp_get_process, dbcsr_mp_grid_setup, dbcsr_mp_group, &
@@ -121,8 +120,7 @@ CONTAINS
        rb%d%c_dp, rcount, rdispl, mp_env,&
        most_ptp, remainder_ptp, no_hybrid)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Invalid data type",__LINE__)
+       CPABORT("Invalid data type")
     END SELECT
 
     CALL timestop(error_handle)
@@ -417,8 +415,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL mp_sendrecv (msgin%d%c_dp, dest, msgout%d%c_dp, source, comm)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__)
+       CPABORT("Incorrect data type")
     END SELECT
   END SUBROUTINE dbcsr_sendrecv_any
 
@@ -450,8 +447,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL mp_isend (msgin%d%c_dp, dest, comm, request, tag)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__)
+       CPABORT("Incorrect data type")
     END SELECT
   END SUBROUTINE dbcsr_isend_any
 
@@ -483,8 +479,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL mp_irecv (msgin%d%c_dp, source, comm, request, tag)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__)
+       CPABORT("Incorrect data type")
     END SELECT
   END SUBROUTINE dbcsr_irecv_any
 
@@ -512,8 +507,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL mp_win_create (base%d%c_dp, comm, win)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__)
+       CPABORT("Incorrect data type")
     END SELECT
   END SUBROUTINE dbcsr_win_create_any
 
@@ -561,8 +555,7 @@ CONTAINS
        CALL mp_rget (base%d%c_dp, source, win, win_data%d%c_dp, myproc, &
             disp, request, origin_datatype, target_datatype)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__)
+       CPABORT("Incorrect data type")
     END SELECT
   END SUBROUTINE dbcsr_rget_any
 
@@ -591,8 +584,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        CALL mp_ibcast (base%d%c_dp, source, grp, request)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error,&
-            routineN, "Incorrect data type", __LINE__)
+       CPABORT("Incorrect data type")
     END SELECT
   END SUBROUTINE dbcsr_ibcast_any
 
@@ -625,8 +617,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        new_mp_data_type = mp_type_indexed_make_z(count,lengths,displs)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid data type", __LINE__)
+       CPABORT("Invalid data type")
     END SELECT
 
   END FUNCTION dbcsr_mp_type_indexed_make_any
@@ -666,8 +657,7 @@ CONTAINS
        CALL mp_allgather(send_data%d%c_dp, recv_data%d%c_dp,&
        recv_count, recv_displ, gid)
     CASE default
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-            routineN, "Invalid data type", __LINE__)
+       CPABORT("Invalid data type")
     END SELECT
   END SUBROUTINE dbcsr_allgatherv
 

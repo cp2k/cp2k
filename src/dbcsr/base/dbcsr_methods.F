@@ -28,7 +28,6 @@ MODULE dbcsr_methods
                                              dbcsr_data_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
@@ -911,8 +910,7 @@ CONTAINS
              IF (ASSOCIATED (matrix%m%data_area%d%c_sp))&
                   data_size = SIZE (matrix%m%data_area%d%c_sp)
           CASE default
-             CALL dbcsr_assert (.FALSE., dbcsr_failure_level, dbcsr_caller_error,&
-                  routineN, "Incorrect data type",__LINE__)
+             CPABORT("Incorrect data type")
           END SELECT
     ELSE
        CPWARN("Uninitialized data area")

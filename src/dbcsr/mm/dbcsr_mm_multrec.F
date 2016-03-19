@@ -304,18 +304,14 @@ MODULE dbcsr_mm_multrec
           WRITE(*,*)"row dist", dbcsr_distribution_row_dist(product%dist)
           WRITE(*,*)"dist local rows", dbcsr_distribution_local_rows (product%dist)
           WRITE(*,*)" mat local rows", array_data(product%local_rows)
-          CALL dbcsr_assert (.FALSE., &
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Array mismatch.", __LINE__)
+          CPABORT("Array mismatch.")
        ENDIF
        IF (.NOT. array_equality (dbcsr_distribution_local_cols_obj (product%dist),&
                                  product%local_cols)) THEN
           WRITE(*,*)"col dist", dbcsr_distribution_col_dist(product%dist)
           WRITE(*,*)"dist local cols", dbcsr_distribution_local_cols (product%dist)
           WRITE(*,*)" mat local cols", array_data(product%local_cols)
-          CALL dbcsr_assert (.FALSE., &
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Array mismatch.", __LINE__)
+          CPABORT("Array mismatch.")
        ENDIF
        CALL dbcsr_assert (SIZE(c_local_rows), "EQ", c_nblkrows_local,&
             dbcsr_fatal_level, dbcsr_internal_error, routineN,&

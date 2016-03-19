@@ -26,11 +26,9 @@
        CALL dbcsr_sym_matrix_vector_mult_z(matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     CASE(dbcsr_type_antisymmetric)
         ! Not yet implemented, should mainly be some prefactor magic, but who knows how antisymmetric matrices are stored???
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error, &
-            routineN, "NYI, antisymmetric matrix not permitted", __LINE__)
+       CPABORT("NYI, antisymmetric matrix not permitted")
     CASE DEFAULT
-       CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_caller_error, &
-            routineN, "Unknown matrix type, ...", __LINE__)
+       CPABORT("Unknown matrix type, ...")
     END SELECT
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_low_z

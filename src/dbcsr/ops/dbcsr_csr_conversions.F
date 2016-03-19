@@ -261,8 +261,7 @@ CONTAINS
       CASE (dbcsr_type_complex_8)
         ALLOCATE(csr_mat%nzval_local%c_dp(nze_local))
       CASE DEFAULT
-        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,&
-                          routineN, "Invalid matrix type",__LINE__)
+        CPABORT("Invalid matrix type")
     END SELECT
 
     csr_mat%mp_group = mp_group
@@ -671,9 +670,7 @@ CONTAINS
       CASE (dbcsr_type_real_8)
         csr_nze(:) = INT(csr_sparsity_brd%m%data_area%d%r_dp(1:nze))
       CASE DEFAULT
-        CALL dbcsr_assert (.FALSE., dbcsr_fatal_level, dbcsr_wrong_args_error,routineN, &
-                           "CSR sparsity matrix must have a real datatype",&
-                           __LINE__)
+        CPABORT("CSR sparsity matrix must have a real datatype")
     END SELECT
 
     IF (ANY(csr_nze .EQ. 0)) THEN
