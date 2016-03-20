@@ -12,12 +12,13 @@ MODULE dbcsr_data_types
   USE acc_devmem,                      ONLY: acc_devmem_type
   USE acc_event,                       ONLY: acc_event_type
   USE acc_stream,                      ONLY: acc_stream_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE kinds,                           ONLY: &
        dp, int_4, int_4_size, int_8, int_8_size, real_4, real_4_size, real_8, &
        real_8_size
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, omp_lock_kind
+
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
   PRIVATE
@@ -169,7 +170,7 @@ CONTAINS
     CASE (dbcsr_type_complex_8)
        size = (2*real_8_size)
     CASE default
-       CALL dbcsr_abort(routineP,__LINE__,"Invalid data type")
+       CPABORT("Invalid data type")
     END SELECT
  END FUNCTION dbcsr_datatype_sizeof
 

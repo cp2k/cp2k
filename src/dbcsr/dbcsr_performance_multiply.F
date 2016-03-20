@@ -21,8 +21,7 @@ MODULE dbcsr_performance_multiply
                                              dbcsr_distribution_release,&
                                              dbcsr_distribution_row_dist
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
-                                             dbcsr_assert,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -282,11 +281,14 @@ CONTAINS
     b_symm = symmetries(2)
     c_symm = symmetries(3)
 
-    IF( a_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(3) ) CALL dbcsr_abort(routineP,__LINE__,"")
+    IF( a_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(3) ) &
+       CPABORT("")
 
-    IF( b_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(2).NE.matrix_sizes(3) ) CALL dbcsr_abort(routineP,__LINE__,"")
+    IF( b_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(2).NE.matrix_sizes(3) ) &
+       CPABORT("")
 
-    IF( c_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(2) ) CALL dbcsr_abort(routineP,__LINE__,"")
+    IF( c_symm.NE.dbcsr_type_no_symmetry .AND. matrix_sizes(1).NE.matrix_sizes(2) ) &
+       CPABORT("")
 
 
     do_complex = data_type.EQ.dbcsr_type_complex_4.OR.data_type.EQ.dbcsr_type_complex_8
@@ -317,14 +319,14 @@ CONTAINS
             transa.EQ.dbcsr_no_transpose.AND.transb.EQ.dbcsr_conjugate_transpose.AND.&
             .NOT.do_complex.OR.&
             transa.EQ.dbcsr_conjugate_transpose.AND.transb.EQ.dbcsr_no_transpose.AND.&
-            .NOT.do_complex)) CALL dbcsr_abort(routineP,__LINE__,"")
+            .NOT.do_complex)) CPABORT("")
 
     ENDIF
     !
     ! if C has symmetry and special limits
     IF( c_symm.NE.dbcsr_type_no_symmetry ) THEN
        IF(limits(1).NE.1.OR.limits(2).NE.matrix_sizes(1).OR.&
-            limits(3).NE.1.OR.limits(4).NE.matrix_sizes(2)) CALL dbcsr_abort(routineP,__LINE__,"")
+            limits(3).NE.1.OR.limits(4).NE.matrix_sizes(2)) CPABORT("")
 
     ENDIF
 

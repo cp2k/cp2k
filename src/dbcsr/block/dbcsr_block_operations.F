@@ -23,8 +23,7 @@ MODULE dbcsr_block_operations
        dbcsr_get_data_p_2d_d, dbcsr_get_data_p_2d_s, dbcsr_get_data_p_2d_z, &
        dbcsr_get_data_p_c, dbcsr_get_data_p_d, dbcsr_get_data_p_s, &
        dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
-                                             dbcsr_assert,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
@@ -1164,8 +1163,8 @@ CONTAINS
     ENDIF
 
     IF(acc_devmem_allocated(area%d%acc_devmem)) THEN
-      IF (PRESENT(value)) CALL dbcsr_abort(routineP,__LINE__,&
-         "dbcsr_data_clear0 with value not implemented for acc_devmem")
+      IF (PRESENT(value)) &
+        CPABORT("dbcsr_data_clear0 with value not implemented for acc_devmem")
       s = dbcsr_datatype_sizeof(area%d%data_type)
       CALL acc_devmem_setzero_bytes(area%d%acc_devmem, s*lb, s*ub, area%d%memory_type%acc_stream)
     END IF

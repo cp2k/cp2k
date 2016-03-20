@@ -20,7 +20,6 @@ MODULE dbcsr_acc_operations
                                              acc_devmem_type
   USE acc_stream,                      ONLY: acc_stream_cptr,&
                                              acc_stream_type
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE dbcsr_mm_types,                  ONLY: dbcsr_ps_width
 #include "../../base/base_uses.f90"
 
@@ -140,7 +139,7 @@ CONTAINS
                              INT(k_max,KIND=C_INT),&
                              mnk, acc_stream_cptr(stream))
 
-    IF (istat == 100) CALL dbcsr_abort(routineP,__LINE__,"failed due to accGetLastError().")
+    IF (istat == 100) CPABORT("failed due to accGetLastError().")
 
     success = (istat == 0) ! false if no suitable kernel was found
 
@@ -198,7 +197,7 @@ CONTAINS
                              INT(n,KIND=C_INT),&
                              acc_stream_cptr(stream))
 
-    IF (istat /= 0) CALL dbcsr_abort(routineP,__LINE__,"something went wrong.")
+    IF (istat /= 0) CPABORT("something went wrong.")
     IF (careful_mod) CALL timestop (error_handle)
 #endif
   END SUBROUTINE dbcsr_acc_transpose

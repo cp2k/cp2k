@@ -20,10 +20,6 @@ MODULE dbcsr_vector_operations_low
                                              dbcsr_distribution_release,&
                                              dbcsr_distribution_row_clusters,&
                                              dbcsr_distribution_row_dist
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
-                                             dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_fatal_level
   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
                                              dbcsr_iterator_next_block,&
                                              dbcsr_iterator_start,&

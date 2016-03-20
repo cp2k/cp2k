@@ -72,7 +72,7 @@
     ! The select_data_type argument is needed to make this function unique
     ! enough to use in the interface.
     IF (KIND(select_data_type) .NE. KIND(DATA))&
-       CALL dbcsr_abort(routineP,__LINE__,"compiler borken")
+       CPABORT("compiler borken")
 
     IF (ASSOCIATED (area%d)) THEN
        IF (PRESENT (lb) .OR. PRESENT (ub)) THEN

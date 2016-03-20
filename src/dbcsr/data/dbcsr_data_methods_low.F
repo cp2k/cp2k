@@ -26,8 +26,7 @@ MODULE dbcsr_data_methods_low
        dbcsr_type_complex_8_2d, dbcsr_type_int_4, dbcsr_type_int_8, &
        dbcsr_type_real_4, dbcsr_type_real_4_2d, dbcsr_type_real_8, &
        dbcsr_type_real_8_2d
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort,&
-                                             dbcsr_assert,&
+  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
@@ -765,7 +764,7 @@ MODULE dbcsr_data_methods_low
     END SELECT
 
     IF(area%d%memory_type%acc_devalloc)&
-       CALL dbcsr_abort(routineP,__LINE__,"not yet supported for acc devmem")
+       CPABORT("not yet supported for acc devmem")
 
     IF (careful_mod) THEN
        CALL timestop(error_handle)

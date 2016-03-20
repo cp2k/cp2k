@@ -11,7 +11,6 @@
 ! *****************************************************************************
 
 MODULE dbcsr_geev
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE kinds,                           ONLY: real_4,&
                                              real_8
 #include "../../base/base_uses.f90"
@@ -337,7 +336,7 @@ CONTAINS
         levec(:,i+1)=CMPLX(evec_l(:,i),-evec_l(:,i+1),real_4)
         i=i+2
       ELSE
-        CALL dbcsr_abort(routineP,__LINE__,'something went wrong while sorting the EV in dbcsr_geev')
+        CPABORT('something went wrong while sorting the EV in dbcsr_geev')
       END IF
     END DO
 
@@ -407,7 +406,7 @@ CONTAINS
         levec(:,i+1)=CMPLX(evec_l(:,i),-evec_l(:,i+1),real_8)
         i=i+2
       ELSE
-        CALL dbcsr_abort(routineP,__LINE__,'something went wrong while sorting the EV in dbcsr_geev')
+        CPABORT('something went wrong while sorting the EV in dbcsr_geev')
       END IF
     END DO
 

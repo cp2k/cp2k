@@ -25,7 +25,6 @@ MODULE dbcsr_mm_sched
                                              has_acc
   USE dbcsr_data_methods,              ONLY: dbcsr_data_ensure_size,&
                                              dbcsr_data_get_size
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE dbcsr_mm_accdrv,                 ONLY: dbcsr_mm_accdrv_barrier,&
                                              dbcsr_mm_accdrv_finalize,&
                                              dbcsr_mm_accdrv_init,&
@@ -352,13 +351,13 @@ MODULE dbcsr_mm_sched
      IF(.FALSE.) THEN
         DO sp = 1, stack_fillcount
            IF(stack_data(p_a_first,sp) > SIZE(left%data_area%d%r_dp)) &
-              CALL dbcsr_abort(routineP,__LINE__,"left data out of range")
+              CPABORT("left data out of range")
            IF(stack_data(p_b_first,sp) > SIZE(right%data_area%d%r_dp)) &
-              CALL dbcsr_abort(routineP,__LINE__,"right data out of range")
+              CPABORT("right data out of range")
            IF(stack_data(p_c_first,sp) > SIZE(this%product_wm%data_area%d%r_dp)) THEN
               WRITE (*,*) "blub: ",stack_data(p_c_first,sp) , SIZE(this%product_wm%data_area%d%r_dp), &
                 dbcsr_data_get_size(this%product_wm%data_area), stacked_datasize
-              CALL dbcsr_abort(routineP,__LINE__,"product data out of range")
+              CPABORT("product data out of range")
            END IF
         END DO
      ENDIF

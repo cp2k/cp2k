@@ -21,7 +21,6 @@ MODULE dbcsr_arnoldi_data_methods
        has_s_cmplx, has_s_real, set_control, set_data_c, set_data_d, &
        set_data_s, set_data_z
   USE dbcsr_data_methods,              ONLY: dbcsr_get_data_p
-  USE dbcsr_error_handling,            ONLY: dbcsr_abort
   USE dbcsr_methods,                   ONLY: dbcsr_get_matrix_type,&
                                              dbcsr_is_initialized,&
                                              dbcsr_release
@@ -39,6 +38,7 @@ MODULE dbcsr_arnoldi_data_methods
   USE dbcsr_vector_operations,         ONLY: create_col_vec_from_matrix
   USE kinds,                           ONLY: real_4,&
                                              real_8
+#include "../../base/base_uses.f90"
 
   IMPLICIT NONE
 
@@ -135,7 +135,7 @@ CONTAINS
     control%myproc=distri%d%mp_env%mp%mynode
     CALL dbcsr_mp_grid_setup(distri%d%mp_env)
     IF(.NOT. distri%d%mp_env%mp%subgroups_defined)&
-       CALL dbcsr_abort(routineP,__LINE__,"arnoldi only with subgroups")
+       CPABORT("arnoldi only with subgroups")
     control%pcol_group=distri%d%mp_env%mp%pcol_group
     control%prow_group=distri%d%mp_env%mp%prow_group
 
@@ -157,19 +157,19 @@ CONTAINS
     control%generalized_ev=generalized_ev
 
     IF(control%nval_req>1.AND.control%nrestart>0.AND..NOT.control%iram)&
-      CALL dbcsr_abort(routineP,__LINE__,'with more than one eigenvalue requested '//&
+      CALL cp_abort(__LOCATION__,'with more than one eigenvalue requested '//&
       'internal restarting with a previous EVEC is a bad idea, set IRAM or nrestsart=0')
 
 
 ! some checks for the generalized EV mode
     IF(control%generalized_ev.AND.selection_crit==1)&
-       CALL dbcsr_abort(routineP,__LINE__,'generalized ev can only highest OR lowest EV')
+       CALL cp_abort(__LOCATION__,'generalized ev can only highest OR lowest EV')
     IF(control%generalized_ev.AND.nval_request.NE.1)&
-       CALL dbcsr_abort(routineP,__LINE__,'generalized ev can only compute one EV at the time')
-    IF(control%generalized_ev.AND.control%nrestart==0)&
-       CALL dbcsr_abort(routineP,__LINE__,'outer loops are mandatory for generalized EV, set nrestart appropriatly')
-    IF(SIZE(matrix).NE.2.AND.control%generalized_ev)&
-       CALL dbcsr_abort(routineP,__LINE__,'generalized ev needs exactly two matrices as input (2nd is the metric)')
+       CALL cp_abort(__LOCATION__,'generalized ev can only compute one EV at the time')
+    IF(control%generalized_ev.AND.control%nrestart==0) CALL cp_abort(__LOCATION__,&
+       'outer loops are mandatory for generalized EV, set nrestart appropriatly')
+    IF(SIZE(matrix).NE.2.AND.control%generalized_ev) CALL cp_abort(__LOCATION__,&
+       'generalized ev needs exactly two matrices as input (2nd is the metric)')
 
     ALLOCATE(control%selected_ind(max_iter))
     CALL set_control(arnoldi_data,control)
@@ -337,7 +337,8 @@ CONTAINS
     INTEGER                                  :: ev_ind
     INTEGER, DIMENSION(:), POINTER           :: selected_ind
 
-    IF(ind.GT.get_nval_out(ar_data)) CALL dbcsr_abort(routineP,__LINE__,'outside range of indexed evals')
+    IF(ind.GT.get_nval_out(ar_data)) &
+      CPABORT('outside range of indexed evals')
 
     selected_ind=>get_sel_ind(ar_data)
     ev_ind=selected_ind(ind)
@@ -373,7 +374,7 @@ CONTAINS
 
     NULLIFY(evals_d,evals_s)
     IF(SIZE(eval_out).LT.get_nval_out(ar_data))&
-       CALL dbcsr_abort(routineP,__LINE__,'array for eval output too small')
+       CPABORT('array for eval output too small')
     selected_ind=>get_sel_ind(ar_data)
 
     IF(has_d_real(ar_data))  evals_d=>get_evals_d(ar_data)
