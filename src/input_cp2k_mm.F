@@ -2437,10 +2437,27 @@ CONTAINS
     CALL keyword_release(keyword)
 !
     CALL keyword_create(keyword, name="ALLOW_OH_FORMATION",&
-         description="If water is treated at the QM level, water molecules"//&
-                     " can potentially dissociate. In that case, the T3"//&
-                     " term (dipole term) is switched off.",&
+         description=" The Siepmann-Sprik potential is actually designed for intact"//&
+                     " water molecules only. If water is treated at the QM level,"//&
+                     " water molecules can potentially dissociate, i.e."//&
+                     " some O-H bonds might be stretched leading temporarily"//&
+                     " to the formation of OH- ions. This keyword allows the"//&
+                     " the formation of such ions. The T3 term (dipole term)"//&
+                     " is then switched off for evaluating the interaction"//&
+                     " between the OH- ion and the metal.",&
          usage="ALLOW_OH_FORMATION TRUE",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
+    CALL section_add_keyword(section,keyword)
+    CALL keyword_release(keyword)
+
+    CALL keyword_create(keyword, name="ALLOW_H3O_FORMATION",&
+         description=" The Siepmann-Sprik potential is designed for intact water"//&
+                     " molecules only. If water is treated at the QM level"//&
+                     " and an acid is present, hydronium ions might occur."//&
+                     " This keyword allows the formation of hydronium ions."//&
+                     " The T3 term (dipole term) is switched off for evaluating"//&
+                     " the interaction between hydronium and the metal.",&
+         usage="ALLOW_H3O_FORMATION TRUE",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
     CALL section_add_keyword(section,keyword)
     CALL keyword_release(keyword)

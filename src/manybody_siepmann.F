@@ -44,7 +44,7 @@ MODULE manybody_siepmann
   PRIVATE
   PUBLIC :: setup_siepmann_arrays, destroy_siepmann_arrays,&
             siepmann_energy, siepmann_forces_v2, siepmann_forces_v3,&
-            print_nr_oh_siepmann 
+            print_nr_ions_siepmann 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'manybody_siepmann'
 
 CONTAINS
@@ -62,12 +62,13 @@ CONTAINS
 !> \param cell ...
 !> \param drij ...
 !> \param particle_set ...
-!> \param nr_oh ...
+!> \param nr_oh number of OH- ions near surface
+!> \param nr_h3o number of hydronium ions near surface
 !> \author Dorothea Golze - 11.2012 - University of Zurich
 ! *****************************************************************************
   SUBROUTINE siepmann_energy(pot_loc, siepmann, r_last_update_pbc, atom_a, atom_b,&
              nloc_size, full_loc_list, cell_v, cell, drij, particle_set,&
-             nr_oh)
+             nr_oh, nr_h3o)
 
     REAL(KIND=dp), INTENT(OUT)               :: pot_loc
     TYPE(siepmann_pot_type), POINTER         :: siepmann
@@ -79,7 +80,7 @@ CONTAINS
     REAL(KIND=dp)                            :: drij
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, INTENT(INOUT)                   :: nr_oh
+    INTEGER, INTENT(INOUT)                   :: nr_oh, nr_h3o
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siepmann_energy', &
       routineP = moduleN//':'//routineN
@@ -90,10 +91,8 @@ CONTAINS
     a_ij   = siep_a_ij(siepmann,r_last_update_pbc,atom_a,atom_b,nloc_size,&
              full_loc_list, cell_v, siepmann%rcutsq,particle_set,&
              cell)
-    Phi_ij  = siep_Phi_ij(siepmann,r_last_update_pbc,atom_a,atom_b,&
-              cell_v, cell, siepmann%rcutsq,&
-
-              particle_set, nr_oh)
+    Phi_ij = siep_Phi_ij(siepmann,r_last_update_pbc,atom_a,atom_b,&
+             cell_v, cell, siepmann%rcutsq, particle_set, nr_oh, nr_h3o)
     f2     = siep_f2 (siepmann,drij)
     D = siepmann%D
     E = siepmann%E
@@ -329,12 +328,13 @@ CONTAINS
 !> \param rcutsq ...
 !> \param particle_set ...
 !> \param nr_oh ...
+!> \param nr_h3o ...
 !> \retval siep_Phi_ij ...
 !> \par History
 !>      Using a local list of neighbors
 ! *****************************************************************************
   FUNCTION siep_Phi_ij(siepmann,r_last_update_pbc,iparticle,jparticle,&
-       cell_v, cell, rcutsq, particle_set,nr_oh)
+       cell_v, cell, rcutsq, particle_set,nr_oh,nr_h3o)
     TYPE(siepmann_pot_type), POINTER         :: siepmann
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update_pbc
     INTEGER, INTENT(IN)                      :: iparticle, jparticle
@@ -343,7 +343,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rcutsq
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    INTEGER, INTENT(INOUT), OPTIONAL         :: nr_oh
+    INTEGER, INTENT(INOUT), OPTIONAL         :: nr_oh, nr_h3o
     REAL(KIND=dp)                            :: siep_Phi_ij
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'siep_Phi_ij', &
@@ -382,8 +382,6 @@ CONTAINS
         index_h1= iatom
        ELSEIF(count_h==2) THEN
         index_h2=iatom
-       ELSE
-        CPABORT("Error in Siepmann-Sprik part: too many H atoms")
        ENDIF 
     ENDDO
 
@@ -391,13 +389,20 @@ CONTAINS
         CPABORT("No H atoms for O found")
     ELSEIF (count_h==1) THEN
         IF(siepmann%allow_oh_formation) THEN
-           IF(PRESENT(nr_oh)) THEN
-              nr_oh = nr_oh + 1
-           ENDIF
+           IF(PRESENT(nr_oh)) nr_oh = nr_oh + 1
            siep_Phi_ij = 0.0_dp
         ELSE
           CPABORT("Only one H atom of O atom found")
         ENDIF
+    ELSEIF(count_h==3) THEN 
+        IF(siepmann%allow_h3o_formation) THEN
+           IF(PRESENT(nr_h3o)) nr_h3o = nr_h3o + 1
+           siep_Phi_ij = 0.0_dp
+        ELSE
+          CPABORT("Three H atoms for O atom found")
+        ENDIF
+    ELSEIF(count_h > 3) THEN
+        CPABORT("Error in Siepmann-Sprik part: too many H atoms for O")
     ENDIF
  
     IF(count_h==2) THEN
@@ -483,15 +488,17 @@ CONTAINS
         index_h1= iatom
        ELSEIF(count_h==2) THEN
         index_h2=iatom
-       ELSE
-        CPABORT("Error in Siepmann-Sprik part: too many H atoms")
        ENDIF 
     ENDDO
 
     IF (count_h==0) THEN
         CPABORT("No H atoms for O found")
     ELSEIF (count_h==1.AND..NOT.siepmann%allow_oh_formation) THEN
-        CPABORT("Only one H atom of O atom found")
+        CPABORT("Only one H atom for O atom found")
+    ELSEIF (count_h==3.AND..NOT.siepmann%allow_h3o_formation) THEN
+        CPABORT("Three H atoms for O atom found")
+    ELSEIF(count_h > 3) THEN
+        CPABORT("Error in Siepmann-Sprik part: too many H atoms for O")
     ENDIF 
 
     IF(count_h==2) THEN
@@ -863,18 +870,20 @@ CONTAINS
   END SUBROUTINE destroy_siepmann_arrays
 
 ! *****************************************************************************
-!> \brief prints the number of OH ions
-!> \param nr_oh ...
+!> \brief prints the number of OH- ions or H3O+ ions near surface
+!> \param nr_ions ... number of ions 
 !> \param mm_section ...
 !> \param para_env ...
+!> \param count_oh flag indicating if number OH- or H3O+ is printed
 ! *****************************************************************************
-  SUBROUTINE print_nr_oh_siepmann(nr_oh,mm_section,para_env)
-    INTEGER, INTENT(INOUT)                   :: nr_oh
+  SUBROUTINE print_nr_ions_siepmann(nr_ions,mm_section,para_env, count_oh)
+    INTEGER, INTENT(INOUT)                   :: nr_ions
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+    LOGICAL, INTENT(IN)                      :: count_oh
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_nr_oh_siepmann', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_nr_ions_siepmann', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iw
@@ -882,19 +891,22 @@ CONTAINS
 
     NULLIFY(logger)
 
-    CALL mp_sum(nr_oh,para_env%group)
+    CALL mp_sum(nr_ions,para_env%group)
     logger => cp_get_default_logger()
 
     iw= cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
         extension=".mmLog")
 
-    IF(iw > 0 .AND. nr_oh > 0) THEN
-      WRITE(iw,'(/,A,T71,I10,/)') " SIEPMANN: number of OH ions at surface", nr_oh
+    IF(iw > 0 .AND. nr_ions > 0 .AND. count_oh) THEN
+      WRITE(iw,'(/,A,T71,I10,/)') " SIEPMANN: number of OH- ions at surface", nr_ions
+    ENDIF
+    IF(iw > 0 .AND. nr_ions > 0 .AND. .NOT.count_oh) THEN
+      WRITE(iw,'(/,A,T71,I10,/)') " SIEPMANN: number of H3O+ ions at surface", nr_ions
     ENDIF
 
     CALL cp_print_key_finished_output(iw,logger,mm_section,"PRINT%PROGRAM_RUN_INFO")
 
-  END SUBROUTINE print_nr_oh_siepmann
+  END SUBROUTINE print_nr_ions_siepmann
 
 END MODULE manybody_siepmann
 
