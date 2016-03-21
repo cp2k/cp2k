@@ -139,70 +139,82 @@
   INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: meta
   REAL(kind=real_4), DIMENSION(:), &
        INTENT(IN)                         :: DATA
+  INTEGER, DIMENSION(:, :), &
+       INTENT(IN)                         :: refs_size
   INTEGER, DIMENSION(:, :, :), &
-       POINTER, INTENT(IN)                :: refs_displ, refs_size
+       POINTER, INTENT(IN)                :: refs_displ
   INTEGER, DIMENSION(:), INTENT(IN)       :: img_map, img_offset, &
                                              row_blk_size, col_blk_size, &
                                              local_row, local_col
   INTEGER, INTENT(IN)                     :: slot_coo_l
-  REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT) :: max_norms
-  LOGICAL, INTENT(IN)                           :: is_left, off_diagonal
+  REAL(kind=sp), DIMENSION(:), INTENT(INOUT) :: max_norms
+  LOGICAL, INTENT(IN)                        :: is_left, off_diagonal
 
   INTEGER, DIMENSION(:), POINTER    :: row, col, bps
-  INTEGER                           :: nblks, blk, bpe
+  INTEGER                           :: nblks, blk, bpe, icluster
   INTEGER, TARGET                   :: mi, ui
   INTEGER, POINTER                  :: rowi, coli
+  REAL(kind=sp)                     :: max_norm
 
+  icluster = 1
+  max_norms(:) = 0.0_sp
+  !
   !$omp parallel default(none) &
   !$omp          private (mi, ui, nblks, blk, row, col, bps, bpe,&
-  !$omp                   rowi, coli) &
+  !$omp                   rowi, coli, max_norm) &
   !$omp          shared (max_norms, data, meta, refs_size, img_offset,&
   !$omp                  img_map, refs_displ, slot_coo_l,&
-  !$omp                  row_blk_size, col_blk_size,&
+  !$omp                  row_blk_size, col_blk_size, icluster,&
   !$omp                  local_row, local_col, is_left, off_diagonal)
   IF (is_left) THEN
      rowi => mi
+     coli => ui
   ELSE
      coli => mi
+     rowi => ui
   ENDIF
-  !$omp do schedule(dynamic)
-  DO ui = 1, SIZE(max_norms,2)
-     IF (is_left) THEN
-        coli => ui
-     ELSE
-        rowi => ui
-     ENDIF
-     DO mi = 1, SIZE(max_norms,1)
-        max_norms(mi,ui) = 0.0_sp
-        IF (refs_size(imeta_size,mi,ui).NE.0.AND.(off_diagonal.OR.ui.NE.mi)) THEN
-           nblks = meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
-           row => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l:&
-                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
-                refs_displ(imeta_displ,mi,ui):3)
-           col => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l+1:&
-                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
-                refs_displ(imeta_displ,mi,ui):3)
-           bps => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l+2:&
-                meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
-                refs_displ(imeta_displ,mi,ui):3)
-           DO blk = 1, nblks
-              IF (bps(blk).NE.0) THEN
-                 IF (is_left) THEN
-                    bpe = bps(blk) + row_blk_size(local_row(row(blk)))*&
-                         col_blk_size(local_col(img_map(col(blk)+img_offset(coli)))) - 1
-                 ELSE
-                    bpe = bps(blk) + row_blk_size(local_row(img_map(row(blk)+img_offset(rowi))))*&
-                         col_blk_size(local_col(col(blk))) - 1
+  DO ui = 1, SIZE(refs_size,2)
+     DO mi = 1, SIZE(refs_size,1)
+        IF (refs_size(mi,ui).NE.0) THEN
+           IF (off_diagonal.OR.ui.NE.mi) THEN
+              max_norm = 0.0_sp
+              nblks = meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_nblks)
+              row => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l:&
+                   meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
+                   refs_displ(imeta_displ,mi,ui):3)
+              col => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l+1:&
+                   meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
+                   refs_displ(imeta_displ,mi,ui):3)
+              bps => meta(refs_displ(imeta_displ,mi,ui)+slot_coo_l+2:&
+                   meta(refs_displ(imeta_displ,mi,ui)+dbcsr_slot_size)+&
+                   refs_displ(imeta_displ,mi,ui):3)
+              !$omp do
+              DO blk = 1, nblks
+                 IF (bps(blk).NE.0) THEN
+                    IF (is_left) THEN
+                       bpe = bps(blk) + row_blk_size(local_row(row(blk)))*&
+                            col_blk_size(local_col(img_map(col(blk)+img_offset(coli)))) - 1
+                    ELSE
+                       bpe = bps(blk) + row_blk_size(local_row(img_map(row(blk)+img_offset(rowi))))*&
+                            col_blk_size(local_col(col(blk))) - 1
+                    ENDIF
+                    max_norm = MAX(max_norm,&
+                         SQRT (REAL(SUM(ABS(DATA(bps(blk)+refs_displ(idata_displ,mi,ui):&
+                                                 bpe+refs_displ(idata_displ,mi,ui)))**2), KIND=sp)))
                  ENDIF
-                 max_norms(mi,ui) = MAX(max_norms(mi,ui),&
-                      SQRT (REAL(SUM(ABS(DATA(bps(blk)+refs_displ(idata_displ,mi,ui):&
-                                              bpe+refs_displ(idata_displ,mi,ui)))**2), KIND=sp)))
-              ENDIF
-           ENDDO
+              ENDDO
+              !$omp end do
+              !$omp critical(cannon_max_norm)
+              max_norms(icluster) = MAX(max_norms(icluster),max_norm)
+              !$omp end critical(cannon_max_norm)
+           ENDIF
+           !$omp barrier
+           !$omp master
+           icluster = icluster + 1
+           !$omp end master
         ENDIF
      ENDDO
   ENDDO
-  !$omp end do
   !$omp end parallel
 END SUBROUTINE calc_max_image_norms_s
 

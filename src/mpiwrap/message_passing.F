@@ -351,12 +351,21 @@ MODULE message_passing
 
   INTERFACE mp_iallgather
      MODULE PROCEDURE &
+          mp_iallgather_i, mp_iallgather_l, &
+          mp_iallgather_r, mp_iallgather_d, &
+          mp_iallgather_c, mp_iallgather_z, &
           mp_iallgather_i22, mp_iallgather_l22, &
           mp_iallgather_r22, mp_iallgather_d22, &
           mp_iallgather_c22, mp_iallgather_z22, & 
           mp_iallgather_i33, mp_iallgather_l33, &
           mp_iallgather_r33, mp_iallgather_d33, &
-          mp_iallgather_c33, mp_iallgather_z33 
+          mp_iallgather_c33, mp_iallgather_z33, &
+          mp_iallgatherv_iv,&
+          mp_iallgatherv_lv,&
+          mp_iallgatherv_rv,&
+          mp_iallgatherv_dv,&
+          mp_iallgatherv_cv,&
+          mp_iallgatherv_zv
   END INTERFACE
 
   INTERFACE mp_scatter

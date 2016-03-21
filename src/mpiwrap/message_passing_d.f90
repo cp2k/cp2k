@@ -1717,6 +1717,55 @@
   END SUBROUTINE mp_allgather_d
 
 ! *****************************************************************************
+!> \brief Gathers a datum from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Datum to send
+!> \param[out] msgin          Received data
+!> \param[in] gid             Message passing environment identifier
+!> \par Data size
+!>      All processes send equal-sized data
+!> \par MPI mapping
+!>      mpi_allgather
+! *****************************************************************************
+  SUBROUTINE mp_iallgather_d(msgout,msgin,gid,request)
+    REAL(kind=real_8), INTENT(IN)                      :: msgout
+    REAL(kind=real_8), INTENT(OUT)                     :: msgin( : )
+    INTEGER, INTENT(IN)                      :: gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgather_d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: rcount, scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    scount = 1
+    rcount = 1
+#if __MPI_VERSION > 2
+    CALL MPI_IALLGATHER(msgout, scount, MPI_DOUBLE_PRECISION, &
+                       msgin , rcount, MPI_DOUBLE_PRECISION, &
+                       gid, request, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allgather @ "//routineN )
+#else
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_iallgather requires MPI-3 standard")    
+#endif
+#else
+    MARK_USED(gid)
+    msgin = msgout
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iallgather_d
+
+! *****************************************************************************
 !> \brief Gathers vector data from all processes and all processes receive the
 !>        same data
 !> \param[in] msgout          Rank-1 data to send
@@ -2022,6 +2071,64 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_allgatherv_dv
+
+! *****************************************************************************
+!> \brief Gathers vector data from all processes and all processes receive the
+!>        same data
+!> \param[in] msgout          Rank-1 data to send
+!> \param[out] msgin          Received data
+!> \param[in] rcount          Size of sent data for every process
+!> \param[in] rdispl          Offset of sent data for every process
+!> \param[in] gid             Message passing environment identifier
+!> \par Data size
+!>      Processes can send different-sized data
+!> \par Ranks
+!>      The last rank counts the processes
+!> \par Offsets
+!>      Offsets are from 0
+!> \par MPI mapping
+!>      mpi_allgather
+! *****************************************************************************
+  SUBROUTINE mp_iallgatherv_dv(msgout,msgin,rcount,rdispl,gid,request)
+    REAL(kind=real_8), INTENT(IN)                      :: msgout( : )
+    REAL(kind=real_8), INTENT(OUT)                     :: msgin( : )
+    INTEGER, INTENT(IN)                      :: rcount( : ), rdispl( : ), gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iallgatherv_dv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+#if defined(__parallel)
+    INTEGER                                  :: scount
+#endif
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+    scount = SIZE ( msgout )
+#if __MPI_VERSION > 2
+    CALL MPI_IALLGATHERV(msgout, scount, MPI_DOUBLE_PRECISION, msgin, rcount, &
+                        rdispl, MPI_DOUBLE_PRECISION, gid, request, ierr )
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iallgatherv @ "//routineN )
+#else
+    MARK_USED(rcount)
+    MARK_USED(rdispl)
+    MARK_USED(gid)
+    MARK_USED(msgin)
+    request = mp_request_null
+    CPABORT("mp_iallgatherv requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(rcount)
+    MARK_USED(rdispl)
+    MARK_USED(gid)
+    msgin = msgout
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iallgatherv_dv
 
 ! *****************************************************************************
 !> \brief Sums a vector and partitions the result among processes
