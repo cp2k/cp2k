@@ -45,36 +45,6 @@ EOF
                 fi
             fi
             echo "Installing from scratch into ${pkg_install_dir}"
-            # choose which math library should libxsmm use as a
-            # fall-back option, currently libxsmm make supports
-            # openblas, mkl or system lapack. We will just use
-            # reflapack in place of the system lapack here.
-            case $FAST_MATH_MODE in
-                openblas)
-                    require_env OPENBLAS_LDFLAGS
-                    openblas_flag=1
-                    mkl_flag=0
-                    # find possible openblas lib and record its suffix if exists
-                    blas_threads="$(find_in_paths "libopenblas*.*" $LIB_PATHS)"
-                    blas_threads="${blas_threads#*libopenblas}"
-                    blas_threads="${blas_threads%%.*}"
-                    ;;
-                mkl)
-                    # mkl exists if MKLROOT is set, and libxsmm make
-                    # only recognizes MKLROOT
-                    require_env MKLROOT
-                    mkl_flag=1
-                    openblas_flag=0
-                    ;;
-                *)
-                    # check reflapack. reflapack exists if
-                    # REFLAPACK_LDFLAGS is set
-                    require_env REFLAPACK_LDFLAGS
-                    openblas_flag=0
-                    mkl_flag=0
-                    blas_threads=''
-                    ;;
-            esac
             # note that we do not have to set -L flags to ld for the
             # linked math libraries for the libxsmm build, as for a
             # library this is not required, you just have to provide
@@ -89,12 +59,8 @@ EOF
                  CC=$CC \
                  FC=$FC \
                  MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" \
-                 SSE=1 \
-                 JIT=1 \
                  PREFETCH=1 \
-                 MKL=${mkl_flag} \
-                 OPENBLAS=${openblas_flag} \
-                 BLAS_THREADS=${blas_threads} \
+                 PRECISION=2 \
                  PREFIX=${pkg_install_dir} \
                  > make.log 2>&1
             make -j $NPROCS \
@@ -102,12 +68,8 @@ EOF
                  CC=$CC \
                  FC=$FC \
                  MNK="1 4 5 6 8 9 13 16 17 22 23 24 26 32" \
-                 SSE=1 \
-                 JIT=1 \
                  PREFETCH=1 \
-                 MKL=${mkl_flag} \
-                 OPENBLAS=${openblas_flag} \
-                 BLAS_THREADS=${blas_threads} \
+                 PRECISION=2 \
                  PREFIX=${pkg_install_dir} \
                  install > install.log 2>&1
             cd ..

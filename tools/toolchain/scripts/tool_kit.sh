@@ -548,15 +548,17 @@ download_pkg_no_checksum() {
 download_pkg() {
     # usage: download_pkg [-n] [-o output_filename] url
     local __wget_flags=''
+    local __filename=''
     local __url=''
     while [ $# -ge 1 ] ; do
         case "$1" in
             -n)
-                local __wget_flags="$__wget_flags --no-check-certificate"
+                __wget_flags="$__wget_flags --no-check-certificate"
                 ;;
             -o)
                 shift
                 __wget_flags="$__wget_flags -O $1"
+                __filename="$1"
                ;;
             *)
                 __url="$1"
@@ -564,7 +566,9 @@ download_pkg() {
         esac
         shift
     done
-    local __filename="$(basename $__url)"
+    if [ "$__filename" = "" ] ; then
+        __filename="$(basename $__url)"
+    fi
     # env variable for checksum file must be provided
     require_env SHA256_CHECKSUMS
     # download
