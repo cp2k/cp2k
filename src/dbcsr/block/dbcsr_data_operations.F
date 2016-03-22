@@ -24,7 +24,6 @@ MODULE dbcsr_data_operations
                                              dbcsr_data_set_size_referenced,&
                                              dbcsr_get_data
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
@@ -107,8 +106,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, error_handle)
-    CALL dbcsr_assert (ASSOCIATED (source_area%d), dbcsr_fatal_level,&
-         dbcsr_caller_error, routineN, "Attempt to copy unassigned data",__LINE__)
+    IF(.NOT.ASSOCIATED (source_area%d))&
+       CPABORT("Attempt to copy unassigned data")
     IF(source_area%d%refcount.LE.0)&
        CPWARN("Attempt to copy unheld data")
     shallow_copy = .FALSE.
@@ -117,9 +116,8 @@ CONTAINS
        target_area = source_area
        CALL dbcsr_data_hold (target_area)
     ELSE
-       CALL dbcsr_assert (ASSOCIATED (target_area%d), dbcsr_fatal_level,&
-            dbcsr_caller_error, routineN, "Target area does not exist.",&
-            __LINE__)
+       IF(.NOT.ASSOCIATED (target_area%d))&
+          CPABORT("Target area does not exist.")
        CALL dbcsr_data_set_size_referenced(target_area,&
             dbcsr_data_get_size_referenced(source_area))
        n = dbcsr_data_get_size_referenced (source_area)

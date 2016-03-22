@@ -32,9 +32,8 @@
     CALL timeset(routineN, error_handler)
     ! srt = .TRUE. ! Not needed because of the copy
     treesize = btree_size_s(wm%mutable%m%btree_s)
-    CALL dbcsr_assert(wm%lastblk .EQ. treesize,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Mismatch in number of blocks",__LINE__)
+    IF(wm%lastblk .NE. treesize)&
+       CPABORT("Mismatch in number of blocks")
     ALLOCATE (keys(treesize), values(treesize))
     CALL btree_destroy_s (wm%mutable%m%btree_s, keys, values)
     CALL ensure_array_size (wm%row_i, ub=treesize)

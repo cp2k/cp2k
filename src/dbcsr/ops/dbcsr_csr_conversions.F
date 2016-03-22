@@ -221,15 +221,11 @@ CONTAINS
       "local number of rows must not exceed total number of rows",&
       __LINE__)
 
-    CALL dbcsr_assert(nze_total .GE. nze_local,&
-      dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-      "local number of non-zero elements must not exceed total number of non-zero elements",&
-      __LINE__)
+    IF(nze_total .LT. nze_local) CALL cp_abort(__LOCATION__, "local number of non-zero "//&
+      "elements must not exceed total number of non-zero elements")
 
-    CALL dbcsr_assert(INT(nrows_total,kind=int_8)*INT(ncols_total,kind=int_8) .GE. nze_total,&
-      dbcsr_fatal_level, dbcsr_wrong_args_error,routineN, &
-      "Total number of non-zero elements must not exceed total matrix size",&
-      __LINE__)
+    IF(INT(nrows_total,kind=int_8)*INT(ncols_total,kind=int_8) .LT. nze_total)&
+       CPABORT("Total number of non-zero elements must not exceed total matrix size")
 
     CALL dbcsr_assert(nrows_local*ncols_total, "GE", nze_local,&
       dbcsr_fatal_level, dbcsr_wrong_args_error,routineN, &
@@ -295,8 +291,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Source CSR matrix must be created.",__LINE__)
+    IF(.NOT.matrix_a%valid)&
+       CPABORT("Source CSR matrix must be created.")
 
     CALL csr_create_new(matrix_b, matrix_a%nrows_total, matrix_a%ncols_total,&
       matrix_a%nze_total, matrix_a%nze_local, matrix_a%nrows_local,&
@@ -362,10 +358,10 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(matrix_a%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Source CSR matrix must be created.",__LINE__)
-    CALL dbcsr_assert(matrix_a%has_indices,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "Source CSR matrix must have indices.",__LINE__)
+    IF(.NOT.matrix_a%valid)&
+       CPABORT("Source CSR matrix must be created.")
+    IF(.NOT.matrix_a%has_indices)&
+       CPABORT("Source CSR matrix must have indices.")
 
     IF (.NOT. matrix_b%valid) THEN
       CALL csr_create(matrix_b, matrix_a)
@@ -425,8 +421,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,&
-      "CSR matrix must be created.",__LINE__)
+    IF(.NOT.csr_mat%valid)&
+       CPABORT("CSR matrix must be created.")
 
     DO k=1,csr_mat%nrows_local
       nzerow(k) = csr_mat%rowptr_local(k+1) - csr_mat%rowptr_local(k) 
@@ -453,8 +449,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,dbcsr_wrong_args_error,routineN,& 
-      "CSR matrix must be created before destroying it.",__LINE__)
+    IF(.NOT.csr_mat%valid)&
+       CPABORT("CSR matrix must be created before destroying it.")
 
     IF (ASSOCIATED(csr_mat%rowptr_local)) DEALLOCATE(csr_mat%rowptr_local)
     IF (ASSOCIATED(csr_mat%nzerow_local)) DEALLOCATE(csr_mat%nzerow_local)
@@ -530,9 +526,9 @@ CONTAINS
     mp_group = dbcsr_mp_group(dbcsr_distribution_mp(dist_current))
     cdist => dbcsr_distribution_col_dist(dist_current)
 
-    CALL dbcsr_assert(ALL(cdist .EQ. 0), dbcsr_fatal_level,dbcsr_wrong_args_error,&
-      routineN, "DBCSR matrix not block-row distributed.",__LINE__)
- 
+    IF(ANY(cdist .NE. 0))&
+       CPABORT("DBCSR matrix not block-row distributed.")
+
     ! Calculate mapping between BRD and CSR indices
     CALL csr_get_dbcsr_mapping (brd_mat, dbcsr_index, csr_index, nze_local, &
                                 csr_sparsity_brd)
@@ -619,8 +615,8 @@ CONTAINS
       prev_blk = blk
 
       nfullcol_blkrow(blkrow) = nfullcol_blkrow(blkrow) + col_blk_size
-      CALL dbcsr_assert(.NOT. tr,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "DBCSR block data must not be transposed",__LINE__)
+      IF(tr)&
+         CPABORT("DBCSR block data must not be transposed")
     ENDDO
     CALL dbcsr_iterator_stop(iter)
 
@@ -788,8 +784,8 @@ CONTAINS
     ! CSR indices are not recalculated if indices are already defined
     new_ind = .NOT. (csr_mat%has_indices)
 
-    CALL  dbcsr_assert(csr_mat%has_mapping,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "DBCSR mapping of CSR matrix must be defined",__LINE__)
+    IF(.NOT.csr_mat%has_mapping)&
+       CPABORT("DBCSR mapping of CSR matrix must be defined")
 
     ! Calculate mapping between CSR matrix and DBCSR matrix if not yet defined
     !IF (.NOT. csr_mat%has_mapping ) THEN 
@@ -835,8 +831,8 @@ CONTAINS
         col_size = col_blk_size, row_size = row_blk_size, row_offset = row_blk_offset,&
         col_offset = col_blk_offset)
 
-      CALL dbcsr_assert(.NOT. tr,dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "DBCSR block data must not be transposed",__LINE__)
+      IF(tr)&
+         CPABORT("DBCSR block data must not be transposed")
 
       IF(blkrow > prev_blkrow) THEN ! new block row
         local_row_ind = row_blk_offset-node_row_offset ! actually: local row index - 1
@@ -947,8 +943,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
-    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
+    IF(.NOT.dbcsr_valid_index(dbcsr_mat))&
+       CPABORT("Invalid DBCSR matrix")
 
     SELECT CASE (dist_format)
     CASE (csr_dbcsr_blkrow_dist)
@@ -987,17 +983,14 @@ CONTAINS
       CALL dbcsr_set(csr_sparsity_nosym, 1.0_sp)
     ENDIF
 
-    CALL dbcsr_assert(dbcsr_has_same_block_structure(dbcsr_mat_nosym, csr_sparsity_nosym), &
-                      dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-                      "csr_sparsity and dbcsr_mat have different sparsity pattern", &
-                      __LINE__)
+    IF(.NOT.dbcsr_has_same_block_structure(dbcsr_mat_nosym, csr_sparsity_nosym)) &
+       CPABORT("csr_sparsity and dbcsr_mat have different sparsity pattern")
 
     dbcsr_numnodes = dbcsr_mp_numnodes(dbcsr_distribution_mp(dbcsr_distribution(dbcsr_mat)))
     IF (PRESENT(numnodes)) THEN
-      CALL dbcsr_assert(numnodes .LE. dbcsr_numnodes, dbcsr_fatal_level, &
-        dbcsr_wrong_args_error, routineN, &
-        "Number of nodes used for CSR matrix must not exceed total number of nodes", &
-        __LINE__)
+      IF(numnodes .GT. dbcsr_numnodes)&
+         CALL cp_abort(__LOCATION__,"Number of nodes used for CSR matrix "//&
+              "must not exceed total number of nodes")
 
       num_p = numnodes
     ELSE
@@ -1104,38 +1097,20 @@ CONTAINS
     CALL timeset(routineN, handle)
     map = csr_mat%dbcsr_mapping
     IF (map%has_dbcsr_block_data) THEN
-      CALL dbcsr_assert(map%dbcsr_nblkcols_total .EQ.&
-        dbcsr_nblkcols_total(dbcsr_mat), dbcsr_fatal_level,&
-        dbcsr_wrong_args_error,routineN,&
-        "field nblkcols_total of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__)
-      CALL dbcsr_assert(map%dbcsr_nblkrows_total .EQ.&
-        dbcsr_nblkrows_total(dbcsr_mat),dbcsr_fatal_level,&
-        dbcsr_wrong_args_error,routineN,&
-        "field nblkrows_total of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__)
-      CALL dbcsr_assert(map%dbcsr_nblks_local .EQ. dbcsr_mat%m%nblks,&
-        dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "field nblks of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__)
-      CALL dbcsr_assert(ALL(map%dbcsr_row_p .EQ. dbcsr_mat%m%row_p),&
-        dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "field row_p of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__)
-      CALL dbcsr_assert(ALL(map%dbcsr_col_i .EQ. dbcsr_mat%m%col_i),&
-        dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "field dbcsr_col_i of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__)
-      CALL dbcsr_assert((ALL(map%dbcsr_row_blk_size .EQ.&
-        dbcsr_row_block_sizes(dbcsr_mat))),&
-        dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "field row_blk_size of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__)
-      CALL dbcsr_assert((ALL(map%dbcsr_col_blk_size .EQ. &
-        dbcsr_col_block_sizes(dbcsr_mat))),&
-        dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-        "field col_blk_size of DBCSR matrix not consistent with CSR matrix",&
-        __LINE__)
+      IF(map%dbcsr_nblkcols_total .NE. dbcsr_nblkcols_total(dbcsr_mat))&
+         CPABORT("field nblkcols_total of DBCSR matrix not consistent with CSR matrix")
+      IF(map%dbcsr_nblkrows_total .NE. dbcsr_nblkrows_total(dbcsr_mat))&
+         CPABORT("field nblkrows_total of DBCSR matrix not consistent with CSR matrix")
+      IF(map%dbcsr_nblks_local .NE. dbcsr_mat%m%nblks)&
+         CPABORT("field nblks of DBCSR matrix not consistent with CSR matrix")
+      IF(ANY(map%dbcsr_row_p .NE. dbcsr_mat%m%row_p))&
+         CPABORT("field row_p of DBCSR matrix not consistent with CSR matrix")
+      IF(ANY(map%dbcsr_col_i .NE. dbcsr_mat%m%col_i))&
+         CPABORT("field dbcsr_col_i of DBCSR matrix not consistent with CSR matrix")
+      IF(ANY(map%dbcsr_row_blk_size .NE. dbcsr_row_block_sizes(dbcsr_mat)))&
+        CPABORT("field row_blk_size of DBCSR matrix not consistent with CSR matrix")
+      IF(ANY(map%dbcsr_col_blk_size .NE. dbcsr_col_block_sizes(dbcsr_mat)))&
+        CPABORT("field col_blk_size of DBCSR matrix not consistent with CSR matrix")
     ELSE
       CALL cp_warn(__LOCATION__, "Can not assert consistency of the matrices "//&
            "as no block data stored in CSR matrix.")
@@ -1163,16 +1138,14 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
-    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
+    IF(.NOT.dbcsr_valid_index(dbcsr_mat))&
+       CPABORT("Invalid DBCSR matrix")
     CALL dbcsr_assert(dbcsr_get_data_type(dbcsr_mat),"EQ",&
       csr_mat%nzval_local%data_type, dbcsr_fatal_level, dbcsr_wrong_args_error,&
       routineN, "DBCSR and CSR matrix must have same type", __LINE__)
 
-    CALL dbcsr_assert(csr_mat%has_mapping,dbcsr_fatal_level,&
-        dbcsr_wrong_args_error,routineN,&
-        "CSR_mat must contain mapping to DBCSR format",&
-        __LINE__)
+    IF(.NOT.csr_mat%has_mapping)&
+       CPABORT("CSR_mat must contain mapping to DBCSR format")
 
     IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
       CALL dbcsr_init(dbcsr_mat_nosym)
@@ -1214,18 +1187,16 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(dbcsr_valid_index(dbcsr_mat), dbcsr_fatal_level,&
-    dbcsr_wrong_args_error, routineN, "Invalid DBCSR matrix", __LINE__)
+    IF(.NOT.dbcsr_valid_index(dbcsr_mat))&
+       CPABORT("Invalid DBCSR matrix")
 
     CALL dbcsr_assert(dbcsr_get_data_type(dbcsr_mat),"EQ",&
       csr_mat%nzval_local%data_type, dbcsr_fatal_level,&
       dbcsr_wrong_args_error, routineN, "DBCSR and CSR matrix must have same type",&
       __LINE__)
 
-    CALL dbcsr_assert(csr_mat%has_mapping,dbcsr_fatal_level,&
-        dbcsr_wrong_args_error,routineN,&
-        "CSR_mat must contain mapping to DBCSR format",&
-        __LINE__)
+    IF(.NOT.csr_mat%has_mapping)&
+       CPABORT("CSR_mat must contain mapping to DBCSR format")
 
     ! Desymmetrize to assert that DBCSR matrix has sparsity pattern consistent with CSR matrix
     IF(dbcsr_has_symmetry(dbcsr_mat)) THEN
@@ -1401,10 +1372,8 @@ CONTAINS
       ut = .FALSE.
     ENDIF
 
-    CALL dbcsr_assert(csr_mat%valid,dbcsr_fatal_level,&
-        dbcsr_wrong_args_error,routineN,&
-        "can not write invalid CSR matrix",&
-        __LINE__)
+    IF(.NOT.csr_mat%valid)&
+       CPABORT("can not write invalid CSR matrix")
 
     tag1 = 0
     tag2 = 1
@@ -1555,10 +1524,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(csr_mat%valid,&
-      dbcsr_fatal_level, dbcsr_wrong_args_error,routineN,&
-      "CSR matrix must be created first",&
-      __LINE__)
+    IF(.NOT.csr_mat%valid)&
+       CPABORT("CSR matrix must be created first")
 
     nze_percentage = 100.0_dp*(REAL(csr_mat%nze_total,KIND=real_8) &
                      /REAL(csr_mat%nrows_total,KIND=real_8)) &

@@ -50,7 +50,6 @@ MODULE dbcsr_work_operations
                                              dbcsr_distribution_release
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_unimplemented_error_nr,&
@@ -221,9 +220,8 @@ CONTAINS
     MARK_USED(thread_dist) ! only used with OMP
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert(dbcsr_is_initialized(matrix), &
-           dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-           "Matrix may not have been initialized with dbcsr_init",__LINE__)
+    IF(.NOT.dbcsr_is_initialized(matrix))&
+       CPABORT("Matrix may not have been initialized with dbcsr_init")
 
     ! Reuse matrix only if has actually been allocated.
     hijack = ASSOCIATED(matrix%m%index)
@@ -304,10 +302,8 @@ CONTAINS
        NULLIFY(matrix%m%index)
        ! Invalidate data
        IF (PRESENT(data_buffer)) THEN
-          CALL dbcsr_assert(dbcsr_data_valid(data_buffer), dbcsr_failure_level,&
-               dbcsr_wrong_args_error, routineN,&
-               "Input data buffer not valid.",&
-               __LINE__)
+          IF(.NOT.dbcsr_data_valid(data_buffer))&
+             CPABORT("Input data buffer not valid.")
           CALL dbcsr_assert (matrix%m%data_type, "EQ",&
                data_buffer%d%data_type,&
                dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -422,12 +418,11 @@ CONTAINS
     matrix%m%nze = 0
 
     IF (PRESENT (replication_type)) THEN
-       CALL dbcsr_assert (replication_type .EQ. dbcsr_repl_none&
-            .OR. replication_type .EQ. dbcsr_repl_full&
-            .OR. replication_type .EQ. dbcsr_repl_row&
-            .OR. replication_type .EQ. dbcsr_repl_col,&
-            dbcsr_failure_level, dbcsr_wrong_args_error, routineN,&
-            "Invalid replication type '"//replication_type//"'",__LINE__)
+       IF(replication_type .NE. dbcsr_repl_none&
+            .AND. replication_type .NE. dbcsr_repl_full&
+            .AND. replication_type .NE. dbcsr_repl_row&
+            .AND. replication_type .NE. dbcsr_repl_col)&
+            CPABORT("Invalid replication type '"//replication_type//"'")
        IF(replication_type.EQ.dbcsr_repl_row.OR. replication_type .EQ. dbcsr_repl_col)&
           CPWARN("Row and column replication not fully supported")
        matrix%m%replication_type = replication_type
@@ -450,10 +445,9 @@ CONTAINS
        ENDIF
     ENDIF
     IF (my_make_index) THEN
-       CALL dbcsr_assert (LBOUND (matrix%m%index, 1) .LE. 1&
-            .AND. UBOUND (matrix%m%index, 1) .GE. dbcsr_num_slots,&
-            dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-            "Index is not large enough",__LINE__)
+       IF(LBOUND (matrix%m%index, 1) .GT. 1&
+            .OR. UBOUND (matrix%m%index, 1) .LT. dbcsr_num_slots)&
+            CPABORT("Index is not large enough")
        matrix%m%index(1:dbcsr_num_slots) = 0
        matrix%m%index(1:dbcsr_meta_size) = new_meta(1:dbcsr_meta_size)
        matrix%m%index(dbcsr_slot_size) = dbcsr_num_slots
@@ -736,17 +730,11 @@ CONTAINS
             dbcsr_wrong_args_error, routineN, &
             "Can not have negative block count.", __LINE__)
        ALLOCATE(wm%row_i(nblks), stat=stat)
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN,&
-            "wm%row_i",__LINE__)
+       IF(stat /= 0) CPABORT("wm%row_i")
        ALLOCATE(wm%col_i(nblks), stat=stat)
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN,&
-            "wm%col_i",__LINE__)
+       IF(stat /= 0) CPABORT("wm%col_i")
        ALLOCATE(wm%blk_p(nblks), stat=stat)
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
-            dbcsr_internal_error, routineN,&
-            "wm%blk_p",__LINE__)
+       IF(stat /= 0) CPABORT("wm%blk_p")
     ELSE
        NULLIFY (wm%row_i, wm%col_i, wm%blk_p)
        !nblks = CEILING (REAL (matrix%nblkrows_local * matrix%nblkcols_local)&
@@ -798,9 +786,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_is_initialized(matrix),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not create work matrix for nonexisting matrix object.",__LINE__)
+    IF(.NOT.dbcsr_is_initialized(matrix))&
+       CPABORT("Can not create work matrix for nonexisting matrix object.")
     IF (PRESENT (n)) THEN
        nw = n
     ELSE
@@ -889,9 +876,8 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     !$OMP BARRIER
-    CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not finalize uninitialized matrix.",__LINE__)
+    IF(.NOT.dbcsr_is_initialized (matrix))&
+       CPABORT("Can not finalize uninitialized matrix.")
 
     ! If the matrix is not marked as dirty then skip the work.
     IF (dbcsr_valid_index(matrix)) THEN
@@ -1096,21 +1082,16 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert (dbcsr_is_initialized (matrix),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not finalize uninitialized matrix.",__LINE__)
-    CALL dbcsr_assert (matrix%m%nblks .EQ. 0,&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires empty matrix.",__LINE__)
-    CALL dbcsr_assert (.NOT. dbcsr_valid_index(matrix),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires invalid matrix.",__LINE__)
-    CALL dbcsr_assert (ASSOCIATED (matrix%m%wms),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires work matrices exist.",__LINE__)
-    CALL dbcsr_assert (SIZE(matrix%m%wms).EQ. 1,&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Optimized finalize requires single work matrix",__LINE__)
+    IF(.NOT.dbcsr_is_initialized (matrix))&
+       CPABORT("Can not finalize uninitialized matrix.")
+    IF(matrix%m%nblks .NE. 0)&
+       CPABORT("Optimized finalize requires empty matrix.")
+    IF(dbcsr_valid_index(matrix))&
+       CPABORT("Optimized finalize requires invalid matrix.")
+    IF(.NOT.ASSOCIATED (matrix%m%wms))&
+       CPABORT("Optimized finalize requires work matrices exist.")
+    IF(SIZE(matrix%m%wms).NE. 1)&
+       CPABORT("Optimized finalize requires single work matrix")
 
     !
     ! If possible, data copying is avoided.
@@ -1128,9 +1109,8 @@ CONTAINS
     IF (can_quick .AND. .NOT. sort_data) THEN
        CALL quick_finalize (matrix)
     ELSE
-       CALL dbcsr_assert (sort_data,&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "merge_single_wm only supports data sorting",__LINE__)
+       IF(.NOT.sort_data)&
+          CPABORT("merge_single_wm only supports data sorting")
        !
        ! Ensure needed index arrays at least exist.
        !$OMP MASTER
@@ -1883,10 +1863,8 @@ CONTAINS
     nrows = matrix%nblkrows_total
     wm => matrix%wms(1)
     nblks = wm%lastblk
-    CALL dbcsr_assert (.NOT.dbcsr_wm_use_mutable (wm),&
-          dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-          "Number of threads does not match number of work matrices.",&
-          __LINE__)
+    IF(dbcsr_wm_use_mutable (wm))&
+       CPABORT("Number of threads does not match number of work matrices.")
     !
     ! The following is valid because the data actually referenced
     ! by blocks is explicitly calculated in dbcsr_finalize.

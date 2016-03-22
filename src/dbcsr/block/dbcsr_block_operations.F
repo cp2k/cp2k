@@ -25,7 +25,6 @@ MODULE dbcsr_block_operations
        dbcsr_get_data_p_z, dbcsr_type_2d_to_1d, dbcsr_type_is_2d
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_caller_error,&
-                                             dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -447,9 +446,8 @@ CONTAINS
 
     IF (careful_mod) CALL timeset(routineN, handle)
     IF (debug_mod) THEN
-       CALL dbcsr_assert (ASSOCIATED(dst%d),&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Data area must be setup.",__LINE__)
+       IF(.NOT.ASSOCIATED(dst%d))&
+          CPABORT("Data area must be setup.")
        IF (      dst%d%data_type.NE.dbcsr_type_real_8&
             .AND.dst%d%data_type.NE.dbcsr_type_real_4&
             .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
@@ -528,9 +526,8 @@ CONTAINS
 
     IF (careful_mod) CALL timeset(routineN, handle)
     IF (debug_mod) THEN
-       CALL dbcsr_assert (ASSOCIATED(dst%d),&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Data area must be setup.",__LINE__)
+       IF(.NOT.ASSOCIATED(dst%d))&
+          CPABORT("Data area must be setup.")
        IF(       dst%d%data_type.NE.dbcsr_type_real_8&
             .AND.dst%d%data_type.NE.dbcsr_type_real_4&
             .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
@@ -617,9 +614,8 @@ CONTAINS
 
     IF (careful_mod) CALL timeset(routineN, handle)
     IF (debug_mod) THEN
-       CALL dbcsr_assert (ASSOCIATED(dst%d),&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Data area must be setup.",__LINE__)
+       IF(.NOT.ASSOCIATED(dst%d))&
+          CPABORT("Data area must be setup.")
        IF (      dst%d%data_type.NE.dbcsr_type_real_8&
             .AND.dst%d%data_type.NE.dbcsr_type_real_4&
             .AND.dst%d%data_type.NE.dbcsr_type_complex_8&
@@ -740,22 +736,18 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (debug_mod) THEN
-       CALL dbcsr_assert (ASSOCIATED(dst%d) .AND. ASSOCIATED(src%d),&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Data areas must be setup.",__LINE__)
-       CALL dbcsr_assert (dst%d%data_type .EQ. src%d%data_type, dbcsr_fatal_level,&
-            dbcsr_caller_error, routineN,&
-            "Data type must be the same.",__LINE__)
+       IF(.NOT.ASSOCIATED(dst%d) .OR. .NOT.ASSOCIATED(src%d))&
+          CPABORT("Data areas must be setup.")
+       IF(dst%d%data_type .NE. src%d%data_type)&
+          CPABORT("Data type must be the same.")
     ENDIF
     IF (PRESENT (scale) .AND. careful_mod) THEN
        IF (dbcsr_type_is_2d(src%d%data_type)) THEN
-          CALL dbcsr_assert (scale%data_type&
-               .EQ. dbcsr_type_2d_to_1d (src%d%data_type),&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Incomptable data types",__LINE__)
+          IF(scale%data_type .NE. dbcsr_type_2d_to_1d (src%d%data_type))&
+             CPABORT("Incomptable data types")
        ELSE
-          CALL dbcsr_assert (scale%data_type .EQ. src%d%data_type, dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN, "Incomptable data types",__LINE__)
+          IF(scale%data_type .NE. src%d%data_type)&
+             CPABORT("Incomptable data types")
        ENDIF
     ENDIF
     ub = lb + data_size - 1
@@ -767,14 +759,10 @@ CONTAINS
        ub_s = ub
     ENDIF
     IF (careful_mod) THEN
-      CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
-           .OR. PRESENT (lb2),&
-           dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-           "Must specify lb2 for 2-D data area",__LINE__)
-      CALL dbcsr_assert (.NOT.dbcsr_type_is_2d (src%d%data_type)&
-           .OR. PRESENT (data_size2),&
-           dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-           "Must specify data_size2 for 2-D data area",__LINE__)
+      IF(dbcsr_type_is_2d (src%d%data_type) .AND. .NOT. PRESENT (lb2))&
+         CPABORT("Must specify lb2 for 2-D data area")
+      IF(dbcsr_type_is_2d (src%d%data_type) .AND. .NOT. PRESENT (data_size2))&
+         CPABORT("Must specify data_size2 for 2-D data area")
     ENDIF
     IF (PRESENT (lb2)) THEN
        IF (careful_mod) THEN
@@ -794,10 +782,10 @@ CONTAINS
     SELECT CASE (src%d%data_type)
     CASE (dbcsr_type_real_4)
        IF (debug_mod) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%r_sp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(dst%d%r_sp)",__LINE__)
-          CALL dbcsr_assert(ASSOCIATED(src%d%r_sp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(src%d%r_sp)",__LINE__)
+          IF(.NOT.ASSOCIATED(dst%d%r_sp))&
+             CPABORT("associated(dst%d%r_sp)")
+          IF(.NOT.ASSOCIATED(src%d%r_sp))&
+             CPABORT("associated(src%d%r_sp)")
           CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%r_sp",__LINE__)
           CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%r_sp,1),dbcsr_fatal_level,&
@@ -814,10 +802,10 @@ CONTAINS
        ENDIF
     CASE (dbcsr_type_real_8)
        IF (debug_mod) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%r_dp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(dst%d%r_dp)",__LINE__)
-          CALL dbcsr_assert(ASSOCIATED(src%d%r_dp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(src%d%r_dp)",__LINE__)
+          IF(.NOT.ASSOCIATED(dst%d%r_dp))&
+             CPABORT("associated(dst%d%r_dp)")
+          IF(.NOT.ASSOCIATED(src%d%r_dp))&
+             CPABORT("associated(src%d%r_dp)")
           CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%r_dp",__LINE__)
           CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%r_dp,1),dbcsr_fatal_level,&
@@ -834,10 +822,10 @@ CONTAINS
        ENDIF
     CASE (dbcsr_type_complex_4)
        IF (debug_mod) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%c_sp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(dst%d%c_sp)",__LINE__)
-          CALL dbcsr_assert(ASSOCIATED(src%d%c_sp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(src%d%c_sp)",__LINE__)
+          IF(.NOT.ASSOCIATED(dst%d%c_sp))&
+             CPABORT("associated(dst%d%c_sp)")
+          IF(.NOT.ASSOCIATED(src%d%c_sp))&
+             CPABORT("associated(src%d%c_sp)")
           CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%c_sp",__LINE__)
           CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%c_sp,1),dbcsr_fatal_level,&
@@ -854,10 +842,10 @@ CONTAINS
        ENDIF
     CASE (dbcsr_type_complex_8)
        IF (debug_mod) THEN
-          CALL dbcsr_assert(ASSOCIATED(dst%d%c_dp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(dst%d%c_dp)",__LINE__)
-          CALL dbcsr_assert(ASSOCIATED(src%d%c_dp),dbcsr_fatal_level,&
-               dbcsr_caller_error, routineN, "associated(src%d%c_dp)",__LINE__)
+          IF(.NOT.ASSOCIATED(dst%d%c_dp))&
+             CPABORT("associated(dst%d%c_dp)")
+          IF(.NOT.ASSOCIATED(src%d%c_dp))&
+             CPABORT("associated(src%d%c_dp)")
           CALL dbcsr_assert(lb, "GE", LBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
                dbcsr_caller_error, routineN, "lb dst%d%c_dp",__LINE__)
           CALL dbcsr_assert(ub, "LE", UBOUND(dst%d%c_dp,1),dbcsr_fatal_level,&
@@ -950,12 +938,10 @@ CONTAINS
     src_ub(1:src_d) = src_lb(1:src_d) + src_sizes(1:src_d) - 1
     dst_ub(1:dst_d) = dst_lb(1:dst_d) + dst_sizes(1:dst_d) - 1
     IF (careful_mod) THEN
-       CALL dbcsr_assert (dbcsr_data_exists (dst), dbcsr_fatal_level,&
-            dbcsr_wrong_args_error, routineN, "Invalid target data area",&
-            __LINE__)
-       CALL dbcsr_assert (dbcsr_data_exists (src), dbcsr_fatal_level,&
-            dbcsr_wrong_args_error, routineN, "Invalid source data area",&
-            __LINE__)
+       IF(.NOT.dbcsr_data_exists (dst))&
+          CPABORT("Invalid target data area")
+       IF(.NOT.dbcsr_data_exists (src))&
+          CPABORT("Invalid source data area")
        CALL dbcsr_assert (dbcsr_type_2d_to_1d (src_dt), "EQ",&
             dbcsr_type_2d_to_1d (dst_dt), dbcsr_fatal_level, &
             dbcsr_caller_error, routineN,&
@@ -1153,13 +1139,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 ! CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert (ASSOCIATED(area%d),&
-         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Data area must be setup.",__LINE__)
+    IF(.NOT.ASSOCIATED(area%d))&
+       CPABORT("Data area must be setup.")
     IF (PRESENT (value)) THEN
-       CALL dbcsr_assert (area%d%data_type .EQ. value%data_type,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Incompatible data types",__LINE__)
+       IF(area%d%data_type .NE. value%data_type)&
+          CPABORT("Incompatible data types")
     ENDIF
 
     IF(acc_devmem_allocated(area%d%acc_devmem)) THEN
@@ -1560,8 +1544,8 @@ CONTAINS
 
     dt_block = dbcsr_data_get_type(block_data)
     dt_diag = dbcsr_data_get_type(diagonal)
-    CALL dbcsr_assert (dbcsr_type_is_2d (dt_block), dbcsr_fatal_level,&
-         dbcsr_internal_error, routineN, "Block must be 2-d", __LINE__)
+    IF(.NOT.dbcsr_type_is_2d (dt_block))&
+       CPABORT("Block must be 2-d")
     CALL dbcsr_assert ("NOT", dbcsr_type_is_2d (dt_diag), dbcsr_fatal_level,&
          dbcsr_internal_error, routineN, "Diagonal can not be 2-d", __LINE__)
     SELECT CASE (dt_diag)
@@ -1616,8 +1600,8 @@ CONTAINS
 
     dt_block = dbcsr_data_get_type(block_data)
     dt_diag = dbcsr_data_get_type(diagonal)
-    CALL dbcsr_assert (dbcsr_type_is_2d (dt_block), dbcsr_fatal_level,&
-         dbcsr_internal_error, routineN, "Block must be 2-d", __LINE__)
+    IF(.NOT.dbcsr_type_is_2d (dt_block))&
+       CPABORT("Block must be 2-d")
     CALL dbcsr_assert ("NOT", dbcsr_type_is_2d (dt_diag), dbcsr_fatal_level,&
          dbcsr_internal_error, routineN, "Diagonal can not be 2-d", __LINE__)
     SELECT CASE (dt_diag)

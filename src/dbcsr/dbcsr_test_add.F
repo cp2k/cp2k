@@ -20,9 +20,6 @@ MODULE dbcsr_test_add
                                              dbcsr_type_1d_to_2d
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_new,&
                                              dbcsr_distribution_release
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_internal_error
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_sizes, dbcsr_get_data_type, dbcsr_get_matrix_type, &
@@ -426,8 +423,8 @@ CONTAINS
     CALL mp_environ (numnodes, mynode, mp_group)
 
     CALL dbcsr_data_get_sizes (dense_a, row_size, col_size, valid)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__)
+    IF(.NOT.valid)&
+       CPABORT("dense matrix not valid")
     !
     !
     m = limits(2) - limits(1) + 1
@@ -443,8 +440,8 @@ CONTAINS
     SELECT CASE (dense_a%d%data_type)
     CASE (dbcsr_type_real_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__)
+       IF(istat/=0)&
+          CPABORT("allocattion problem")
        eps          = dlamch('eps')
        a_norm_in    = dlange(norm, row_size, col_size, dense_a%d%r2_dp(1,1), ld, work)
        b_norm       = dlange(norm, row_size, col_size, dense_b%d%r2_dp(1,1), ld, work)
@@ -466,8 +463,8 @@ CONTAINS
        DEALLOCATE(work)
     CASE (dbcsr_type_real_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__)
+       IF(istat/=0)&
+          CPABORT("allocattion problem")
        eps          = slamch('eps')
        a_norm_in    = slange(norm, row_size, col_size, dense_a%d%r2_sp(1,1), ld, work_sp)
        b_norm       = slange(norm, row_size, col_size, dense_b%d%r2_sp(1,1), ld, work_sp)
@@ -489,8 +486,8 @@ CONTAINS
        DEALLOCATE(work_sp)
     CASE (dbcsr_type_complex_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__)
+       IF(istat/=0)&
+          CPABORT("allocattion problem")
        eps          = dlamch('eps')
        a_norm_in    = zlange(norm, row_size, col_size, dense_a%d%c2_dp(1,1), ld, work)
        b_norm       = zlange(norm, row_size, col_size, dense_b%d%c2_dp(1,1), ld, work)
@@ -512,8 +509,8 @@ CONTAINS
        DEALLOCATE(work)
     CASE (dbcsr_type_complex_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocattion problem",__LINE__)
+       IF(istat/=0) &
+          CPABORT("allocattion problem")
        eps          = REAL(slamch('eps'),real_8)
        a_norm_in    = clange(norm, row_size, col_size, dense_a%d%c2_sp(1,1), ld, work_sp)
        b_norm       = clange(norm, row_size, col_size, dense_b%d%c2_sp(1,1), ld, work_sp)

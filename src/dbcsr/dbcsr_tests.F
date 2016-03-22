@@ -299,9 +299,8 @@ CONTAINS
       WRITE(io_unit,*) "difference norm",norm
     ENDIF
 
-    CALL dbcsr_assert (norm==0.0_dp, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN,&
-         "bug in binary io",__LINE__)
+    IF(norm/=0.0_dp)&
+       CPABORT("bug in binary io")
 
     CALL dbcsr_release(matrix_a_read)
 

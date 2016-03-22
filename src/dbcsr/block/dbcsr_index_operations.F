@@ -424,9 +424,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (debug_mod) THEN
-        CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
-             dbcsr_internal_error, routineP,&
-             "Index must be preallocated.",__LINE__)
+        IF(.NOT.ASSOCIATED(matrix%index))&
+           CPABORT("Index must be preallocated.")
         CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
              dbcsr_failure_level, dbcsr_internal_error, routineP,&
              "Actual index size less than declared size",__LINE__)
@@ -497,9 +496,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (ASSOCIATED (matrix%index), dbcsr_fatal_level,&
-         dbcsr_internal_error, routineP,&
-         "Index must be preallocated.",__LINE__)
+    IF(.NOT.ASSOCIATED (matrix%index))&
+       CPABORT("Index must be preallocated.")
     CALL dbcsr_assert (UBOUND(matrix%index,1),'GE',dbcsr_num_slots,&
          dbcsr_failure_level, dbcsr_internal_error, routineP,&
          "Actual index size less than declared size",__LINE__)
@@ -619,9 +617,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, error_handle)
-    CALL dbcsr_assert (ASSOCIATED (m%index),&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Index array does not yet exist.", __LINE__)
+    IF(.NOT.ASSOCIATED (m%index))&
+       CPABORT("Index array does not yet exist.")
     IF (.NOT. ASSOCIATED (m%row_p)) THEN
        CALL dbcsr_addto_index_array (m, dbcsr_slot_row_p,&
             reservation=m%nblkrows_total+1)
@@ -684,14 +681,12 @@ CONTAINS
          dbcsr_caller_error, routineP, 'blk_p too small',__LINE__)
     IF (PRESENT (blk_p)) THEN
        ALLOCATE(buf(n), stat=stat)
-       CALL dbcsr_assert(stat == 0, dbcsr_failure_level,&
-            dbcsr_caller_error, routineP, 'buf',__LINE__)
+       IF(stat /= 0) CPABORT('buf')
        buf(1:n) = blk_p(1:n)
     ENDIF
     IF (PRESENT (blk_d)) THEN
        ALLOCATE(buf_d(n), stat=stat)
-       CALL dbcsr_assert(stat == 0, dbcsr_failure_level,&
-            dbcsr_caller_error, routineP, 'buf_d',__LINE__)
+       IF(stat /= 0) CPABORT('buf_d')
        buf_d(1:n) = blk_d(1:n)
     ENDIF
     !> Create an ordering for both rows and columns. If the blk_p must
@@ -1252,9 +1247,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, error_handle)
-    CALL dbcsr_assert (ASSOCIATED (matrix%m%row_p),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "The row index must be initialized.", __LINE__)
+    IF(.NOT.ASSOCIATED (matrix%m%row_p))&
+       CPABORT("The row index must be initialized.")
     CALL dbcsr_assert ("NOT", matrix%m%bcsc,&
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
          "Not support for BCSC yet.", __LINE__)
@@ -1339,9 +1333,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset (routineN, error_handle)
-    CALL dbcsr_assert (ASSOCIATED (matrix%m%row_p),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "The row index must be initialized.", __LINE__)
+    IF(.NOT.ASSOCIATED (matrix%m%row_p))&
+       CPABORT("The row index must be initialized.")
     CALL dbcsr_assert ("NOT", matrix%m%list_indexing,&
          dbcsr_fatal_level, dbcsr_internal_error, routineN,&
          "List index already exists?", __LINE__)

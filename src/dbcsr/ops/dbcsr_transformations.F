@@ -50,7 +50,6 @@ MODULE dbcsr_transformations
                                              dbcsr_transpose_dims,&
                                              dbcsr_transpose_distribution
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
@@ -179,8 +178,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert (dbcsr_valid_index(normal), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Matrix does not exist.",__LINE__)
+    IF(.NOT.dbcsr_valid_index(normal))&
+       CPABORT("Matrix does not exist.")
     ! Internalize options
     shallow = .FALSE.
     IF (PRESENT (shallow_data_copy)) shallow = shallow_data_copy
@@ -248,8 +247,7 @@ CONTAINS
     transposed%m%index(dbcsr_slot_nze) = normal%m%nze
     ! Transpose the local index.
     ALLOCATE (blk_p (normal%m%nblks), stat=stat)
-    CALL dbcsr_assert(stat == 0, dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "blk_p",__LINE__)
+    IF(stat /= 0) CPABORT("blk_p")
     IF (tr_index) THEN
        CALL transpose_index_local (transposed%m%row_p, transposed%m%col_i,&
             normal%m%row_p, normal%m%col_i, blk_p, normal%m%blk_p)
@@ -352,9 +350,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index (sm),&
-         dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-         "Input matrix is invalid.",__LINE__)
+    IF(.NOT.dbcsr_valid_index (sm))&
+       CPABORT("Input matrix is invalid.")
     IF(dbcsr_valid_index (desm)) THEN
        CALL dbcsr_release(desm)
        CALL dbcsr_init(desm)
@@ -594,9 +591,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Matrix not initialized.",__LINE__)
+    IF(.NOT.dbcsr_valid_index(matrix%m))&
+       CPABORT("Matrix not initialized.")
     IF(matrix%m%replication_type.EQ.dbcsr_repl_none)&
        CPWARN("Distributing a non-replicated matrix makes no sense.")
     IF (PRESENT (fast)) THEN
@@ -1409,9 +1405,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Matrix not initialized.",__LINE__)
+    IF(.NOT.dbcsr_valid_index(matrix%m))&
+       CPABORT("Matrix not initialized.")
     !CALL dbcsr_assert (matrix%m%replication_type .EQ. dbcsr_repl_none,&
     !     dbcsr_warning_level, dbcsr_caller_error, routineN,&
     !     "Replicating a non-distributed matrix makes no sense.",__LINE__)
@@ -1439,16 +1434,14 @@ CONTAINS
     mynode = dbcsr_mp_mynode (mp_obj)
     myprow = dbcsr_mp_myprow (mp_obj)
     mypcol = dbcsr_mp_mypcol (mp_obj)
-    CALL dbcsr_assert(MAXVAL(row_dist).LE.UBOUND(blacs2mpi,1), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows',__LINE__)
+    IF(MAXVAL(row_dist).GT.UBOUND(blacs2mpi,1))&
+       CPABORT('Row distribution references unexistent processor rows')
     IF (dbg) THEN
        IF(MAXVAL(row_dist).NE.UBOUND(blacs2mpi,1))&
           CPWARN('Range of row distribution not equal to processor rows')
     ENDIF
-    CALL dbcsr_assert(MAXVAL(col_dist).LE.UBOUND(blacs2mpi,2), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols',__LINE__)
+    IF(MAXVAL(col_dist).GT.UBOUND(blacs2mpi,2))&
+       CPABORT('Col distribution references unexistent processor cols')
     IF (dbg) THEN
        IF(MAXVAL(col_dist).NE.UBOUND(blacs2mpi,2))&
           CPWARN('Range of col distribution not equal to processor cols')
@@ -1691,12 +1684,10 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Input not valid.",__LINE__)
-    CALL dbcsr_assert (dbcsr_is_initialized(redist%m),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Output matrix not initialized.",__LINE__)
+    IF(.NOT.dbcsr_valid_index(matrix%m))&
+       CPABORT("Input not valid.")
+    IF(.NOT.dbcsr_is_initialized(redist%m))&
+       CPABORT("Output matrix not initialized.")
     IF(matrix%m%replication_type.NE.dbcsr_repl_none)&
        CPWARN("Can not redistribute replicated matrix.")
     !
@@ -2091,12 +2082,10 @@ CONTAINS
     CALL timeset(routineN, handle)
     !call dbcsr_print_dist (matrix%m%dist)
     !call dbcsr_print_dist (redist%m%dist)
-    CALL dbcsr_assert (dbcsr_valid_index(matrix%m),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Input not valid.",__LINE__)
-    CALL dbcsr_assert (dbcsr_is_initialized(redist%m),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Output matrix not initialized.",__LINE__)
+    IF(.NOT.dbcsr_valid_index(matrix%m))&
+       CPABORT("Input not valid.")
+    IF(.NOT.dbcsr_is_initialized(redist%m))&
+       CPABORT("Output matrix not initialized.")
     IF(matrix%m%replication_type.NE.dbcsr_repl_none)&
        CPWARN("Can not redistribute replicated matrix.")
     data_type = matrix%m%data_type
@@ -2114,16 +2103,14 @@ CONTAINS
     numnodes = dbcsr_mp_numnodes (mp_obj_new)
     mp_group = dbcsr_mp_group (mp_obj_new)
     !
-    CALL dbcsr_assert(MAXVAL(row_dist_new).LE.UBOUND(pgrid,1), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Row distribution references unexistent processor rows',__LINE__)
+    IF(MAXVAL(row_dist_new).GT.UBOUND(pgrid,1))&
+       CPABORT('Row distribution references unexistent processor rows')
     IF (dbg) THEN
        IF(MAXVAL(row_dist_new).NE.UBOUND(pgrid,1))&
           CPWARN('Range of row distribution not equal to processor rows')
     ENDIF
-    CALL dbcsr_assert(MAXVAL(col_dist_new).LE.UBOUND(pgrid,2), dbcsr_failure_level,&
-         dbcsr_wrong_args_error, routineN,&
-         'Col distribution references unexistent processor cols',__LINE__)
+    IF(MAXVAL(col_dist_new).GT.UBOUND(pgrid,2))&
+       CPABORT('Col distribution references unexistent processor cols')
     IF (dbg) THEN
        IF(MAXVAL(col_dist_new).NE.UBOUND(pgrid,2))&
           CPWARN('Range of col distribution not equal to processor cols')

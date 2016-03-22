@@ -14,9 +14,6 @@
 ! *****************************************************************************
 PROGRAM dbcsr_performance_driver
   USE dbcsr_config,                    ONLY: dbcsr_set_default_config
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_wrong_args_error
   USE dbcsr_lib,                       ONLY: dbcsr_finalize_lib,&
                                              dbcsr_init_lib
   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_new,&
@@ -86,8 +83,8 @@ PROGRAM dbcsr_performance_driver
   IF (mynode.eq.0) CALL dbcsr_test_read_args (narg, args)
   CALL mp_bcast (narg, 0, group)
   CALL mp_bcast (args, 0, group)
-  CALL dbcsr_assert (narg.GE.1, dbcsr_fatal_level, dbcsr_wrong_args_error, &
-     routineN, "nargs not correct", __LINE__)
+  IF(narg.LT.1)&
+     CPABORT("nargs not correct")
 
   !
   ! initialize libdbcsr

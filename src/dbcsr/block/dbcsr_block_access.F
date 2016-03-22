@@ -177,8 +177,8 @@ CONTAINS
     IF (careful_mod) CALL timeset (routineN, error_handle)
     IF (PRESENT (block_number)) THEN
        b = block_number
-       CALL dbcsr_assert (block_number .LE. matrix%m%nblks, dbcsr_failure_level,&
-            dbcsr_caller_error, routineN, "Block number too big.",__LINE__)
+       IF(block_number .GT. matrix%m%nblks)&
+          CPABORT("Block number too big.")
        found = .TRUE.
     ELSE
        CALL dbcsr_get_block_index (matrix, row, col, r, c, tr, found, b)
@@ -256,9 +256,8 @@ CONTAINS
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
        iw = 1
 !$     iw = omp_get_thread_num()+1
-       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
-            dbcsr_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.",__LINE__)
+       IF(.NOT.dbcsr_use_mutable (matrix%m))&
+          CPABORT("Can not retrieve blocks from non-mutable work matrices.")
        IF (dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
           SELECT CASE (block%d%data_type)
           CASE (dbcsr_type_real_4_2d)
@@ -344,8 +343,8 @@ CONTAINS
        !     dbcsr_wrong_args_error, routineN, "Incompatible data types matrix="//&
        !     data_type_m//" scale="//scale%data_type)
     ENDIF
-    CALL dbcsr_assert (ASSOCIATED (block%d), dbcsr_fatal_level, dbcsr_wrong_args_error,&
-         routineN, "Can only add valid data block!",__LINE__)
+    IF(.NOT.ASSOCIATED (block%d))&
+       CPABORT("Can only add valid data block!")
     SELECT CASE(block%d%data_type)
     CASE (dbcsr_type_real_4)
        IF (do_scale) THEN

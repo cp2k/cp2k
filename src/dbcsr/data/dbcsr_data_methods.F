@@ -39,10 +39,6 @@ MODULE dbcsr_data_methods
        dbcsr_memtype_type, dbcsr_type_complex_4, dbcsr_type_complex_8, &
        dbcsr_type_int_4, dbcsr_type_int_8, dbcsr_type_real_4, &
        dbcsr_type_real_8
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_wrong_args_error
   USE dbcsr_mem_methods,               ONLY: dbcsr_mempool_add,&
                                              dbcsr_mempool_get
   USE dbcsr_ptr_util,                  ONLY: ensure_array_size
@@ -206,9 +202,8 @@ CONTAINS
 
     CALL timeset(routineN, handle)
 
-    CALL dbcsr_assert(.NOT.ASSOCIATED(area%d), dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN,&
-               "area already associcated", __LINE__)
+    IF(ASSOCIATED(area%d))&
+       CPABORT("area already associcated")
 
     my_memory_type = dbcsr_memtype_default
     IF (PRESENT (memory_type)) my_memory_type = memory_type
@@ -220,9 +215,8 @@ CONTAINS
        d=2
        IF (PRESENT(data_size2)) sizes_requested(2)=data_size2
 
-       CALL dbcsr_assert(PRESENT(data_size).EQV.PRESENT(data_size2), &
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Must specify 2 sizes for 2-D data", __LINE__)
+       IF(PRESENT(data_size).NEQV.PRESENT(data_size2))&
+          CPABORT("Must specify 2 sizes for 2-D data")
     ENDIF
 
     sizes_oversized = INT(sizes_requested * my_memory_type%oversize_factor)
@@ -280,8 +274,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) CALL timeset(routineN, handle)
-    CALL dbcsr_assert(ASSOCIATED (area%d), dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Data area must be setup.",__LINE__)
+    IF(.NOT.ASSOCIATED (area%d))&
+       CPABORT("Data area must be setup.")
     current_size = dbcsr_data_get_size (area)
 
     ! allocate some more as padding for libsmm kernels which read over the end.
@@ -379,11 +373,9 @@ CONTAINS
                    nocopy, zero_pad)
           END IF
           CALL acc_event_record(area%d%acc_ready, area%d%memory_type%acc_stream)
-          CALL dbcsr_assert(&
-                 dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area)&
-                  == acc_devmem_size_in_bytes(area%d%acc_devmem),&
-                 dbcsr_fatal_level, dbcsr_caller_error,&
-                 routineN, "Host and device buffer differ in size.",__LINE__)
+          IF(dbcsr_datatype_sizeof(area%d%data_type)*dbcsr_data_get_size(area)&
+                  /= acc_devmem_size_in_bytes(area%d%acc_devmem))&
+                 CPABORT("Host and device buffer differ in size.")
        ENDIF
 
     ENDIF

@@ -551,14 +551,12 @@
     INTEGER                                  :: lb_s, ub, ub_s
 !   ---------------------------------------------------------------------------
     IF (debug_mod) THEN
-       CALL dbcsr_assert (ASSOCIATED (dst%d),&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Target data area must be setup.",__LINE__)
-       CALL dbcsr_assert (SIZE(src) .GE. data_size,&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "Not enough source data.",__LINE__)
-       CALL dbcsr_assert (dst%d%data_type .EQ. dbcsr_type_real_8, dbcsr_failure_level,&
-            dbcsr_caller_error, routineN, "Data type mismatch.",__LINE__)
+       IF(.NOT.ASSOCIATED (dst%d))&
+          CPABORT("Target data area must be setup.")
+       IF(SIZE(src) .LT. data_size)&
+          CPABORT("Not enough source data.")
+       IF(dst%d%data_type .NE. dbcsr_type_real_8)&
+          CPABORT("Data type mismatch.")
     ENDIF
     ub = lb + data_size - 1
     IF (PRESENT (source_lb)) THEN

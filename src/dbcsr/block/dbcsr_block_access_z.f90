@@ -70,9 +70,8 @@
 !$        dbcsr_fatal_level, dbcsr_internal_error,&
 !$        routineN, "Number of work matrices not equal to number of threads", __LINE__)
 !$     iw = omp_get_thread_num () + 1
-       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
-            dbcsr_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.",__LINE__)
+       IF(.NOT.dbcsr_use_mutable (matrix%m))&
+          CPABORT("Can not retrieve blocks from non-mutable work matrices.")
        IF (dbcsr_use_mutable (matrix%m)) THEN
           IF (.NOT. dbcsr_mutable_instantiated(matrix%m%wms(iw)%mutable)) THEN
              CALL dbcsr_mutable_new(matrix%m%wms(iw)%mutable,&
@@ -145,12 +144,10 @@
             dbcsr_get_data_p (matrix%m%data_area, CMPLX(0.0, 0.0, real_8)), offset, offset+nze-1&
             )
     ELSEIF (ASSOCIATED (matrix%m%wms)) THEN
-       CALL dbcsr_assert (dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
-            dbcsr_caller_error, routineN,&
-            "Can not retrieve blocks from non-mutable work matrices.",__LINE__)
-       CALL dbcsr_assert ("NOT", dbcsr_use_mutable (matrix%m), dbcsr_failure_level,&
-            dbcsr_caller_error, routineN,&
-            "Can not retrieve rank-1 block pointers from mutable work matrices.",__LINE__)
+       IF(.NOT.dbcsr_use_mutable (matrix%m))&
+          CPABORT("Can not retrieve blocks from non-mutable work matrices.")
+       IF(dbcsr_use_mutable (matrix%m))&
+          CPABORT("Can not retrieve rank-1 block pointers from mutable work matrices.")
     ENDIF
   END SUBROUTINE dbcsr_get_block_p_z
 

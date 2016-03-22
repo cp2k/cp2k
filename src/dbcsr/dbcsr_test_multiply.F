@@ -22,9 +22,6 @@ MODULE dbcsr_test_multiply
                                              dbcsr_type_1d_to_2d
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_new,&
                                              dbcsr_distribution_release
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_internal_error
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
        dbcsr_col_block_offsets, dbcsr_col_block_sizes, dbcsr_get_data_type, &
@@ -607,17 +604,17 @@ CONTAINS
     CALL mp_environ (numnodes, mynode, mp_group)
 
     CALL dbcsr_data_get_sizes (dense_c, c_row_size, c_col_size, valid)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__)
+    IF(.NOT.valid)&
+       CPABORT("dense matrix not valid")
     CALL dbcsr_data_get_sizes (dense_c, ldc, i, valid)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__)
+    IF(.NOT.valid)&
+       CPABORT("dense matrix not valid")
     CALL dbcsr_data_get_sizes (dense_a, lda, i, valid)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__)
+    IF(.NOT.valid)&
+       CPABORT("dense matrix not valid")
     CALL dbcsr_data_get_sizes (dense_b, ldb, i, valid)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__)
+    IF(.NOT.valid)&
+       CPABORT("dense matrix not valid")
     !
     !
     m = limits(2) - limits(1) + 1
@@ -656,8 +653,8 @@ CONTAINS
     SELECT CASE (dense_a%d%data_type)
     CASE (dbcsr_type_real_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocation problem",__LINE__)
+       IF(istat/=0)&
+          CPABORT("allocation problem")
        eps          = dlamch('eps')
        a_norm       = dlange(norm, a_m, a_n, dense_a%d%r2_dp(a_row,a_col), lda, work)
        b_norm       = dlange(norm, b_m, b_n, dense_b%d%r2_dp(b_row,b_col), ldb, work)
@@ -680,8 +677,8 @@ CONTAINS
        DEALLOCATE(work)
     CASE (dbcsr_type_real_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocation problem",__LINE__)
+       IF(istat/=0)&
+          CPABORT("allocation problem")
        eps          = REAL(slamch('eps'),real_8)
        a_norm       = slange(norm, a_m, a_n, dense_a%d%r2_sp(a_row,a_col), lda, work_sp)
        b_norm       = slange(norm, b_m, b_n, dense_b%d%r2_sp(b_row,b_col), ldb, work_sp)
@@ -738,8 +735,8 @@ CONTAINS
        DEALLOCATE(work_sp)
     CASE (dbcsr_type_complex_8_2d)
        ALLOCATE(work(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocation problem",__LINE__)
+       IF(istat/=0)&
+          CPABORT("allocation problem")
        eps          = dlamch('eps')
        a_norm       = zlange(norm, a_m, a_n, dense_a%d%c2_dp(a_row,a_col), lda, work)
        b_norm       = zlange(norm, b_m, b_n, dense_b%d%c2_dp(b_row,b_col), ldb, work)
@@ -762,8 +759,8 @@ CONTAINS
        DEALLOCATE(work)
     CASE (dbcsr_type_complex_4_2d)
        ALLOCATE(work_sp(lwork), STAT=istat)
-       CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-            routineN, "allocation problem",__LINE__)
+       IF(istat/=0)&
+          CPABORT("allocation problem")
        eps          = REAL(slamch('eps'),real_8)
        a_norm       = clange(norm, a_m, a_n, dense_a%d%c2_sp(a_row,a_col), lda, work_sp)
        b_norm       = clange(norm, b_m, b_n, dense_b%d%c2_sp(b_row,b_col), ldb, work_sp)

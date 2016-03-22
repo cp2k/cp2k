@@ -26,8 +26,6 @@ MODULE dbcsr_util
                                              dbcsr_distribution_nlocal_rows,&
                                              dbcsr_distribution_nrows
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -129,9 +127,8 @@ CONTAINS
           IF (count .GT. nblocks .OR. block .LT. 1 .OR. block .GT. nblocks) THEN
              WRITE(*,'(1X,A,I9,A,I9,A)')"Want to find block",&
                   block," of",nblocks," blocks"
-             CALL dbcsr_assert (count .LE. nblocks, dbcsr_failure_level,&
-                  dbcsr_internal_error, "find_block_of_element",&
-                  "Too many searches",__LINE__)
+             IF(count .GT. nblocks)&
+                CPABORT("Too many searches")
           ENDIF
        ENDIF
     ENDDO
@@ -541,9 +538,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index(matrix),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Invalid matrix.",__LINE__)
+   IF(.NOT.dbcsr_valid_index(matrix))&
+      CPABORT("Invalid matrix.")
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local
     IF (PRESENT (pos)) THEN
@@ -703,9 +699,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_is_initialized(m),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Can not verify non-existing matrix object.",__LINE__)
+    IF(.NOT.dbcsr_is_initialized(m))&
+       CPABORT("Can not verify non-existing matrix object.")
     dbg = 2
     nocomm = .FALSE.
     IF (PRESENT (local)) nocomm = local

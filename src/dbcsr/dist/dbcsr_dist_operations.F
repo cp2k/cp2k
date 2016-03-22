@@ -33,7 +33,6 @@ MODULE dbcsr_dist_operations
        dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
        dbcsr_distribution_thread_dist
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
@@ -254,11 +253,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (debug_mod) THEN
-       CALL dbcsr_assert (dbcsr_is_initialized(matrix),&
-            dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-            "matrix%m not associated",__LINE__)
-    ENDIF
+    IF (debug_mod .AND. .NOT.dbcsr_is_initialized(matrix))&
+       CPABORT("matrix%m not associated")
     IF (PRESENT (processor)) THEN
        CALL dbcsr_get_stored_coordinates (matrix%m, row, column, processor)
     ELSE
@@ -813,10 +809,10 @@ CONTAINS
        ENDIF
        new_bins(i) = virtual_bin / nimages
        images(i) = 1 + MOD (virtual_bin, nimages)
-       CALL dbcsr_assert (new_bins(i).lt.nbins, dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Wrong bin calculation",__LINE__)
-       CALL dbcsr_assert (images(i).le.nimages, dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Wrong image calculation",__LINE__)
+       IF(new_bins(i).ge.nbins)&
+          CPABORT("Wrong bin calculation")
+       IF(images(i).gt.nimages)&
+          CPABORT("Wrong image calculation")
     ENDDO
   END SUBROUTINE rebin_imaged_distribution
 
@@ -846,20 +842,18 @@ CONTAINS
 
     dim = SIZE (new_bins)
     nimages = nclusters/nbins
-    CALL dbcsr_assert (dim.EQ.SIZE(source_bins),&
-         dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Wrong bins array dimension",__LINE__)
-    CALL dbcsr_assert (dim.EQ.SIZE(new_images).AND.dim.EQ.SIZE(source_images),&
-         dbcsr_fatal_level, dbcsr_internal_error,&
-         routineN, "Wrong images array dimensions",__LINE__)
+    IF(dim.NE.SIZE(source_bins))&
+       CPABORT("Wrong bins array dimension")
+    IF(dim.NE.SIZE(new_images).OR.dim.NE.SIZE(source_images))&
+       CPABORT("Wrong images array dimensions")
     DO i = 1, dim
        virtual_bin = source_bins(i)*multiplicity + source_images(i)
        new_bins(i) = virtual_bin / nimages
        new_images(i) = 1 + virtual_bin
-       CALL dbcsr_assert (new_bins(i).lt.nbins, dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Wrong bin calculation",__LINE__)
-       CALL dbcsr_assert (new_images(i).le.nclusters, dbcsr_fatal_level, dbcsr_internal_error,&
-            routineN, "Wrong image calculation",__LINE__)
+       IF(new_bins(i).ge.nbins)&
+          CPABORT("Wrong bin calculation")
+       IF(new_images(i).gt.nclusters)&
+          CPABORT("Wrong image calculation")
     ENDDO
   END SUBROUTINE rebin_imaged_distribution_clusters
 
@@ -1283,13 +1277,11 @@ CONTAINS
 
        estimated_blocks = max_blocks_per_bin * nbins
        ALLOCATE (blk_dist (estimated_blocks), stat=stat)
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, &
-            dbcsr_caller_error, routineN,&
-            "blk_dist",__LINE__)
+       IF(stat /= 0)&
+          CPABORT("blk_dist")
        ALLOCATE (blk_sizes (estimated_blocks), stat=stat)
-       CALL dbcsr_assert (stat == 0,dbcsr_fatal_level, &
-            dbcsr_caller_error, routineN,&
-            "blk_sizes",__LINE__)
+       IF(stat /= 0)&
+          CPABORT("blk_sizes")
        element_stack = 0
        nblks = 0
        DO blk_layer = 1, max_blocks_per_bin
@@ -1311,27 +1303,23 @@ CONTAINS
           block_size => blk_sizes
        ELSE
           ALLOCATE (block_distribution (nblks), stat=stat)
-          CALL dbcsr_assert (stat == 0, dbcsr_fatal_level, &
-               dbcsr_caller_error, routineN,&
-               "blk_dist",__LINE__)
+          IF(stat /= 0)&
+             CPABORT("blk_dist")
           block_distribution(:)=blk_dist(1:nblks)
           DEALLOCATE (blk_dist)
           ALLOCATE (block_size (nblks), stat=stat)
-          CALL dbcsr_assert (stat == 0,dbcsr_fatal_level, &
-               dbcsr_caller_error, routineN,&
-               "blk_sizes",__LINE__)
+          IF(stat /= 0)&
+             CPABORT("blk_sizes")
           block_size(:)=blk_sizes(1:nblks)
           DEALLOCATE(blk_sizes)
        ENDIF
     ELSE
        ALLOCATE (block_distribution (0), stat=stat)
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
-            dbcsr_caller_error, routineN,&
-            "blk_dist",__LINE__)
+       IF(stat /= 0)&
+          CPABORT("blk_dist")
        ALLOCATE (block_size (0), stat=stat)
-       CALL dbcsr_assert (stat == 0, dbcsr_fatal_level,&
-            dbcsr_caller_error, routineN,&
-            "blk_sizes",__LINE__)
+       IF(stat /= 0)&
+          CPABORT("blk_sizes")
     ENDIF
 1579 FORMAT (I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5,1X,I5)
     IF (debug_mod) THEN
@@ -1610,9 +1598,8 @@ CONTAINS
 
     CALL timeset(routineN, error_handle)
     !
-    CALL dbcsr_assert (dbcsr_distribution_has_threads (product_dist), &
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Product distribution must have threads.", __LINE__)
+    IF(.NOT.dbcsr_distribution_has_threads (product_dist))&
+       CPABORT("Product distribution must have threads.")
     tdist => array_data (dbcsr_distribution_thread_dist (product_dist))
     old_m_dist = product_dist%d%row_dist_block
     old_n_dist = product_dist%d%col_dist_block
@@ -1620,9 +1607,8 @@ CONTAINS
     m_nbins = dbcsr_mp_nprows (product_dist%d%mp_env)
     n_nbins = dbcsr_mp_npcols (product_dist%d%mp_env)
     k_nbins = dbcsr_mp_nprows (right_rdist%i%main%d%mp_env) * right_rdist%i%row_decimation
-    CALL dbcsr_assert (array_equality (old_k_vdist, left_rdist%i%vcol_dist),&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "k distribution mismtach", __LINE__)
+    IF(.NOT.array_equality (old_k_vdist, left_rdist%i%vcol_dist))&
+       CPABORT("k distribution mismtach")
     nthreads = product_dist%d%num_threads
     !
     IF (partial) THEN
@@ -1846,11 +1832,8 @@ CONTAINS
        DEALLOCATE (nle)
        CALL find_all_local_elements (dist%d%other_l_rows, row_dist, nprows)
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (ASSOCIATED (dist%d%other_l_rows),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local rows mapping does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod .AND. .NOT.ASSOCIATED (dist%d%other_l_rows))&
+          CPABORT("Local rows mapping does not exist.")
     ENDIF
     local_rows = dist%d%other_l_rows(local_prow)
     CALL timestop(error_handle)
@@ -1899,11 +1882,8 @@ CONTAINS
        DEALLOCATE (nle)
        CALL find_all_local_elements (dist%d%other_l_cols, col_dist, npcols)
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (ASSOCIATED (dist%d%other_l_cols),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local columns mapping does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod.AND..NOT.ASSOCIATED (dist%d%other_l_cols))&
+          CPABORT("Local columns mapping does not exist.")
     ENDIF
     local_cols = dist%d%other_l_cols(local_pcol)
     CALL timestop(error_handle)
@@ -1936,11 +1916,8 @@ CONTAINS
        CALL array_new (dist%d%global_row_map, rmap, gift=.TRUE.)
        dist%d%has_global_row_map = .TRUE.
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (array_exists (dist%d%global_row_map),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Row map does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod.AND..NOT.array_exists (dist%d%global_row_map))&
+          CPABORT("Row map does not exist.")
     ENDIF
     row_map = dist%d%global_row_map
     CALL timestop(error_handle)
@@ -1973,11 +1950,8 @@ CONTAINS
        CALL array_new (dist%d%global_col_map, cmap, gift=.TRUE.)
        dist%d%has_global_col_map = .TRUE.
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (array_exists (dist%d%global_col_map),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Column map does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod.AND..NOT.array_exists (dist%d%global_col_map))&
+          CPABORT("Column map does not exist.")
     ENDIF
     col_map = dist%d%global_col_map
     CALL timestop(error_handle)
@@ -2075,11 +2049,8 @@ CONTAINS
        DEALLOCATE (nle)
        CALL find_all_local_elements (imgdist%i%other_vl_rows, vrow_dist, nvprows)
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (ASSOCIATED (imgdist%i%other_vl_rows),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local rows mapping does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod.AND. .NOT.ASSOCIATED (imgdist%i%other_vl_rows))&
+          CPABORT("Local rows mapping does not exist.")
     ENDIF
     local_vrows = imgdist%i%other_vl_rows(local_vprow)
     IF (careful_mod) CALL timestop(error_handle)
@@ -2130,11 +2101,8 @@ CONTAINS
        DEALLOCATE (nle)
        CALL find_all_local_elements (imgdist%i%other_vl_cols, vcol_dist, nvpcols)
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (ASSOCIATED (imgdist%i%other_vl_cols),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Local cols mapping does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod .AND. .NOT.ASSOCIATED (imgdist%i%other_vl_cols))&
+          CPABORT("Local cols mapping does not exist.")
     ENDIF
     local_vcols = imgdist%i%other_vl_cols(local_vpcol)
     IF (careful_mod) CALL timestop(error_handle)
@@ -2167,11 +2135,8 @@ CONTAINS
        CALL array_new (imgdist%i%global_vrow_map, rmap, gift=.TRUE.)
        imgdist%i%has_global_vrow_map = .TRUE.
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (array_exists (imgdist%i%global_vrow_map),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Row map does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod.AND..NOT.array_exists (imgdist%i%global_vrow_map))&
+          CPABORT("Row map does not exist.")
     ENDIF
     vrow_map = imgdist%i%global_vrow_map
     IF (careful_mod) CALL timestop(error_handle)
@@ -2204,11 +2169,8 @@ CONTAINS
        CALL array_new (imgdist%i%global_vcol_map, rmap, gift=.TRUE.)
        imgdist%i%has_global_vcol_map = .TRUE.
     ELSE
-       IF (careful_mod) THEN
-          CALL dbcsr_assert (array_exists (imgdist%i%global_vcol_map),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "Col map does not exist.", __LINE__)
-       ENDIF
+       IF (careful_mod.AND..NOT.array_exists (imgdist%i%global_vcol_map))&
+          CPABORT("Col map does not exist.")
     ENDIF
     vcol_map = imgdist%i%global_vcol_map
     IF (careful_mod) CALL timestop(error_handle)

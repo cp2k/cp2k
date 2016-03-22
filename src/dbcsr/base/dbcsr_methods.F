@@ -26,10 +26,6 @@ MODULE dbcsr_methods
                                              btree_new_z => btree_new
   USE dbcsr_data_methods,              ONLY: dbcsr_data_init,&
                                              dbcsr_data_release
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_wrong_args_error
   USE dbcsr_ptr_util,                  ONLY: memory_deallocate
   USE dbcsr_types,                     ONLY: &
        dbcsr_1d_array_type, dbcsr_2d_array_type, dbcsr_data_obj, &
@@ -1173,8 +1169,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (ASSOCIATED (mutable%m), dbcsr_fatal_level,&
-         dbcsr_caller_error, routineN, "Mutable data area not instantiated",__LINE__)
+    IF(.NOT.ASSOCIATED (mutable%m))&
+       CPABORT("Mutable data area not instantiated")
     mutable%m%refcount = mutable%m%refcount - 1
     IF (mutable%m%refcount .EQ. 0) THEN
        CALL dbcsr_mutable_destroy (mutable)
@@ -1197,13 +1193,13 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (.NOT.ASSOCIATED (mutable%m), dbcsr_fatal_level,&
-         dbcsr_caller_error, routineN, "Mutable data area already instantiated",__LINE__)
-    CALL dbcsr_assert (data_type.EQ.dbcsr_type_real_4&
-         .OR. data_type.EQ.dbcsr_type_real_8&
-         .OR. data_type.EQ.dbcsr_type_complex_4&
-         .OR. data_type.EQ.dbcsr_type_complex_8, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "Invalid data type",__LINE__)
+    IF(ASSOCIATED (mutable%m))&
+       CPABORT("Mutable data area already instantiated")
+    IF(data_type.NE.dbcsr_type_real_4&
+         .AND. data_type.NE.dbcsr_type_real_8&
+         .AND. data_type.NE.dbcsr_type_complex_4&
+         .AND. data_type.NE.dbcsr_type_complex_8)&
+         CPABORT("Invalid data type")
     ALLOCATE (mutable%m)
     mutable%m%refcount = 1
     mutable%m%data_type = data_type

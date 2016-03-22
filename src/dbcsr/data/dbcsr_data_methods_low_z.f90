@@ -81,12 +81,10 @@
           u = UBOUND (area%d%c_dp, 1)
           IF (PRESENT (ub)) u = ub
           IF (debug_mod) THEN
-             CALL dbcsr_assert (l .GE. LBOUND (area%d%c_dp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (u .LE. UBOUND (area%d%c_dp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
+             IF(l .LT. LBOUND (area%d%c_dp, 1))&
+                CPABORT("Out of bounds")
+             IF(u .GT. UBOUND (area%d%c_dp, 1))&
+                CPABORT("Out of bounds")
           ENDIF
           DATA => area%d%c_dp(l:u)
        ELSE
@@ -125,12 +123,10 @@
           u = UBOUND (area%d%c_dp, 1)
           IF (PRESENT (ub)) u = ub
           IF (debug_mod) THEN
-             CALL dbcsr_assert (l .GE. LBOUND (area%d%c_dp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (u .LE. UBOUND (area%d%c_dp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
+             IF(l .LT. LBOUND (area%d%c_dp, 1))&
+                CPABORT("Out of bounds")
+             IF(u .GT. UBOUND (area%d%c_dp, 1))&
+                CPABORT("Out of bounds")
           ENDIF
           DATA => area%d%c_dp(l:u)
        ELSE
@@ -169,18 +165,14 @@
           u = UBOUND (area%d%c2_dp)
           IF (PRESENT (ub)) u = ub
           IF (debug_mod) THEN
-             CALL dbcsr_assert (l(1) .GE. LBOUND (area%d%c2_dp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (l(2) .GE. LBOUND (area%d%c2_dp, 2),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (u(1) .LE. UBOUND (area%d%c2_dp, 1),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
-             CALL dbcsr_assert (u(2) .LE. UBOUND (area%d%c2_dp, 2),&
-                  dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-                  "Out of bounds",__LINE__)
+             IF(l(1) .LT. LBOUND (area%d%c2_dp, 1))&
+                CPABORT("Out of bounds")
+             IF(l(2) .LT. LBOUND (area%d%c2_dp, 2))&
+                CPABORT("Out of bounds")
+             IF(u(1) .GT. UBOUND (area%d%c2_dp, 1))&
+                CPABORT("Out of bounds")
+             IF(u(2) .GT. UBOUND (area%d%c2_dp, 2))&
+                CPABORT("Out of bounds")
           ENDIF
           DATA => area%d%c2_dp(l(1):u(1), l(2):u(2))
        ELSE

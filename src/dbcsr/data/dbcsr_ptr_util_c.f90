@@ -127,9 +127,8 @@
     !
     ! Now copy and/or zero pad.
     IF(docopy) THEN
-       IF(dbg) CALL dbcsr_assert(lb_new.LE.lb_orig .AND. ub_new.GE.ub_orig,&
-            dbcsr_failure_level, dbcsr_internal_error, routineP,&
-            "Old extent exceeds the new one.",__LINE__)
+       IF(dbg .AND. (lb_new.GT.lb_orig .OR. ub_new.LT.ub_orig))&
+            CPABORT("Old extent exceeds the new one.")
        IF (ub_orig-lb_orig+1 .GT. 0) THEN
           !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
           CALL mem_copy_c (newarray(lb_orig:ub_orig),&

@@ -9,9 +9,6 @@
 !> \date    10-2014
 ! *****************************************************************************
 MODULE dbcsr_mp_methods
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_internal_error
   USE dbcsr_methods,                   ONLY: dbcsr_mp_grid_remove,&
                                              dbcsr_mp_release
   USE dbcsr_types,                     ONLY: dbcsr_mp_obj
@@ -20,6 +17,10 @@ MODULE dbcsr_mp_methods
                                              mp_comm_free
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
+
+#include "../../base/base_uses.f90"
+
+
   IMPLICIT NONE
 
   PRIVATE
@@ -156,12 +157,10 @@ CONTAINS
        CALL mp_cart_create (mp_env%mp%mp_group, ndims,&
             dims, my_pos,&
             tmp_group)
-       CALL dbcsr_assert (my_pos(1) .EQ. mp_env%mp%myprow,&
-            dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
-            "Got different MPI process grid",__LINE__)
-       CALL dbcsr_assert (my_pos(2) .EQ. mp_env%mp%mypcol,&
-            dbcsr_fatal_level, dbcsr_internal_error, "mp_grid_setup",&
-            "Got different MPI process grid",__LINE__)
+       IF(my_pos(1) .NE. mp_env%mp%myprow)&
+          CPABORT("Got different MPI process grid")
+       IF(my_pos(2) .NE. mp_env%mp%mypcol)&
+          CPABORT("Got different MPI process grid")
        !
        remain = (/.FALSE., .TRUE./)
        CALL mp_cart_sub (tmp_group, remain, mp_env%mp%prow_group)

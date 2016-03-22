@@ -23,7 +23,6 @@ MODULE dbcsr_performance_multiply
   USE dbcsr_dist_operations,           ONLY: dbcsr_dist_bin
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
                                              dbcsr_wrong_args_error
   USE dbcsr_io,                        ONLY: dbcsr_print
   USE dbcsr_methods,                   ONLY: &
@@ -151,8 +150,8 @@ CONTAINS
           __LINE__)
 
      ALLOCATE(bs_m(2*mblk_to_read), bs_n(2*nblk_to_read), bs_k(2*kblk_to_read), STAT=istat)
-     CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-          routineN, "allocattion problem",__LINE__)
+     IF(istat/=0)&
+        CPABORT("allocattion problem")
 
      i = 28
      DO iblk = 1,mblk_to_read
@@ -521,8 +520,8 @@ CONTAINS
     ALLOCATE(times(0:numnodes-1,nrep), flops(0:numnodes-1,nrep), t_max(nrep),&
          flops_node(nrep), flops_thread(nrep), flops_all(nrep), flop_sum(nrep), &
          t_min(nrep), t(nrep), load_imb(nrep), STAT=istat)
-    CALL dbcsr_assert (istat==0, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "allocattion problem",__LINE__)
+    IF(istat/=0)&
+       CPABORT("allocattion problem")
     times(:,:) = 0.0_real_8
     t_max(:) = 0.0_real_8
     t_min(:) = 0.0_real_8

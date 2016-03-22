@@ -20,10 +20,6 @@ MODULE dbcsr_io
                                              dbcsr_data_new,&
                                              dbcsr_get_data
   USE dbcsr_dist_methods,              ONLY: dbcsr_distribution_mp
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_failure_level,&
-                                             dbcsr_fatal_level
   USE dbcsr_methods,                   ONLY: &
        dbcsr_data_area, dbcsr_distribution, dbcsr_get_data_size, &
        dbcsr_get_data_type, dbcsr_get_matrix_type, dbcsr_get_num_blocks, &
@@ -160,9 +156,8 @@ CONTAINS
 
     IF (matrix%m%nblks .GT. 0) THEN
        IF (matrix%m%list_indexing) THEN
-          CALL dbcsr_assert(SIZE(matrix%m%coo_l).EQ.3*matrix%m%nblks,&
-               dbcsr_fatal_level, dbcsr_caller_error, routineN,&
-               "Wrong list", __LINE__)
+          IF(SIZE(matrix%m%coo_l).NE.3*matrix%m%nblks)&
+             CPABORT("Wrong list")
           IF (matrix%m%local_indexing) THEN
              local_rows => array_data (matrix%m%local_rows)
              local_cols => array_data (matrix%m%local_cols)
@@ -999,9 +994,8 @@ CONTAINS
        data_area_size = values(2)
        IF (subh2_offsets(i) .EQ. 0 ) EXIT
        val_data(1,i) = nblocks  
-       CALL dbcsr_assert (data_area_size < HUGE(val_data(2,i)),&
-            dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Data area too large, fix code.",__LINE__)
+       IF(data_area_size >= HUGE(val_data(2,i)))&
+          CPABORT("Data area too large, fix code.")
        val_data(2,i) = INT(data_area_size)
        val_data(3,i) = worker_id+(i-1)*group_list_size+1   ! order 
        ! order = indices of an array of length size_of_pgrid to be accessed by the current node 

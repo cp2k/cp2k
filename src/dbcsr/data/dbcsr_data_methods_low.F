@@ -370,8 +370,8 @@ MODULE dbcsr_data_methods_low
     ENDIF
     !
     valid = dbcsr_data_valid (area)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_wrong_args_error,&
-         routineN, "Data area is invalid.", __LINE__)
+    IF(.NOT.valid)&
+       CPABORT("Data area is invalid.")
 
     SELECT CASE (area%d%data_type)
        CASE (dbcsr_type_int_4)
@@ -416,9 +416,8 @@ MODULE dbcsr_data_methods_low
 !   ---------------------------------------------------------------------------
 
     IF (careful_mod) THEN
-       CALL dbcsr_assert (ASSOCIATED (area%d),&
-            dbcsr_caller_error, dbcsr_fatal_level,&
-            routineN, "Can't hold an empty data area.",__LINE__)
+       IF(.NOT.ASSOCIATED (area%d))&
+          CPABORT("Can't hold an empty data area.")
        CALL dbcsr_assert (area%d%refcount, "GT", 0,&
             dbcsr_caller_error, dbcsr_fatal_level,&
             routineN, "Should not hold an area with zero references.",&
@@ -470,16 +469,14 @@ MODULE dbcsr_data_methods_low
     dt2 = pointee%d%data_type
     IF (careful_mod) THEN
         compatible = dt1 .EQ. dt2 .OR. dt1 .EQ. dbcsr_type_1d_to_2d (dt2)
-        CALL dbcsr_assert (compatible, dbcsr_fatal_level,&
-             dbcsr_wrong_args_error, routineN,&
-             "Can not point 1-d pointer to 2-d data",__LINE__)
+        IF(.NOT.compatible)&
+           CPABORT("Can not point 1-d pointer to 2-d data")
 
     ENDIF
     pointee_is_2d = dbcsr_type_is_2d (dt2)
     IF (careful_mod) THEN
-        CALL dbcsr_assert (.NOT. PRESENT (source_lb) .OR. .NOT. pointee_is_2d, &
-             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-             "Lower bound specification not possible with 2-d data",__LINE__)
+        IF(PRESENT (source_lb) .AND. pointee_is_2d)&
+             CPABORT("Lower bound specification not possible with 2-d data")
         ! Check if size is OK.
         CALL dbcsr_assert (bp, "GE", 1,&
              dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
@@ -861,11 +858,8 @@ MODULE dbcsr_data_methods_low
     IF (careful_mod) &
        CALL timeset (routineN, handle)
     IF (ASSOCIATED (area%d)) THEN
-       IF (careful_mod) &
-            CALL dbcsr_assert (dbcsr_type_is_2d (area%d%data_type),&
-            dbcsr_fatal_level,&
-            dbcsr_wrong_args_error, routineN,&
-            "1-D data can not have column size", __LINE__)
+       IF (careful_mod .AND. .NOT. dbcsr_type_is_2d (area%d%data_type))&
+          CPABORT("1-D data can not have column size")
        CALL dbcsr_data_get_sizes_any (area, s, valid)
        row_size = s(1)
        col_size = s(2)

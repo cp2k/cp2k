@@ -400,10 +400,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_sendrecv_any', &
       routineP = moduleN//':'//routineN
 
-    CALL dbcsr_assert (dbcsr_data_get_type (msgin).EQ.&
-         dbcsr_data_get_type (msgout),&
-         dbcsr_fatal_level, dbcsr_caller_error,&
-         routineN, "Different data type for msgin and msgout", __LINE__)
+    IF(dbcsr_data_get_type (msgin).NE.dbcsr_data_get_type (msgout))&
+       CPABORT("Different data type for msgin and msgout")
 
     SELECT CASE (dbcsr_data_get_type (msgin))
     CASE (dbcsr_type_real_4)

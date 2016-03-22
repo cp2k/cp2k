@@ -163,8 +163,8 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     CALL dbcsr_data_get_sizes ( dense, dense_row_size, dense_col_size, valid)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__)
+    IF(.NOT.valid)&
+       CPABORT("dense matrix not valid")
     data_type = dbcsr_data_get_type( dense )
     symm = dbcsr_get_matrix_type(sparse)
 
@@ -277,8 +277,8 @@ CONTAINS
     CALL timeset(routineN, handle)
 
     CALL dbcsr_data_get_sizes (dense, dense_row_size, dense_col_size, valid)
-    CALL dbcsr_assert (valid, dbcsr_fatal_level, dbcsr_internal_error, &
-         routineN, "dense matrix not valid",__LINE__)
+    IF(.NOT.valid)&
+       CPABORT("dense matrix not valid")
 
     symm = dbcsr_get_matrix_type(sparse)
     data_type = dbcsr_data_get_type(dense)

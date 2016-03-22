@@ -212,46 +212,37 @@ MODULE dbcsr_mm_multrec
     ithread = 0
     !$ ithread = OMP_GET_THREAD_NUM ()
     !
-    CALL dbcsr_assert(.NOT. this%initialized,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "multrec already initialized.", __LINE__)
+    IF(this%initialized)&
+       CPABORT("multrec already initialized.")
 
-    CALL dbcsr_assert (.NOT.(PRESENT(left).NEQV.PRESENT(right)),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Must both left and right provided or not.", __LINE__)
+    IF(PRESENT(left).NEQV.PRESENT(right))&
+       CPABORT("Must both left and right provided or not.")
 
     IF (PRESENT(left).AND.PRESENT(right)) THEN
        ! Ensures that the index is correctly defined.
-       CALL dbcsr_assert (left%list_indexing,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Must use list indexing for this routine.", __LINE__)
-       CALL dbcsr_assert ("NOT", left%bcsc,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong routine for BCSC matrices.", __LINE__)
+       IF(.NOT.left%list_indexing)&
+          CPABORT("Must use list indexing for this routine.")
+       IF(left%bcsc)&
+          CPABORT("Wrong routine for BCSC matrices.")
 
-       CALL dbcsr_assert ("NOT", right%bcsc,&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Wrong routine for BCSC matrices.", __LINE__)
+       IF(right%bcsc)&
+          CPABORT("Wrong routine for BCSC matrices.")
        CALL dbcsr_assert (right%local_indexing, "EQV", left%local_indexing,&
             dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
             "Local index useage must be consistent.", __LINE__)
 
        IF (right%local_indexing) THEN
-          CALL dbcsr_assert (left%local_indexing,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Wrong left format for local_cols.", __LINE__)
-          CALL dbcsr_assert (right%local_indexing,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Wrong right format for local_cols.", __LINE__)
+          IF(.NOT.left%local_indexing)&
+             CPABORT("Wrong left format for local_cols.")
+          IF(.NOT.right%local_indexing)&
+             CPABORT("Wrong right format for local_cols.")
        ELSE
-          CALL dbcsr_assert ("NOT",left%local_indexing,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Wrong left format for not local_cols.", __LINE__)
-          CALL dbcsr_assert ("NOT",right%local_indexing,&
-               dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-               "Wrong right format for not local_cols.", __LINE__)
+          IF(left%local_indexing)&
+             CPABORT("Wrong left format for not local_cols.")
+          IF(right%local_indexing)&
+             CPABORT("Wrong right format for not local_cols.")
        ENDIF
-       
+
        this%local_indexing = left%local_indexing 
     ELSE
        this%local_indexing = .TRUE.
@@ -340,10 +331,8 @@ MODULE dbcsr_mm_multrec
              this%row_max_epss => row_max_epss
           ENDIF
        ELSE
-          IF (careful_mod) &
-               CALL dbcsr_assert (SIZE(row_max_epss) .EQ. SIZE(this%row_max_epss),&
-               dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-               "max epss local/global mismatch.", __LINE__)
+          IF (careful_mod.AND.SIZE(row_max_epss) .NE. SIZE(this%row_max_epss))&
+             CPABORT("max epss local/global mismatch.")
           this%row_max_epss(:) = row_max_epss(:)
        ENDIF
     ELSE
@@ -423,9 +412,8 @@ MODULE dbcsr_mm_multrec
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert(this%initialized,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "multrec not initialized.", __LINE__)
+    IF(.NOT.this%initialized)&
+       CPABORT("multrec not initialized.")
 
     my_do_rec = .TRUE.
     IF (PRESENT(do_rec)) my_do_rec = do_rec
@@ -519,9 +507,8 @@ MODULE dbcsr_mm_multrec
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert(this%initialized,&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "multrec not initialized.", __LINE__)
+    IF(.NOT.this%initialized)&
+       CPABORT("multrec not initialized.")
 
     CALL dbcsr_mm_csr_finalize(this%csr)
 

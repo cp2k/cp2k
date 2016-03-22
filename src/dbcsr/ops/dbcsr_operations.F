@@ -49,11 +49,8 @@ MODULE dbcsr_operations
                                              dbcsr_find_column,&
                                              dbcsr_get_stored_coordinates
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_caller_error,&
-                                             dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
                                              dbcsr_internal_error,&
-                                             dbcsr_unimplemented_error_nr,&
                                              dbcsr_wrong_args_error
   USE dbcsr_index_operations,          ONLY: dbcsr_index_checksum,&
                                              dbcsr_index_compact,&
@@ -489,8 +486,8 @@ CONTAINS
     CALL timeset(routineN, handle)
 
 ! check that alpha and matrix have the same data type
-    CALL dbcsr_assert (dbcsr_get_data_type (matrix_a).EQ.alpha%d%data_type, dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "wrong data type matrix_a",__LINE__)
+    IF(dbcsr_get_data_type (matrix_a).NE.alpha%d%data_type)&
+       CPABORT("wrong data type matrix_a")
     !
     ! set vars
     right = .TRUE.
@@ -646,8 +643,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_valid_index (matrix_a), dbcsr_fatal_level,&
-         dbcsr_caller_error, routineN, "Invalid matrix", __LINE__)
+    IF(.NOT.dbcsr_valid_index (matrix_a))&
+       CPABORT("Invalid matrix")
 
     IF((dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_symmetric.OR.&
         dbcsr_get_matrix_type(matrix_a).EQ.dbcsr_type_antisymmetric).NEQV. &
@@ -665,8 +662,8 @@ CONTAINS
     IF(PRESENT(beta_scalar)) my_beta_scalar = beta_scalar
     !
     ! let's go
-    CALL dbcsr_assert (dbcsr_nblkrows_total(matrix_a).EQ.dbcsr_nblkrows_total(matrix_b), &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__)
+    IF(dbcsr_nblkrows_total(matrix_a).NE.dbcsr_nblkrows_total(matrix_b))&
+       CPABORT("matrices not consistent")
 
     do_scale = dbcsr_scalar_are_equal (&
          my_beta_scalar, dbcsr_scalar_one (data_type_b))
@@ -977,9 +974,8 @@ CONTAINS
              a_data%d%r_dp(1:nze) = 1.0_real_8/(a_data%d%r_dp(1:nze)+SIGN(p0,a_data%d%r_dp(1:nze)))
           CASE (dbcsr_func_inverse)
              a_data%d%r_dp(1:nze) = 1.0_real_8/(p1*a_data%d%r_dp(1:nze)+p0)
-             CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_dp)).LT.HUGE(0.0_real_8),&
-                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
-                     "Division by zero", __LINE__)
+             IF(MAXVAL(ABS(a_data%d%r_dp)).GE.HUGE(0.0_real_8))&
+                CPABORT("Division by zero")
           CASE (dbcsr_func_tanh)
              a_data%d%r_dp(1:nze) = TANH(p1*a_data%d%r_dp(1:nze)+p0)
           CASE (dbcsr_func_dtanh)
@@ -992,9 +988,8 @@ CONTAINS
              a_data%d%r_dp(1:nze) = 2.0_real_8*(p1**2)*a_data%d%r_dp(1:nze)
           CASE (dbcsr_func_artanh)
              a_data%d%r_dp(1:nze) = p1*a_data%d%r_dp(1:nze)+p0
-             CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_dp)).LT.1.0_real_8,&
-                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
-                     "ARTANH is undefined for |x|>=1", __LINE__)
+             IF(MAXVAL(ABS(a_data%d%r_dp)).GE.1.0_real_8)&
+                CPABORT("ARTANH is undefined for |x|>=1")
              a_data%d%r_dp(1:nze) = (1.0_real_8+a_data%d%r_dp(1:nze))&
                                   / (1.0_real_8-a_data%d%r_dp(1:nze))
              a_data%d%r_dp(1:nze) = 0.5_real_8*LOG(a_data%d%r_dp(1:nze))
@@ -1008,9 +1003,8 @@ CONTAINS
              a_data%d%r_dp(1:nze) = -p1*p1*SIN(p1*a_data%d%r_dp(1:nze)+p0)
           CASE (dbcsr_func_asin)
              a_data%d%r_dp(1:nze) = p1*a_data%d%r_dp(1:nze)+p0
-             CALL dbcsr_assert(MAXVAL(ABS(a_data%d%r_dp)).LE.1.0_real_8,&
-                     dbcsr_fatal_level,dbcsr_internal_error, routineN,&
-                     "ASIN is undefined for |x|>1", __LINE__)
+             IF(MAXVAL(ABS(a_data%d%r_dp)).GT.1.0_real_8)&
+                CPABORT("ASIN is undefined for |x|>1")
              a_data%d%r_dp(1:nze) = ASIN(a_data%d%r_dp(1:nze))
           CASE DEFAULT
              CPABORT("Unknown function of matrix elements")
@@ -1066,15 +1060,13 @@ CONTAINS
     ENDIF
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_b).AND.&
-         dbcsr_get_data_type(matrix_a).EQ.dbcsr_get_data_type(matrix_c), &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-         "data types not consistent, need to fix that",__LINE__)
+    IF(dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_b).OR.&
+         dbcsr_get_data_type(matrix_a).NE.dbcsr_get_data_type(matrix_c))&
+         CPABORT("data types not consistent, need to fix that")
 
-    CALL dbcsr_assert (dbcsr_nblkrows_total(matrix_a).EQ.dbcsr_nblkrows_total(matrix_b).AND.&
-         dbcsr_nblkrows_total(matrix_c).EQ.dbcsr_nblkrows_total(matrix_a), &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-         "matrices not consistent",__LINE__)
+    IF(dbcsr_nblkrows_total(matrix_a).NE.dbcsr_nblkrows_total(matrix_b).OR.&
+         dbcsr_nblkrows_total(matrix_c).NE.dbcsr_nblkrows_total(matrix_a))&
+         CPABORT("matrices not consistent")
 
     data_type = dbcsr_get_data_type(matrix_a)
     CALL dbcsr_data_init (c_data)
@@ -1094,8 +1086,8 @@ CONTAINS
                row_size=row_size, col_size=col_size)
           nze = row_size * col_size
           CALL dbcsr_get_block_p(matrix_b, row, col, b_data, tr_b, found)
-          CALL dbcsr_assert (tr_a.EQV.tr_b, dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, &
-               "tr not consistent, need to fix that",__LINE__)
+          IF(tr_a.NEQV.tr_b)&
+             CPABORT("tr not consistent, need to fix that")
           IF(found) THEN
              SELECT CASE (data_type)
              CASE (dbcsr_type_real_4)
@@ -1165,9 +1157,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_nblkrows_total(matrix).EQ.dbcsr_nblkcols_total(matrix).AND.&
-         dbcsr_nfullrows_total(matrix).EQ.dbcsr_nfullrows_total(matrix), &
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN, "matrices not consistent",__LINE__)
+    IF(dbcsr_nblkrows_total(matrix).NE.dbcsr_nblkcols_total(matrix).OR.&
+         dbcsr_nfullrows_total(matrix).NE.dbcsr_nfullrows_total(matrix))&
+         CPABORT("matrices not consistent")
 
     my_first_row = 1
     my_last_row = dbcsr_nfullrows_total(matrix)
@@ -1554,19 +1546,15 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (symmetry_consistent(dbcsr_get_matrix_type(matrix_a),&
-                                           dbcsr_get_data_type(matrix_a)),&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN,&
-         "Source matrix symmetry not consistent with its data type.",__LINE__)
+    IF(.NOT.symmetry_consistent(dbcsr_get_matrix_type(matrix_a), dbcsr_get_data_type(matrix_a)))&
+       CPABORT("Source matrix symmetry not consistent with its data type.")
     shallow = .FALSE. ; IF (PRESENT (shallow_data)) shallow = shallow_data
     keep_sparse = .FALSE.
     IF (PRESENT (keep_sparsity)) keep_sparse = keep_sparsity
-    CALL dbcsr_assert (dbcsr_is_initialized (matrix_b),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Target matrix must be initialized",__LINE__)
-    CALL dbcsr_assert (.not.keep_sparse.or.dbcsr_valid_index(matrix_b),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Target matrix must be valid to keep its sparsity",__LINE__)
+    IF(.NOT.dbcsr_is_initialized (matrix_b))&
+       CPABORT("Target matrix must be initialized")
+    IF(keep_sparse.AND..NOT.dbcsr_valid_index(matrix_b))&
+       CPABORT("Target matrix must be valid to keep its sparsity")
     IF(keep_sparse.AND.shallow)&
        CPWARN("Shallow copy not compatibly with sparsity retainment")
     IF (keep_sparse) THEN
@@ -1582,18 +1570,14 @@ CONTAINS
        ENDIF
        new_matrix_type = dbcsr_get_matrix_type (matrix_a)
        IF (PRESENT (matrix_type)) THEN
-         CALL dbcsr_assert (symmetry_compatible(dbcsr_get_matrix_type(matrix_a),&
-                                                matrix_type),&
-              dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-              "Specified target matrix symmetry "//matrix_type//&
-               " not compatible with source matrix type "//dbcsr_get_matrix_type(matrix_a),&
-              __LINE__)
+         IF(.NOT.symmetry_compatible(dbcsr_get_matrix_type(matrix_a),matrix_type))&
+            CALL cp_abort(__LOCATION__,"Specified target matrix symmetry "//matrix_type//&
+               " not compatible with source matrix type "//dbcsr_get_matrix_type(matrix_a))
          new_matrix_type = matrix_type
        END IF
-       CALL dbcsr_assert (symmetry_consistent(new_matrix_type,new_type),&
-            dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-            "Target matrix symmetry "//new_matrix_type//" not consistent with its data type.",&
-            __LINE__)
+       IF(.NOT.symmetry_consistent(new_matrix_type,new_type))&
+          CALL cp_abort(__LOCATION__,"Target matrix symmetry "//&
+               new_matrix_type//" not consistent with its data type.")
        IF(PRESENT(name)) THEN
           CALL dbcsr_create(matrix_b, name=TRIM(name), &
                template = matrix_a,&
@@ -1626,10 +1610,8 @@ CONTAINS
                   matrix_a%m%data_area, drop_real=keep_imaginary)
           ENDIF
        ELSE
-          CALL dbcsr_assert (dbcsr_get_data_type(matrix_a) &
-               .EQ. dbcsr_get_data_type(matrix_b), dbcsr_fatal_level,&
-               dbcsr_wrong_args_error, routineN,&
-               "Shallow copy only possible when retaining data type.", __LINE__)
+          IF(dbcsr_get_data_type(matrix_a) .NE. dbcsr_get_data_type(matrix_b))&
+             CPABORT("Shallow copy only possible when retaining data type.")
           CALL dbcsr_switch_data_area (matrix_b, matrix_a%m%data_area)
        ENDIF
        !
@@ -1668,9 +1650,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_get_data_type(matrix_b)&
-         .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__)
+    IF(dbcsr_get_data_type(matrix_b) .NE. dbcsr_get_data_type(matrix_a))&
+       CPABORT("Matrices have different data types.")
     data_type = dbcsr_get_data_type (matrix_b)
     neg_real = matrix_b%m%negate_real
     neg_imag = matrix_b%m%negate_imaginary
@@ -1714,9 +1695,8 @@ CONTAINS
           CALL dbcsr_data_clear (dst_data)
        CASE (0)
           ! Copy the data
-          CALL dbcsr_assert (dbcsr_data_get_size (src_data)&
-               .EQ. dbcsr_data_get_size (dst_data), dbcsr_fatal_level,&
-               dbcsr_internal_error, routineN, "Block sizes not equal!",__LINE__)
+          IF(dbcsr_data_get_size (src_data) .NE. dbcsr_data_get_size (dst_data))&
+             CPABORT("Block sizes not equal!")
           IF (src_tr .EQV. dst_tr) THEN
              CALL dbcsr_data_copyall (dst_data, src_data)
           ELSE
@@ -1772,15 +1752,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, handle)
-    CALL dbcsr_assert (dbcsr_get_data_type(matrix_b)&
-         .EQ. dbcsr_get_data_type(matrix_a), dbcsr_fatal_level,&
-         dbcsr_wrong_args_error, routineN, "Matrices have different data types.",__LINE__)
+    IF(dbcsr_get_data_type(matrix_b) .NE. dbcsr_get_data_type(matrix_a))&
+       CPABORT("Matrices have different data types.")
     data_type = dbcsr_get_data_type (matrix_b)
-    CALL dbcsr_assert (dbcsr_has_symmetry (matrix_b)&
-         .AND. .NOT. dbcsr_has_symmetry (matrix_a),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Must copy from non-symmetric to symmetric matrix.",&
-         __LINE__)
+    IF(.NOT.dbcsr_has_symmetry (matrix_b) .OR. dbcsr_has_symmetry (matrix_a))&
+       CPABORT("Must copy from non-symmetric to symmetric matrix.")
     neg_real = matrix_b%m%negate_real
     neg_imag = matrix_b%m%negate_imaginary
 
@@ -2626,8 +2602,8 @@ CONTAINS
     any_sym = dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_symmetric.OR.&
               dbcsr_get_matrix_type(matrix).EQ.dbcsr_type_antisymmetric
 
-    CALL dbcsr_assert (nr.EQ.nc, dbcsr_fatal_level, dbcsr_wrong_args_error, &
-         routineN, "not a square matrix",__LINE__)
+    IF(nr.NE.nc)&
+       CPABORT("not a square matrix")
 
     norm = 0.0_dp
     ALLOCATE(buff_d(nr))
@@ -2844,10 +2820,8 @@ CONTAINS
     CALL dbcsr_index_checksum (matrix, index_checksum)
     CALL mp_allgather (index_checksum, all_checksums, comm)
     !
-    CALL dbcsr_assert (ALL (all_checksums .EQ. index_checksum),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Replicated matrices do not all have the same index structure.",&
-         __LINE__)
+    IF(.NOT.ALL(all_checksums .EQ. index_checksum))&
+       CPABORT("Replicated matrices do not all have the same index structure.")
     !
     SELECT CASE (dbcsr_data_get_type(matrix%m%data_area))
     CASE (dbcsr_type_real_4)
@@ -3025,9 +2999,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL dbcsr_assert (matrix%m%initialized,&
-         dbcsr_fatal_level, dbcsr_caller_error, routineP,&
-         "Matrix not initialized",__LINE__)
+    IF(.NOT.matrix%m%initialized)&
+       CPABORT("Matrix not initialized")
     !vw avoid massive priting of warnings
     !CPWARN("Invalid matrix")
     IF (PRESENT (nblkrows_total)) nblkrows_total = matrix%m%nblkrows_total
@@ -3047,8 +3020,8 @@ CONTAINS
     IF (PRESENT (data_area)) data_area = matrix%m%data_area
     IF (PRESENT (matrix_type)) THEN
        matrix_type = dbcsr_get_matrix_type (matrix)
-       CALL dbcsr_assert (matrix_type.NE.dbcsr_type_invalid, dbcsr_failure_level, dbcsr_caller_error,&
-            routineN, "Incorrect symmetry",__LINE__)
+       IF(matrix_type.EQ.dbcsr_type_invalid)&
+          CPABORT("Incorrect symmetry")
     ENDIF
     IF (PRESENT (data_type)) data_type = matrix%m%data_type
     IF (PRESENT (local_rows)) &

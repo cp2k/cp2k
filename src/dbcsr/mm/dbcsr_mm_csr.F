@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+	!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2016  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
@@ -509,9 +509,8 @@ MODULE dbcsr_mm_csr
     ithread = 0 ; nthreads = 1
     !$ ithread = OMP_GET_THREAD_NUM () ; nthreads = OMP_GET_NUM_THREADS ()
 
-    CALL dbcsr_assert (.NOT.(PRESENT(left).NEQV.PRESENT(right)),&
-         dbcsr_fatal_level, dbcsr_wrong_args_error, routineN,&
-         "Must both left and right provided or not.", __LINE__)
+    IF(PRESENT(left).NEQV.PRESENT(right))&
+       CPABORT("Must both left and right provided or not.")
 
     IF (PRESENT(left).AND.PRESENT(right)) THEN
        ! find out if we have local_indexing

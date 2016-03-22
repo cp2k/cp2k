@@ -29,7 +29,6 @@ MODULE dbcsr_error_handling
      MODULE PROCEDURE dbcsr_int_assert
      MODULE PROCEDURE dbcsr_logical_assert
      MODULE PROCEDURE dbcsr_not_assert
-     MODULE PROCEDURE dbcsr_true_assert
   END INTERFACE
 
   INTEGER, PARAMETER :: dbcsr_error_stack_size = 30
@@ -173,33 +172,6 @@ CONTAINS
        CALL dbcsr_abort_low (level, etype, routine, msg, line)
     ENDIF
   END SUBROUTINE dbcsr_logical_assert
-
-! *****************************************************************************
-!> \brief Assertion
-!> \param[in] right           right value
-!> \param[in] level           error level
-!> \param[in] etype           error type
-!> \param[in] routine         Routine name
-!> \param[in] msg   Message to display if the assertion fails
-!> \param line ...
-! *****************************************************************************
-  SUBROUTINE dbcsr_true_assert(right, level, etype, routine, msg, line)
-    LOGICAL, INTENT(IN)                      :: right
-    INTEGER, INTENT(IN)                      :: level, etype
-    CHARACTER(len=*), INTENT(IN)             :: routine, msg
-    INTEGER, INTENT(IN)                      :: line
-
-    LOGICAL                                  :: l
-
-!   ---------------------------------------------------------------------------
-
-    l = right
-    IF (.NOT.l) THEN
-       WRITE(*,'(1X,A,1X,L1)')"ASSERTION FAILED:",&
-            right
-       CALL dbcsr_abort_low (level, etype, routine, msg, line)
-    ENDIF
-  END SUBROUTINE dbcsr_true_assert
 
 
 ! *****************************************************************************

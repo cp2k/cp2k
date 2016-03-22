@@ -54,8 +54,8 @@
                   row_dist, col_dist)) CYCLE
           ENDIF
           a_col_size = col_blk_size(a_col)
-          CALL dbcsr_assert (a_row_size.EQ.a_col_size, dbcsr_fatal_level,&
-               dbcsr_internal_error, routineN, "is that a square matrix?",__LINE__)
+          IF(a_row_size.NE.a_col_size)&
+             CPABORT("is that a square matrix?")
           a_nze = a_row_size**2
           a_data => pointer_view (data_p, ABS(matrix_a%m%blk_p(a_blk)),&
                ABS(matrix_a%m%blk_p(a_blk))+a_nze-1)
@@ -114,10 +114,9 @@
     my_local_sum = .FALSE.
     IF(PRESENT(local_sum)) my_local_sum=local_sum
     IF(.NOT.my_local_sum) THEN!fixme
-       CALL dbcsr_assert (matrix_a%m%replication_type .EQ. dbcsr_repl_none&
-            .AND. matrix_b%m%replication_type .EQ. dbcsr_repl_none,&
-            dbcsr_failure_level, dbcsr_unimplemented_error_nr, routineN,&
-            "Trace of product of replicated matrices not yet possible.",__LINE__)
+       IF(matrix_a%m%replication_type .NE. dbcsr_repl_none&
+            .OR. matrix_b%m%replication_type .NE. dbcsr_repl_none)&
+            CPABORT("Trace of product of replicated matrices not yet possible.")
     ENDIF
 
     sym_fac = REAL(1.0,[kind1])
@@ -151,13 +150,13 @@
     IF(PRESENT(trans_a)) my_trans_a = trans_a
     my_trans_b = 'N'
     IF(PRESENT(trans_b)) my_trans_b = trans_b
-    CALL dbcsr_assert (my_trans_a.EQ.'T'.AND.my_trans_b.EQ.'N', dbcsr_fatal_level,&
-         dbcsr_unimplemented_error_nr, routineN, "this combination of transpose is NYI",__LINE__)
+    IF(my_trans_a.NE.'T'.OR.my_trans_b.NE.'N')&
+       CPABORT("this combination of transpose is NYI")
     !
     ! let's go
     trace = REAL(0.0,[kind1])
-    CALL dbcsr_assert (matrix_a%m%nblkrows_total.EQ.matrix_b%m%nblkrows_total,&
-         dbcsr_fatal_level, dbcsr_internal_error, routineN, "this combination of transpose is NYI",__LINE__)
+    IF(matrix_a%m%nblkrows_total.NE.matrix_b%m%nblkrows_total)&
+       CPABORT("this combination of transpose is NYI")
     DO row = 1, matrix_a%m%nblkrows_total
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
