@@ -513,6 +513,8 @@ CONTAINS
 
 !   *** finish initialization of the MOs for ADMM and derivs if needed ***
     IF(dft_control%do_admm) THEN
+      IF(dft_control%restricted)&
+          CPABORT("ROKS with ADMM is not implemented")
       CPASSERT(ASSOCIATED(mos_aux_fit))
       CALL mpools_get(qs_env%mpools_aux_fit, ao_mo_fm_pools=ao_mo_fm_pools_aux_fit)
       DO ispin=1,SIZE(mos_aux_fit)
