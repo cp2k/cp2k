@@ -760,12 +760,12 @@ CONTAINS
 
        SELECT CASE (method_name_id)
        CASE (do_fist)
-          CALL fist_create_force_env ( my_force_env, root_section, my_para_env, globenv,&
+          CALL fist_create_force_env (my_force_env, root_section, my_para_env, globenv,&
                force_env_section=force_env_section, subsys_section=subsys_section,&
                use_motion_section=use_motion_section)
 
        CASE (do_qs)
-          CALL qs_env_create(qs_env,globenv)
+          CALL qs_env_create(qs_env, globenv)
           CALL qs_init(qs_env, my_para_env, globenv, root_section, force_env_section=force_env_section,&
                subsys_section=subsys_section, use_motion_section=use_motion_section)
           CALL force_env_create(my_force_env, root_section, qs_env=qs_env, para_env=my_para_env, globenv=globenv,&
@@ -774,16 +774,16 @@ CONTAINS
 
        CASE (do_qmmm)
           qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM")
-          CALL qmmm_env_create(qmmm_env, root_section, para_env, globenv,&
+          CALL qmmm_env_create(qmmm_env, root_section, my_para_env, globenv,&
                force_env_section, qmmm_section, subsys_section, use_motion_section)
-          CALL force_env_create(my_force_env,root_section, qmmm_env=qmmm_env, para_env=para_env,&
+          CALL force_env_create(my_force_env,root_section, qmmm_env=qmmm_env, para_env=my_para_env,&
                globenv=globenv, force_env_section=force_env_section)
           CALL qmmm_env_release(qmmm_env)
 
        CASE (do_qmmmx)
-          CALL qmmmx_env_create(qmmmx_env, root_section, para_env, globenv,&
+          CALL qmmmx_env_create(qmmmx_env, root_section, my_para_env, globenv,&
                force_env_section, subsys_section, use_motion_section)
-          CALL force_env_create(my_force_env,root_section, qmmmx_env=qmmmx_env, para_env=para_env,&
+          CALL force_env_create(my_force_env,root_section, qmmmx_env=qmmmx_env, para_env=my_para_env,&
                globenv=globenv, force_env_section=force_env_section)
           CALL qmmmx_env_release(qmmmx_env)
 
