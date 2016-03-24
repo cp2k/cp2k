@@ -234,6 +234,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ispin, nspins, &
                                                 output_unit, z
     LOGICAL                                  :: do_raman
+    REAL(dp)                                 :: ptmp
     REAL(dp), DIMENSION(:, :), POINTER       :: polar, polar_tmp
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -283,10 +284,11 @@ CONTAINS
      DO z=1,3 !dipole directions
        DO ispin=1,dft_control%nspins
 !SL compute trace 
-            CALL cp_fm_trace(psi1_dBerry(i,ispin)%matrix,mo_derivs(z,ispin)%matrix,polar_tmp(i,z))
-         polar_tmp(i,z)=polar_tmp(i,z) + polar_tmp(i,z)
+            ptmp=0.0_dp
+            CALL cp_fm_trace(psi1_dBerry(i,ispin)%matrix,mo_derivs(z,ispin)%matrix,ptmp)
+         polar_tmp(i,z)=polar_tmp(i,z) + ptmp
        END DO
-          polar_tmp(i,z) = polar_tmp(i,z)/(twopi * twopi)
+          polar_tmp(i,z) = 2.0_dp*polar_tmp(i,z)/(twopi * twopi)
       END DO
      END DO !spin
    
