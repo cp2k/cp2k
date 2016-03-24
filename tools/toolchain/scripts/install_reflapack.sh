@@ -23,7 +23,7 @@ case "$with_reflapack" in
         if [ -f "${install_lock_file}" ] ; then
             echo "lapack-${reflapack_ver} is already installed, skipping it."
         else
-            if [ -f lapack-${reflapack_ver}.tar.gz ] ; then
+            if [ -f lapack-${reflapack_ver}.tgz ] ; then
                 echo "reflapack-${reflapack_ver}.tgz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \

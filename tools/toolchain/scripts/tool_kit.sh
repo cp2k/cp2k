@@ -1,8 +1,5 @@
-#!/bin/bash -e
-# BASH_SOURCE is better than $0, because it also works correctly with
-# source ./script_name. For $0, this will be "bash" instead. However
-# BASH_SOURCE is only avaliable for bash version >= 3.0
-# [ "$BASH_SOURCE" ] && script_name=$BASH_SOURCE || script_name=$0
+# A set of tools used in the toolchain installer, intended to be used
+# by sourcing this file inside other scipts.
 
 SYS_INCLUDE_PATH=${SYS_INCLUDE_PATH:-"/usr/local/include:/usr/include"}
 SYS_LIB_PATH=${SYS_LIB_PATH:-"/user/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib"}
@@ -66,24 +63,66 @@ realpath() {
 }
 
 # given a list, outputs a list with duplicated items filtered out
-unique() {
-    local __sep=$'\n'
-    local __item=''
+unique() (
+    # given a list, outputs a list with duplicated items filtered out.
+    # If -d <delimiter> option exists, then output the list delimited
+    # by <delimiter>; note that this option does not effect the input.
     local __result=''
-    # double quoting $@ is essential as this will then be equilavent
-    # to "$1" "$2" "$3" ... and takes care the possible spaces in the
-    # arguments correctly
+    local __delimiter=' '
+    local __item=''
+    if [ "$1" = "-d" ] ; then
+        shift
+        __delimiter="$1"
+        shift
+    fi
+    # It is essential that we quote $@, which makes it equivalent to
+    # "$1" "$2" ...  So this works if any of the arguments contains
+    # space.  And we use \n to separate the fields in the
+    # __result for now, so that fields that contain spaces are
+    # correctly grepped.
     for __item in "$@" ; do
-        if [ x"$__result" = "x" ] ; then
+        if [ x"$__result" = x ] ; then
             __result="${__item}"
-        elif ! [[ "$__result" =~ (^|"$__sep")"$__item"($|"$__sep") ]] ; then
-            __result="${__result}${__sep}${__item}"
+        # Note that quoting $__result after echo is essential to
+        # retain the \n in the variable from the output of echo.  Also
+        # remember grep only works on a line by line basis, so if
+        # items are delimited by newlines, then for grep search it
+        # should be delimited by ^ and $ (beginning and end of line)
+        elif ! (echo "$__result" | \
+                grep -s -q -e "^$__item\$") ; then
+            __result="${__result}
+${__item}"
         fi
     done
-    __result="${__result//${__sep}/ }"
+    __result="$(echo "$__result" | paste -s -d "$__delimiter" -)"
+    # quoting $__result below is again essential for correct
+    # behaviour if IFS is set to be the same $__delimiter in the
+    # parent shell calling this macro
     echo "$__result"
-}
+)
 
+# reverse a list
+reverse() (
+    # given a list, output a list with reversed order. If -d
+    # <delimiter> option exists, then output the list delimited by
+    # <delimiter>; note that this option does not effect the input.
+    local __result=''
+    local __delimiter=' '
+    local __item=''
+    if [ "$1" = "-d" ] ; then
+        shift
+        __delimiter="$1"
+        shift
+    fi
+    for __item in "$@" ; do
+        if [ x"$__result" = x ] ; then
+            __result="$__item"
+        else
+            __result="${__item}${__delimiter}${__result}"
+        fi
+    done
+    echo "$__result"
+)
 
 # get the number of processes avaliable for compilation
 get_nprocs() {
@@ -432,28 +471,42 @@ allowed_gxx_flags() {
 
 # prepend a directory to a given path
 prepend_path() {
-    local __env_var=$1
-    local __path=$2
-    if eval [ x\"\$$__env_var\" = x ] ; then
-        eval $__env_var=\"$__path\"
-        eval export $__env_var
-    elif ! eval [[ \"\$$__env_var\" =~ '(^|:)'\"$__path\"'($|:)' ]] ; then
-        eval $__env_var=\"$__path:\$$__env_var\"
-        eval export $__env_var
+    # prepend directory to $path_name and then export path_name. If
+    # the directory already exists in path, bring the directory to the
+    # front of the list.
+    local __path_name=$1
+    local __directory=$2
+    if eval [ x\"\$$__path_name\" = x ] ; then
+        eval $__path_name=\"$__directory\"
+    else
+        eval $__path_name=\"$__directory:\$$__path_name\"
     fi
+    eval $__path_name=\"$(IFS=:; eval unique -d ':' \$$__path_name)\"
+    export $__path_name
 }
 
 # append a directory to a given path
 append_path() {
-    local __env_var=$1
-    local __path=$2
-    if eval [ x\"\$$__env_var\" = x ] ; then
-        eval $__env_var=\"$__path\"
-        eval export $__env_var
-    elif ! eval [[ \"\$$__env_var\" =~ '(^|:)'\"$__path\"'($|:)' ]] ; then
-        eval $__env_var=\"'$'$__env_var:"$__path"\"
-        eval export $__env_var
+    # append directory to $path_name and then export path_name. If
+    # the directory already exists in path, bring the directory to the
+    # back of the list.
+    #
+    # $1 is path_name
+    # $2 is directory
+    local __path_name=$1
+    local __directory=$2
+    if eval [ x\"\$$__path_name\" = x ] ; then
+        eval $__path_name=\"$__directory\"
+    else
+        eval $__path_name=\"\$$__path_name:$__directory\"
     fi
+    # here, we reverse the list, apply unique, and then reverse back,
+    # so that the last instance of the repeated directory is kept
+    eval $__path_name=\"$(IFS=':'; \
+                reverse -d ':' \
+                        $(unique -d ':' \
+                                 $(eval reverse -d ':' \$$__path_name)))\"
+    export $__path_name
 }
 
 # helper routine for reading --enable=* input options

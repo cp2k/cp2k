@@ -649,17 +649,7 @@ export CP_LDFLAGS="-Wl,--enable-new-dtags"
 # ------------------------------------------------------------------------
 cat <<EOF > "$SETUPFILE"
 #!/bin/bash
-prepend_path() {
-    local __env_var=\$1
-    local __path=\$2
-    if eval [ x\"\\\$\$__env_var\" = x ] ; then
-        eval \$__env_var=\"\$__path\"
-        eval export \$__env_var
-    elif ! eval [[ \"\\\$\$__env_var\" =~ '(^|:)'\"\$__path\"'(\$|:)' ]] ; then
-        eval \$__env_var=\"\\\$__path:\\\$\$__env_var\"
-        eval export \$__env_var
-    fi
-}
+source "${SCRIPTDIR}/tool_kit.sh"
 EOF
 
 # ------------------------------------------------------------------------

@@ -39,8 +39,8 @@ case "$with_openmpi" in
             glibc_version=$(ldd --version | awk '(NR == 1){print $4}')
             glibc_major_ver=$(echo $glibc_version | cut -d . -f 1)
             glibc_minor_ver=$(echo $glibc_version | cut -d . -f 2)
-            if [ $glibc_major_ver -le 2 ] && \
-               [ $glibc_minor_ver -lt 12 ] ; then
+            if [ $glibc_major_ver -lt 2 ] || \
+               [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ] ; then
                 CFLAGS="${CFLAGS} -fgnu89-inline"
             fi
             ./configure --prefix=${pkg_install_dir} CFLAGS="${CFLAGS}" > configure.log 2>&1
@@ -86,6 +86,20 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
         cat "${BUILDDIR}/setup_openmpi" >> $SETUPFILE
+        mpi_bin="$pkg_install_dir/bin/mpirun"
+    else
+        mpi_bin=mpirun
+    fi
+    # check openmpi version, versions less than 1.8 will get -D__MPI_VERSION=2 flag
+    raw_version=$($mpi_bin --version 2>&1 | \
+                      grep "(Open MPI)" | awk '{print $4}')
+    major_version=$(echo $raw_version | cut -d '.' -f 1)
+    minor_version=$(echo $raw_version | cut -d '.' -f 2)
+    if [ $major_version -lt 1 ] || \
+       [ $major_version -eq 1 -a $minor_version -lt 8 ] ; then
+        mpi2_dflags="-D__MPI_VERSION=2"
+    else
+        mpi2_dflags=''
     fi
     cat <<EOF >> "${BUILDDIR}/setup_openmpi"
 export OPENMPI_CFLAGS="${OPENMPI_CFLAGS}"
@@ -94,7 +108,7 @@ export OPENMPI_LIBS="${OPENMPI_LIBS}"
 export MPI_CFLAGS="${OPENMPI_CFLAGS}"
 export MPI_LDFLAGS="${OPENMPI_LDFLAGS}"
 export MPI_LIBS="${OPENMPI_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${OPENMPI_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${OPENMPI_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${OPENMPI_LIBS}|)"

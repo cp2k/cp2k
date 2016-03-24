@@ -79,6 +79,19 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path CPATH "$pkg_install_dir/include"
 EOF
         cat "${BUILDDIR}/setup_mpich" >> $SETUPFILE
+        mpi_bin="$pkg_install_dir/bin/mpirun"
+    else
+        mpi_bin=mpirun
+    fi
+    # check MPICH version, versions less than 3.0 will get -D__MPI_VERSION=2 flag
+    raw_version=$($mpi_bin --version | \
+                      grep "Version:" | awk '{print $2}')
+    major_version=$(echo $raw_version | cut -d '.' -f 1)
+    minor_version=$(echo $raw_version | cut -d '.' -f 2)
+    if [ $major_version -lt 3 ] ; then
+        mpi2_dflags="-D__MPI_VERSION=2"
+    else
+        mpi2_dflags=''
     fi
     cat <<EOF >> "${BUILDDIR}/setup_mpich"
 export MPI_MODE="__MPICH__"
@@ -88,7 +101,7 @@ export MPICH_LIBS="${MPICH_LIBS}"
 export MPI_CFLAGS="${MPICH_CFLAGS}"
 export MPI_LDFLAGS="${MPICH_LDFLAGS}"
 export MPI_LIBS="${MPICH_LIBS}"
-export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel -D__MPI_VERSION=3|)"
+export CP_DFLAGS="\${CP_DFLAGS} IF_MPI(-D__parallel ${mpi2_dflags}|)"
 export CP_CFLAGS="\${CP_CFLAGS} IF_MPI(${MPICH_CFLAGS}|)"
 export CP_LDFLAGS="\${CP_LDFLAGS} IF_MPI(${MPICH_LDFLAGS}|)"
 export CP_LIBS="\${CP_LIBS} IF_MPI(${MPICH_LIBS}|)"
