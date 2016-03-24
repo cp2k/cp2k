@@ -90,13 +90,13 @@ EOF
     else
         mpi_bin=mpirun
     fi
-    # check openmpi version, versions less than 1.8 will get -D__MPI_VERSION=2 flag
+    # check openmpi version, versions less than 1.7 will get -D__MPI_VERSION=2 flag
     raw_version=$($mpi_bin --version 2>&1 | \
                       grep "(Open MPI)" | awk '{print $4}')
     major_version=$(echo $raw_version | cut -d '.' -f 1)
     minor_version=$(echo $raw_version | cut -d '.' -f 2)
     if [ $major_version -lt 1 ] || \
-       [ $major_version -eq 1 -a $minor_version -lt 8 ] ; then
+       [ $major_version -eq 1 -a $minor_version -lt 7 ] ; then
         mpi2_dflags="-D__MPI_VERSION=2"
     else
         mpi2_dflags=''
