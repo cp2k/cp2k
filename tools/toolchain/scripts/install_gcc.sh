@@ -37,6 +37,7 @@ case "$with_gcc" in
             mkdir obj
             cd obj
             ${GCCROOT}/configure --prefix="${pkg_install_dir}" \
+                                 --libdir="${pkg_install_dir}/lib" \
                                  --enable-languages=c,c++,fortran \
                                  --disable-multilib --disable-bootstrap \
                                  --enable-lto \

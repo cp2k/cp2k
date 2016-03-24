@@ -43,7 +43,7 @@ case "$with_openmpi" in
                [ $glibc_major_ver -eq 2 -a $glibc_minor_ver -lt 12 ] ; then
                 CFLAGS="${CFLAGS} -fgnu89-inline"
             fi
-            ./configure --prefix=${pkg_install_dir} CFLAGS="${CFLAGS}" > configure.log 2>&1
+            ./configure --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" CFLAGS="${CFLAGS}" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make -j $NPROCS install > install.log 2>&1
             cd ..

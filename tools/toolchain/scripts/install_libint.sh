@@ -36,6 +36,7 @@ case "$with_libint" in
             # needs to be passed to the linker, but seemingly ldflags is
             # ignored by libint configure
             ./configure --prefix=${pkg_install_dir} \
+                        --libdir="${pkg_install_dir}/lib" \
                         --with-libint-max-am=5 \
                         --with-libderiv-max-am1=4 \
                         --with-cc="$CC $CFLAGS" \

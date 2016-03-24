@@ -35,7 +35,7 @@ case "$with_libxc" in
             # patch buggy configure macro (fails with gcc trunk)
             sed -i 's/ax_cv_f90_modext=$(ls | sed/ax_cv_f90_modext=)ls -1 | grep -iv smod | sed/g' \
                 configure
-            ./configure  --prefix="${pkg_install_dir}" > configure.log 2>&1
+            ./configure  --prefix="${pkg_install_dir}" --libdir="${pkg_install_dir}/lib" > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..

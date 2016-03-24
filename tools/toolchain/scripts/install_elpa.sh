@@ -64,6 +64,7 @@ case "$with_elpa" in
             fi
             # non-threaded version
             ./configure  --prefix=${pkg_install_dir} \
+                         --libdir="${pkg_install_dir}/lib" \
                          --enable-openmp=no \
                          --enable-shared=$shared_flag \
                          --enable-static=yes \

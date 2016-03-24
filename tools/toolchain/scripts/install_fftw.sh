@@ -33,7 +33,7 @@ case "$with_fftw" in
             echo "Installing from scratch into ${pkg_install_dir}"
             tar -xzf fftw-${fftw_ver}.tar.gz
             cd fftw-${fftw_ver}
-            ./configure  --prefix=${pkg_install_dir} --enable-openmp > configure.log 2>&1
+            ./configure  --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" --enable-openmp > configure.log 2>&1
             make -j $NPROCS > make.log 2>&1
             make install > install.log 2>&1
             cd ..
