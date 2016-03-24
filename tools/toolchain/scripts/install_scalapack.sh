@@ -24,7 +24,7 @@ case "$with_scalapack" in
             echo "scalapack-${scalapack_ver} is already installed, skipping it."
         else
             require_env MATH_LIBS
-            if [ -f scalapack-${scalapack_ver}.tar.gz ] ; then
+            if [ -f scalapack-${scalapack_ver}.tgz ] ; then
                 echo "scalapack-${scalapack_ver}.tgz is found"
             else
                 download_pkg ${DOWNLOADER_FLAGS} \
