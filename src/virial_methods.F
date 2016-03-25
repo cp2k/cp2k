@@ -87,25 +87,22 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
-      nnodes, nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: mass, mfl
+      nparticle_kind, nparticle_local
+    REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     IF ( virial%pv_availability ) THEN
        CALL timeset(routineN,handle)
        NULLIFY(atomic_kind)
-       mfl = 0.0_dp
        nparticle_kind = SIZE ( atomic_kind_set )
        virial%pv_kinetic = 0.0_dp
        DO i = 1, 3
           DO j = 1, i
-             nnodes = 0
              DO iparticle_kind=1,nparticle_kind
                 atomic_kind => atomic_kind_set(iparticle_kind)
                 CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass )
                 nparticle_local = local_particles%n_el(iparticle_kind)
                 DO iparticle_local=1,nparticle_local
-                   nnodes = nnodes + 1
                    iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
                    virial%pv_kinetic(i,j) = virial%pv_kinetic(i,j) + &
                         mass * particle_set(iparticle)%v(i)*particle_set(iparticle)%v(j)
@@ -114,7 +111,6 @@ CONTAINS
              virial%pv_kinetic(j,i) = virial%pv_kinetic(i,j)
           END DO
        END DO
-       mfl = REAL( 9 * nnodes, KIND=dp) * 2.0_dp * 1.e-6_dp
 
        CALL mp_sum(virial%pv_kinetic,igroup)
 
@@ -137,11 +133,11 @@ CONTAINS
 !>      none
 !> \author JGH
 ! *****************************************************************************
-  SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab)
+  PURE SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab)
 
-    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_virial
-    REAL(KIND=dp)                            :: f0
-    REAL(KIND=dp), DIMENSION(3)              :: force, rab
+    REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: pv_virial
+    REAL(KIND=dp), INTENT(IN)                     :: f0
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)       :: force, rab
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_pair_force', &
       routineP = moduleN//':'//routineN

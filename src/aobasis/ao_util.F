@@ -402,7 +402,7 @@ CONTAINS
 !> \param n ...
 !> \retval trace_r_AxB ...
 ! *****************************************************************************
-  FUNCTION trace_r_AxB(A,lda,B,ldb,m,n)
+  PURE FUNCTION trace_r_AxB( A,lda , B,ldb , m,n)
 
     INTEGER, INTENT(in)                      :: lda
     REAL(dp), INTENT(in)                     :: A(lda,*)

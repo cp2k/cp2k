@@ -24,9 +24,7 @@ MODULE dbcsr_ptr_util
                                              dbcsr_type_real_4,&
                                              dbcsr_type_real_8
   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_failure_level,&
                                              dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
                                              dbcsr_unimplemented_error_nr,&
                                              dbcsr_wrong_args_error
   USE kinds,                           ONLY: dp,&

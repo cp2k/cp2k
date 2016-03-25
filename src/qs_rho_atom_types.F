@@ -4,7 +4,6 @@
 !-----------------------------------------------------------------------------!
 ! *****************************************************************************
 MODULE qs_rho_atom_types
-
   
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -265,17 +264,17 @@ MODULE qs_rho_atom_types
                           rho_rad_h_d,rho_rad_s_d,trho_rad_h,trho_rad_s,&
                           ga_Vlocal_gb_h,ga_Vlocal_gb_s)
 
-    TYPE(rho_atom_type), POINTER             :: rho_atom
+    TYPE(rho_atom_type), POINTER, INTENT(IN) :: rho_atom
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: cpc_h, cpc_s, rho_rad_h, &
+      OPTIONAL, POINTER, INTENT(OUT)         :: cpc_h, cpc_s, rho_rad_h, &
                                                 rho_rad_s, drho_rad_h, &
                                                 drho_rad_s, vrho_rad_h, &
                                                 vrho_rad_s
     TYPE(rho_atom_coeff), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: rho_rad_h_d, rho_rad_s_d, &
+      OPTIONAL, POINTER, INTENT(OUT)         :: rho_rad_h_d, rho_rad_s_d, &
                                                 trho_rad_h, trho_rad_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
+      OPTIONAL, POINTER, INTENT(OUT)         :: ga_Vlocal_gb_h, ga_Vlocal_gb_s
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_rho_atom', &
       routineP = moduleN//':'//routineN
