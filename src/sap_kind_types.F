@@ -111,7 +111,7 @@ CONTAINS
   SUBROUTINE get_alist(sap_int, alist, atom)
 
     TYPE(sap_int_type), INTENT(IN)           :: sap_int
-    TYPE(alist_type), POINTER, INTENT(OUT)   :: alist
+    TYPE(alist_type), INTENT(OUT), POINTER   :: alist
     INTEGER, INTENT(IN)                      :: atom
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_alist', &
@@ -144,11 +144,11 @@ CONTAINS
 !> \param jn ...
 ! *****************************************************************************
   SUBROUTINE alist_pre_align_blk(blk_in,ldin,blk_out,ldout,ilist,in,jlist,jn)
-    INTEGER, INTENT (IN)                     :: ldin
-    REAL(dp), INTENT (IN)                    :: blk_in(ldin,*)
-    INTEGER, INTENT(IN)                      :: ldout
+    INTEGER, INTENT(IN)                      :: in, ilist(*), ldout
     REAL(dp), INTENT(OUT)                    :: blk_out(ldout,*)
-    INTEGER, INTENT(IN)                      :: ilist(*), in, jlist(*), jn
+    INTEGER, INTENT(IN)                      :: ldin
+    REAL(dp), INTENT(IN)                     :: blk_in(ldin,*)
+    INTEGER, INTENT(IN)                      :: jlist(*), jn
 
     INTEGER                                  :: i, i0, i1, i2, i3, inn, inn1, &
                                                 j, j0
@@ -186,11 +186,11 @@ CONTAINS
 !> \param jn ...
 ! *****************************************************************************
   SUBROUTINE alist_post_align_blk(blk_in,ldin,blk_out,ldout,ilist,in,jlist,jn)
+    INTEGER, INTENT(IN)                      :: in, ilist(*), ldout
+    REAL(dp), INTENT(OUT)                    :: blk_out(ldout,*)
     INTEGER, INTENT(IN)                      :: ldin
     REAL(dp), INTENT(IN)                     :: blk_in(ldin,*)
-    INTEGER, INTENT(IN)                      :: ldout
-    REAL(dp), INTENT(OUT)                    :: blk_out(ldout,*)
-    INTEGER, INTENT(IN)                      :: ilist(*), in, jlist(*), jn
+    INTEGER, INTENT(IN)                      :: jlist(*), jn
 
     INTEGER                                  :: i, i0, i1, i2, i3, inn, inn1, &
                                                 j, j0

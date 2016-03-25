@@ -86,8 +86,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_evaluate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, j, &
-      nparticle_kind, nparticle_local
+    INTEGER                                  :: handle, i, iparticle, &
+                                                iparticle_kind, &
+                                                iparticle_local, j, &
+                                                nparticle_kind, &
+                                                nparticle_local
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
@@ -135,9 +138,10 @@ CONTAINS
 ! *****************************************************************************
   PURE SUBROUTINE virial_pair_force ( pv_virial, f0, force, rab)
 
-    REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT) :: pv_virial
-    REAL(KIND=dp), INTENT(IN)                     :: f0
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)       :: force, rab
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(INOUT)                          :: pv_virial
+    REAL(KIND=dp), INTENT(IN)                :: f0
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: force, rab
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_pair_force', &
       routineP = moduleN//':'//routineN
