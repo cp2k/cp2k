@@ -465,26 +465,27 @@ def format_single_fline(f_line, whitespace, linebreak_pos, ampersand_sep, filena
     else:
         raise NotImplementedError("unknown value for whitespace")
 
-    level = 0
-    lines_out = []
-
     line = f_line
     line_orig = line
-    line_ftd = line  # copy to be formatted
 
-    offset = 0
-
+    # rm extraneous whitespace chars, except for declarations
+    line_ftd = ''
+    pos_prev = -1
     for pos, char in CharFilter(enumerate(line)):
-        if char in ['+', '-', '*', '/', '%']:
-            offset = len(line_ftd) - len(line)
-            # strip whitespaces from elementary operators
-            lhs = line_ftd[:pos + offset]
-            rhs = line_ftd[pos + 1 + offset:]
-            line_ftd = lhs.rstrip(' ') + char + rhs.lstrip(' ')
-
+        is_decl = line[pos:].lstrip().startswith('::') or line[:pos].rstrip().endswith('::')
+        if char == ' ':
+            if line_ftd and (re.search(r'[\w"]',line_ftd[-1]) or is_decl): # remove double spaces
+                line_ftd = line_ftd + char
+        else:
+            if line_ftd and line_ftd[-1]==' ' and (not re.search(r'[\w"]',char) and not is_decl):
+                line_ftd = line_ftd[:-1] # remove spaces except between words
+            line_ftd = line_ftd + line[pos_prev+1:pos+1]
+        pos_prev = pos
     line = line_ftd
+
     pos_eq = []
     end_of_delim = -1
+    level = 0
     for pos, char in CharFilter(enumerate(line)):
         # offset w.r.t. unformatted line
         offset = len(line_ftd) - len(line)
@@ -612,6 +613,11 @@ def format_single_fline(f_line, whitespace, linebreak_pos, ampersand_sep, filena
 
     line = ''.join(line_parts)
 
+    # format ':' for labels
+    for newre in NEW_SCOPE_RE[0:2]:
+      if newre.search(line) and re.search(SOL_STR+r"\w+\s*:", line):
+           line = ': '.join(_.strip() for _ in line.split(':',1))
+
     if not auto_format:
         line = line_orig
 
@@ -644,6 +650,7 @@ def format_single_fline(f_line, whitespace, linebreak_pos, ampersand_sep, filena
             assert False
 
     linebreak_pos_ftd.insert(0, 0)
+
     # We do not insert ampersands in empty lines and comments lines
     lines_out = [line[l:r].rstrip(' ') + ' ' * ampersand_sep[pos] + '&' * min(1, r - l)
                  for pos, (l, r) in enumerate(zip(linebreak_pos_ftd[0:-1], linebreak_pos_ftd[1:]))]
