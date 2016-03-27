@@ -1210,12 +1210,11 @@ CONTAINS
 ! *****************************************************************************
 
    SUBROUTINE init_powell_var(p_param,powell_section)
-      TYPE(opt_state_type)  :: p_param
+    TYPE(opt_state_type)                     :: p_param
+    TYPE(section_vals_type), POINTER         :: powell_section
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'init_powell_var',&
-        routineP = moduleN//':'//routineN
-
-      TYPE(section_vals_type), POINTER         :: powell_section
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_powell_var', &
+      routineP = moduleN//':'//routineN
 
       p_param%state=0
       p_param%nvar=0

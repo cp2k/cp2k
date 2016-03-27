@@ -706,10 +706,9 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CHARACTER                                :: side_char, transa, unit_diag, &
                                                 uplo
+    COMPLEX(KIND=dp)                         :: al
     INTEGER                                  :: handle, m, n
     LOGICAL                                  :: invert
-    COMPLEX(KIND=dp)                            :: al
-
 
   CALL timeset(routineN,handle)
   side_char='L'
