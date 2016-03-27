@@ -139,7 +139,7 @@ class InputStream(object):
 def parseRoutine(inFile):
     """Parses a routine"""
     startRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?:subroutine|function)",re.IGNORECASE)
-    endRe=re.compile(r" *end (?:subroutine|function)",re.IGNORECASE)
+    endRe=re.compile(r" *end\s*(?:subroutine|function)",re.IGNORECASE)
     startRoutineRe=re.compile(r" *(?:recursive +|pure +|elemental +)*(?P<kind>subroutine|function) +(?P<name>[a-zA-Z_][a-zA-Z_0-9]*) *(?:\((?P<arguments>[^()]*)\))? *(?:result *\( *(?P<result>[a-zA-Z_][a-zA-Z_0-9]*) *\))? *(?:bind *\([^()]+\))? *\n?",re.IGNORECASE)#$
     typeBeginRe=re.compile(r" *(?P<type>integer(?: *\* *[0-9]+)?|logical|character(?: *\* *[0-9]+)?|real(?: *\* *[0-9]+)?|complex(?: *\* *[0-9]+)?|type)[,( ]",
                            re.IGNORECASE)
