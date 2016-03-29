@@ -1773,6 +1773,7 @@ CONTAINS
     !
     ! Creates a new index array.
     !
+    !$OMP BARRIER
     !$OMP MASTER
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_row_p)
     CALL dbcsr_clearfrom_index_array (matrix, dbcsr_slot_col_i)
