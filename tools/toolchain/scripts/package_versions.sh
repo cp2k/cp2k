@@ -1,6 +1,4 @@
-#!/bin/bash -e
-
-# default versions
+# default package versions
 binutils_ver=${binutils_ver:-2.25}
 cmake_ver=${cmake_ver:-3.1.1}
 elpa_ver=${elpa_ver:-2015.11.001}

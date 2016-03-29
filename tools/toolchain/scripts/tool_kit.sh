@@ -36,7 +36,6 @@ error_handler() {
     report_error $1 "Non-zero exit code detected."
     exit 1
 }
-trap 'error_handler ${LINENO}' ERR
 
 # source a file if it exists, otherwise do nothing
 load() {

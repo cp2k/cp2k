@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/package_versions.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
+source "${SCRIPT_DIR}"/signal_trap.sh
 
 with_quip=${1:-__INSTALL__}
 

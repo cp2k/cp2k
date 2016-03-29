@@ -1,4 +1,4 @@
-#!/bin/bash -e
+# Common variables used by the installation scripts
 
 # directories and files used by the installer
 ROOTDIR=${ROOTDIR:-"$(pwd -P)"}
