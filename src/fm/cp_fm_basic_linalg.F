@@ -1395,14 +1395,34 @@ SUBROUTINE cp_complex_fm_gemm(transa,transb,m,n,k,alpha,A_re,A_im,B_re,B_im,beta
 
     CALL timeset(routineN,handle)
 
-    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_re,B_re,beta,&
-       C_re,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
-    CALL cp_fm_gemm(transa,transb,m,n,k,-alpha,A_im,B_im,1.0_dp,&
-       C_re,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
-    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_re,B_im,beta,&
-       C_im,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
-    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_im,B_re,1.0_dp,&
-       C_im,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_re,B_re,beta,C_re,&
+                    a_first_col=a_first_col, &
+                    a_first_row=a_first_row, &
+                    b_first_col=b_first_col, &
+                    b_first_row=b_first_row, &
+                    c_first_col=c_first_col, &
+                    c_first_row=c_first_row)
+    CALL cp_fm_gemm(transa,transb,m,n,k,-alpha,A_im,B_im,1.0_dp,C_re,&
+                    a_first_col=a_first_col, &
+                    a_first_row=a_first_row, &
+                    b_first_col=b_first_col, &
+                    b_first_row=b_first_row, &
+                    c_first_col=c_first_col, &
+                    c_first_row=c_first_row)
+    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_re,B_im,beta,C_im,&
+                    a_first_col=a_first_col, &
+                    a_first_row=a_first_row, &
+                    b_first_col=b_first_col, &
+                    b_first_row=b_first_row, &
+                    c_first_col=c_first_col, &
+                    c_first_row=c_first_row)
+    CALL cp_fm_gemm(transa,transb,m,n,k,alpha,A_im,B_re,1.0_dp,C_im,&
+                    a_first_col=a_first_col, &
+                    a_first_row=a_first_row, &
+                    b_first_col=b_first_col, &
+                    b_first_row=b_first_row, &
+                    c_first_col=c_first_col, &
+                    c_first_row=c_first_row)
 
     CALL timestop(handle)
 
