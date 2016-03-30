@@ -1015,9 +1015,9 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
          routineP = moduleN//':'//routineN
 
     INTEGER nrow_global, ncol_global, handle
+    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: aa, cc
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9) :: desca, descc
-    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: aa, cc
 #else
     INTEGER :: ii, jj
 #endif
@@ -1028,7 +1028,7 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CPASSERT(ASSOCIATED(matrixt))
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
-
+    
     aa => matrix%local_data
     cc => matrixt%local_data
 
