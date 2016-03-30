@@ -123,13 +123,15 @@ CONTAINS
 
     ! For RESPA we need to update all subsystems
     IF(PRESENT(respa)) THEN
-      DO i_subsys = 1, 2
-         iforce_eval=i_subsys
-         subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
-              i_rep_section=i_force_eval(iforce_eval))
-         CALL update_subsys(subsys_section,force_env,skip_vel_section,&
-                         write_binary_restart_file)
-      ENDDO
+      IF (respa) THEN
+         DO i_subsys = 1, 2
+            iforce_eval=i_subsys
+            subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+                 i_rep_section=i_force_eval(iforce_eval))
+            CALL update_subsys(subsys_section,force_env,skip_vel_section,&
+                            write_binary_restart_file)
+         ENDDO
+      ENDIF   
     END IF
 
     rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT")

@@ -1,3 +1,4 @@
+! Restart of RESPA is tested. Continues h2o-respa.inp by one more step
 &MULTIPLE_FORCE_EVALS
    ! 1 is the cheap one (here pade), evaluated multiple times, 2 is the expensive one (here hfx), evaluated once per timestep
    FORCE_EVAL_ORDER 1 2   
@@ -102,17 +103,17 @@
        FREQUENCY 5
     &END RESPA
     ENSEMBLE NVE
-    STEPS 2
+    STEPS 1
     TIMESTEP 0.5
     TEMPERATURE 300
   &END MD
-  &PRINT
-    &RESTART ON
-    &END RESTART
-  &END PRINT
 &END MOTION
 &GLOBAL
-  PROJECT     H2O-RESPA
+  PROJECT     H2O-RESPA_restart
   PRINT_LEVEL LOW
   RUN_TYPE    MD
 &END GLOBAL
+&EXT_RESTART
+ RESTART_FILE_NAME  H2O-RESPA-1.restart
+&END
+

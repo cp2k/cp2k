@@ -476,6 +476,7 @@ CONTAINS
        ! Update one force_env_section per time..
        IF (ASSOCIATED(my_force_env)) THEN
           do_respa = .FALSE.
+          ! Do respa only in case of RESPA MD
           IF (PRESENT(md_env)) THEN
              CALL get_md_env ( md_env=md_env, simpar=simpar)
              IF (simpar%do_respa) THEN
@@ -483,17 +484,10 @@ CONTAINS
              ENDIF
           ENDIF
 
-          ! Do respa only in case of RESPA MD
-          IF (do_respa) THEN
-             CALL update_force_eval(force_env=my_force_env,&
-                                 root_section=root_section,&
-                                 write_binary_restart_file=my_write_binary_restart_file,&
-                                 respa=do_respa)
-          ELSE
-             CALL update_force_eval(force_env=my_force_env,&
-                                 root_section=root_section,&
-                                 write_binary_restart_file=my_write_binary_restart_file)
-          ENDIF
+          CALL update_force_eval(force_env=my_force_env,&
+                              root_section=root_section,&
+                              write_binary_restart_file=my_write_binary_restart_file,&
+                              respa=do_respa)
           
        END IF
     END IF
