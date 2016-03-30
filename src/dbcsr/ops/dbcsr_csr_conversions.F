@@ -1098,19 +1098,26 @@ CONTAINS
     map = csr_mat%dbcsr_mapping
     IF (map%has_dbcsr_block_data) THEN
       IF(map%dbcsr_nblkcols_total .NE. dbcsr_nblkcols_total(dbcsr_mat))&
-         CPABORT("field nblkcols_total of DBCSR matrix not consistent with CSR matrix")
+         CALL cp_abort(__LOCATION__, &
+                       "field nblkcols_total of DBCSR matrix not consistent with CSR matrix")
       IF(map%dbcsr_nblkrows_total .NE. dbcsr_nblkrows_total(dbcsr_mat))&
-         CPABORT("field nblkrows_total of DBCSR matrix not consistent with CSR matrix")
+         CALL cp_abort(__LOCATION__, &
+                       "field nblkrows_total of DBCSR matrix not consistent with CSR matrix")
       IF(map%dbcsr_nblks_local .NE. dbcsr_mat%m%nblks)&
-         CPABORT("field nblks of DBCSR matrix not consistent with CSR matrix")
+         CALL cp_abort(__LOCATION__, &
+                       "field nblks of DBCSR matrix not consistent with CSR matrix")
       IF(ANY(map%dbcsr_row_p .NE. dbcsr_mat%m%row_p))&
-         CPABORT("field row_p of DBCSR matrix not consistent with CSR matrix")
+         CALL cp_abort(__LOCATION__, &
+                       "field row_p of DBCSR matrix not consistent with CSR matrix")
       IF(ANY(map%dbcsr_col_i .NE. dbcsr_mat%m%col_i))&
-         CPABORT("field dbcsr_col_i of DBCSR matrix not consistent with CSR matrix")
+         CALL cp_abort(__LOCATION__, &
+                       "field dbcsr_col_i of DBCSR matrix not consistent with CSR matrix")
       IF(ANY(map%dbcsr_row_blk_size .NE. dbcsr_row_block_sizes(dbcsr_mat)))&
-        CPABORT("field row_blk_size of DBCSR matrix not consistent with CSR matrix")
+         CALL cp_abort(__LOCATION__, &
+                       "field row_blk_size of DBCSR matrix not consistent with CSR matrix")
       IF(ANY(map%dbcsr_col_blk_size .NE. dbcsr_col_block_sizes(dbcsr_mat)))&
-        CPABORT("field col_blk_size of DBCSR matrix not consistent with CSR matrix")
+         CALL cp_abort(__LOCATION__, &
+                      "field col_blk_size of DBCSR matrix not consistent with CSR matrix")
     ELSE
       CALL cp_warn(__LOCATION__, "Can not assert consistency of the matrices "//&
            "as no block data stored in CSR matrix.")
