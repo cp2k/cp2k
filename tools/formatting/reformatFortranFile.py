@@ -857,12 +857,13 @@ def reformat_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, whitespac
                 outfile.write('!$' * is_omp_conditional + ' ' *
                               (133 - 2 * is_omp_conditional -
                                len(line.lstrip(' '))) + line.lstrip(' '))
-                logFile.write("*** " + orig_filename + ":" + str(stream.line_nr) +
-                              ": auto indentation failed due to 132 chars limit. ***\n")
+                if not typeRe.match(f_line):
+                    logFile.write("*** " + orig_filename + ":" + str(stream.line_nr) +
+                                  ": auto indentation failed due to 132 chars limit, line should be splitted. ***\n")
             else:
                 outfile.write(orig_line)
                 logFile.write("*** " + orig_filename + ":" + str(stream.line_nr) +
-                              (": auto indentation and whitespace formatting failed due to 132 chars limit. ***\n"))
+                              (": auto indentation and whitespace formatting failed due to 132 chars limit, line should be splitted. ***\n"))
             if debug:
                 print(' ' * ind_use + line)
         # no indentation of blank lines
