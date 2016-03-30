@@ -30,7 +30,7 @@ MODULE cp_cfm_basic_linalg
   PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_gemm, cp_cfm_lu_decompose,&
             cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product,&
             cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply,&
-            cp_cfm_triangular_invert
+            cp_cfm_triangular_invert, cp_cfm_axpy, cp_cfm_geadd, cp_cfm_transpose
 
 ! *****************************************************************************
 
@@ -203,6 +203,158 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_cfm_add
+
+
+! *****************************************************************************
+!> \brief interface to BLACS axpy:  matrix_b = matrix_b + alpha*matrix_a
+!>        note that this is a level one routine, hence more efficient than
+!>        cp_cfm_geadd
+!> \param alpha  : complex scalar
+!> \param matrix_a : input matrix_a
+!> \param matrix_b : input matrix_b, upon out put the updated matrix_b
+!> \author  Lianheng Tong
+! *****************************************************************************
+  SUBROUTINE cp_cfm_axpy(alpha, matrix_a, matrix_b)
+    COMPLEX(KIND=dp), INTENT(IN) :: alpha
+    TYPE(cp_cfm_type), POINTER :: matrix_a, matrix_b
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_axpy', &
+         routineP = moduleN//':'//routineN
+
+    INTEGER :: nrow_global, ncol_global, matrix_size, handle
+    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: aa, bb
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9) :: desca, descb
+#endif
+
+    CALL timeset(routineN,handle)
+
+    CPASSERT(ASSOCIATED(matrix_a))
+    CPASSERT(ASSOCIATED(matrix_b))
+    nrow_global = matrix_a%matrix_struct%nrow_global
+    ncol_global = matrix_a%matrix_struct%ncol_global
+    CPASSERT(nrow_global .EQ. matrix_b%matrix_struct%nrow_global)
+    CPASSERT(ncol_global .EQ. matrix_b%matrix_struct%ncol_global)
+
+    matrix_size = nrow_global*ncol_global
+    aa => matrix_a%local_data
+    bb => matrix_b%local_data
+
+#if defined(__SCALAPACK)
+    desca = matrix_a%matrix_struct%descriptor
+    descb = matrix_b%matrix_struct%descriptor
+    CALL pzaxpy(matrix_size, &
+                alpha, &
+                aa, &
+                1, 1, &
+                desca, &
+                1, &
+                bb, &
+                1, 1, &
+                descb, &
+                1)
+#else
+    CALL zaxpy(matrix_size, &
+               alpha, &
+               aa(1,1), &
+               1, &
+               bb(1,1), &
+               1)
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_axpy
+
+
+! *****************************************************************************
+!> \brief interface to BLACS geadd:
+!>                matrix_b = beta*matrix_b + alpha*opt(matrix_a)
+!>        where opt(matrix_a) can be either:
+!>              'N':  matrix_a
+!>              'T':  matrix_a^T
+!>              'C':  matrix_a^H (Hermitian conjugate)
+!>        note that this is a level three routine, use cp_cfm_axpy if that
+!>        is sufficient for your needs
+!> \param alpha  : complex scalar
+!> \param trans  : 'N' normal, 'T' transposed, 'C' Hermitian conjugate
+!> \param matrix_a : input matrix_a
+!> \param beta   : complex scalar
+!> \param matrix_b : input matrix_b, upon out put the updated matrix_b
+!> \author  Lianheng Tong
+! *****************************************************************************
+  SUBROUTINE cp_cfm_geadd(alpha, trans, matrix_a, beta, matrix_b)
+    COMPLEX(KIND=dp), INTENT(IN) :: alpha, beta
+    CHARACTER, INTENT(IN) :: trans
+    TYPE(cp_cfm_type), POINTER :: matrix_a, matrix_b
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geadd', &
+         routineP = moduleN//':'//routineN
+
+    INTEGER :: nrow_global, ncol_global, handle
+    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: aa, bb
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9) :: desca, descb
+#else
+    INTEGER :: ii, jj
+#endif
+
+    CALL timeset(routineN,handle)
+
+    CPASSERT(ASSOCIATED(matrix_a))
+    CPASSERT(ASSOCIATED(matrix_b))
+    nrow_global = matrix_a%matrix_struct%nrow_global
+    ncol_global = matrix_a%matrix_struct%ncol_global
+    CPASSERT(nrow_global .EQ. matrix_b%matrix_struct%nrow_global)
+    CPASSERT(ncol_global .EQ. matrix_b%matrix_struct%ncol_global)
+
+    aa => matrix_a%local_data
+    bb => matrix_b%local_data
+
+#if defined(__SCALAPACK)
+    desca = matrix_a%matrix_struct%descriptor
+    descb = matrix_b%matrix_struct%descriptor
+    CALL pzgeadd(trans, &
+                 nrow_global, &
+                 ncol_global, &
+                 alpha, &
+                 aa, &
+                 1, 1, &
+                 desca, &
+                 beta, &
+                 bb, &
+                 1, 1, &
+                 descb)
+#else
+    ! zgeadd is not a standard BLAS function, although is implemented
+    ! in some libraries like OpenBLAS, so not going to use it here
+    SELECT CASE (trans)
+    CASE ('T')
+       DO jj = 1, ncol_global
+          DO ii = 1, nrow_global
+             bb(ii,jj) = beta*bb(ii,jj) + alpha*aa(jj,ii)
+          END DO
+       END DO
+    CASE ('C')
+       DO jj = 1, ncol_global
+          DO ii = 1, nrow_global
+             bb(ii,jj) = beta*bb(ii,jj) + alpha*CONJG(aa(jj,ii))
+          END DO
+       END DO
+    CASE DEFAULT
+       DO jj = 1, ncol_global
+          DO ii = 1, nrow_global
+             bb(ii,jj) = beta*bb(ii,jj) + alpha*aa(ii,jj)
+          END DO
+       END DO
+    END SELECT
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_geadd
+
+
 ! *****************************************************************************
 !> \brief   Scale and add two BLACS matrices (a <- alpha*a + beta*b).
 !>          where b is a real matrix (adapted from cp_cfm_add)
@@ -362,7 +514,7 @@ CONTAINS
   END SUBROUTINE
 
 ! *****************************************************************************
-!> \brief   BLACS interface to the BLAS routine dgemm.
+!> \brief   BLACS interface to the BLAS routine zgemm.
 !> \param transa ...
 !> \param transb ...
 !> \param m ...
@@ -373,27 +525,35 @@ CONTAINS
 !> \param matrix_b ...
 !> \param beta ...
 !> \param matrix_c ...
+!> \param a_first_col ...
+!> \param a_first_row ...
 !> \param b_first_col ...
+!> \param b_first_row ...
+!> \param c_first_col ...
+!> \param c_first_row ...
 !> \date    07.06.2001
 !> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE cp_cfm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-       matrix_c,b_first_col)
+       matrix_c,a_first_col,a_first_row,b_first_col,b_first_row,c_first_col,&
+       c_first_row)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     INTEGER, INTENT(IN)                      :: m, n, k
     COMPLEX(KIND=dp), INTENT(IN)             :: alpha
     TYPE(cp_cfm_type), POINTER               :: matrix_a, matrix_b
     COMPLEX(KIND=dp), INTENT(IN)             :: beta
     TYPE(cp_cfm_type), POINTER               :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col
+    INTEGER, INTENT(IN), OPTIONAL            :: a_first_col, a_first_row, &
+                                                b_first_col, b_first_row, &
+                                                c_first_col, c_first_row
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_gemm', &
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a, b, c
-    INTEGER                                  :: handle, j
+    INTEGER                                  :: handle, i_a, i_b, i_c, j_a, j_b, j_c
 #if defined(__SCALAPACK)
     INTEGER, DIMENSION(9)                    :: desca, descb, descc
 #else
@@ -405,28 +565,51 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    IF (PRESENT(b_first_col)) THEN
-      j = b_first_col
+    IF (PRESENT(a_first_row)) THEN
+      i_a = a_first_row
     ELSE
-      j = 1
+      i_a = 1
+    END IF
+    IF (PRESENT(a_first_col)) THEN
+      j_a = a_first_col
+    ELSE
+      j_a = 1
+    END IF
+    IF (PRESENT(b_first_row)) THEN
+      i_b = b_first_row
+    ELSE
+      i_b = 1
+    END IF
+    IF (PRESENT(b_first_col)) THEN
+      j_b = b_first_col
+    ELSE
+      j_b = 1
+    END IF
+    IF (PRESENT(c_first_row)) THEN
+      i_c = c_first_row
+    ELSE
+      i_c = 1
+    END IF
+    IF (PRESENT(c_first_col)) THEN
+      j_c = c_first_col
+    ELSE
+      j_c = 1
     END IF
 
 #if defined(__SCALAPACK)
-
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     descb(:) = matrix_b%matrix_struct%descriptor(:)
     descc(:) = matrix_c%matrix_struct%descriptor(:)
 
-    CALL pzgemm(transa,transb,m,n,k,alpha,a(1,1),1,1,desca,b(1,1),1,j,&
-                descb,beta,c(1,1),1,j,descc)
+    CALL pzgemm(transa,transb,m,n,k,alpha,a(1,1),i_a,j_a,desca,&
+                b(1,1),i_b,j_b,descb,beta,c(1,1),i_c,j_c,descc)
 #else
-
     lda = SIZE(a,1)
     ldb = SIZE(b,1)
     ldc = SIZE(c,1)
 
-    CALL zgemm(transa,transb,m,n,k,alpha,a(1,1),lda,b(1,j),ldb,beta,c(1,j),ldc)
-
+    CALL zgemm(transa,transb,m,n,k,alpha,a(i_a,j_a),&
+               lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
 #endif
     CALL timestop(handle)
 
@@ -815,5 +998,90 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
 
     CALL timestop(handle)
   END SUBROUTINE cp_cfm_triangular_invert
+
+
+! *****************************************************************************
+!> \brief transposes a blacs distributed complex matrix
+!> \param matrix  : input matrix
+!> \param trans   : 'T' for transpose, 'C' for hermitian conjugate
+!> \param matrixt : output matrix
+!> \author Lianheng Tong
+! *****************************************************************************
+  SUBROUTINE cp_cfm_transpose(matrix, trans, matrixt)
+    TYPE(cp_cfm_type), POINTER :: matrix, matrixt
+    CHARACTER, INTENT(IN) :: trans
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_transpose', &
+         routineP = moduleN//':'//routineN
+
+    INTEGER nrow_global, ncol_global, handle
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9) :: desca, descc
+    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER :: aa, cc
+#else
+    INTEGER :: ii, jj
+#endif
+
+    CALL timeset(routineN,handle)
+
+    CPASSERT(ASSOCIATED(matrix))
+    CPASSERT(ASSOCIATED(matrixt))
+    nrow_global = matrix%matrix_struct%nrow_global
+    ncol_global = matrix%matrix_struct%ncol_global
+
+    aa => matrix%local_data
+    cc => matrixt%local_data
+
+#if defined(__SCALAPACK)
+    desca = matrix%matrix_struct%descriptor
+    descc = matrixt%matrix_struct%descriptor
+    SELECT CASE (trans)
+    CASE ('T')
+       CALL pztranu(nrow_global, &
+                    ncol_global, &
+                    (1.0_dp,0.0_dp), &
+                    aa, &
+                    1, 1, &
+                    desca, &
+                    (0.0_dp,0.0_dp), &
+                    cc, &
+                    1, 1, &
+                    descc)
+    CASE ('C')
+       CALL pztranc(nrow_global, &
+                    ncol_global, &
+                    (1.0_dp,0.0_dp), &
+                    aa, &
+                    1, 1, &
+                    desca, &
+                    (0.0_dp,0.0_dp), &
+                    cc, &
+                    1, 1, &
+                    descc)
+    CASE DEFAULT
+       CPABORT("trans only accepts 'T' or 'C'")
+    END SELECT
+#else
+    SELECT CASE (trans)
+    CASE ('T')
+       DO jj = 1, ncol_global
+          DO ii = 1, nrow_global
+             cc(ii,jj) = aa(jj,ii)
+          END DO
+       END DO
+    CASE ('C')
+       DO jj = 1, ncol_global
+          DO ii = 1, nrow_global
+             cc(ii,jj) = CONJG(aa(jj,ii))
+          END DO
+       END DO
+    CASE DEFAULT
+       CPABORT("trans only accepts 'T' or 'C'")
+    END SELECT
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_transpose
 
 END MODULE cp_cfm_basic_linalg

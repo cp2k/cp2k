@@ -99,7 +99,7 @@ MODULE mp2_ri_grad
   CONTAINS
 
 ! *****************************************************************************
-!> \brief Calcualte the non-separable part of the gradients and update the 
+!> \brief Calcualte the non-separable part of the gradients and update the
 !>        Lagrangian
 !> \param qs_env ...
 !> \param mp2_env ...
@@ -130,7 +130,7 @@ MODULE mp2_ri_grad
 !> \param Eigenval_beta ...
 !> \param homo_beta ...
 !> \param mo_coeff_beta ...
-!> \author Mauro Del Ben 
+!> \author Mauro Del Ben
 ! *****************************************************************************
   SUBROUTINE calc_ri_mp2_nonsep(qs_env,mp2_env,para_env,para_env_sub,dft_control,cell,particle_set,&
                                 atomic_kind_set,qs_kind_set,mo_coeff,nmo,homo,dimen_RI,Eigenval,&
@@ -320,7 +320,7 @@ MODULE mp2_ri_grad
                          matrix_type=dbcsr_type_symmetric)
     ! CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp)
     ! CALL cp_dbcsr_copy(matrix_P_munu%matrix,mat_munu%matrix,&
-    !                    name="matrix_P_munu")   
+    !                    name="matrix_P_munu")
 
     ! wave function vector and supporting stuff
     ALLOCATE(wf_vector(dimen_RI))
@@ -341,10 +341,10 @@ MODULE mp2_ri_grad
 
     ! check if we want to calculate the virial
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
- 
-    ! in case virial is required we need auxilliary pw 
+
+    ! in case virial is required we need auxilliary pw
     ! for calculate the MP2-volume contribution to the virial
-    ! (hartree potential derivatives)   
+    ! (hartree potential derivatives)
     IF(use_virial) THEN
       NULLIFY(temp_pw_g%pw)
       CALL pw_pool_create_pw(auxbas_pw_pool,temp_pw_g%pw,&
@@ -436,19 +436,19 @@ MODULE mp2_ri_grad
 
       IF(use_virial) THEN
         ! make a copy of the density in G space
-        ! calculate the potential derivatives in G space 
+        ! calculate the potential derivatives in G space
         CALL timeset(routineN//"_Virial",handle3)
         CALL pw_copy(rho_g%pw, temp_pw_g%pw)
         DO i=1, 3
           comp=0
-          comp(i)=1 
+          comp(i)=1
           CALL pw_copy(pot_g%pw, dvg(i)%pw)
           CALL pw_derive(dvg(i)%pw, comp)
         END DO
         CALL timestop(handle3)
       END IF
- 
-      ! integrate the potential of the single gaussian and update 
+
+      ! integrate the potential of the single gaussian and update
       ! 2-center forces with Gamma_PQ
       CALL timeset(routineN//"_int_PQ",handle3)
       NULLIFY(rs_v)
@@ -586,11 +586,11 @@ MODULE mp2_ri_grad
       END DO
       CALL timestop(handle3)
       ! here we are done with the 2 centers
-     
+
       ! CALL cp_dbcsr_write_sparse_matrix(matrix_P_munu%matrix,4,12,qs_env,para_env_sub,&
       !                                   output_unit=unit_nr)
 
-      ! integrate the potential of the single gaussian and update 
+      ! integrate the potential of the single gaussian and update
       ! 3-center forces
       CALL timeset(routineN//"_int",handle3)
       CALL cp_dbcsr_set(mat_munu%matrix,0.0_dp)
@@ -598,7 +598,7 @@ MODULE mp2_ri_grad
                               qs_env=qs_env,calculate_forces=.TRUE.,compute_tau=.FALSE.,gapw=.FALSE.,&
                               pw_env_external=pw_env_sub,&
                               task_list_external=task_list_sub)
-      CALL timestop(handle3) 
+      CALL timestop(handle3)
 
       ! update lagrangian
       CALL timeset(routineN//"_Lag",handle3)
@@ -646,7 +646,7 @@ MODULE mp2_ri_grad
       IF(use_virial) THEN
         ! add the volume contribution to the virial due to
         ! the (P|Q) integrals, first we put the full gamme_PQ
-        ! pseudo wave-function into grid in order to calculate the 
+        ! pseudo wave-function into grid in order to calculate the
         ! hartree potential derivatives
         CALL timeset(routineN//"_Virial",handle3)
         wf_vector=0.0_dp
@@ -667,7 +667,7 @@ MODULE mp2_ri_grad
           comp=0
           comp(alpha)=1
           CALL pw_copy(pot_g%pw, rho_g%pw)
-          CALL pw_derive(rho_g%pw, comp)   
+          CALL pw_derive(rho_g%pw, comp)
           h_stress(alpha,alpha)=-e_hartree
           DO beta=alpha, 3
             h_stress(alpha,beta)=h_stress(alpha,beta) &
@@ -697,8 +697,8 @@ MODULE mp2_ri_grad
       CALL timestop(handle3)
 
       IF(use_virial) THEN
-        ! add the volume contribution to the virial coming from 
-        ! the 3-center integrals (mu nu|P) 
+        ! add the volume contribution to the virial coming from
+        ! the 3-center integrals (mu nu|P)
         CALL timeset(routineN//"_Virial",handle3)
         e_hartree=0.0_dp
         h_stress=0.0_dp
@@ -774,7 +774,7 @@ MODULE mp2_ri_grad
              I_ab(iorb,1)=1.0_dp
              skip_shell=.FALSE.
            END IF
-         END DO  
+         END DO
 
          IF(skip_shell) THEN
            offset=offset+nsgfa(iset)
@@ -910,7 +910,7 @@ MODULE mp2_ri_grad
 
     ! move the forces in the correct place
     DO ikind=1,SIZE(force)
-      force(ikind)%mp2_non_sep(:,:) = force(ikind)%rho_elec(:,:) 
+      force(ikind)%mp2_non_sep(:,:) = force(ikind)%rho_elec(:,:)
       force(ikind)%rho_elec(:,:) = 0.0_dp
     END DO
 
@@ -954,11 +954,11 @@ MODULE mp2_ri_grad
        CALL cp_fm_struct_release(fm_struct_tmp)
        CALL cp_fm_set_all(L1_mu_i_beta,0.0_dp)
        CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1_beta%matrix, fm=L1_mu_i_beta)
- 
+
        ! release Lag_mu_i_1
        CALL cp_dbcsr_release(Lag_mu_i_1_beta%matrix)
        DEALLOCATE(Lag_mu_i_1_beta%matrix)
- 
+
        NULLIFY(L2_nu_a_beta, fm_struct_tmp)
        CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env_sub,context=blacs_env_sub, &
                                 nrow_global=dimen,ncol_global=virtual_beta)
@@ -966,7 +966,7 @@ MODULE mp2_ri_grad
        CALL cp_fm_struct_release(fm_struct_tmp)
        CALL cp_fm_set_all(L2_nu_a_beta,0.0_dp)
        CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2_beta%matrix, fm=L2_nu_a_beta)
- 
+
        ! release Lag_nu_a_2
        CALL cp_dbcsr_release(Lag_nu_a_2_beta%matrix)
        DEALLOCATE(Lag_nu_a_2_beta%matrix)
@@ -975,10 +975,10 @@ MODULE mp2_ri_grad
     ! Set the factor to multiply P_ij (depends on the open or closed shell)
     factor = 1.0_dp
     IF (alpha_beta) factor = 0.50_dp
-    
+
     CALL create_W_P(qs_env,mp2_env,mo_coeff,homo,virtual,dimen,para_env,para_env_sub,&
                     Eigenval,L1_mu_i,L2_nu_a,factor,.FALSE.)
-    ! Alpha_beta_case                
+    ! Alpha_beta_case
     IF (alpha_beta) THEN
        CALL create_W_P(qs_env,mp2_env,mo_coeff_beta,homo_beta,virtual_beta,dimen,para_env, &
                        para_env_sub,Eigenval_beta,L1_mu_i_beta,L2_nu_a_beta, &
@@ -1082,7 +1082,7 @@ MODULE mp2_ri_grad
       sub_proc_map(-i-1)=para_env_sub%num_pe-i-1
       sub_proc_map(para_env_sub%num_pe+i)=i
     END DO
- 
+
     ! get matrix information for the global
     CALL cp_fm_get_info(matrix=L_mu_q,&
                         nrow_local=nrow_local,&
@@ -1113,7 +1113,7 @@ MODULE mp2_ri_grad
     mypcol_1i=L1_mu_i%matrix_struct%context%mepos(2)
     nprow_1i =L1_mu_i%matrix_struct%context%num_pe(1)
     npcol_1i =L1_mu_i%matrix_struct%context%num_pe(2)
-    
+
     ALLOCATE(mepos_2_grid_1i(0:para_env_sub%num_pe-1,2))
     mepos_2_grid_1i=0
     mepos_2_grid_1i(para_env_sub%mepos,1)=myprow_1i
@@ -1284,7 +1284,7 @@ MODULE mp2_ri_grad
     map_rec_size=0
     CALL mp_alltoall(map_send_size,map_rec_size,1,para_env_sub%group)
     CALL timestop(handle2)
- 
+
     ! 2) reorder data in sending buffer
     CALL timeset(routineN//"_sub_Bsend",handle2)
     ! count the number of messages (include myself)
@@ -1313,7 +1313,7 @@ MODULE mp2_ri_grad
       END IF
     END DO
     ! loop over the locally held data and fill the buffer_send
-    ! for doing that we need an array that keep track if the 
+    ! for doing that we need an array that keep track if the
     ! sequential increase of the index for each message
     ALLOCATE(iii_vet(number_of_send))
     iii_vet=0
@@ -1412,7 +1412,7 @@ MODULE mp2_ri_grad
 
     ! 4) (if memory is a problem we should move this part after point 5)
     !    Here we create the new buffer for cyclic(ring) communication and
-    !    we fill it with the data received from the other member of the 
+    !    we fill it with the data received from the other member of the
     !    subgroup
     CALL timeset(routineN//"_Bcyclic",handle2)
     ! first allocata new structure
@@ -1423,7 +1423,7 @@ MODULE mp2_ri_grad
       ALLOCATE(buffer_cyclic(iproc)%msg(rec_row_size,rec_col_size))
       buffer_cyclic(iproc)%msg=0.0_dp
     END DO
-    ! now collect data from other member of the subgroup and fill 
+    ! now collect data from other member of the subgroup and fill
     ! buffer_cyclic
     rec_counter=0
     DO proc_shift=0, para_env_sub%num_pe-1
@@ -1432,7 +1432,7 @@ MODULE mp2_ri_grad
       IF(map_rec_size(proc_receive)>0) THEN
         rec_counter=rec_counter+1
 
-        ! wait for the message       
+        ! wait for the message
         IF(proc_receive/=para_env_sub%mepos) CALL mp_wait(buffer_rec(rec_counter)%msg_req)
 
         CALL timeset(routineN//"_fill",handle3)
@@ -1567,7 +1567,7 @@ MODULE mp2_ri_grad
     DEALLOCATE(sizes_1i)
     DEALLOCATE(sizes_2a)
 
-    ! update the P_ij block of P_MP2 with the 
+    ! update the P_ij block of P_MP2 with the
     ! non-singular ij pairs
     CALL timeset(routineN//"_Pij",handle2)
     NULLIFY(fm_P_ij, fm_struct_tmp)
@@ -1579,6 +1579,7 @@ MODULE mp2_ri_grad
 
     CALL cp_gemm('T','N',homo,homo,dimen,1.0_dp,&
                     mo_coeff,L_mu_q,0.0_dp,fm_P_ij,&
+                    a_first_col=1,&
                     a_first_row=1,&
                     b_first_col=1,&
                     b_first_row=1,&
@@ -1588,6 +1589,7 @@ MODULE mp2_ri_grad
     ! or just recompute the transposed matrix
     CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp,&
                     L_mu_q,mo_coeff,2.0_dp,fm_P_ij,&
+                    a_first_col=1,&
                     a_first_row=1,&
                     b_first_col=1,&
                     b_first_row=1,&
@@ -1704,8 +1706,8 @@ MODULE mp2_ri_grad
     ELSE
        DEALLOCATE(mp2_env%ri_grad%P_ij_beta)
     ENDIF
- 
-    ! send around the sub_group the local data and check if we 
+
+    ! send around the sub_group the local data and check if we
     ! have to update our block with external elements
     ALLOCATE(mepos_2_grid(0:para_env_sub%num_pe-1,2))
     mepos_2_grid=0
@@ -1723,7 +1725,7 @@ MODULE mp2_ri_grad
     DO proc_shift=1, para_env_sub%num_pe-1
       proc_send=sub_proc_map(para_env_sub%mepos+proc_shift)
       proc_receive=sub_proc_map(para_env_sub%mepos-proc_shift)
-    
+
       send_prow=mepos_2_grid(proc_send,1)
       send_pcol=mepos_2_grid(proc_send,2)
 
@@ -1793,28 +1795,31 @@ MODULE mp2_ri_grad
        CALL cp_fm_create(mp2_env%ri_grad%W_mo, fm_struct_tmp, name="W_MP2_MO")
        CALL cp_fm_set_all(mp2_env%ri_grad%W_mo, 0.0_dp)
        CALL cp_fm_struct_release(fm_struct_tmp)
-     
+
        ! all block
        CALL cp_gemm('T','N',dimen,dimen,dimen,2.0_dp*factor,&
                        L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
                        c_first_col=1,&
                        c_first_row=1)
-     
+
        ! occ-occ block
        CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp*factor,&
                        L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
                        c_first_col=1,&
                        c_first_row=1)
-     
+
        ! occ-virt block
        CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
                        mo_coeff,L_mu_q,0.0_dp,mp2_env%ri_grad%W_mo,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=homo+1,&
                        b_first_row=1,&
@@ -1825,28 +1830,31 @@ MODULE mp2_ri_grad
        CALL cp_fm_create(mp2_env%ri_grad%W_mo_beta, fm_struct_tmp, name="W_MP2_MO")
        CALL cp_fm_set_all(mp2_env%ri_grad%W_mo_beta, 0.0_dp)
        CALL cp_fm_struct_release(fm_struct_tmp)
-     
+
        ! all block
        CALL cp_gemm('T','N',dimen,dimen,dimen,2.0_dp*factor,&
                        L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo_beta,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
                        c_first_col=1,&
                        c_first_row=1)
-     
+
        ! occ-occ block
        CALL cp_gemm('T','N',homo,homo,dimen,-2.0_dp*factor,&
                        L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%W_mo_beta,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
                        c_first_col=1,&
                        c_first_row=1)
-     
+
        ! occ-virt block
        CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
                        mo_coeff,L_mu_q,0.0_dp,mp2_env%ri_grad%W_mo_beta,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=homo+1,&
                        b_first_row=1,&
@@ -1866,10 +1874,11 @@ MODULE mp2_ri_grad
        CALL cp_fm_create(mp2_env%ri_grad%L_jb, fm_struct_tmp, name="fm_L_jb")
        CALL cp_fm_struct_release(fm_struct_tmp)
        CALL cp_fm_set_all(mp2_env%ri_grad%L_jb, 0.0_dp)
-  
+
        ! first Virtual
        CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
                        L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%L_jb,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=homo+1,&
                        b_first_row=1,&
@@ -1878,6 +1887,7 @@ MODULE mp2_ri_grad
        ! then occupied
        CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
                        mo_coeff,L_mu_q,1.0_dp,mp2_env%ri_grad%L_jb,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=homo+1,&
                        b_first_row=1,&
@@ -1890,10 +1900,11 @@ MODULE mp2_ri_grad
        CALL cp_fm_create(mp2_env%ri_grad%L_jb_beta, fm_struct_tmp, name="fm_L_jb")
        CALL cp_fm_struct_release(fm_struct_tmp)
        CALL cp_fm_set_all(mp2_env%ri_grad%L_jb_beta, 0.0_dp)
-  
+
        ! first Virtual
        CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
                        L_mu_q,mo_coeff,0.0_dp,mp2_env%ri_grad%L_jb_beta,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=homo+1,&
                        b_first_row=1,&
@@ -1902,6 +1913,7 @@ MODULE mp2_ri_grad
        ! then occupied
        CALL cp_gemm('T','N',homo,virtual,dimen,2.0_dp*factor,&
                        mo_coeff,L_mu_q,1.0_dp,mp2_env%ri_grad%L_jb_beta,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=homo+1,&
                        b_first_row=1,&
@@ -1914,7 +1926,7 @@ MODULE mp2_ri_grad
 
     ! here we should be done next CPHF
 
-    IF(.FALSE.) THEN   
+    IF(.FALSE.) THEN
       ALLOCATE(ab_send(homo,virtual))
       ab_send=0.0_dp
       IF (.NOT. alpha_beta) THEN
@@ -2012,7 +2024,7 @@ MODULE mp2_ri_grad
         CALL write_array(ab_send(1:homo,1:homo))
         WRITE(*,*) 'Pab'
         CALL write_array(ab_rec(1:virtual,1:virtual))
-        WRITE(*,*) 'Pia' 
+        WRITE(*,*) 'Pia'
         CALL write_array(mat_deb(1:homo,1:virtual))
       END IF
       DEALLOCATE(ab_send, ab_rec, mat_deb)

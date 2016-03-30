@@ -245,8 +245,9 @@ CONTAINS
 !> \param matrix_b : k x n matrix ( ! for transb = 'N')
 !> \param beta ...
 !> \param matrix_c : m x n matrix
-!> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
+!> \param a_first_col ...
 !> \param a_first_row ...
+!> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
 !> \param b_first_row ...
 !> \param c_first_col ...
 !> \param c_first_row ...
@@ -255,7 +256,8 @@ CONTAINS
 !>      matrix_c should have no overlap with matrix_a, matrix_b
 ! *****************************************************************************
   SUBROUTINE cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-       matrix_c,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+       matrix_c,a_first_col,a_first_row,b_first_col,b_first_row,&
+       c_first_col,c_first_row)
 
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     INTEGER, INTENT(IN)                      :: m, n, k
@@ -263,15 +265,15 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(cp_fm_type), POINTER                :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col, a_first_row, &
-                                                b_first_row, c_first_col, &
-                                                c_first_row
+    INTEGER, INTENT(IN), OPTIONAL            :: a_first_col, a_first_row, &
+                                                b_first_col, b_first_row, &
+                                                c_first_col, c_first_row
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_gemm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i_a, i_b, i_c, j_b, &
-                                                j_c
+    INTEGER                                  :: handle, i_a, i_b, i_c, j_a, &
+                                                j_b, j_c
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b, c
     REAL(KIND=sp), DIMENSION(:, :), POINTER  :: a_sp, b_sp, c_sp
 #if defined(__SCALAPACK)
@@ -298,6 +300,11 @@ CONTAINS
     ELSE
       i_a = 1
     END IF
+    IF (PRESENT(a_first_col)) THEN
+      j_a = a_first_col
+    ELSE
+      j_a = 1
+    END IF
     IF (PRESENT(b_first_row)) THEN
       i_b = b_first_row
     ELSE
@@ -313,7 +320,6 @@ CONTAINS
     ELSE
       i_c = 1
     END IF
-
     IF (PRESENT(c_first_col)) THEN
       j_c = c_first_col
     ELSE
@@ -328,12 +334,12 @@ CONTAINS
 
     IF(matrix_a%use_sp.AND.matrix_b%use_sp.AND.matrix_c%use_sp) THEN
 
-       CALL psgemm(transa,transb,m,n,k,REAL(alpha,sp),a_sp(1,1),i_a,1,desca,b_sp(1,1),i_b,j_b,&
+       CALL psgemm(transa,transb,m,n,k,REAL(alpha,sp),a_sp(1,1),i_a,j_a,desca,b_sp(1,1),i_b,j_b,&
                    descb,REAL(beta,sp),c_sp(1,1),i_c,j_c,descc)
 
     ELSEIF((.NOT.matrix_a%use_sp).AND.(.NOT.matrix_b%use_sp).AND.(.NOT.matrix_c%use_sp)) THEN
 
-       CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),i_a,1,desca,b(1,1),i_b,j_b,&
+       CALL pdgemm(transa,transb,m,n,k,alpha,a(1,1),i_a,j_a,desca,b(1,1),i_b,j_b,&
                    descb,beta,c(1,1),i_c,j_c,descc)
 
     ELSE
@@ -347,7 +353,7 @@ CONTAINS
        ldb = SIZE(b_sp,1)
        ldc = SIZE(c_sp,1)
 
-       CALL sgemm(transa,transb,m,n,k,REAL(alpha,sp),a_sp(i_a,1),lda,b_sp(i_b,j_b),ldb,&
+       CALL sgemm(transa,transb,m,n,k,REAL(alpha,sp),a_sp(i_a,j_a),lda,b_sp(i_b,j_b),ldb,&
                   REAL(beta,sp),c_sp(i_c,j_c),ldc)
 
     ELSEIF((.NOT.matrix_a%use_sp).AND.(.NOT.matrix_b%use_sp).AND.(.NOT.matrix_c%use_sp)) THEN
@@ -356,7 +362,7 @@ CONTAINS
        ldb = SIZE(b,1)
        ldc = SIZE(c,1)
 
-       CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,1),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
+       CALL dgemm(transa,transb,m,n,k,alpha,a(i_a,j_a),lda,b(i_b,j_b),ldb,beta,c(i_c,j_c),ldc)
 
     ELSE
        CPABORT("Mixed precision gemm NYI")
@@ -466,7 +472,7 @@ CONTAINS
     CALL mp_sum(norm,group)
 #endif
     norm = SQRT(norm)
- 
+
     CALL timestop(handle)
 
  END SUBROUTINE cp_fm_frobenius_norm
@@ -1103,7 +1109,7 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
       DO i=1,n
          CALL cp_fm_get_element(matrix_lu,i,i,diag(i)) !  not completely optimal in speed i would say
       ENDDO
-  
+
       exponent_of_minus_one = 0
       determinant=1.0_dp
       DO i=1,n
@@ -1113,10 +1119,10 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
          END IF
       ENDDO
       DEALLOCATE(diag)
-  
+
       group = matrix_lu%matrix_struct%para_env%group
       CALL mp_sum(exponent_of_minus_one,group)
-  
+
       determinant=determinant*(-1.0_dp)**exponent_of_minus_one
 
     END IF
@@ -1359,8 +1365,9 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !> \param beta ...
 !> \param C_re m x n matrix, real part
 !> \param C_im m x n matrix, imaginary part
-!> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
+!> \param a_first_col ...
 !> \param a_first_row ...
+!> \param b_first_col : the k x n matrix starts at col b_first_col of matrix_b (avoid usage)
 !> \param b_first_row ...
 !> \param c_first_col ...
 !> \param c_first_row ...
@@ -1369,16 +1376,17 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
 !>      C should have no overlap with A, B
 ! *****************************************************************************
 SUBROUTINE cp_complex_fm_gemm(transa,transb,m,n,k,alpha,A_re,A_im,B_re,B_im,beta,&
-       C_re,C_im,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+       C_re,C_im,a_first_col,a_first_row,b_first_col,b_first_row,c_first_col,&
+       c_first_row)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     INTEGER, INTENT(IN)                      :: m, n, k
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(cp_fm_type), POINTER                :: A_re, A_im, B_re, B_im
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(cp_fm_type), POINTER                :: C_re, C_im
-    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col, a_first_row, &
-                                                b_first_row, c_first_col, &
-                                                c_first_row
+    INTEGER, INTENT(IN), OPTIONAL            :: a_first_col, a_first_row, &
+                                                b_first_col, b_first_row, &
+                                                c_first_col, c_first_row
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_complex_fm_gemm', &
       routineP = moduleN//':'//routineN
@@ -1398,6 +1406,6 @@ SUBROUTINE cp_complex_fm_gemm(transa,transb,m,n,k,alpha,A_re,A_im,B_re,B_im,beta
 
     CALL timestop(handle)
 
-END SUBROUTINE
+END SUBROUTINE cp_complex_fm_gemm
 
 END MODULE cp_fm_basic_linalg

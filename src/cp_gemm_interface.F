@@ -47,23 +47,25 @@ CONTAINS
 !> \param matrix_b ...
 !> \param beta ...
 !> \param matrix_c ...
-!> \param b_first_col ...
+!> \param a_first_col ...
 !> \param a_first_row ...
+!> \param b_first_col ...
 !> \param b_first_row ...
 !> \param c_first_col ...
 !> \param c_first_row ...
 ! *****************************************************************************
   SUBROUTINE cp_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-       matrix_c,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+       matrix_c,a_first_col,a_first_row,b_first_col,b_first_row,&
+       c_first_col,c_first_row)
     CHARACTER(LEN=1), INTENT(IN)             :: transa, transb
     INTEGER, INTENT(IN)                      :: m, n, k
     REAL(KIND=dp), INTENT(IN)                :: alpha
     TYPE(cp_fm_type), POINTER                :: matrix_a, matrix_b
     REAL(KIND=dp), INTENT(IN)                :: beta
     TYPE(cp_fm_type), POINTER                :: matrix_c
-    INTEGER, INTENT(IN), OPTIONAL            :: b_first_col, a_first_row, &
-                                                b_first_row, c_first_col, &
-                                                c_first_row
+    INTEGER, INTENT(IN), OPTIONAL            :: a_first_col, a_first_row, &
+                                                b_first_col, b_first_row, &
+                                                c_first_col, c_first_row
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_gemm', &
       routineP = moduleN//':'//routineN
@@ -83,16 +85,17 @@ CONTAINS
     CALL cp_fm_get_info(matrix_a,nrow_locals=a_row_loc,ncol_locals=a_col_loc)
     CALL cp_fm_get_info(matrix_b,nrow_locals=b_row_loc,ncol_locals=b_col_loc)
     CALL cp_fm_get_info(matrix_c,nrow_locals=c_row_loc,ncol_locals=c_col_loc)
-    IF(PRESENT(b_first_col))my_multi=do_pdgemm
     IF(PRESENT(a_first_row))my_multi=do_pdgemm
+    IF(PRESENT(a_first_col))my_multi=do_pdgemm
     IF(PRESENT(b_first_row))my_multi=do_pdgemm
-    IF(PRESENT(c_first_col))my_multi=do_pdgemm
+    IF(PRESENT(b_first_col))my_multi=do_pdgemm
     IF(PRESENT(c_first_row))my_multi=do_pdgemm
+    IF(PRESENT(c_first_col))my_multi=do_pdgemm
 
     my_trans=transa; CALL uppercase(my_trans)
     IF(my_trans=='T')THEN
        CALL cp_fm_get_info(matrix_a,nrow_locals=a_col_loc,ncol_locals=a_row_loc)
-    END IF 
+    END IF
 
     my_trans=transb; CALL uppercase(my_trans)
     IF(my_trans=='T')THEN
@@ -122,22 +125,27 @@ CONTAINS
     END IF
 
     ! IMPORTANT do_pdgemm is lowest value. If one processor has it set make all do pdgemm
-    IF(cp_fm_get_mm_type().NE.do_pdgemm) CALL mp_min(my_multi,matrix_a%matrix_struct%para_env%group)  
-    
+    IF(cp_fm_get_mm_type().NE.do_pdgemm) CALL mp_min(my_multi,matrix_a%matrix_struct%para_env%group)
+
     SELECT CASE(my_multi)
     CASE (do_pdgemm)
         CALL timeset("cp_gemm_fm_gemm",handle1)
-       CALL cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-        matrix_c,b_first_col,a_first_row,b_first_row,c_first_col,c_first_row)
+       CALL cp_fm_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta, matrix_c,&
+            a_first_col=a_first_col,&
+            a_first_row=a_first_row,&
+            b_first_col=b_first_col,&
+            b_first_row=b_first_row,&
+            c_first_col=c_first_col,&
+            c_first_row=c_first_row)
        CALL timestop(handle1)
     CASE (do_dbcsr)
         CALL timeset("cp_gemm_dbcsr_mm",handle1)
        CALL copy_fm_to_dbcsr_bc(matrix_a,a_db)
        CALL copy_fm_to_dbcsr_bc(matrix_b,b_db)
        CALL copy_fm_to_dbcsr_bc(matrix_c,c_db)
-   
+
        CALL cp_dbcsr_multiply(transa,transb,alpha, a_db, b_db, beta, c_db, last_k=k)
-   
+
        CALL copy_dbcsr_to_fm_bc(c_db, matrix_c)
        CALL cp_dbcsr_release (a_db)
        CALL cp_dbcsr_release (b_db)

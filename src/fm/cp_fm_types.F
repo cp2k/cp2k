@@ -74,6 +74,7 @@ MODULE cp_fm_types
             cp_fm_to_fm_submat,&  ! copy (parts of) a fm to a fm
             cp_fm_to_fm_triangular,&
             cp_fm_copy_general,&
+            cp_fm_to_fm_submat_general,&
             cp_fm_write_unformatted,&  ! writes a full matrix to an open unit
             cp_fm_read_unformatted,&  ! reads a full matrix from an open unit
             cp_fm_setup,&  ! allows to set flags for fms
@@ -1381,13 +1382,13 @@ CONTAINS
 !>
 !>        call pdgemr2d(M,N,Aloc,iA,jA,descA,Bloc,iB,jB,descB,context)
 !>
-!>        Here A and B are global matrices, Aloc, and Bloc, are local matrices, 
-!>        and context is a process grid that covers all parts of either A or B. 
+!>        Here A and B are global matrices, Aloc, and Bloc, are local matrices,
+!>        and context is a process grid that covers all parts of either A or B.
 !>        If a whole global matrix is to be distributed, use the call:
 !>
 !>        call pdgemr2d(M,N,A,1,1,descA,Bloc,1,1,descB,context)
 !>
-!>        A process that is not a part of the context of A should set descA(2) 
+!>        A process that is not a part of the context of A should set descA(2)
 !>        to -1, and similarly for B.
 !>
 !> \param source          input fm matrix
@@ -1467,6 +1468,123 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE cp_fm_copy_general
+
+
+
+! *****************************************************************************
+!> \brief General copy of a submatrixx of fm matrix to
+!>        a submatrix of another fm matrix.
+!>        The two matrices can have different contexts.
+!>
+!>        Summary of distribution routines for dense matrices
+!>        The following will copy A(iA:iA+M-1,jA:jA+N-1) to B(iB:iB+M-1,jB:jB+N-1):
+!>
+!>        call pdgemr2d(M,N,Aloc,iA,jA,descA,Bloc,iB,jB,descB,context)
+!>
+!>        A process that is not a part of the context of A should set descA(2)
+!>        to -1, and similarly for B.
+!>
+!> \param source          input fm matrix
+!> \param destination     output fm matrix
+!> \param nrows           number of rows of sub matrix to be copied
+!> \param ncols           number of cols of sub matrix to be copied
+!> \param s_firstrow      starting global row index of sub matrix in source
+!> \param s_firstcol      starting global col index of sub matrix in source
+!> \param d_firstrow      starting global row index of sub matrix in destination
+!> \param d_firstcol      starting global col index of sub matrix in destination
+!> \param global_context  process grid that covers all parts of either A or B.
+! *****************************************************************************
+  SUBROUTINE cp_fm_to_fm_submat_general(source, &
+                                        destination, &
+                                        nrows, &
+                                        ncols, &
+                                        s_firstrow, &
+                                        s_firstcol, &
+                                        d_firstrow, &
+                                        d_firstcol, &
+                                        global_context)
+
+    TYPE(cp_fm_type), POINTER                :: source, destination
+    INTEGER, INTENT(IN)                      :: nrows, ncols, &
+                                                s_firstrow, s_firstcol, &
+                                                d_firstrow, d_firstcol, &
+                                                global_context
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_submat_general', &
+         routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: debug
+    INTEGER                                  :: handle
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb
+    REAL(KIND=dp), DIMENSION(1,1), TARGET    :: dummy
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: smat, dmat
+#endif
+
+    CALL timeset(routineN,handle)
+
+    debug = debug_this_module
+
+    IF (.NOT. cp2k_is_parallel) THEN
+       CALL cp_fm_to_fm_submat(source, &
+                               destination, &
+                               nrows, &
+                               ncols, &
+                               s_firstrow, &
+                               s_firstcol, &
+                               d_firstrow, &
+                               d_firstcol)
+    ELSE
+#ifdef __SCALAPACK
+       NULLIFY(smat, dmat)
+       ! check whether source is available on this process
+       IF (ASSOCIATED(source)) THEN
+          desca = source%matrix_struct%descriptor
+          IF (source%use_sp) CPABORT("only DP kind implemnted")
+          IF (nrows .GT. source%matrix_struct%nrow_global) &
+               CPABORT("nrows is greater than nrow_global of source")
+          IF (ncols .GT. source%matrix_struct%ncol_global) &
+               CPABORT("ncols is greater than ncol_global of source")
+          smat => source%local_data
+       ELSE
+          desca = -1
+          smat => dummy
+       END IF
+       ! check destination is available on this process
+       IF (ASSOCIATED(destination)) THEN
+          descb = destination%matrix_struct%descriptor
+          IF (destination%use_sp) CPABORT("only DP kind implemnted")
+          IF (nrows .GT. destination%matrix_struct%nrow_global) &
+               CPABORT("nrows is greater than nrow_global of destination")
+          IF (ncols .GT. destination%matrix_struct%ncol_global) &
+               CPABORT("ncols is greater than ncol_global of destination")
+          dmat => destination%local_data
+       ELSE
+          descb = -1
+          dmat => dummy
+       END IF
+       ! do copy
+       CALL pdgemr2d(nrows, &
+                     ncols, &
+                     smat, &
+                     s_firstrow, &
+                     s_firstcol, &
+                     desca, &
+                     dmat, &
+                     d_firstrow, &
+                     d_firstcol, &
+                     descb, &
+                     global_context)
+#else
+       MARK_USED(global_context)
+       CPABORT("this subroutine only supports SCALAPACK")
+#endif
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_fm_to_fm_submat_general
+
 
 ! *****************************************************************************
 !> \brief ...
@@ -1690,8 +1808,8 @@ CONTAINS
  END SUBROUTINE cp_fm_read_unformatted
 
 ! *****************************************************************************
-!> \brief wrapper to scalapack function INDXG2P that computes the process 
-!>         coordinate which posseses the entry of a distributed matrix specified 
+!> \brief wrapper to scalapack function INDXG2P that computes the process
+!>         coordinate which posseses the entry of a distributed matrix specified
 !>         by a global index INDXGLOB.
 !>
 !>  Arguments
@@ -1714,7 +1832,7 @@ CONTAINS
 !>
 !>  NPROCS    (global input) INTEGER
 !>            The total number processes over which the matrix is
-!>            distributed.         
+!>            distributed.
 !>
 !> \param INDXGLOB ...
 !> \param NB ...
@@ -1753,7 +1871,7 @@ CONTAINS
  END FUNCTION  cp_fm_indxg2p
 
 ! *****************************************************************************
-!> \brief wrapper to scalapack function INDXG2L that computes the local index 
+!> \brief wrapper to scalapack function INDXG2L that computes the local index
 !>         of a distributed matrix entry pointed to by the global index INDXGLOB.
 !>
 !>  Arguments
@@ -1816,7 +1934,7 @@ CONTAINS
 
 ! *****************************************************************************
 !> \brief wrapper to scalapack function INDXL2G that computes the global index
-!>         of a distributed matrix entry pointed to by the local index INDXLOC 
+!>         of a distributed matrix entry pointed to by the local index INDXLOC
 !>         of the process indicated by IPROC.
 !>
 !>  Arguments
@@ -1850,7 +1968,7 @@ CONTAINS
 !> \author Mauro Del Ben [MDB] - 12.2012
 ! *****************************************************************************
  FUNCTION  cp_fm_indxl2g( INDXLOC, NB, IPROC, ISRCPROC, NPROCS ) RESULT(L2G)
-   INTEGER, INTENT(IN)                      :: INDXLOC, NB, IPROC, ISRCPROC, NPROCS 
+   INTEGER, INTENT(IN)                      :: INDXLOC, NB, IPROC, ISRCPROC, NPROCS
    INTEGER                                  :: L2G
 
    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_indxl2g', &

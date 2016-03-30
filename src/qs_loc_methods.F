@@ -344,16 +344,16 @@ CONTAINS
        ncol = nsgf(iatom)
        ! multiply fmxfm, using only part of the ao : Ct x S
        CALL cp_gemm('N','N',nao,nmoloc,nao,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
-            b_first_col=1,a_first_row=1,b_first_row=1)
+            a_first_col=1,a_first_row=1,b_first_col=1,b_first_row=1)
        CALL cp_gemm('T','N',nmoloc,nmoloc,ncol,0.5_dp,vectors,opvec,&
             0.0_dp,zij_fm_set(iatom,1)%matrix,&
-            b_first_col=1,a_first_row=isgf,b_first_row=isgf)
+            a_first_col=1,a_first_row=isgf,b_first_col=1,b_first_row=isgf)
 
        CALL cp_gemm('N','N',nao,nmoloc,ncol,1.0_dp,ov_fm,vectors,0.0_dp,opvec,&
-            b_first_col=1,a_first_row=isgf,b_first_row=isgf)
+            a_first_col=1,a_first_row=isgf,b_first_col=1,b_first_row=isgf)
        CALL cp_gemm('T','N',nmoloc,nmoloc,nao,0.5_dp,vectors,opvec,&
             1.0_dp,zij_fm_set(iatom,1)%matrix,&
-            b_first_col=1,a_first_row=1,b_first_row=1)
+            a_first_col=1,a_first_row=1,b_first_col=1,b_first_row=1)
     END DO  ! iatom
 
     !   And now perform the optimization and rotate the orbitals

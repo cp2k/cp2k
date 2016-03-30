@@ -745,6 +745,7 @@ MODULE mp2_cphf
     CALL cp_fm_set_all(fm_back, 0.0_dp)
     CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                     mo_coeff,W_mo,0.0_dp,fm_back,&
+                    a_first_col=1,&
                     a_first_row=1,&
                     b_first_col=1,&
                     b_first_row=1,&
@@ -753,6 +754,7 @@ MODULE mp2_cphf
     CALL cp_fm_set_all(W_mo, 0.0_dp)
     CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                     fm_back,mo_coeff,0.0_dp,W_mo,&
+                    a_first_col=1,&
                     a_first_row=1,&
                     b_first_col=1,&
                     b_first_row=1,&
@@ -762,6 +764,7 @@ MODULE mp2_cphf
     CALL cp_fm_set_all(fm_back, 0.0_dp)
     CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                     mo_coeff,P_mo,0.0_dp,fm_back,&
+                    a_first_col=1,&
                     a_first_row=1,&
                     b_first_col=1,&
                     b_first_row=1,&
@@ -770,6 +773,7 @@ MODULE mp2_cphf
     CALL cp_fm_set_all(P_mo, 0.0_dp)
     CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                     fm_back,mo_coeff,0.0_dp,P_mo,&
+                    a_first_col=1,&
                     a_first_row=1,&
                     b_first_col=1,&
                     b_first_row=1,&
@@ -779,6 +783,7 @@ MODULE mp2_cphf
        CALL cp_fm_set_all(fm_back, 0.0_dp)
        CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                        mo_coeff_beta,W_mo_beta,0.0_dp,fm_back,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
@@ -787,6 +792,7 @@ MODULE mp2_cphf
        CALL cp_fm_set_all(W_mo_beta, 0.0_dp)
        CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                        fm_back,mo_coeff_beta,0.0_dp,W_mo_beta,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
@@ -796,6 +802,7 @@ MODULE mp2_cphf
        CALL cp_fm_set_all(fm_back, 0.0_dp)
        CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                        mo_coeff_beta,P_mo_beta,0.0_dp,fm_back,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
@@ -804,6 +811,7 @@ MODULE mp2_cphf
        CALL cp_fm_set_all(P_mo_beta, 0.0_dp)
        CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                        fm_back,mo_coeff_beta,0.0_dp,P_mo_beta,&
+                       a_first_col=1,&
                        a_first_row=1,&
                        b_first_col=1,&
                        b_first_row=1,&
@@ -1075,6 +1083,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,homo,homo,1.0_dp,&
                            mo_coeff_o,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1083,6 +1092,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,homo,1.0_dp,&
                            fm_back,mo_coeff_o,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1093,6 +1103,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,homo_beta,homo_beta,1.0_dp,&
                            mo_coeff_o_beta,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1101,6 +1112,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,homo_beta,1.0_dp,&
                            fm_back,mo_coeff_o_beta,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1114,6 +1126,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,virtual,virtual,1.0_dp,&
                            mo_coeff_v,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=homo+1,&
                            b_first_row=homo+1,&
@@ -1122,6 +1135,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
                            fm_back,mo_coeff_v,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1131,6 +1145,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,virtual_beta,virtual_beta,1.0_dp,&
                            mo_coeff_v_beta,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=homo_beta+1,&
                            b_first_row=homo_beta+1,&
@@ -1139,6 +1154,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,virtual_beta,1.0_dp,&
                            fm_back,mo_coeff_v_beta,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1151,6 +1167,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,virtual,homo,1.0_dp,&
                            mo_coeff_o,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1159,6 +1176,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,virtual,1.0_dp,&
                            fm_back,mo_coeff_v,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1168,6 +1186,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','T',dimen,homo,virtual,1.0_dp,&
                            mo_coeff_v,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1175,6 +1194,7 @@ MODULE mp2_cphf
                            c_first_row=1)
            CALL cp_gemm('N','T',dimen,dimen,homo,0.5_dp,&
                            fm_back,mo_coeff_o,0.5_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1199,6 +1219,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,virtual_beta,homo_beta,1.0_dp,&
                            mo_coeff_o_beta,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1207,6 +1228,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,virtual_beta,1.0_dp,&
                            fm_back,mo_coeff_v_beta,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1216,6 +1238,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','T',dimen,homo_beta,virtual_beta,1.0_dp,&
                            mo_coeff_v_beta,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1223,6 +1246,7 @@ MODULE mp2_cphf
                            c_first_row=1)
            CALL cp_gemm('N','T',dimen,dimen,homo_beta,0.5_dp,&
                            fm_back,mo_coeff_o_beta,0.5_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1236,6 +1260,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                            mo_coeff,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1244,6 +1269,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                            fm_back,mo_coeff,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1253,6 +1279,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_back, 0.0_dp)
            CALL cp_gemm('N','N',dimen,dimen,dimen,1.0_dp,&
                            mo_coeff_beta,fm_mo,0.0_dp,fm_back,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1261,6 +1288,7 @@ MODULE mp2_cphf
            CALL cp_fm_set_all(fm_ao, 0.0_dp)
            CALL cp_gemm('N','T',dimen,dimen,dimen,1.0_dp,&
                            fm_back,mo_coeff_beta,0.0_dp,fm_ao,&
+                           a_first_col=1,&
                            a_first_row=1,&
                            b_first_col=1,&
                            b_first_row=1,&
@@ -1333,6 +1361,7 @@ MODULE mp2_cphf
         CALL cp_fm_set_all(fm_back, 0.0_dp)
         CALL cp_gemm('T','N',homo,dimen,dimen,1.0_dp,&
                         mo_coeff_o,fm_ao,0.0_dp,fm_back,&
+                        a_first_col=1,&
                         a_first_row=1,&
                         b_first_col=1,&
                         b_first_row=1,&
@@ -1340,6 +1369,7 @@ MODULE mp2_cphf
                         c_first_row=1)
         CALL cp_gemm('N','N',homo,virtual,dimen,out_alpha,&
                         fm_back,mo_coeff_v,1.0_dp,fm_mo_out,&
+                        a_first_col=1,&
                         a_first_row=1,&
                         b_first_col=1,&
                         b_first_row=1,&
@@ -1351,6 +1381,7 @@ MODULE mp2_cphf
         CALL cp_fm_set_all(fm_back, 0.0_dp)
         CALL cp_gemm('T','N',homo,dimen,dimen,1.0_dp,&
                         mo_coeff_o,fm_ao,0.0_dp,fm_back,&
+                        a_first_col=1,&
                         a_first_row=1,&
                         b_first_col=1,&
                         b_first_row=1,&
@@ -1358,6 +1389,7 @@ MODULE mp2_cphf
                         c_first_row=1)
         CALL cp_gemm('N','N',homo,homo,dimen,out_alpha,&
                         fm_back,mo_coeff_o,1.0_dp,fm_mo_out,&
+                        a_first_col=1,&
                         a_first_row=1,&
                         b_first_col=1,&
                         b_first_row=1,&
