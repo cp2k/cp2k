@@ -632,7 +632,7 @@ MODULE mp2_cphf
                              factor=factor)
        ! Beta-beta (Coulomb and XC) part of W_mo(III)(beta)
        CALL cphf_like_update(qs_env,para_env,homo_beta,virtual_beta,dimen, &
-                              mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
+                             mo_coeff_beta,mo_coeff_o_beta,mo_coeff_v_beta, &
                              Eigenval_beta,hfx_sections,energy,n_rep_hf,&
                              poisson_env,rho_work,pot_g,rho_g,rho_r,mat_mu_nu,&
                              P_mu_nu,P_mo_beta,fm_G_mu_nu,fm_back,transf_type_in,&

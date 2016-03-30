@@ -74,20 +74,23 @@ CONTAINS
 !> \param force_env ...
 !> \param root_section ...
 !> \param write_binary_restart_file ...
+!> \param respa ...
 !> \par History
 !>      01.2006 created [teo]
 !> \author Teodoro Laino
 ! *****************************************************************************
   SUBROUTINE update_force_eval(force_env,root_section,&
-                               write_binary_restart_file)
+                               write_binary_restart_file,respa)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN)                      :: write_binary_restart_file
+    LOGICAL, OPTIONAL                        :: respa
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_eval, myid, nforce_eval
+    INTEGER                                  :: i_subsys, iforce_eval, myid, &
+                                                nforce_eval
     INTEGER, DIMENSION(:), POINTER           :: i_force_eval
     LOGICAL                                  :: multiple_subsys, &
                                                 skip_vel_section
@@ -117,6 +120,17 @@ CONTAINS
          i_rep_section=i_force_eval(iforce_eval))
     CALL update_subsys(subsys_section,force_env,skip_vel_section,&
                        write_binary_restart_file)
+
+    ! For RESPA we need to update all subsystems
+    IF(PRESENT(respa)) THEN
+      DO i_subsys = 1, 2
+         iforce_eval=i_subsys
+         subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+              i_rep_section=i_force_eval(iforce_eval))
+         CALL update_subsys(subsys_section,force_env,skip_vel_section,&
+                         write_binary_restart_file)
+      ENDDO
+    END IF
 
     rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT")
     CALL update_rng_particle(rng_section,force_env)

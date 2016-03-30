@@ -80,6 +80,7 @@ MODULE input_cp2k_restarts
                                              thermostat_nose,&
                                              thermostat_piglet,&
                                              thermostat_pile
+  USE simpar_types,                    ONLY: simpar_type
   USE string_utilities,                ONLY: string_to_ascii
   USE termination,                     ONLY: stop_memory
   USE thermostat_types,                ONLY: thermostat_type
@@ -426,11 +427,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    LOGICAL                                  :: lcond, my_save_mem, &
+    LOGICAL                                  :: do_respa, lcond, my_save_mem, &
                                                 my_write_binary_restart_file
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(simpar_type), POINTER               :: simpar
 
     CALL timeset(routineN,handle)
 
@@ -473,9 +475,26 @@ CONTAINS
                           write_binary_restart_file=my_write_binary_restart_file)
        ! Update one force_env_section per time..
        IF (ASSOCIATED(my_force_env)) THEN
-          CALL update_force_eval(force_env=my_force_env,&
+          do_respa = .FALSE.
+          IF (PRESENT(md_env)) THEN
+             CALL get_md_env ( md_env=md_env, simpar=simpar)
+             IF (simpar%do_respa) THEN
+                do_respa = .TRUE.
+             ENDIF
+          ENDIF
+
+          ! Do respa only in case of RESPA MD
+          IF (do_respa) THEN
+             CALL update_force_eval(force_env=my_force_env,&
+                                 root_section=root_section,&
+                                 write_binary_restart_file=my_write_binary_restart_file,&
+                                 respa=do_respa)
+          ELSE
+             CALL update_force_eval(force_env=my_force_env,&
                                  root_section=root_section,&
                                  write_binary_restart_file=my_write_binary_restart_file)
+          ENDIF
+          
        END IF
     END IF
 
