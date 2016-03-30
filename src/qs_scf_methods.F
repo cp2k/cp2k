@@ -11,6 +11,8 @@
 !>      - combine_ks_matrices added (05.04.06,MK)
 !>      - second ROKS scheme added (15.04.06,MK)
 !>      - MO occupation management moved (29.08.2008,MK)
+!>      - correct_mo_eigenvalues was moved from qs_mo_types;
+!>        new subroutine shift_unocc_mos (03.2016, Sergey Chulkov)
 ! *****************************************************************************
 MODULE qs_scf_methods
 
@@ -22,18 +24,21 @@ MODULE qs_scf_methods
        cp_dbcsr_type
   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                              cp_dbcsr_sm_fm_multiply
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_symm,&
                                              cp_fm_triangular_multiply,&
                                              cp_fm_upper_to_full
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                              cp_fm_block_jacobi
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_equivalent,&
+                                             cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_set_element,&
+                                             cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_gemm_interface,               ONLY: cp_gemm
@@ -45,8 +50,7 @@ MODULE qs_scf_methods
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
   USE qs_density_mixing_types,         ONLY: mixing_storage_type
-  USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
-                                             get_mo_set,&
+  USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_type
 #include "./base/base_uses.f90"
 
@@ -64,6 +68,8 @@ MODULE qs_scf_methods
             eigensolver_symm,&
             eigensolver_simple,&
             scf_env_density_mixing
+
+  PRIVATE :: correct_mo_eigenvalues, shift_unocc_mos
 
   INTERFACE combine_ks_matrices
     MODULE PROCEDURE combine_ks_matrices_1,&
@@ -152,18 +158,25 @@ CONTAINS
 !> \param ortho ...
 !> \param work ...
 !> \param cholesky_method ...
+!> \param do_level_shift activate the level shifting technique
+!> \param level_shift    amount of shift applied (in a.u.)
+!> \param matrix_u_fm    matrix U : S (overlap matrix) = U^T * U
 !> \param use_jacobi ...
 !> \date    01.05.2001
 !> \author  Matthias Krack
 !> \version 1.0
 ! *****************************************************************************
   SUBROUTINE eigensolver(matrix_ks_fm,mo_set,ortho,work,&
-                         cholesky_method,use_jacobi)
+                         cholesky_method, do_level_shift,&
+                         level_shift, matrix_u_fm, use_jacobi)
     TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: ortho, work
-    INTEGER, INTENT(INout)                   :: cholesky_method
-    LOGICAL, INTENT(IN)                      :: use_jacobi
+    INTEGER, INTENT(inout)                   :: cholesky_method
+    LOGICAL, INTENT(in)                      :: do_level_shift
+    REAL(KIND=dp), INTENT(in)                :: level_shift
+    TYPE(cp_fm_type), POINTER                :: matrix_u_fm
+    LOGICAL, INTENT(in)                      :: use_jacobi
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver', &
       routineP = moduleN//':'//routineN
@@ -183,23 +196,40 @@ CONTAINS
     CALL get_mo_set(mo_set=mo_set,&
                     nao=nao,&
                     nmo=nmo,&
-                    homo=homo, &
+                    homo=homo,&
                     eigenvalues=mo_eigenvalues,&
                     mo_coeff=mo_coeff)
 
        SELECT CASE(cholesky_method)
        CASE(cholesky_reduce)
          CALL cp_fm_cholesky_reduce(matrix_ks_fm,ortho)
+
+         IF (do_level_shift)&
+            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao,&
+                                 level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
+
          CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues)
          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
+         IF (do_level_shift)&
+            CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+
        CASE(cholesky_restore)
          CALL cp_fm_upper_to_full(matrix_ks_fm,work)
          CALL cp_fm_cholesky_restore(matrix_ks_fm,nao,ortho,work,&
                 "SOLVE",pos="RIGHT")
          CALL cp_fm_cholesky_restore(work,nao,ortho,matrix_ks_fm,&
                "SOLVE",pos="LEFT",transa="T")
+
+         IF (do_level_shift)&
+            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao,&
+                                 level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
+
          CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues)
          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
+
+         IF (do_level_shift)&
+            CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+
        CASE(cholesky_inverse)
          CALL cp_fm_upper_to_full(matrix_ks_fm,work)
 
@@ -207,10 +237,18 @@ CONTAINS
                invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nao,alpha=1.0_dp)
          CALL cp_fm_triangular_multiply(ortho, matrix_ks_fm,side="L",transpose_tr=.TRUE.,&
                invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nao,alpha=1.0_dp)
+
+         IF (do_level_shift)&
+            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao,&
+                                 level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
+
          CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues)
          CALL cp_fm_triangular_multiply(ortho,work,side="L",transpose_tr=.FALSE.,&
               invert_tr=.FALSE., uplo_tr="U",n_rows=nao,n_cols=nmo,alpha=1.0_dp)
          CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
+
+         IF (do_level_shift)&
+            CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
 
        END SELECT
 
@@ -283,28 +321,28 @@ CONTAINS
 !> \param mo_set ...
 !> \param ortho ...
 !> \param work ...
-!> \param do_level_shift ...
-!> \param level_shift ...
+!> \param do_level_shift activate the level shifting technique
+!> \param level_shift    amount of shift applied (in a.u.)
+!> \param matrix_u_fm    matrix U : S (overlap matrix) = U^T * U
 !> \param use_jacobi ...
 !> \param jacobi_threshold ...
 ! *****************************************************************************
   SUBROUTINE eigensolver_symm(matrix_ks_fm,mo_set,ortho,work,do_level_shift,&
-                         level_shift,use_jacobi,&
-                         jacobi_threshold)
+                         level_shift,matrix_u_fm,use_jacobi,jacobi_threshold)
     TYPE(cp_fm_type), POINTER                :: matrix_ks_fm
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: ortho, work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift
+    TYPE(cp_fm_type), POINTER                :: matrix_u_fm
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_symm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, imo, nao, &
-                                                nelectron, nmo
-    REAL(KIND=dp)                            :: alpha
+    INTEGER                                  :: handle, homo, nao, nelectron, &
+                                                nmo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
@@ -339,23 +377,17 @@ CONTAINS
        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks_fm,ortho,0.0_dp,work)
        CALL cp_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks_fm)
 
-       IF (do_level_shift) THEN
-          DO imo=homo+1,nmo
-             ! now unnecessary broadcast of element
-             CALL cp_fm_get_element(matrix_ks_fm,imo,imo,alpha)
-             alpha=alpha+level_shift
-             CALL cp_fm_set_element(matrix_ks_fm,imo,imo,alpha)
-          END DO
-       END IF
+       IF (do_level_shift)&
+          CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao,&
+                               level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm)
 
        CALL choose_eigv_solver(matrix_ks_fm,work,mo_eigenvalues)
 
        CALL cp_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff)
 
-       IF (do_level_shift) THEN
-         CALL correct_mo_eigenvalues(mo_set,level_shift)
-       END IF
+       IF (do_level_shift)&
+         CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
 
     END IF
 
@@ -373,8 +405,8 @@ CONTAINS
 !> \param matrix_ks ...
 !> \param mo_set ...
 !> \param work ...
-!> \param do_level_shift ...
-!> \param level_shift ...
+!> \param do_level_shift activate the level shifting technique
+!> \param level_shift    amount of shift applied (in a.u.)
 !> \param use_jacobi ...
 !> \param jacobi_threshold ...
 ! *****************************************************************************
@@ -392,9 +424,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eigensolver_simple', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, imo, nao, &
-                                                nelectron, nmo
-    REAL(KIND=dp)                            :: alpha
+    INTEGER                                  :: handle, homo, nao, nelectron, &
+                                                nmo
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
@@ -413,12 +444,9 @@ CONTAINS
                     mo_coeff=mo_coeff)
 
     IF (do_level_shift) THEN
-      DO imo=homo+1,nmo
-         ! now unnecessary broadcast of element
-         CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
-         alpha=alpha+level_shift
-         CALL cp_fm_set_element(matrix_ks,imo,imo,alpha)
-      END DO
+       ! matrix_u_fm is simply an identity matrix, so we omit it here
+       CALL shift_unocc_mos(matrix_ks_fm=matrix_ks, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao,&
+                               level_shift=level_shift, is_triangular=.FALSE.)
     END IF
 
     IF ( use_jacobi ) THEN
@@ -431,13 +459,12 @@ CONTAINS
 
        CALL choose_eigv_solver(matrix_ks,work,mo_eigenvalues)
 
-      CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
+       CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
 
     END IF
 
-    IF (do_level_shift) THEN
-      CALL correct_mo_eigenvalues(mo_set,level_shift)
-    END IF
+    IF (do_level_shift) &
+      CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
 
     CALL timestop(handle)
 
@@ -727,5 +754,116 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE combine_ks_matrices_2
+
+! *****************************************************************************
+!> \brief   Correct MO eigenvalues after MO level shifting.
+!> \param mo_eigenvalues vector of eigenvalues
+!> \param homo index of the highest occupied molecular orbital
+!> \param nmo  number of molecular orbitals
+!> \param level_shift amount of applied level shifting (in a.u.)
+!> \date    19.04.2002
+!> \par History
+!>      - correct_mo_eigenvalues added (18.04.02,MK)
+!>      - moved from module qs_mo_types, revised interface (03.2016, Sergey Chulkov)
+!> \author  MK
+!> \version 1.0
+! *****************************************************************************
+  SUBROUTINE correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
+
+    REAL(kind=dp), DIMENSION(:), &
+      INTENT(inout)                          :: mo_eigenvalues
+    INTEGER, INTENT(in)                      :: homo, nmo
+    REAL(kind=dp), INTENT(in)                :: level_shift
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: imo
+
+    DO imo = homo+1,nmo
+       mo_eigenvalues(imo) = mo_eigenvalues(imo) - level_shift
+    END DO
+
+  END SUBROUTINE correct_mo_eigenvalues
+
+! *****************************************************************************
+!> \brief Adjust the Kohn-Sham matrix by shifting the orbital energies of all
+!>        unoccupied molecular orbitals
+!> \param matrix_ks_fm   transformed Kohn-Sham matrix = U^{-1,T} * KS * U^{-1}
+!> \param mo_coeff       matrix of molecular orbitals (C)
+!> \param homo           number of occupied molecular orbitals
+!> \param nmo            number of molecular orbitals
+!> \param nao            number of atomic orbitals
+!> \param level_shift    amount of shift applying (in a.u.)
+!> \param is_triangular  indicates that matrix_u_fm contains an upper triangular matrix
+!> \param matrix_u_fm    matrix U: S (overlap matrix) = U^T * U;
+!>                       assume an identity matrix if omitted
+!> \par History
+!>      03.2016 created [Sergey Chulkov]
+! *****************************************************************************
+  SUBROUTINE shift_unocc_mos(matrix_ks_fm, mo_coeff, homo, nmo, nao, &
+                             level_shift, is_triangular, matrix_u_fm)
+
+    TYPE(cp_fm_type), POINTER                :: matrix_ks_fm, mo_coeff
+    INTEGER, INTENT(in)                      :: homo, nmo, nao
+    REAL(kind=dp), INTENT(in)                :: level_shift
+    LOGICAL, INTENT(in)                      :: is_triangular
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_u_fm
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'shift_unocc_mos', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: weights
+    TYPE(cp_fm_struct_type), POINTER         :: ao_mo_fmstruct
+    TYPE(cp_fm_type), POINTER                :: u_mo, u_mo_scaled
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(ao_mo_fmstruct, u_mo, u_mo_scaled)
+    CALL cp_fm_struct_create(ao_mo_fmstruct, nrow_global=nao, ncol_global=nmo, &
+         para_env=mo_coeff%matrix_struct%para_env, context=mo_coeff%matrix_struct%context)
+
+    CALL cp_fm_create(u_mo, ao_mo_fmstruct)
+    CALL cp_fm_create(u_mo_scaled, ao_mo_fmstruct)
+
+    CALL cp_fm_struct_release(ao_mo_fmstruct)
+
+    ! U * C
+    IF (PRESENT(matrix_u_fm)) THEN
+       IF (is_triangular) THEN
+          CALL cp_fm_to_fm(mo_coeff, u_mo)
+          CALL cp_fm_triangular_multiply(matrix_u_fm, u_mo, side="L",transpose_tr=.FALSE.,&
+                     invert_tr=.FALSE., uplo_tr="U", n_rows=nao, n_cols=nmo, alpha=1.0_dp)
+       ELSE
+          CALL cp_gemm("N", "N", nao, nmo, nao, 1.0_dp, matrix_u_fm, mo_coeff, 0.0_dp, u_mo)
+       END IF
+    ELSE
+       ! assume U is an identity matrix
+       CALL cp_fm_to_fm(mo_coeff, u_mo)
+    END IF
+
+    CALL cp_fm_to_fm(u_mo, u_mo_scaled)
+
+    ! up-shift all unoccupied molecular orbitals by the amount of 'level_shift'
+    ! weight = diag(DELTA) = (0, ... 0, level_shift, ..., level_shift)
+    !             MO index :  1 .. homo   homo+1     ...  nmo
+    ALLOCATE(weights(nmo))
+    weights(1:homo) = 0.0_dp
+    weights(homo+1:nmo) = level_shift
+    ! DELTA * U * C
+    ! DELTA is a diagonal matrix, so simply scale all the columns of (U * C) by weights(:)
+    CALL cp_fm_column_scale(u_mo_scaled, weights)
+    DEALLOCATE(weights)
+
+    ! NewKS = U^{-1,T} * KS * U^{-1} + (U * C) * DELTA * (U * C)^T
+    CALL cp_gemm("N", "T", nao, nao, nmo, 1.0_dp, u_mo, u_mo_scaled, 1.0_dp, matrix_ks_fm)
+
+    CALL cp_fm_release(u_mo_scaled)
+    CALL cp_fm_release(u_mo)
+
+    CALL timestop(handle)
+
+  END SUBROUTINE shift_unocc_mos
 
 END MODULE qs_scf_methods

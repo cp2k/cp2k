@@ -499,6 +499,9 @@ CONTAINS
                            ortho=ortho,&
                            work=work2,&
                            cholesky_method=scf_env%cholesky_method,&
+                           do_level_shift=.FALSE.,&
+                           level_shift=0.0_dp,&
+                           matrix_u_fm=null(),&
                            use_jacobi=.FALSE.)
        END IF
 

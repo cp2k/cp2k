@@ -1,0 +1,72 @@
+&GLOBAL
+  PROJECT c2h2-gpw-inverse
+  RUN_TYPE energy
+  PRINT_LEVEL low
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_MOLOPT
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    MULTIPLICITY 1
+
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+
+    &QS
+      METHOD gpw
+    &END QS
+
+    &POISSON
+      PERIODIC none
+      POISSON_SOLVER wavelet
+    &END POISSON
+
+    &SCF
+      MAX_SCF   30
+      EPS_SCF   1e-6
+      SCF_GUESS atomic
+      CHOLESKY  inverse
+      LEVEL_SHIFT 0.2
+    &END SCF
+
+    &XC
+      &XC_FUNCTIONAL pbe
+      &END XC_FUNCTIONAL
+    &END XC
+
+    &PRINT
+      &MO on
+         EIGENVALUES .true.
+      &END MO
+    &END PRINT
+  &END DFT
+
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      PERIODIC none
+    &END CELL
+
+    &COORD
+  C         4.0000007567        4.0000007567        4.6040473631
+  C         4.0000007563        4.0000007563        3.3959518200
+  H         3.9999993927        3.9999993927        5.6739482752
+  H         3.9999993905        3.9999993905        2.3260506143
+    &END COORD
+
+    &KIND H
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+
+    &KIND C
+      BASIS_SET DZVP-MOLOPT-GTH
+      POTENTIAL GTH-PBE-q4
+    &END KIND
+  &END SUBSYS
+
+&END FORCE_EVAL

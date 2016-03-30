@@ -14,6 +14,7 @@
 !>      - PRIVATE attribute set for TYPE mo_set_type (23.04.02,MK)
 !>      - started conversion to LSD (1.2003, Joost VandeVondele)
 !>      - set_mo_occupation moved to qs_mo_occupation (11.12.14 MI)
+!>      - correct_mo_eigenvalues moved to qs_scf_methods (03.2016, Sergey Chulkov)
 !> \author Matthias Krack (09.05.2001,MK)
 ! *****************************************************************************
 MODULE qs_mo_types
@@ -78,7 +79,6 @@ MODULE qs_mo_types
             mo_set_type
 
   PUBLIC :: allocate_mo_set,&
-            correct_mo_eigenvalues,&
             deallocate_mo_set,&
             get_mo_set,&
             init_mo_set,&
@@ -296,32 +296,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE mo_set_restrict
-
-! *****************************************************************************
-!> \brief   Correct MO eigenvalues after MO level shifting.
-!> \param mo_set ...
-!> \param level_shift ...
-!> \date    19.04.2002
-!> \author  MK
-!> \version 1.0
-! *****************************************************************************
-  SUBROUTINE correct_mo_eigenvalues(mo_set,level_shift)
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    REAL(KIND=dp), INTENT(IN)                :: level_shift
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'correct_mo_eigenvalues', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: imo
-
-    IF (level_shift /= 0.0_dp) THEN
-       DO imo=mo_set%homo+1,mo_set%nmo
-          mo_set%eigenvalues(imo) = mo_set%eigenvalues(imo) - level_shift
-       END DO
-    END IF
-
-  END SUBROUTINE correct_mo_eigenvalues
 
 ! *****************************************************************************
 !> \brief   Deallocate a wavefunction data structure.

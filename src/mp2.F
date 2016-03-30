@@ -352,6 +352,9 @@ MODULE mp2
                        ortho=fm_matrix_s,&
                        work=fm_matrix_work,&
                        cholesky_method=cholesky_method,&
+                       do_level_shift=.FALSE.,&
+                       level_shift=0.0_dp,&
+                       matrix_u_fm=null(),&
                        use_jacobi=.FALSE.)
     END DO
       

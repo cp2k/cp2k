@@ -162,7 +162,7 @@ CONTAINS
     LOGICAL                                  :: do_level_shift, use_jacobi
     REAL(kind=dp)                            :: diis_error, eps_diis
     TYPE(cp_dbcsr_type), POINTER             :: ortho_dbcsr
-    TYPE(cp_fm_type), POINTER                :: ortho
+    TYPE(cp_fm_type), POINTER                :: matrix_u_fm, ortho
 
     nspin = SIZE(matrix_ks)
     NULLIFY(ortho,ortho_dbcsr)
@@ -239,15 +239,32 @@ CONTAINS
         ELSE
           ortho => scf_env%ortho
         END IF
+
+        IF (do_level_shift) THEN
+           matrix_u_fm => scf_env%ortho
+        ELSE
+           NULLIFY(matrix_u_fm)
+        END IF
+
         CALL eigensolver(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix,&
                        mo_set=mos(ispin)%mo_set,&
                        ortho=ortho,&
                        work=scf_env%scf_work2,&
                        cholesky_method=scf_env%cholesky_method,&
+                       do_level_shift=do_level_shift,&
+                       level_shift=scf_control%level_shift,&
+                       matrix_u_fm=matrix_u_fm,&
                        use_jacobi=use_jacobi)
       END DO
     ELSE
       ortho => scf_env%ortho
+
+      IF (do_level_shift) THEN
+         matrix_u_fm => scf_env%ortho_m1
+      ELSE
+         NULLIFY(matrix_u_fm)
+      END IF
+
       DO ispin=1,nspin
         CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin)%matrix,&
                        mo_set=mos(ispin)%mo_set,&
@@ -255,6 +272,7 @@ CONTAINS
                        work=scf_env%scf_work2,&
                        do_level_shift=do_level_shift,&
                        level_shift=scf_control%level_shift,&
+                       matrix_u_fm=matrix_u_fm,&
                        use_jacobi=use_jacobi,&
                        jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
       END DO

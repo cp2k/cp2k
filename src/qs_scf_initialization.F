@@ -310,6 +310,7 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
 
@@ -319,6 +320,7 @@ CONTAINS
                     dft_control=dft_control,&
                     matrix_s_kp=matrix_s,&
                     mos=mos,&
+                    scf_control=scf_control,&
                     do_kpoints=do_kpoints)
     CALL mpools_get(qs_env%mpools,ao_mo_fm_pools=ao_mo_fm_pools)
 
@@ -367,7 +369,9 @@ CONTAINS
              CALL cp_dbcsr_init_p(scf_env%buf2_dbcsr)
              CALL cp_dbcsr_create(scf_env%buf2_dbcsr,template=ref_matrix,&
                                   matrix_type=dbcsr_type_no_symmetry)
-          ELSE IF (scf_env%cholesky_method == cholesky_inverse) THEN
+          ELSE IF (scf_env%cholesky_method == cholesky_inverse .OR.&
+                   (scf_control%level_shift /= 0.0_dp .AND.&
+                    scf_env%cholesky_method == cholesky_off)) THEN
              CALL cp_fm_create(scf_env%ortho_m1,&
                                matrix_struct=ao_ao_fmstruct,&
                                name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
@@ -896,6 +900,11 @@ CONTAINS
        ELSE
             CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,&
                             scf_control%eps_eigval,ndep)
+            IF (scf_control%level_shift /= 0.0_dp) THEN
+               CALL copy_dbcsr_to_fm(matrix_s(1)%matrix,scf_env%ortho_m1)
+               CALL cp_fm_power(scf_env%ortho_m1,scf_env%scf_work2, 0.5_dp,&
+                            scf_control%eps_eigval,ndep)
+            END IF
             s_minus_half_available = .TRUE.
        END IF
 
