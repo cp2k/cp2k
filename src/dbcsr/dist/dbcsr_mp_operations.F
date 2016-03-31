@@ -36,10 +36,11 @@ MODULE dbcsr_mp_operations
   USE kinds,                           ONLY: real_4,&
                                              real_8
   USE message_passing,                 ONLY: &
-       mp_allgather, mp_alltoall, mp_ibcast, mp_irecv, mp_isend, mp_rget, &
-       mp_sendrecv, mp_type_descriptor_type, mp_type_indexed_make_c, &
-       mp_type_indexed_make_d, mp_type_indexed_make_r, &
-       mp_type_indexed_make_z, mp_type_make, mp_waitall, mp_win_create
+       mp_allgather, mp_alltoall, mp_ibcast, mp_igatherv, mp_irecv, &
+       mp_iscatter, mp_isend, mp_rget, mp_sendrecv, mp_type_descriptor_type, &
+       mp_type_indexed_make_c, mp_type_indexed_make_d, &
+       mp_type_indexed_make_r, mp_type_indexed_make_z, mp_type_make, &
+       mp_waitall, mp_win_create
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -56,6 +57,7 @@ MODULE dbcsr_mp_operations
   PUBLIC :: dbcsr_sendrecv_any
   PUBLIC :: dbcsr_isend_any, dbcsr_irecv_any
   PUBLIC :: dbcsr_win_create_any, dbcsr_rget_any, dbcsr_ibcast_any
+  PUBLIC :: dbcsr_iscatterv_any, dbcsr_igatherv_any
   PUBLIC :: dbcsr_mp_type_indexed_make_any
   ! Type helpers
   PUBLIC :: dbcsr_mp_type_from_anytype
@@ -585,6 +587,83 @@ CONTAINS
        CPABORT("Incorrect data type")
     END SELECT
   END SUBROUTINE dbcsr_ibcast_any
+
+! *****************************************************************************
+!> \brief Scatter function of encapsulated data.
+!> \param base ...
+!> \param counts ...
+!> \param displs ...
+!> \param msg ...
+!> \param recvcount ...
+!> \param root ...
+!> \param grp ...
+!> \param request ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_iscatterv_any(base,counts,displs,msg,recvcount,root,grp,request)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: base
+    INTEGER, DIMENSION(:), INTENT(IN)        :: counts, displs
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: msg
+    INTEGER, INTENT(IN)                      :: recvcount, root, grp
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_iscatterv_any', &
+      routineP = moduleN//':'//routineN
+
+    IF(dbcsr_data_get_type (base).NE.dbcsr_data_get_type (msg))&
+       CPABORT("Different data type for msgin and msgout")
+
+    SELECT CASE (dbcsr_data_get_type (base))
+    CASE (dbcsr_type_real_4)
+       CALL mp_iscatter (base%d%r_sp, counts, displs, msg%d%r_sp, recvcount, root, grp, request)
+    CASE (dbcsr_type_real_8)
+       CALL mp_iscatter (base%d%r_dp, counts, displs, msg%d%r_dp, recvcount, root, grp, request)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_iscatter (base%d%c_sp, counts, displs, msg%d%c_sp, recvcount, root, grp, request)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_iscatter (base%d%c_dp, counts, displs, msg%d%c_dp, recvcount, root, grp, request)
+    CASE default
+       CPABORT("Incorrect data type")
+    END SELECT
+  END SUBROUTINE dbcsr_iscatterv_any
+
+! *****************************************************************************
+!> \brief Gather function of encapsulated data.
+!> \param base ...
+!> \param sendcount ...
+!> \param msg ...
+!> \param counts ...
+!> \param displs ...
+!> \param root ...
+!> \param grp ...
+!> \param request ...
+! *****************************************************************************
+  SUBROUTINE dbcsr_igatherv_any(base,sendcount,msg,counts,displs,root,grp,request)
+    TYPE(dbcsr_data_obj), INTENT(IN)         :: base
+    INTEGER, INTENT(IN)                      :: sendcount
+    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: msg
+    INTEGER, DIMENSION(:), INTENT(IN)        :: counts, displs
+    INTEGER, INTENT(IN)                      :: root, grp
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_igatherv_any', &
+      routineP = moduleN//':'//routineN
+
+    IF(dbcsr_data_get_type (base).NE.dbcsr_data_get_type (msg))&
+       CPABORT("Different data type for msgin and msgout")
+
+    SELECT CASE (dbcsr_data_get_type (base))
+    CASE (dbcsr_type_real_4)
+       CALL mp_igatherv (base%d%r_sp, sendcount, msg%d%r_sp, counts, displs, root, grp, request)
+    CASE (dbcsr_type_real_8)
+       CALL mp_igatherv (base%d%r_dp, sendcount, msg%d%r_dp, counts, displs, root, grp, request)
+    CASE (dbcsr_type_complex_4)
+       CALL mp_igatherv (base%d%c_sp, sendcount, msg%d%c_sp, counts, displs, root, grp, request)
+    CASE (dbcsr_type_complex_8)
+       CALL mp_igatherv (base%d%c_dp, sendcount, msg%d%c_dp, counts, displs, root, grp, request)
+    CASE default
+       CPABORT("Incorrect data type")
+    END SELECT
+  END SUBROUTINE dbcsr_igatherv_any
 
 ! *****************************************************************************
 !> \brief ...

@@ -272,7 +272,9 @@ CONTAINS
        IF (force_all .OR. matrix%m%refcount .EQ. 0) THEN
           IF(ASSOCIATED (matrix%m%wms))&
              CPWARN("Destroying unfinalized matrix")
-          CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type)
+          IF (ASSOCIATED(matrix%m%index)) THEN
+             CALL memory_deallocate(matrix%m%index, matrix%m%index_memory_type)
+          ENDIF
           CALL dbcsr_data_release (matrix%m%data_area)
           CALL array_release (matrix%m%row_blk_size)
           CALL array_release (matrix%m%col_blk_size)

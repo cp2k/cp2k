@@ -138,8 +138,8 @@ MODULE message_passing
   PUBLIC :: mp_gather, mp_scatter, mp_alltoall, mp_sendrecv, mp_allgather, mp_iallgather
   PUBLIC :: mp_isend, mp_irecv, mp_ibcast
   PUBLIC :: mp_shift, mp_isendrecv, mp_wait, mp_waitall, mp_waitany, mp_testany
-  PUBLIC :: mp_testall
-  PUBLIC :: mp_gatherv
+  PUBLIC :: mp_testall, mp_iscatter
+  PUBLIC :: mp_gatherv, mp_igatherv
   PUBLIC :: mp_send, mp_recv
 
   ! Memory management
@@ -317,7 +317,22 @@ MODULE message_passing
                      mp_gatherv_rv,&
                      mp_gatherv_dv,&
                      mp_gatherv_cv,&
-                     mp_gatherv_zv
+                     mp_gatherv_zv,&
+                     mp_igatherv_iv,&
+                     mp_igatherv_lv,&
+                     mp_igatherv_rv,&
+                     mp_igatherv_dv,&
+                     mp_igatherv_cv,&
+                     mp_igatherv_zv
+  END INTERFACE
+
+  INTERFACE mp_igatherv
+    MODULE PROCEDURE mp_igatherv_iv,&
+                     mp_igatherv_lv,&
+                     mp_igatherv_rv,&
+                     mp_igatherv_dv,&
+                     mp_igatherv_cv,&
+                     mp_igatherv_zv
   END INTERFACE
 
 !> todo: move allgatherv to a separate declaration
@@ -375,6 +390,27 @@ MODULE message_passing
                       mp_scatter_dv,&
                       mp_scatter_cv,&
                       mp_scatter_zv
+  END INTERFACE
+
+  INTERFACE mp_iscatter
+     MODULE PROCEDURE mp_iscatter_i,&
+                      mp_iscatter_l,&
+                      mp_iscatter_r,&
+                      mp_iscatter_d,&
+                      mp_iscatter_c,&
+                      mp_iscatter_z,&
+                      mp_iscatter_iv,&
+                      mp_iscatter_lv,&
+                      mp_iscatter_rv,&
+                      mp_iscatter_dv,&
+                      mp_iscatter_cv,&
+                      mp_iscatter_zv,&
+                      mp_iscatterv_iv,&
+                      mp_iscatterv_lv,&
+                      mp_iscatterv_rv,&
+                      mp_iscatterv_dv,&
+                      mp_iscatterv_cv,&
+                      mp_iscatterv_zv
   END INTERFACE
 
   INTERFACE mp_sum_scatter

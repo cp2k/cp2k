@@ -1501,6 +1501,156 @@
   END SUBROUTINE mp_scatter_cv
 
 ! *****************************************************************************
+!> \brief Scatters data from one processes to all others
+!> \param[in] msg_scatter     Data to scatter (for root process)
+!> \param[in] root            Process which scatters data
+!> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_scatter
+! *****************************************************************************
+  SUBROUTINE mp_iscatter_c(msg_scatter,msg,root,gid,request)
+    COMPLEX(kind=real_4), INTENT(IN)                      :: msg_scatter(:)
+    COMPLEX(kind=real_4), INTENT(INOUT)                   :: msg
+    INTEGER, INTENT(IN)                      :: root, gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatter_c', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+    msglen = 1
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    t_start = m_walltime ( )
+    CALL mpi_iscatter(msg_scatter,msglen,MPI_COMPLEX,msg,&
+         msglen,MPI_COMPLEX,root,gid,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iscatter @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=1*(2*real_4_size))
+#else
+    MARK_USED(msg_scatter)
+    MARK_USED(msg)
+    MARK_USED(root)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_iscatter requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(root)
+    MARK_USED(gid)
+    msg = msg_scatter
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iscatter_c
+
+! *****************************************************************************
+!> \brief Scatters data from one processes to all others
+!> \param[in] msg_scatter     Data to scatter (for root process)
+!> \param[in] root            Process which scatters data
+!> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_scatter
+! *****************************************************************************
+  SUBROUTINE mp_iscatter_cv(msg_scatter,msg,root,gid,request)
+    COMPLEX(kind=real_4), INTENT(IN)                      :: msg_scatter(:)
+    COMPLEX(kind=real_4), INTENT(INOUT)                   :: msg(:)
+    INTEGER, INTENT(IN)                      :: root, gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatter_cv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr, msglen
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+    msglen = SIZE(msg)
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    t_start = m_walltime ( )
+    CALL mpi_iscatter(msg_scatter,msglen,MPI_COMPLEX,msg,&
+         msglen,MPI_COMPLEX,root,gid,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iscatter @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=1*(2*real_4_size))
+#else
+    MARK_USED(msg_scatter)
+    MARK_USED(msg)
+    MARK_USED(root)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_iscatter requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(root)
+    MARK_USED(gid)
+    msg = msg_scatter
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iscatter_cv
+
+! *****************************************************************************
+!> \brief Scatters data from one processes to all others
+!> \param[in] msg_scatter     Data to scatter (for root process)
+!> \param[in] root            Process which scatters data
+!> \param[in] gid             Message passing environment identifier
+!> \par MPI mapping
+!>      mpi_scatter
+! *****************************************************************************
+  SUBROUTINE mp_iscatterv_cv(msg_scatter,sendcounts,displs,msg,recvcount,root,gid,request)
+    COMPLEX(kind=real_4), INTENT(IN)                      :: msg_scatter(:)
+    INTEGER, INTENT(IN)                      :: sendcounts(:), displs(:)
+    COMPLEX(kind=real_4), INTENT(INOUT)                   :: msg(:)
+    INTEGER, INTENT(IN)                      :: recvcount, root, gid
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_iscatterv_cv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    t_start = m_walltime ( )
+    CALL mpi_iscatterv(msg_scatter,sendcounts,displs,MPI_COMPLEX,msg,&
+         recvcount,MPI_COMPLEX,root,gid,request,ierr)
+    IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_iscatterv @ "//routineN )
+    t_end = m_walltime ( )
+    CALL add_perf(perf_id=4,count=1,time=t_end-t_start,msg_size=1*(2*real_4_size))
+#else
+    MARK_USED(msg_scatter)
+    MARK_USED(sendcounts)
+    MARK_USED(displs)
+    MARK_USED(msg)
+    MARK_USED(recvcount)
+    MARK_USED(root)
+    MARK_USED(gid)
+    request = mp_request_null
+    CPABORT("mp_iscatterv requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(sendcounts)
+    MARK_USED(displs)
+    MARK_USED(recvcount)
+    MARK_USED(root)
+    MARK_USED(gid)
+    msg = msg_scatter
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_iscatterv_cv
+
+! *****************************************************************************
 !> \brief Gathers a datum from all processes to one
 !> \param[in] msg             Datum to send to root
 !> \param[out] msg_gather     Received data (on root)
@@ -1673,6 +1823,70 @@
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_gatherv_cv
+
+! *****************************************************************************
+!> \brief Gathers data from all processes to one.
+!> \param[in] sendbuf         Data to send to root
+!> \param[out] recvbuf        Received data (on root)
+!> \param[in] recvcounts      Sizes of data received from processes
+!> \param[in] displs          Offsets of data received from processes
+!> \param[in] root            Process which gathers the data
+!> \param[in] comm            Message passing environment identifier
+!> \par Data length
+!>      Data can have different lengths
+!> \par Offsets
+!>      Offsets start at 0
+!> \par MPI mapping
+!>      mpi_gather
+! *****************************************************************************
+  SUBROUTINE mp_igatherv_cv(sendbuf,sendcount,recvbuf,recvcounts,displs,root,comm,request)
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN)        :: sendbuf
+    COMPLEX(kind=real_4), DIMENSION(:), INTENT(OUT)       :: recvbuf
+    INTEGER, DIMENSION(:), INTENT(IN)        :: recvcounts, displs
+    INTEGER, INTENT(IN)                      :: sendcount, root, comm
+    INTEGER, INTENT(INOUT)                   :: request
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'mp_igatherv_cv', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ierr
+
+    ierr = 0
+    CALL mp_timeset(routineN,handle)
+
+#if defined(__parallel)
+#if __MPI_VERSION > 2
+    t_start = m_walltime()
+    CALL mpi_igatherv(sendbuf,sendcount,MPI_COMPLEX,&
+         recvbuf,recvcounts,displs,MPI_COMPLEX,&
+         root,comm,request,ierr)
+    IF (ierr /= 0) CALL mp_stop(ierr,"mpi_gatherv @ "//routineN)
+    t_end = m_walltime()
+    CALL add_perf(perf_id=4,&
+         count=1,&
+         time=t_end-t_start,&
+         msg_size=sendcount*(2*real_4_size))
+#else
+    MARK_USED(sendbuf)
+    MARK_USED(sendcount)
+    MARK_USED(recvbuf)
+    MARK_USED(recvcounts)
+    MARK_USED(displs)
+    MARK_USED(root)
+    MARK_USED(comm)
+    request = mp_request_null
+    CPABORT("mp_igatherv requires MPI-3 standard")
+#endif
+#else
+    MARK_USED(sendcount)
+    MARK_USED(recvcounts)
+    MARK_USED(root)
+    MARK_USED(comm)
+    recvbuf(1+displs(1):) = sendbuf
+    request = mp_request_null
+#endif
+    CALL mp_timestop(handle)
+  END SUBROUTINE mp_igatherv_cv
 
 
 ! *****************************************************************************

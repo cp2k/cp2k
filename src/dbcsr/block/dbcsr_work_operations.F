@@ -557,7 +557,8 @@ CONTAINS
                                                 new_row_blk_size, &
                                                 vec_col_blk_offset, &
                                                 vec_row_blk_offset
-    LOGICAL                                  :: new_mutable_work
+    LOGICAL                                  :: my_make_index, &
+                                                new_mutable_work
     TYPE(array_i1d_obj)                      :: new_col_blk_offset, &
                                                 new_row_blk_offset
     TYPE(dbcsr_distribution_obj)             :: new_dist
@@ -681,13 +682,16 @@ CONTAINS
     ENDIF
     ! Copy stuff from the meta-array.  These are not normally needed,
     ! but have to be here for creating matrices from "image" matrices.
-    matrix%m%index(dbcsr_slot_home_prow) = template%m%index(dbcsr_slot_home_prow)
-    matrix%m%index(dbcsr_slot_home_rowi) = template%m%index(dbcsr_slot_home_rowi)
-    matrix%m%index(dbcsr_slot_home_pcol) = template%m%index(dbcsr_slot_home_pcol)
-    matrix%m%index(dbcsr_slot_home_coli) = template%m%index(dbcsr_slot_home_coli)
-    matrix%m%index(dbcsr_slot_home_vprow) = template%m%index(dbcsr_slot_home_vprow)
-    matrix%m%index(dbcsr_slot_home_vpcol) = template%m%index(dbcsr_slot_home_vpcol)
-
+    my_make_index = .TRUE.
+    IF (PRESENT(make_index)) my_make_index = make_index
+    IF (my_make_index) THEN
+       matrix%m%index(dbcsr_slot_home_prow) = template%m%index(dbcsr_slot_home_prow)
+       matrix%m%index(dbcsr_slot_home_rowi) = template%m%index(dbcsr_slot_home_rowi)
+       matrix%m%index(dbcsr_slot_home_pcol) = template%m%index(dbcsr_slot_home_pcol)
+       matrix%m%index(dbcsr_slot_home_coli) = template%m%index(dbcsr_slot_home_coli)
+       matrix%m%index(dbcsr_slot_home_vprow) = template%m%index(dbcsr_slot_home_vprow)
+       matrix%m%index(dbcsr_slot_home_vpcol) = template%m%index(dbcsr_slot_home_vpcol)
+    ENDIF
     IF (PRESENT(row_blk_size).AND. .NOT.PRESENT(row_blk_offset)) THEN
        CALL array_release(new_row_blk_offset)
     ENDIF
