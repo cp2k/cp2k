@@ -30,7 +30,8 @@ MODULE cp_cfm_basic_linalg
   PUBLIC :: cp_cfm_add, cp_cfm_add_fm, cp_cfm_gemm, cp_cfm_lu_decompose,&
             cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product,&
             cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply,&
-            cp_cfm_triangular_invert, cp_cfm_axpy, cp_cfm_geadd, cp_cfm_transpose
+            cp_cfm_triangular_invert, cp_cfm_axpy, cp_cfm_geadd, cp_cfm_transpose,&
+            cp_cfm_cholesky_invert
 
 ! *****************************************************************************
 
@@ -844,6 +845,59 @@ CONTAINS
     CALL timestop(handle)
 
   END  SUBROUTINE cp_cfm_cholesky_decompose
+
+! *****************************************************************************
+!> \brief used to replace the cholesky decomposition by the inverse.
+!> \param matrix : the matrix to invert (must be an upper triangular matrix),
+!>                 and is the output of the cholesky decomposition
+!> \param n : size of the matrix to invert (defaults to the min(size(matrix)))
+!> \param info_out : if present, outputs info of (p)zpotri
+!> \par History
+!>      05.2002 created Lianheng Tong, based on cp_fm_cholesky_invert
+!> \author Lianheng Tong
+! *****************************************************************************
+  SUBROUTINE cp_cfm_cholesky_invert(matrix,n,info_out)
+    TYPE(cp_cfm_type), POINTER                 :: matrix
+    INTEGER, INTENT(in), OPTIONAL              :: n
+    INTEGER, INTENT(OUT), OPTIONAL             :: info_out
+
+    CHARACTER(len=*), PARAMETER :: routineN='cp_cfm_cholesky_invert',&
+         routineP=moduleN//':'//routineN
+    COMPLEX(KIND=dp), DIMENSION(:,:), POINTER  :: aa
+    INTEGER                                    :: info,handle
+    INTEGER                                    :: my_n
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                      :: desca
+#endif
+
+    CALL timeset(routineN,handle)
+
+    my_n = MIN(matrix%matrix_struct%nrow_global,&
+               matrix%matrix_struct%ncol_global)
+    IF (PRESENT(n)) THEN
+       CPASSERT(n<=my_n)
+       my_n=n
+    END IF
+
+    aa => matrix%local_data
+
+#if defined(__SCALAPACK)
+    desca = matrix%matrix_struct%descriptor
+    CALL pzpotri('U',my_n,aa(1,1),1,1,desca,info)
+#else
+    CALL zpotri('U',my_n,aa(1,1),SIZE(a,1),info)
+#endif
+
+    IF (PRESENT(info_out)) THEN
+       info_out = info
+    ELSE
+       IF (info/=0) &
+            CPABORT("Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
+    END IF
+
+    CALL timestop(handle)
+
+  END  SUBROUTINE cp_cfm_cholesky_invert
 
 ! *****************************************************************************
 !> \brief multiplies in place by a triangular matrix:
