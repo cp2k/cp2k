@@ -445,5 +445,3 @@ machine.F: Found OPEN statement in procedure "m_cpuinfo"
 base_hooks.F: Found STOP statement in procedure "cp__a"
 base_hooks.F: Found STOP statement in procedure "cp__b"
 base_hooks.F: Found STOP statement in procedure "cp_abort"
-cp_cfm_basic_linalg.F: Routine PZAXPY called with an implicit interface.
-cp_cfm_basic_linalg.F: Routine PZGEADD called with an implicit interface.
