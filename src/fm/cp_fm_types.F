@@ -1266,7 +1266,6 @@ CONTAINS
 !> \param mtarget ...
 !> \param uplo ...
 ! *****************************************************************************
-
   SUBROUTINE cp_fm_to_fm_triangular (msource, mtarget, uplo)
 
     TYPE(cp_fm_type), POINTER                :: msource, mtarget

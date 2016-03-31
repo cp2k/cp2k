@@ -35,7 +35,7 @@ MODULE cp_cfm_types
   PUBLIC :: cp_cfm_create, cp_cfm_release
   PUBLIC :: cp_cfm_set_all, cp_cfm_get_info, cp_cfm_get_element
   PUBLIC :: cp_cfm_set_element, cp_cfm_to_cfm, cp_cfm_to_fm
-  PUBLIC :: cp_cfm_set_submatrix
+  PUBLIC :: cp_cfm_set_submatrix, cp_cfm_to_cfm_triangular
 
   INTERFACE cp_cfm_to_cfm
     MODULE PROCEDURE cp_cfm_to_cfm_matrix, &  ! a full matrix
@@ -651,6 +651,45 @@ CONTAINS
   END SUBROUTINE cp_cfm_to_cfm_columns
 
 ! *****************************************************************************
+!> \brief copy just a triangular matrix
+!> \param msource ...
+!> \param mtarget ...
+!> \param uplo : 'U' for upper triangular, 'L' for lower triangular
+! *****************************************************************************
+  SUBROUTINE cp_cfm_to_cfm_triangular(msource, mtarget, uplo)
+    TYPE(cp_cfm_type), POINTER               :: msource, mtarget
+    CHARACTER(LEN=*), INTENT(IN)             :: uplo
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_triangular', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ncol, nrow
+    COMPLEX(KIND=dp), DIMENSION(:, :), POINTER  :: aa, bb
+#if defined(__SCALAPACK)
+    INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
+
+    CALL timeset(routineN,handle)
+
+    nrow = msource%matrix_struct%nrow_global
+    ncol = msource%matrix_struct%ncol_global
+
+    aa => msource%local_data
+    bb => mtarget%local_data
+
+#if defined(__SCALAPACK)
+    desca(:) = msource%matrix_struct%descriptor(:)
+    descb(:) = mtarget%matrix_struct%descriptor(:)
+    CALL pzlacpy(uplo, nrow, ncol, aa(1,1), 1, 1, desca, bb(1,1), 1, 1,descb)
+#else
+    CALL zlacpy(uplo, nrow, ncol, aa(1,1), nrow, bb(1,1), nrow)
+#endif
+
+    CALL timestop(handle)
+
+  END SUBROUTINE cp_cfm_to_cfm_triangular
+
+! *****************************************************************************
 !> \brief copy real and imaginary parts of a cfm to fm
 !>        works only for absolutely equivalent structures
 !> \param msource  : complex matrix
@@ -706,7 +745,7 @@ CONTAINS
 !> \brief copy real and imaginary in forms of fms to a cfm
 !>        works only for absolutely equivalent structures
 !> \param msourcer : optional, if present input for real part.
-!>                   if not present, treat as zero 
+!>                   if not present, treat as zero
 !> \param msourcei : optional, if present input for imag part.
 !>                   if not present, treat as zero
 !> \param mtarget  : outputs complex matrix

@@ -790,17 +790,19 @@ CONTAINS
 ! *****************************************************************************
 !> \brief used to replace a symmetric positive def. matrix M with its cholesky
 !>      decomposition U: M = U^T * U, with U upper triangular
-!> \param matrix the matrix to replace with its cholesky decomposition
-!> \param n the number of row (and columns) of the matrix &
+!> \param matrix : the matrix to replace with its cholesky decomposition
+!> \param n : the number of row (and columns) of the matrix &
 !>        (defaults to the min(size(matrix)))
+!> \param info_out : if present, outputs info from (p)zpotrf
 !> \par History
 !>      05.2002 created [JVdV]
 !>      12.2002 updated, added n optional parm [fawzi]
 !> \author Joost
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_cholesky_decompose(matrix,n)
+  SUBROUTINE cp_cfm_cholesky_decompose(matrix,n,info_out)
     TYPE(cp_cfm_type), POINTER               :: matrix
     INTEGER, INTENT(in), OPTIONAL            :: n
+    INTEGER, INTENT(OUT), OPTIONAL           :: info_out
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_decompose', &
       routineP = moduleN//':'//routineN
@@ -826,12 +828,16 @@ CONTAINS
 #if defined(__SCALAPACK)
     desca(:) = matrix%matrix_struct%descriptor(:)
     CALL pzpotrf('U',my_n,a(1,1),1,1,desca,info)
-
 #else
-
     CALL zpotrf('U',my_n,a(1,1),SIZE(a,1),info)
-
 #endif
+
+    IF (PRESENT(info_out)) THEN
+       info = info_out
+    ELSE
+       IF (info /= 0) &
+            CPABORT("Cholesky decompose failed: matrix is not positive definite  or ill-conditioned")
+    END IF
 
     CPASSERT(info==0)
 
@@ -955,18 +961,19 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
 ! *****************************************************************************
 !> \brief inverts a triangular matrix
 !> \param matrix_a ...
-!> \param uplo_tr ...
+!> \param uplo ...
+!> \param info_out ...
 !> \author MI
 ! *****************************************************************************
-  SUBROUTINE cp_cfm_triangular_invert(matrix_a,uplo_tr)
-
+  SUBROUTINE cp_cfm_triangular_invert(matrix_a,uplo,info_out)
     TYPE(cp_cfm_type), POINTER               :: matrix_a
-    CHARACTER, INTENT(IN), OPTIONAL          :: uplo_tr
+    CHARACTER, INTENT(IN), OPTIONAL          :: uplo
+    INTEGER, INTENT(OUT), OPTIONAL           :: info_out
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_triangular_invert', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: unit_diag, uplo
+    CHARACTER                                :: unit_diag, my_uplo
     INTEGER                                  :: handle, info, ncol_global
     COMPLEX(KIND=dp), DIMENSION(:, :), &
       POINTER                                :: a
@@ -974,27 +981,29 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
     INTEGER, DIMENSION(9)                    :: desca
 #endif
 
-
     CALL timeset(routineN,handle)
 
     unit_diag='N'
-    uplo='U'
-    IF(PRESENT(uplo_tr)) uplo=uplo_tr
+    my_uplo='U'
+    IF(PRESENT(uplo)) my_uplo=uplo
 
     ncol_global =matrix_a%matrix_struct%ncol_global
 
     a => matrix_a%local_data
 
 #if defined(__SCALAPACK)
-
     desca(:) = matrix_a%matrix_struct%descriptor(:)
-
-    CALL pztrtri( uplo, unit_diag, ncol_global, a(1,1), 1, 1, desca, info )
-
+    CALL pztrtri(my_uplo, unit_diag, ncol_global, a(1,1), 1, 1, desca, info)
 #else
-    CALL ztrtri( uplo, unit_diag, ncol_global, a(1,1), ncol_global, info )
+    CALL ztrtri(my_uplo, unit_diag, ncol_global, a(1,1), ncol_global, info)
 #endif
 
+    IF (PRESENT(info_out)) THEN
+       info = info_out
+    ELSE
+       IF (info /= 0) &
+            CPABORT("triangular invert failed: matrix is not positive definite  or ill-conditioned")
+    END IF
 
     CALL timestop(handle)
   END SUBROUTINE cp_cfm_triangular_invert
@@ -1028,7 +1037,7 @@ SUBROUTINE cp_cfm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CPASSERT(ASSOCIATED(matrixt))
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
-    
+
     aa => matrix%local_data
     cc => matrixt%local_data
 
