@@ -150,8 +150,9 @@ extern "C" int pw_cuda_init () {
     if (CHECK) cufft_error_check(cufftErr, __LINE__);
     if (version == 7000){
 #if defined ( __HAS_PATCHED_CUFFT_70 )
-       printf("CUFFT 7.0 enabled on user request (-D__HAS_PATCHED_CUFFT_70).\n");
-       printf("Please ensure that CUFFT is patched (libcufft.so.x.y.z, libcufftw.so.x,y,z; x.y.z >= 7.0.35).\n");
+//      message would be printed to all ranks, if the user has __HAS_PATCHED_CUFFT_70 she's supposed to know what she's doing
+//      printf("CUFFT 7.0 enabled on user request (-D__HAS_PATCHED_CUFFT_70).\n");
+//      printf("Please ensure that CUFFT is patched (libcufft.so.x.y.z, libcufftw.so.x,y,z; x.y.z >= 7.0.35).\n");
 #else
        printf("CUFFT 7.0 disabled due to an unresolved bug.\n");
        printf("Please upgrade to CUDA 7.5 or later or apply CUFFT patch (see -D__HAS_PATCHED_CUFFT_70).\n");
