@@ -29,7 +29,7 @@ MODULE pao_io
                                              mp_max,&
                                              mp_sum
   USE pao_input,                       ONLY: id2str
-  USE pao_param,                       ONLY: pao_param_xblock_dims
+  USE pao_param,                       ONLY: pao_param_count
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
@@ -315,10 +315,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: kindname
-    INTEGER                                  :: iatom, ikind, pao_basis_size, &
-                                                pao_pot_maxl, &
-                                                pao_pot_neighbors, Xcols, &
-                                                Xrows, z
+    INTEGER                                  :: iatom, ikind, nparams, &
+                                                pao_basis_size, pao_pot_maxl, &
+                                                pao_pot_neighbors, z
     REAL(dp)                                 :: pao_pot_beta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -350,12 +349,12 @@ CONTAINS
                         pao_potential_neighbors=pao_pot_neighbors,&
                         pao_potential_beta=pao_pot_beta,&
                         basis_set=basis_set)
-       CALL pao_param_xblock_dims(pao, qs_env, ikind, Xrows, Xcols)
+       CALL pao_param_count(pao, qs_env, ikind, nparams)
        WRITE(unit_nr,"(A,5X,I10,1X,A,1X,I3)") "Kind", ikind, TRIM(kindname), z
        WRITE(unit_nr,"(A,5X,I10,1X,A)") "PrimBasis", ikind, TRIM(basis_set%name)
        WRITE(unit_nr,"(A,5X,I10,1X,I3,1X,I3)",advance='no') "PaoBasis", ikind, pao_basis_size, pao_pot_maxl
        WRITE(unit_nr,"(1X,I3,1X,F20.16)") pao_pot_neighbors, pao_pot_beta
-       WRITE(unit_nr,"(A,5X,I10,1X,I3,1X,I3)") "DimXblock", ikind, Xrows, Xcols
+       WRITE(unit_nr,"(A,5X,I10,1X,I3)") "NParams", ikind, nparams
     ENDDO
 
     ! write cell

@@ -14,11 +14,11 @@ MODULE pao_param_gth
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_col_block_sizes, cp_dbcsr_create, cp_dbcsr_distribution, &
-       cp_dbcsr_get_block_p, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       cp_dbcsr_release, cp_dbcsr_reserve_diag_blocks, cp_dbcsr_set, &
+       cp_dbcsr_create, cp_dbcsr_distribution, cp_dbcsr_get_block_p, &
+       cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+       cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, &
+       cp_dbcsr_iterator_stop, cp_dbcsr_p_type, cp_dbcsr_release, &
+       cp_dbcsr_reserve_diag_blocks, cp_dbcsr_row_block_sizes, cp_dbcsr_set, &
        cp_dbcsr_type, dbcsr_distribution_mp, dbcsr_mp_group
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: gamma1
@@ -46,7 +46,7 @@ MODULE pao_param_gth
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_gth'
 
   PUBLIC :: pao_param_init_gth, pao_param_finalize_gth, pao_calc_U_gth
-  PUBLIC :: pao_param_xblock_dims_gth, pao_param_initguess_gth
+  PUBLIC :: pao_param_count_gth, pao_param_initguess_gth
 
 CONTAINS
 
@@ -85,11 +85,11 @@ CONTAINS
     ALLOCATE(row_blk_size(natoms), col_blk_size(natoms), nterms(natoms))
     DO iatom=1, natoms
        CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-       CALL gth_count_terms(qs_env, ikind, nterms(iatom))
+       CALL pao_param_count_gth(qs_env, ikind, nterms(iatom))
     ENDDO
 
     ! allocate matrix_V_terms
-    blk_sizes_pri => cp_dbcsr_col_block_sizes(matrix_s(1)%matrix)
+    blk_sizes_pri => cp_dbcsr_row_block_sizes(matrix_s(1)%matrix)
     col_blk_size = SUM(nterms)
     row_blk_size = blk_sizes_pri**2
     CALL cp_dbcsr_init(pao%matrix_V_terms)
@@ -171,7 +171,7 @@ CONTAINS
     CALL timeset(routineN,handle)
 
     min_gap = HUGE(dp)
-    nterms => cp_dbcsr_col_block_sizes(pao%matrix_X)
+    nterms => cp_dbcsr_row_block_sizes(pao%matrix_X)
     natoms = SIZE(nterms)
     group = dbcsr_mp_group(dbcsr_distribution_mp(cp_dbcsr_distribution(pao%matrix_X)))
 
@@ -185,7 +185,7 @@ CONTAINS
        CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
        iatom = arow; CPASSERT(arow==acol)
        idx = SUM(nterms(1:iatom-1))
-       world_X(idx+1 : idx+nterms(iatom)) = block_X(1,:)
+       world_X(idx+1 : idx+nterms(iatom)) = block_X(:,1)
     ENDDO
     CALL cp_dbcsr_iterator_stop(iter)
     CALL mp_sum(world_X, group) ! sync world view across MPI ranks
@@ -234,7 +234,7 @@ CONTAINS
           CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_G)
           iatom = arow; CPASSERT(arow==acol)
           idx = SUM(nterms(1:iatom-1))
-          block_G(1,:) = world_G(idx+1 : idx+nterms(iatom))
+          block_G(:,1) = world_G(idx+1 : idx+nterms(iatom))
        ENDDO
        CALL cp_dbcsr_iterator_stop(iter)
     ENDIF
@@ -254,36 +254,17 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Returns the dimension of Xblock for given atomic kind
+!> \brief Returns the number of parameters for given atomic kind
 !> \param qs_env ...
 !> \param ikind ...
-!> \param rows ...
-!> \param cols ...
+!> \param nparams ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_xblock_dims_gth(qs_env, ikind, rows, cols)
+  SUBROUTINE pao_param_count_gth(qs_env, ikind, nparams)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ikind
-    INTEGER, INTENT(OUT)                     :: rows, cols
+    INTEGER, INTENT(OUT)                     :: nparams
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims_gth', &
-      routineP = moduleN//':'//routineN
-
-    rows = 1
-    CALL gth_count_terms(qs_env, ikind, nterms=cols)
-
-  END SUBROUTINE pao_param_xblock_dims_gth
-
-
-! *****************************************************************************
-!> \brief Calculates the number of potential terms on given atomic kind
-!> \param qs_env ...
-!> \param ikind ...
-!> \param nterms ...
-! *****************************************************************************
-  SUBROUTINE gth_count_terms(qs_env, ikind, nterms)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: ikind
-    INTEGER, INTENT(OUT)                     :: nterms
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_gth'
 
     INTEGER                                  :: maxl
     TYPE(qs_kind_type), DIMENSION(:), &
@@ -298,9 +279,9 @@ CONTAINS
     IF(MOD(maxl,2)/=0) &
       CPABORT("GTH parametrization requires even-numbered PAO_POTENTIAL%MAXL")
 
-    nterms = 6*(maxl/2 + 1)
+    nparams = 6*(maxl/2 + 1)
 
-  END SUBROUTINE gth_count_terms
+  END SUBROUTINE pao_param_count_gth
 
 
 ! *****************************************************************************
@@ -378,7 +359,7 @@ CONTAINS
     DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
        CALL cp_dbcsr_iterator_next_block(iter, arow, acol, block_X)
        CPASSERT(arow==acol)
-       CPASSERT(SIZE(block_X,1)==1)
+       CPASSERT(SIZE(block_X,2)==1)
 
        ! a simplistic guess, which at least makes the atom visible to others
        block_X      = 0.0_dp

@@ -43,7 +43,7 @@ MODULE pao_param_linpot
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_linpot'
 
   PUBLIC :: pao_param_init_linpot, pao_param_finalize_linpot, pao_calc_U_linpot
-  PUBLIC :: pao_param_xblock_dims_linpot, pao_param_initguess_linpot
+  PUBLIC :: pao_param_count_linpot, pao_param_initguess_linpot
 
 CONTAINS
 
@@ -87,7 +87,7 @@ CONTAINS
     ALLOCATE(row_blk_size(natoms), col_blk_size(natoms))
     DO iatom=1, natoms
        CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-       CALL linpot_count_terms(pao, qs_env, ikind, nterms)
+       CALL pao_param_count_linpot(pao, qs_env, ikind, nterms)
        col_blk_size(iatom) = nterms
     ENDDO
 
@@ -142,26 +142,30 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Returns the dimension of Xblock for given atomic kind
+!> \brief Returns the number of potential terms for given atomic kind
 !> \param pao ...
 !> \param qs_env ...
 !> \param ikind ...
-!> \param rows ...
-!> \param cols ...
+!> \param nparams ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_xblock_dims_linpot(pao, qs_env, ikind, rows, cols)
+  SUBROUTINE pao_param_count_linpot(pao, qs_env, ikind, nparams)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ikind
-    INTEGER, INTENT(OUT)                     :: rows, cols
+    INTEGER, INTENT(OUT)                     :: nparams
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims_linpot', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_linpot'
 
-    CALL linpot_count_terms(pao, qs_env, ikind, nterms=rows)
-    cols = 1
+     SELECT CASE(pao%parameterization)
+      CASE(pao_fock_param)
+        CALL linpot_full_count_terms(qs_env, ikind, nterms=nparams)
+      CASE(pao_rotinv_param)
+        CALL linpot_rotinv_count_terms(qs_env, ikind, nterms=nparams)
+      CASE DEFAULT
+        CPABORT("unkown parameterization")
+     END SELECT
 
-  END SUBROUTINE pao_param_xblock_dims_linpot
+  END SUBROUTINE pao_param_count_linpot
 
 
 ! *****************************************************************************
@@ -250,34 +254,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE pao_calc_U_linpot
-
-
-! *****************************************************************************
-!> \brief Internal routine, counts number of terms in potential parametrization
-!> \param pao ...
-!> \param qs_env ...
-!> \param ikind ...
-!> \param nterms ...
-! *****************************************************************************
-  SUBROUTINE linpot_count_terms(pao, qs_env, ikind, nterms)
-    TYPE(pao_env_type), POINTER              :: pao
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: ikind
-    INTEGER, INTENT(OUT)                     :: nterms
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'linpot_count_terms', &
-      routineP = moduleN//':'//routineN
-
-     SELECT CASE(pao%parameterization)
-      CASE(pao_fock_param)
-        CALL linpot_full_count_terms(qs_env, ikind, nterms)
-      CASE(pao_rotinv_param)
-        CALL linpot_rotinv_count_terms(qs_env, ikind, nterms)
-      CASE DEFAULT
-        CPABORT("unkown parameterization")
-     END SELECT
-
-  END SUBROUTINE linpot_count_terms
 
 
 ! *****************************************************************************

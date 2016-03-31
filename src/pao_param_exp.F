@@ -32,7 +32,7 @@ MODULE pao_param_exp
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_exp'
 
   PUBLIC :: pao_param_init_exp, pao_param_finalize_exp, pao_calc_U_exp
-  PUBLIC :: pao_param_xblock_dims_exp, pao_param_initguess_exp
+  PUBLIC :: pao_param_count_exp, pao_param_initguess_exp
 
 CONTAINS
 
@@ -105,21 +105,21 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Returns the dimension of Xblock for given atomic kind
+!> \brief Returns the number of parameters for given atomic kind
 !> \param qs_env ...
 !> \param ikind ...
-!> \param rows ...
-!> \param cols ...
+!> \param nparams ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_xblock_dims_exp(qs_env, ikind, rows, cols)
+  SUBROUTINE pao_param_count_exp(qs_env, ikind, nparams)
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ikind
-    INTEGER, INTENT(OUT)                     :: rows, cols
+    INTEGER, INTENT(OUT)                     :: nparams
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims_exp', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_exp', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: pao_basis_size, pri_basis_size
+    INTEGER                                  :: cols, pao_basis_size, &
+                                                pri_basis_size, rows
     TYPE(gto_basis_set_type), POINTER        :: basis_set
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -133,8 +133,9 @@ CONTAINS
     ! we only consider rotations between occupied and virtuals
     rows = pao_basis_size
     cols = pri_basis_size - pao_basis_size
+    nparams = rows * cols
 
-  END SUBROUTINE pao_param_xblock_dims_exp
+  END SUBROUTINE pao_param_count_exp
 
 
 ! *****************************************************************************
@@ -169,7 +170,7 @@ CONTAINS
     COMPLEX(dp), DIMENSION(:), POINTER       :: evals
     COMPLEX(dp), DIMENSION(:, :), POINTER    :: block_D, evecs
     INTEGER                                  :: acol, arow, handle, i, iatom, &
-                                                j, k, M, N
+                                                j, k, M, N, nparams
     LOGICAL                                  :: found
     REAL(dp), DIMENSION(:, :), POINTER :: block_G, block_G_full, block_M, &
       block_tmp, block_U, block_U0, block_X, block_X_full, block_Y
@@ -191,13 +192,16 @@ CONTAINS
 
        N=SIZE(block_Y, 1)
        M=SIZE(block_Y, 2)
+       nparams = SIZE(block_X,1)
 
        ! block_X stores only rotations between occupied and virtuals
        ! hence, we first have to build the full anti-symmetric exponent block
        ALLOCATE(block_X_full(N,N))
        block_X_full(:,:) = 0.0_dp
-       block_X_full(1:M, M+1:N) = block_X
-       block_X_full(M+1:N, 1:M) = -TRANSPOSE(block_X)
+       DO i=1, nparams
+          block_X_full(MOD(i-1,M)+1, M+(i-1)/M+1) = +block_X(i,1)
+          block_X_full(M+(i-1)/M+1, MOD(i-1,M)+1) = -block_X(i,1)
+       ENDDO
 
        ! diagonalize block_X_full
        ALLOCATE(evals(N), evecs(N,N))
@@ -245,8 +249,9 @@ CONTAINS
           block_G_full = fold_derivatives(block_tmp, block_D, evecs)
 
           ! return only gradient for rotations between occupied and virtuals
-          IF(M < N)& ! catch special case N==M
-             block_G = block_G_full(1:M, M+1:N)
+          DO i=1, nparams
+             block_G(i,1) = block_G_full(MOD(i-1,M)+1, M+(i-1)/M+1)
+          ENDDO
 
           DEALLOCATE(block_D, block_tmp, block_G_full)
        ENDIF

@@ -23,20 +23,20 @@ MODULE pao_param
                                              pao_gth_param,&
                                              pao_rotinv_param
   USE pao_param_exp,                   ONLY: pao_calc_U_exp,&
+                                             pao_param_count_exp,&
                                              pao_param_finalize_exp,&
                                              pao_param_init_exp,&
-                                             pao_param_initguess_exp,&
-                                             pao_param_xblock_dims_exp
+                                             pao_param_initguess_exp
   USE pao_param_gth,                   ONLY: pao_calc_U_gth,&
+                                             pao_param_count_gth,&
                                              pao_param_finalize_gth,&
                                              pao_param_init_gth,&
-                                             pao_param_initguess_gth,&
-                                             pao_param_xblock_dims_gth
+                                             pao_param_initguess_gth
   USE pao_param_linpot,                ONLY: pao_calc_U_linpot,&
+                                             pao_param_count_linpot,&
                                              pao_param_finalize_linpot,&
                                              pao_param_init_linpot,&
-                                             pao_param_initguess_linpot,&
-                                             pao_param_xblock_dims_linpot
+                                             pao_param_initguess_linpot
   USE pao_types,                       ONLY: pao_env_type
   USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
@@ -47,7 +47,7 @@ MODULE pao_param
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param'
 
-  PUBLIC :: pao_update_AB, pao_param_xblock_dims, pao_param_initial_guess
+  PUBLIC :: pao_update_AB, pao_param_count, pao_param_initial_guess
   PUBLIC :: pao_param_init, pao_param_finalize, pao_calc_U
 
 CONTAINS
@@ -144,34 +144,33 @@ CONTAINS
 
 
 ! *****************************************************************************
-!> \brief Returns the dimension of Xblock for given atomic kind
+!> \brief Returns the number of parameters for given atomic kind
 !> \param pao ...
 !> \param qs_env ...
 !> \param ikind ...
-!> \param rows ...
-!> \param cols ...
+!> \param nparams ...
 ! *****************************************************************************
-  SUBROUTINE pao_param_xblock_dims(pao, qs_env, ikind, rows, cols)
+  SUBROUTINE pao_param_count(pao, qs_env, ikind, nparams)
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ikind
-    INTEGER, INTENT(OUT)                     :: rows, cols
+    INTEGER, INTENT(OUT)                     :: nparams
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_xblock_dims', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count', &
       routineP = moduleN//':'//routineN
 
     SELECT CASE(pao%parameterization)
       CASE(pao_exp_param)
-        CALL pao_param_xblock_dims_exp(qs_env, ikind, rows, cols)
+        CALL pao_param_count_exp(qs_env, ikind=ikind, nparams=nparams)
       CASE(pao_fock_param, pao_rotinv_param)
-        CALL pao_param_xblock_dims_linpot(pao, qs_env, ikind, rows, cols)
+        CALL pao_param_count_linpot(pao, qs_env, ikind=ikind, nparams=nparams)
       CASE(pao_gth_param)
-        CALL pao_param_xblock_dims_gth(qs_env, ikind, rows, cols)
+        CALL pao_param_count_gth(qs_env, ikind=ikind, nparams=nparams)
       CASE DEFAULT
         CPABORT("PAO: unkown parametrization")
     END SELECT
 
-  END SUBROUTINE pao_param_xblock_dims
+  END SUBROUTINE pao_param_count
 
 
 ! *****************************************************************************

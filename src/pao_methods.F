@@ -35,7 +35,7 @@ MODULE pao_methods
   USE machine,                         ONLY: m_walltime
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_max
-  USE pao_param,                       ONLY: pao_param_xblock_dims,&
+  USE pao_param,                       ONLY: pao_param_count,&
                                              pao_update_AB
   USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: particle_type
@@ -276,11 +276,10 @@ CONTAINS
                     particle_set=particle_set)
 
     ALLOCATE(row_blk_size(natoms), col_blk_size(natoms))
+    col_blk_size = 1
     DO iatom=1, natoms
       CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
-      CALL pao_param_xblock_dims(pao, qs_env, ikind,&
-                                 rows=row_blk_size(iatom),&
-                                 cols=col_blk_size(iatom))
+      CALL pao_param_count(pao, qs_env, ikind, nparams=row_blk_size(iatom))
     ENDDO
 
     CALL cp_dbcsr_init(pao%matrix_X)
