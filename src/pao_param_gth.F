@@ -43,8 +43,6 @@ MODULE pao_param_gth
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_gth'
-
   PUBLIC :: pao_param_init_gth, pao_param_finalize_gth, pao_calc_U_gth
   PUBLIC :: pao_param_count_gth, pao_param_initguess_gth
 
@@ -59,8 +57,7 @@ CONTAINS
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_gth', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_gth'
 
     INTEGER                                  :: acol, arow, handle, iatom, &
                                                 idx, ikind, iterm, jatom, n, &
@@ -130,9 +127,6 @@ CONTAINS
   SUBROUTINE pao_param_finalize_gth(pao)
     TYPE(pao_env_type), POINTER              :: pao
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_gth', &
-      routineP = moduleN//':'//routineN
-
     CALL pao_param_finalize_fock(pao)
     CALL cp_dbcsr_release(pao%matrix_V_terms)
 
@@ -153,8 +147,7 @@ CONTAINS
     REAL(dp), INTENT(INOUT)                  :: penalty
     TYPE(cp_dbcsr_type), OPTIONAL            :: matrix_M1, matrix_G
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_gth', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER              :: routineN = 'pao_calc_U_gth'
 
     INTEGER                                  :: acol, arow, group, handle, &
                                                 iatom, idx, iterm, n, natoms
@@ -264,8 +257,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ikind
     INTEGER, INTENT(OUT)                     :: nparams
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_gth'
-
     INTEGER                                  :: maxl
     TYPE(qs_kind_type), DIMENSION(:), &
       POINTER                                :: qs_kind_set
@@ -348,9 +339,6 @@ CONTAINS
   SUBROUTINE pao_param_initguess_gth(pao)
     TYPE(pao_env_type), POINTER              :: pao
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_gth', &
-      routineP = moduleN//':'//routineN
-
     INTEGER                                  :: acol, arow
     REAL(dp), DIMENSION(:, :), POINTER       :: block_X
     TYPE(cp_dbcsr_iterator)                  :: iter
@@ -388,8 +376,7 @@ CONTAINS
     REAL(dp), INTENT(IN)                     :: beta
     INTEGER, INTENT(IN)                      :: min_shell, max_shell
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_gaussian', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER              :: routineN = 'calc_gaussian'
     REAL(dp), PARAMETER                      :: inf_dist = 0.1*HUGE(1.0)
 
     INTEGER :: handle, ic, ikind, iset, ishell, jset, jshell, la1_max, &

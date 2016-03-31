@@ -40,8 +40,6 @@ MODULE pao_param_linpot
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_param_linpot'
-
   PUBLIC :: pao_param_init_linpot, pao_param_finalize_linpot, pao_calc_U_linpot
   PUBLIC :: pao_param_count_linpot, pao_param_initguess_linpot
 
@@ -56,8 +54,7 @@ CONTAINS
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_linpot', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_init_linpot'
 
     INTEGER                                  :: acol, arow, handle, iatom, &
                                                 ikind, kterm, n, natoms, &
@@ -130,9 +127,6 @@ CONTAINS
   SUBROUTINE pao_param_finalize_linpot(pao)
     TYPE(pao_env_type), POINTER              :: pao
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_finalize_linpot', &
-      routineP = moduleN//':'//routineN
-
     CALL pao_param_finalize_fock(pao)
     CALL cp_dbcsr_release(pao%matrix_V_terms)
 
@@ -153,8 +147,6 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: ikind
     INTEGER, INTENT(OUT)                     :: nparams
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_count_linpot'
 
      SELECT CASE(pao%parameterization)
       CASE(pao_fock_param)
@@ -180,8 +172,7 @@ CONTAINS
     REAL(dp), INTENT(INOUT)                  :: penalty
     TYPE(cp_dbcsr_type), OPTIONAL            :: matrix_M, matrix_G
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_U_linpot', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER              :: routineN = 'pao_calc_U_linpot'
 
     INTEGER                                  :: acol, arow, group, handle, &
                                                 iatom, n
@@ -270,9 +261,6 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iatom, kterm
     REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: block_V
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'linpot_calc_term', &
-      routineP = moduleN//':'//routineN
-
      SELECT CASE(pao%parameterization)
       CASE(pao_fock_param)
         CALL linpot_full_calc_term(kterm, block_V)
@@ -294,8 +282,7 @@ CONTAINS
     TYPE(pao_env_type), POINTER              :: pao
     TYPE(qs_environment_type), POINTER       :: qs_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_linpot', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_initguess_linpot'
 
     INTEGER                                  :: acol, arow, handle, n
     LOGICAL                                  :: found
@@ -360,8 +347,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :)                :: matrix_A
     REAL(dp), DIMENSION(:)                   :: vec_B, vec_X
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dgelsy_wrapper', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER              :: routineN = 'dgelsy_wrapper'
 
     INTEGER                                  :: handle, info, lda, ldb, &
                                                 lwork, m, n, nrhs, rank
