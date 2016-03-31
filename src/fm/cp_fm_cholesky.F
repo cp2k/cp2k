@@ -92,7 +92,7 @@ CONTAINS
       info_out = info
     ELSE
       IF (info/=0) &
-        CPABORT("Cholesky failed: the matrix is not positive definite or ill-conditioned.")
+        CPABORT("Cholesky decompose failed: the matrix is not positive definite or ill-conditioned.")
     END IF
 
     CALL timestop(handle)
@@ -103,13 +103,15 @@ CONTAINS
 !> \brief used to replace the cholesky decomposition by the inverse
 !> \param matrix the matrix to invert (must be an upper triangular matrix)
 !> \param n size of the matrix to invert (defaults to the min(size(matrix)))
+!> \param info_out ...
 !> \par History
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! *****************************************************************************
-  SUBROUTINE cp_fm_cholesky_invert(matrix,n)
-    TYPE(cp_fm_type), POINTER           :: matrix
-    INTEGER, INTENT(in), OPTIONAL                :: n
+  SUBROUTINE cp_fm_cholesky_invert(matrix,n,info_out)
+    TYPE(cp_fm_type), POINTER                 :: matrix
+    INTEGER, INTENT(in), OPTIONAL             :: n
+    INTEGER, INTENT(OUT), OPTIONAL            :: info_out
 
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_invert',&
          routineP=moduleN//':'//routineN
@@ -154,7 +156,12 @@ CONTAINS
 
 #endif
 
-    CPASSERT(info==0)
+    IF (PRESENT(info_out)) THEN
+       info_out = info
+    ELSE
+       IF (info/=0) &
+            CPABORT("Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
+    END IF
 
     CALL timestop(handle)
 
