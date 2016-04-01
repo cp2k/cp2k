@@ -15,10 +15,10 @@ flag_exceptions_re = re.compile("__COMPILE_.*|__SHORT_FILE__|__INTEL_COMPILER|"
 
 year = datetime.utcnow().year
 
-BANNER_F = "!-----------------------------------------------------------------------------!\n" \
-          +"!   CP2K: A general program to perform molecular dynamics simulations         !\n" \
-          +"!   Copyright (C) 2000 - %d  CP2K developers group                          !\n"%year \
-          +"!-----------------------------------------------------------------------------!\n"
+BANNER_F = "!--------------------------------------------------------------------------------------------------!\n" \
+          +"!   CP2K: A general program to perform molecular dynamics simulations                              !\n" \
+          +"!   Copyright (C) 2000 - %d  CP2K developers group                                               !\n"%year \
+          +"!--------------------------------------------------------------------------------------------------!\n"
 
 BANNER_C = "/*****************************************************************************\n" \
           +" *  CP2K: A general program to perform molecular dynamics simulations        *\n" \
