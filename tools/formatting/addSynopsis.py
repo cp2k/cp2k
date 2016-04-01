@@ -23,12 +23,14 @@ def parseInterface(iFile, logFile=sys.stdout):
     import exceptions
 
     # removed the |(!?[ \t]*contains)
-    nameRe = re.compile('[ \t]*(((module)[ \t]*:?|subroutine|function|interface|(type)[ \t]*:*)[ \t]*([a-zA-Z0-9_]+)|(interface)|(end)[ \t]*([a-zA-Z_0-9]*)[ \t]*([a-zA-Z0-9_]*))'
-                   , flags=re.IGNORECASE)
-    (kindPos,modulePos,typePos,namePos,emptyInterfacePos,endPos,endKind,) = (1,2,3,4,5,6,7,)
+    nameRe = re.compile(
+        '[ \t]*(((module)[ \t]*:?|subroutine|function|interface|(type)[ \t]*:*)[ \t]*([a-zA-Z0-9_]+)|(interface)|(end)[ \t]*([a-zA-Z_0-9]*)[ \t]*([a-zA-Z0-9_]*))', flags=re.IGNORECASE)
+    (kindPos, modulePos, typePos, namePos, emptyInterfacePos,
+     endPos, endKind,) = (1, 2, 3, 4, 5, 6, 7,)
     expansion = ''
     lineNr = 0
-    result = {'interface': {},'type': {},'function': {},'subroutine': {},'module': {},}
+    result = {'interface': {}, 'type': {},
+              'function': {}, 'subroutine': {}, 'module': {}, }
     stack = []
     while 1:
         line = iFile.readline()
@@ -42,30 +44,38 @@ def parseInterface(iFile, logFile=sys.stdout):
                     stack[0]['expansion'] = stack[0]['expansion'] + line
             elif match.groups()[namePos]:
                 if match.groups()[modulePos]:  # module def
-                    if match.groups()[namePos] and match.groups()[namePos].lower() == 'procedure':  # module procedure
+                    # module procedure
+                    if match.groups()[namePos] and match.groups()[namePos].lower() == 'procedure':
                         if not stack:
                             raise SyntaxError('empty stack')
                         stack[0]['expansion'] = stack[0]['expansion'] + line
                     else:
                         if stack:
-                            raise SyntaxError('stack non empty and module start')
-                        stack = [{'name': match.groups()[namePos].lower(),'kind': 'module', 'expansion': line}]
+                            raise SyntaxError(
+                                'stack non empty and module start')
+                        stack = [{'name': match.groups()[namePos].lower(
+                        ), 'kind': 'module', 'expansion': line}]
                 elif match.groups()[typePos]:
                     # type def
-                    stack = [{'name': match.groups()[namePos].lower(), 'kind': 'type', 'expansion': line}] + stack
+                    stack = [{'name': match.groups()[namePos].lower(
+                    ), 'kind': 'type', 'expansion': line}] + stack
                 else:
                     # other def start
-                    if not match.groups()[kindPos]: raise SyntaxError('undefined kind')
-                    stack = [{'name': match.groups()[namePos].lower(), 'kind': match.groups()[kindPos].lower(), 'expansion': line}] + stack
+                    if not match.groups()[kindPos]:
+                        raise SyntaxError('undefined kind')
+                    stack = [{'name': match.groups()[namePos].lower(), 'kind': match.groups()[
+                        kindPos].lower(), 'expansion': line}] + stack
             elif match.groups()[emptyInterfacePos]:
                 # empty interfce begin
-                stack = [{'name': '', 'kind': 'interface', 'expansion': line}] + stack
+                stack = [{'name': '', 'kind': 'interface',
+                          'expansion': line}] + stack
             elif match.groups()[endPos]:
                 # end of a def
                 if not stack:
                     raise SyntaxError('empty stack')
                 if not match.groups()[endKind]:
-                    raise SyntaxError('end without kind')  # ignore this error??
+                    # ignore this error??
+                    raise SyntaxError('end without kind')
                 elif not match.groups()[endKind].lower() == stack[0]['kind'].lower():
                     raise SyntaxError('mismatched end')  # ignore this error??
                 stack[0]['expansion'] = stack[0]['expansion'] + line
@@ -74,14 +84,17 @@ def parseInterface(iFile, logFile=sys.stdout):
                         result[stack[0]['kind']] = {}
                     kind_table = result[stack[0]['kind']]
                     if kind_table.has_key(stack[0]['name']):
-                        logFile.write("\nWARNING double definition of '"+ stack[0]['name'] + "' at line "+ str(lineNr) + ', ignoring\n')
+                        logFile.write("\nWARNING double definition of '" + stack[0][
+                                      'name'] + "' at line " + str(lineNr) + ', ignoring\n')
                     else:
-                        kind_table[stack[0]['name']] = stack[0]  # put only the expansion??
+                        kind_table[stack[0]['name']] = stack[
+                            0]  # put only the expansion??
                 else:
                     logFile.write('ignoring group ' + str(stack[0]) + '\n')
                 del stack[0]
             else:
-                raise SyntaxError("inconsistent parse '"+ str(match.groups()) + "'")
+                raise SyntaxError("inconsistent parse '" +
+                                  str(match.groups()) + "'")
         except SyntaxError:
             e = sys.exc_info()[1]
             e.lineno = lineNr
@@ -90,7 +103,8 @@ def parseInterface(iFile, logFile=sys.stdout):
             raise
         except Warning:
             w = sys.exc_info()[1]
-            logFile.write('ignoring warning at line %d of file %s\n'%(lineNr, iFile.name))
+            logFile.write('ignoring warning at line %d of file %s\n' %
+                          (lineNr, iFile.name))
             logFile.write(str(w))
     return result
 
@@ -108,7 +122,8 @@ def writeSynopsis(objDef, outfile, logFile=sys.stdout):
                 while len(line) >= 74:
                     import string
                     posToBreak = string.rfind(line, ' ', 30, 74)
-                    if posToBreak < 0: posToBreak = 74
+                    if posToBreak < 0:
+                        posToBreak = 74
                     outfile.write('!! ' + line[:posToBreak] + '&\n')
                     line = '       ' + line[posToBreak:]
                 outfile.write('!! ' + line)
@@ -119,7 +134,8 @@ def writeSynopsis(objDef, outfile, logFile=sys.stdout):
     else:
         logFile.write('no expansion for ' + str(objDef) + '\n')
 
-def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
+
+def insertSynopsis(defs, infile, outfile, logFile=sys.stdout):
     """Writes the file infile to outfile inserting the synopsis defined in defs.
 
     infile and outfile should be file objects (streams).
@@ -140,7 +156,8 @@ def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
     (startStopPos, directivePos, namePos, genericCommentPos) = (1, 2, 3, 4)
 
     # 0: not in comment, 1: in roboDoc comment, synopsis not yet inserted 2: reading name,
-    # 3: in roboDoc comment, synopsis inserted, 4: skipping section (synopsis inserted)
+    # 3: in roboDoc comment, synopsis inserted, 4: skipping section (synopsis
+    # inserted)
 
     status = 0
     lineNr = 0
@@ -158,7 +175,8 @@ def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
                 if status == 1:  # already in comment: end
                     if name:
                         if not defs.has_key(name):
-                            e = SyntaxWarning("ignoring unknown object with name '" + name + "'")
+                            e = SyntaxWarning(
+                                "ignoring unknown object with name '" + name + "'")
                             outfile.write(line.lstrip())
                             status = 0
                             raise e
@@ -179,16 +197,19 @@ def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
                     # not in comment
                     status = 1
                     name = ''
-                    if not match.groups()[startStopPos]:  # only 3 *, start should have 4
+                    # only 3 *, start should have 4
+                    if not match.groups()[startStopPos]:
                         outfile.write(line.lstrip())
                         raise SyntaxWarning('incorrect start of comment')
                 else:
                     status = 0
                     outfile.write(line.lstrip())
-                    raise SyntaxWarning('internal error, status=' + str(status))
+                    raise SyntaxWarning(
+                        'internal error, status=' + str(status))
                 outfile.write(line.lstrip())
             elif match.groups()[directivePos]:
-                if status == 4: status = 3
+                if status == 4:
+                    status = 3
                 if status == 1 and name and defs.has_key(name) and defs[name]:
                     # writeSynopsis(defs[name],outfile)
                     status = 3
@@ -228,11 +249,12 @@ def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
             raise
         except Warning:
             w = sys.exc_info()[1]
-            logFile.write("ignoring warning at line %d of file '%s'\n" % (lineNr, infile.name))
+            logFile.write("ignoring warning at line %d of file '%s'\n" %
+                          (lineNr, infile.name))
             logFile.write(str(w) + '\n')
 
 
-def addSynopsisToFile(ifile,sfile,outfile,logFile=sys.stdout):
+def addSynopsisToFile(ifile, sfile, outfile, logFile=sys.stdout):
     """Adds the synopsis to the file sfile, reading the interface from
     ifile, and writing the result to outfile"""
 
@@ -254,7 +276,7 @@ def addSynopsisToFile(ifile,sfile,outfile,logFile=sys.stdout):
     insertSynopsis(defs, sfile, outfile, logFile)
 
 
-def addSynopsisInDir(interfaceDir,outDir,filePaths,logFile=sys.stdout,):
+def addSynopsisInDir(interfaceDir, outDir, filePaths, logFile=sys.stdout,):
     """Add the synopsis to the files in filePaths, reading the interfaces from interfaceDir, and writing them to outDir.
 
     interfaceDir should be the path of the directory where the .int interface files are.
@@ -271,7 +293,7 @@ def addSynopsisInDir(interfaceDir,outDir,filePaths,logFile=sys.stdout,):
             fileName = fileName[:string.rfind(fileName, '.')]
             interfaceFilePath = interfaceDir + '/' + fileName + '.int'
             outFilePath = os.path.join(outDir,
-                    os.path.basename(sourceFilePath))
+                                       os.path.basename(sourceFilePath))
             logFile.write('=== began brocessing of' + sourceFilePath + '\n')
             ifile = open(interfaceFilePath, 'r')
             sfile = open(sourceFilePath, 'r')
