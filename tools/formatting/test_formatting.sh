@@ -18,6 +18,7 @@ md5sum ./data/POTENTIAL >> checksums.md5
 cd makefiles
 make --jobs=20 templates
 make --jobs=20 pretty
+make --jobs=20 pretty  # run twice to ensure consistency with doxify
 cd ..
 
 cd data
@@ -41,7 +42,7 @@ fi
 
 echo "Comparing MD5-sums ..."
 if ! md5sum --quiet --check checksums.md5 ; then
-  summary='Code not invariant under "make templates pretty"'
+  summary='Code not invariant under "make templates pretty; make pretty"'
   status="FAILED"
 fi
 
