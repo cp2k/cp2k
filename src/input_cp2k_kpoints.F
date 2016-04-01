@@ -1,43 +1,43 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief function that build the kpoints section of the input
 !> \par History
 !>      init [07.2014]
 !> \author JGH
-! *****************************************************************************
+! **************************************************************************************************
 MODULE input_cp2k_kpoints
-  USE bibliography,                    ONLY: MacDonald1978,&
-                                             Monkhorst1976
-  USE input_keyword_types,             ONLY: keyword_create,&
-                                             keyword_release,&
-                                             keyword_type
-  USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_create,&
-                                             section_type
-  USE input_val_types,                 ONLY: char_t,&
-                                             real_t
-  USE kinds,                           ONLY: dp
-  USE string_utilities,                ONLY: s2a
+   USE bibliography,                    ONLY: MacDonald1978,&
+                                              Monkhorst1976
+   USE input_keyword_types,             ONLY: keyword_create,&
+                                              keyword_release,&
+                                              keyword_type
+   USE input_section_types,             ONLY: section_add_keyword,&
+                                              section_create,&
+                                              section_type
+   USE input_val_types,                 ONLY: char_t,&
+                                              real_t
+   USE kinds,                           ONLY: dp
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
-  PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_kpoints'
 
-  INTEGER, PARAMETER                      :: use_real_wfn=101,&
-                                             use_complex_wfn=100
+   INTEGER, PARAMETER                      :: use_real_wfn = 101, &
+                                              use_complex_wfn = 100
 
-  PUBLIC :: create_kpoints_section
-  PUBLIC :: use_real_wfn, use_complex_wfn
+   PUBLIC :: create_kpoints_section
+   PUBLIC :: use_real_wfn, use_complex_wfn
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates the Kpoints section
 !>  SECTION: &kpoint... &end
 !>      SCHEME [None, Gamma, Monkhorst-Pack, MacDonald, General]
@@ -46,98 +46,98 @@ CONTAINS
 !>      KPOINT           x1 y1 z1 w1
 !>      SYMMETRY         [on, off]
 !>      WAVEFUNCTION     [real, complex]
-!>      FULL_GRID        [on, off]        
-!>      VERBOSE          [on, off]        
+!>      FULL_GRID        [on, off]
+!>      VERBOSE          [on, off]
 !>      EPS_GEO          value
 !>      PARALLEL_GROUP_SIZE   [-1,0,n]
 !>
 !> \param section the section to create
 !> \author JGH
-! *****************************************************************************
-  SUBROUTINE create_kpoints_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_kpoints_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_kpoints_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_kpoints_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="KPOINTS",&
-         description="Sets up the kpoints.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="KPOINTS", &
+                          description="Sets up the kpoints.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-    NULLIFY (keyword)
-    CALL keyword_create(keyword, name="SCHEME",&
-         description="Kpoint scheme to be used.<br>"//&
-         "Available options: NONE, GAMMA, MONKHORST-PACK, MACDONALD, and GENERAL.<br>"//&
-         "For MONKHORST-PACK and MACDONALD the number of k points in all "//&
-         "3 dimensions has to be supplied along with the keyword. "//&
-         "E.g. <pre>MONKHORST-PACK 12 12 8.</pre>",&
-         usage="SCHEME {KPMETHOD} {integer} {integer} ..",&
-         citations=(/Monkhorst1976, MacDonald1978/),&
-         n_var=-1, type_of_var=char_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="SCHEME", &
+                          description="Kpoint scheme to be used.<br>"// &
+                          "Available options: NONE, GAMMA, MONKHORST-PACK, MACDONALD, and GENERAL.<br>"// &
+                          "For MONKHORST-PACK and MACDONALD the number of k points in all "// &
+                          "3 dimensions has to be supplied along with the keyword. "// &
+                          "E.g. <pre>MONKHORST-PACK 12 12 8.</pre>", &
+                          usage="SCHEME {KPMETHOD} {integer} {integer} ..", &
+                          citations=(/Monkhorst1976, MacDonald1978/), &
+                          n_var=-1, type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="KPOINT",&
-         description="Specify kpoint coordinates and weight. ",&
-         usage="KPOINT x  y  z  w",repeats=.TRUE.,&
-         n_var=4, type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="KPOINT", &
+                          description="Specify kpoint coordinates and weight. ", &
+                          usage="KPOINT x  y  z  w", repeats=.TRUE., &
+                          n_var=4, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="SYMMETRY",&
-         description="Use symmetry to reduce the number of kpoints.",&
-         usage="SYMMETRY <LOGICAL>",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="SYMMETRY", &
+                          description="Use symmetry to reduce the number of kpoints.", &
+                          usage="SYMMETRY <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="FULL_GRID",&
-         description="Use full non-reduced kpoint grid.",&
-         usage="FULL_GRID <LOGICAL>",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="FULL_GRID", &
+                          description="Use full non-reduced kpoint grid.", &
+                          usage="FULL_GRID <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="VERBOSE",&
-         description="Verbose output information.",&
-         usage="VERBOSE <LOGICAL>",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="VERBOSE", &
+                          description="Verbose output information.", &
+                          usage="VERBOSE <LOGICAL>", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="EPS_GEO",&
-         description="Accuracy in symmetry determination.",&
-         usage="EPS_GEO <real>",&
-         default_r_val=1.0e-6_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="EPS_GEO", &
+                          description="Accuracy in symmetry determination.", &
+                          usage="EPS_GEO <real>", &
+                          default_r_val=1.0e-6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="PARALLEL_GROUP_SIZE",&
-         description="Number of processors to be used for a single kpoint. "//&
-                     " This number must divide the total number of processes."//&
-                     " The number of groups must divide the total number of kpoints."//&
-                     " Value=-1 (smallest possible number of processes per group, satisfying the constraints)."//&
-                     " Value=0 (all processes)."//&
-                     " Value=n (exactly n processes).",&
-         usage="PARALLEL_GROUP_SIZE <integer>",&
-         default_i_val=-1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="PARALLEL_GROUP_SIZE", &
+                          description="Number of processors to be used for a single kpoint. "// &
+                          " This number must divide the total number of processes."// &
+                          " The number of groups must divide the total number of kpoints."// &
+                          " Value=-1 (smallest possible number of processes per group, satisfying the constraints)."// &
+                          " Value=0 (all processes)."// &
+                          " Value=n (exactly n processes).", &
+                          usage="PARALLEL_GROUP_SIZE <integer>", &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WAVEFUNCTIONS",&
-         description="Use real/complex wavefunctions if possible.",&
-         usage="WAVEFUNCTIONS REAL",&
-         default_i_val=use_complex_wfn,&
-         enum_c_vals=s2a("REAL","COMPLEX"),&
-         enum_desc=s2a("Use real wavefunctions (if possible by kpoints specified).",&
-                       "Use complex wavefunctions (default)."),&
-         enum_i_vals=(/ use_real_wfn, use_complex_wfn/))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WAVEFUNCTIONS", &
+                          description="Use real/complex wavefunctions if possible.", &
+                          usage="WAVEFUNCTIONS REAL", &
+                          default_i_val=use_complex_wfn, &
+                          enum_c_vals=s2a("REAL", "COMPLEX"), &
+                          enum_desc=s2a("Use real wavefunctions (if possible by kpoints specified).", &
+                                        "Use complex wavefunctions (default)."), &
+                          enum_i_vals=(/use_real_wfn, use_complex_wfn/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-  END SUBROUTINE create_kpoints_section
+   END SUBROUTINE create_kpoints_section
 
 END MODULE input_cp2k_kpoints

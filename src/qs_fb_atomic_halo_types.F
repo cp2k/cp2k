@@ -1,75 +1,73 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 MODULE qs_fb_atomic_halo_types
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_max,&
-                                             mp_min,&
-                                             mp_sum
-  USE particle_types,                  ONLY: particle_type
-  USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                             qs_kind_type
-  USE string_utilities,                ONLY: compress
-  USE util,                            ONLY: locate,&
-                                             sort
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE cell_types,                      ONLY: cell_type,&
+                                              pbc
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE input_section_types,             ONLY: section_vals_type
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_max,&
+                                              mp_min,&
+                                              mp_sum
+   USE particle_types,                  ONLY: particle_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE string_utilities,                ONLY: compress
+   USE util,                            ONLY: locate,&
+                                              sort
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
 ! public types
-  PUBLIC :: fb_atomic_halo_obj,&
-            fb_atomic_halo_list_obj
+   PUBLIC :: fb_atomic_halo_obj, &
+             fb_atomic_halo_list_obj
 
 ! public methods
-  PUBLIC :: fb_atomic_halo_release,&
-            fb_atomic_halo_nullify,&
-            fb_atomic_halo_has_data,&
-            fb_atomic_halo_create,&
-            fb_atomic_halo_init,&
-            fb_atomic_halo_get,&
-            fb_atomic_halo_set,&
-            fb_atomic_halo_sort,&
-            fb_atomic_halo_atom_global2halo,&
-            fb_atomic_halo_nelectrons_estimate_Z,&
-            fb_atomic_halo_cost,&
-            fb_atomic_halo_build_halo_atoms,&
-            fb_atomic_halo_list_retain,&
-            fb_atomic_halo_list_release,&
-            fb_atomic_halo_list_nullify,&
-            fb_atomic_halo_list_has_data,&
-            fb_atomic_halo_list_associate,&
-            fb_atomic_halo_list_create,&
-            fb_atomic_halo_list_get,&
-            fb_atomic_halo_list_set,&
-            fb_atomic_halo_list_write_info,&
-            fb_build_pair_radii
-
+   PUBLIC :: fb_atomic_halo_release, &
+             fb_atomic_halo_nullify, &
+             fb_atomic_halo_has_data, &
+             fb_atomic_halo_create, &
+             fb_atomic_halo_init, &
+             fb_atomic_halo_get, &
+             fb_atomic_halo_set, &
+             fb_atomic_halo_sort, &
+             fb_atomic_halo_atom_global2halo, &
+             fb_atomic_halo_nelectrons_estimate_Z, &
+             fb_atomic_halo_cost, &
+             fb_atomic_halo_build_halo_atoms, &
+             fb_atomic_halo_list_retain, &
+             fb_atomic_halo_list_release, &
+             fb_atomic_halo_list_nullify, &
+             fb_atomic_halo_list_has_data, &
+             fb_atomic_halo_list_associate, &
+             fb_atomic_halo_list_create, &
+             fb_atomic_halo_list_get, &
+             fb_atomic_halo_list_set, &
+             fb_atomic_halo_list_write_info, &
+             fb_build_pair_radii
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_fb_atomic_halo_types'
-  INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_id = 0
-  INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_list_id = 0
+   INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_id = 0
+   INTEGER, PRIVATE, SAVE :: last_fb_atomic_halo_list_id = 0
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief derived type containing the list of atoms in an atomic halo,
 !>        used by filtered-basis diagonalisation method
 !> \param id_nr            : unique id for the object
@@ -83,29 +81,27 @@ MODULE qs_fb_atomic_halo_types
 !> \param cost             : computational cost for the atomic matrix associated
 !>                           to this atomic halo
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  TYPE fb_atomic_halo_data
-     INTEGER :: id_nr, ref_count
-     INTEGER :: owner_atom
-     INTEGER :: owner_id_in_halo
-     INTEGER :: natoms
-     INTEGER :: nelectrons
-     INTEGER, DIMENSION(:), POINTER :: halo_atoms
-     LOGICAL :: sorted
-     REAL(KIND=dp) :: cost
-  END TYPE fb_atomic_halo_data
+! **************************************************************************************************
+   TYPE fb_atomic_halo_data
+      INTEGER :: id_nr, ref_count
+      INTEGER :: owner_atom
+      INTEGER :: owner_id_in_halo
+      INTEGER :: natoms
+      INTEGER :: nelectrons
+      INTEGER, DIMENSION(:), POINTER :: halo_atoms
+      LOGICAL :: sorted
+      REAL(KIND=dp) :: cost
+   END TYPE fb_atomic_halo_data
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief defines a fb_atomic_halo object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  TYPE fb_atomic_halo_obj
-     TYPE(fb_atomic_halo_data), POINTER, PRIVATE :: obj
-  END TYPE fb_atomic_halo_obj
+! **************************************************************************************************
+   TYPE fb_atomic_halo_obj
+      TYPE(fb_atomic_halo_data), POINTER, PRIVATE :: obj
+   END TYPE fb_atomic_halo_obj
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief derived type describing an atomic halo list used by
 !>        filtered-basis diagonalisation method
 !> \param id_nr     : unique id for the object
@@ -114,188 +110,178 @@ MODULE qs_fb_atomic_halo_types
 !> \param max_nhalos : maximum of the number of halos amongst all of the procs
 !> \param halos   : halos(ihalo) gives the ihalo-th fb_atomic_halo object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  TYPE fb_atomic_halo_list_data
-     INTEGER :: id_nr, ref_count
-     INTEGER :: nhalos
-     INTEGER :: max_nhalos
-     TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
-  END TYPE fb_atomic_halo_list_data
+! **************************************************************************************************
+   TYPE fb_atomic_halo_list_data
+      INTEGER :: id_nr, ref_count
+      INTEGER :: nhalos
+      INTEGER :: max_nhalos
+      TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER :: halos
+   END TYPE fb_atomic_halo_list_data
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief defines a fb_atomic_halo_list object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  TYPE fb_atomic_halo_list_obj
-     TYPE(fb_atomic_halo_list_data), POINTER, PRIVATE :: obj
-  END TYPE fb_atomic_halo_list_obj
-
+! **************************************************************************************************
+   TYPE fb_atomic_halo_list_obj
+      TYPE(fb_atomic_halo_list_data), POINTER, PRIVATE :: obj
+   END TYPE fb_atomic_halo_list_obj
 
 CONTAINS
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Retains an fb_atomic_halo object
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     not be NULL or UNDEFINED
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_retain(atomic_halo)
-    ! note INTENT(IN) is okay because the obj pointer contained in the
-    ! obj type will not be changed
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_retain(atomic_halo)
+      ! note INTENT(IN) is okay because the obj pointer contained in the
+      ! obj type will not be changed
+      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_retain', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(ASSOCIATED(atomic_halo%obj))
-    CPASSERT(atomic_halo%obj%ref_count>0)
-    atomic_halo%obj%ref_count = atomic_halo%obj%ref_count + 1
-  END SUBROUTINE fb_atomic_halo_retain
+      CPASSERT(ASSOCIATED(atomic_halo%obj))
+      CPASSERT(atomic_halo%obj%ref_count > 0)
+      atomic_halo%obj%ref_count = atomic_halo%obj%ref_count+1
+   END SUBROUTINE fb_atomic_halo_retain
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Releases an fb_atomic_halo object
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     not be UNDEFINED, and the subroutine does nothing
 !>                     if the content points to NULL
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_release(atomic_halo)
-    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_release(atomic_halo)
+      TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_release', &
+         routineP = moduleN//':'//routineN
 
-    IF (ASSOCIATED(atomic_halo%obj)) THEN
-       CPASSERT(atomic_halo%obj%ref_count>0)
-       atomic_halo%obj%ref_count = atomic_halo%obj%ref_count - 1
-       IF (atomic_halo%obj%ref_count == 0) THEN
-          atomic_halo%obj%ref_count = 1
-          IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
-             ! note that if there are other pointers associated to the memory pointed
-             ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
-             ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
-             ! after the following DEALLOCATE
-             DEALLOCATE(atomic_halo%obj%halo_atoms)
-          END IF
-          atomic_halo%obj%ref_count = 0
-          DEALLOCATE(atomic_halo%obj)
-       END IF
-    ELSE
-       NULLIFY(atomic_halo%obj)
-    END IF
-  END SUBROUTINE fb_atomic_halo_release
+      IF (ASSOCIATED(atomic_halo%obj)) THEN
+         CPASSERT(atomic_halo%obj%ref_count > 0)
+         atomic_halo%obj%ref_count = atomic_halo%obj%ref_count-1
+         IF (atomic_halo%obj%ref_count == 0) THEN
+            atomic_halo%obj%ref_count = 1
+            IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
+               ! note that if there are other pointers associated to the memory pointed
+               ! by atomic_halo%obj%halo_atoms, their behaviour becomes undefined per
+               ! FORTRAN standard (and thus becomes compiler dependent and unreliable)
+               ! after the following DEALLOCATE
+               DEALLOCATE (atomic_halo%obj%halo_atoms)
+            END IF
+            atomic_halo%obj%ref_count = 0
+            DEALLOCATE (atomic_halo%obj)
+         END IF
+      ELSE
+         NULLIFY (atomic_halo%obj)
+      END IF
+   END SUBROUTINE fb_atomic_halo_release
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Nullifies a fb_atomic_halo object, note that it does not
 !>        release the original object. This procedure is used to nullify
 !>        the pointer contained in the object which is used to associate
 !>        to the actual object content
 !> \param atomic_halo the fb_atomic_halo object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_nullify(atomic_halo)
-    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_nullify(atomic_halo)
+      TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nullify', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nullify', &
+         routineP = moduleN//':'//routineN
 
-    NULLIFY(atomic_halo%obj)
-  END SUBROUTINE fb_atomic_halo_nullify
+      NULLIFY (atomic_halo%obj)
+   END SUBROUTINE fb_atomic_halo_nullify
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Associates one fb_atomic_halo object to another
 !> \param a the fb_atomic_halo object to be associated
 !> \param b the fb_atomic_halo object that a is to be associated to
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_associate(a, b)
-    TYPE(fb_atomic_halo_obj), INTENT(OUT)    :: a
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: b
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_associate(a, b)
+      TYPE(fb_atomic_halo_obj), INTENT(OUT)              :: a
+      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: b
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_associate', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_associate', &
+         routineP = moduleN//':'//routineN
 
-    a%obj => b%obj
-  END SUBROUTINE fb_atomic_halo_associate
+      a%obj => b%obj
+   END SUBROUTINE fb_atomic_halo_associate
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Checks if a fb_atomic_halo object is associated with an actual
 !>        data content or not
 !> \param atomic_halo the fb_atomic_halo object
 !> \retval res ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  FUNCTION fb_atomic_halo_has_data(atomic_halo) RESULT(res)
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    LOGICAL                                  :: res
+! **************************************************************************************************
+   FUNCTION fb_atomic_halo_has_data(atomic_halo) RESULT(res)
+      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
+      LOGICAL                                            :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_has_data', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_has_data', &
+         routineP = moduleN//':'//routineN
 
-    res = ASSOCIATED(atomic_halo%obj)
-  END FUNCTION fb_atomic_halo_has_data
+      res = ASSOCIATED(atomic_halo%obj)
+   END FUNCTION fb_atomic_halo_has_data
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates and initialises an empty fb_atomic_halo object
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     be NULL and cannot be UNDEFINED
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_create(atomic_halo)
-    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_create(atomic_halo)
+      TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_create', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(.NOT.ASSOCIATED(atomic_halo%obj))
-    ALLOCATE(atomic_halo%obj)
-    atomic_halo%obj%owner_atom = 0
-    atomic_halo%obj%owner_id_in_halo = 0
-    atomic_halo%obj%natoms = 0
-    atomic_halo%obj%nelectrons = 0
-    atomic_halo%obj%sorted = .FALSE.
-    atomic_halo%obj%cost = 0.0_dp
-    NULLIFY(atomic_halo%obj%halo_atoms)
-    atomic_halo%obj%ref_count = 1
-    atomic_halo%obj%id_nr = last_fb_atomic_halo_id + 1
-    last_fb_atomic_halo_id = atomic_halo%obj%id_nr
-  END SUBROUTINE fb_atomic_halo_create
+      CPASSERT(.NOT. ASSOCIATED(atomic_halo%obj))
+      ALLOCATE (atomic_halo%obj)
+      atomic_halo%obj%owner_atom = 0
+      atomic_halo%obj%owner_id_in_halo = 0
+      atomic_halo%obj%natoms = 0
+      atomic_halo%obj%nelectrons = 0
+      atomic_halo%obj%sorted = .FALSE.
+      atomic_halo%obj%cost = 0.0_dp
+      NULLIFY (atomic_halo%obj%halo_atoms)
+      atomic_halo%obj%ref_count = 1
+      atomic_halo%obj%id_nr = last_fb_atomic_halo_id+1
+      last_fb_atomic_halo_id = atomic_halo%obj%id_nr
+   END SUBROUTINE fb_atomic_halo_create
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Initialises an fb_atomic_halo object, and makes it empty
 !> \param atomic_halo the fb_atomic_halo object, its content must
 !>                     not be NULL or UNDEFINED
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_init(atomic_halo)
-    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_init(atomic_halo)
+      TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_init', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(ASSOCIATED(atomic_halo%obj))
-    ! if halo_atoms are associated, then deallocate and de-associate
-    IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
-       DEALLOCATE(atomic_halo%obj%halo_atoms)
-    END IF
-    atomic_halo%obj%owner_atom = 0
-    atomic_halo%obj%owner_id_in_halo = 0
-    atomic_halo%obj%natoms = 0
-    atomic_halo%obj%nelectrons = 0
-    atomic_halo%obj%sorted = .FALSE.
-    atomic_halo%obj%cost = 0.0_dp
-  END SUBROUTINE fb_atomic_halo_init
+      CPASSERT(ASSOCIATED(atomic_halo%obj))
+      ! if halo_atoms are associated, then deallocate and de-associate
+      IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
+         DEALLOCATE (atomic_halo%obj%halo_atoms)
+      END IF
+      atomic_halo%obj%owner_atom = 0
+      atomic_halo%obj%owner_id_in_halo = 0
+      atomic_halo%obj%natoms = 0
+      atomic_halo%obj%nelectrons = 0
+      atomic_halo%obj%sorted = .FALSE.
+      atomic_halo%obj%cost = 0.0_dp
+   END SUBROUTINE fb_atomic_halo_init
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets attributes from a fb_atomic_halo object, one should
 !>        only access the data content in a fb_atomic_halo outside
 !>        this module via this procedure.
@@ -310,37 +296,36 @@ CONTAINS
 !> \param sorted [OPTIONAL]: if present, outputs atomic_halo%obj%sorted
 !> \param cost [OPTIONAL]: if present, outputs atomic_halo%obj%cost
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_get(atomic_halo, &
-                                owner_atom, &
-                                owner_id_in_halo, &
-                                natoms, &
-                                nelectrons, &
-                                halo_atoms, &
-                                sorted, &
-                                cost)
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    INTEGER, INTENT(OUT), OPTIONAL           :: owner_atom, owner_id_in_halo, &
-                                                natoms, nelectrons
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
-    LOGICAL, INTENT(OUT), OPTIONAL           :: sorted
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cost
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_get(atomic_halo, &
+                                 owner_atom, &
+                                 owner_id_in_halo, &
+                                 natoms, &
+                                 nelectrons, &
+                                 halo_atoms, &
+                                 sorted, &
+                                 cost)
+      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
+      INTEGER, INTENT(OUT), OPTIONAL                     :: owner_atom, owner_id_in_halo, natoms, &
+                                                            nelectrons
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: halo_atoms
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: sorted
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: cost
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_get', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(ASSOCIATED(atomic_halo%obj))
-    IF (PRESENT(owner_atom)) owner_atom = atomic_halo%obj%owner_atom
-    IF (PRESENT(owner_id_in_halo)) owner_id_in_halo = atomic_halo%obj%owner_id_in_halo
-    IF (PRESENT(natoms)) natoms = atomic_halo%obj%natoms
-    IF (PRESENT(nelectrons)) nelectrons = atomic_halo%obj%nelectrons
-    IF (PRESENT(halo_atoms)) halo_atoms => atomic_halo%obj%halo_atoms
-    IF (PRESENT(sorted)) sorted = atomic_halo%obj%sorted
-    IF (PRESENT(cost)) cost = atomic_halo%obj%cost
-  END SUBROUTINE fb_atomic_halo_get
+      CPASSERT(ASSOCIATED(atomic_halo%obj))
+      IF (PRESENT(owner_atom)) owner_atom = atomic_halo%obj%owner_atom
+      IF (PRESENT(owner_id_in_halo)) owner_id_in_halo = atomic_halo%obj%owner_id_in_halo
+      IF (PRESENT(natoms)) natoms = atomic_halo%obj%natoms
+      IF (PRESENT(nelectrons)) nelectrons = atomic_halo%obj%nelectrons
+      IF (PRESENT(halo_atoms)) halo_atoms => atomic_halo%obj%halo_atoms
+      IF (PRESENT(sorted)) sorted = atomic_halo%obj%sorted
+      IF (PRESENT(cost)) cost = atomic_halo%obj%cost
+   END SUBROUTINE fb_atomic_halo_get
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets attributes in a fb_atomic_halo object, one should
 !>        only set the data content in a fb_atomic_halo from outside
 !>        this module via this procedure.
@@ -357,65 +342,63 @@ CONTAINS
 !> \param sorted [OPTIONAL]: if present, sets atomic_halo%obj%sorted = sorted
 !> \param cost [OPTIONAL]: if present, sets atomic_halo%obj%cost = cost
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_set(atomic_halo, &
-                                owner_atom, &
-                                owner_id_in_halo, &
-                                natoms, &
-                                nelectrons, &
-                                halo_atoms, &
-                                sorted, &
-                                cost)
-    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
-    INTEGER, INTENT(IN), OPTIONAL            :: owner_atom, owner_id_in_halo, &
-                                                natoms, nelectrons
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: halo_atoms
-    LOGICAL, INTENT(IN), OPTIONAL            :: sorted
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cost
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_set(atomic_halo, &
+                                 owner_atom, &
+                                 owner_id_in_halo, &
+                                 natoms, &
+                                 nelectrons, &
+                                 halo_atoms, &
+                                 sorted, &
+                                 cost)
+      TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
+      INTEGER, INTENT(IN), OPTIONAL                      :: owner_atom, owner_id_in_halo, natoms, &
+                                                            nelectrons
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: halo_atoms
+      LOGICAL, INTENT(IN), OPTIONAL                      :: sorted
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: cost
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_set', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(ASSOCIATED(atomic_halo%obj))
-    IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
-    IF (PRESENT(owner_id_in_halo)) atomic_halo%obj%owner_id_in_halo = owner_id_in_halo
-    IF (PRESENT(natoms)) atomic_halo%obj%natoms = natoms
-    IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
-    IF (PRESENT(halo_atoms)) THEN
-       IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
-          DEALLOCATE(atomic_halo%obj%halo_atoms)
-       END IF
-       atomic_halo%obj%halo_atoms => halo_atoms
-    END IF
-    IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
-    IF (PRESENT(sorted)) atomic_halo%obj%sorted = sorted
-    IF (PRESENT(cost)) atomic_halo%obj%cost = cost
-  END SUBROUTINE fb_atomic_halo_set
+      CPASSERT(ASSOCIATED(atomic_halo%obj))
+      IF (PRESENT(owner_atom)) atomic_halo%obj%owner_atom = owner_atom
+      IF (PRESENT(owner_id_in_halo)) atomic_halo%obj%owner_id_in_halo = owner_id_in_halo
+      IF (PRESENT(natoms)) atomic_halo%obj%natoms = natoms
+      IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
+      IF (PRESENT(halo_atoms)) THEN
+         IF (ASSOCIATED(atomic_halo%obj%halo_atoms)) THEN
+            DEALLOCATE (atomic_halo%obj%halo_atoms)
+         END IF
+         atomic_halo%obj%halo_atoms => halo_atoms
+      END IF
+      IF (PRESENT(nelectrons)) atomic_halo%obj%nelectrons = nelectrons
+      IF (PRESENT(sorted)) atomic_halo%obj%sorted = sorted
+      IF (PRESENT(cost)) atomic_halo%obj%cost = cost
+   END SUBROUTINE fb_atomic_halo_set
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sort the list of atomic indices in the halo in accending order.
 !>        The atomic_halo must not be empty
 !> \param atomic_halo  the atomic_halo object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_sort(atomic_halo)
-    TYPE(fb_atomic_halo_obj), INTENT(INOUT)  :: atomic_halo
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_sort(atomic_halo)
+      TYPE(fb_atomic_halo_obj), INTENT(INOUT)            :: atomic_halo
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_sort', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_index
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_index
 
-    CPASSERT(SIZE(atomic_halo%obj%halo_atoms) > 0)
-    ALLOCATE(tmp_index(atomic_halo%obj%natoms))
-    CALL sort(atomic_halo%obj%halo_atoms, atomic_halo%obj%natoms, tmp_index)
-    DEALLOCATE(tmp_index)
-    atomic_halo%obj%sorted = .TRUE.
-  END SUBROUTINE fb_atomic_halo_sort
+      CPASSERT(SIZE(atomic_halo%obj%halo_atoms) > 0)
+      ALLOCATE (tmp_index(atomic_halo%obj%natoms))
+      CALL sort(atomic_halo%obj%halo_atoms, atomic_halo%obj%natoms, tmp_index)
+      DEALLOCATE (tmp_index)
+      atomic_halo%obj%sorted = .TRUE.
+   END SUBROUTINE fb_atomic_halo_sort
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Given a global atomic index, convert it to its index in a
 !>        given atomic halo, if found.
 !>        The atomic_halo object must already have been sorted
@@ -425,38 +408,36 @@ CONTAINS
 !> \param found  returns true if given atom is in the halo, otherwise
 !>                false
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_atom_global2halo(atomic_halo, &
-                                             iatom_global, &
-                                             iatom_halo, &
-                                             found)
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    INTEGER, INTENT(IN)                      :: iatom_global
-    INTEGER, INTENT(OUT)                     :: iatom_halo
-    LOGICAL, INTENT(OUT)                     :: found
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_atom_global2halo(atomic_halo, &
+                                              iatom_global, &
+                                              iatom_halo, &
+                                              found)
+      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
+      INTEGER, INTENT(IN)                                :: iatom_global
+      INTEGER, INTENT(OUT)                               :: iatom_halo
+      LOGICAL, INTENT(OUT)                               :: found
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'fb_atomic_halo_atom_global2halo', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_atom_global2halo', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+      INTEGER                                            :: handle
 
-    CALL timeset(routineN, handle)
+      CALL timeset(routineN, handle)
 
-    CPASSERT(atomic_halo%obj%sorted)
-    iatom_halo = locate(atomic_halo%obj%halo_atoms, iatom_global)
-    IF (iatom_halo == 0) THEN
-       found = .FALSE.
-    ELSE
-       found = .TRUE.
-    END IF
+      CPASSERT(atomic_halo%obj%sorted)
+      iatom_halo = locate(atomic_halo%obj%halo_atoms, iatom_global)
+      IF (iatom_halo == 0) THEN
+         found = .FALSE.
+      ELSE
+         found = .TRUE.
+      END IF
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE fb_atomic_halo_atom_global2halo
+   END SUBROUTINE fb_atomic_halo_atom_global2halo
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Estimates the total number of electrons in a halo using atomic
 !>        numbers
 !> \param atomic_halo the atomic_halo object
@@ -464,34 +445,31 @@ CONTAINS
 !>                       gives atomic information)
 !> \retval nelectrons estimate of electron number
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  FUNCTION fb_atomic_halo_nelectrons_estimate_Z(atomic_halo, particle_set) RESULT(nelectrons)
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: particle_set
-    INTEGER                                  :: nelectrons
+! **************************************************************************************************
+   FUNCTION fb_atomic_halo_nelectrons_estimate_Z(atomic_halo, particle_set) RESULT(nelectrons)
+      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      INTEGER                                            :: nelectrons
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'fb_atomic_halo_nelectrons_estimate_Z', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_nelectrons_estimate_Z', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom_global, iatom_halo, z
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+      INTEGER                                            :: iatom_global, iatom_halo, z
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
 
-    nelectrons = 0
-    IF (ASSOCIATED(atomic_halo%obj)) THEN
-       DO iatom_halo = 1, atomic_halo%obj%natoms
-          iatom_global = atomic_halo%obj%halo_atoms(iatom_halo)
-          atomic_kind => particle_set(iatom_global)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                               z=z)
-          nelectrons = nelectrons + z
-       END DO
-    END IF
-  END FUNCTION fb_atomic_halo_nelectrons_estimate_Z
+      nelectrons = 0
+      IF (ASSOCIATED(atomic_halo%obj)) THEN
+         DO iatom_halo = 1, atomic_halo%obj%natoms
+            iatom_global = atomic_halo%obj%halo_atoms(iatom_halo)
+            atomic_kind => particle_set(iatom_global)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                                 z=z)
+            nelectrons = nelectrons+z
+         END DO
+      END IF
+   END FUNCTION fb_atomic_halo_nelectrons_estimate_Z
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Estimates the computational cost with respect to the filter matrix
 !>        calculation associated to an atomic halo. Given the bottle neck
 !>        of the filter matrix generation will be the diagoanlisation of the
@@ -507,38 +485,35 @@ CONTAINS
 !> \retval cost        : computation cost w.r.t. the filter matrix
 !>                       calculation for this atomic halo
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  FUNCTION fb_atomic_halo_cost(atomic_halo, &
-                               particle_set, &
-                               qs_kind_set) &
-    RESULT(cost)
-    TYPE(fb_atomic_halo_obj), INTENT(IN)     :: atomic_halo
-    TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: particle_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      INTENT(IN)                             :: qs_kind_set
-    REAL(KIND=dp)                            :: cost
+! **************************************************************************************************
+   FUNCTION fb_atomic_halo_cost(atomic_halo, &
+                                particle_set, &
+                                qs_kind_set) &
+      RESULT(cost)
+      TYPE(fb_atomic_halo_obj), INTENT(IN)               :: atomic_halo
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), INTENT(IN)       :: qs_kind_set
+      REAL(KIND=dp)                                      :: cost
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_cost', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ii, ikind, ncgf
+      INTEGER                                            :: iatom, ii, ikind, ncgf
 
-    cost = 0.0_dp
-    DO ii = 1, atomic_halo%obj%natoms
-       iatom = atomic_halo%obj%halo_atoms(ii)
-       CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
-                            kind_number=ikind)
-       CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
-                        ncgf=ncgf)
-       cost = cost + REAL(ncgf, dp)
-    END DO
-    ! diagonalisation is N**3 process, so cost must reflect that
-    cost = cost**3
-  END FUNCTION fb_atomic_halo_cost
+      cost = 0.0_dp
+      DO ii = 1, atomic_halo%obj%natoms
+         iatom = atomic_halo%obj%halo_atoms(ii)
+         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
+                              kind_number=ikind)
+         CALL get_qs_kind(qs_kind=qs_kind_set(ikind), &
+                          ncgf=ncgf)
+         cost = cost+REAL(ncgf, dp)
+      END DO
+      ! diagonalisation is N**3 process, so cost must reflect that
+      cost = cost**3
+   END FUNCTION fb_atomic_halo_cost
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Builds halo atoms for a given (owner) atom
 !> \param owner_atom   : the atom the halo is going to be built for
 !> \param particle_set : an array of cp2k particle set objects, this
@@ -551,237 +526,216 @@ CONTAINS
 !> \param nhalo_atoms  : outputs number of halo atoms
 !> \param owner_id_in_halo : the index of the owner atom in the halo_atoms list
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_build_halo_atoms(owner_atom, &
-                                             particle_set, &
-                                             cell, &
-                                             pair_radii, &
-                                             halo_atoms, &
-                                             nhalo_atoms, &
-                                             owner_id_in_halo)
-    INTEGER, INTENT(IN)                      :: owner_atom
-    TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: particle_set
-    TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: pair_radii
-    INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    INTEGER, INTENT(OUT)                     :: nhalo_atoms, owner_id_in_halo
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_build_halo_atoms(owner_atom, &
+                                              particle_set, &
+                                              cell, &
+                                              pair_radii, &
+                                              halo_atoms, &
+                                              nhalo_atoms, &
+                                              owner_id_in_halo)
+      INTEGER, INTENT(IN)                                :: owner_atom
+      TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
+      TYPE(cell_type), POINTER                           :: cell
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: pair_radii
+      INTEGER, DIMENSION(:), POINTER                     :: halo_atoms
+      INTEGER, INTENT(OUT)                               :: nhalo_atoms, owner_id_in_halo
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'fb_atomic_halo_build_halo_atoms', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_build_halo_atoms', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, ikind, jatom, jkind, &
-                                                natoms_global
-    LOGICAL                                  :: check_ok
-    REAL(KIND=dp)                            :: rij
-    REAL(KIND=dp), DIMENSION(3)              :: ri, rij_pbc, rj
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+      INTEGER                                            :: iatom, ikind, jatom, jkind, natoms_global
+      LOGICAL                                            :: check_ok
+      REAL(KIND=dp)                                      :: rij
+      REAL(KIND=dp), DIMENSION(3)                        :: ri, rij_pbc, rj
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
 
-    check_ok = .NOT. ASSOCIATED(halo_atoms)
-    CPASSERT(check_ok)
+      check_ok = .NOT. ASSOCIATED(halo_atoms)
+      CPASSERT(check_ok)
 
-    NULLIFY(atomic_kind)
+      NULLIFY (atomic_kind)
 
-    iatom = owner_atom
-    atomic_kind => particle_set(iatom)%atomic_kind
-    CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                         kind_number=ikind)
-    natoms_global = SIZE(particle_set)
-    ALLOCATE(halo_atoms(natoms_global))
-    owner_id_in_halo = 0
-    nhalo_atoms = 0
-    DO jatom = 1, natoms_global
-       atomic_kind => particle_set(jatom)%atomic_kind
-       CALL get_atomic_kind(atomic_kind=atomic_kind, &
-                            kind_number=jkind)
-       ! calculate the minimum distance between iatom and
-       ! jatom, taking account of the periodic boundary
-       ! conditions
-       ri(1:3) = particle_set(iatom)%r(1:3)
-       rj(1:3) = particle_set(jatom)%r(1:3)
-       rij_pbc = pbc(ri, rj, cell)
-       rij = rij_pbc(1)*rij_pbc(1) + &
-             rij_pbc(2)*rij_pbc(2) + &
-             rij_pbc(3)*rij_pbc(3)
-       rij = SQRT(rij)
-       IF (rij .LE. pair_radii(ikind, jkind)) THEN
-          ! jatom is in iatom's halo
-          nhalo_atoms = nhalo_atoms + 1
-          halo_atoms(nhalo_atoms) = jatom
-          IF (jatom == iatom) owner_id_in_halo = nhalo_atoms
-       END IF
-    END DO
-    CALL reallocate(halo_atoms, 1, nhalo_atoms)
-  END SUBROUTINE fb_atomic_halo_build_halo_atoms
+      iatom = owner_atom
+      atomic_kind => particle_set(iatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                           kind_number=ikind)
+      natoms_global = SIZE(particle_set)
+      ALLOCATE (halo_atoms(natoms_global))
+      owner_id_in_halo = 0
+      nhalo_atoms = 0
+      DO jatom = 1, natoms_global
+         atomic_kind => particle_set(jatom)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind, &
+                              kind_number=jkind)
+         ! calculate the minimum distance between iatom and
+         ! jatom, taking account of the periodic boundary
+         ! conditions
+         ri(1:3) = particle_set(iatom)%r(1:3)
+         rj(1:3) = particle_set(jatom)%r(1:3)
+         rij_pbc = pbc(ri, rj, cell)
+         rij = rij_pbc(1)*rij_pbc(1)+ &
+               rij_pbc(2)*rij_pbc(2)+ &
+               rij_pbc(3)*rij_pbc(3)
+         rij = SQRT(rij)
+         IF (rij .LE. pair_radii(ikind, jkind)) THEN
+            ! jatom is in iatom's halo
+            nhalo_atoms = nhalo_atoms+1
+            halo_atoms(nhalo_atoms) = jatom
+            IF (jatom == iatom) owner_id_in_halo = nhalo_atoms
+         END IF
+      END DO
+      CALL reallocate(halo_atoms, 1, nhalo_atoms)
+   END SUBROUTINE fb_atomic_halo_build_halo_atoms
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Retains an fb_atomic_halo_list object
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be NULL or UNDEFINED
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_retain(atomic_halos)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(IN)                             :: atomic_halos
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_retain(atomic_halos)
+      TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_retain', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(ASSOCIATED(atomic_halos%obj))
-    CPASSERT(atomic_halos%obj%ref_count>0)
-    atomic_halos%obj%ref_count = atomic_halos%obj%ref_count + 1
-  END SUBROUTINE fb_atomic_halo_list_retain
+      CPASSERT(ASSOCIATED(atomic_halos%obj))
+      CPASSERT(atomic_halos%obj%ref_count > 0)
+      atomic_halos%obj%ref_count = atomic_halos%obj%ref_count+1
+   END SUBROUTINE fb_atomic_halo_list_retain
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Releases an fb_atomic_halo_list object
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be UNDEFINED, and does nothing if it is NULL
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_release(atomic_halos)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(INOUT)                          :: atomic_halos
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_release(atomic_halos)
+      TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_release', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_release', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii
+      INTEGER                                            :: ii
 
-    IF (ASSOCIATED(atomic_halos%obj)) THEN
-       CPASSERT(atomic_halos%obj%ref_count>0)
-       atomic_halos%obj%ref_count = atomic_halos%obj%ref_count - 1
-       IF (atomic_halos%obj%ref_count == 0) THEN
-          atomic_halos%obj%ref_count = 1
-          IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
-             DO ii = 1, SIZE(atomic_halos%obj%halos)
-                CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
-             END DO
-             DEALLOCATE(atomic_halos%obj%halos)
-          END IF
-          atomic_halos%obj%ref_count = 0
-          DEALLOCATE(atomic_halos%obj)
-       END IF
-    ELSE
-       NULLIFY(atomic_halos%obj)
-    END IF
-  END SUBROUTINE fb_atomic_halo_list_release
+      IF (ASSOCIATED(atomic_halos%obj)) THEN
+         CPASSERT(atomic_halos%obj%ref_count > 0)
+         atomic_halos%obj%ref_count = atomic_halos%obj%ref_count-1
+         IF (atomic_halos%obj%ref_count == 0) THEN
+            atomic_halos%obj%ref_count = 1
+            IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
+               DO ii = 1, SIZE(atomic_halos%obj%halos)
+                  CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
+               END DO
+               DEALLOCATE (atomic_halos%obj%halos)
+            END IF
+            atomic_halos%obj%ref_count = 0
+            DEALLOCATE (atomic_halos%obj)
+         END IF
+      ELSE
+         NULLIFY (atomic_halos%obj)
+      END IF
+   END SUBROUTINE fb_atomic_halo_list_release
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Nullifies a fb_atomic_halo_list object, note that it does
 !>        not release the original object. This procedure is used to
 !>        nullify the pointer contained in the object which is used to
 !>        associate to the actual object content
 !> \param atomic_halos the fb_atomic_halo_list object
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_nullify(atomic_halos)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(INOUT)                          :: atomic_halos
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_nullify(atomic_halos)
+      TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_nullify', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_nullify', &
+         routineP = moduleN//':'//routineN
 
-    NULLIFY(atomic_halos%obj)
-  END SUBROUTINE fb_atomic_halo_list_nullify
+      NULLIFY (atomic_halos%obj)
+   END SUBROUTINE fb_atomic_halo_list_nullify
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Checks if a fb_atomic_halo_list object is associated with
 !>        an actual data content or not
 !> \param atomic_halos the fb_atomic_halo_list object
 !> \retval res ...
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  FUNCTION fb_atomic_halo_list_has_data(atomic_halos) RESULT(res)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(IN)                             :: atomic_halos
-    LOGICAL                                  :: res
+! **************************************************************************************************
+   FUNCTION fb_atomic_halo_list_has_data(atomic_halos) RESULT(res)
+      TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
+      LOGICAL                                            :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_has_data', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_has_data', &
+         routineP = moduleN//':'//routineN
 
-    res = ASSOCIATED(atomic_halos%obj)
-  END FUNCTION fb_atomic_halo_list_has_data
+      res = ASSOCIATED(atomic_halos%obj)
+   END FUNCTION fb_atomic_halo_list_has_data
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Associates one fb_atomic_halo_list object to another
 !> \param a the fb_atomic_halo_list object to be associated
 !> \param b the fb_atomic_halo_list object that a is to be associated to
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_associate(a, b)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(OUT)                            :: a
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(IN)                             :: b
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_associate(a, b)
+      TYPE(fb_atomic_halo_list_obj), INTENT(OUT)         :: a
+      TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: b
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'fb_atomic_halo_list_associate', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_associate', &
+         routineP = moduleN//':'//routineN
 
-    a%obj => b%obj
-  END SUBROUTINE fb_atomic_halo_list_associate
+      a%obj => b%obj
+   END SUBROUTINE fb_atomic_halo_list_associate
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates and initialises an empty fb_atomic_halo_list object
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be NULL or UNDEFINED
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_create(atomic_halos)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(INOUT)                          :: atomic_halos
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_create(atomic_halos)
+      TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_create', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(.NOT.ASSOCIATED(atomic_halos%obj))
-    ALLOCATE(atomic_halos%obj)
-    atomic_halos%obj%nhalos = 0
-    atomic_halos%obj%max_nhalos = 0
-    NULLIFY(atomic_halos%obj%halos)
-    atomic_halos%obj%ref_count = 1
-    atomic_halos%obj%id_nr = last_fb_atomic_halo_list_id + 1
-    last_fb_atomic_halo_list_id = atomic_halos%obj%id_nr
-  END SUBROUTINE fb_atomic_halo_list_create
+      CPASSERT(.NOT. ASSOCIATED(atomic_halos%obj))
+      ALLOCATE (atomic_halos%obj)
+      atomic_halos%obj%nhalos = 0
+      atomic_halos%obj%max_nhalos = 0
+      NULLIFY (atomic_halos%obj%halos)
+      atomic_halos%obj%ref_count = 1
+      atomic_halos%obj%id_nr = last_fb_atomic_halo_list_id+1
+      last_fb_atomic_halo_list_id = atomic_halos%obj%id_nr
+   END SUBROUTINE fb_atomic_halo_list_create
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Initialises an fb_atomic_halo_list object and make it empty
 !> \param atomic_halos the fb_atomic_halo object, its content must
 !>                      not be NULL or UNDEFINED
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_init(atomic_halos)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(INOUT)                          :: atomic_halos
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_init(atomic_halos)
+      TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_init', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_init', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii
+      INTEGER                                            :: ii
 
-    CPASSERT(ASSOCIATED(atomic_halos%obj))
-    ! if the arrays are associated, then deallocate and de-associate
-    IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
-       DO ii = 1, SIZE(atomic_halos%obj%halos)
-          CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
-       END DO
-       DEALLOCATE(atomic_halos%obj%halos)
-    END IF
-    atomic_halos%obj%nhalos = 0
-    atomic_halos%obj%max_nhalos = 0
-  END SUBROUTINE fb_atomic_halo_list_init
+      CPASSERT(ASSOCIATED(atomic_halos%obj))
+      ! if the arrays are associated, then deallocate and de-associate
+      IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
+         DO ii = 1, SIZE(atomic_halos%obj%halos)
+            CALL fb_atomic_halo_release(atomic_halos%obj%halos(ii))
+         END DO
+         DEALLOCATE (atomic_halos%obj%halos)
+      END IF
+      atomic_halos%obj%nhalos = 0
+      atomic_halos%obj%max_nhalos = 0
+   END SUBROUTINE fb_atomic_halo_list_init
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets attributes from an fb_atomic_halo_list object, one should
 !>        only access the data content in a fb_atomic_halo_list outside
 !>        this module via this procedure.
@@ -791,25 +745,23 @@ CONTAINS
 !> \param max_nhalos [OPTIONAL]: if present, gives max_nhalos = atomic_halos%obj%max_nhalos
 !> \param halos [OPTIONAL]: if present, gives halos => atomic_halos%obj%halos
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(IN)                             :: atomic_halos
-    INTEGER, INTENT(OUT), OPTIONAL           :: nhalos, max_nhalos
-    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: halos
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_get(atomic_halos, nhalos, max_nhalos, halos)
+      TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nhalos, max_nhalos
+      TYPE(fb_atomic_halo_obj), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: halos
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_get', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(ASSOCIATED(atomic_halos%obj))
-    IF (PRESENT(nhalos)) nhalos = atomic_halos%obj%nhalos
-    IF (PRESENT(max_nhalos)) max_nhalos = atomic_halos%obj%max_nhalos
-    IF (PRESENT(halos)) halos => atomic_halos%obj%halos
-  END SUBROUTINE fb_atomic_halo_list_get
+      CPASSERT(ASSOCIATED(atomic_halos%obj))
+      IF (PRESENT(nhalos)) nhalos = atomic_halos%obj%nhalos
+      IF (PRESENT(max_nhalos)) max_nhalos = atomic_halos%obj%max_nhalos
+      IF (PRESENT(halos)) halos => atomic_halos%obj%halos
+   END SUBROUTINE fb_atomic_halo_list_get
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets attributes from an fb_atomic_halo_list object, one should
 !>        only set the data content in a fb_atomic_halo_list outside
 !>        this module via this procedure.
@@ -820,184 +772,176 @@ CONTAINS
 !> \param halos [OPTIONAL]: if present, reallocates atomic_halos%obj%halos
 !>                          to the size of halos
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_set(atomic_halos, nhalos, max_nhalos, halos)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(INOUT)                          :: atomic_halos
-    INTEGER, INTENT(IN), OPTIONAL            :: nhalos, max_nhalos
-    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: halos
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_set(atomic_halos, nhalos, max_nhalos, halos)
+      TYPE(fb_atomic_halo_list_obj), INTENT(INOUT)       :: atomic_halos
+      INTEGER, INTENT(IN), OPTIONAL                      :: nhalos, max_nhalos
+      TYPE(fb_atomic_halo_obj), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: halos
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_set', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_set', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ihalo
+      INTEGER                                            :: ihalo
 
-    CPASSERT(ASSOCIATED(atomic_halos%obj))
-    IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
-    IF (PRESENT(max_nhalos)) atomic_halos%obj%max_nhalos = max_nhalos
-    IF (PRESENT(halos)) THEN
-       IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
-          DO ihalo = 1, SIZE(atomic_halos%obj%halos)
-             CALL fb_atomic_halo_release(atomic_halos%obj%halos(ihalo))
-          END DO
-          DEALLOCATE(atomic_halos%obj%halos)
-       END IF
-       atomic_halos%obj%halos => halos
-    END IF
-  END SUBROUTINE fb_atomic_halo_list_set
+      CPASSERT(ASSOCIATED(atomic_halos%obj))
+      IF (PRESENT(nhalos)) atomic_halos%obj%nhalos = nhalos
+      IF (PRESENT(max_nhalos)) atomic_halos%obj%max_nhalos = max_nhalos
+      IF (PRESENT(halos)) THEN
+         IF (ASSOCIATED(atomic_halos%obj%halos)) THEN
+            DO ihalo = 1, SIZE(atomic_halos%obj%halos)
+               CALL fb_atomic_halo_release(atomic_halos%obj%halos(ihalo))
+            END DO
+            DEALLOCATE (atomic_halos%obj%halos)
+         END IF
+         atomic_halos%obj%halos => halos
+      END IF
+   END SUBROUTINE fb_atomic_halo_list_set
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Writes out the atomic halo list from an fb_atomic_halo_list
 !>        object using information
 !> \param atomic_halos the fb_atomic_halo object
 !> \param para_env pointer to a para_env_type object containing MPI info
 !> \param fb_section pointer to the input section to filtered basis method
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_write(atomic_halos, para_env, fb_section)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(IN)                             :: atomic_halos
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: fb_section
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_write(atomic_halos, para_env, fb_section)
+      TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: fb_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: ihalo, jatom, mype, &
-                                                nhalo_atoms, nhalos, &
-                                                owner_atom, print_unit
-    INTEGER, DIMENSION(:), POINTER           :: halo_atoms
-    LOGICAL                                  :: new_file
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
-      POINTER                                :: halos
+      CHARACTER(LEN=default_string_length)               :: string
+      INTEGER                                            :: ihalo, jatom, mype, nhalo_atoms, nhalos, &
+                                                            owner_atom, print_unit
+      INTEGER, DIMENSION(:), POINTER                     :: halo_atoms
+      LOGICAL                                            :: new_file
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER    :: halos
 
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info, fb_section, &
-                                         "PRINT%ATOMIC_HALOS"), &
-              cp_p_file)) THEN
-       print_unit = cp_print_key_unit_nr(logger=logger, &
-                                         basis_section=fb_section, &
-                                         print_key_path="PRINT%ATOMIC_HALOS", &
-                                         extension=".out", &
-                                         local=.TRUE., &
-                                         log_filename=.FALSE., &
-                                         file_position="REWIND", &
-                                         file_action="WRITE", &
-                                         is_new_file=new_file)
-       mype = para_env%mepos
-       ! print headline
-       string = ""
-       WRITE (UNIT=string, FMT="(A,I5,A)") &
-             "ATOMIC HALOS IN (PROCESS ", mype, ")"
-       CALL compress(string)
-       IF (print_unit > 0) THEN
-          WRITE (UNIT=print_unit, FMT="(/,/,T2,A)") TRIM(string)
-          WRITE (UNIT=print_unit, FMT="(/,T2,A)") &
-                "atom : list of atoms in the atomic halo"
-       END IF
-       ! print content
-       CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
-                                    nhalos=nhalos, &
-                                    halos=halos)
-       DO ihalo = 1, nhalos
-          CALL fb_atomic_halo_get(halos(ihalo), &
-                                  owner_atom=owner_atom, &
-                                  natoms=nhalo_atoms, &
-                                  halo_atoms=halo_atoms)
-          WRITE (UNIT=print_unit, FMT="(2X,I6,A)", ADVANCE="no") &
-                owner_atom, " : "
-          DO jatom = 1, nhalo_atoms
-             WRITE (UNIT=print_unit, FMT="(I6)", ADVANCE="no") &
-                   halo_atoms(jatom)
-          END DO
-          WRITE (UNIT=print_unit) ""
-       END DO
-       ! finish
-       CALL cp_print_key_finished_output(print_unit, logger, fb_section, &
-                                         "PRINT%ATOMIC_HALOS")
-    END IF
-  END SUBROUTINE fb_atomic_halo_list_write
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, fb_section, &
+                                           "PRINT%ATOMIC_HALOS"), &
+                cp_p_file)) THEN
+         print_unit = cp_print_key_unit_nr(logger=logger, &
+                                           basis_section=fb_section, &
+                                           print_key_path="PRINT%ATOMIC_HALOS", &
+                                           extension=".out", &
+                                           local=.TRUE., &
+                                           log_filename=.FALSE., &
+                                           file_position="REWIND", &
+                                           file_action="WRITE", &
+                                           is_new_file=new_file)
+         mype = para_env%mepos
+         ! print headline
+         string = ""
+         WRITE (UNIT=string, FMT="(A,I5,A)") &
+            "ATOMIC HALOS IN (PROCESS ", mype, ")"
+         CALL compress(string)
+         IF (print_unit > 0) THEN
+            WRITE (UNIT=print_unit, FMT="(/,/,T2,A)") TRIM(string)
+            WRITE (UNIT=print_unit, FMT="(/,T2,A)") &
+               "atom : list of atoms in the atomic halo"
+         END IF
+         ! print content
+         CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
+                                      nhalos=nhalos, &
+                                      halos=halos)
+         DO ihalo = 1, nhalos
+            CALL fb_atomic_halo_get(halos(ihalo), &
+                                    owner_atom=owner_atom, &
+                                    natoms=nhalo_atoms, &
+                                    halo_atoms=halo_atoms)
+            WRITE (UNIT=print_unit, FMT="(2X,I6,A)", ADVANCE="no") &
+               owner_atom, " : "
+            DO jatom = 1, nhalo_atoms
+               WRITE (UNIT=print_unit, FMT="(I6)", ADVANCE="no") &
+                  halo_atoms(jatom)
+            END DO
+            WRITE (UNIT=print_unit) ""
+         END DO
+         ! finish
+         CALL cp_print_key_finished_output(print_unit, logger, fb_section, &
+                                           "PRINT%ATOMIC_HALOS")
+      END IF
+   END SUBROUTINE fb_atomic_halo_list_write
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Writes out the atomic halo list summary, no detailed neighbour lists,
 !>        just average, min and max number of halo atoms in the halo list
 !> \param atomic_halos : the fb_atomic_halo object
 !> \param para_env     : pointer to a para_env_type object containing MPI info
 !> \param scf_section  : pointer to the scf input section
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  SUBROUTINE fb_atomic_halo_list_write_info(atomic_halos, para_env, scf_section)
-    TYPE(fb_atomic_halo_list_obj), &
-      INTENT(IN)                             :: atomic_halos
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: scf_section
+! **************************************************************************************************
+   SUBROUTINE fb_atomic_halo_list_write_info(atomic_halos, para_env, scf_section)
+      TYPE(fb_atomic_halo_list_obj), INTENT(IN)          :: atomic_halos
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: scf_section
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'fb_atomic_halo_list_write_info', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fb_atomic_halo_list_write_info', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: ihalo, max_natoms, min_natoms, nhalo_atoms, nhalos, &
-      total_n_halo_atoms, total_n_halos, unit_nr
-    REAL(KIND=dp)                            :: ave_natoms
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(fb_atomic_halo_obj), DIMENSION(:), &
-      POINTER                                :: halos
+      INTEGER                                            :: ihalo, max_natoms, min_natoms, &
+                                                            nhalo_atoms, nhalos, &
+                                                            total_n_halo_atoms, total_n_halos, &
+                                                            unit_nr
+      REAL(KIND=dp)                                      :: ave_natoms
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(fb_atomic_halo_obj), DIMENSION(:), POINTER    :: halos
 
-    NULLIFY(logger, halos)
-    logger => cp_get_default_logger()
-    unit_nr = cp_print_key_unit_nr(logger, scf_section, &
-                                   "PRINT%FILTER_MATRIX", &
-                                   extension="")
+      NULLIFY (logger, halos)
+      logger => cp_get_default_logger()
+      unit_nr = cp_print_key_unit_nr(logger, scf_section, &
+                                     "PRINT%FILTER_MATRIX", &
+                                     extension="")
 
-    ! obtain data
-    CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
-         halos=halos, &
-         nhalos=nhalos)
-    max_natoms = 0
-    min_natoms = HUGE(0)
-    total_n_halo_atoms = 0
-    total_n_halos = nhalos
-    DO ihalo = 1, nhalos
-       CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
-            natoms=nhalo_atoms)
-       total_n_halo_atoms = total_n_halo_atoms + nhalo_atoms
-       max_natoms = MAX(max_natoms, nhalo_atoms)
-       min_natoms = MIN(min_natoms, nhalo_atoms)
-    END DO
-    CALL mp_max(max_natoms, para_env%group)
-    CALL mp_min(min_natoms, para_env%group)
-    CALL mp_sum(total_n_halos, para_env%group)
-    CALL mp_sum(total_n_halo_atoms, para_env%group)
-    ave_natoms = REAL(total_n_halo_atoms,dp) / REAL(total_n_halos,dp)
-    ! write info
-    IF (unit_nr > 0) THEN
-       WRITE (UNIT=unit_nr, FMT="(/,A)") &
+      ! obtain data
+      CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
+                                   halos=halos, &
+                                   nhalos=nhalos)
+      max_natoms = 0
+      min_natoms = HUGE(0)
+      total_n_halo_atoms = 0
+      total_n_halos = nhalos
+      DO ihalo = 1, nhalos
+         CALL fb_atomic_halo_get(atomic_halo=halos(ihalo), &
+                                 natoms=nhalo_atoms)
+         total_n_halo_atoms = total_n_halo_atoms+nhalo_atoms
+         max_natoms = MAX(max_natoms, nhalo_atoms)
+         min_natoms = MIN(min_natoms, nhalo_atoms)
+      END DO
+      CALL mp_max(max_natoms, para_env%group)
+      CALL mp_min(min_natoms, para_env%group)
+      CALL mp_sum(total_n_halos, para_env%group)
+      CALL mp_sum(total_n_halo_atoms, para_env%group)
+      ave_natoms = REAL(total_n_halo_atoms, dp)/REAL(total_n_halos, dp)
+      ! write info
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(/,A)") &
             " FILTER_MAT_DIAG| Atomic matrix neighbor lists information:"
-       WRITE (UNIT=unit_nr, FMT="(A,I10)") &
+         WRITE (UNIT=unit_nr, FMT="(A,I10)") &
             " FILTER_MAT_DIAG|   Number of atomic matrices: ", &
             total_n_halos
-       WRITE (UNIT=unit_nr, &
-              FMT="(A,T45,A,T57,A,T69,A,T81,A)") &
+         WRITE (UNIT=unit_nr, &
+                FMT="(A,T45,A,T57,A,T69,A,T81,A)") &
             " FILTER_MAT_DIAG| ", "Average", "Max", "Min"
-       WRITE (UNIT=unit_nr, &
-              FMT="(A,T45,F10.1,T57,I10,T69,I10,T81,I10)") &
+         WRITE (UNIT=unit_nr, &
+                FMT="(A,T45,F10.1,T57,I10,T69,I10,T81,I10)") &
             " FILTER_MAT_DIAG|   N neighbors per atom:", &
             ave_natoms, max_natoms, min_natoms
-    END IF
-    ! finish
-    CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
-                                      "PRINT%FILTER_MATRIX")
-  END SUBROUTINE fb_atomic_halo_list_write_info
+      END IF
+      ! finish
+      CALL cp_print_key_finished_output(unit_nr, logger, scf_section, &
+                                        "PRINT%FILTER_MATRIX")
+   END SUBROUTINE fb_atomic_halo_list_write_info
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Builds the required pair_radii array required for building the
 !>        halo atoms from a given set of cut off radii
 !> \param rcut   : rcut(ikind) is the cutoff radii for determining the halo
@@ -1007,21 +951,20 @@ CONTAINS
 !>                     corresponding interaction range between a pair of atoms
 !>                     of kinds ikind and jkind
 !> \author Lianheng Tong (LT) lianheng.tong@kcl.ac.uk
-! *****************************************************************************
-  PURE SUBROUTINE fb_build_pair_radii(rcut, nkinds, pair_radii)
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rcut
-    INTEGER, INTENT(IN)                      :: nkinds
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: pair_radii
+! **************************************************************************************************
+   PURE SUBROUTINE fb_build_pair_radii(rcut, nkinds, pair_radii)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rcut
+      INTEGER, INTENT(IN)                                :: nkinds
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: pair_radii
 
-    INTEGER                                  :: ii, jj
+      INTEGER                                            :: ii, jj
 
-    pair_radii = 0.0_dp
-    DO ii = 1, nkinds
-       DO jj = 1, nkinds
-          pair_radii(ii,jj) = rcut(ii) + rcut(jj)
-       END DO
-    END DO
-  END SUBROUTINE fb_build_pair_radii
+      pair_radii = 0.0_dp
+      DO ii = 1, nkinds
+         DO jj = 1, nkinds
+            pair_radii(ii, jj) = rcut(ii)+rcut(jj)
+         END DO
+      END DO
+   END SUBROUTINE fb_build_pair_radii
 
 END MODULE qs_fb_atomic_halo_types

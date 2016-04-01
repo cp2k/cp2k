@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interactive shell of CP2K
 !> \note
 !>       sample of a simple runner that uses the f77_interface
@@ -24,41 +24,41 @@
 !>                        first the energy on a line (in eV), then the natom*3 (on a line)
 !>                        and finally all the values (in eV/angstrom)
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 PROGRAM cp2k_shell
-  USE cp2k_info,                       ONLY: compile_arch,&
-                                             compile_date,&
-                                             compile_host,&
-                                             compile_revision,&
-                                             cp2k_home,&
-                                             cp2k_version,&
-                                             id_cp2k_version,&
-                                             print_cp2k_license
-  USE cp_files,                        ONLY: close_file,&
-                                             get_unit_number,&
-                                             open_file
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE f77_interface,                   ONLY: &
-       calc_energy_force, calc_force, create_force_env, destroy_force_env, &
-       finalize_cp2k, get_cell, get_energy, get_force, get_natom, get_pos, &
-       get_stress_tensor, init_cp2k, set_cell, set_pos
-  USE input_constants,                 ONLY: id_development_version
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
-  USE machine,                         ONLY: &
-       default_output_unit, m_chdir, m_flush, m_getarg, m_getcwd, m_getlog, &
-       m_getpid, m_hostnm, m_iargc
-  USE message_passing,                 ONLY: mp_bcast
-  USE physcon,                         ONLY: angstrom,&
-                                             evolt
-  USE string_utilities,                ONLY: compress,&
-                                             uppercase
+   USE cp2k_info,                       ONLY: compile_arch,&
+                                              compile_date,&
+                                              compile_host,&
+                                              compile_revision,&
+                                              cp2k_home,&
+                                              cp2k_version,&
+                                              id_cp2k_version,&
+                                              print_cp2k_license
+   USE cp_files,                        ONLY: close_file,&
+                                              get_unit_number,&
+                                              open_file
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE f77_interface,                   ONLY: &
+        calc_energy_force, calc_force, create_force_env, destroy_force_env, finalize_cp2k, &
+        get_cell, get_energy, get_force, get_natom, get_pos, get_stress_tensor, init_cp2k, &
+        set_cell, set_pos
+   USE input_constants,                 ONLY: id_development_version
+   USE input_cp2k,                      ONLY: create_cp2k_root_section
+   USE input_section_types,             ONLY: section_release,&
+                                              section_type
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
+   USE machine,                         ONLY: &
+        default_output_unit, m_chdir, m_flush, m_getarg, m_getcwd, m_getlog, m_getpid, m_hostnm, &
+        m_iargc
+   USE message_passing,                 ONLY: mp_bcast
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
+   USE string_utilities,                ONLY: compress,&
+                                              uppercase
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -562,16 +562,16 @@ PROGRAM cp2k_shell
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param tst ...
 !> \param msg ...
 !> \param failure ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE my_assert(tst,msg,failure)
-    LOGICAL, INTENT(in)                      :: tst
-    CHARACTER(LEN=*), INTENT(in)             :: msg
-    LOGICAL, INTENT(inout)                   :: failure
+      LOGICAL, INTENT(in)                                :: tst
+      CHARACTER(LEN=*), INTENT(in)                       :: msg
+      LOGICAL, INTENT(inout)                             :: failure
 
     IF (.not.tst) THEN
        IF (harsh) CPABORT(msg)
@@ -582,19 +582,19 @@ CONTAINS
     END IF
   END SUBROUTINE my_assert
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param str ...
 !> \param startI ...
 !> \param default_val ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION parse_env_id(str,startI,default_val) RESULT(res)
-    CHARACTER(LEN=*), INTENT(in)             :: str
-    INTEGER, INTENT(in)                      :: startI, default_val
-    INTEGER                                  :: res
+      CHARACTER(LEN=*), INTENT(in)                       :: str
+      INTEGER, INTENT(in)                                :: startI, default_val
+      INTEGER                                            :: res
 
-    INTEGER                                  :: iostat, pos
+      INTEGER                                            :: iostat, pos
 
     res=default_val
     pos=startI
@@ -611,27 +611,27 @@ CONTAINS
     END IF
   END FUNCTION parse_env_id
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param str ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION ll(str) RESULT(res)
-    CHARACTER(LEN=*), INTENT(in)             :: str
-    CHARACTER(LEN=default_string_length)     :: res
+      CHARACTER(LEN=*), INTENT(in)                       :: str
+      CHARACTER(LEN=default_string_length)               :: res
 
     res=str
   END FUNCTION
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param unit ...
-! *****************************************************************************
+! **************************************************************************************************
  SUBROUTINE print_v_info(unit)
-    INTEGER, INTENT(in)                      :: unit
+      INTEGER, INTENT(in)                                :: unit
 
-    CHARACTER(LEN=default_path_length)       :: cwd
-    CHARACTER(LEN=default_string_length)     :: dev_flag, host_name, user_name
+      CHARACTER(LEN=default_path_length)                 :: cwd
+      CHARACTER(LEN=default_string_length)               :: dev_flag, host_name, user_name
 
     CALL m_getcwd(cwd)
     CALL m_getpid(pid)
@@ -667,15 +667,15 @@ CONTAINS
          ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
  END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the number returned by iostat on eof
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_eof_stat() RESULT(res)
-    INTEGER                                  :: res
+      INTEGER                                            :: res
 
-    CHARACTER(LEN=5)                         :: rdBuf
-    INTEGER                                  :: stat_n, unit
+      CHARACTER(LEN=5)                                   :: rdBuf
+      INTEGER                                            :: stat_n, unit
 
     IF (.NOT.did_init) THEN
        unit=get_unit_number()

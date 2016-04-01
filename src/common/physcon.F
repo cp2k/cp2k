@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Definition of physical constants:
 !>
 !>      a_bohr      : Bohr radius [m]
@@ -61,143 +61,143 @@
 !>      - Turned constants into Fortran parameters (2014, Ole Schuett)
 !>      - Remove all but CODATA 2006 (2015, Ole Schuett)
 !> \author Matthias Krack (MK)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE physcon
 
-  USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
-  PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann,&
-            debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar,&
-            hertz, joule, kcalmol, kelvin, kjmol, massunit, mu_perm, n_avogadro, newton,&
-            p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers
+   PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann, &
+             debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar, &
+             hertz, joule, kcalmol, kelvin, kjmol, massunit, mu_perm, n_avogadro, newton, &
+             p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers
 
-  PUBLIC :: write_physcon
+   PUBLIC :: write_physcon
 
-    ! CP2K uses the CODATA from 2006
+   ! CP2K uses the CODATA from 2006
 
-    ! Exact constants
-    ! Speed of light in vacuum [m/s]
-    REAL(KIND=dp), PARAMETER :: c_light = 299792458.0_dp
+   ! Exact constants
+   ! Speed of light in vacuum [m/s]
+   REAL(KIND=dp), PARAMETER :: c_light = 299792458.0_dp
 
-    ! Magnetic constant or permeability of vacuum [N/A**2]
-    REAL(KIND=dp), PARAMETER :: mu_perm = 4.0_dp*pi*1.0E-7_dp
+   ! Magnetic constant or permeability of vacuum [N/A**2]
+   REAL(KIND=dp), PARAMETER :: mu_perm = 4.0_dp*pi*1.0E-7_dp
 
-    ! Electric constant or permittivity of vacuum [F/m]
-    REAL(KIND=dp), PARAMETER :: permittivity = 1.0_dp/(mu_perm*c_light**2)
+   ! Electric constant or permittivity of vacuum [F/m]
+   REAL(KIND=dp), PARAMETER :: permittivity = 1.0_dp/(mu_perm*c_light**2)
 
-    ! Recommended fundamental constants of physics
-    ! and chemistry based on the 2006 adjustment
+   ! Recommended fundamental constants of physics
+   ! and chemistry based on the 2006 adjustment
 
-    ! Planck constant [J*s]
-    REAL(KIND=dp), PARAMETER :: h_planck = 6.62606896E-34_dp
-    REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
+   ! Planck constant [J*s]
+   REAL(KIND=dp), PARAMETER :: h_planck = 6.62606896E-34_dp
+   REAL(KIND=dp), PARAMETER :: h_bar = h_planck/(2.0_dp*pi)
 
-    ! Elementary charge [C]
-    REAL(KIND=dp), PARAMETER :: e_charge = 1.602176487E-19_dp
+   ! Elementary charge [C]
+   REAL(KIND=dp), PARAMETER :: e_charge = 1.602176487E-19_dp
 
-    ! Electron mass [kg]
-    REAL(KIND=dp), PARAMETER :: e_mass = 9.10938215E-31_dp
+   ! Electron mass [kg]
+   REAL(KIND=dp), PARAMETER :: e_mass = 9.10938215E-31_dp
 
-    ! Proton mass [kg]
-    REAL(KIND=dp), PARAMETER :: p_mass = 1.672621637E-27_dp
+   ! Proton mass [kg]
+   REAL(KIND=dp), PARAMETER :: p_mass = 1.672621637E-27_dp
 
-    ! Electron g factor [ ]
-    REAL(KIND=dp), PARAMETER :: e_gfactor = -2.0023193043622_dp
+   ! Electron g factor [ ]
+   REAL(KIND=dp), PARAMETER :: e_gfactor = -2.0023193043622_dp
 
-    ! Fine-structure constant
+   ! Fine-structure constant
 !MK a_fine = 0.5_dp*mu_perm*c_light*e_charge**2/h_planck
-    REAL(KIND=dp), PARAMETER :: a_fine = 7.2973525376E-3_dp
+   REAL(KIND=dp), PARAMETER :: a_fine = 7.2973525376E-3_dp
 
-    ! Rydberg constant [1/m]
+   ! Rydberg constant [1/m]
 !MK rydberg = 0.5_dp*e_mass*c_light*a_fine**2/h_planck
-    REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568527_dp
+   REAL(KIND=dp), PARAMETER :: rydberg = 10973731.568527_dp
 
-    ! Avogadro constant [1/mol]
-    REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214179E+23_dp
+   ! Avogadro constant [1/mol]
+   REAL(KIND=dp), PARAMETER :: n_avogadro = 6.02214179E+23_dp
 
-    ! Boltzmann constant [J/K]
-    REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806504E-23_dp
+   ! Boltzmann constant [J/K]
+   REAL(KIND=dp), PARAMETER :: boltzmann = 1.3806504E-23_dp
 
-    ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
-    REAL(KIND=dp), PARAMETER :: a_mass = 1.660538782E-27_dp
+   ! Atomic mass unit [kg]; conversion factor [u] -> [kg]
+   REAL(KIND=dp), PARAMETER :: a_mass = 1.660538782E-27_dp
 
-    ! Bohr radius [m]
+   ! Bohr radius [m]
 !MK a_bohr = a_fine/(4.0_dp*pi*rydberg)
-    REAL(KIND=dp), PARAMETER :: a_bohr = 0.52917720859E-10_dp
+   REAL(KIND=dp), PARAMETER :: a_bohr = 0.52917720859E-10_dp
 
-    ! Conversion factors
+   ! Conversion factors
 
-    ! [u] -> [a.u.]
-    REAL(KIND=dp), PARAMETER :: massunit = a_mass/e_mass
+   ! [u] -> [a.u.]
+   REAL(KIND=dp), PARAMETER :: massunit = a_mass/e_mass
 
-    ! [Bohr] -> [Angstrom]
-    REAL(KIND=dp), PARAMETER :: angstrom = 1.0E+10_dp*a_bohr
+   ! [Bohr] -> [Angstrom]
+   REAL(KIND=dp), PARAMETER :: angstrom = 1.0E+10_dp*a_bohr
 
-    ! [Angstrom] -> [Bohr]
-    REAL(KIND=dp), PARAMETER :: bohr = 1.0_dp/angstrom
+   ! [Angstrom] -> [Bohr]
+   REAL(KIND=dp), PARAMETER :: bohr = 1.0_dp/angstrom
 
-    ! [a.u.] -> [s]
-    REAL(KIND=dp), PARAMETER :: seconds = 1.0_dp/(4.0_dp*pi*rydberg*c_light)
+   ! [a.u.] -> [s]
+   REAL(KIND=dp), PARAMETER :: seconds = 1.0_dp/(4.0_dp*pi*rydberg*c_light)
 
-    ! [a.u.] -> [fs]
-    REAL(KIND=dp), PARAMETER :: femtoseconds = 1.0E+15_dp*seconds
+   ! [a.u.] -> [fs]
+   REAL(KIND=dp), PARAMETER :: femtoseconds = 1.0E+15_dp*seconds
 
-    ! [a.u.] -> [ps]
-    REAL(KIND=dp), PARAMETER :: picoseconds = 1.0E+12_dp*seconds
+   ! [a.u.] -> [ps]
+   REAL(KIND=dp), PARAMETER :: picoseconds = 1.0E+12_dp*seconds
 
-    ! [a.u.] -> [J]
-    REAL(KIND=dp), PARAMETER :: joule = 2.0_dp*rydberg*h_planck*c_light
+   ! [a.u.] -> [J]
+   REAL(KIND=dp), PARAMETER :: joule = 2.0_dp*rydberg*h_planck*c_light
 
-    ! [a.u.] -> [N]
-    REAL(KIND=dp), PARAMETER :: newton = joule/a_bohr
+   ! [a.u.] -> [N]
+   REAL(KIND=dp), PARAMETER :: newton = joule/a_bohr
 
-    ! [a.u.] -> [K]
-    REAL(KIND=dp), PARAMETER :: kelvin = joule/boltzmann
+   ! [a.u.] -> [K]
+   REAL(KIND=dp), PARAMETER :: kelvin = joule/boltzmann
 
-    ! [a.u.] -> [kJ/mol]
-    REAL(KIND=dp), PARAMETER :: kjmol = 0.001_dp*joule*n_avogadro
+   ! [a.u.] -> [kJ/mol]
+   REAL(KIND=dp), PARAMETER :: kjmol = 0.001_dp*joule*n_avogadro
 
-    ! [a.u.] -> [kcal/mol]
-    REAL(KIND=dp), PARAMETER :: kcalmol = kjmol/4.184_dp
+   ! [a.u.] -> [kcal/mol]
+   REAL(KIND=dp), PARAMETER :: kcalmol = kjmol/4.184_dp
 
-    ! [a.u.] -> [Pa]
-    REAL(KIND=dp), PARAMETER :: pascal = joule/a_bohr**3
+   ! [a.u.] -> [Pa]
+   REAL(KIND=dp), PARAMETER :: pascal = joule/a_bohr**3
 
-    ! [a.u.] -> [bar]
-    REAL(KIND=dp), PARAMETER :: bar = pascal/1.0E+5_dp
+   ! [a.u.] -> [bar]
+   REAL(KIND=dp), PARAMETER :: bar = pascal/1.0E+5_dp
 
-    ! [a.u.] -> [atm]
-    REAL(KIND=dp), PARAMETER :: atm = pascal/1.013250E+5_dp
+   ! [a.u.] -> [atm]
+   REAL(KIND=dp), PARAMETER :: atm = pascal/1.013250E+5_dp
 
-    ! [a.u.] -> [eV]
-    REAL(KIND=dp), PARAMETER :: evolt = joule/e_charge
+   ! [a.u.] -> [eV]
+   REAL(KIND=dp), PARAMETER :: evolt = joule/e_charge
 
-    ! [a.u.] -> [Hz]
-    REAL(KIND=dp), PARAMETER :: hertz = joule/h_planck
+   ! [a.u.] -> [Hz]
+   REAL(KIND=dp), PARAMETER :: hertz = joule/h_planck
 
-    ! [a.u./Bohr**2] -> [1/cm] (wave numbers)
-    REAL(KIND=dp), PARAMETER :: vibfac = 5.0_dp*SQRT(kjmol)/(pi*a_bohr*c_light)
+   ! [a.u./Bohr**2] -> [1/cm] (wave numbers)
+   REAL(KIND=dp), PARAMETER :: vibfac = 5.0_dp*SQRT(kjmol)/(pi*a_bohr*c_light)
 
-    ! [a.u.] -> [1/cm] (wave numbers)
-    REAL(KIND=dp), PARAMETER :: wavenumbers = 0.02_dp*rydberg
+   ! [a.u.] -> [1/cm] (wave numbers)
+   REAL(KIND=dp), PARAMETER :: wavenumbers = 0.02_dp*rydberg
 
-    ! [a.u.] -> [esu] (electrostatic units)
-    REAL(KIND=dp), PARAMETER :: esu_1  = 1.0E+21_dp*a_bohr*c_light*e_charge
-    !REAL(KIND=dp), PARAMETER :: esu_2  = esu_1/bohr
-    !REAL(KIND=dp), PARAMETER :: esu_3  = esu_2/bohr
-    !REAL(KIND=dp), PARAMETER :: esu(3) = (/ esu_1, esu_2, esu_3 /)
+   ! [a.u.] -> [esu] (electrostatic units)
+   REAL(KIND=dp), PARAMETER :: esu_1 = 1.0E+21_dp*a_bohr*c_light*e_charge
+   !REAL(KIND=dp), PARAMETER :: esu_2  = esu_1/bohr
+   !REAL(KIND=dp), PARAMETER :: esu_3  = esu_2/bohr
+   !REAL(KIND=dp), PARAMETER :: esu(3) = (/ esu_1, esu_2, esu_3 /)
 
-    ! [a.u.] -> [debye] (electrostatic units)
-    REAL(KIND=dp), PARAMETER :: debye = esu_1
+   ! [a.u.] -> [debye] (electrostatic units)
+   REAL(KIND=dp), PARAMETER :: debye = esu_1
 
- CONTAINS
+CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief  Write all basic physical constants used by CP2K to a logical
 !>           output unit.
 !> \param output_unit ...
@@ -207,74 +207,74 @@ MODULE physcon
 !>       - Updated to CODATA 2006. (26.03.2008,AK)
 !> \author  JGH
 !> \version 1.1
-! *****************************************************************************
-  SUBROUTINE write_physcon(output_unit)
+! **************************************************************************************************
+   SUBROUTINE write_physcon(output_unit)
 
-    INTEGER, INTENT(IN)                      :: output_unit
+      INTEGER, INTENT(IN)                                :: output_unit
 
-    WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
-      "*** Fundamental physical constants (SI units) ***",&
-      "*** Literature: B. J. Mohr and B. N. Taylor,",&
-      "***             CODATA recommended values of the fundamental physical",&
-      "***             constants: 2006, Web Version 5.1",&
-      "***             http://physics.nist.gov/constants"
+      WRITE (UNIT=output_unit, FMT="(T2,/,T2,A,/,/,(T2,A))") &
+         "*** Fundamental physical constants (SI units) ***", &
+         "*** Literature: B. J. Mohr and B. N. Taylor,", &
+         "***             CODATA recommended values of the fundamental physical", &
+         "***             constants: 2006, Web Version 5.1", &
+         "***             http://physics.nist.gov/constants"
 
-    WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,ES20.14)")&
-      "Speed of light in vacuum [m/s]",c_light
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Magnetic constant or permeability of vacuum [N/A**2]",mu_perm
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Electric constant or permittivity of vacuum [F/m]",permittivity
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Planck constant (h) [J*s]",h_planck
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Planck constant (h-bar) [J*s]",h_bar
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Elementary charge [C]",e_charge
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Electron mass [kg]",e_mass
-    WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES21.14)")&
-      "Electron g factor [ ]",e_gfactor
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Proton mass [kg]",p_mass
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Fine-structure constant",a_fine
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Rydberg constant [1/m]",rydberg
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Avogadro constant [1/mol]",n_avogadro
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Boltzmann constant [J/K]",boltzmann
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Atomic mass unit [kg]",a_mass
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "Bohr radius [m]",a_bohr
+      WRITE (UNIT=output_unit, FMT="(/,T2,A,T61,ES20.14)") &
+         "Speed of light in vacuum [m/s]", c_light
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Magnetic constant or permeability of vacuum [N/A**2]", mu_perm
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Electric constant or permittivity of vacuum [F/m]", permittivity
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Planck constant (h) [J*s]", h_planck
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Planck constant (h-bar) [J*s]", h_bar
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Elementary charge [C]", e_charge
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Electron mass [kg]", e_mass
+      WRITE (UNIT=output_unit, FMT="(T2,A,T60,ES21.14)") &
+         "Electron g factor [ ]", e_gfactor
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Proton mass [kg]", p_mass
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Fine-structure constant", a_fine
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Rydberg constant [1/m]", rydberg
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Avogadro constant [1/mol]", n_avogadro
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Boltzmann constant [J/K]", boltzmann
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Atomic mass unit [kg]", a_mass
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "Bohr radius [m]", a_bohr
 
-    ! Conversion factors
+      ! Conversion factors
 
-    WRITE (UNIT=output_unit,FMT="(/,T2,A,/)")&
-      "*** Conversion factors ***"
+      WRITE (UNIT=output_unit, FMT="(/,T2,A,/)") &
+         "*** Conversion factors ***"
 
-    WRITE (UNIT=output_unit,FMT="(T2,A,T61,ES20.14)")&
-      "[u] -> [a.u.]",massunit,&
-      "[Angstrom] -> [Bohr] = [a.u.]",bohr,&
-      "[a.u.] = [Bohr] -> [Angstrom]",angstrom,&
-      "[a.u.] -> [s]",seconds,&
-      "[a.u.] -> [fs]",femtoseconds,&
-      "[a.u.] -> [J]",joule,&
-      "[a.u.] -> [N]",newton,&
-      "[a.u.] -> [K]",kelvin,&
-      "[a.u.] -> [kJ/mol]",kjmol,&
-      "[a.u.] -> [kcal/mol]",kcalmol,&
-      "[a.u.] -> [Pa]",pascal,&
-      "[a.u.] -> [bar]",bar,&
-      "[a.u.] -> [atm]",atm,&
-      "[a.u.] -> [eV]",evolt,&
-      "[a.u.] -> [Hz]",hertz,&
-      "[a.u.] -> [1/cm] (wave numbers)",wavenumbers,&
-      "[a.u./Bohr**2] -> [1/cm]",vibfac
-    WRITE (UNIT=output_unit,FMT="(T2,A)") ""
+      WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.14)") &
+         "[u] -> [a.u.]", massunit, &
+         "[Angstrom] -> [Bohr] = [a.u.]", bohr, &
+         "[a.u.] = [Bohr] -> [Angstrom]", angstrom, &
+         "[a.u.] -> [s]", seconds, &
+         "[a.u.] -> [fs]", femtoseconds, &
+         "[a.u.] -> [J]", joule, &
+         "[a.u.] -> [N]", newton, &
+         "[a.u.] -> [K]", kelvin, &
+         "[a.u.] -> [kJ/mol]", kjmol, &
+         "[a.u.] -> [kcal/mol]", kcalmol, &
+         "[a.u.] -> [Pa]", pascal, &
+         "[a.u.] -> [bar]", bar, &
+         "[a.u.] -> [atm]", atm, &
+         "[a.u.] -> [eV]", evolt, &
+         "[a.u.] -> [Hz]", hertz, &
+         "[a.u.] -> [1/cm] (wave numbers)", wavenumbers, &
+         "[a.u./Bohr**2] -> [1/cm]", vibfac
+      WRITE (UNIT=output_unit, FMT="(T2,A)") ""
 
-  END SUBROUTINE write_physcon
+   END SUBROUTINE write_physcon
 
 END MODULE physcon

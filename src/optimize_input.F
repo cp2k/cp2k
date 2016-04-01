@@ -1,57 +1,57 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 MODULE optimize_input
-  USE cell_types,                      ONLY: parse_cell_line
-  USE cp2k_info,                       ONLY: write_restart_header
-  USE cp_external_control,             ONLY: external_control
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_get_default_io_unit,&
-                                             cp_logger_type
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_read_line
-  USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_release
-  USE environment,                     ONLY: cp2k_get_walltime
-  USE f77_interface,                   ONLY: calc_force,&
-                                             create_force_env,&
-                                             destroy_force_env,&
-                                             set_cell
-  USE input_constants,                 ONLY: opt_force_matching
-  USE input_section_types,             ONLY: section_type,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_write
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
-  USE machine,                         ONLY: m_flush,&
-                                             m_walltime
-  USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_comm_free,&
-                                             mp_comm_split,&
-                                             mp_comm_split_direct,&
-                                             mp_environ,&
-                                             mp_sum
-  USE parallel_rng_types,              ONLY: UNIFORM,&
-                                             create_rng_stream,&
-                                             delete_rng_stream,&
-                                             next_random_number,&
-                                             rng_stream_type
-  USE physcon,                         ONLY: bohr
-  USE powell,                          ONLY: opt_state_type,&
-                                             powell_optimize
+   USE cell_types,                      ONLY: parse_cell_line
+   USE cp2k_info,                       ONLY: write_restart_header
+   USE cp_external_control,             ONLY: external_control
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                              cp_iterate,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr,&
+                                              cp_rm_iter_level
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_parser_methods,               ONLY: parser_read_line
+   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                              parser_create,&
+                                              parser_release
+   USE environment,                     ONLY: cp2k_get_walltime
+   USE f77_interface,                   ONLY: calc_force,&
+                                              create_force_env,&
+                                              destroy_force_env,&
+                                              set_cell
+   USE input_constants,                 ONLY: opt_force_matching
+   USE input_section_types,             ONLY: section_type,&
+                                              section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get,&
+                                              section_vals_val_set,&
+                                              section_vals_write
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
+   USE machine,                         ONLY: m_flush,&
+                                              m_walltime
+   USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_comm_free,&
+                                              mp_comm_split,&
+                                              mp_comm_split_direct,&
+                                              mp_environ,&
+                                              mp_sum
+   USE parallel_rng_types,              ONLY: UNIFORM,&
+                                              create_rng_stream,&
+                                              delete_rng_stream,&
+                                              next_random_number,&
+                                              rng_stream_type
+   USE physcon,                         ONLY: bohr
+   USE powell,                          ONLY: opt_state_type,&
+                                              powell_optimize
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -98,25 +98,25 @@ MODULE optimize_input
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief main entry point for methods aimed at optimizing parameters in a CP2K input file
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
 !> \author Joost VandeVondele
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE run_optimize_input(input_declaration, root_section, para_env)
-    TYPE(section_type), POINTER              :: input_declaration
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
+      TYPE(section_type), POINTER                        :: input_declaration
+      TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_input', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'run_optimize_input', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i_var
-    REAL(KIND=dp)                            :: random_number, seed(3,2)
-    TYPE(oi_env_type)                        :: oi_env
-    TYPE(rng_stream_type), POINTER           :: rng_stream
+      INTEGER                                            :: handle, i_var
+      REAL(KIND=dp)                                      :: random_number, seed(3,2)
+      TYPE(oi_env_type)                                  :: oi_env
+      TYPE(rng_stream_type), POINTER                     :: rng_stream
 
     CALL timeset(routineN,handle)
 
@@ -152,46 +152,43 @@ CONTAINS
 
   END SUBROUTINE run_optimize_input
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief optimizes parameters by force/energy matching results against reference values
 !> \param oi_env ...
 !> \param input_declaration ...
 !> \param root_section ...
 !> \param para_env ...
 !> \author Joost VandeVondele
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE force_matching(oi_env,input_declaration,root_section,para_env)
-    TYPE(oi_env_type)                        :: oi_env
-    TYPE(section_type), POINTER              :: input_declaration
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
+      TYPE(oi_env_type)                                  :: oi_env
+      TYPE(section_type), POINTER                        :: input_declaration
+      TYPE(section_vals_type), POINTER                   :: root_section
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_matching', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'force_matching', routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: input_path, output_path
-    CHARACTER(len=default_string_length), &
-      ALLOCATABLE, DIMENSION(:, :)           :: initial_variables
-    INTEGER :: color, energies_unit, handle, history_unit, i_atom, i_el, &
-      i_frame, i_free_var, i_var, ierr, mepos_master, mepos_slave, &
-      mpi_comm_master, mpi_comm_slave, mpi_comm_slave_primus, n_atom, n_el, &
-      n_frames, n_free_var, n_groups, n_var, new_env_id, num_pe_master, &
-      num_pe_slave, output_unit, restart_unit, state
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: free_var_index
-    INTEGER, DIMENSION(:), POINTER           :: group_distribution
-    LOGICAL                                  :: should_stop
-    REAL(KIND=dp)                            :: e1, e2, e3, e4, e_pot, &
-                                                energy_weight, re, rf, &
-                                                shift_mm, shift_qm, t1, t2, &
-                                                t3, t4, t5
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: force, free_vars, pos
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_traj, &
-                                                energy_traj_read, energy_var
-    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: cell_traj, cell_traj_read, &
-      force_traj, force_traj_read, force_var, pos_traj, pos_traj_read
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(opt_state_type)                     :: ostate
-    TYPE(section_vals_type), POINTER         :: oi_section, variable_section
+      CHARACTER(len=default_path_length)                 :: input_path, output_path
+      CHARACTER(len=default_string_length), &
+         ALLOCATABLE, DIMENSION(:, :)                    :: initial_variables
+      INTEGER :: color, energies_unit, handle, history_unit, i_atom, i_el, i_frame, i_free_var, &
+         i_var, ierr, mepos_master, mepos_slave, mpi_comm_master, mpi_comm_slave, &
+         mpi_comm_slave_primus, n_atom, n_el, n_frames, n_free_var, n_groups, n_var, new_env_id, &
+         num_pe_master, num_pe_slave, output_unit, restart_unit, state
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: free_var_index
+      INTEGER, DIMENSION(:), POINTER                     :: group_distribution
+      LOGICAL                                            :: should_stop
+      REAL(KIND=dp)                                      :: e1, e2, e3, e4, e_pot, energy_weight, &
+                                                            re, rf, shift_mm, shift_qm, t1, t2, &
+                                                            t3, t4, t5
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: force, free_vars, pos
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_traj, energy_traj_read, energy_var
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cell_traj, cell_traj_read, force_traj, &
+                                                            force_traj_read, force_var, pos_traj, &
+                                                            pos_traj_read
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(opt_state_type)                               :: ostate
+      TYPE(section_vals_type), POINTER                   :: oi_section, variable_section
 
     CALL timeset(routineN,handle)
 
@@ -501,7 +498,7 @@ CONTAINS
 
   END SUBROUTINE force_matching
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief reads the reference data for force matching results, the format of the files needs to be the CP2K xyz trajectory format
 !> \param oi_env ...
 !> \param para_env ...
@@ -510,29 +507,26 @@ CONTAINS
 !> \param energy_traj energies, as extracted from the forces file
 !> \param cell_traj cell parameters, as extracted from a CP2K cell file 
 !> \author Joost VandeVondele
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE read_reference_data(oi_env,para_env,force_traj,pos_traj,energy_traj,cell_traj)
-    TYPE(oi_env_type)                        :: oi_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: force_traj, pos_traj
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: energy_traj
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: cell_traj
+      TYPE(oi_env_type)                                  :: oi_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: force_traj, pos_traj
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: energy_traj
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: cell_traj
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_reference_data', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_reference_data', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename
-    CHARACTER(len=default_string_length)     :: AA
-    INTEGER                                  :: cell_itimes, handle, i, &
-                                                iframe, n_frames, &
-                                                n_frames_current, nread, &
-                                                trj_itimes
-    LOGICAL                                  :: at_end, test_ok
-    REAL(KIND=dp)                            :: cell_time, trj_epot, &
-                                                trj_time, vec(3), vol
-    TYPE(cp_parser_type), POINTER            :: local_parser
+      CHARACTER(len=default_path_length)                 :: filename
+      CHARACTER(len=default_string_length)               :: AA
+      INTEGER                                            :: cell_itimes, handle, i, iframe, &
+                                                            n_frames, n_frames_current, nread, &
+                                                            trj_itimes
+      LOGICAL                                            :: at_end, test_ok
+      REAL(KIND=dp)                                      :: cell_time, trj_epot, trj_time, vec(3), &
+                                                            vol
+      TYPE(cp_parser_type), POINTER                      :: local_parser
 
     CALL timeset(routineN,handle)
 
@@ -622,23 +616,21 @@ CONTAINS
 
   END SUBROUTINE read_reference_data
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief parses the input section, and stores in the optimize input environment
 !> \param oi_env optimize input environment
 !> \param root_section ...
 !> \author Joost VandeVondele
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE parse_input(oi_env,root_section)
-    TYPE(oi_env_type)                        :: oi_env
-    TYPE(section_vals_type), POINTER         :: root_section
+      TYPE(oi_env_type)                                  :: oi_env
+      TYPE(section_vals_type), POINTER                   :: root_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'parse_input', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'parse_input', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ivar, n_var
-    LOGICAL                                  :: explicit
-    TYPE(section_vals_type), POINTER         :: fm_section, oi_section, &
-                                                variable_section
+      INTEGER                                            :: handle, ivar, n_var
+      LOGICAL                                            :: explicit
+      TYPE(section_vals_type), POINTER                   :: fm_section, oi_section, variable_section
 
     CALL timeset(routineN,handle)
 

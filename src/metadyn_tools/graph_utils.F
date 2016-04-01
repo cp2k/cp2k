@@ -1,10 +1,10 @@
-!-----------------------------------------------------------------------------!
-!   FES: a fast and general program to map metadynamics on grids              !
-!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013 !
+!--------------------------------------------------------------------------------------------------!
+!   FES: a fast and general program to map metadynamics on grids                                   !
+!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013                      !
 !                 Teodoro Laino                                               !
 !-----------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Module containing utils for mapping FESs
 !> \author Teodoro Laino [tlaino] - 06.2009
 !> \par History
@@ -13,9 +13,9 @@
 !>
 !> \par Note
 !>     Please report any bug to the author
-! *****************************************************************************
+! **************************************************************************************************
 MODULE graph_utils
-  USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -37,7 +37,7 @@ MODULE graph_utils
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief computes the derivative of the FES w.r.t CVs
 !> \param fes ...
 !> \param pos0 ...
@@ -50,17 +50,17 @@ CONTAINS
 !>      06.2009 created [tlaino]
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION derivative(fes, pos0, iperd, ndim, ngrid, dp_grid) RESULT(der)
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: fes
-    INTEGER, DIMENSION(:), INTENT(IN)        :: pos0, iperd
-    INTEGER, INTENT(IN)                      :: ndim
-    INTEGER, DIMENSION(:), INTENT(IN)        :: ngrid
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: dp_grid
-    REAL(KIND=dp), DIMENSION(ndim)           :: der
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: fes
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: pos0, iperd
+      INTEGER, INTENT(IN)                                :: ndim
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ngrid
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: dp_grid
+      REAL(KIND=dp), DIMENSION(ndim)                     :: der
 
-    INTEGER                                  :: i, j, pnt
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: pos
+      INTEGER                                            :: i, j, pnt
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos
 
     ALLOCATE(pos(ndim))
     pos(:) = pos0
@@ -78,7 +78,7 @@ CONTAINS
 
   END FUNCTION derivative
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Computes the pointer to the 1D array given the n-dimensional position
 !>        PBC version
 !> \param pos ...
@@ -90,13 +90,13 @@ CONTAINS
 !>      03.2006 created [tlaino]
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION point_pbc (pos,iperd,ngrid,ndim) RESULT(pnt)
-    INTEGER, DIMENSION(:), INTENT(IN)        :: pos, iperd, ngrid
-    INTEGER, INTENT(IN)                      :: ndim
-    INTEGER                                  :: pnt
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: pos, iperd, ngrid
+      INTEGER, INTENT(IN)                                :: ndim
+      INTEGER                                            :: pnt
 
-    INTEGER                                  :: idim, lpnt
+      INTEGER                                            :: idim, lpnt
 
     idim=1
     pnt=pos(idim)
@@ -119,7 +119,7 @@ CONTAINS
 
   END FUNCTION point_pbc
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Computes the pointer to the 1D array given the n-dimensional position
 !>        PBC version
 !> \param pos ...
@@ -130,13 +130,13 @@ CONTAINS
 !>      03.2006 created [tlaino]
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE pbc (pos,iperd,ngrid,ndim)
-    INTEGER, DIMENSION(:), INTENT(INOUT)     :: pos
-    INTEGER, DIMENSION(:), INTENT(IN)        :: iperd, ngrid
-    INTEGER, INTENT(IN)                      :: ndim
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: pos
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: iperd, ngrid
+      INTEGER, INTENT(IN)                                :: ndim
 
-    INTEGER                                  :: idim, lpnt
+      INTEGER                                            :: idim, lpnt
 
     DO idim=1,ndim
        IF (iperd(idim) == 1) THEN
@@ -149,7 +149,7 @@ CONTAINS
     END DO
   END SUBROUTINE pbc
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Computes the pointer to the 1D array given the n-dimensional position
 !>        non-PBC version
 !> \param pos ...
@@ -160,13 +160,13 @@ CONTAINS
 !>      03.2006 created [tlaino]
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION point_no_pbc (pos, ngrid, ndim) RESULT(pnt)
-    INTEGER, DIMENSION(:), INTENT(IN)        :: pos, ngrid
-    INTEGER, INTENT(IN)                      :: ndim
-    INTEGER                                  :: pnt
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: pos, ngrid
+      INTEGER, INTENT(IN)                                :: ndim
+      INTEGER                                            :: pnt
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
     pnt=pos(1)
     DO i=2,ndim
@@ -175,7 +175,7 @@ CONTAINS
 
   END FUNCTION point_no_pbc
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Parser informations from the cp2k input/restart
 !> \param unit ...
 !> \param section ...
@@ -187,16 +187,16 @@ CONTAINS
 !>      03.2006 created [tlaino]
 !>      teodoro.laino .at. gmail.com 
 !> \author Teodoro Laino
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE get_val_res(unit, section, keyword, subsection, i_val, r_val)
-    INTEGER, INTENT(IN)                      :: unit
-    CHARACTER(len=*)                         :: section
-    CHARACTER(len=*), OPTIONAL               :: keyword, subsection
-    INTEGER, INTENT(OUT), OPTIONAL           :: i_val
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: r_val
+      INTEGER, INTENT(IN)                                :: unit
+      CHARACTER(len=*)                                   :: section
+      CHARACTER(len=*), OPTIONAL                         :: keyword, subsection
+      INTEGER, INTENT(OUT), OPTIONAL                     :: i_val
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: r_val
 
-    CHARACTER(len=512)                       :: line
-    INTEGER                                  :: my_ind, stat
+      CHARACTER(len=512)                                 :: line
+      INTEGER                                            :: my_ind, stat
 
     REWIND(unit)
     CALL search(unit,TRIM(section),line,stat=stat)
@@ -226,19 +226,19 @@ CONTAINS
 
   END SUBROUTINE get_val_res
 
-  ! *****************************************************************************
-! *****************************************************************************
+  ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param unit ...
 !> \param key ...
 !> \param line ...
 !> \param stat ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE search(unit, key, line, stat)
-    INTEGER, INTENT(in)                      :: unit
-    CHARACTER(LEN=*), INTENT(IN)             :: key
-    CHARACTER(LEN=512), INTENT(OUT)          :: line
-    INTEGER, INTENT(out)                     :: stat
+      INTEGER, INTENT(in)                                :: unit
+      CHARACTER(LEN=*), INTENT(IN)                       :: key
+      CHARACTER(LEN=512), INTENT(OUT)                    :: line
+      INTEGER, INTENT(out)                               :: stat
 
     stat = 99
     DO WHILE (.TRUE.)

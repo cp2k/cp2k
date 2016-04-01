@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief GEEP coefficients for fixed radii. THIS IS THE GEEP LIB.
 !>      They can be used together with the "omotetia" rule for erf function
 !>      to obtain the expansion for whatever radius one desires
@@ -11,428 +11,428 @@
 !> \par History
 !>      7.2005 created [tlaino]
 !> \author Teodoro Laino
-! *****************************************************************************
+! **************************************************************************************************
 MODULE qmmm_gaussian_data
-  
-  USE kinds,                           ONLY: dp
+
+   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
-  INTEGER, PARAMETER, PUBLIC       :: min_geep_lib_gauss = 2
-  INTEGER, PARAMETER, PUBLIC       :: max_geep_lib_gauss = 18
-  ! G2
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g2_rc = 1.30_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g2_a1 = 0.121492_dp, g2_b1 = 3.85695_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g2_a2 = 0.104509_dp, g2_b2 = 2.72971_dp
-  ! G3
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_rc = 1.17_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a1 = 0.1142400_dp, g3_b1 = 3.08635_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a2 = 0.0867876_dp, g3_b2 = 2.38345_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a3 = 0.0971514_dp, g3_b3 = 4.35065_dp
-  ! G4
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_rc = 1.05_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a1 = 0.0776927_dp, g4_b1 = 2.10429_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a2 = 0.1123350_dp, g4_b2 = 2.59523_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a3 = 0.0812506_dp, g4_b3 = 4.73860_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a4 = 0.0989222_dp, g4_b4 = 3.44579_dp
-  ! G5
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g5_rc = 0.9_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a1 = 0.0728205_dp, g5_b1 = 4.98419_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a2 = 0.0797713_dp, g5_b2 = 1.78985_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a3 = 0.0885763_dp, g5_b3 = 3.68614_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a4 = 0.1104310_dp, g5_b4 = 2.78214_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a5 = 0.1211280_dp, g5_b5 = 2.15508_dp
-  ! G6
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g6_rc = 0.9_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a1 = 0.0863850_dp, g6_b1 = 3.20872_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a2 = 0.0704031_dp, g6_b2 = 4.12508_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a3 = 0.0604464_dp, g6_b3 = 5.40108_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a4 = 0.1029610_dp, g6_b4 = 2.04751_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a5 = 0.1020950_dp, g6_b5 = 2.52820_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a6 = 0.0621064_dp, g6_b6 = 1.76831_dp
-  ! G7
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_rc = 0.85_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a1 = 0.0969005_dp, g7_b1 = 1.88076_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a2 = 0.0556821_dp, g7_b2 = 1.65955_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a3 = 0.0607934_dp, g7_b3 = 4.42485_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a4 = 0.0888440_dp, g7_b4 = 2.79941_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a5 = 0.0535919_dp, g7_b5 = 5.68373_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a6 = 0.0736222_dp, g7_b6 = 3.50534_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a7 = 0.1011310_dp, g7_b7 = 2.26261_dp
-  ! G8
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_rc = 0.80_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a1 = 0.0557370_dp, g8_b1 = 1.55883_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a2 = 0.0450800_dp, g8_b2 = 6.02024_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a3 = 0.0496262_dp, g8_b3 = 4.82212_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a4 = 0.0757863_dp, g8_b4 = 3.16120_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a5 = 0.0608617_dp, g8_b5 = 3.90652_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a6 = 0.1040810_dp, g8_b6 = 2.09075_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a7 = 0.0983610_dp, g8_b7 = 1.75423_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a8 = 0.0920273_dp, g8_b8 = 2.55933_dp
-  ! G9
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_rc = 0.70_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a1 = 0.1152140_dp, g9_b1 = 1.54224_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a2 = 0.0280838_dp, g9_b2 = 5.91022_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a3 = 0.0718097_dp, g9_b3 = 3.54224_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a4 = 0.0585113_dp, g9_b4 = 4.44860_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a5 = 0.1068470_dp, g9_b5 = 2.27491_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a6 = 0.0883974_dp, g9_b6 = 2.83230_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a7 = 0.1211100_dp, g9_b7 = 1.84735_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a8 = 0.0273353_dp, g9_b8 = 5.52297_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a9 = 0.0657478_dp, g9_b9 = 1.36539_dp
-  ! G10
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_rc  = 0.60_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a1  = 0.1005460_dp, g10_b1  = 2.49407_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a2  = 0.1246370_dp, g10_b2  = 1.99718_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a3  = 0.0492434_dp, g10_b3  = 4.70767_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a4  = 0.0785904_dp, g10_b4  = 3.10735_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a5  = 0.0242791_dp, g10_b5  = 5.81268_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a6  = 0.0229056_dp, g10_b6  = 5.92886_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a7  = 0.0606229_dp, g10_b7  = 3.83892_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a8  = 0.1442920_dp, g10_b8  = 1.61113_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a9  = 0.0814189_dp, g10_b9  = 1.17276_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a10 = 0.1401800_dp, g10_b10 = 1.33402_dp
-  ! G11
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_rc  = 0.50_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a1  = 0.1041690_dp, g11_b1  = 0.979627_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a2  = 0.0271666_dp, g11_b2  = 5.799740_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a3  = 0.0200111_dp, g11_b3  = 5.799660_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a4  = 0.0483906_dp, g11_b4  = 4.203330_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a5  = 0.1777430_dp, g11_b5  = 1.370190_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a6  = 0.0731972_dp, g11_b6  = 3.415900_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a7  = 0.0950076_dp, g11_b7  = 2.724470_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a8  = 0.0295802_dp, g11_b8  = 4.825220_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a9  = 0.1212380_dp, g11_b9  = 2.162170_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a10 = 0.1513510_dp, g11_b10 = 1.714860_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a11 = 0.1760780_dp, g11_b11 = 1.123400_dp
-  ! G12
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_rc  = 0.40_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a1  = 0.1420750_dp, g12_b1  = 0.786470_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a2  = 0.0880114_dp, g12_b2  = 2.942550_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a3  = 0.0645509_dp, g12_b3  = 3.669640_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a4  = 0.1505330_dp, g12_b4  = 1.826690_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a5  = 0.0183100_dp, g12_b5  = 5.965520_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a6  = 0.0182645_dp, g12_b6  = 5.965520_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a7  = 0.1160340_dp, g12_b7  = 2.326450_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a8  = 0.0449121_dp, g12_b8  = 4.458350_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a9  = 0.0264801_dp, g12_b9  = 5.182710_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a10 = 0.2338230_dp, g12_b10 = 0.912631_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a11 = 0.2295300_dp, g12_b11 = 1.128850_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a12 = 0.1911980_dp, g12_b12 = 1.431550_dp
-  ! G13
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_rc  = 0.30_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a1  = 0.2001960_dp, g13_b1  = 0.591285_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a2  = 0.0884682_dp, g13_b2  = 2.958380_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a3  = 0.1999450_dp, g13_b3  = 1.420640_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a4  = 0.3235490_dp, g13_b4  = 0.691636_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a5  = 0.0636926_dp, g13_b5  = 3.693610_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a6  = 0.0409795_dp, g13_b6  = 4.450810_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a7  = 0.1172330_dp, g13_b7  = 2.332480_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a8  = 0.0278787_dp, g13_b8  = 5.119550_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a9  = 0.0187190_dp, g13_b9  = 5.952110_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a10 = 0.0187159_dp, g13_b10 = 5.952110_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a11 = 0.3118340_dp, g13_b11 = 0.863435_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a12 = 0.2562320_dp, g13_b12 = 1.104410_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a13 = 0.1535690_dp, g13_b13 = 1.824620_dp
-  ! G14
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_rc  = 0.20_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a1  = 0.3778350_dp, g14_b1  = 0.786779_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a2  = 0.0944711_dp, g14_b2  = 2.781090_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a3  = 0.0204159_dp, g14_b3  = 5.876050_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a4  = 0.0204239_dp, g14_b4  = 5.876050_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a5  = 0.2884320_dp, g14_b5  = 1.023350_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a6  = 0.2186240_dp, g14_b6  = 1.326440_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a7  = 0.0700271_dp, g14_b7  = 3.483220_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a8  = 0.1656890_dp, g14_b8  = 1.710300_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a9  = 0.0493301_dp, g14_b9  = 4.268870_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a10 = 0.1254840_dp, g14_b10 = 2.190730_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a11 = 0.0303071_dp, g14_b11 = 4.999930_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a12 = 0.5269670_dp, g14_b12 = 0.475269_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a13 = 0.3496170_dp, g14_b13 = 0.397232_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a14 = 0.4776640_dp, g14_b14 = 0.605916_dp
-  ! G15
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_rc  = 0.10_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a1  = 1.3606800_dp, g15_b1  = 0.310940_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a2  = 0.0266233_dp, g15_b2  = 5.801190_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a3  = 0.3896280_dp, g15_b3  = 0.813967_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a4  = 0.0155094_dp, g15_b4  = 5.800280_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a5  = 0.5574040_dp, g15_b5  = 0.609044_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a6  = 0.8507370_dp, g15_b6  = 0.443840_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a7  = 0.1590220_dp, g15_b7  = 1.808170_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a8  = 0.2837530_dp, g15_b8  = 1.071380_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a9  = 0.0645391_dp, g15_b9  = 3.723390_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a10 = 0.0241980_dp, g15_b10 = 4.946500_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a11 = 0.0344342_dp, g15_b11 = 4.462030_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a12 = 0.2112170_dp, g15_b12 = 1.396840_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a13 = 0.1202950_dp, g15_b13 = 2.325120_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a14 = 0.0904425_dp, g15_b14 = 2.965550_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a15 = 1.6040000_dp, g15_b15 = 0.216434_dp
-  ! G16
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_rc  = 0.10_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a1  = 1.5843100_dp, g16_b1  = 0.215959_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a2  = 0.0253725_dp, g16_b2  = 5.737070_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a3  = 0.1191710_dp, g16_b3  = 2.233620_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a4  = 0.2848860_dp, g16_b4  = 1.050490_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a5  = 0.0134257_dp, g16_b5  = 5.720440_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a6  = 0.0269327_dp, g16_b6  = 4.542090_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a7  = 0.0888076_dp, g16_b7  = 2.807370_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a8  = 0.3907140_dp, g16_b8  = 0.801210_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a9  = 0.5584020_dp, g16_b9  = 0.601540_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a10 = 0.0674428_dp, g16_b10 = 3.477020_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a11 = 0.0167448_dp, g16_b11 = 5.320770_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a12 = 0.2120830_dp, g16_b12 = 1.363230_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a13 = 0.0363796_dp, g16_b13 = 4.204950_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a14 = 0.8512990_dp, g16_b14 = 0.439692_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a15 = 0.1591170_dp, g16_b15 = 1.753690_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a16 = 1.3566500_dp, g16_b16 = 0.308985_dp
-  ! G17
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_rc  = 0.10_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a1  = 0.0286263_dp, g17_b1  = 5.897570_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a2  = 1.3621700_dp, g17_b2  = 0.210930_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a3  = 0.8582340_dp, g17_b3  = 0.396804_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a4  = 0.0918589_dp, g17_b4  = 2.514930_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a5  = 0.2314390_dp, g17_b5  = 1.077620_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a6  = 1.3030900_dp, g17_b6  = 0.288252_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a7  = 0.1437920_dp, g17_b7  = 1.658970_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a8  = 0.3010060_dp, g17_b8  = 0.860535_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a9  = 0.0274321_dp, g17_b9  = 5.099500_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a10 = 0.1814220_dp, g17_b10 = 1.340220_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a11 = 0.4046220_dp, g17_b11 = 0.679621_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a12 = 0.0735338_dp, g17_b12 = 3.080580_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a13 = 0.0577419_dp, g17_b13 = 3.752150_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a14 = 0.0388557_dp, g17_b14 = 4.481620_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a15 = 0.1147140_dp, g17_b15 = 2.045960_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a16 = 0.5719720_dp, g17_b16 = 0.526925_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a17 = 0.0222331_dp, g17_b17 = 6.674390_dp
-  ! G18
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_rc  = 0.10_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a1  = 0.0326473_dp, g18_b1  = 5.962800_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a2  = 0.0181199_dp, g18_b2  = 6.674950_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a3  = 0.8582970_dp, g18_b3  = 0.396103_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a4  = 0.0880221_dp, g18_b4  = 2.468750_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a5  = 0.1812460_dp, g18_b5  = 1.332910_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a6  = 0.2314380_dp, g18_b6  = 1.072960_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a7  = 0.0449632_dp, g18_b7  = 3.435210_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a8  = 1.3583000_dp, g18_b8  = 0.210847_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a9  = 0.1132310_dp, g18_b9  = 2.024200_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a10 = 0.0251085_dp, g18_b10 = 4.226690_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a11 = 0.4047630_dp, g18_b11 = 0.677704_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a12 = 0.3010870_dp, g18_b12 = 0.857535_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a13 = 1.3019600_dp, g18_b13 = 0.287909_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a14 = 0.1432190_dp, g18_b14 = 1.646940_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a15 = 0.0634725_dp, g18_b15 = 2.959960_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a16 = 0.5721690_dp, g18_b16 = 0.525730_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a17 = 0.0309731_dp, g18_b17 = 3.918400_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a18 = 0.0429091_dp, g18_b18 = 4.928750_dp
-  !
-  ! S-WAVE expansion
-  ! S2
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s2_rc   = 1.2_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s2_a1   = 0.1167720_dp, s2_b1   = 3.15760_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s2_a2   = 0.0537459_dp, s2_b2   = 1.66713_dp
-  ! S3
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_rc   = 1.05_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a1   = 0.1258370_dp, s3_b1   = 3.54518_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a2   = 0.0920562_dp, s3_b2   = 2.17201_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a3   = 0.0354098_dp, s3_b3   = 1.16797_dp
-  ! S4
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s4_rc   = 0.90_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a1   = 0.1237040_dp, s4_b1   = 3.82356_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a2   = 0.0263957_dp, s4_b2   = 0.84445_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a3   = 0.0773548_dp, s4_b3   = 1.56300_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a4   = 0.1243300_dp, s4_b4   = 2.49568_dp
-  ! S5
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s5_rc   = 0.80_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a1   = 0.0601509_dp, s5_b1   = 1.169940_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a2   = 0.1133640_dp, s5_b2   = 1.853660_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a3   = 0.1120710_dp, s5_b3   = 4.084220_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a4   = 0.1334100_dp, s5_b4   = 2.762410_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a5   = 0.0186655_dp, s5_b5   = 0.633305_dp
-  ! S6
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s6_rc   = 0.70_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a1   = 0.0494163_dp, s6_b1   = 0.889897_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a2   = 0.1415590_dp, s6_b2   = 2.073620_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a3   = 0.1311110_dp, s6_b3   = 2.977960_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a4   = 0.1012530_dp, s6_b4   = 4.306440_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a5   = 0.1037040_dp, s6_b5   = 1.405500_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a6   = 0.0144409_dp, s6_b6   = 0.482098_dp
-  ! S7
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_rc   = 0.65_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a1   = 0.08156290_dp, s7_b1   = 1.104000_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a2   = 0.00971659_dp, s7_b2   = 0.379602_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a3   = 0.09067690_dp, s7_b3   = 4.537130_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a4   = 0.14334400_dp, s7_b4   = 2.290480_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a5   = 0.13012600_dp, s7_b5   = 1.619190_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a6   = 0.11794100_dp, s7_b6   = 3.205850_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a7   = 0.03510960_dp, s7_b7   = 0.700361_dp
-  ! S8
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_rc   = 0.60_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a1   = 0.14676300_dp, s8_b1   = 1.802170_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a2   = 0.00686211_dp, s8_b2   = 0.302201_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a3   = 0.08248590_dp, s8_b3   = 4.741690_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a4   = 0.10588700_dp, s8_b4   = 3.410740_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a5   = 0.06409090_dp, s8_b5   = 0.877859_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a6   = 0.11461200_dp, s8_b6   = 1.283730_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a7   = 0.13708200_dp, s8_b7   = 2.482170_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a8   = 0.02571900_dp, s8_b8   = 0.557431_dp
-  ! S9
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_rc   = 0.55_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a1   = 0.0760147_dp, s9_b1   = 4.924130_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a2   = 0.0050867_dp, s9_b2   = 0.242656_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a3   = 0.1524530_dp, s9_b3   = 1.962780_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a4   = 0.0993944_dp, s9_b4   = 1.028540_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a5   = 0.1433380_dp, s9_b5   = 1.438020_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a6   = 0.1267950_dp, s9_b6   = 2.655630_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a7   = 0.0958376_dp, s9_b7   = 3.595590_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a8   = 0.0511698_dp, s9_b8   = 0.704455_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a9   = 0.0195500_dp, s9_b9   = 0.447544_dp
-  ! S10
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_rc   = 0.5_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a1   = 0.11585200_dp, s10_b1   = 2.814420_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a2   = 0.01551000_dp, s10_b2   = 0.361841_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a3   = 0.08772520_dp, s10_b3   = 3.762340_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a4   = 0.16279600_dp, s10_b4   = 1.572690_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a5   = 0.08664120_dp, s10_b5   = 0.830482_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a6   = 0.13675500_dp, s10_b6   = 1.158370_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a7   = 0.04201910_dp, s10_b7   = 0.569340_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a8   = 0.14880800_dp, s10_b8   = 2.107180_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a9   = 0.07080240_dp, s10_b9   = 5.087590_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a10  = 0.00396733_dp, s10_b10  = 0.196230_dp
-  ! S11
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_rc   = 0.45_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a1   = 0.16967500_dp, s11_b1   = 1.274890_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a2   = 0.01316070_dp, s11_b2   = 0.296680_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a3   = 0.06640200_dp, s11_b3   = 5.239300_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a4   = 0.10578100_dp, s11_b4   = 2.964600_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a5   = 0.07769660_dp, s11_b5   = 0.677602_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a6   = 0.08097080_dp, s11_b6   = 3.917730_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a7   = 0.16973700_dp, s11_b7   = 1.696540_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a8   = 0.13064000_dp, s11_b8   = 0.942777_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a9   = 0.03627480_dp, s11_b9   = 0.465541_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a10  = 0.13917200_dp, s11_b10  = 2.244230_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a11  = 0.00336822_dp, s11_b11  = 0.161548_dp
-  ! S12
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_rc   = 0.40_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a1   = 0.09642700_dp, s12_b1   = 3.118890_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a2   = 0.17691800_dp, s12_b2   = 1.052170_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a3   = 0.06232170_dp, s12_b3   = 5.393160_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a4   = 0.01269890_dp, s12_b4   = 0.252183_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a5   = 0.07481830_dp, s12_b5   = 4.075740_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a6   = 0.12917000_dp, s12_b6   = 0.782380_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a7   = 0.03450160_dp, s12_b7   = 0.391473_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a8   = 0.12664700_dp, s12_b8   = 2.387640_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a9   = 0.07450870_dp, s12_b9   = 0.565577_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a10  = 0.18916800_dp, s12_b10  = 1.390920_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a11  = 0.16350600_dp, s12_b11  = 1.824470_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a12  = 0.00339586_dp, s12_b12  = 0.139492_dp
-  ! S13
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_rc   = 0.35_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a1   = 0.0827110_dp, s13_b1   = 3.406540_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a2   = 0.1088730_dp, s13_b2   = 2.646630_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a3   = 0.0548105_dp, s13_b3   = 5.651890_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a4   = 0.1851320_dp, s13_b4   = 1.572120_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a5   = 0.0153281_dp, s13_b5   = 0.227432_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a6   = 0.1447980_dp, s13_b6   = 0.684903_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a7   = 0.0400841_dp, s13_b7   = 0.348420_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a8   = 0.1976780_dp, s13_b8   = 0.915974_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a9   = 0.0845825_dp, s13_b9   = 0.498603_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a10  = 0.2124150_dp, s13_b10  = 1.204860_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a11  = 0.0643854_dp, s13_b11  = 4.368000_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a12  = 0.1438660_dp, s13_b12  = 2.044290_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a13  = 0.0043540_dp, s13_b13  = 0.127923_dp
-  ! S14
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_rc   = 0.3_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a1   = 0.1185130_dp, s14_b1   = 2.483340_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a2   = 0.2451880_dp, s14_b2   = 1.119610_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a3   = 0.0585112_dp, s14_b3   = 0.327881_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a4   = 0.2441530_dp, s14_b4   = 0.851146_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a5   = 0.1561530_dp, s14_b5   = 1.909900_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a6   = 0.1178640_dp, s14_b6   = 0.466300_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a7   = 0.0710939_dp, s14_b7   = 4.176560_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a8   = 0.0907698_dp, s14_b8   = 3.219580_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a9   = 0.0298147_dp, s14_b9   = 5.495980_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a10  = 0.0233818_dp, s14_b10  = 0.215814_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a11  = 0.2037940_dp, s14_b11  = 1.464080_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a12  = 0.1909540_dp, s14_b12  = 0.637845_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a13  = 0.0300539_dp, s14_b13  = 5.481830_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a14  = 0.0069580_dp, s14_b14  = 0.122528_dp
-  ! S15
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_rc   = 0.25_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a1   = 0.0945048_dp, s15_b1   = 2.945510_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a2   = 0.2601310_dp, s15_b2   = 0.589258_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a3   = 0.1267470_dp, s15_b3   = 2.288550_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a4   = 0.0389633_dp, s15_b4   = 0.203996_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a5   = 0.1688290_dp, s15_b5   = 1.763470_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a6   = 0.2822050_dp, s15_b6   = 1.031520_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a7   = 0.3048940_dp, s15_b7   = 0.784165_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a8   = 0.0262863_dp, s15_b8   = 5.598990_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a9   = 0.0231427_dp, s15_b9   = 5.844390_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a10  = 0.0484052_dp, s15_b10  = 4.606440_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a11  = 0.0680845_dp, s15_b11  = 3.734880_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a12  = 0.0918188_dp, s15_b12  = 0.306903_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a13  = 0.2236530_dp, s15_b13  = 1.351070_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a14  = 0.1732960_dp, s15_b14  = 0.433086_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a15  = 0.0122787_dp, s15_b15  = 0.116976_dp
-  ! S16
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_rc   = 0.20_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a1   = 0.0355363_dp, s16_b1   =  5.119830_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a2   = 0.0250461_dp, s16_b2   =  0.111228_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a3   = 0.0555360_dp, s16_b3   =  4.232680_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a4   = 0.0747956_dp, s16_b4   =  3.406690_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a5   = 0.0739676_dp, s16_b5   =  0.192075_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a6   = 0.1016150_dp, s16_b6   =  2.694530_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a7   = 0.1600940_dp, s16_b7   =  0.285880_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a8   = 0.3823200_dp, s16_b8   =  0.717807_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a9   = 0.0174934_dp, s16_b9   =  5.965260_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a10  = 0.1369610_dp, s16_b10  =  2.100230_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a11  = 0.1835200_dp, s16_b11  =  1.620280_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a12  = 0.2453470_dp, s16_b12  =  1.240770_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a13  = 0.3219940_dp, s16_b13  =  0.945350_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a14  = 0.0174978_dp, s16_b14  =  5.965260_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a15  = 0.3677700_dp, s16_b15  =  0.540682_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a16  = 0.2742210_dp, s16_b16  =  0.399796_dp
-  ! S17
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_rc   = 0.15_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a1   = 0.0844127_dp, s17_b1   = 3.242020_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a2   = 0.5321910_dp, s17_b2   = 0.495959_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a3   = 0.4682070_dp, s17_b3   = 0.659162_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a4   = 0.0316333_dp, s17_b4   = 4.520730_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a5   = 0.1497940_dp, s17_b5   = 1.957400_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a6   = 0.0181484_dp, s17_b6   = 5.592050_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a7   = 0.0181805_dp, s17_b7   = 5.592050_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a8   = 0.4758870_dp, s17_b8   = 0.368353_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a9   = 0.0474720_dp, s17_b9   = 4.043220_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a10  = 0.2678960_dp, s17_b10  = 1.148850_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a11  = 0.1998770_dp, s17_b11  = 1.504430_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a12  = 0.0181970_dp, s17_b12  = 5.592050_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a13  = 0.3261780_dp, s17_b13  = 0.265656_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a14  = 0.1720050_dp, s17_b14  = 0.180302_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a15  = 0.1127310_dp, s17_b15  = 2.529320_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a16  = 0.3595840_dp, s17_b16  = 0.872121_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a17  = 0.0642967_dp, s17_b17  = 0.105311_dp
-  ! S18
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_rc   = 0.05_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a1   = 0.1013430_dp, s18_b1   = 0.0270641_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a2   = 0.0583885_dp, s18_b2   = 4.2001100_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a3   = 1.1587600_dp, s18_b3   = 0.3072560_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a4   = 0.1255030_dp, s18_b4   = 2.3069300_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a5   = 0.0469195_dp, s18_b5   = 3.5331200_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a6   = 0.3728020_dp, s18_b6   = 0.0498868_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a7   = 0.8990960_dp, s18_b7   = 0.0785500_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a8   = 0.3146440_dp, s18_b8   = 1.0197600_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a9   = 1.5250400_dp, s18_b9   = 0.1149420_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a10  = 0.4308660_dp, s18_b10  = 0.7644820_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a11  = 0.8278010_dp, s18_b11  = 0.4197150_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a12  = 0.5947340_dp, s18_b12  = 0.5687230_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a13  = 1.5771300_dp, s18_b13  = 0.2235160_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a14  = 0.1707930_dp, s18_b14  = 1.7733300_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a15  = 1.8160800_dp, s18_b15  = 0.1616990_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a16  = 0.0857559_dp, s18_b16  = 2.9441700_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a17  = 0.2313250_dp, s18_b17  = 1.3500600_dp
-  REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a18  = 0.0593302_dp, s18_b18  = 5.4023800_dp
+   INTEGER, PARAMETER, PUBLIC       :: min_geep_lib_gauss = 2
+   INTEGER, PARAMETER, PUBLIC       :: max_geep_lib_gauss = 18
+   ! G2
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g2_rc = 1.30_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g2_a1 = 0.121492_dp, g2_b1 = 3.85695_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g2_a2 = 0.104509_dp, g2_b2 = 2.72971_dp
+   ! G3
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g3_rc = 1.17_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a1 = 0.1142400_dp, g3_b1 = 3.08635_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a2 = 0.0867876_dp, g3_b2 = 2.38345_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g3_a3 = 0.0971514_dp, g3_b3 = 4.35065_dp
+   ! G4
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g4_rc = 1.05_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a1 = 0.0776927_dp, g4_b1 = 2.10429_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a2 = 0.1123350_dp, g4_b2 = 2.59523_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a3 = 0.0812506_dp, g4_b3 = 4.73860_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g4_a4 = 0.0989222_dp, g4_b4 = 3.44579_dp
+   ! G5
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_rc = 0.9_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a1 = 0.0728205_dp, g5_b1 = 4.98419_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a2 = 0.0797713_dp, g5_b2 = 1.78985_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a3 = 0.0885763_dp, g5_b3 = 3.68614_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a4 = 0.1104310_dp, g5_b4 = 2.78214_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g5_a5 = 0.1211280_dp, g5_b5 = 2.15508_dp
+   ! G6
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g6_rc = 0.9_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a1 = 0.0863850_dp, g6_b1 = 3.20872_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a2 = 0.0704031_dp, g6_b2 = 4.12508_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a3 = 0.0604464_dp, g6_b3 = 5.40108_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a4 = 0.1029610_dp, g6_b4 = 2.04751_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a5 = 0.1020950_dp, g6_b5 = 2.52820_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g6_a6 = 0.0621064_dp, g6_b6 = 1.76831_dp
+   ! G7
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_rc = 0.85_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a1 = 0.0969005_dp, g7_b1 = 1.88076_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a2 = 0.0556821_dp, g7_b2 = 1.65955_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a3 = 0.0607934_dp, g7_b3 = 4.42485_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a4 = 0.0888440_dp, g7_b4 = 2.79941_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a5 = 0.0535919_dp, g7_b5 = 5.68373_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a6 = 0.0736222_dp, g7_b6 = 3.50534_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g7_a7 = 0.1011310_dp, g7_b7 = 2.26261_dp
+   ! G8
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_rc = 0.80_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a1 = 0.0557370_dp, g8_b1 = 1.55883_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a2 = 0.0450800_dp, g8_b2 = 6.02024_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a3 = 0.0496262_dp, g8_b3 = 4.82212_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a4 = 0.0757863_dp, g8_b4 = 3.16120_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a5 = 0.0608617_dp, g8_b5 = 3.90652_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a6 = 0.1040810_dp, g8_b6 = 2.09075_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a7 = 0.0983610_dp, g8_b7 = 1.75423_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g8_a8 = 0.0920273_dp, g8_b8 = 2.55933_dp
+   ! G9
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_rc = 0.70_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a1 = 0.1152140_dp, g9_b1 = 1.54224_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a2 = 0.0280838_dp, g9_b2 = 5.91022_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a3 = 0.0718097_dp, g9_b3 = 3.54224_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a4 = 0.0585113_dp, g9_b4 = 4.44860_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a5 = 0.1068470_dp, g9_b5 = 2.27491_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a6 = 0.0883974_dp, g9_b6 = 2.83230_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a7 = 0.1211100_dp, g9_b7 = 1.84735_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a8 = 0.0273353_dp, g9_b8 = 5.52297_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g9_a9 = 0.0657478_dp, g9_b9 = 1.36539_dp
+   ! G10
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_rc = 0.60_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a1 = 0.1005460_dp, g10_b1 = 2.49407_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a2 = 0.1246370_dp, g10_b2 = 1.99718_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a3 = 0.0492434_dp, g10_b3 = 4.70767_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a4 = 0.0785904_dp, g10_b4 = 3.10735_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a5 = 0.0242791_dp, g10_b5 = 5.81268_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a6 = 0.0229056_dp, g10_b6 = 5.92886_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a7 = 0.0606229_dp, g10_b7 = 3.83892_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a8 = 0.1442920_dp, g10_b8 = 1.61113_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a9 = 0.0814189_dp, g10_b9 = 1.17276_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g10_a10 = 0.1401800_dp, g10_b10 = 1.33402_dp
+   ! G11
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_rc = 0.50_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a1 = 0.1041690_dp, g11_b1 = 0.979627_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a2 = 0.0271666_dp, g11_b2 = 5.799740_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a3 = 0.0200111_dp, g11_b3 = 5.799660_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a4 = 0.0483906_dp, g11_b4 = 4.203330_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a5 = 0.1777430_dp, g11_b5 = 1.370190_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a6 = 0.0731972_dp, g11_b6 = 3.415900_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a7 = 0.0950076_dp, g11_b7 = 2.724470_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a8 = 0.0295802_dp, g11_b8 = 4.825220_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a9 = 0.1212380_dp, g11_b9 = 2.162170_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a10 = 0.1513510_dp, g11_b10 = 1.714860_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g11_a11 = 0.1760780_dp, g11_b11 = 1.123400_dp
+   ! G12
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_rc = 0.40_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a1 = 0.1420750_dp, g12_b1 = 0.786470_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a2 = 0.0880114_dp, g12_b2 = 2.942550_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a3 = 0.0645509_dp, g12_b3 = 3.669640_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a4 = 0.1505330_dp, g12_b4 = 1.826690_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a5 = 0.0183100_dp, g12_b5 = 5.965520_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a6 = 0.0182645_dp, g12_b6 = 5.965520_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a7 = 0.1160340_dp, g12_b7 = 2.326450_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a8 = 0.0449121_dp, g12_b8 = 4.458350_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a9 = 0.0264801_dp, g12_b9 = 5.182710_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a10 = 0.2338230_dp, g12_b10 = 0.912631_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a11 = 0.2295300_dp, g12_b11 = 1.128850_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g12_a12 = 0.1911980_dp, g12_b12 = 1.431550_dp
+   ! G13
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_rc = 0.30_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a1 = 0.2001960_dp, g13_b1 = 0.591285_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a2 = 0.0884682_dp, g13_b2 = 2.958380_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a3 = 0.1999450_dp, g13_b3 = 1.420640_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a4 = 0.3235490_dp, g13_b4 = 0.691636_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a5 = 0.0636926_dp, g13_b5 = 3.693610_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a6 = 0.0409795_dp, g13_b6 = 4.450810_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a7 = 0.1172330_dp, g13_b7 = 2.332480_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a8 = 0.0278787_dp, g13_b8 = 5.119550_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a9 = 0.0187190_dp, g13_b9 = 5.952110_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a10 = 0.0187159_dp, g13_b10 = 5.952110_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a11 = 0.3118340_dp, g13_b11 = 0.863435_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a12 = 0.2562320_dp, g13_b12 = 1.104410_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g13_a13 = 0.1535690_dp, g13_b13 = 1.824620_dp
+   ! G14
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_rc = 0.20_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a1 = 0.3778350_dp, g14_b1 = 0.786779_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a2 = 0.0944711_dp, g14_b2 = 2.781090_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a3 = 0.0204159_dp, g14_b3 = 5.876050_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a4 = 0.0204239_dp, g14_b4 = 5.876050_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a5 = 0.2884320_dp, g14_b5 = 1.023350_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a6 = 0.2186240_dp, g14_b6 = 1.326440_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a7 = 0.0700271_dp, g14_b7 = 3.483220_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a8 = 0.1656890_dp, g14_b8 = 1.710300_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a9 = 0.0493301_dp, g14_b9 = 4.268870_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a10 = 0.1254840_dp, g14_b10 = 2.190730_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a11 = 0.0303071_dp, g14_b11 = 4.999930_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a12 = 0.5269670_dp, g14_b12 = 0.475269_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a13 = 0.3496170_dp, g14_b13 = 0.397232_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g14_a14 = 0.4776640_dp, g14_b14 = 0.605916_dp
+   ! G15
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_rc = 0.10_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a1 = 1.3606800_dp, g15_b1 = 0.310940_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a2 = 0.0266233_dp, g15_b2 = 5.801190_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a3 = 0.3896280_dp, g15_b3 = 0.813967_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a4 = 0.0155094_dp, g15_b4 = 5.800280_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a5 = 0.5574040_dp, g15_b5 = 0.609044_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a6 = 0.8507370_dp, g15_b6 = 0.443840_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a7 = 0.1590220_dp, g15_b7 = 1.808170_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a8 = 0.2837530_dp, g15_b8 = 1.071380_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a9 = 0.0645391_dp, g15_b9 = 3.723390_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a10 = 0.0241980_dp, g15_b10 = 4.946500_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a11 = 0.0344342_dp, g15_b11 = 4.462030_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a12 = 0.2112170_dp, g15_b12 = 1.396840_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a13 = 0.1202950_dp, g15_b13 = 2.325120_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a14 = 0.0904425_dp, g15_b14 = 2.965550_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g15_a15 = 1.6040000_dp, g15_b15 = 0.216434_dp
+   ! G16
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_rc = 0.10_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a1 = 1.5843100_dp, g16_b1 = 0.215959_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a2 = 0.0253725_dp, g16_b2 = 5.737070_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a3 = 0.1191710_dp, g16_b3 = 2.233620_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a4 = 0.2848860_dp, g16_b4 = 1.050490_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a5 = 0.0134257_dp, g16_b5 = 5.720440_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a6 = 0.0269327_dp, g16_b6 = 4.542090_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a7 = 0.0888076_dp, g16_b7 = 2.807370_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a8 = 0.3907140_dp, g16_b8 = 0.801210_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a9 = 0.5584020_dp, g16_b9 = 0.601540_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a10 = 0.0674428_dp, g16_b10 = 3.477020_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a11 = 0.0167448_dp, g16_b11 = 5.320770_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a12 = 0.2120830_dp, g16_b12 = 1.363230_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a13 = 0.0363796_dp, g16_b13 = 4.204950_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a14 = 0.8512990_dp, g16_b14 = 0.439692_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a15 = 0.1591170_dp, g16_b15 = 1.753690_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g16_a16 = 1.3566500_dp, g16_b16 = 0.308985_dp
+   ! G17
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_rc = 0.10_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a1 = 0.0286263_dp, g17_b1 = 5.897570_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a2 = 1.3621700_dp, g17_b2 = 0.210930_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a3 = 0.8582340_dp, g17_b3 = 0.396804_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a4 = 0.0918589_dp, g17_b4 = 2.514930_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a5 = 0.2314390_dp, g17_b5 = 1.077620_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a6 = 1.3030900_dp, g17_b6 = 0.288252_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a7 = 0.1437920_dp, g17_b7 = 1.658970_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a8 = 0.3010060_dp, g17_b8 = 0.860535_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a9 = 0.0274321_dp, g17_b9 = 5.099500_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a10 = 0.1814220_dp, g17_b10 = 1.340220_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a11 = 0.4046220_dp, g17_b11 = 0.679621_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a12 = 0.0735338_dp, g17_b12 = 3.080580_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a13 = 0.0577419_dp, g17_b13 = 3.752150_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a14 = 0.0388557_dp, g17_b14 = 4.481620_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a15 = 0.1147140_dp, g17_b15 = 2.045960_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a16 = 0.5719720_dp, g17_b16 = 0.526925_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g17_a17 = 0.0222331_dp, g17_b17 = 6.674390_dp
+   ! G18
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_rc = 0.10_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a1 = 0.0326473_dp, g18_b1 = 5.962800_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a2 = 0.0181199_dp, g18_b2 = 6.674950_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a3 = 0.8582970_dp, g18_b3 = 0.396103_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a4 = 0.0880221_dp, g18_b4 = 2.468750_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a5 = 0.1812460_dp, g18_b5 = 1.332910_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a6 = 0.2314380_dp, g18_b6 = 1.072960_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a7 = 0.0449632_dp, g18_b7 = 3.435210_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a8 = 1.3583000_dp, g18_b8 = 0.210847_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a9 = 0.1132310_dp, g18_b9 = 2.024200_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a10 = 0.0251085_dp, g18_b10 = 4.226690_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a11 = 0.4047630_dp, g18_b11 = 0.677704_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a12 = 0.3010870_dp, g18_b12 = 0.857535_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a13 = 1.3019600_dp, g18_b13 = 0.287909_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a14 = 0.1432190_dp, g18_b14 = 1.646940_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a15 = 0.0634725_dp, g18_b15 = 2.959960_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a16 = 0.5721690_dp, g18_b16 = 0.525730_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a17 = 0.0309731_dp, g18_b17 = 3.918400_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: g18_a18 = 0.0429091_dp, g18_b18 = 4.928750_dp
+   !
+   ! S-WAVE expansion
+   ! S2
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s2_rc = 1.2_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s2_a1 = 0.1167720_dp, s2_b1 = 3.15760_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s2_a2 = 0.0537459_dp, s2_b2 = 1.66713_dp
+   ! S3
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s3_rc = 1.05_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a1 = 0.1258370_dp, s3_b1 = 3.54518_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a2 = 0.0920562_dp, s3_b2 = 2.17201_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s3_a3 = 0.0354098_dp, s3_b3 = 1.16797_dp
+   ! S4
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s4_rc = 0.90_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a1 = 0.1237040_dp, s4_b1 = 3.82356_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a2 = 0.0263957_dp, s4_b2 = 0.84445_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a3 = 0.0773548_dp, s4_b3 = 1.56300_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s4_a4 = 0.1243300_dp, s4_b4 = 2.49568_dp
+   ! S5
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s5_rc = 0.80_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a1 = 0.0601509_dp, s5_b1 = 1.169940_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a2 = 0.1133640_dp, s5_b2 = 1.853660_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a3 = 0.1120710_dp, s5_b3 = 4.084220_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a4 = 0.1334100_dp, s5_b4 = 2.762410_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s5_a5 = 0.0186655_dp, s5_b5 = 0.633305_dp
+   ! S6
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s6_rc = 0.70_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a1 = 0.0494163_dp, s6_b1 = 0.889897_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a2 = 0.1415590_dp, s6_b2 = 2.073620_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a3 = 0.1311110_dp, s6_b3 = 2.977960_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a4 = 0.1012530_dp, s6_b4 = 4.306440_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a5 = 0.1037040_dp, s6_b5 = 1.405500_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s6_a6 = 0.0144409_dp, s6_b6 = 0.482098_dp
+   ! S7
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_rc = 0.65_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a1 = 0.08156290_dp, s7_b1 = 1.104000_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a2 = 0.00971659_dp, s7_b2 = 0.379602_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a3 = 0.09067690_dp, s7_b3 = 4.537130_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a4 = 0.14334400_dp, s7_b4 = 2.290480_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a5 = 0.13012600_dp, s7_b5 = 1.619190_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a6 = 0.11794100_dp, s7_b6 = 3.205850_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s7_a7 = 0.03510960_dp, s7_b7 = 0.700361_dp
+   ! S8
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_rc = 0.60_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a1 = 0.14676300_dp, s8_b1 = 1.802170_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a2 = 0.00686211_dp, s8_b2 = 0.302201_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a3 = 0.08248590_dp, s8_b3 = 4.741690_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a4 = 0.10588700_dp, s8_b4 = 3.410740_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a5 = 0.06409090_dp, s8_b5 = 0.877859_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a6 = 0.11461200_dp, s8_b6 = 1.283730_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a7 = 0.13708200_dp, s8_b7 = 2.482170_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s8_a8 = 0.02571900_dp, s8_b8 = 0.557431_dp
+   ! S9
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_rc = 0.55_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a1 = 0.0760147_dp, s9_b1 = 4.924130_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a2 = 0.0050867_dp, s9_b2 = 0.242656_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a3 = 0.1524530_dp, s9_b3 = 1.962780_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a4 = 0.0993944_dp, s9_b4 = 1.028540_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a5 = 0.1433380_dp, s9_b5 = 1.438020_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a6 = 0.1267950_dp, s9_b6 = 2.655630_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a7 = 0.0958376_dp, s9_b7 = 3.595590_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a8 = 0.0511698_dp, s9_b8 = 0.704455_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s9_a9 = 0.0195500_dp, s9_b9 = 0.447544_dp
+   ! S10
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_rc = 0.5_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a1 = 0.11585200_dp, s10_b1 = 2.814420_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a2 = 0.01551000_dp, s10_b2 = 0.361841_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a3 = 0.08772520_dp, s10_b3 = 3.762340_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a4 = 0.16279600_dp, s10_b4 = 1.572690_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a5 = 0.08664120_dp, s10_b5 = 0.830482_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a6 = 0.13675500_dp, s10_b6 = 1.158370_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a7 = 0.04201910_dp, s10_b7 = 0.569340_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a8 = 0.14880800_dp, s10_b8 = 2.107180_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a9 = 0.07080240_dp, s10_b9 = 5.087590_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s10_a10 = 0.00396733_dp, s10_b10 = 0.196230_dp
+   ! S11
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_rc = 0.45_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a1 = 0.16967500_dp, s11_b1 = 1.274890_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a2 = 0.01316070_dp, s11_b2 = 0.296680_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a3 = 0.06640200_dp, s11_b3 = 5.239300_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a4 = 0.10578100_dp, s11_b4 = 2.964600_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a5 = 0.07769660_dp, s11_b5 = 0.677602_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a6 = 0.08097080_dp, s11_b6 = 3.917730_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a7 = 0.16973700_dp, s11_b7 = 1.696540_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a8 = 0.13064000_dp, s11_b8 = 0.942777_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a9 = 0.03627480_dp, s11_b9 = 0.465541_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a10 = 0.13917200_dp, s11_b10 = 2.244230_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s11_a11 = 0.00336822_dp, s11_b11 = 0.161548_dp
+   ! S12
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_rc = 0.40_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a1 = 0.09642700_dp, s12_b1 = 3.118890_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a2 = 0.17691800_dp, s12_b2 = 1.052170_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a3 = 0.06232170_dp, s12_b3 = 5.393160_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a4 = 0.01269890_dp, s12_b4 = 0.252183_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a5 = 0.07481830_dp, s12_b5 = 4.075740_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a6 = 0.12917000_dp, s12_b6 = 0.782380_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a7 = 0.03450160_dp, s12_b7 = 0.391473_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a8 = 0.12664700_dp, s12_b8 = 2.387640_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a9 = 0.07450870_dp, s12_b9 = 0.565577_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a10 = 0.18916800_dp, s12_b10 = 1.390920_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a11 = 0.16350600_dp, s12_b11 = 1.824470_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s12_a12 = 0.00339586_dp, s12_b12 = 0.139492_dp
+   ! S13
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_rc = 0.35_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a1 = 0.0827110_dp, s13_b1 = 3.406540_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a2 = 0.1088730_dp, s13_b2 = 2.646630_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a3 = 0.0548105_dp, s13_b3 = 5.651890_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a4 = 0.1851320_dp, s13_b4 = 1.572120_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a5 = 0.0153281_dp, s13_b5 = 0.227432_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a6 = 0.1447980_dp, s13_b6 = 0.684903_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a7 = 0.0400841_dp, s13_b7 = 0.348420_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a8 = 0.1976780_dp, s13_b8 = 0.915974_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a9 = 0.0845825_dp, s13_b9 = 0.498603_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a10 = 0.2124150_dp, s13_b10 = 1.204860_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a11 = 0.0643854_dp, s13_b11 = 4.368000_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a12 = 0.1438660_dp, s13_b12 = 2.044290_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s13_a13 = 0.0043540_dp, s13_b13 = 0.127923_dp
+   ! S14
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_rc = 0.3_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a1 = 0.1185130_dp, s14_b1 = 2.483340_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a2 = 0.2451880_dp, s14_b2 = 1.119610_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a3 = 0.0585112_dp, s14_b3 = 0.327881_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a4 = 0.2441530_dp, s14_b4 = 0.851146_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a5 = 0.1561530_dp, s14_b5 = 1.909900_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a6 = 0.1178640_dp, s14_b6 = 0.466300_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a7 = 0.0710939_dp, s14_b7 = 4.176560_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a8 = 0.0907698_dp, s14_b8 = 3.219580_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a9 = 0.0298147_dp, s14_b9 = 5.495980_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a10 = 0.0233818_dp, s14_b10 = 0.215814_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a11 = 0.2037940_dp, s14_b11 = 1.464080_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a12 = 0.1909540_dp, s14_b12 = 0.637845_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a13 = 0.0300539_dp, s14_b13 = 5.481830_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s14_a14 = 0.0069580_dp, s14_b14 = 0.122528_dp
+   ! S15
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_rc = 0.25_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a1 = 0.0945048_dp, s15_b1 = 2.945510_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a2 = 0.2601310_dp, s15_b2 = 0.589258_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a3 = 0.1267470_dp, s15_b3 = 2.288550_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a4 = 0.0389633_dp, s15_b4 = 0.203996_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a5 = 0.1688290_dp, s15_b5 = 1.763470_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a6 = 0.2822050_dp, s15_b6 = 1.031520_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a7 = 0.3048940_dp, s15_b7 = 0.784165_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a8 = 0.0262863_dp, s15_b8 = 5.598990_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a9 = 0.0231427_dp, s15_b9 = 5.844390_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a10 = 0.0484052_dp, s15_b10 = 4.606440_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a11 = 0.0680845_dp, s15_b11 = 3.734880_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a12 = 0.0918188_dp, s15_b12 = 0.306903_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a13 = 0.2236530_dp, s15_b13 = 1.351070_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a14 = 0.1732960_dp, s15_b14 = 0.433086_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s15_a15 = 0.0122787_dp, s15_b15 = 0.116976_dp
+   ! S16
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_rc = 0.20_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a1 = 0.0355363_dp, s16_b1 = 5.119830_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a2 = 0.0250461_dp, s16_b2 = 0.111228_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a3 = 0.0555360_dp, s16_b3 = 4.232680_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a4 = 0.0747956_dp, s16_b4 = 3.406690_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a5 = 0.0739676_dp, s16_b5 = 0.192075_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a6 = 0.1016150_dp, s16_b6 = 2.694530_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a7 = 0.1600940_dp, s16_b7 = 0.285880_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a8 = 0.3823200_dp, s16_b8 = 0.717807_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a9 = 0.0174934_dp, s16_b9 = 5.965260_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a10 = 0.1369610_dp, s16_b10 = 2.100230_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a11 = 0.1835200_dp, s16_b11 = 1.620280_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a12 = 0.2453470_dp, s16_b12 = 1.240770_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a13 = 0.3219940_dp, s16_b13 = 0.945350_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a14 = 0.0174978_dp, s16_b14 = 5.965260_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a15 = 0.3677700_dp, s16_b15 = 0.540682_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s16_a16 = 0.2742210_dp, s16_b16 = 0.399796_dp
+   ! S17
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_rc = 0.15_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a1 = 0.0844127_dp, s17_b1 = 3.242020_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a2 = 0.5321910_dp, s17_b2 = 0.495959_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a3 = 0.4682070_dp, s17_b3 = 0.659162_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a4 = 0.0316333_dp, s17_b4 = 4.520730_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a5 = 0.1497940_dp, s17_b5 = 1.957400_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a6 = 0.0181484_dp, s17_b6 = 5.592050_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a7 = 0.0181805_dp, s17_b7 = 5.592050_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a8 = 0.4758870_dp, s17_b8 = 0.368353_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a9 = 0.0474720_dp, s17_b9 = 4.043220_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a10 = 0.2678960_dp, s17_b10 = 1.148850_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a11 = 0.1998770_dp, s17_b11 = 1.504430_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a12 = 0.0181970_dp, s17_b12 = 5.592050_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a13 = 0.3261780_dp, s17_b13 = 0.265656_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a14 = 0.1720050_dp, s17_b14 = 0.180302_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a15 = 0.1127310_dp, s17_b15 = 2.529320_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a16 = 0.3595840_dp, s17_b16 = 0.872121_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s17_a17 = 0.0642967_dp, s17_b17 = 0.105311_dp
+   ! S18
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_rc = 0.05_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a1 = 0.1013430_dp, s18_b1 = 0.0270641_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a2 = 0.0583885_dp, s18_b2 = 4.2001100_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a3 = 1.1587600_dp, s18_b3 = 0.3072560_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a4 = 0.1255030_dp, s18_b4 = 2.3069300_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a5 = 0.0469195_dp, s18_b5 = 3.5331200_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a6 = 0.3728020_dp, s18_b6 = 0.0498868_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a7 = 0.8990960_dp, s18_b7 = 0.0785500_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a8 = 0.3146440_dp, s18_b8 = 1.0197600_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a9 = 1.5250400_dp, s18_b9 = 0.1149420_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a10 = 0.4308660_dp, s18_b10 = 0.7644820_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a11 = 0.8278010_dp, s18_b11 = 0.4197150_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a12 = 0.5947340_dp, s18_b12 = 0.5687230_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a13 = 1.5771300_dp, s18_b13 = 0.2235160_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a14 = 0.1707930_dp, s18_b14 = 1.7733300_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a15 = 1.8160800_dp, s18_b15 = 0.1616990_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a16 = 0.0857559_dp, s18_b16 = 2.9441700_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a17 = 0.2313250_dp, s18_b17 = 1.3500600_dp
+   REAL(KIND=dp), PARAMETER, PUBLIC :: s18_a18 = 0.0593302_dp, s18_b18 = 5.4023800_dp
 
 END MODULE qmmm_gaussian_data
 

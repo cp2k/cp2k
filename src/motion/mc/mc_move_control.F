@@ -1,26 +1,26 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief control the handling of the move data in Monte Carlo (MC) simulations
 !> \par History
 !>      none
 !> \author Matthew J. McGrath  (10.16.2003)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE mc_move_control
   
-  USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
-  USE mc_types,                        ONLY: get_mc_molecule_info,&
-                                             get_mc_par,&
-                                             mc_molecule_info_type,&
-                                             mc_moves_type,&
-                                             mc_simpar_type,&
-                                             set_mc_par
-  USE physcon,                         ONLY: angstrom
-  USE termination,                     ONLY: stop_memory
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
+   USE mc_types,                        ONLY: get_mc_molecule_info,&
+                                              get_mc_par,&
+                                              mc_molecule_info_type,&
+                                              mc_moves_type,&
+                                              mc_simpar_type,&
+                                              set_mc_par
+   USE physcon,                         ONLY: angstrom
+   USE termination,                     ONLY: stop_memory
 #include "../../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -37,22 +37,21 @@ MODULE mc_move_control
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief allocates and initializes the structure to record all move
 !>      attempts/successes
 !> \param moves the move structure to update
 !>
 !>    Suitable for parallel.
 !> \author MJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE init_mc_moves ( moves )
 
-    TYPE(mc_moves_type), POINTER             :: moves
+      TYPE(mc_moves_type), POINTER                       :: moves
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_mc_moves', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_mc_moves', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, stat
+      INTEGER                                            :: handle, stat
 
 ! begin the timing of the subroutine
 
@@ -185,21 +184,21 @@ CONTAINS
 
  END SUBROUTINE init_mc_moves
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief deallocates all the structures and nullifies the pointer
 !> \param moves the move structure to release
 !>
 !>    Suitable for parallel.
 !> \author MJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mc_moves_release ( moves )
 
-    TYPE(mc_moves_type), POINTER             :: moves
+      TYPE(mc_moves_type), POINTER                       :: moves
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mc_moves_release', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_moves_release', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+      INTEGER                                            :: handle
 
 ! begin the timing of the subroutine
 
@@ -235,7 +234,7 @@ CONTAINS
 
  END SUBROUTINE mc_moves_release
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief sets all qsuccess counters back to zero
 !> \param moves the move structure to update
 !> \param lbias are we biasing translations/rotations/conformational changes
@@ -243,16 +242,15 @@ CONTAINS
 !>
 !>    Suitable for parallel.
 !> \author MJM
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE move_q_reinit ( moves , lbias )
 
-    TYPE(mc_moves_type), POINTER             :: moves
-    LOGICAL, INTENT(IN)                      :: lbias
+      TYPE(mc_moves_type), POINTER                       :: moves
+      LOGICAL, INTENT(IN)                                :: lbias
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'move_q_reinit', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'move_q_reinit', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+      INTEGER                                            :: handle
 
 ! begin the timing of the subroutine
 
@@ -281,7 +279,7 @@ SUBROUTINE move_q_reinit ( moves , lbias )
 
  END SUBROUTINE move_q_reinit
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief updates accepted moves in the given structure...assumes you've been
 !>      recording all successful moves in "qsuccesses"...this was done to
 !>      compensate for doing multiple inner moves between Quickstep moves
@@ -291,16 +289,15 @@ SUBROUTINE move_q_reinit ( moves , lbias )
 !>
 !>    Suitable for parallel.
 !> \author MJM
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE q_move_accept(moves,lbias)
 
-    TYPE(mc_moves_type), POINTER             :: moves
-    LOGICAL, INTENT(IN)                      :: lbias
+      TYPE(mc_moves_type), POINTER                       :: moves
+      LOGICAL, INTENT(IN)                                :: lbias
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'q_move_accept', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'q_move_accept', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+      INTEGER                                            :: handle
 
 ! begin the timing of the subroutine
 
@@ -351,7 +348,7 @@ SUBROUTINE q_move_accept(moves,lbias)
 
  END SUBROUTINE q_move_accept
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief writes the number of accepted and attempted moves to a file for
 !>      the various move types
 !> \param moves the structure containing the move data
@@ -360,16 +357,16 @@ SUBROUTINE q_move_accept(moves,lbias)
 !>
 !>    Use only in serial.
 !> \author MJM
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE write_move_stats(moves,nnstep,unit)
 
-    TYPE(mc_moves_type), POINTER             :: moves
-    INTEGER, INTENT(IN)                      :: nnstep, unit
+      TYPE(mc_moves_type), POINTER                       :: moves
+      INTEGER, INTENT(IN)                                :: nnstep, unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_move_stats', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_move_stats', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+      INTEGER                                            :: handle
 
 ! begin the timing of the subroutine
 
@@ -428,7 +425,7 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 
  END SUBROUTINE write_move_stats
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief updates the maximum displacements of a Monte Carlo simulation,
 !>      based on the ratio of successful moves to attempts...tries to hit a
 !>      target of 0.5 acceptance ratio
@@ -443,25 +440,24 @@ SUBROUTINE write_move_stats(moves,nnstep,unit)
 !>
 !>    Suitable for parallel.
 !> \author MJM
-! *****************************************************************************
+! **************************************************************************************************
  SUBROUTINE mc_move_update ( mc_par,move_updates,molecule_type,flag,&
       nnstep,ionode )
 
-    TYPE(mc_simpar_type), POINTER            :: mc_par
-    TYPE(mc_moves_type), POINTER             :: move_updates
-    INTEGER, INTENT(IN)                      :: molecule_type
-    CHARACTER(LEN=*), INTENT(IN)             :: flag
-    INTEGER, INTENT(IN)                      :: nnstep
-    LOGICAL, INTENT(IN)                      :: ionode
+      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(mc_moves_type), POINTER                       :: move_updates
+      INTEGER, INTENT(IN)                                :: molecule_type
+      CHARACTER(LEN=*), INTENT(IN)                       :: flag
+      INTEGER, INTENT(IN)                                :: nnstep
+      LOGICAL, INTENT(IN)                                :: ionode
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mc_move_update', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mc_move_update', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nmol_types, rm
-    REAL(dp), DIMENSION(:), POINTER          :: rmangle, rmbond, rmdihedral, &
-                                                rmrot, rmtrans
-    REAL(KIND=dp)                            :: rmvolume, test_ratio
-    TYPE(mc_molecule_info_type), POINTER     :: mc_molecule_info
+      INTEGER                                            :: handle, nmol_types, rm
+      REAL(dp), DIMENSION(:), POINTER                    :: rmangle, rmbond, rmdihedral, rmrot, &
+                                                            rmtrans
+      REAL(KIND=dp)                                      :: rmvolume, test_ratio
+      TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
 
 ! begin the timing of the subroutine
 

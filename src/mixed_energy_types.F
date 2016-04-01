@@ -1,97 +1,96 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \author fschiff
 !> \date   11.06
-! *****************************************************************************
+! **************************************************************************************************
 MODULE mixed_energy_types
 
-  
-  USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_energy_types'
-  PRIVATE
+   PRIVATE
 
-! *****************************************************************************
-  TYPE mixed_energy_type
-     REAL ( kind = dp ) :: pot
-     REAL ( kind = dp ) :: kin
-  END TYPE mixed_energy_type
+! **************************************************************************************************
+   TYPE mixed_energy_type
+      REAL(kind=dp) :: pot
+      REAL(kind=dp) :: kin
+   END TYPE mixed_energy_type
 
-! *****************************************************************************
-  TYPE mixed_force_type
-     REAL(KIND=dp), DIMENSION(:,:), POINTER         :: forces
-  END TYPE mixed_force_type
+! **************************************************************************************************
+   TYPE mixed_force_type
+      REAL(KIND=dp), DIMENSION(:, :), POINTER         :: forces
+   END TYPE mixed_force_type
 
 ! Public data types
-  PUBLIC :: mixed_energy_type,&
-            mixed_force_type
+   PUBLIC :: mixed_energy_type, &
+             mixed_force_type
 
 ! Public subroutines
-  PUBLIC :: allocate_mixed_energy,&
-            deallocate_mixed_energy
+   PUBLIC :: allocate_mixed_energy, &
+             deallocate_mixed_energy
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Allocate and/or initialise a mixed energy data structure.
 !> \param mixed_energy ...
 !> \date    11.06
 !> \author  fschiff
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE allocate_mixed_energy(mixed_energy)
-    TYPE(mixed_energy_type), POINTER         :: mixed_energy
+! **************************************************************************************************
+   SUBROUTINE allocate_mixed_energy(mixed_energy)
+      TYPE(mixed_energy_type), POINTER                   :: mixed_energy
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mixed_energy', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_mixed_energy', &
+         routineP = moduleN//':'//routineN
 
-    IF (.NOT.ASSOCIATED(mixed_energy)) THEN
-      ALLOCATE (mixed_energy)
-    END IF
-    CALL init_mixed_energy(mixed_energy)
-  END SUBROUTINE allocate_mixed_energy
+      IF (.NOT. ASSOCIATED(mixed_energy)) THEN
+         ALLOCATE (mixed_energy)
+      END IF
+      CALL init_mixed_energy(mixed_energy)
+   END SUBROUTINE allocate_mixed_energy
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Deallocate a mixed energy data structure.
 !> \param mixed_energy ...
 !> \date    11.06
 !> \author  fschiff
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE deallocate_mixed_energy(mixed_energy)
-    TYPE(mixed_energy_type), POINTER         :: mixed_energy
+! **************************************************************************************************
+   SUBROUTINE deallocate_mixed_energy(mixed_energy)
+      TYPE(mixed_energy_type), POINTER                   :: mixed_energy
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mixed_energy', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_mixed_energy', &
+         routineP = moduleN//':'//routineN
 
-    IF (ASSOCIATED(mixed_energy)) THEN
-      DEALLOCATE (mixed_energy)
-    END IF
-  END SUBROUTINE deallocate_mixed_energy
+      IF (ASSOCIATED(mixed_energy)) THEN
+         DEALLOCATE (mixed_energy)
+      END IF
+   END SUBROUTINE deallocate_mixed_energy
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param mixed_energy ...
-! *****************************************************************************
-  SUBROUTINE init_mixed_energy(mixed_energy)
-    TYPE(mixed_energy_type), POINTER         :: mixed_energy
+! **************************************************************************************************
+   SUBROUTINE init_mixed_energy(mixed_energy)
+      TYPE(mixed_energy_type), POINTER                   :: mixed_energy
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_mixed_energy', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'init_mixed_energy', &
+         routineP = moduleN//':'//routineN
 
-    IF (ASSOCIATED(mixed_energy)) THEN
-      mixed_energy%pot = 0.0_dp
-    ELSE
-      CALL cp_abort(__LOCATION__,&
-           "The mixed_energy pointer is not associated "//&
-           "and cannot be initialised")
-    END IF
-  END SUBROUTINE init_mixed_energy
+      IF (ASSOCIATED(mixed_energy)) THEN
+         mixed_energy%pot = 0.0_dp
+      ELSE
+         CALL cp_abort(__LOCATION__, &
+                       "The mixed_energy pointer is not associated "// &
+                       "and cannot be initialised")
+      END IF
+   END SUBROUTINE init_mixed_energy
 
 END MODULE mixed_energy_types

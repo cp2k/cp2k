@@ -1,17 +1,17 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief K-points and crystal symmetry routines
 !> \author jgh
-! *****************************************************************************
+! **************************************************************************************************
 MODULE k290
   
-  USE kinds,                           ONLY: dp
-  USE mathlib,                         ONLY: invmat
-  USE string_utilities,                ONLY: xstring
+   USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: invmat
+   USE string_utilities,                ONLY: xstring
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -21,7 +21,7 @@ MODULE k290
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'k290'
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief CSM type
 !> \par   Content:
 !>       PLEVEL . Output level
@@ -40,7 +40,7 @@ MODULE k290
 !>       ORIGIN . Crystal standard origin or coordinates
 !>       R ...... List of the 3 x 3 rotation matrices
 !>
-! *****************************************************************************
+! **************************************************************************************************
   TYPE csym_type
       INTEGER                                     :: plevel
       INTEGER                                     :: istriz = -1
@@ -110,15 +110,15 @@ MODULE k290
 !------------------------------------------------------------------------------!
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Release the CSYM type
 !> \param csym  The CSYM type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE release_csym_type(csym)
-    TYPE(csym_type), POINTER                 :: csym
+      TYPE(csym_type), POINTER                           :: csym
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'release_csym_type', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'release_csym_type', &
+         routineP = moduleN//':'//routineN
 
     CPASSERT(ASSOCIATED(csym))
 
@@ -133,7 +133,7 @@ CONTAINS
 
   END SUBROUTINE release_csym_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param csym ...
 !> \param coor ...
@@ -147,34 +147,29 @@ CONTAINS
 !> \param wkpoint ...
 !> \param xkpoint ...
 !> \param iounit ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE kp_sym_gen(csym,coor,types,hmat,nk,shift,stress,symm,delta,&
                         wkpoint,xkpoint,iounit)
-    TYPE(csym_type), POINTER                 :: csym
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(IN)                             :: coor
-    INTEGER, DIMENSION(:), INTENT(IN)        :: types
-    REAL(KIND=dp), INTENT(IN)                :: hmat(3,3)
-    INTEGER, INTENT(IN), OPTIONAL            :: nk(3)
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: shift(3), stress(3,3)
-    LOGICAL, INTENT(IN), OPTIONAL            :: symm
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: delta
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: wkpoint
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: xkpoint
-    INTEGER, INTENT(IN), OPTIONAL            :: iounit
+      TYPE(csym_type), POINTER                           :: csym
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: coor
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: types
+      REAL(KIND=dp), INTENT(IN)                          :: hmat(3,3)
+      INTEGER, INTENT(IN), OPTIONAL                      :: nk(3)
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: shift(3), stress(3,3)
+      LOGICAL, INTENT(IN), OPTIONAL                      :: symm
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: delta
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: wkpoint
+      REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: xkpoint
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'kp_sym_gen', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'kp_sym_gen', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ik, isum, n, nat, &
-                                                nhash, nkk, nkpts, nsp
-    INTEGER, ALLOCATABLE                     :: f0(:,:), includ(:), isc(:), &
-                                                list(:), lrot(:,:), lwght(:)
-    REAL(KIND=dp)                            :: wsum
-    REAL(KIND=dp), ALLOCATABLE               :: rlist(:,:), rx(:,:), &
-                                                tvec(:,:), wvkl(:,:)
+      INTEGER                                            :: handle, ik, isum, n, nat, nhash, nkk, &
+                                                            nkpts, nsp
+      INTEGER, ALLOCATABLE                               :: f0(:,:), includ(:), isc(:), list(:), &
+                                                            lrot(:,:), lwght(:)
+      REAL(KIND=dp)                                      :: wsum
+      REAL(KIND=dp), ALLOCATABLE                         :: rlist(:,:), rx(:,:), tvec(:,:), wvkl(:,:)
 
     CALL timeset(routineN,handle)
 
@@ -284,19 +279,18 @@ CONTAINS
 
   END SUBROUTINE kp_sym_gen
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param csym ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE print_crys_symmetry(csym)
-    TYPE(csym_type), POINTER                 :: csym
+      TYPE(csym_type), POINTER                           :: csym
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'print_crys_symmetry', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'print_crys_symmetry', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, indpg, j, k, l, n, plevel, &
-                                                unit
-    REAL(KIND=dp)                            :: vs, vv0(3)
+      INTEGER                                            :: i, indpg, j, k, l, n, plevel, unit
+      REAL(KIND=dp)                                      :: vs, vv0(3)
 
     unit = csym%punit
     IF(unit < 0) RETURN
@@ -390,7 +384,7 @@ CONTAINS
 
   END SUBROUTINE print_crys_symmetry
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iout ...
 !> \param nat ...
@@ -490,36 +484,30 @@ CONTAINS
 !>      (GROUP1, PGL1, ATFTM1, ROT1 FROM THE
 !>       "COMPUTER PHYSICS COMMUNICATIONS" PACKAGE "ACMI" - (1971,1974)
 !>       WORLTON-WARREN).
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE k290prg(iout,nat,nkpoint,iq1,iq2,iq3,istriz,a1,a2,a3, &
        alat,strain,xkapa,rx,tvec,ty,isc,f0,ntvec,wvk0,ihg,ihc,isy,li,nc,indpg,ib,v,r,&
        xb,origin,wvkl,lwght,lrot,nhash,includ,list,rlist,delta)
-    INTEGER                                  :: iout, nat, nkpoint, iq1, iq2, &
-                                                iq3, istriz
-    REAL(KIND=dp)                            :: a1(3), a2(3), a3(3), alat, &
-                                                strain(6), xkapa(3,nat), &
-                                                rx(3,nat), tvec(3,nat)
-    INTEGER                                  :: ty(nat), isc(nat), &
-                                                f0(49,nat), ntvec
-    REAL(KIND=dp)                            :: wvk0(3)
-    INTEGER                                  :: ihg, ihc, isy, li, nc, indpg, &
-                                                ib(48)
-    REAL(KIND=dp)                            :: v(3,48), r(3,3,48), xb(3), &
-                                                origin(3), wvkl(3,nkpoint)
-    INTEGER                                  :: lwght(nkpoint), &
-                                                lrot(48,nkpoint), nhash, &
-                                                includ(nkpoint), &
-                                                list(nkpoint+nhash)
-    REAL(KIND=dp)                            :: rlist(3,nkpoint), delta
+      INTEGER                                            :: iout, nat, nkpoint, iq1, iq2, iq3, istriz
+      REAL(KIND=dp)                                      :: a1(3), a2(3), a3(3), alat, strain(6), &
+                                                            xkapa(3,nat), rx(3,nat), tvec(3,nat)
+      INTEGER                                            :: ty(nat), isc(nat), f0(49,nat), ntvec
+      REAL(KIND=dp)                                      :: wvk0(3)
+      INTEGER                                            :: ihg, ihc, isy, li, nc, indpg, ib(48)
+      REAL(KIND=dp)                                      :: v(3,48), r(3,3,48), xb(3), origin(3), &
+                                                            wvkl(3,nkpoint)
+      INTEGER                                            :: lwght(nkpoint), lrot(48,nkpoint), nhash, &
+                                                            includ(nkpoint), list(nkpoint+nhash)
+      REAL(KIND=dp)                                      :: rlist(3,nkpoint), delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'k290prg', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'k290prg', routineP = moduleN//':'//routineN
 
-    INTEGER :: f00(49,1), i, ib0(48), ihc0, ihg0, indpg0, invadd, istrin, &
-      iswght, isy0, j, l, li0, lmax, n, nc0, ntot, ntvec0
-    REAL(KIND=dp) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), &
-      b2(3), b3(3), dtotstr, origin0(3), proj1, proj2, proj3, r0(3,3,48), &
-      totstr, tvec0(3,1), v0(3,48), volum, x0(3,1), xb0(3)
+      INTEGER                                            :: f00(49,1), i, ib0(48), ihc0, ihg0, &
+                                                            indpg0, invadd, istrin, iswght, isy0, &
+                                                            j, l, li0, lmax, n, nc0, ntot, ntvec0
+      REAL(KIND=dp) :: a01(3), a02(3), a03(3), b01(3), b02(3), b03(3), b1(3), b2(3), b3(3), &
+         dtotstr, origin0(3), proj1, proj2, proj3, r0(3,3,48), totstr, tvec0(3,1), v0(3,48), &
+         volum, x0(3,1), xb0(3)
 
     v(:,:) = 0.0_dp
     f00 = 0
@@ -703,7 +691,7 @@ CONTAINS
     END IF
   END SUBROUTINE k290prg
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param a1 ...
 !> \param a2 ...
@@ -833,28 +821,25 @@ CONTAINS
 !>       CRYSTAL, INDICATES WHETHER THE SPACE GROUP IS SYMMORPHIC OR
 !>       NONSYMMORPHIC AND WHETHER THE POINT GROUP OF THE CRYSTAL
 !>       CONTAINS INVERSION.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE group1(a1,a2,a3,nat,ty,x,b1,b2,b3,ihg,ihc,isy,li,nc, &
        indpg,ib,ntvec,v,f0,xb,r,tvec,origin,rx,isc,delta)
-    REAL(KIND=dp)                            :: a1(3), a2(3), a3(3)
-    INTEGER                                  :: nat, ty(nat)
-    REAL(KIND=dp)                            :: x(3,nat), b1(3), b2(3), b3(3)
-    INTEGER                                  :: ihg, ihc, isy, li, nc, indpg, &
-                                                ib(48), ntvec
-    REAL(KIND=dp)                            :: v(3,48)
-    INTEGER                                  :: f0(49,nat)
-    REAL(KIND=dp)                            :: xb(3), r(3,3,48), &
-                                                tvec(3,nat), origin(3), &
-                                                rx(3,nat)
-    INTEGER                                  :: isc(nat)
-    REAL(KIND=dp)                            :: delta
+      REAL(KIND=dp)                                      :: a1(3), a2(3), a3(3)
+      INTEGER                                            :: nat, ty(nat)
+      REAL(KIND=dp)                                      :: x(3,nat), b1(3), b2(3), b3(3)
+      INTEGER                                            :: ihg, ihc, isy, li, nc, indpg, ib(48), &
+                                                            ntvec
+      REAL(KIND=dp)                                      :: v(3,48)
+      INTEGER                                            :: f0(49,nat)
+      REAL(KIND=dp)                                      :: xb(3), r(3,3,48), tvec(3,nat), &
+                                                            origin(3), rx(3,nat)
+      INTEGER                                            :: isc(nat)
+      REAL(KIND=dp)                                      :: delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'group1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'group1', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ncprim
-    REAL(KIND=dp)                            :: a(3,3), ai(3,3), ap(3,3), &
-                                                api(3,3)
+      INTEGER                                            :: i, ncprim
+      REAL(KIND=dp)                                      :: a(3,3), ai(3,3), ap(3,3), api(3,3)
 
     DO i = 1, 3
        a(i,1) = a1(i)
@@ -904,7 +889,7 @@ CONTAINS
     !------------------------------------------------------------------------------!
   END SUBROUTINE group1
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief CALCULATE RECIPROCAL VECTOR BASIS (AI(1:3,1:3))
 !> \param a ...
 !> \param ai ...
@@ -915,15 +900,14 @@ CONTAINS
 !>                THE DIRECT LATTICE
 !>             OUTPUT:
 !>              AI(3,3) RECIPROCAL VECTOR BASIS
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE calbrec(a,ai)
-    REAL(KIND=dp)                            :: a(3,3), ai(3,3)
+      REAL(KIND=dp)                                      :: a(3,3), ai(3,3)
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calbrec', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calbrec', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, il, iu, j, jl, ju
-    REAL(KIND=dp)                            :: det
+      INTEGER                                            :: i, il, iu, j, jl, ju
+      REAL(KIND=dp)                                      :: det
 
     det = a(1,1)*a(2,2)*a(3,3) + a(2,1)*a(1,3)*a(3,2) + &
          a(3,1)*a(1,2)*a(2,3) - a(1,1)*a(2,3)*a(3,2) - a(2,1)*a(1,2)*a(3,3) - &
@@ -945,7 +929,7 @@ CONTAINS
     END DO
   END SUBROUTINE calbrec
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief DETERMINATION OF THE TRANSLATION VECTORS ASSOCIATED WITH
 !>        THE IDENTITY SYMMETRY I.E. IF THE CELL IS DUPLICATED
 !>        GIVE ALSO THE PRIMITIVE DIRECT AND RECIPROCAL LATTICE VECTOR
@@ -981,23 +965,21 @@ CONTAINS
 !>          F0(49,NAT)    GIVES INEQUIVALENT ATOM FOR EACH ATOM
 !>                        THE 49-TH LINE
 !>          ISC(NAT)      SCRATCH ARRAY
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE primlatt(a,ai,ap,api,nat,ty,x,ntvec,tvec,f0,isc,delta)
-    REAL(KIND=dp)                            :: a(3,3), ai(3,3), ap(3,3), &
-                                                api(3,3)
-    INTEGER                                  :: nat, ty(nat)
-    REAL(KIND=dp)                            :: x(3,nat)
-    INTEGER                                  :: ntvec
-    REAL(KIND=dp)                            :: tvec(3,nat)
-    INTEGER                                  :: f0(49,nat), isc(nat)
-    REAL(KIND=dp)                            :: delta
+      REAL(KIND=dp)                                      :: a(3,3), ai(3,3), ap(3,3), api(3,3)
+      INTEGER                                            :: nat, ty(nat)
+      REAL(KIND=dp)                                      :: x(3,nat)
+      INTEGER                                            :: ntvec
+      REAL(KIND=dp)                                      :: tvec(3,nat)
+      INTEGER                                            :: f0(49,nat), isc(nat)
+      REAL(KIND=dp)                                      :: delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'primlatt', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'primlatt', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, il, iv, j, k2
-    LOGICAL                                  :: oksym
-    REAL(KIND=dp)                            :: vr(3), xb(3)
+      INTEGER                                            :: i, il, iv, j, k2
+      LOGICAL                                            :: oksym
+      REAL(KIND=dp)                                      :: vr(3), xb(3)
 
     ntvec = 1
     tvec(1,1) = 0.0_dp
@@ -1073,7 +1055,7 @@ CONTAINS
     END IF
   END SUBROUTINE primlatt
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param a ...
 !> \param ai ...
@@ -1119,17 +1101,16 @@ CONTAINS
 !>                  (XYZ REPRESENTATION OF THE O(H) OR D(6)H GROUPS)
 !>                  ALL 48 OR 24 MATRICES ARE LISTED.
 !>                  FOLLOW NOTATION OF WORLTON-WARREN(1972)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE pgl1(a,ai,ihc,nc,ib,ihg,r,delta)
-    REAL(KIND=dp)                            :: a(3,3), ai(3,3)
-    INTEGER                                  :: ihc, nc, ib(48), ihg
-    REAL(KIND=dp)                            :: r(3,3,48), delta
+      REAL(KIND=dp)                                      :: a(3,3), ai(3,3)
+      INTEGER                                            :: ihc, nc, ib(48), ihg
+      REAL(KIND=dp)                                      :: r(3,3,48), delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'pgl1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'pgl1', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, lx, n, nr
-    REAL(KIND=dp)                            :: tr, vr(3), xa(3)
+      INTEGER                                            :: i, j, k, lx, n, nr
+      REAL(KIND=dp)                                      :: tr, vr(3), xa(3)
 
     DO ihc = 0, 1
        !       IHC is 0 for hexagonal groups and 1 for cubic groups.
@@ -1182,7 +1163,7 @@ CONTAINS
     END DO
   END SUBROUTINE pgl1
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ai ...
 !> \param xb ...
@@ -1209,18 +1190,17 @@ CONTAINS
 !>               AND BETWEEN -1/2 AND 1/2
 !>            IL ABS OF VR
 !>         K.K., 23.10.1979
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rlv3(ai,xb,vr,il,delta)
 
-    REAL(KIND=dp)                            :: ai(3,3), xb(3), vr(3)
-    INTEGER                                  :: il
-    REAL(KIND=dp)                            :: delta
+      REAL(KIND=dp)                                      :: ai(3,3), xb(3), vr(3)
+      INTEGER                                            :: il
+      REAL(KIND=dp)                                      :: delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rlv3', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rlv3', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j
-    REAL(KIND=dp)                            :: ts
+      INTEGER                                            :: i, j
+      REAL(KIND=dp)                                      :: ts
 
     il = 0
     DO i = 1, 3
@@ -1240,7 +1220,7 @@ CONTAINS
     END DO
   END SUBROUTINE rlv3
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param r ...
 !> \param v ...
@@ -1312,28 +1292,25 @@ CONTAINS
 !>                  LI=0    : does not contain inversion
 !>                  LI.GT.0 : there is inversion in the point
 !>                            group of the crystal
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE atftm1(r,v,x,f0,xb,origin,ib,ty,nat,ihg,rx,nc,indpg,ntvec, &
        a,ai,li,isy,isc,delta)
-    REAL(KIND=dp)                            :: r(3,3,48), v(3,48), xb(3), &
-                                                origin(3)
-    INTEGER                                  :: ib(48), nat, ty(nat), &
-                                                f0(49,nat)
-    REAL(KIND=dp)                            :: x(3,nat)
-    INTEGER                                  :: ihg
-    REAL(KIND=dp)                            :: rx(3,nat)
-    INTEGER                                  :: nc, indpg, ntvec
-    REAL(KIND=dp)                            :: a(3,3), ai(3,3)
-    INTEGER                                  :: li, isy, isc(nat)
-    REAL(KIND=dp)                            :: delta
+      REAL(KIND=dp)                                      :: r(3,3,48), v(3,48), xb(3), origin(3)
+      INTEGER                                            :: ib(48), nat, ty(nat), f0(49,nat)
+      REAL(KIND=dp)                                      :: x(3,nat)
+      INTEGER                                            :: ihg
+      REAL(KIND=dp)                                      :: rx(3,nat)
+      INTEGER                                            :: nc, indpg, ntvec
+      REAL(KIND=dp)                                      :: a(3,3), ai(3,3)
+      INTEGER                                            :: li, isy, isc(nat)
+      REAL(KIND=dp)                                      :: delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'atftm1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'atftm1', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iis(48), il, info, j, k, &
-                                                k2, l, n, nca, ni
-    LOGICAL                                  :: nodupli, oksym
-    REAL(KIND=dp)                            :: vc(3,48), vr(3), vs
+      INTEGER                                            :: i, iis(48), il, info, j, k, k2, l, n, &
+                                                            nca, ni
+      LOGICAL                                            :: nodupli, oksym
+      REAL(KIND=dp)                                      :: vc(3,48), vr(3), vs
 
     nodupli = ntvec == 1
     nca = 0
@@ -1697,7 +1674,7 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE atftm1
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param nat ...
@@ -1738,22 +1715,21 @@ CONTAINS
 !>                          USED TO SPEED UP THE ROUTINE
 !>                          EACH ATOM IS ONLY ONCE AN IMAGE
 !>                          IF NO DUPLICATION OF THE CELL
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE checkrlv3(n,nat,ty,rx,x,vr,f0,ai,isc,nodupli,oksym,delta)
 
-    INTEGER                                  :: n, nat, ty(nat)
-    REAL(KIND=dp)                            :: rx(3,nat), x(3,nat), vr(3)
-    INTEGER                                  :: f0(49,nat)
-    REAL(KIND=dp)                            :: ai(3,3)
-    INTEGER                                  :: isc(nat)
-    LOGICAL                                  :: nodupli, oksym
-    REAL(KIND=dp)                            :: delta
+      INTEGER                                            :: n, nat, ty(nat)
+      REAL(KIND=dp)                                      :: rx(3,nat), x(3,nat), vr(3)
+      INTEGER                                            :: f0(49,nat)
+      REAL(KIND=dp)                                      :: ai(3,3)
+      INTEGER                                            :: isc(nat)
+      LOGICAL                                            :: nodupli, oksym
+      REAL(KIND=dp)                                      :: delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'checkrlv3', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'checkrlv3', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ia, ib, il
-    REAL(KIND=dp)                            :: vt(3), xb(3)
+      INTEGER                                            :: ia, ib, il
+      REAL(KIND=dp)                                      :: vt(3), xb(3)
 
     DO ia = 1, nat
        isc(ia) = 0
@@ -1783,7 +1759,7 @@ CONTAINS
        RETURN
     END DO ialoop
   END SUBROUTINE checkrlv3
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param nc ...
 !> \param ib ...
@@ -1817,21 +1793,18 @@ CONTAINS
 !>           INFO = 1 The group is symmorphic
 !>           INFO = 0 The group is not symmorphic
 !>           INFO =-1 The routine cannot determine
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE symmorphic(nc,ib,r,v,ai,info,origin,delta)
-    INTEGER                                  :: nc, ib(nc)
-    REAL(KIND=dp)                            :: r(3,3,48), v(3,nc), ai(3,3)
-    INTEGER                                  :: info
-    REAL(KIND=dp)                            :: origin(3), delta
+      INTEGER                                            :: nc, ib(nc)
+      REAL(KIND=dp)                                      :: r(3,3,48), v(3,nc), ai(3,3)
+      INTEGER                                            :: info
+      REAL(KIND=dp)                                      :: origin(3), delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'symmorphic', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'symmorphic', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, ierror, igood(3), il, &
-                                                imissing2, imissing3, iok(3), &
-                                                ionly, ir, j, j1
-    REAL(KIND=dp)                            :: diag, dif, r2(2,2), r3(3,3), &
-                                                vr(3), xb(3)
+      INTEGER                                            :: i, i1, ierror, igood(3), il, imissing2, &
+                                                            imissing3, iok(3), ionly, ir, j, j1
+      REAL(KIND=dp)                                      :: diag, dif, r2(2,2), r3(3,3), vr(3), xb(3)
 
     DO i = 1, 3
        iok(i) = 0
@@ -1974,7 +1947,7 @@ CONTAINS
     END DO
   END SUBROUTINE symmorphic
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ihc ...
 !> \param r ...
@@ -2001,16 +1974,15 @@ CONTAINS
 !>                   THE FULL HEXAGONAL GROUP D(6H)
 !>         FOR IHC=1 THE FIRST 48 MATRICES OF THE ARRAY R REPRESENT
 !>                   THE FULL CUBIC GROUP O(H)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rot1(ihc,r)
-    INTEGER                                  :: ihc
-    REAL(KIND=dp)                            :: r(3,3,48)
+      INTEGER                                            :: ihc
+      REAL(KIND=dp)                                      :: r(3,3,48)
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rot1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'rot1', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j, k, n, nv
-    REAL(KIND=dp)                            :: c, s
+      INTEGER                                            :: i, j, k, n, nv
+      REAL(KIND=dp)                                      :: c, s
 
 !     Variables
 !------------------------------------------------------------------------------!
@@ -2135,7 +2107,7 @@ CONTAINS
        END DO
     END IF
   END SUBROUTINE rot1
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iout ...
 !> \param iq1 ...
@@ -2293,34 +2265,32 @@ CONTAINS
 !>          IBSET(I,POS) sets the bit POS to 1 in I integer
 !>          IBCLR(I,POS) clears the bit POS to 1 in I integer
 !>          BTEST(I,POS) .TRUE. if bit POS is 1 in I integer
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE sppt2(iout,iq1,iq2,iq3,wvk0,nkpoint,a1,a2,a3,b1,b2,b3,inv,nc, &
        ib,r,ntot,wvkl,lwght,lrot,ncbrav,ibrav,istriz,nhash,includ,list, &
        rlist,delta)
-    INTEGER                                  :: iout, iq1, iq2, iq3
-    REAL(KIND=dp)                            :: wvk0(3)
-    INTEGER                                  :: nkpoint
-    REAL(KIND=dp)                            :: a1(3), a2(3), a3(3), b1(3), &
-                                                b2(3), b3(3)
-    INTEGER                                  :: inv, nc, ib(48)
-    REAL(KIND=dp)                            :: r(3,3,48)
-    INTEGER                                  :: ntot
-    REAL(KIND=dp)                            :: wvkl(3,nkpoint)
-    INTEGER :: lwght(nkpoint), lrot(48,nkpoint), ncbrav, ibrav(48), istriz, &
-      nhash, includ(nkpoint), list(nkpoint+nhash)
-    REAL(KIND=dp)                            :: rlist(3,nkpoint), delta
+      INTEGER                                            :: iout, iq1, iq2, iq3
+      REAL(KIND=dp)                                      :: wvk0(3)
+      INTEGER                                            :: nkpoint
+      REAL(KIND=dp)                                      :: a1(3), a2(3), a3(3), b1(3), b2(3), b3(3)
+      INTEGER                                            :: inv, nc, ib(48)
+      REAL(KIND=dp)                                      :: r(3,3,48)
+      INTEGER                                            :: ntot
+      REAL(KIND=dp)                                      :: wvkl(3,nkpoint)
+      INTEGER                                            :: lwght(nkpoint), lrot(48,nkpoint), &
+                                                            ncbrav, ibrav(48), istriz, nhash, &
+                                                            includ(nkpoint), list(nkpoint+nhash)
+      REAL(KIND=dp)                                      :: rlist(3,nkpoint), delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'sppt2', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: no = 0, nrsdir = 100
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'sppt2', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: no = 0, nrsdir = 100
 
-    INTEGER                                  :: i, i1, i2, i3, ibsign, &
-                                                igarb0, igarbage, igarbg, &
-                                                imesh, iop, iplace, iremov, &
-                                                iwvk, j, jplace, k, n, nplane
-    REAL(KIND=dp)                            :: diff, proja(3), projb(3), &
-                                                rsdir(4,nrsdir), ur1, ur2, &
-                                                ur3, wva(3), wvk(3)
+      INTEGER                                            :: i, i1, i2, i3, ibsign, igarb0, igarbage, &
+                                                            igarbg, imesh, iop, iplace, iremov, &
+                                                            iwvk, j, jplace, k, n, nplane
+      REAL(KIND=dp)                                      :: diff, proja(3), projb(3), &
+                                                            rsdir(4,nrsdir), ur1, ur2, ur3, &
+                                                            wva(3), wvk(3)
 
 !------------------------------------------------------------------------------!
 
@@ -2583,7 +2553,7 @@ CONTAINS
          ' BY ROTATION NO. ', ib(n), ' IS NOT IN THE LIST'
     CPABORT("")
   END SUBROUTINE sppt2
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iout ...
 !> \param wvk ...
@@ -2610,24 +2580,22 @@ CONTAINS
 !>                    ON OUTPUT: THE POSITION ASSIGNED TO WVK
 !>                               (=0 IF WVK IS NOT IN THE LIST)
 !>         DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mesh(iout,wvk,iplace,igarb0,igarbg,nmesh,nhash,list,rlist, &
        delta)
 
-    INTEGER                                  :: iout
-    REAL(KIND=dp)                            :: wvk(3)
-    INTEGER                                  :: iplace, igarb0, igarbg, &
-                                                nmesh, nhash, &
-                                                list(nhash+nmesh)
-    REAL(KIND=dp)                            :: rlist(3,nmesh), delta
+      INTEGER                                            :: iout
+      REAL(KIND=dp)                                      :: wvk(3)
+      INTEGER                                            :: iplace, igarb0, igarbg, nmesh, nhash, &
+                                                            list(nhash+nmesh)
+      REAL(KIND=dp)                                      :: rlist(3,nmesh), delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'mesh', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nil = 0
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'mesh', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: nil = 0
 
-    INTEGER                                  :: i, ihash, ipoint, j
-    INTEGER, SAVE                            :: istore = 0
-    REAL(KIND=dp)                            :: delta1, rhash
+      INTEGER                                            :: i, ihash, ipoint, j
+      INTEGER, SAVE                                      :: istore = 0
+      REAL(KIND=dp)                                      :: delta1, rhash
 
     delta1 = 10.0_dp*delta
     IF (iplace<=-2) THEN
@@ -2718,7 +2686,7 @@ CONTAINS
     END DO
   END SUBROUTINE mesh
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param wvk ...
 !> \param iplace ...
@@ -2739,22 +2707,20 @@ CONTAINS
 !>           IPLACE ..... 1 IF WVK WAS REMOVED
 !>                        0 IF WVK WAS NOT REMOVED
 !>                          (WVK NOT IN THE LINKED LISTS)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE remove(wvk,iplace,igarb0,igarbg,nmesh,nhash,list,rlist,delta)
 
-    REAL(KIND=dp)                            :: wvk(3)
-    INTEGER                                  :: iplace, igarb0, igarbg, &
-                                                nmesh, nhash, &
-                                                list(nhash+nmesh)
-    REAL(KIND=dp)                            :: rlist(3,nmesh), delta
+      REAL(KIND=dp)                                      :: wvk(3)
+      INTEGER                                            :: iplace, igarb0, igarbg, nmesh, nhash, &
+                                                            list(nhash+nmesh)
+      REAL(KIND=dp)                                      :: rlist(3,nmesh), delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'remove', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nil = 0
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'remove', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: nil = 0
 
-    INTEGER                                  :: i, ihash, ipoint, j
-    LOGICAL                                  :: lskip
-    REAL(KIND=dp)                            :: delta1, rhash
+      INTEGER                                            :: i, ihash, ipoint, j
+      LOGICAL                                            :: lskip
+      REAL(KIND=dp)                                      :: delta1, rhash
 
     delta1 = 10.0_dp*delta
     !     The particular hash function used in this case:
@@ -2801,7 +2767,7 @@ CONTAINS
     CPABORT("")
   END SUBROUTINE remove
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param wvk ...
 !> \param iplace ...
@@ -2821,19 +2787,18 @@ CONTAINS
 !>         OUTPUT:
 !>           IPLACE  ..... I > 0 IS THE PLACE IN THE GARBAGE LIST
 !>                             0 IF WVK NOT AMONG THE GARBAGE
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE garbag(wvk,iplace,igarb0,nmesh,nhash,list,rlist,delta)
-    REAL(KIND=dp)                            :: wvk(3)
-    INTEGER                                  :: iplace, igarb0, nmesh, nhash, &
-                                                list(nhash+nmesh)
-    REAL(KIND=dp)                            :: rlist(3,nmesh), delta
+      REAL(KIND=dp)                                      :: wvk(3)
+      INTEGER                                            :: iplace, igarb0, nmesh, nhash, &
+                                                            list(nhash+nmesh)
+      REAL(KIND=dp)                                      :: rlist(3,nmesh), delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'garbag', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nil = 0
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'garbag', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: nil = 0
 
-    INTEGER                                  :: i, ihash, ipoint, j
-    REAL(KIND=dp)                            :: delta1
+      INTEGER                                            :: i, ihash, ipoint, j
+      REAL(KIND=dp)                                      :: delta1
 
     delta1 = 10.0_dp*delta
     !     Search for WVK in linked list
@@ -2864,7 +2829,7 @@ CONTAINS
     CPABORT("")
   END SUBROUTINE garbag
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param wvk ...
 !> \param a1 ...
@@ -2881,24 +2846,21 @@ CONTAINS
 !>         REDUCE WVK TO LIE ENTIRELY WITHIN THE 1ST BRILLOUIN ZONE
 !>         BY ADDING B-VECTORS
 !>         DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE bzrduc(wvk,a1,a2,a3,b1,b2,b3,rsdir,nrsdir,nplane,delta)
-    REAL(KIND=dp)                            :: wvk(3), a1(3), a2(3), a3(3), &
-                                                b1(3), b2(3), b3(3)
-    INTEGER                                  :: nrsdir
-    REAL(KIND=dp)                            :: rsdir(4,nrsdir)
-    INTEGER                                  :: nplane
-    REAL(KIND=dp)                            :: delta
+      REAL(KIND=dp)                                      :: wvk(3), a1(3), a2(3), a3(3), b1(3), &
+                                                            b2(3), b3(3)
+      INTEGER                                            :: nrsdir
+      REAL(KIND=dp)                                      :: rsdir(4,nrsdir)
+      INTEGER                                            :: nplane
+      REAL(KIND=dp)                                      :: delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'bzrduc', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nzones = 4, &
-                                                nnn = 2*nzones + 1, &
-                                                nn = nzones + 1, yes = 1
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'bzrduc', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: nzones = 4, nnn = 2*nzones + 1, &
+                                                            nn = nzones + 1, yes = 1
 
-    INTEGER                                  :: i, i1, i2, i3, n1, n2, n3, &
-                                                nn1, nn2, nn3
-    REAL(KIND=dp)                            :: wb(3), wva(3)
+      INTEGER                                            :: i, i1, i2, i3, n1, n2, n3, nn1, nn2, nn3
+      REAL(KIND=dp)                                      :: wb(3), wva(3)
 
     IF (inbz(wvk,rsdir,nrsdir,nplane,delta)==yes) RETURN
     !------------------------------------------------------------------------------!
@@ -2944,7 +2906,7 @@ CONTAINS
     CPABORT("")
 
   END SUBROUTINE bzrduc
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param wvk ...
 !> \param rsdir ...
@@ -2957,19 +2919,19 @@ CONTAINS
 !>         CHECK WHETHER WVK LIES INSIDE ALL THE PLANES
 !>         THAT DEFINE THE 1BZ.
 !>         DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION inbz(wvk,rsdir,nrsdir,nplane,delta)
-    REAL(KIND=dp)                            :: wvk(3)
-    INTEGER                                  :: nrsdir
-    REAL(KIND=dp)                            :: rsdir(4,nrsdir)
-    INTEGER                                  :: nplane
-    REAL(KIND=dp)                            :: delta
-    INTEGER                                  :: inbz
+      REAL(KIND=dp)                                      :: wvk(3)
+      INTEGER                                            :: nrsdir
+      REAL(KIND=dp)                                      :: rsdir(4,nrsdir)
+      INTEGER                                            :: nplane
+      REAL(KIND=dp)                                      :: delta
+      INTEGER                                            :: inbz
 
-    INTEGER, PARAMETER                       :: no = 0, yes = 1
+      INTEGER, PARAMETER                                 :: no = 0, yes = 1
 
-    INTEGER                                  :: n
-    REAL(KIND=dp)                            :: projct
+      INTEGER                                            :: n
+      REAL(KIND=dp)                                      :: projct
 
 !------------------------------------------------------------------------------!
 
@@ -2983,7 +2945,7 @@ CONTAINS
     inbz = yes
   END FUNCTION inbz
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iout ...
 !> \param b1 ...
@@ -3005,23 +2967,21 @@ CONTAINS
 !>         THE RESULTING VECTORS ARE NOT CLEANED TO AVOID REDUNDANT
 !>         PLANES.
 !>         DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE bzdefi(iout,b1,b2,b3,rsdir,nrsdir,nplane,delta)
-    INTEGER                                  :: iout
-    REAL(KIND=dp)                            :: b1(3), b2(3), b3(3)
-    INTEGER                                  :: nrsdir
-    REAL(KIND=dp)                            :: rsdir(4,nrsdir)
-    INTEGER                                  :: nplane
-    REAL(KIND=dp)                            :: delta
+      INTEGER                                            :: iout
+      REAL(KIND=dp)                                      :: b1(3), b2(3), b3(3)
+      INTEGER                                            :: nrsdir
+      REAL(KIND=dp)                                      :: rsdir(4,nrsdir)
+      INTEGER                                            :: nplane
+      REAL(KIND=dp)                                      :: delta
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'bzdefi', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'bzdefi', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, i1, i2, i3, j, n, n1, n2, &
-                                                n3, nb1, nb2, nb3, nnb1, &
-                                                nnb2, nnb3
-    REAL(KIND=dp)                            :: b1len, b2len, b3len, bmax, &
-                                                bvec(3), projct
+      INTEGER                                            :: i, i1, i2, i3, j, n, n1, n2, n3, nb1, &
+                                                            nb2, nb3, nnb1, nnb2, nnb3
+      REAL(KIND=dp)                                      :: b1len, b2len, b3len, bmax, bvec(3), &
+                                                            projct
 
 !------------------------------------------------------------------------------!
 

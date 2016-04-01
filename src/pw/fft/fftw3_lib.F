@@ -1,7 +1,7 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 #define XFFTW_PLAN_WITH_NTHREADS dfftw_plan_with_nthreads
 #define XFFTW_PLAN_DFT_3D dfftw_plan_dft_3d
 #define XFFTW_PLAN_GURU_DFT dfftw_plan_guru_dft
@@ -10,13 +10,13 @@
 
 MODULE fftw3_lib
 
-  USE ISO_C_BINDING,                   ONLY: C_CHAR,&
-                                             C_INT,&
-                                             C_INTPTR_T
-  USE cp_files,                        ONLY: get_unit_number
-  USE fft_kinds,                       ONLY: dp,&
-                                             integer8_kind
-  USE fft_plan,                        ONLY: fft_plan_type
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_INT,&
+                                              C_INTPTR_T
+   USE cp_files,                        ONLY: get_unit_number
+   USE fft_kinds,                       ONLY: dp,&
+                                              integer8_kind
+   USE fft_plan,                        ONLY: fft_plan_type
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -37,11 +37,11 @@ MODULE fftw3_lib
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param wisdom_file ...
 !> \param ionode ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_do_cleanup(wisdom_file,ionode)
 
     CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
@@ -69,10 +69,10 @@ SUBROUTINE fftw3_do_cleanup(wisdom_file,ionode)
 
 END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param wisdom_file ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_do_init(wisdom_file)
 
     CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
@@ -148,7 +148,7 @@ SUBROUTINE fftw3_do_init(wisdom_file)
 
 END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param DATA ...
 !> \param max_length ...
@@ -161,16 +161,18 @@ END SUBROUTINE
 !>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
 !>      IAB 11-Sep-2012 : OpenMP parallel 3D FFT (Ruyman Reyes, PRACE)
 !> \author JGH
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 
 
-    INTEGER, DIMENSION(*)                    :: DATA
-    INTEGER, INTENT(INOUT)                   :: max_length
+      INTEGER, DIMENSION(*)                              :: DATA
+      INTEGER, INTENT(INOUT)                             :: max_length
 
-    INTEGER :: h, i, j, k, m, maxn, maxn_elevens, maxn_fives, maxn_sevens, &
-      maxn_thirteens, maxn_threes, maxn_twos, ndata, nmax, number
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: dlocal, idx
+      INTEGER                                            :: h, i, j, k, m, maxn, maxn_elevens, &
+                                                            maxn_fives, maxn_sevens, &
+                                                            maxn_thirteens, maxn_threes, &
+                                                            maxn_twos, ndata, nmax, number
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dlocal, idx
 
 !------------------------------------------------------------------------------
 ! compute ndata
@@ -241,23 +243,22 @@ SUBROUTINE fftw3_get_lengths ( DATA, max_length )
 END SUBROUTINE fftw3_get_lengths
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iarr ...
 !> \param n ...
 !> \param index ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE sortint ( iarr, n, index )
 
-    INTEGER, INTENT(IN)                      :: n
-    INTEGER, INTENT(INOUT)                   :: iarr(1:n)
-    INTEGER, INTENT(OUT)                     :: INDEX(1:n)
+      INTEGER, INTENT(IN)                                :: n
+      INTEGER, INTENT(INOUT)                             :: iarr(1:n)
+      INTEGER, INTENT(OUT)                               :: INDEX(1:n)
 
-    INTEGER, PARAMETER                       :: m = 7, nstack = 50
+      INTEGER, PARAMETER                                 :: m = 7, nstack = 50
 
-    INTEGER                                  :: a, i, ib, ir, &
-                                                istack(1:nstack), itemp, j, &
-                                                jstack, k, l, temp
+      INTEGER                                            :: a, i, ib, ir, istack(1:nstack), itemp, &
+                                                            j, jstack, k, l, temp
 
 !------------------------------------------------------------------------------
 
@@ -359,9 +360,9 @@ SUBROUTINE sortint ( iarr, n, index )
 
 END SUBROUTINE sortint
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
 !> \param fft_rank ...
@@ -377,7 +378,7 @@ END SUBROUTINE sortint
 !> \param fft_direction ...
 !> \param fftw_plan_type ...
 !> \param valid ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
                                   dim_istride, dim_ostride, hm_rank, &
                                   hm_n, hm_istride, hm_ostride, &
@@ -429,12 +430,12 @@ SUBROUTINE fftw3_create_guru_plan(plan, fft_rank, dim_n, &
 
 END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \retval is_mkl ...
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION fftw3_is_mkl_wrapper() RESULT(is_mkl)
 
   IMPLICIT NONE
@@ -479,9 +480,9 @@ FUNCTION fftw3_is_mkl_wrapper() RESULT(is_mkl)
 
 END FUNCTION
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param nrows ...
 !> \param nt ...
@@ -489,14 +490,13 @@ END FUNCTION
 !> \param rows_per_thread_r ...
 !> \param th_planA ...
 !> \param th_planB ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,&
                                      th_planA, th_planB)
 
-    INTEGER, INTENT(IN)                      :: nrows, nt
-    INTEGER, INTENT(OUT)                     :: rows_per_thread, &
-                                                rows_per_thread_r, th_planA, &
-                                                th_planB
+      INTEGER, INTENT(IN)                                :: nrows, nt
+      INTEGER, INTENT(OUT)                               :: rows_per_thread, rows_per_thread_r, &
+                                                            th_planA, th_planB
 
          IF (MOD(nrows,nt) .EQ. 0) THEN
             rows_per_thread = nrows/nt
@@ -513,9 +513,9 @@ SUBROUTINE fftw3_compute_rows_per_th(nrows,nt,rows_per_thread,rows_per_thread_r,
 END SUBROUTINE
 
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
 !> \param plan_r ...
@@ -531,7 +531,7 @@ END SUBROUTINE
 !> \param fftw_plan_type ...
 !> \param rows_per_th ...
 !> \param rows_per_th_r ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, &
                                  hm_n, hm_istride, hm_ostride, &
                                  input, output, &
@@ -539,17 +539,15 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
                                  rows_per_th_r) 
 
 
-    INTEGER(KIND=integer8_kind), &
-      INTENT(INOUT)                          :: plan, plan_r
-    INTEGER, INTENT(INOUT)                   :: dim_n(2), dim_istride(2), &
-                                                dim_ostride(2), hm_n(2), &
-                                                hm_istride(2), hm_ostride(2)
-    COMPLEX(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: input, output
-    INTEGER, INTENT(INOUT)                   :: fft_direction, fftw_plan_type
-    INTEGER, INTENT(IN)                      :: rows_per_th, rows_per_th_r
+      INTEGER(KIND=integer8_kind), INTENT(INOUT)         :: plan, plan_r
+      INTEGER, INTENT(INOUT)                             :: dim_n(2), dim_istride(2), &
+                                                            dim_ostride(2), hm_n(2), &
+                                                            hm_istride(2), hm_ostride(2)
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: input, output
+      INTEGER, INTENT(INOUT)                             :: fft_direction, fftw_plan_type
+      INTEGER, INTENT(IN)                                :: rows_per_th, rows_per_th_r
 
-    LOGICAL                                  :: valid
+      LOGICAL                                            :: valid
 
 ! First plans will have an additional row
 
@@ -578,15 +576,15 @@ SUBROUTINE fftw3_create_3d_plans(plan, plan_r, dim_n, dim_istride, dim_ostride, 
 
 END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
 !> \param plan_style ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 
   TYPE(fft_plan_type), INTENT ( INOUT )              :: plan
@@ -637,7 +635,7 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
  
 
   nt = 1
-!$OMP PARALLEL DEFAULT(none) shared(nt)
+!$OMP PARALLEL DEFAULT(NONE) SHARED(nt)
 !$OMP MASTER
 !$ nt = omp_get_num_threads()
 !$OMP END MASTER
@@ -761,9 +759,9 @@ SUBROUTINE fftw3_create_plan_3d(plan, zin, zout, plan_style)
 END SUBROUTINE fftw3_create_plan_3d
 
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
 !> \param plan_r ...
@@ -774,7 +772,7 @@ END SUBROUTINE fftw3_create_plan_3d
 !> \param istride ...
 !> \param output ...
 !> \param ostride ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_workshare_execute_dft(plan, plan_r, split_dim, nt, tid, &
                                        input, istride, output, ostride)
 
@@ -833,16 +831,16 @@ SUBROUTINE fftw3_workshare_execute_dft(plan, plan_r, split_dim, nt, tid, &
 END SUBROUTINE
 
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
 !> \param scale ...
 !> \param zin ...
 !> \param zout ...
 !> \param stat ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
 
   TYPE(fft_plan_type), INTENT(IN)                      :: plan
@@ -901,7 +899,7 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
                                         xout, n2*n3, tmp1, n2*n3)        
       !$OMP BARRIER
 
-      !$OMP DO collapse(3) 
+      !$OMP DO COLLAPSE(3) 
       DO i = 1,n1
         DO j = 1,n2
           DO k = 1,n3
@@ -931,15 +929,15 @@ SUBROUTINE fftw33d ( plan, scale, zin, zout, stat )
 
 END SUBROUTINE fftw33d
 
-! *****************************************************************************
+! **************************************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
 !> \param plan_style ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
 
   IMPLICIT NONE
@@ -971,12 +969,12 @@ SUBROUTINE fftw3_create_plan_1dm(plan, zin, zout, plan_style)
 #endif
 num_threads = 1
 plan%separated_plans = .FALSE.
-!$omp parallel default(none), &
-!$omp          shared(num_threads)
+!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP          SHARED(NUM_THREADS)
 !$OMP MASTER
 !$ num_threads = omp_get_num_threads()
 !$OMP END MASTER
-!$omp end parallel
+!$OMP END PARALLEL
 
 num_rows = plan%m / num_threads
 !$   plan%num_threads_needed = num_threads
@@ -1033,10 +1031,10 @@ num_rows = plan%m / num_threads
 
 END SUBROUTINE fftw3_create_plan_1dm
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw3_destroy_plan ( plan )
 
   TYPE(fft_plan_type), INTENT (INOUT)   :: plan
@@ -1065,37 +1063,36 @@ SUBROUTINE fftw3_destroy_plan ( plan )
 
 END SUBROUTINE fftw3_destroy_plan
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
 !> \param zin ...
 !> \param zout ...
 !> \param scale ...
 !> \param stat ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE fftw31dm ( plan, zin, zout, scale, stat )
-    TYPE(fft_plan_type), INTENT(IN)          :: plan
-    COMPLEX(KIND=dp), DIMENSION(*), &
-      INTENT(IN), TARGET                     :: zin
-    COMPLEX(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT), TARGET                  :: zout
-    REAL(KIND=dp), INTENT(IN)                :: scale
-    INTEGER, INTENT(OUT)                     :: stat
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN), TARGET :: zin
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zout
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      INTEGER, INTENT(OUT)                               :: stat
 
-    COMPLEX(KIND=dp), POINTER                :: zin_ptr, zout_ptr, zscal_ptr
-    INTEGER                                  :: in_offset, my_id, num_rows, &
-                                                out_offset, scal_offset
-    INTEGER(KIND=C_INTPTR_T)                 :: fftw_plan
+      COMPLEX(KIND=dp), POINTER                          :: zin_ptr, zout_ptr, zscal_ptr
+      INTEGER                                            :: in_offset, my_id, num_rows, out_offset, &
+                                                            scal_offset
+      INTEGER(KIND=C_INTPTR_T)                           :: fftw_plan
 
 !------------------------------------------------------------------------------
 
 my_id = 0
 num_rows = plan%m
 
-!$omp parallel default(none), &
-!$omp          private(my_id,num_rows,zin_ptr,zout_ptr,zscal_ptr,in_offset,out_offset,scal_offset,fftw_plan), &
-!$omp          shared(zin,zout), &
-!$omp          shared(plan,scale,stat)
+!$OMP PARALLEL DEFAULT(NONE), &
+!$OMP          PRIVATE(my_id,num_rows,zin_ptr,zout_ptr,zscal_ptr,in_offset,out_offset,scal_offset,fftw_plan), &
+!$OMP          SHARED(zin,zout), &
+!$OMP          SHARED(plan,scale,stat)
 !$ my_id = omp_get_thread_num()
 
 !$ if (my_id < plan%num_threads_needed) then
@@ -1132,7 +1129,7 @@ zscal_ptr => zout(scal_offset)
   CALL dfftw_execute_dft(fftw_plan, zin_ptr, zout_ptr)
 !$ endif
 ! all theads need to meet at this barrier
-!$omp barrier
+!$OMP BARRIER
 !$ if (my_id < plan%num_threads_needed) then
   IF ( scale /= 1.0_dp ) CALL zdscal(plan%n*num_rows,scale,zscal_ptr,1)
 !$ endif
@@ -1149,7 +1146,7 @@ zscal_ptr => zout(scal_offset)
 
 #endif
 
-!$omp end parallel
+!$OMP END PARALLEL
 
 END SUBROUTINE fftw31dm
 
@@ -1185,22 +1182,22 @@ END SUBROUTINE fftw31dm
 !
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param c ...
 !> \param iunit ...
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE fftw_write_char(c, iunit) BIND(C, name="fftw_write_char")
-    CHARACTER(KIND=C_CHAR)                   :: c
-    INTEGER(KIND=C_INT)                      :: iunit
+      CHARACTER(KIND=C_CHAR)                             :: c
+      INTEGER(KIND=C_INT)                                :: iunit
 
          WRITE(iunit,'(a)',ADVANCE="NO") c
       END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iunit ...
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE fftw_export_wisdom_to_file(iunit)
     INTEGER                                  :: iunit
 
@@ -1219,15 +1216,15 @@ END SUBROUTINE fftw31dm
 !     then the lines will be truncated and the wisdom import should
 !     simply fail.)  Ugh (and not thread safe).
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ic ...
 !> \param iunit ...
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE fftw_read_char(ic, iunit) BIND(C, name="fftw_read_char")
-    INTEGER(KIND=C_INT)                      :: ic, iunit
+      INTEGER(KIND=C_INT)                                :: ic, iunit
 
-    CHARACTER(LEN=256)                       :: buf
+      CHARACTER(LEN=256)                                 :: buf
 
          SAVE buf
          INTEGER ibuf
@@ -1247,13 +1244,13 @@ END SUBROUTINE fftw31dm
  123     FORMAT(a256)
       END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param isuccess ...
 !> \param iunit ...
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE fftw_import_wisdom_from_file(isuccess, iunit)
-    INTEGER                                  :: isuccess, iunit
+      INTEGER                                            :: isuccess, iunit
 
          isuccess=0
 #if defined ( __FFTW3 )

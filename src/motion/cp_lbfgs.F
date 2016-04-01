@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief LBFGS-B routine (version 3.0, April 25, 2011)
 !> \note
 !>      L-BFGS-B (version 3.0, April 25, 2011) converted to Fortran 90 module
@@ -12,13 +12,13 @@
 !>              the code (Teodoro Laino)
 !>      11.2012 New version 3.0 converted to Fortran 90 (Matthias Krack)
 !> \author Fawzi Mohamed (first version)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE cp_lbfgs
-  USE bibliography,                    ONLY: Byrd1995,&
-                                             cite_reference
-  USE cp_files,                        ONLY: open_file
-  USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_walltime
+   USE bibliography,                    ONLY: Byrd1995,&
+                                              cite_reference
+   USE cp_files,                        ONLY: open_file
+   USE kinds,                           ONLY: dp
+   USE machine,                         ONLY: m_walltime
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -69,7 +69,7 @@ CONTAINS
 !                        March  2011
 !
 !=======================================================================
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief          This subroutine partitions the working arrays wa and iwa, and
 !>                 then uses the limited memory BFGS method to solve the bound
 !>                 constrained optimization problem by calling mainlb.
@@ -170,29 +170,28 @@ CONTAINS
 !>                 Written by
 !>                             Ciyou Zhu
 !>                 in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE setulb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, wa, iwa,&
                        task, iprint, csave, lsave, isave, dsave, trust_radius)
 
-    INTEGER, INTENT(in)                      :: n, m
-    REAL(KIND=dp), INTENT(inout)             :: x(n)
-    REAL(KIND=dp)                            :: lower_bound(n), upper_bound(n)
-    INTEGER                                  :: nbd(n)
-    REAL(KIND=dp)                            :: f, g(n)
-    REAL(KIND=dp), INTENT(in)                :: factr, pgtol
-    REAL(KIND=dp)                            :: wa(2*m*n + 5*n + 11*m*m + 8*m)
-    INTEGER                                  :: iwa(3*n)
-    CHARACTER(LEN=60)                        :: task
-    INTEGER                                  :: iprint
-    CHARACTER(LEN=60)                        :: csave
-    LOGICAL                                  :: lsave(4)
-    INTEGER                                  :: isave(44)
-    REAL(KIND=dp)                            :: dsave(29)
-    REAL(KIND=dp), INTENT(in)                :: trust_radius
+      INTEGER, INTENT(in)                                :: n, m
+      REAL(KIND=dp), INTENT(inout)                       :: x(n)
+      REAL(KIND=dp)                                      :: lower_bound(n), upper_bound(n)
+      INTEGER                                            :: nbd(n)
+      REAL(KIND=dp)                                      :: f, g(n)
+      REAL(KIND=dp), INTENT(in)                          :: factr, pgtol
+      REAL(KIND=dp)                                      :: wa(2*m*n + 5*n + 11*m*m + 8*m)
+      INTEGER                                            :: iwa(3*n)
+      CHARACTER(LEN=60)                                  :: task
+      INTEGER                                            :: iprint
+      CHARACTER(LEN=60)                                  :: csave
+      LOGICAL                                            :: lsave(4)
+      INTEGER                                            :: isave(44)
+      REAL(KIND=dp)                                      :: dsave(29)
+      REAL(KIND=dp), INTENT(in)                          :: trust_radius
 
-    INTEGER                                  :: i, ld, lr, lsnd, lss, lsy, &
-                                                lt, lwa, lwn, lws, lwt, lwy, &
-                                                lxp, lz
+      INTEGER                                            :: i, ld, lr, lsnd, lss, lsy, lt, lwa, lwn, &
+                                                            lws, lwt, lwy, lxp, lz
 
 !     References:
 !
@@ -279,7 +278,7 @@ CONTAINS
 
       END SUBROUTINE setulb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine solves bound constrained optimization problems by
 !>               using the compact formula of the limited memory BFGS updates.
 !> \param n      n is the number of variables
@@ -373,36 +372,36 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE mainlb(n, m, x, lower_bound, upper_bound, nbd, f, g, factr, pgtol, ws, wy, &
                         sy, ss, wt, wn, snd, z, r, d, t, xp, wa,        &
                         index, iwhere, indx2, task,                     &
                         iprint, csave, lsave, isave, dsave)
-    INTEGER, INTENT(in)                      :: n, m
-    REAL(KIND=dp), INTENT(inout)             :: x(n)
-    REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
-    INTEGER                                  :: nbd(n)
-    REAL(KIND=dp) :: f, g(n), factr, pgtol, ws(n, m), wy(n, m), sy(m, m), &
-      ss(m, m), wt(m, m), wn(2*m, 2*m), snd(2*m, 2*m), z(n), r(n), d(n), &
-      t(n), xp(n), wa(8*m)
-    INTEGER                                  :: INDEX(n), iwhere(n), indx2(n)
-    CHARACTER(LEN=60)                        :: task
-    INTEGER                                  :: iprint
-    CHARACTER(LEN=60)                        :: csave
-    LOGICAL                                  :: lsave(4)
-    INTEGER                                  :: isave(23)
-    REAL(KIND=dp)                            :: dsave(29)
+      INTEGER, INTENT(in)                                :: n, m
+      REAL(KIND=dp), INTENT(inout)                       :: x(n)
+      REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
+      INTEGER                                            :: nbd(n)
+      REAL(KIND=dp) :: f, g(n), factr, pgtol, ws(n, m), wy(n, m), sy(m, m), ss(m, m), wt(m, m), &
+         wn(2*m, 2*m), snd(2*m, 2*m), z(n), r(n), d(n), t(n), xp(n), wa(8*m)
+      INTEGER                                            :: INDEX(n), iwhere(n), indx2(n)
+      CHARACTER(LEN=60)                                  :: task
+      INTEGER                                            :: iprint
+      CHARACTER(LEN=60)                                  :: csave
+      LOGICAL                                            :: lsave(4)
+      INTEGER                                            :: isave(23)
+      REAL(KIND=dp)                                      :: dsave(29)
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-    CHARACTER(LEN=3)                         :: word
-    INTEGER :: col, head, i, iback, ifun, ileave, info, itail, iter, itfile, &
-      iupdat, iword, k, nact, nenter, nfgv, nfree, nintol, nseg, nskip
-    LOGICAL                                  :: boxed, constrained, first, &
-                                                updatd, wrk, x_projected
-    REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, &
-      fold, g_inf_norm, gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, &
-      time, time1, time2, tol, xstep
+      CHARACTER(LEN=3)                                   :: word
+      INTEGER                                            :: col, head, i, iback, ifun, ileave, info, &
+                                                            itail, iter, itfile, iupdat, iword, k, &
+                                                            nact, nenter, nfgv, nfree, nintol, &
+                                                            nseg, nskip
+      LOGICAL                                            :: boxed, constrained, first, updatd, wrk, &
+                                                            x_projected
+      REAL(KIND=dp) :: cachyt, cpu1, cpu2, ddot, ddum, dnorm, dr, dtd, epsmch, fold, g_inf_norm, &
+         gd, gdold, lnscht, rr, sbtime, step_max, stp, theta, time, time1, time2, tol, xstep
 
 !     References:
 !
@@ -930,7 +929,7 @@ CONTAINS
 
       END SUBROUTINE mainlb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief This subroutine initializes iwhere and projects the initial x to the feasible set if necessary.
 !> \param n ...
 !> \param lower_bound  the lower bound on x.
@@ -951,22 +950,21 @@ CONTAINS
 !>                Written by
 !>                            Ciyou Zhu
 !>                in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE active(n, lower_bound,upper_bound, nbd, x, iwhere, iprint,                &
                         x_projected, constrained, boxed)
 
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
-    INTEGER                                  :: nbd(n)
-    REAL(KIND=dp)                            :: x(n)
-    INTEGER, INTENT(out)                     :: iwhere(n)
-    INTEGER                                  :: iprint
-    LOGICAL                                  :: x_projected, constrained, &
-                                                boxed
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
+      INTEGER                                            :: nbd(n)
+      REAL(KIND=dp)                                      :: x(n)
+      INTEGER, INTENT(out)                               :: iwhere(n)
+      INTEGER                                            :: iprint
+      LOGICAL                                            :: x_projected, constrained, boxed
 
-    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-    INTEGER                                  :: i, nbdd
+      INTEGER                                            :: i, nbdd
 
 !     ************
 !     Initialize nbdd, x_projected, constrained and boxed.
@@ -1031,7 +1029,7 @@ CONTAINS
 
       END SUBROUTINE active
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief       This subroutine computes the product of the 2m x 2m middle matrix
 !>              in the compact L-BFGS formula of B and a 2m vector v;
 !>              it returns the product in p.
@@ -1052,18 +1050,18 @@ CONTAINS
 !>              Written by
 !>                          Ciyou Zhu
 !>              in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE bmv(m, sy, wt, col, v, p, info)
 
-    INTEGER                                  :: m
-    REAL(KIND=dp)                            :: sy(m, m), wt(m, m)
-    INTEGER                                  :: col
-    REAL(KIND=dp), INTENT(in)                :: v(2*col)
-    REAL(KIND=dp), INTENT(out)               :: p(2*col)
-    INTEGER, INTENT(out)                     :: info
+      INTEGER                                            :: m
+      REAL(KIND=dp)                                      :: sy(m, m), wt(m, m)
+      INTEGER                                            :: col
+      REAL(KIND=dp), INTENT(in)                          :: v(2*col)
+      REAL(KIND=dp), INTENT(out)                         :: p(2*col)
+      INTEGER, INTENT(out)                               :: info
 
-    INTEGER                                  :: i, i2, k
-    REAL(KIND=dp)                            :: sum
+      INTEGER                                            :: i, i2, k
+      REAL(KIND=dp)                                      :: sum
 
       IF (col == 0) RETURN
 
@@ -1113,7 +1111,7 @@ CONTAINS
 
       END SUBROUTINE bmv
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        For given x, l, u, g (with g_inf_norm > 0), and a limited memory
 !>               BFGS matrix B defined in terms of matrices WY, WS, WT, and
 !>               scalars head, col, and theta, this subroutine computes the
@@ -1191,40 +1189,36 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE cauchy(n, x, lower_bound, upper_bound, nbd, g, iorder, iwhere, t, d, xcp,  &
                         m, wy, ws, sy, wt, theta, col, head, p, c, wbp, &
                         v, nseg, iprint, g_inf_norm, info, epsmch)
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(in)                :: x(n), lower_bound(n), &
-                                                upper_bound(n)
-    INTEGER, INTENT(in)                      :: nbd(n)
-    REAL(KIND=dp), INTENT(in)                :: g(n)
-    INTEGER                                  :: iorder(n)
-    INTEGER, INTENT(inout)                   :: iwhere(n)
-    REAL(KIND=dp)                            :: t(n), d(n), xcp(n)
-    INTEGER, INTENT(in)                      :: m
-    REAL(KIND=dp), INTENT(in)                :: sy(m, m), wt(m, m), theta
-    INTEGER, INTENT(in)                      :: col
-    REAL(KIND=dp), INTENT(in)                :: ws(n, col), wy(n, col)
-    INTEGER, INTENT(in)                      :: head
-    REAL(KIND=dp)                            :: p(2*m), c(2*m), wbp(2*m), &
-                                                v(2*m)
-    INTEGER                                  :: nseg, iprint
-    REAL(KIND=dp), INTENT(in)                :: g_inf_norm
-    INTEGER, INTENT(inout)                   :: info
-    REAL(KIND=dp)                            :: epsmch
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(in)                          :: x(n), lower_bound(n), upper_bound(n)
+      INTEGER, INTENT(in)                                :: nbd(n)
+      REAL(KIND=dp), INTENT(in)                          :: g(n)
+      INTEGER                                            :: iorder(n)
+      INTEGER, INTENT(inout)                             :: iwhere(n)
+      REAL(KIND=dp)                                      :: t(n), d(n), xcp(n)
+      INTEGER, INTENT(in)                                :: m
+      REAL(KIND=dp), INTENT(in)                          :: sy(m, m), wt(m, m), theta
+      INTEGER, INTENT(in)                                :: col
+      REAL(KIND=dp), INTENT(in)                          :: ws(n, col), wy(n, col)
+      INTEGER, INTENT(in)                                :: head
+      REAL(KIND=dp)                                      :: p(2*m), c(2*m), wbp(2*m), v(2*m)
+      INTEGER                                            :: nseg, iprint
+      REAL(KIND=dp), INTENT(in)                          :: g_inf_norm
+      INTEGER, INTENT(inout)                             :: info
+      REAL(KIND=dp)                                      :: epsmch
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: col2, i, ibkmin, ibp, iter, &
-                                                j, nbreak, nfree, nleft, &
-                                                pointr
-    LOGICAL                                  :: bnded, xlower, xupper
-    REAL(KIND=dp)                            :: bkmin, ddot, dibp, dibp2, dt, &
-                                                dtm, f1, f2, f2_org, neggi, &
-                                                tj, tj0, tl, tsum, tu, wmc, &
-                                                wmp, wmw, zibp
+      INTEGER                                            :: col2, i, ibkmin, ibp, iter, j, nbreak, &
+                                                            nfree, nleft, pointr
+      LOGICAL                                            :: bnded, xlower, xupper
+      REAL(KIND=dp)                                      :: bkmin, ddot, dibp, dibp2, dt, dtm, f1, &
+                                                            f2, f2_org, neggi, tj, tj0, tl, tsum, &
+                                                            tu, wmc, wmp, wmw, zibp
 
 !     References:
 !
@@ -1567,7 +1561,7 @@ CONTAINS
 
       END SUBROUTINE cauchy
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine computes r=-Z'B(xcp-xk)-Z'g by using
 !>               wa(2m+1)=W'(xcp-x) from subroutine cauchy.
 !> \param n ...
@@ -1594,23 +1588,22 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE cmprlb(n, m, x, g, ws, wy, sy, wt, z, r, wa, index,    &
                        theta, col, head, nfree, constrained, info)
 
-    INTEGER, INTENT(in)                      :: n, m
-    REAL(KIND=dp), INTENT(in)                :: x(n), g(n), ws(n, m), &
-                                                wy(n, m), sy(m, m), wt(m, m), &
-                                                z(n)
-    REAL(KIND=dp), INTENT(out)               :: r(n), wa(4*m)
-    INTEGER, INTENT(in)                      :: INDEX(n)
-    REAL(KIND=dp), INTENT(in)                :: theta
-    INTEGER, INTENT(in)                      :: col, head, nfree
-    LOGICAL, INTENT(in)                      :: constrained
-    INTEGER                                  :: info
+      INTEGER, INTENT(in)                                :: n, m
+      REAL(KIND=dp), INTENT(in)                          :: x(n), g(n), ws(n, m), wy(n, m), &
+                                                            sy(m, m), wt(m, m), z(n)
+      REAL(KIND=dp), INTENT(out)                         :: r(n), wa(4*m)
+      INTEGER, INTENT(in)                                :: INDEX(n)
+      REAL(KIND=dp), INTENT(in)                          :: theta
+      INTEGER, INTENT(in)                                :: col, head, nfree
+      LOGICAL, INTENT(in)                                :: constrained
+      INTEGER                                            :: info
 
-    INTEGER                                  :: i, j, k, pointr
-    REAL(KIND=dp)                            :: a1, a2
+      INTEGER                                            :: i, j, k, pointr
+      REAL(KIND=dp)                                      :: a1, a2
 
       IF (.NOT. constrained .AND. col > 0) THEN
          DO i = 1, n
@@ -1642,7 +1635,7 @@ CONTAINS
 
       END SUBROUTINE cmprlb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief       This subroutine checks the validity of the input data.
 !> \param n ...
 !> \param m ...
@@ -1659,19 +1652,18 @@ CONTAINS
 !>              Written by
 !>                          Ciyou Zhu
 !>              in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE errclb(n, m, factr, lower_bound, upper_bound, nbd, task, info, k)
 
-    INTEGER, INTENT(in)                      :: n, m
-    REAL(KIND=dp), INTENT(in)                :: factr, lower_bound(n), &
-                                                upper_bound(n)
-    INTEGER                                  :: nbd(n)
-    CHARACTER(LEN=60)                        :: task
-    INTEGER                                  :: info, k
+      INTEGER, INTENT(in)                                :: n, m
+      REAL(KIND=dp), INTENT(in)                          :: factr, lower_bound(n), upper_bound(n)
+      INTEGER                                            :: nbd(n)
+      CHARACTER(LEN=60)                                  :: task
+      INTEGER                                            :: info, k
 
-    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
 !     Check the input arguments for errors.
 
@@ -1702,7 +1694,7 @@ CONTAINS
 
       END SUBROUTINE errclb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine forms  the LEL^T factorization of the indefinite
 !>               matrix    K = [-D -Y'ZZ'Y/theta     L_a'-R_z'  ]
 !>                             [L_a -R_z           theta*S'AA'S ]
@@ -1748,30 +1740,27 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE formk(n, nsub, ind, nenter, ileave, indx2, iupdat,     &
                        updatd, wn, wn1, m, ws, wy, sy, theta, col,      &
                        head, info)
 
-    INTEGER, INTENT(in)                      :: n, nsub, ind(n), nenter, &
-                                                ileave, indx2(n), iupdat
-    LOGICAL                                  :: updatd
-    INTEGER, INTENT(in)                      :: m
-    REAL(KIND=dp)                            :: wn1(2*m, 2*m)
-    REAL(KIND=dp), INTENT(out)               :: wn(2*m, 2*m)
-    REAL(KIND=dp), INTENT(in)                :: ws(n, m), wy(n, m), sy(m, m), &
-                                                theta
-    INTEGER, INTENT(in)                      :: col, head
-    INTEGER, INTENT(out)                     :: info
+      INTEGER, INTENT(in)                                :: n, nsub, ind(n), nenter, ileave, &
+                                                            indx2(n), iupdat
+      LOGICAL                                            :: updatd
+      INTEGER, INTENT(in)                                :: m
+      REAL(KIND=dp)                                      :: wn1(2*m, 2*m)
+      REAL(KIND=dp), INTENT(out)                         :: wn(2*m, 2*m)
+      REAL(KIND=dp), INTENT(in)                          :: ws(n, m), wy(n, m), sy(m, m), theta
+      INTEGER, INTENT(in)                                :: col, head
+      INTEGER, INTENT(out)                               :: info
 
-    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-    INTEGER                                  :: col2, dbegin, dend, i, ipntr, &
-                                                is, is1, iy, jpntr, js, js1, &
-                                                jy, k, k1, m2, pbegin, pend, &
-                                                upcl
-    REAL(KIND=dp)                            :: ddot, temp1, temp2, temp3, &
-                                                temp4
+      INTEGER                                            :: col2, dbegin, dend, i, ipntr, is, is1, &
+                                                            iy, jpntr, js, js1, jy, k, k1, m2, &
+                                                            pbegin, pend, upcl
+      REAL(KIND=dp)                                      :: ddot, temp1, temp2, temp3, temp4
 
 !     References:
 !       [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
@@ -1971,7 +1960,7 @@ CONTAINS
 
       END SUBROUTINE formk
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief       This subroutine forms the upper half of the pos. def. and symm.
 !>              T = theta*SS + L*D^(-1)*L', stores T in the upper triangle
 !>              of the array wt, and performs the Cholesky factorization of T
@@ -1989,19 +1978,19 @@ CONTAINS
 !>              Written by
 !>                          Ciyou Zhu
 !>              in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE formt(m, wt, sy, ss, col, theta, info)
 
-    INTEGER                                  :: m
-    REAL(KIND=dp)                            :: wt(m, m), sy(m, m), ss(m, m)
-    INTEGER                                  :: col
-    REAL(KIND=dp)                            :: theta
-    INTEGER                                  :: info
+      INTEGER                                            :: m
+      REAL(KIND=dp)                                      :: wt(m, m), sy(m, m), ss(m, m)
+      INTEGER                                            :: col
+      REAL(KIND=dp)                                      :: theta
+      INTEGER                                            :: info
 
-    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-    INTEGER                                  :: i, j, k, k1
-    REAL(KIND=dp)                            :: ddum
+      INTEGER                                            :: i, j, k, k1
+      REAL(KIND=dp)                                      :: ddum
 
 !     Form the upper half of  T = theta*SS + L*D^(-1)*L',
 !        store T in the upper triangle of the array wt.
@@ -2032,7 +2021,7 @@ CONTAINS
 
       END SUBROUTINE formt
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine counts the entering and leaving variables when
 !>               iter > 0, and finds the index set of free and active variables
 !>               at the GCP.
@@ -2062,19 +2051,19 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE freev(n, nfree, index, nenter, ileave, indx2,          &
                        iwhere, wrk, updatd, constrained, iprint, iter)
 
-    INTEGER                                  :: n, nfree
-    INTEGER, INTENT(inout)                   :: INDEX(n)
-    INTEGER                                  :: nenter, ileave
-    INTEGER, INTENT(out)                     :: indx2(n)
-    INTEGER                                  :: iwhere(n)
-    LOGICAL                                  :: wrk, updatd, constrained
-    INTEGER                                  :: iprint, iter
+      INTEGER                                            :: n, nfree
+      INTEGER, INTENT(inout)                             :: INDEX(n)
+      INTEGER                                            :: nenter, ileave
+      INTEGER, INTENT(out)                               :: indx2(n)
+      INTEGER                                            :: iwhere(n)
+      LOGICAL                                            :: wrk, updatd, constrained
+      INTEGER                                            :: iprint, iter
 
-    INTEGER                                  :: i, iact, k
+      INTEGER                                            :: i, iact, k
 
       nenter = 0
       ileave = n + 1
@@ -2127,7 +2116,7 @@ CONTAINS
 
       END SUBROUTINE freev
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine sorts out the least element of t, and puts the
 !>               remaining elements of t in a heap.
 !> \param n      n is the dimension of the arrays t and iorder.
@@ -2146,15 +2135,15 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE hpsolb(n, t, iorder, iheap)
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(inout)             :: t(n)
-    INTEGER, INTENT(inout)                   :: iorder(n)
-    INTEGER, INTENT(in)                      :: iheap
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(inout)                       :: t(n)
+      INTEGER, INTENT(inout)                             :: iorder(n)
+      INTEGER, INTENT(in)                                :: iheap
 
-    INTEGER                                  :: i, indxin, indxou, j, k
-    REAL(KIND=dp)                            :: ddum, out
+      INTEGER                                            :: i, indxin, indxou, j, k
+      REAL(KIND=dp)                                      :: ddum, out
 
 !
 !     References:
@@ -2224,7 +2213,7 @@ CONTAINS
 
       END SUBROUTINE hpsolb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine calls subroutine dcsrch from the Minpack2 library
 !>               to perform the line search.  Subroutine dscrch is safeguarded so
 !>               that all trial points lie within the feasible region.
@@ -2264,31 +2253,31 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE lnsrlb(n, lower_bound, upper_bound, nbd, x, f, fold, gd, gdold, g, d, r, t,&
                         z, stp, dnorm, dtd, xstep, step_max, iter, ifun,   &
                         iback, nfgv, info, task, boxed, constrained, csave,  &
                         isave, dsave)
 
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
-    INTEGER                                  :: nbd(n)
-    REAL(KIND=dp)                            :: x(n), f, fold, gd, gdold, &
-                                                g(n), d(n), r(n), t(n), z(n), &
-                                                stp, dnorm, dtd, xstep, &
-                                                step_max
-    INTEGER                                  :: iter, ifun, iback, nfgv, info
-    CHARACTER(LEN=60)                        :: task
-    LOGICAL                                  :: boxed, constrained
-    CHARACTER(LEN=60)                        :: csave
-    INTEGER                                  :: isave(2)
-    REAL(KIND=dp)                            :: dsave(13)
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
+      INTEGER                                            :: nbd(n)
+      REAL(KIND=dp)                                      :: x(n), f, fold, gd, gdold, g(n), d(n), &
+                                                            r(n), t(n), z(n), stp, dnorm, dtd, &
+                                                            xstep, step_max
+      INTEGER                                            :: iter, ifun, iback, nfgv, info
+      CHARACTER(LEN=60)                                  :: task
+      LOGICAL                                            :: boxed, constrained
+      CHARACTER(LEN=60)                                  :: csave
+      INTEGER                                            :: isave(2)
+      REAL(KIND=dp)                                      :: dsave(13)
 
-    REAL(KIND=dp), PARAMETER :: big = 1.0E10_dp, ftol = 1.0E-3_dp, &
-      gtol = 0.9_dp, one = 1.0_dp, xtol = 0.1_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: big = 1.0E10_dp, ftol = 1.0E-3_dp, &
+                                                            gtol = 0.9_dp, one = 1.0_dp, &
+                                                            xtol = 0.1_dp, zero = 0.0_dp
 
-    INTEGER                                  :: i
-    REAL(KIND=dp)                            :: a1, a2, ddot
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: a1, a2, ddot
 
       IF (.NOT.(task(1:5) == 'FG_LN')) THEN
 
@@ -2373,7 +2362,7 @@ CONTAINS
 
       END SUBROUTINE lnsrlb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine updates matrices WS and WY, and forms the middle matrix in B.
 !> \param n ...
 !> \param m ...
@@ -2398,20 +2387,20 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE matupd(n, m, ws, wy, sy, ss, d, r, itail,              &
                         iupdat, col, head, theta, rr, dr, stp, dtd)
 
-    INTEGER                                  :: n, m
-    REAL(KIND=dp)                            :: ws(n, m), wy(n, m), sy(m, m), &
-                                                ss(m, m), d(n), r(n)
-    INTEGER                                  :: itail, iupdat, col, head
-    REAL(KIND=dp)                            :: theta, rr, dr, stp, dtd
+      INTEGER                                            :: n, m
+      REAL(KIND=dp)                                      :: ws(n, m), wy(n, m), sy(m, m), ss(m, m), &
+                                                            d(n), r(n)
+      INTEGER                                            :: itail, iupdat, col, head
+      REAL(KIND=dp)                                      :: theta, rr, dr, stp, dtd
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp
+      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp
 
-    INTEGER                                  :: j, pointr
-    REAL(KIND=dp)                            :: ddot
+      INTEGER                                            :: j, pointr
+      REAL(KIND=dp)                                      :: ddot
 
 !     ************
 !     Set pointers for matrices WS and WY.
@@ -2463,7 +2452,7 @@ CONTAINS
 
       END SUBROUTINE matupd
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine prints the input data, initial point, upper and
 !>               lower bounds of each variable, machine precision, as well as
 !>               the headings of the output.
@@ -2482,16 +2471,15 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE prn1lb(n, m, lower_bound, upper_bound, x, iprint, itfile, epsmch)
 
-    INTEGER, INTENT(in)                      :: n, m
-    REAL(KIND=dp), INTENT(in)                :: lower_bound(n), &
-                                                upper_bound(n), x(n)
-    INTEGER                                  :: iprint, itfile
-    REAL(KIND=dp)                            :: epsmch
+      INTEGER, INTENT(in)                                :: n, m
+      REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n), x(n)
+      INTEGER                                            :: iprint, itfile
+      REAL(KIND=dp)                                      :: epsmch
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
       IF (iprint >= 0) THEN
          WRITE (*,7001) epsmch
@@ -2534,7 +2522,7 @@ CONTAINS
 
       END SUBROUTINE prn1lb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine prints out new information after a successful line search.
 !> \param n ...
 !> \param x ...
@@ -2558,21 +2546,20 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE prn2lb(n, x, f, g, iprint, itfile, iter, nfgv, nact,   &
                         g_inf_norm, nseg, word, iword, iback, stp, xstep)
 
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(in)                :: x(n), f, g(n)
-    INTEGER, INTENT(in)                      :: iprint, itfile, iter, nfgv, &
-                                                nact
-    REAL(KIND=dp), INTENT(in)                :: g_inf_norm
-    INTEGER, INTENT(in)                      :: nseg
-    CHARACTER(LEN=3)                         :: word
-    INTEGER                                  :: iword, iback
-    REAL(KIND=dp)                            :: stp, xstep
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(in)                          :: x(n), f, g(n)
+      INTEGER, INTENT(in)                                :: iprint, itfile, iter, nfgv, nact
+      REAL(KIND=dp), INTENT(in)                          :: g_inf_norm
+      INTEGER, INTENT(in)                                :: nseg
+      CHARACTER(LEN=3)                                   :: word
+      INTEGER                                            :: iword, iback
+      REAL(KIND=dp)                                      :: stp, xstep
 
-    INTEGER                                  :: i, imod
+      INTEGER                                            :: i, imod
 
 !           'word' records the status of subspace solutions.
 
@@ -2611,7 +2598,7 @@ CONTAINS
 
       END SUBROUTINE prn2lb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine prints out information when either a built-in
 !>               convergence test is satisfied or when an error message is
 !>               generated.
@@ -2644,26 +2631,26 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE prn3lb(n, x, f, task, iprint, info, itfile,            &
                         iter, nfgv, nintol, nskip, nact, g_inf_norm,        &
                         time, nseg, word, iback, stp, xstep, k,         &
                         cachyt, sbtime, lnscht)
 
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(in)                :: x(n), f
-    CHARACTER(LEN=60), INTENT(in)            :: task
-    INTEGER, INTENT(in)                      :: iprint, info, itfile, iter, &
-                                                nfgv, nintol, nskip, nact
-    REAL(KIND=dp), INTENT(in)                :: g_inf_norm, time
-    INTEGER, INTENT(in)                      :: nseg
-    CHARACTER(LEN=3)                         :: word
-    INTEGER                                  :: iback
-    REAL(KIND=dp)                            :: stp, xstep
-    INTEGER                                  :: k
-    REAL(KIND=dp)                            :: cachyt, sbtime, lnscht
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(in)                          :: x(n), f
+      CHARACTER(LEN=60), INTENT(in)                      :: task
+      INTEGER, INTENT(in)                                :: iprint, info, itfile, iter, nfgv, &
+                                                            nintol, nskip, nact
+      REAL(KIND=dp), INTENT(in)                          :: g_inf_norm, time
+      INTEGER, INTENT(in)                                :: nseg
+      CHARACTER(LEN=3)                                   :: word
+      INTEGER                                            :: iback
+      REAL(KIND=dp)                                      :: stp, xstep
+      INTEGER                                            :: k
+      REAL(KIND=dp)                                      :: cachyt, sbtime, lnscht
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
       IF (iprint >= 0.AND..NOT.(task(1:5) == 'ERROR')) THEN
          WRITE(*,3003)
@@ -2757,7 +2744,7 @@ CONTAINS
 
       END SUBROUTINE prn3lb
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This subroutine computes the infinity norm of the projected  gradient.
 !> \param n ...
 !> \param lower_bound  the lower bound on x.
@@ -2772,19 +2759,19 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE projgr(n, lower_bound, upper_bound, nbd, x, g, g_inf_norm)
 
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
-    INTEGER, INTENT(in)                      :: nbd(n)
-    REAL(KIND=dp), INTENT(in)                :: x(n), g(n)
-    REAL(KIND=dp)                            :: g_inf_norm
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
+      INTEGER, INTENT(in)                                :: nbd(n)
+      REAL(KIND=dp), INTENT(in)                          :: x(n), g(n)
+      REAL(KIND=dp)                                      :: g_inf_norm
 
-    REAL(KIND=dp), PARAMETER                 :: zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: zero = 0.0_dp
 
-    INTEGER                                  :: i
-    REAL(KIND=dp)                            :: gi
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: gi
 
       g_inf_norm=zero
       DO i = 1, n
@@ -2803,7 +2790,7 @@ CONTAINS
 
       END SUBROUTINE projgr
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief        This routine contains the major changes in the updated version.
 !>               The changes are described in the accompanying paper
 !>
@@ -2907,30 +2894,27 @@ CONTAINS
 !>               Written by
 !>                           Ciyou Zhu
 !>               in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE subsm ( n, m, nsub, ind, lower_bound, upper_bound, nbd, x, d, xp, ws, wy,  &
                          theta, xx, gg,                                 &
                          col, head, iword, wv, wn, iprint, info )
-    INTEGER, INTENT(in)                      :: n, m, nsub, ind(nsub)
-    REAL(KIND=dp), INTENT(in)                :: lower_bound(n), upper_bound(n)
-    INTEGER, INTENT(in)                      :: nbd(n)
-    REAL(KIND=dp), INTENT(inout)             :: x(n), d(n)
-    REAL(KIND=dp)                            :: xp(n)
-    REAL(KIND=dp), INTENT(in)                :: ws(n, m), wy(n, m), theta, &
-                                                xx(n), gg(n)
-    INTEGER, INTENT(in)                      :: col, head
-    INTEGER, INTENT(out)                     :: iword
-    REAL(KIND=dp)                            :: wv(2*m)
-    REAL(KIND=dp), INTENT(in)                :: wn(2*m, 2*m)
-    INTEGER                                  :: iprint
-    INTEGER, INTENT(out)                     :: info
+      INTEGER, INTENT(in)                                :: n, m, nsub, ind(nsub)
+      REAL(KIND=dp), INTENT(in)                          :: lower_bound(n), upper_bound(n)
+      INTEGER, INTENT(in)                                :: nbd(n)
+      REAL(KIND=dp), INTENT(inout)                       :: x(n), d(n)
+      REAL(KIND=dp)                                      :: xp(n)
+      REAL(KIND=dp), INTENT(in)                          :: ws(n, m), wy(n, m), theta, xx(n), gg(n)
+      INTEGER, INTENT(in)                                :: col, head
+      INTEGER, INTENT(out)                               :: iword
+      REAL(KIND=dp)                                      :: wv(2*m)
+      REAL(KIND=dp), INTENT(in)                          :: wn(2*m, 2*m)
+      INTEGER                                            :: iprint
+      INTEGER, INTENT(out)                               :: info
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: col2, i, ibd, j, js, jy, k, &
-                                                m2, pointr
-    REAL(KIND=dp)                            :: alpha, dd_p, dk, temp1, &
-                                                temp2, xk
+      INTEGER                                            :: col2, i, ibd, j, js, jy, k, m2, pointr
+      REAL(KIND=dp)                                      :: alpha, dd_p, dk, temp1, temp2, xk
 
 !     References:
 !
@@ -3097,7 +3081,7 @@ CONTAINS
 
       END SUBROUTINE subsm
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief         This subroutine finds a step that satisfies a sufficient
 !>                decrease condition and a curvature condition.
 !>
@@ -3182,27 +3166,25 @@ CONTAINS
 !>                variable task contains additional information.
 !> \param isave   is work array
 !> \param dsave   is a work array
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE dcsrch(f,g,stp,ftol,gtol,xtol,stpmin,stpmax,           &
                         task,isave,dsave)
-    REAL(KIND=dp)                            :: f, g
-    REAL(KIND=dp), INTENT(inout)             :: stp
-    REAL(KIND=dp)                            :: ftol, gtol, xtol, stpmin, &
-                                                stpmax
-    CHARACTER(LEN=*)                         :: task
-    INTEGER                                  :: isave(2)
-    REAL(KIND=dp)                            :: dsave(13)
+      REAL(KIND=dp)                                      :: f, g
+      REAL(KIND=dp), INTENT(inout)                       :: stp
+      REAL(KIND=dp)                                      :: ftol, gtol, xtol, stpmin, stpmax
+      CHARACTER(LEN=*)                                   :: task
+      INTEGER                                            :: isave(2)
+      REAL(KIND=dp)                                      :: dsave(13)
 
-    REAL(KIND=dp), PARAMETER                 :: p5 = 0.5_dp, p66 = 0.66_dp, &
-                                                xtrapl = 1.1_dp, &
-                                                xtrapu = 4.0_dp, zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: p5 = 0.5_dp, p66 = 0.66_dp, &
+                                                            xtrapl = 1.1_dp, xtrapu = 4.0_dp, &
+                                                            zero = 0.0_dp
 
-    INTEGER                                  :: stage
-    LOGICAL                                  :: brackt
-    REAL(KIND=dp)                            :: finit, fm, ftest, fx, fxm, &
-                                                fy, fym, ginit, gm, gtest, &
-                                                gx, gxm, gy, gym, stmax, &
-                                                stmin, stx, sty, width, width1
+      INTEGER                                            :: stage
+      LOGICAL                                            :: brackt
+      REAL(KIND=dp)                                      :: finit, fm, ftest, fx, fxm, fy, fym, &
+                                                            ginit, gm, gtest, gx, gxm, gy, gym, &
+                                                            stmax, stmin, stx, sty, width, width1
 
 !
 !     NOTE: The user must no alter work arrays between calls.
@@ -3413,7 +3395,7 @@ CONTAINS
       RETURN
       END SUBROUTINE dcsrch
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief          This subroutine computes a safeguarded step for a search
 !>                 procedure and updates an interval that contains a step that
 !>                 satisfies a sufficient decrease and a curvature condition.
@@ -3455,20 +3437,19 @@ CONTAINS
 !>                 When a minimizer is bracketed brackt is set to .true.
 !> \param stpmin   stpmin is a lower bound for the step.
 !> \param stpmax   stpmax is an upper bound for the step.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE dcstep(stx,fx,dx,sty,fy,dy,stp,fp,dp_loc,brackt,           &
                         stpmin,stpmax)
-    REAL(KIND=dp), INTENT(inout)             :: stx, fx, dx, sty, fy, dy, stp
-    REAL(KIND=dp), INTENT(in)                :: fp, dp_loc
-    LOGICAL, INTENT(inout)                   :: brackt
-    REAL(KIND=dp), INTENT(in)                :: stpmin, stpmax
+      REAL(KIND=dp), INTENT(inout)                       :: stx, fx, dx, sty, fy, dy, stp
+      REAL(KIND=dp), INTENT(in)                          :: fp, dp_loc
+      LOGICAL, INTENT(inout)                             :: brackt
+      REAL(KIND=dp), INTENT(in)                          :: stpmin, stpmax
 
-    REAL(KIND=dp), PARAMETER                 :: p66 = 0.66_dp, &
-                                                three = 3.0_dp, two = 2.0_dp, &
-                                                zero = 0.0_dp
+      REAL(KIND=dp), PARAMETER                           :: p66 = 0.66_dp, three = 3.0_dp, &
+                                                            two = 2.0_dp, zero = 0.0_dp
 
-    REAL(KIND=dp)                            :: gamma, p, q, r, s, sgnd, &
-                                                stpc, stpf, stpq, theta
+      REAL(KIND=dp)                                      :: gamma, p, q, r, s, sgnd, stpc, stpf, &
+                                                            stpq, theta
 
 !
 !     MINPACK-1 Project. June 1983
@@ -3638,7 +3619,7 @@ CONTAINS
 
 !MK LINPACK
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief         factors a double precision symmetric positive definite
 !>                matrix.
 !>
@@ -3657,15 +3638,15 @@ CONTAINS
 !> \param info    = 0  for normal return.
 !>                = k  signals an error condition.  the leading minor
 !>                     of order  k  is not positive definite.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE dpofa(a,lda,n,info)
-    INTEGER, INTENT(in)                      :: lda
-    REAL(KIND=dp)                            :: a(lda,*)
-    INTEGER, INTENT(in)                      :: n
-    INTEGER                                  :: info
+      INTEGER, INTENT(in)                                :: lda
+      REAL(KIND=dp)                                      :: a(lda,*)
+      INTEGER, INTENT(in)                                :: n
+      INTEGER                                            :: info
 
-    INTEGER                                  :: j, jm1, k
-    REAL(KIND=dp)                            :: ddot, s, t
+      INTEGER                                            :: j, jm1, k
+      REAL(KIND=dp)                                      :: ddot, s, t
 
 !
 !     linpack.  this version dated 08/14/78 .
@@ -3696,7 +3677,7 @@ CONTAINS
       RETURN
       END SUBROUTINE dpofa
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief           dtrsl solves systems of the form
 !>
 !>                  t * x = b
@@ -3725,20 +3706,19 @@ CONTAINS
 !>                  info contains zero if the system is nonsingular.
 !>                  otherwise info contains the index of
 !>                  the first zero diagonal element of t.
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE dtrsl(t,ldt,n,b,job,info)
-    INTEGER, INTENT(in)                      :: ldt
-    REAL(KIND=dp), INTENT(in)                :: t(ldt,*)
-    INTEGER, INTENT(in)                      :: n
-    REAL(KIND=dp), INTENT(inout)             :: b(*)
-    INTEGER, INTENT(in)                      :: job
-    INTEGER, INTENT(out)                     :: info
+      INTEGER, INTENT(in)                                :: ldt
+      REAL(KIND=dp), INTENT(in)                          :: t(ldt,*)
+      INTEGER, INTENT(in)                                :: n
+      REAL(KIND=dp), INTENT(inout)                       :: b(*)
+      INTEGER, INTENT(in)                                :: job
+      INTEGER, INTENT(out)                               :: info
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dtrsl', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dtrsl', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: CASE, j, jj
-    REAL(KIND=dp)                            :: ddot, temp
+      INTEGER                                            :: CASE, j, jj
+      REAL(KIND=dp)                                      :: ddot, temp
 
 !     linpack. this version dated 08/14/78 .
 !     g. w. stewart, university of maryland, argonne national lab.
@@ -3818,14 +3798,14 @@ CONTAINS
 
 !MK Timer
 
-! *****************************************************************************    
+! **************************************************************************************************    
 !> \brief This routine computes cpu time in double precision; it makes use o
 !>        the intrinsic f90 cpu_time therefore a conversion type is
 !>        needed.
 !> \param ttime ...
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE timer(ttime)
-    REAL(KIND=dp)                            :: ttime
+      REAL(KIND=dp)                                      :: ttime
 
 !
 !     REAL temp
@@ -3848,7 +3828,7 @@ CONTAINS
 
       END SUBROUTINE timer
 
-! *****************************************************************************    
+! **************************************************************************************************    
 !> \brief  Saves the lcoal variables, long term this should be replaces by a lbfgs type
 !> \param lsave    lsave is a working array
 !>                 On exit with 'task' = NEW_X, the following information is available:
@@ -3931,20 +3911,22 @@ CONTAINS
 !> \param gdold ...
 !> \param dtd ...
 !> \author Samuel Andermatt (01.15)
-! *****************************************************************************
+! **************************************************************************************************
 
       SUBROUTINE save_local(lsave,isave,dsave,x_projected,constrained,boxed,updatd,nintol,itfile,iback,nskip,head,col,itail,&
                             iter,iupdat,nseg,nfgv,info,ifun,iword,nfree,nact,ileave,nenter,theta,fold,tol,dnorm,epsmch,cpu1,&
                             cachyt,sbtime,lnscht,time1,gd,step_max,g_inf_norm,stp,gdold,dtd)
-    LOGICAL, INTENT(out)                     :: lsave(4)
-    INTEGER, INTENT(out)                     :: isave(23)
-    REAL(KIND=dp), INTENT(out)               :: dsave(29)
-    LOGICAL, INTENT(in)                      :: x_projected, constrained, &
-                                                boxed, updatd
-    INTEGER, INTENT(in) :: nintol, itfile, iback, nskip, head, col, itail, &
-      iter, iupdat, nseg, nfgv, info, ifun, iword, nfree, nact, ileave, nenter
-    REAL(KIND=dp), INTENT(in) :: theta, fold, tol, dnorm, epsmch, cpu1, &
-      cachyt, sbtime, lnscht, time1, gd, step_max, g_inf_norm, stp, gdold, dtd
+      LOGICAL, INTENT(out)                               :: lsave(4)
+      INTEGER, INTENT(out)                               :: isave(23)
+      REAL(KIND=dp), INTENT(out)                         :: dsave(29)
+      LOGICAL, INTENT(in)                                :: x_projected, constrained, boxed, updatd
+      INTEGER, INTENT(in)                                :: nintol, itfile, iback, nskip, head, col, &
+                                                            itail, iter, iupdat, nseg, nfgv, info, &
+                                                            ifun, iword, nfree, nact, ileave, &
+                                                            nenter
+      REAL(KIND=dp), INTENT(in)                          :: theta, fold, tol, dnorm, epsmch, cpu1, &
+                                                            cachyt, sbtime, lnscht, time1, gd, &
+                                                            step_max, g_inf_norm, stp, gdold, dtd
 
       lsave(1)  = x_projected
       lsave(2)  = constrained

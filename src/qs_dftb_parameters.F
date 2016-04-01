@@ -1,53 +1,53 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \author JGH (27.02.2007)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE qs_dftb_parameters
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE cp_control_types,                ONLY: dftb_control_type
-  USE cp_files,                        ONLY: close_file,&
-                                             get_unit_number,&
-                                             open_file
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                             parser_get_object
-  USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_release
-  USE external_potential_types,        ONLY: set_potential
-  USE input_constants,                 ONLY: dispersion_uff
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
-  USE mathconstants,                   ONLY: pi
-  USE message_passing,                 ONLY: mp_bcast
-  USE physcon,                         ONLY: angstrom,&
-                                             kcalmol
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
-                                             qs_dftb_pairpot_create,&
-                                             qs_dftb_pairpot_init,&
-                                             qs_dftb_pairpot_type
-  USE qs_dftb_utils,                   ONLY: allocate_dftb_atom_param,&
-                                             get_dftb_atom_param,&
-                                             set_dftb_atom_param
-  USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                             qs_kind_type,&
-                                             set_qs_kind
-  USE string_utilities,                ONLY: uppercase
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE cp_control_types,                ONLY: dftb_control_type
+   USE cp_files,                        ONLY: close_file,&
+                                              get_unit_number,&
+                                              open_file
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                              parser_get_object
+   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                              parser_create,&
+                                              parser_release
+   USE external_potential_types,        ONLY: set_potential
+   USE input_constants,                 ONLY: dispersion_uff
+   USE input_section_types,             ONLY: section_vals_type
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
+   USE mathconstants,                   ONLY: pi
+   USE message_passing,                 ONLY: mp_bcast
+   USE physcon,                         ONLY: angstrom,&
+                                              kcalmol
+   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+   USE qs_dftb_types,                   ONLY: qs_dftb_atom_type,&
+                                              qs_dftb_pairpot_create,&
+                                              qs_dftb_pairpot_init,&
+                                              qs_dftb_pairpot_type
+   USE qs_dftb_utils,                   ONLY: allocate_dftb_atom_param,&
+                                              get_dftb_atom_param,&
+                                              set_dftb_atom_param
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type,&
+                                              set_qs_kind
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -66,7 +66,7 @@ MODULE qs_dftb_parameters
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
@@ -74,45 +74,42 @@ CONTAINS
 !> \param dftb_potential ...
 !> \param subsys_section ...
 !> \param para_env ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE qs_dftb_param_init (atomic_kind_set,qs_kind_set,dftb_control,dftb_potential,&
                                  subsys_section,para_env)
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(dftb_control_type), INTENT(inout)   :: dftb_control
-    TYPE(qs_dftb_pairpot_type), &
-      DIMENSION(:, :), POINTER               :: dftb_potential
-    TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(dftb_control_type), INTENT(inout)             :: dftb_control
+      TYPE(qs_dftb_pairpot_type), DIMENSION(:, :), &
+         POINTER                                         :: dftb_potential
+      TYPE(section_vals_type), POINTER                   :: subsys_section
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_param_init', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_dftb_param_init', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2)                         :: iel, jel
-    CHARACTER(LEN=6)                         :: cspline
-    CHARACTER(LEN=default_path_length)       :: file_name
-    CHARACTER(LEN=default_path_length), &
-      ALLOCATABLE, DIMENSION(:, :)           :: sk_files
-    CHARACTER(LEN=default_string_length)     :: iname, jname, name_a, name_b, &
-                                                skfn
-    INTEGER :: ikind, isp, jkind, k, l, l1, l2, llm, lmax, lmax_a, lmax_b, &
-      lp, m, n_urpoly, ngrd, nkind, output_unit, runit, spdim, z
-    LOGICAL                                  :: at_end, found, ldum, search, &
-                                                sklist
-    REAL(dp)                                 :: da, db, dgrd, dij, energy, &
-                                                eps_disp, ra, radmax, rb, &
-                                                rcdisp, rmax6, s_cut, xij, &
-                                                zeff
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: fmat, scoeff, smat, spxr
-    REAL(dp), DIMENSION(0:3)                 :: eta, occupation, skself
-    REAL(dp), DIMENSION(10)                  :: fwork, swork, uwork
-    REAL(dp), DIMENSION(1:2)                 :: surr
-    REAL(dp), DIMENSION(1:3)                 :: srep
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(qs_dftb_atom_type), POINTER         :: dftb_atom_a, dftb_atom_b
+      CHARACTER(LEN=2)                                   :: iel, jel
+      CHARACTER(LEN=6)                                   :: cspline
+      CHARACTER(LEN=default_path_length)                 :: file_name
+      CHARACTER(LEN=default_path_length), ALLOCATABLE, &
+         DIMENSION(:, :)                                 :: sk_files
+      CHARACTER(LEN=default_string_length)               :: iname, jname, name_a, name_b, skfn
+      INTEGER                                            :: ikind, isp, jkind, k, l, l1, l2, llm, &
+                                                            lmax, lmax_a, lmax_b, lp, m, n_urpoly, &
+                                                            ngrd, nkind, output_unit, runit, &
+                                                            spdim, z
+      LOGICAL                                            :: at_end, found, ldum, search, sklist
+      REAL(dp)                                           :: da, db, dgrd, dij, energy, eps_disp, ra, &
+                                                            radmax, rb, rcdisp, rmax6, s_cut, xij, &
+                                                            zeff
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: fmat, scoeff, smat, spxr
+      REAL(dp), DIMENSION(0:3)                           :: eta, occupation, skself
+      REAL(dp), DIMENSION(10)                            :: fwork, swork, uwork
+      REAL(dp), DIMENSION(1:2)                           :: surr
+      REAL(dp), DIMENSION(1:3)                           :: srep
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(qs_dftb_atom_type), POINTER                   :: dftb_atom_a, dftb_atom_b
 
     output_unit = -1
     NULLIFY(logger)
@@ -706,7 +703,7 @@ CONTAINS
 
   END SUBROUTINE qs_dftb_param_init
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Transform Slako format in l1/l2/m format
 !> \param xmat ...
 !> \param la ...
@@ -728,13 +725,13 @@ CONTAINS
 !>         9: p - s - sigma
 !>        10: s - s - sigma
 !> \version 1.0
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE skreorder(xmat,la,lb)
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: xmat
-    INTEGER, INTENT(IN)                      :: la, lb
+      REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: xmat
+      INTEGER, INTENT(IN)                                :: la, lb
 
-    INTEGER                                  :: i, l1, l2, llm, m
-    REAL(dp)                                 :: skllm(0:3,0:3,0:3)
+      INTEGER                                            :: i, l1, l2, llm, m
+      REAL(dp)                                           :: skllm(0:3,0:3,0:3)
 
       DO i=1,SIZE(xmat,1)
         skllm = 0._dp

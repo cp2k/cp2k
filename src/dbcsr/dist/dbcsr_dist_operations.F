@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   DBCSR operations on distributions
 !> \author  Urban Borstnik
 !> \date    2010-02-18
@@ -11,56 +11,51 @@
 !>
 !> <b>Modification history:</b>
 !> - 2010-02-18 Moved from dbcsr_util
-! *****************************************************************************
+! **************************************************************************************************
 MODULE dbcsr_dist_operations
 
-  USE array_types,                     ONLY: &
-       array_data, array_equality, array_exists, array_hold, array_i1d_obj, &
-       array_new, array_nullify, array_release, array_size
-  USE dbcsr_config,                    ONLY: max_elements_per_block
-  USE dbcsr_dist_methods,              ONLY: &
-       dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
-       dbcsr_distribution_has_col_clusters, &
-       dbcsr_distribution_has_row_clusters, dbcsr_distribution_has_threads, &
-       dbcsr_distribution_hold, dbcsr_distribution_init, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_make_threads, dbcsr_distribution_mp, &
-       dbcsr_distribution_ncols, dbcsr_distribution_new, &
-       dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
-       dbcsr_distribution_num_local_col_clusters, &
-       dbcsr_distribution_num_local_row_clusters, &
-       dbcsr_distribution_processor, dbcsr_distribution_release, &
-       dbcsr_distribution_row_clusters, dbcsr_distribution_row_dist, &
-       dbcsr_distribution_thread_dist
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
-                                             dbcsr_wrong_args_error
-  USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
-                                             dbcsr_is_initialized,&
-                                             dbcsr_release_locals
-  USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mypcol,&
-                                             dbcsr_mp_myprow,&
-                                             dbcsr_mp_new_transposed,&
-                                             dbcsr_mp_npcols,&
-                                             dbcsr_mp_nprows,&
-                                             dbcsr_mp_release
-  USE dbcsr_toollib,                   ONLY: gcd,&
-                                             lcm,&
-                                             sort,&
-                                             swap
-  USE dbcsr_types,                     ONLY: &
-       dbcsr_distribution_obj, dbcsr_imagedistribution_obj, dbcsr_mp_obj, &
-       dbcsr_obj, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
-       dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
-       dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
-  USE kinds,                           ONLY: sp
-  USE min_heap,                        ONLY: heap_fill,&
-                                             heap_get_first,&
-                                             heap_new,&
-                                             heap_release,&
-                                             heap_reset_first,&
-                                             heap_t
+   USE array_types,                     ONLY: &
+        array_data, array_equality, array_exists, array_hold, array_i1d_obj, array_new, &
+        array_nullify, array_release, array_size
+   USE dbcsr_config,                    ONLY: max_elements_per_block
+   USE dbcsr_dist_methods,              ONLY: &
+        dbcsr_distribution_col_clusters, dbcsr_distribution_col_dist, &
+        dbcsr_distribution_has_col_clusters, dbcsr_distribution_has_row_clusters, &
+        dbcsr_distribution_has_threads, dbcsr_distribution_hold, dbcsr_distribution_init, &
+        dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
+        dbcsr_distribution_make_threads, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+        dbcsr_distribution_new, dbcsr_distribution_no_threads, dbcsr_distribution_nrows, &
+        dbcsr_distribution_num_local_col_clusters, dbcsr_distribution_num_local_row_clusters, &
+        dbcsr_distribution_processor, dbcsr_distribution_release, dbcsr_distribution_row_clusters, &
+        dbcsr_distribution_row_dist, dbcsr_distribution_thread_dist
+   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                              dbcsr_fatal_level,&
+                                              dbcsr_internal_error,&
+                                              dbcsr_wrong_args_error
+   USE dbcsr_methods,                   ONLY: dbcsr_distribution,&
+                                              dbcsr_is_initialized,&
+                                              dbcsr_release_locals
+   USE dbcsr_mp_methods,                ONLY: dbcsr_mp_mypcol,&
+                                              dbcsr_mp_myprow,&
+                                              dbcsr_mp_new_transposed,&
+                                              dbcsr_mp_npcols,&
+                                              dbcsr_mp_nprows,&
+                                              dbcsr_mp_release
+   USE dbcsr_toollib,                   ONLY: gcd,&
+                                              lcm,&
+                                              sort,&
+                                              swap
+   USE dbcsr_types,                     ONLY: &
+        dbcsr_distribution_obj, dbcsr_imagedistribution_obj, dbcsr_mp_obj, dbcsr_obj, &
+        dbcsr_slot_home_pcol, dbcsr_slot_home_prow, dbcsr_slot_home_vpcol, dbcsr_slot_home_vprow, &
+        dbcsr_slot_nblkcols_local, dbcsr_slot_nblkrows_local, dbcsr_type
+   USE kinds,                           ONLY: sp
+   USE min_heap,                        ONLY: heap_fill,&
+                                              heap_get_first,&
+                                              heap_new,&
+                                              heap_release,&
+                                              heap_reset_first,&
+                                              heap_t
 #include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -123,21 +118,21 @@ CONTAINS
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines whether a transpose must be applied
 !> \param[in] row   The absolute matrix row.
 !> \param[in] column          The absolute matrix column.
 !> \retval transpose ...
-! *****************************************************************************
+! **************************************************************************************************
   ELEMENTAL FUNCTION checker_tr(row, column) RESULT(transpose)
-    INTEGER, INTENT(IN)                      :: row, column
-    LOGICAL                                  :: transpose
+      INTEGER, INTENT(IN)                                :: row, column
+      LOGICAL                                            :: transpose
 
     transpose = BTEST(column+row, 0) .EQV. column.GE.row
 
   END FUNCTION checker_tr
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines the home process for a given logical matrix element.
 !> \param[in] row             logical row
 !> \param[in] col             logical column
@@ -149,13 +144,13 @@ CONTAINS
 !>       dbcsr_get_stored_coordinate without the setting the row and column
 !>       to the stored position.
 !> \note It assumes a square matrix.
-! *****************************************************************************
+! **************************************************************************************************
   PURE FUNCTION checker_square_proc(row, col, pgrid,&
        row_dist, col_dist) RESULT(process)
-    INTEGER, INTENT(IN)                      :: row, col
-    INTEGER, DIMENSION(0:, 0:), INTENT(IN)   :: pgrid
-    INTEGER, DIMENSION(:), INTENT(IN)        :: row_dist, col_dist
-    INTEGER                                  :: process
+      INTEGER, INTENT(IN)                                :: row, col
+      INTEGER, DIMENSION(0:, 0:), INTENT(IN)             :: pgrid
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: row_dist, col_dist
+      INTEGER                                            :: process
 
     IF (.NOT. checker_tr (row, col)) THEN
        process = pgrid (row_dist (row), col_dist(col))
@@ -165,7 +160,7 @@ CONTAINS
   END FUNCTION checker_square_proc
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets the correct source matrix, row, column and possible data
 !>        transposition for a given matrix and matrix logical row and
 !>        column.
@@ -175,11 +170,11 @@ CONTAINS
 !>                            column
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_stored_coordinates_type(matrix, row, column,processor)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    INTEGER, INTENT(INOUT)                   :: row, column
-    INTEGER, INTENT(OUT), OPTIONAL           :: processor
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      INTEGER, INTENT(INOUT)                             :: row, column
+      INTEGER, INTENT(OUT), OPTIONAL                     :: processor
 
 !   ---------------------------------------------------------------------------
 ! SM-compatible way
@@ -195,23 +190,23 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_stored_coordinates_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Canonical logic
 !> \param matrix ...
 !> \param row ...
 !> \param column ...
 !> \param transpose ...
 !> \param processor ...
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_stored_canonical(matrix, row, column,&
        transpose, processor)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    INTEGER, INTENT(INOUT)                   :: row, column
-    LOGICAL, INTENT(INOUT)                   :: transpose
-    INTEGER, INTENT(OUT), OPTIONAL           :: processor
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      INTEGER, INTENT(INOUT)                             :: row, column
+      LOGICAL, INTENT(INOUT)                             :: transpose
+      INTEGER, INTENT(OUT), OPTIONAL                     :: processor
 
-    INTEGER                                  :: tmp
-    LOGICAL                                  :: straight
+      INTEGER                                            :: tmp
+      LOGICAL                                            :: straight
 
 ! The old way
 !straight = matrix%transpose .OR. matrix%symmetry
@@ -232,7 +227,7 @@ CONTAINS
     END IF
   END SUBROUTINE get_stored_canonical
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets the correct source matrix, row, column and possible data
 !>        transposition for a given matrix and matrix logical row and
 !>        column.
@@ -242,14 +237,14 @@ CONTAINS
 !>                            column
 !> \param[out] processor      (optional) returns the processor on which this
 !>                            block resides
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE get_stored_coordinates_obj(matrix, row, column, processor)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER, INTENT(INOUT)                   :: row, column
-    INTEGER, INTENT(OUT), OPTIONAL           :: processor
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      INTEGER, INTENT(INOUT)                             :: row, column
+      INTEGER, INTENT(OUT), OPTIONAL                     :: processor
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_stored_coordinates_obj', &
+         routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -263,7 +258,7 @@ CONTAINS
   END SUBROUTINE get_stored_coordinates_obj
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Looks up a block's index given logical coordinates.
 !> \param[in] matrix          DBCSR matrix
 !> \param[in] row             logical row
@@ -276,15 +271,15 @@ CONTAINS
 !>                            and column
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_block_index_type(matrix, row, column, stored_row,&
        stored_column, transpose, found, block_number, data_offset)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    INTEGER, INTENT(IN)                      :: row, column
-    INTEGER, INTENT(OUT)                     :: stored_row, stored_column
-    LOGICAL, INTENT(OUT)                     :: transpose, found
-    INTEGER, INTENT(OUT)                     :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      INTEGER, INTENT(IN)                                :: row, column
+      INTEGER, INTENT(OUT)                               :: stored_row, stored_column
+      LOGICAL, INTENT(OUT)                               :: transpose, found
+      INTEGER, INTENT(OUT)                               :: block_number
+      INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
 
 !   ---------------------------------------------------------------------------
 
@@ -296,7 +291,7 @@ CONTAINS
          found, block_number, data_offset=data_offset, transposed=transpose)
   END SUBROUTINE get_block_index_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets the correct source matrix, row, column and possible data
 !>        transposition for a given matrix and matrix logical row and
 !>        column.
@@ -311,15 +306,15 @@ CONTAINS
 !>                            and column
 !> \param[out] data_offset    (optional) data offset for the block; 0 if
 !>                            nonexistent
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_block_index_obj(matrix, row, column, stored_row,&
        stored_column, transpose, found, block_number, data_offset)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER, INTENT(IN)                      :: row, column
-    INTEGER, INTENT(OUT)                     :: stored_row, stored_column
-    LOGICAL, INTENT(OUT)                     :: transpose, found
-    INTEGER, INTENT(OUT)                     :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      INTEGER, INTENT(IN)                                :: row, column
+      INTEGER, INTENT(OUT)                               :: stored_row, stored_column
+      LOGICAL, INTENT(OUT)                               :: transpose, found
+      INTEGER, INTENT(OUT)                               :: block_number
+      INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
 
 !   ---------------------------------------------------------------------------
 
@@ -333,7 +328,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_block_index_obj
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the index to a queried block, given a real (stored) row and
 !>        column
 !> \param[in] matrix          bcsr matrix
@@ -347,17 +342,17 @@ CONTAINS
 !>                            nonexistent
 !> \param[out] transposed     (optional) whether the block is stored transposed
 !>                            according to its position
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_stored_block_info_type(matrix, row, column,&
        found, block_number, data_offset, transposed)
-    TYPE(dbcsr_type), INTENT(IN)             :: matrix
-    INTEGER, INTENT(IN)                      :: row, column
-    LOGICAL, INTENT(OUT)                     :: found
-    INTEGER, INTENT(OUT)                     :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
-    LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      INTEGER, INTENT(IN)                                :: row, column
+      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER, INTENT(OUT)                               :: block_number
+      INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: transposed
 
-    INTEGER                                  :: blk_last, offset
+      INTEGER                                            :: blk_last, offset
 
 !   ---------------------------------------------------------------------------
 
@@ -393,7 +388,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_stored_block_info_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the index to a queried block, given a real (stored) row and
 !>        column
 !> \param[in] matrix          bcsr matrix
@@ -407,15 +402,15 @@ CONTAINS
 !>                            nonexistent
 !> \param[out] transposed     (optional) whether the block is stored transposed
 !>                            according to its position
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_stored_block_info_obj(matrix, row, column,&
        found, block_number, data_offset, transposed)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    INTEGER, INTENT(IN)                      :: row, column
-    LOGICAL, INTENT(OUT)                     :: found
-    INTEGER, INTENT(OUT)                     :: block_number
-    INTEGER, INTENT(OUT), OPTIONAL           :: data_offset
-    LOGICAL, INTENT(OUT), OPTIONAL           :: transposed
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      INTEGER, INTENT(IN)                                :: row, column
+      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER, INTENT(OUT)                               :: block_number
+      INTEGER, INTENT(OUT), OPTIONAL                     :: data_offset
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: transposed
 
 !   ---------------------------------------------------------------------------
 
@@ -438,17 +433,16 @@ CONTAINS
     ENDIF
   END SUBROUTINE get_stored_block_info_obj
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Transposes a distribution
 !> \param[out] dist_tr        transposed distribution
 !> \param[in] dist_normal current distribution
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_transpose_distribution(dist_tr, dist_normal)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT)                            :: dist_tr
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_normal
+      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist_tr
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist_normal
 
-    TYPE(dbcsr_mp_obj)                       :: mp_env_tr
+      TYPE(dbcsr_mp_obj)                                 :: mp_env_tr
 
 !   ---------------------------------------------------------------------------
 
@@ -464,25 +458,21 @@ CONTAINS
     CALL dbcsr_mp_release (mp_env_tr)
   END SUBROUTINE dbcsr_transpose_distribution
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Transposes a distribution but keeps the same mp_env
 !> \param[out] dist_tr        transposed distribution
 !> \param[in] dist_normal current distribution
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_transpose_dims(dist_tr, dist_normal)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT)                            :: dist_tr
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_normal
+      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist_tr
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist_normal
 
-    INTEGER                                  :: i, j, nclusters, ncols_tr, &
-                                                npcols_tr, nprows_tr, &
-                                                nrows_tr, vgcd, vlcm
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: img_data, reorder
-    INTEGER, DIMENSION(:), POINTER           :: col_dist_data_tr, &
-                                                col_img_data_tr, &
-                                                row_dist_data_tr, &
-                                                row_img_data_tr
-    TYPE(dbcsr_mp_obj)                       :: mp_env
+      INTEGER                                            :: i, j, nclusters, ncols_tr, npcols_tr, &
+                                                            nprows_tr, nrows_tr, vgcd, vlcm
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: img_data, reorder
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist_data_tr, col_img_data_tr, &
+                                                            row_dist_data_tr, row_img_data_tr
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
 
 !   ---------------------------------------------------------------------------
 
@@ -575,16 +565,16 @@ CONTAINS
   END SUBROUTINE dbcsr_transpose_dims
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Evenly distributes elements into bins
 !> \param[out] array          elements to bin
 !> \param[in] nbins           number of bins into which elemnts are distributed
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE evenly_bin (array, nbins)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: array
-    INTEGER, INTENT(IN)                      :: nbins
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: array
+      INTEGER, INTENT(IN)                                :: nbins
 
-    INTEGER                                  :: bin, first, last, maxbinsize
+      INTEGER                                            :: bin, first, last, maxbinsize
 
 !   ---------------------------------------------------------------------------
 
@@ -597,7 +587,7 @@ CONTAINS
   END SUBROUTINE evenly_bin
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Makes new distribution with decimation and multiplicity
 !> \param[out] new_bins      new real distribution
 !> \param[out] images        new image distribution
@@ -629,18 +619,18 @@ CONTAINS
 !>      Source bin elements are evenly mapped into one of multiplicity
 !>      virtual columns. Other (non-even, block-size aware) mappings
 !>      could be better.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rebin_distribution (new_bins, images, source_bins,&
        nbins, multiplicity, nimages)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_bins, images
-    INTEGER, DIMENSION(:), INTENT(IN)        :: source_bins
-    INTEGER, INTENT(IN)                      :: nbins, multiplicity, nimages
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: new_bins, images
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: source_bins
+      INTEGER, INTENT(IN)                                :: nbins, multiplicity, nimages
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rebin_distribution', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rebin_distribution', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, i, old_nbins, virtual_bin
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
+      INTEGER                                            :: bin, i, old_nbins, virtual_bin
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bin_multiplier
 
 !   ---------------------------------------------------------------------------
 
@@ -666,7 +656,7 @@ CONTAINS
     ENDDO
   END SUBROUTINE rebin_distribution
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Makes new distribution with decimation and multiplicity
 !>        Multiplicity is beeing ignored, maybe this is a bug
 !> \param[out] images        new image distribution
@@ -697,18 +687,18 @@ CONTAINS
 !>      Source bin elements are evenly mapped into one of multiplicity
 !>      virtual columns. Other (non-even, block-size aware) mappings
 !>      could be better.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE reimage_distribution (images, my_bins,&
        nbins, nimages)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: images
-    INTEGER, DIMENSION(:), INTENT(IN)        :: my_bins
-    INTEGER, INTENT(IN)                      :: nbins, nimages
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: images
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: my_bins
+      INTEGER, INTENT(IN)                                :: nbins, nimages
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'reimage_distribution', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'reimage_distribution', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_multiplier
+      INTEGER                                            :: bin, i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bin_multiplier
 
 !   ---------------------------------------------------------------------------
 
@@ -724,28 +714,25 @@ CONTAINS
     ENDDO
   END SUBROUTINE reimage_distribution
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Makes new virtual distribution of rows/columns.
 !> \param[in] nelements      number of elements
 !> \param[out] vbins         virtual bins
 !> \param[in] bins           bins to which elements belong
 !> \param[in] decimation     matching between bins
 !> \param[in] images         images to which element belong
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE make_vdistribution (nelements, vbins, bins, decimation, images)
-    INTEGER, INTENT(IN)                      :: nelements
-    INTEGER, DIMENSION(nelements), &
-      INTENT(OUT)                            :: vbins
-    INTEGER, DIMENSION(nelements), &
-      INTENT(IN)                             :: bins
-    INTEGER, INTENT(IN)                      :: decimation
-    INTEGER, DIMENSION(nelements), &
-      INTENT(IN)                             :: images
+      INTEGER, INTENT(IN)                                :: nelements
+      INTEGER, DIMENSION(nelements), INTENT(OUT)         :: vbins
+      INTEGER, DIMENSION(nelements), INTENT(IN)          :: bins
+      INTEGER, INTENT(IN)                                :: decimation
+      INTEGER, DIMENSION(nelements), INTENT(IN)          :: images
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_vdistribution', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_vdistribution', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: el
+      INTEGER                                            :: el
 
 !   ---------------------------------------------------------------------------
 
@@ -755,7 +742,7 @@ CONTAINS
   END SUBROUTINE make_vdistribution
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Makes new distribution with multiplicity
 !> \param[out] new_bins      new real distribution
 !> \param[out] images        new image distribution
@@ -786,17 +773,17 @@ CONTAINS
 !>      Source bin elements are evenly mapped into one of multiplicity
 !>      virtual columns. Other (non-even, block-size aware) mappings
 !>      could be better.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rebin_imaged_distribution (new_bins, images,&
        source_bins, source_images, nbins, multiplicity, nimages)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_bins, images
-    INTEGER, DIMENSION(:), INTENT(IN)        :: source_bins, source_images
-    INTEGER, INTENT(IN)                      :: nbins, multiplicity, nimages
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: new_bins, images
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: source_bins, source_images
+      INTEGER, INTENT(IN)                                :: nbins, multiplicity, nimages
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rebin_imaged_distribution', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rebin_imaged_distribution', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, virtual_bin
+      INTEGER                                            :: i, virtual_bin
 
 !   ---------------------------------------------------------------------------
 
@@ -816,7 +803,7 @@ CONTAINS
     ENDDO
   END SUBROUTINE rebin_imaged_distribution
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param new_bins ...
 !> \param new_images ...
@@ -825,18 +812,17 @@ CONTAINS
 !> \param nbins ...
 !> \param multiplicity ...
 !> \param nclusters ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rebin_imaged_distribution_clusters (new_bins, new_images,&
        source_bins, source_images, nbins, multiplicity, nclusters)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: new_bins, new_images
-    INTEGER, DIMENSION(:), INTENT(IN)        :: source_bins, source_images
-    INTEGER, INTENT(IN)                      :: nbins, multiplicity, nclusters
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: new_bins, new_images
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: source_bins, source_images
+      INTEGER, INTENT(IN)                                :: nbins, multiplicity, nclusters
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'rebin_imaged_distribution_clusters', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rebin_imaged_distribution_clusters', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dim, i, nimages, virtual_bin
+      INTEGER                                            :: dim, i, nimages, virtual_bin
 
 !   ---------------------------------------------------------------------------
 
@@ -858,22 +844,20 @@ CONTAINS
   END SUBROUTINE rebin_imaged_distribution_clusters
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param imgdist ...
 !> \param dist ...
 !> \param template ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_new_image_dist (imgdist, dist,&
        template)
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(OUT)                            :: imgdist
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(IN)                             :: template
+      TYPE(dbcsr_imagedistribution_obj), INTENT(OUT)     :: imgdist
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
+      TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: template
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_image_dist', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_image_dist', &
+         routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -900,7 +884,7 @@ CONTAINS
     !
   END SUBROUTINE dbcsr_new_image_dist
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates an image distribution given the other compatibility images
 !> \param[out] imgdist                  distribution repetition
 !> \param[in] dist                      distribution for which to form the
@@ -920,34 +904,28 @@ CONTAINS
 !>                                      match the local columns
 !> \param nimages_rows ...
 !> \param nimages_cols ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_create_image_dist(imgdist, dist,&
        match_row_pdist, match_row_idist, match_row_nbins,&
        match_col_pdist, match_col_idist, match_col_nbins,&
        nimages_rows, nimages_cols)
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(OUT)                            :: imgdist
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: match_row_pdist, &
-                                                match_row_idist
-    INTEGER, INTENT(IN)                      :: match_row_nbins
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: match_col_pdist, &
-                                                match_col_idist
-    INTEGER, INTENT(IN)                      :: match_col_nbins, &
-                                                nimages_rows, nimages_cols
+      TYPE(dbcsr_imagedistribution_obj), INTENT(OUT)     :: imgdist
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: match_row_pdist, match_row_idist
+      INTEGER, INTENT(IN)                                :: match_row_nbins
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: match_col_pdist, match_col_idist
+      INTEGER, INTENT(IN)                                :: match_col_nbins, nimages_rows, &
+                                                            nimages_cols
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_image_dist', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_image_dist', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ncols, npcols, nprows, nrows
-    INTEGER, DIMENSION(:), POINTER           :: col_dist_data, col_img_data, &
-                                                col_vdist, row_dist_data, &
-                                                row_img_data, row_vdist
-    LOGICAL                                  :: new_col_dist, new_row_dist
-    TYPE(dbcsr_distribution_obj)             :: new_dist
-    TYPE(dbcsr_mp_obj)                       :: mp_env
+      INTEGER                                            :: ncols, npcols, nprows, nrows
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist_data, col_img_data, col_vdist, &
+                                                            row_dist_data, row_img_data, row_vdist
+      LOGICAL                                            :: new_col_dist, new_row_dist
+      TYPE(dbcsr_distribution_obj)                       :: new_dist
+      TYPE(dbcsr_mp_obj)                                 :: mp_env
 
 !   ---------------------------------------------------------------------------
 
@@ -1118,7 +1096,7 @@ CONTAINS
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculates the intersections of blocks
 !> \param[out] ints           intersections of blocks
 !> \param[in] numints        maximum number of expected intersections 
@@ -1152,20 +1130,20 @@ CONTAINS
 !>                      skipped.
 !> \note This routine is used in the counting and sending loops in
 !>       dbcsr_complete_redistribute
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_reblocking_targets (ints, numints, n_src_dsts,&
        src_sizes, dst_sizes)
-    INTEGER, INTENT(INOUT)                   :: numints
-    INTEGER, DIMENSION(4, numints), &
-      INTENT(OUT)                            :: ints
-    INTEGER, DIMENSION(:, :), INTENT(OUT)    :: n_src_dsts
-    INTEGER, DIMENSION(:), INTENT(IN)        :: src_sizes, dst_sizes
+      INTEGER, INTENT(INOUT)                             :: numints
+      INTEGER, DIMENSION(4, numints), INTENT(OUT)        :: ints
+      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: n_src_dsts
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: src_sizes, dst_sizes
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reblocking_targets', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reblocking_targets', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: common_extent, current_dst, current_int, current_src, dst_off, &
-      n_dst, n_src, s_dst, s_src, src_off
+      INTEGER                                            :: common_extent, current_dst, current_int, &
+                                                            current_src, dst_off, n_dst, n_src, &
+                                                            s_dst, s_src, src_off
 
 !   ---------------------------------------------------------------------------
 
@@ -1231,7 +1209,7 @@ CONTAINS
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Distributes elements into blocks and into bins
 !>
 !> \param[out] block_distribution       block distribution to bins
@@ -1240,19 +1218,19 @@ CONTAINS
 !> \param[in] nbins             number of bins
 !> \par Term clarification
 !>      An example: blocks are atom blocks and bins are process rows/colums.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE create_bl_distribution (block_distribution,&
        block_size, nelements, nbins)
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      POINTER                                :: block_distribution, block_size
-    INTEGER, INTENT(IN)                      :: nelements, nbins
+      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: block_distribution, block_size
+      INTEGER, INTENT(IN)                                :: nelements, nbins
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_bl_distribution', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: bin, blk_layer, element_stack, els, estimated_blocks, &
-      max_blocks_per_bin, nblks, nblocks, stat
-    INTEGER, DIMENSION(:), POINTER           :: blk_dist, blk_sizes
+      INTEGER                                            :: bin, blk_layer, element_stack, els, &
+                                                            estimated_blocks, max_blocks_per_bin, &
+                                                            nblks, nblocks, stat
+      INTEGER, DIMENSION(:), POINTER                     :: blk_dist, blk_sizes
 
 !   ---------------------------------------------------------------------------
 
@@ -1330,7 +1308,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE create_bl_distribution
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates a new distribution for the right matrix in a matrix
 !>        multiplication with unrotated grid.
 !> \param[out] dist_right     new distribution for the right matrix
@@ -1340,24 +1318,22 @@ CONTAINS
 !> \par The new row distribution for the right matrix is the same as the row
 !>      distribution of the left matrix, while the column distribution is
 !>      created so that it is appropriate to the parallel environment.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_create_dist_r_unrot(dist_right, dist_left, ncolumns,&
        right_col_blk_sizes)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT)                            :: dist_right
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: dist_left
-    INTEGER, INTENT(IN)                      :: ncolumns
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      POINTER                                :: right_col_blk_sizes
+      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist_right
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: dist_left
+      INTEGER, INTENT(IN)                                :: ncolumns
+      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: right_col_blk_sizes
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_r_unrot', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: multiplicity, new_npcols, &
-                                                new_nprows, nimages
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: tmp_images
-    INTEGER, DIMENSION(:), POINTER           :: right_col_dist, right_row_dist
-    TYPE(dbcsr_mp_obj)                       :: right_mp_env
+      INTEGER                                            :: multiplicity, new_npcols, new_nprows, &
+                                                            nimages
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp_images
+      INTEGER, DIMENSION(:), POINTER                     :: right_col_dist, right_row_dist
+      TYPE(dbcsr_mp_obj)                                 :: right_mp_env
 
 !   ---------------------------------------------------------------------------
 
@@ -1381,7 +1357,7 @@ CONTAINS
     DEALLOCATE(tmp_images)
   END SUBROUTINE dbcsr_create_dist_r_unrot
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates a block-cyclic compatible distribution
 !>
 !>        All blocks in a dimension, except for possibly the last
@@ -1394,24 +1370,20 @@ CONTAINS
 !> \param[in] mp_env          multiprocess environment
 !> \param[out] row_blk_sizes  row block sizes
 !> \param[out] col_blk_sizes  column block sizes
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_create_dist_block_cyclic (dist, nrows, ncolumns,&
        nrow_block, ncol_block, mp_env, row_blk_sizes, col_blk_sizes)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT)                            :: dist
-    INTEGER, INTENT(IN)                      :: nrows, ncolumns, nrow_block, &
-                                                ncol_block
-    TYPE(dbcsr_mp_obj), INTENT(IN)           :: mp_env
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      POINTER                                :: row_blk_sizes, col_blk_sizes
+      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dist
+      INTEGER, INTENT(IN)                                :: nrows, ncolumns, nrow_block, ncol_block
+      TYPE(dbcsr_mp_obj), INTENT(IN)                     :: mp_env
+      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: row_blk_sizes, col_blk_sizes
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_create_dist_block_cyclic', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_create_dist_block_cyclic', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nblkcols, nblkrows, npcols, &
-                                                nprows, pdim, sz
-    INTEGER, DIMENSION(:), POINTER           :: cd_data, rd_data
+      INTEGER                                            :: nblkcols, nblkrows, npcols, nprows, &
+                                                            pdim, sz
+      INTEGER, DIMENSION(:), POINTER                     :: cd_data, rd_data
 
 !   ---------------------------------------------------------------------------
 ! Row sizes
@@ -1470,24 +1442,24 @@ CONTAINS
     !
   END SUBROUTINE dbcsr_create_dist_block_cyclic
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Matches row/block sizes and offsets to a given distribution
 !> \param old_sizes ...
 !> \param mapping ...
 !> \param nel_new ...
 !> \param new_sizes ...
 !> \note Used for making matrices dense/undense
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE make_sizes_dense (old_sizes, mapping, nel_new, new_sizes)
-    TYPE(array_i1d_obj), INTENT(IN)          :: old_sizes, mapping
-    INTEGER, INTENT(IN)                      :: nel_new
-    TYPE(array_i1d_obj), INTENT(OUT)         :: new_sizes
+      TYPE(array_i1d_obj), INTENT(IN)                    :: old_sizes, mapping
+      INTEGER, INTENT(IN)                                :: nel_new
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: new_sizes
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_sizes_dense', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: el, nel_old
-    INTEGER, DIMENSION(:), POINTER           :: map, new_s, old_s
+      INTEGER                                            :: el, nel_old
+      INTEGER, DIMENSION(:), POINTER                     :: map, new_s, old_s
 
 !   ---------------------------------------------------------------------------
 
@@ -1503,7 +1475,7 @@ CONTAINS
   END SUBROUTINE make_sizes_dense
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Makes a 1-D distribution dense.
 !> \param[in] nbins Number of bins in the main distribution
 !> \param[in] old_dist         Current distribution
@@ -1511,20 +1483,19 @@ CONTAINS
 !> \param[out] dist_map        Map from current to dense distribution
 !> \param[in] nsubdist         Number of bins in the subdistribution
 !> \param[in] subdist          Subdistribution
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_make_1dist_dense (nbins, old_dist, dense_dist, dist_map, nsubdist, subdist)
-    INTEGER, INTENT(IN)                      :: nbins
-    TYPE(array_i1d_obj), INTENT(IN)          :: old_dist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: dense_dist, dist_map
-    INTEGER, INTENT(IN)                      :: nsubdist
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: subdist
+      INTEGER, INTENT(IN)                                :: nbins
+      TYPE(array_i1d_obj), INTENT(IN)                    :: old_dist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: dense_dist, dist_map
+      INTEGER, INTENT(IN)                                :: nsubdist
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: subdist
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_1dist_dense', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_1dist_dense', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: b, i, n_new_bins
-    INTEGER, DIMENSION(:), POINTER           :: dense, map, old_d
+      INTEGER                                            :: b, i, n_new_bins
+      INTEGER, DIMENSION(:), POINTER                     :: dense, map, old_d
 
 !   ---------------------------------------------------------------------------
 
@@ -1552,7 +1523,7 @@ CONTAINS
   END SUBROUTINE dbcsr_make_1dist_dense
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Prepares distributions for making dense matrices.
 !> \param product_dist ...
 !> \param left_rdist ...
@@ -1565,34 +1536,30 @@ CONTAINS
 !> \param k_vmap ...
 !> \param n_map ...
 !> \param old_m_sizes ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_make_dists_dense (product_dist, left_rdist, right_rdist,&
        dense_product_dist, dense_left_rdist, dense_right_rdist,&
        partial,&
        m_map, k_vmap, n_map,&
        old_m_sizes)
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: product_dist
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(IN)                             :: left_rdist, right_rdist
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(OUT)                            :: dense_product_dist
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(OUT)                            :: dense_left_rdist, &
-                                                dense_right_rdist
-    LOGICAL, INTENT(IN)                      :: partial
-    TYPE(array_i1d_obj), INTENT(OUT)         :: m_map, k_vmap, n_map
-    TYPE(array_i1d_obj), INTENT(IN)          :: old_m_sizes
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: product_dist
+      TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: left_rdist, right_rdist
+      TYPE(dbcsr_distribution_obj), INTENT(OUT)          :: dense_product_dist
+      TYPE(dbcsr_imagedistribution_obj), INTENT(OUT)     :: dense_left_rdist, dense_right_rdist
+      LOGICAL, INTENT(IN)                                :: partial
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: m_map, k_vmap, n_map
+      TYPE(array_i1d_obj), INTENT(IN)                    :: old_m_sizes
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dists_dense', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dists_dense', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, i, j, k_nbins, &
-                                                m_nbins, n_nbins, nthreads
-    INTEGER, DIMENSION(:), POINTER           :: tdist
-    TYPE(array_i1d_obj) :: new_k_idist, new_k_pdist, new_k_vdist, new_m_dist, &
-      new_m_sizes, new_n_dist, old_k_vdist, old_m_dist, old_n_dist
-    TYPE(dbcsr_distribution_obj)             :: dense_left_dist, &
-                                                dense_right_dist
+      INTEGER                                            :: error_handle, i, j, k_nbins, m_nbins, &
+                                                            n_nbins, nthreads
+      INTEGER, DIMENSION(:), POINTER                     :: tdist
+      TYPE(array_i1d_obj)                                :: new_k_idist, new_k_pdist, new_k_vdist, &
+                                                            new_m_dist, new_m_sizes, new_n_dist, &
+                                                            old_k_vdist, old_m_dist, old_n_dist
+      TYPE(dbcsr_distribution_obj)                       :: dense_left_dist, dense_right_dist
 
 !   ---------------------------------------------------------------------------
 
@@ -1686,7 +1653,7 @@ CONTAINS
   END SUBROUTINE dbcsr_make_dists_dense
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Finds the block that has the given column.
 !>
 !>        If the block having the queried column is found, the blk parameter
@@ -1703,15 +1670,15 @@ CONTAINS
 !> \par Index validity
 !>      The blk_p array of block pointers is a required parameter to enable
 !>      the detection of deleted blocks.
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE dbcsr_find_column(find_col,frst_blk,last_blk,col_i,blk_p,&
        blk,found)
-    INTEGER, INTENT(IN)                      :: find_col, frst_blk, last_blk
-    INTEGER, DIMENSION(:), INTENT(IN)        :: col_i, blk_p
-    INTEGER, INTENT(OUT)                     :: blk
-    LOGICAL, INTENT(OUT)                     :: found
+      INTEGER, INTENT(IN)                                :: find_col, frst_blk, last_blk
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: col_i, blk_p
+      INTEGER, INTENT(OUT)                               :: blk
+      LOGICAL, INTENT(OUT)                               :: found
 
-    INTEGER                                  :: col, high, low
+      INTEGER                                            :: col, high, low
 
     found = .FALSE.
     low = frst_blk
@@ -1731,7 +1698,7 @@ CONTAINS
     ENDDO
   END SUBROUTINE dbcsr_find_column
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Finds the local virtual elements
 !>
 !> All elements are mapped at once.  Therefore an entry in the
@@ -1741,16 +1708,16 @@ CONTAINS
 !> \param[out] local_elements local virtual elements
 !> \param[in] bin_distribution           distribution of elements to bins
 !> \param[in] nbins                      number of bins
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE find_all_local_elements (local_elements, &
        bin_distribution, nbins)
-    INTEGER, INTENT(IN)                      :: nbins
-    INTEGER, DIMENSION(:), INTENT(IN)        :: bin_distribution
-    TYPE(array_i1d_obj), &
-      DIMENSION(0:nbins-1), INTENT(INOUT)    :: local_elements
+      INTEGER, INTENT(IN)                                :: nbins
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: bin_distribution
+      TYPE(array_i1d_obj), DIMENSION(0:nbins-1), &
+         INTENT(INOUT)                                   :: local_elements
 
-    INTEGER                                  :: bin, el
-    INTEGER, DIMENSION(0:nbins-1)            :: nlve
+      INTEGER                                            :: bin, el
+      INTEGER, DIMENSION(0:nbins-1)                      :: nlve
 
     nlve(:) = 0
     DO el = 1, SIZE (bin_distribution)
@@ -1760,7 +1727,7 @@ CONTAINS
     ENDDO
   END SUBROUTINE find_all_local_elements
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Points to local virtual elements.
 !>
 !> All elements are mapped at once.  Therefore an entry in the
@@ -1770,15 +1737,15 @@ CONTAINS
 !> \param[out] global_elements   enumerated local elements
 !> \param[in] bin_distribution           distribution of elements to bins
 !> \param[in] nbins                      number of bins
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE map_all_local_elements (global_elements, &
        bin_distribution, nbins)
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: global_elements
-    INTEGER, DIMENSION(:), INTENT(IN)        :: bin_distribution
-    INTEGER, INTENT(IN)                      :: nbins
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: global_elements
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: bin_distribution
+      INTEGER, INTENT(IN)                                :: nbins
 
-    INTEGER                                  :: bin, el
-    INTEGER, DIMENSION(0:nbins-1)            :: nlve
+      INTEGER                                            :: bin, el
+      INTEGER, DIMENSION(0:nbins-1)                      :: nlve
 
     nlve(:) = 0
     DO el = 1, SIZE (bin_distribution)
@@ -1789,24 +1756,23 @@ CONTAINS
   END SUBROUTINE map_all_local_elements
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from local to global rows
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_rows        local elements for specified row
 !> \param[in] local_prow find local elemnts for this local row
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_local_rows (dist, local_rows, local_prow)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: local_rows
-    INTEGER, INTENT(IN)                      :: local_prow
+      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: local_rows
+      INTEGER, INTENT(IN)                                :: local_prow
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_rows', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_rows', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: el, error_handle, nprows, prow
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
-    INTEGER, DIMENSION(:), POINTER           :: itmp, row_dist
+      INTEGER                                            :: el, error_handle, nprows, prow
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nle
+      INTEGER, DIMENSION(:), POINTER                     :: itmp, row_dist
 
     CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
@@ -1839,24 +1805,23 @@ CONTAINS
     CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_local_rows
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from local to global columnss
 !> \param[in] dist              mapping for this distribution
 !> \param[in] local_cols        local elements for specified column
 !> \param[in] local_pcol         find local elemnts for this local column 
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_local_cols (dist, local_cols, local_pcol)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: local_cols
-    INTEGER, INTENT(IN)                      :: local_pcol
+      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: local_cols
+      INTEGER, INTENT(IN)                                :: local_pcol
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_cols', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_cols', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: el, error_handle, npcols, pcol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
-    INTEGER, DIMENSION(:), POINTER           :: col_dist, itmp
+      INTEGER                                            :: el, error_handle, npcols, pcol
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nle
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, itmp
 
     CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
@@ -1890,21 +1855,20 @@ CONTAINS
   END SUBROUTINE dbcsr_get_local_cols
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from global to local rows
 !> \param[in] dist              mapping for this distribution
 !> \param[in] row_map           mapping to local rows
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_global_row_map (dist, row_map)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: row_map
+      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: row_map
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_row_map', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_row_map', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, nprows
-    INTEGER, DIMENSION(:), POINTER           :: rmap, row_dist
+      INTEGER                                            :: error_handle, nprows
+      INTEGER, DIMENSION(:), POINTER                     :: rmap, row_dist
 
     CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
@@ -1924,21 +1888,20 @@ CONTAINS
   END SUBROUTINE dbcsr_get_global_row_map
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from global to local columns
 !> \param[in] dist              mapping for this distribution
 !> \param[in] col_map           mapping to local columns
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_global_col_map (dist, col_map)
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: col_map
+      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: col_map
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_col_map', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_col_map', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, npcols
-    INTEGER, DIMENSION(:), POINTER           :: cmap, col_dist
+      INTEGER                                            :: error_handle, npcols
+      INTEGER, DIMENSION(:), POINTER                     :: cmap, col_dist
 
     CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
@@ -1958,16 +1921,16 @@ CONTAINS
   END SUBROUTINE dbcsr_get_global_col_map
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Resets local rows, columns to the correct arrays and values.
 !> \param matrix ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_reset_locals (matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
 
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
-    TYPE(dbcsr_distribution_obj)             :: dist
+      TYPE(dbcsr_distribution_obj)                       :: dist
 
 !   ---------------------------------------------------------------------------
 
@@ -2004,25 +1967,23 @@ CONTAINS
     !
   END SUBROUTINE dbcsr_reset_locals
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from local to global virtual process rows
 !> \param[in] imgdist           image distribution
 !> \param[out] local_vrows       local rows 
 !> \param[in] local_vprow       the local virtual process row
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_local_vrows (imgdist, local_vrows, local_vprow)
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(INOUT)                          :: imgdist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: local_vrows
-    INTEGER, INTENT(IN)                      :: local_vprow
+      TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: local_vrows
+      INTEGER, INTENT(IN)                                :: local_vprow
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vrows', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vrows', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: el, error_handle, nvprows, &
-                                                vprow
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: itmp, nle
-    INTEGER, DIMENSION(:), POINTER           :: vrow_dist
+      INTEGER                                            :: el, error_handle, nvprows, vprow
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: itmp, nle
+      INTEGER, DIMENSION(:), POINTER                     :: vrow_dist
 
     IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
@@ -2056,25 +2017,23 @@ CONTAINS
     IF (careful_mod) CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_local_vrows
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from local to global virtual process columnss
 !> \param[in] imgdist           image distribution
 !> \param[out] local_vcols       local columnss 
 !> \param[in] local_vpcol       the local virtual process column
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_local_vcols (imgdist, local_vcols, local_vpcol)
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(INOUT)                          :: imgdist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: local_vcols
-    INTEGER, INTENT(IN)                      :: local_vpcol
+      TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: local_vcols
+      INTEGER, INTENT(IN)                                :: local_vpcol
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vcols', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_local_vcols', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: el, error_handle, nvpcols, &
-                                                vpcol
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: nle
-    INTEGER, DIMENSION(:), POINTER           :: itmp, vcol_dist
+      INTEGER                                            :: el, error_handle, nvpcols, vpcol
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nle
+      INTEGER, DIMENSION(:), POINTER                     :: itmp, vcol_dist
 
     IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
@@ -2108,21 +2067,20 @@ CONTAINS
     IF (careful_mod) CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_local_vcols
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from global to virtual local rows
 !> \param[in] imgdist           mapping for this image distribution
 !> \param[in] vrow_map           mapping to local rows
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_global_vrow_map (imgdist, vrow_map)
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(INOUT)                          :: imgdist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: vrow_map
+      TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: vrow_map
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vrow_map', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vrow_map', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, nvprows
-    INTEGER, DIMENSION(:), POINTER           :: rmap, vrow_dist
+      INTEGER                                            :: error_handle, nvprows
+      INTEGER, DIMENSION(:), POINTER                     :: rmap, vrow_dist
 
     IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local row mappings do not exist, create them.
@@ -2142,21 +2100,20 @@ CONTAINS
     IF (careful_mod) CALL timestop(error_handle)
   END SUBROUTINE dbcsr_get_global_vrow_map
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines mapping from global to virtual local columnss
 !> \param[in] imgdist           mapping for this image distribution
 !> \param[in] vcol_map           mapping to local columnss 
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_global_vcol_map (imgdist, vcol_map)
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(INOUT)                          :: imgdist
-    TYPE(array_i1d_obj), INTENT(OUT)         :: vcol_map
+      TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
+      TYPE(array_i1d_obj), INTENT(OUT)                   :: vcol_map
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vcol_map', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_get_global_vcol_map', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: error_handle, nvpcols
-    INTEGER, DIMENSION(:), POINTER           :: rmap, vcol_dist
+      INTEGER                                            :: error_handle, nvpcols
+      INTEGER, DIMENSION(:), POINTER                     :: rmap, vcol_dist
 
     IF (careful_mod) CALL timeset(routineN, error_handle)
     ! If the current local col mappings do not exist, create them.
@@ -2178,20 +2135,19 @@ CONTAINS
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Resets local rows, columns to the correct arrays and values
 !>         for images.
 !> \param matrix ...
 !> \param imgdist ...
 !> \param do_rows ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_reset_vlocals (matrix, imgdist, do_rows)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(INOUT)                          :: imgdist
-    LOGICAL, INTENT(IN), OPTIONAL            :: do_rows
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_imagedistribution_obj), INTENT(INOUT)   :: imgdist
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_rows
 
-    LOGICAL                                  :: my_do_rows
+      LOGICAL                                            :: my_do_rows
 
 !   ---------------------------------------------------------------------------
 
@@ -2228,41 +2184,41 @@ CONTAINS
     matrix%m%has_global_cols = .TRUE.
   END SUBROUTINE dbcsr_reset_vlocals
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Converts virtual 1-D distribution to process and image
 !> \param nel ...
 !> \param vdist ...
 !> \param nim ...
 !> \param pdist ...
 !> \param idist ...
-! *****************************************************************************
+! **************************************************************************************************
   pure SUBROUTINE v_to_p_i_dist (nel, vdist, nim, pdist, idist)
-    INTEGER, INTENT(in)                      :: nel
-    INTEGER, DIMENSION(1:nel), INTENT(in)    :: vdist
-    INTEGER, INTENT(in)                      :: nim
-    INTEGER, DIMENSION(1:nel), INTENT(out)   :: pdist, idist
+      INTEGER, INTENT(in)                                :: nel
+      INTEGER, DIMENSION(1:nel), INTENT(in)              :: vdist
+      INTEGER, INTENT(in)                                :: nim
+      INTEGER, DIMENSION(1:nel), INTENT(out)             :: pdist, idist
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
     DO i = 1 , nel
        pdist(i) = vdist(i) / nim
        idist(i) = MOD (vdist(i), nim) + 1
     END DO
   END SUBROUTINE v_to_p_i_dist
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param vdist ...
 !> \param nim ...
 !> \param pdist ...
 !> \param idist ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE v_to_p_i_dist_o (vdist, nim, pdist, idist)
-    TYPE(array_i1d_obj), INTENT(in)          :: vdist
-    INTEGER, INTENT(in)                      :: nim
-    TYPE(array_i1d_obj), INTENT(out)         :: pdist, idist
+      TYPE(array_i1d_obj), INTENT(in)                    :: vdist
+      INTEGER, INTENT(in)                                :: nim
+      TYPE(array_i1d_obj), INTENT(out)                   :: pdist, idist
 
-    INTEGER                                  :: nel
-    INTEGER, DIMENSION(:), POINTER           :: id, pd, vd
+      INTEGER                                            :: nel
+      INTEGER, DIMENSION(:), POINTER                     :: id, pd, vd
 
     nel = array_size (vdist)
     vd => array_data (vdist)
@@ -2273,12 +2229,12 @@ CONTAINS
   END SUBROUTINE v_to_p_i_dist_o
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Determines whether most blocks are stored transposed in normally.
 !> \param[in] blk_p           Pointers to blocks
 !> \retval mostly_non_transposed ...
 !> \note Tries to be quick and not necessarily accurate.
-! *****************************************************************************
+! **************************************************************************************************
   PURE FUNCTION mostly_non_transposed (blk_p)
     INTEGER, DIMENSION(:), INTENT(IN) :: blk_p
     LOGICAL                           :: mostly_non_transposed
@@ -2308,20 +2264,20 @@ CONTAINS
     ENDIF
     RETURN
   CONTAINS
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param blk_p ...
 !> \param lb ...
 !> \param ub ...
 !> \param sntr ...
 !> \param str ...
-! *****************************************************************************
+! **************************************************************************************************
     PURE SUBROUTINE check_range (blk_p, lb, ub, sntr, str)
-    INTEGER, DIMENSION(:), INTENT(IN)        :: blk_p
-    INTEGER, INTENT(IN)                      :: lb, ub
-    INTEGER, INTENT(INOUT)                   :: sntr, str
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: blk_p
+      INTEGER, INTENT(IN)                                :: lb, ub
+      INTEGER, INTENT(INOUT)                             :: sntr, str
 
-    INTEGER                                  :: b1, b2
+      INTEGER                                            :: b1, b2
 
       b1 = MAX (1, lb)
       b2 = MIN (SIZE(blk_p), ub)
@@ -2330,7 +2286,7 @@ CONTAINS
     END SUBROUTINE check_range
   END FUNCTION mostly_non_transposed
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Transform between virtual process rows/columns and actual process rows/columns and images therein.
 !> \param image_dist ...
 !> \param prow ...
@@ -2353,27 +2309,25 @@ CONTAINS
 !>  are "shifts to".  A caller (or the my* specifications) would use
 !>  L/R to see which data he has (i.e., from where his data was
 !>  shifted).  To see where the caller's data goes to, use l/r.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE image_calculator (image_dist,&
        prow, rowi, pcol, coli, vprow, vpcol,&
        myprow, mypcol, myrowi, mycoli, myvprow, myvpcol,&
        vprow_shift, vpcol_shift,&
        shifting)
-    TYPE(dbcsr_imagedistribution_obj), &
-      INTENT(IN)                             :: image_dist
-    INTEGER, INTENT(OUT), OPTIONAL           :: prow, rowi, pcol, coli, &
-                                                vprow, vpcol
-    INTEGER, INTENT(IN), OPTIONAL            :: myprow, mypcol, myrowi, &
-                                                mycoli, myvprow, myvpcol, &
-                                                vprow_shift, vpcol_shift
-    CHARACTER, INTENT(IN), OPTIONAL          :: shifting
+      TYPE(dbcsr_imagedistribution_obj), INTENT(IN)      :: image_dist
+      INTEGER, INTENT(OUT), OPTIONAL                     :: prow, rowi, pcol, coli, vprow, vpcol
+      INTEGER, INTENT(IN), OPTIONAL                      :: myprow, mypcol, myrowi, mycoli, myvprow, &
+                                                            myvpcol, vprow_shift, vpcol_shift
+      CHARACTER, INTENT(IN), OPTIONAL                    :: shifting
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'image_calculator', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'image_calculator', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: col_mult, my_pcol, my_prow, ncol_images, npcols, nprows, &
-      nrow_images, nvpcols, nvprows, row_mult, vcol, vrow
-    TYPE(dbcsr_mp_obj)                       :: mp
+      INTEGER                                            :: col_mult, my_pcol, my_prow, ncol_images, &
+                                                            npcols, nprows, nrow_images, nvpcols, &
+                                                            nvprows, row_mult, vcol, vrow
+      TYPE(dbcsr_mp_obj)                                 :: mp
 
 !   ---------------------------------------------------------------------------
 
@@ -2446,27 +2400,24 @@ CONTAINS
     IF (PRESENT (vpcol)) vpcol = vcol
   END SUBROUTINE image_calculator
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates a sane 1-D distribution
 !> \param[out] bin_dist    Distribution of elements to bins
 !> \param[in] nelements    Number of elements
 !> \param[in] nbins        Number of bins
 !> \param[in] element_sizes  (optional) sizes of elements
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_dist_bin (bin_dist, nelements, nbins, element_sizes)
-    INTEGER, DIMENSION(:), INTENT(OUT), &
-      POINTER                                :: bin_dist
-    INTEGER, INTENT(IN)                      :: nelements, nbins
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: element_sizes
+      INTEGER, DIMENSION(:), INTENT(OUT), POINTER        :: bin_dist
+      INTEGER, INTENT(IN)                                :: nelements, nbins
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: element_sizes
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_dist_bin', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_dist_bin', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bin, bin_cnt, error_handle, i
-    LOGICAL                                  :: found, heap_error
-    REAL(kind=sp)                            :: rn
-    TYPE(heap_t)                             :: bin_heap
+      INTEGER                                            :: bin, bin_cnt, error_handle, i
+      LOGICAL                                            :: found, heap_error
+      REAL(kind=sp)                                      :: rn
+      TYPE(heap_t)                                       :: bin_heap
 
 !   ---------------------------------------------------------------------------
 

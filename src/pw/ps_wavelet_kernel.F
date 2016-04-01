@@ -1,25 +1,25 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates the wavelet kernel for the wavelet based poisson solver.
 !> \author Florian Schiffmann (09.2007,fschiff)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE ps_wavelet_kernel
 
   
-  USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_alltoall
-  USE ps_wavelet_base,                 ONLY: scramble_unpack
-  USE ps_wavelet_fft3d,                ONLY: ctrig,&
-                                             ctrig_length,&
-                                             fftstp
-  USE ps_wavelet_scaling_function,     ONLY: scaling_function,&
-                                             scf_recursion
-  USE ps_wavelet_util,                 ONLY: F_FFT_dimensions,&
-                                             S_FFT_dimensions
+   USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_alltoall
+   USE ps_wavelet_base,                 ONLY: scramble_unpack
+   USE ps_wavelet_fft3d,                ONLY: ctrig,&
+                                              ctrig_length,&
+                                              fftstp
+   USE ps_wavelet_scaling_function,     ONLY: scaling_function,&
+                                              scf_recursion
+   USE ps_wavelet_util,                 ONLY: F_FFT_dimensions,&
+                                              S_FFT_dimensions
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -34,7 +34,7 @@ MODULE ps_wavelet_kernel
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocate a pointer which corresponds to the zero-padded FFT slice needed for
 !>     calculating the convolution with the kernel expressed in the interpolating scaling
 !>     function basis. The kernel pointer is unallocated on input, allocated on output.
@@ -74,23 +74,21 @@ CONTAINS
 !>     To avoid that, one can properly define the kernel dimensions by adding 
 !>     the nd1,nd2,nd3 arguments to the PS_dim4allocation routine, then eliminating the pointer 
 !>     declaration. 
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE createKernel(geocode,n01,n02,n03,hx,hy,hz,itype_scf,iproc,nproc,kernel,mpi_group)
 
-    CHARACTER(len=1), INTENT(in)             :: geocode
-    INTEGER, INTENT(in)                      :: n01, n02, n03
-    REAL(KIND=dp), INTENT(in)                :: hx, hy, hz
-    INTEGER, INTENT(in)                      :: itype_scf, iproc, nproc
-    REAL(KIND=dp), POINTER                   :: kernel(:)
-    INTEGER, INTENT(in)                      :: mpi_group
+      CHARACTER(len=1), INTENT(in)                       :: geocode
+      INTEGER, INTENT(in)                                :: n01, n02, n03
+      REAL(KIND=dp), INTENT(in)                          :: hx, hy, hz
+      INTEGER, INTENT(in)                                :: itype_scf, iproc, nproc
+      REAL(KIND=dp), POINTER                             :: kernel(:)
+      INTEGER, INTENT(in)                                :: mpi_group
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'createKernel', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'createKernel', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: m1, m2, m3, md1, md2, md3, &
-                                                n1, n2, n3, nd1, nd2, nd3, &
-                                                nlimd, nlimk
-    REAL(KIND=dp)                            :: hgrid
+      INTEGER                                            :: m1, m2, m3, md1, md2, md3, n1, n2, n3, &
+                                                            nd1, nd2, nd3, nlimd, nlimk
+      REAL(KIND=dp)                                      :: hgrid
 
   hgrid=MAX(hx,hy,hz)
 
@@ -196,7 +194,7 @@ CONTAINS
 !!!  END IF
 END SUBROUTINE createKernel
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Build the kernel of the Poisson operator with
 !>     surfaces Boundary conditions
 !>     in an interpolating scaling functions basis.
@@ -218,40 +216,34 @@ END SUBROUTINE createKernel
 !> \param mpi_group ...
 !> \date October 2006
 !> \author L. Genovese
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
                            itype_scf,karray,iproc,nproc,mpi_group)
 
-    INTEGER, INTENT(in)                      :: n1, n2, n3, m3, nker1, nker2, &
-                                                nker3
-    REAL(KIND=dp), INTENT(in)                :: h1, h2, h3
-    INTEGER, INTENT(in)                      :: itype_scf, nproc, iproc
-    REAL(KIND=dp), &
-      DIMENSION(nker1, nker2, nker3/nproc), &
-      INTENT(out)                            :: karray
-    INTEGER, INTENT(in)                      :: mpi_group
+      INTEGER, INTENT(in)                                :: n1, n2, n3, m3, nker1, nker2, nker3
+      REAL(KIND=dp), INTENT(in)                          :: h1, h2, h3
+      INTEGER, INTENT(in)                                :: itype_scf, nproc, iproc
+      REAL(KIND=dp), &
+         DIMENSION(nker1, nker2, nker3/nproc), &
+         INTENT(out)                                     :: karray
+      INTEGER, INTENT(in)                                :: mpi_group
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'Surfaces_Kernel', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: n_points = 2**6, &
-                                                ncache_optimal = 8*1024
+      CHARACTER(len=*), PARAMETER :: routineN = 'Surfaces_Kernel', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: n_points = 2**6, ncache_optimal = 8*1024
 
-    INTEGER :: i, i1, i2, i3, ic, iend, imu, ind1, ind2, inzee, ipolyord, &
-      ireim, istart, j2, j2nd, j2st, jnd1, jp2, jreim, n_cell, n_range, &
-      n_scf, nact2, ncache, nfft, num_of_mus, shift
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: after, before, now
-    REAL(kind=dp)                            :: a, b, c, cp, d, diff, dx, &
-                                                feI, feR, foI, foR, fR, mu1, &
-                                                pi, pion, ponx, pony, sp, &
-                                                value, x
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: kernel_scf, x_scf, y_scf
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: btrig, cossinarr
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: halfft_cache, kernel
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: kernel_mpi
-    REAL(KIND=dp), DIMENSION(9, 8)           :: cpol
+      INTEGER :: i, i1, i2, i3, ic, iend, imu, ind1, ind2, inzee, ipolyord, ireim, istart, j2, &
+         j2nd, j2st, jnd1, jp2, jreim, n_cell, n_range, n_scf, nact2, ncache, nfft, num_of_mus, &
+         shift
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: after, before, now
+      REAL(kind=dp)                                      :: a, b, c, cp, d, diff, dx, feI, feR, foI, &
+                                                            foR, fR, mu1, pi, pion, ponx, pony, &
+                                                            sp, value, x
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kernel_scf, x_scf, y_scf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: btrig, cossinarr
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: halfft_cache, kernel
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kernel_mpi
+      REAL(KIND=dp), DIMENSION(9, 8)                     :: cpol
 
 !Better if higher (1024 points are enough 10^{-14}: 2*itype_scf*n_points)
 !  include "perfdata.inc"
@@ -547,7 +539,7 @@ SUBROUTINE Surfaces_Kernel(n1,n2,n3,m3,nker1,nker2,nker3,h1,h2,h3,&
 
 END SUBROUTINE Surfaces_Kernel
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param n_scf ...
@@ -559,26 +551,23 @@ END SUBROUTINE Surfaces_Kernel
 !> \param mu ...
 !> \param hres ...
 !> \param g_mu ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g_mu)
-    INTEGER, INTENT(in)                      :: n, n_scf, itype_scf, intorder
-    REAL(KIND=dp), DIMENSION(0:n_scf), &
-      INTENT(in)                             :: xval, yval
-    REAL(KIND=dp), DIMENSION(intorder+1), &
-      INTENT(in)                             :: c
-    REAL(KIND=dp), INTENT(in)                :: mu, hres
-    REAL(KIND=dp), DIMENSION(n), INTENT(out) :: g_mu
+      INTEGER, INTENT(in)                                :: n, n_scf, itype_scf, intorder
+      REAL(KIND=dp), DIMENSION(0:n_scf), INTENT(in)      :: xval, yval
+      REAL(KIND=dp), DIMENSION(intorder+1), INTENT(in)   :: c
+      REAL(KIND=dp), INTENT(in)                          :: mu, hres
+      REAL(KIND=dp), DIMENSION(n), INTENT(out)           :: g_mu
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculates_green_opt', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: mu_max = 0.2_dp
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculates_green_opt', &
+         routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: mu_max = 0.2_dp
 
-    INTEGER                                  :: i, iend, ikern, ivalue, &
-                                                izero, n_iter, nrec
-    REAL(KIND=dp)                            :: f, filter, fl, fr, gleft, &
-                                                gltmp, gright, grtmp, mu0, &
-                                                ratio, x, x0, x1
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: green, green1
+      INTEGER                                            :: i, iend, ikern, ivalue, izero, n_iter, &
+                                                            nrec
+      REAL(KIND=dp)                                      :: f, filter, fl, fr, gleft, gltmp, gright, &
+                                                            grtmp, mu0, ratio, x, x0, x1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: green, green1
 
   g_mu = 0.0_dp
   !We calculate the number of iterations to go from mu0 to mu0_ref
@@ -695,7 +684,7 @@ SUBROUTINE calculates_green_opt(n,n_scf,itype_scf,intorder,xval,yval,c,mu,hres,g
 
 END SUBROUTINE calculates_green_opt
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param n_scf ...
@@ -705,19 +694,16 @@ END SUBROUTINE calculates_green_opt
 !> \param c ...
 !> \param hres ...
 !> \param green ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green)
-    INTEGER, INTENT(in)                      :: n, n_scf, intorder
-    REAL(KIND=dp), DIMENSION(0:n_scf), &
-      INTENT(in)                             :: xval, yval
-    REAL(KIND=dp), DIMENSION(intorder+1), &
-      INTENT(in)                             :: c
-    REAL(KIND=dp), INTENT(in)                :: hres
-    REAL(KIND=dp), DIMENSION(n), INTENT(out) :: green
+      INTEGER, INTENT(in)                                :: n, n_scf, intorder
+      REAL(KIND=dp), DIMENSION(0:n_scf), INTENT(in)      :: xval, yval
+      REAL(KIND=dp), DIMENSION(intorder+1), INTENT(in)   :: c
+      REAL(KIND=dp), INTENT(in)                          :: hres
+      REAL(KIND=dp), DIMENSION(n), INTENT(out)           :: green
 
-    INTEGER                                  :: i, iend, ikern, ivalue, izero
-    REAL(KIND=dp)                            :: c0, c1, filter, gl0, gl1, &
-                                                gr0, gr1, x, y
+      INTEGER                                            :: i, iend, ikern, ivalue, izero
+      REAL(KIND=dp)                                      :: c0, c1, filter, gl0, gl1, gr0, gr1, x, y
 
 !initialization of the branching value
 
@@ -795,21 +781,21 @@ SUBROUTINE calculates_green_opt_muzero(n,n_scf,intorder,xval,yval,c,hres,green)
 
 END SUBROUTINE calculates_green_opt_muzero
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param var_realimag ...
 !> \param nelem ...
 !> \param intrn ...
 !> \param extrn ...
 !> \param index ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE indices(var_realimag,nelem,intrn,extrn,index)
 
-    INTEGER, INTENT(out)                     :: var_realimag
-    INTEGER, INTENT(in)                      :: nelem, intrn, extrn
-    INTEGER, INTENT(out)                     :: index
+      INTEGER, INTENT(out)                               :: var_realimag
+      INTEGER, INTENT(in)                                :: nelem, intrn, extrn
+      INTEGER, INTENT(out)                               :: index
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
 !real or imaginary part
 
@@ -826,7 +812,7 @@ SUBROUTINE indices(var_realimag,nelem,intrn,extrn,index)
 
 END SUBROUTINE indices
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Build the kernel of a gaussian function
 !>     for interpolating scaling functions.
 !>     Do the parallel HalFFT of the symmetrized function and stores into
@@ -852,34 +838,32 @@ END SUBROUTINE indices
 !> \param mpi_group ...
 !> \date February 2006
 !> \author T. Deutsch, L. Genovese
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
      hgrid,itype_scf,iproc,nproc,karray,mpi_group)
 
-    INTEGER, INTENT(in)                      :: n01, n02, n03, nfft1, nfft2, &
-                                                nfft3, n1k, n2k, n3k
-    REAL(KIND=dp), INTENT(in)                :: hgrid
-    INTEGER, INTENT(in)                      :: itype_scf, iproc, nproc
-    REAL(KIND=dp), &
-      DIMENSION(n1k, n2k, n3k/nproc), &
-      INTENT(out)                            :: karray
-    INTEGER, INTENT(in)                      :: mpi_group
+      INTEGER, INTENT(in)                                :: n01, n02, n03, nfft1, nfft2, nfft3, n1k, &
+                                                            n2k, n3k
+      REAL(KIND=dp), INTENT(in)                          :: hgrid
+      INTEGER, INTENT(in)                                :: itype_scf, iproc, nproc
+      REAL(KIND=dp), DIMENSION(n1k, n2k, n3k/nproc), &
+         INTENT(out)                                     :: karray
+      INTEGER, INTENT(in)                                :: mpi_group
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'Free_Kernel', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: n_gauss = 89, n_points = 2**6
-    REAL(KIND=dp), PARAMETER                 :: p0_ref = 1._dp
+      CHARACTER(len=*), PARAMETER :: routineN = 'Free_Kernel', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: n_gauss = 89, n_points = 2**6
+      REAL(KIND=dp), PARAMETER                           :: p0_ref = 1._dp
 
-    INTEGER :: i, i01, i02, i03, i1, i2, i3, i_gauss, i_kern, iend, istart, &
-      istart1, n1h, n2h, n3h, n_cell, n_iter, n_range, n_scf, nker1, nker2, &
-      nker3
-    REAL(KIND=dp) :: a1, a2, a3, a_range, absci, acc_gauss, dr_gauss, dx, &
-      factor, factor2, kern, p0_cell, p0gauss, pgauss, ur_gauss
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: kern_1_scf, kernel_scf, &
-                                                x_scf, y_scf
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: kp
-    REAL(KIND=dp), DIMENSION(n_gauss)        :: p_gauss, w_gauss
+      INTEGER                                            :: i, i01, i02, i03, i1, i2, i3, i_gauss, &
+                                                            i_kern, iend, istart, istart1, n1h, &
+                                                            n2h, n3h, n_cell, n_iter, n_range, &
+                                                            n_scf, nker1, nker2, nker3
+      REAL(KIND=dp)                                      :: a1, a2, a3, a_range, absci, acc_gauss, &
+                                                            dr_gauss, dx, factor, factor2, kern, &
+                                                            p0_cell, p0gauss, pgauss, ur_gauss
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: kern_1_scf, kernel_scf, x_scf, y_scf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: kp
+      REAL(KIND=dp), DIMENSION(n_gauss)                  :: p_gauss, w_gauss
 
 !Do not touch !!!!
 !Better if higher (1024 points are enough 10^{-14}: 2*itype_scf*n_points)
@@ -1038,7 +1022,7 @@ SUBROUTINE Free_Kernel(n01,n02,n03,nfft1,nfft2,nfft3,n1k,n2k,n3k,&
 
 END SUBROUTINE Free_Kernel
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n1 ...
 !> \param n3 ...
@@ -1047,15 +1031,15 @@ END SUBROUTINE Free_Kernel
 !> \param i1 ...
 !> \param zf ...
 !> \param zw ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
-    INTEGER, INTENT(in)                      :: n1, n3, lot, nfft, i1
-    REAL(KIND=dp), &
-      DIMENSION(n1/2+1, n3/2+1), INTENT(in)  :: zf
-    REAL(KIND=dp), DIMENSION(2, lot, n3/2), &
-      INTENT(out)                            :: zw
+      INTEGER, INTENT(in)                                :: n1, n3, lot, nfft, i1
+      REAL(KIND=dp), DIMENSION(n1/2+1, n3/2+1), &
+         INTENT(in)                                      :: zf
+      REAL(KIND=dp), DIMENSION(2, lot, n3/2), &
+         INTENT(out)                                     :: zw
 
-    INTEGER                                  :: i01, i03i, i03r, i3, l1, l3
+      INTEGER                                            :: i01, i03i, i03r, i3, l1, l3
 
   zw = 0.0_dp
   i3=0
@@ -1072,7 +1056,7 @@ SUBROUTINE inserthalf(n1,n3,lot,nfft,i1,zf,zw)
 
 END SUBROUTINE inserthalf
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief (Based on suitable modifications of S.Goedecker routines)
 !>      Calculates the FFT of the distributed kernel
 !> \param n1 logical dimension of the transform.
@@ -1103,39 +1087,32 @@ END SUBROUTINE inserthalf
 !>                  most products of the prime factors 2,3,5 are allowed.
 !>                   The detailed table with allowed transform lengths can
 !>                   be found in subroutine CTRIG 
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_group)
 
-    INTEGER, INTENT(in)                      :: n1, n2, n3, nd1, nd2, nd3, &
-                                                nk1, nk2, nk3, nproc, iproc
-    REAL(KIND=dp), &
-      DIMENSION(n1/2+1, n3/2+1, nd2/nproc), &
-      INTENT(in)                             :: zf
-    REAL(KIND=dp), &
-      DIMENSION(nk1, nk2, nk3/nproc), &
-      INTENT(inout)                          :: zr
-    INTEGER, INTENT(in)                      :: mpi_group
+      INTEGER, INTENT(in)                                :: n1, n2, n3, nd1, nd2, nd3, nk1, nk2, &
+                                                            nk3, nproc, iproc
+      REAL(KIND=dp), &
+         DIMENSION(n1/2+1, n3/2+1, nd2/nproc), &
+         INTENT(in)                                      :: zf
+      REAL(KIND=dp), DIMENSION(nk1, nk2, nk3/nproc), &
+         INTENT(inout)                                   :: zr
+      INTEGER, INTENT(in)                                :: mpi_group
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'kernelfft', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: ncache_optimal = 8*1024
+      CHARACTER(len=*), PARAMETER :: routineN = 'kernelfft', routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 
-    INTEGER                                  :: i, i1, i3, ic1, ic2, ic3, &
-                                                inzee, j, j2, J2st, j3, &
-                                                Jp2st, lot, lzt, ma, mb, &
-                                                ncache, nfft
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: after1, after2, after3, &
-                                                before1, before2, before3, &
-                                                now1, now2, now3
-    REAL(kind=dp)                            :: twopion
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: cosinarr, trig1, trig2, trig3
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :)                     :: zt, zw
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :)                  :: zmpi2
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :, :, :, :)               :: zmpi1
+      INTEGER                                            :: i, i1, i3, ic1, ic2, ic3, inzee, j, j2, &
+                                                            J2st, j3, Jp2st, lot, lzt, ma, mb, &
+                                                            ncache, nfft
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: after1, after2, after3, before1, &
+                                                            before2, before3, now1, now2, now3
+      REAL(kind=dp)                                      :: twopion
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cosinarr, trig1, trig2, trig3
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: zt, zw
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: zmpi2
+      REAL(KIND=dp), ALLOCATABLE, &
+         DIMENSION(:, :, :, :, :)                        :: zmpi1
 
 !  include "perfdata.inc"
 !work arrays for transpositions
@@ -1329,7 +1306,7 @@ SUBROUTINE kernelfft(n1,n2,n3,nd1,nd2,nd3,nk1,nk2,nk3,nproc,iproc,zf,zr,mpi_grou
 
 END SUBROUTINE kernelfft
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param lot ...
 !> \param nfft ...
@@ -1338,15 +1315,13 @@ END SUBROUTINE kernelfft
 !> \param nk2 ...
 !> \param zin ...
 !> \param zout ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE realcopy(lot,nfft,n2,nk1,nk2,zin,zout)
-    INTEGER, INTENT(in)                      :: lot, nfft, n2, nk1, nk2
-    REAL(KIND=dp), DIMENSION(2, lot, n2), &
-      INTENT(in)                             :: zin
-    REAL(KIND=dp), DIMENSION(nk1, nk2), &
-      INTENT(inout)                          :: zout
+      INTEGER, INTENT(in)                                :: lot, nfft, n2, nk1, nk2
+      REAL(KIND=dp), DIMENSION(2, lot, n2), INTENT(in)   :: zin
+      REAL(KIND=dp), DIMENSION(nk1, nk2), INTENT(inout)  :: zout
 
-    INTEGER                                  :: i, j
+      INTEGER                                            :: i, j
 
   DO i=1,nk2
      DO j=1,nfft
@@ -1356,7 +1331,7 @@ SUBROUTINE realcopy(lot,nfft,n2,nk1,nk2,zin,zout)
 
 END SUBROUTINE realcopy
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param nfft ...
 !> \param n2 ...
@@ -1365,12 +1340,12 @@ END SUBROUTINE realcopy
 !> \param lzt ...
 !> \param zt ...
 !> \param zw ...
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
-    INTEGER                                  :: nfft, n2, lot, n1, lzt
-    REAL(KIND=dp)                            :: zt(2,lzt,n1), zw(2,lot,n2)
+      INTEGER                                            :: nfft, n2, lot, n1, lzt
+      REAL(KIND=dp)                                      :: zt(2,lzt,n1), zw(2,lot,n2)
 
-    INTEGER                                  :: i, j
+      INTEGER                                            :: i, j
 
   DO 200,j=1,nfft
      DO 100,i=1,n2
@@ -1381,7 +1356,7 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
         RETURN
       END SUBROUTINE switch
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param j3 ...
 !> \param nfft ...
@@ -1394,13 +1369,13 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
 !> \param nproc ...
 !> \param zmpi1 ...
 !> \param zw ...
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE mpiswitch(j3,nfft,Jp2st,J2st,lot,n1,nd2,nd3,nproc,zmpi1,zw)
-    INTEGER                                  :: j3, nfft, Jp2st, J2st, lot, &
-                                                n1, nd2, nd3, nproc
-    REAL(KIND=dp) :: zmpi1(2,n1,nd2/nproc,nd3/nproc,nproc), zw(2,lot,n1)
+      INTEGER                                            :: j3, nfft, Jp2st, J2st, lot, n1, nd2, &
+                                                            nd3, nproc
+      REAL(KIND=dp) :: zmpi1(2,n1,nd2/nproc,nd3/nproc,nproc), zw(2,lot,n1)
 
-    INTEGER                                  :: I1, J2, JP2, mfft
+      INTEGER                                            :: I1, J2, JP2, mfft
 
         mfft=0
         DO 300,Jp2=Jp2st,nproc
@@ -1420,18 +1395,17 @@ SUBROUTINE switch(nfft,n2,lot,n1,lzt,zt,zw)
 300        CONTINUE
          END SUBROUTINE mpiswitch
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param p ...
 !> \param w ...
 !> \param urange ...
 !> \param drange ...
 !> \param acc ...
-! *****************************************************************************
+! **************************************************************************************************
          SUBROUTINE gequad(p,w,urange,drange,acc)
 !
-    REAL(KIND=dp)                            :: p(*), w(*), urange, drange, &
-                                                acc
+      REAL(KIND=dp)                                      :: p(*), w(*), urange, drange, acc
 
 !
 !

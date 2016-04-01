@@ -1,12 +1,12 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 !******************************************************************************
 MODULE powell
-  USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: twopi
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: twopi
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -39,21 +39,21 @@ MODULE powell
 CONTAINS
 
 !******************************************************************************
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param x ...
 !> \param optstate ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE powell_optimize (n,x,optstate)
-    INTEGER                                  :: n
-    REAL(dp), DIMENSION(*)                   :: x
-    TYPE(opt_state_type)                     :: optstate
+      INTEGER                                            :: n
+      REAL(dp), DIMENSION(*)                             :: x
+      TYPE(opt_state_type)                               :: optstate
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'powell_optimize', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'powell_optimize', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npt
+      INTEGER                                            :: handle, npt
 
     CALL timeset(routineN,handle)
 
@@ -98,23 +98,22 @@ CONTAINS
 
   END SUBROUTINE powell_optimize
 !******************************************************************************
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param x ...
 !> \param optstate ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE newuoa (n,x,optstate)
 
-    INTEGER                                  :: n
-    REAL(dp), DIMENSION(*)                   :: x
-    TYPE(opt_state_type)                     :: optstate
+      INTEGER                                            :: n
+      REAL(dp), DIMENSION(*)                             :: x
+      TYPE(opt_state_type)                               :: optstate
 
-    INTEGER                                  :: ibmat, id, ifv, igq, ihq, &
-                                                ipq, ivl, iw, ixb, ixn, ixo, &
-                                                ixp, izmat, maxfun, ndim, np, &
-                                                npt, nptm
-    REAL(dp)                                 :: rhobeg, rhoend
+      INTEGER                                            :: ibmat, id, ifv, igq, ihq, ipq, ivl, iw, &
+                                                            ixb, ixn, ixo, ixp, izmat, maxfun, &
+                                                            ndim, np, npt, nptm
+      REAL(dp)                                           :: rhobeg, rhoend
 
     maxfun = optstate%maxfun
     rhobeg = optstate%rhobeg
@@ -191,7 +190,7 @@ CONTAINS
   END SUBROUTINE newuoa
 
 !******************************************************************************
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param npt ...
@@ -214,7 +213,7 @@ CONTAINS
 !> \param vlag ...
 !> \param w ...
 !> \param opt ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE newuob (n,npt,x,rhobeg,rhoend,maxfun,xbase,&
        xopt,xnew,xpt,fval,gq,hq,pq,bmat,zmat,ndim,d,vlag,w,opt)
 
@@ -904,9 +903,9 @@ CONTAINS
     !******************************************************************************
   CONTAINS
     !******************************************************************************
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE get_state()
       opt%np       = np
       opt%nh       = nh
@@ -955,9 +954,9 @@ CONTAINS
     END SUBROUTINE get_state
 
     !******************************************************************************
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE set_state()
       np           = opt%np
       nh           = opt%nh
@@ -1009,7 +1008,7 @@ CONTAINS
 
 !******************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param npt ...
@@ -1028,36 +1027,31 @@ CONTAINS
 !> \param s ...
 !> \param wvec ...
 !> \param prod ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE bigden (n,npt,xopt,xpt,bmat,zmat,idz,ndim,kopt,&
        knew,d,w,vlag,beta,s,wvec,prod)
 
-    INTEGER, INTENT(inout)                   :: n, npt
-    REAL(dp), DIMENSION(*), INTENT(inout)    :: xopt
-    REAL(dp), DIMENSION(npt, *), &
-      INTENT(inout)                          :: xpt
-    INTEGER, INTENT(inout)                   :: ndim, idz
-    REAL(dp), DIMENSION(npt, *), &
-      INTENT(inout)                          :: zmat
-    REAL(dp), DIMENSION(ndim, *), &
-      INTENT(inout)                          :: bmat
-    INTEGER, INTENT(inout)                   :: kopt, knew
-    REAL(dp), DIMENSION(*), INTENT(inout)    :: d, w, vlag
-    REAL(dp), INTENT(inout)                  :: beta
-    REAL(dp), DIMENSION(*), INTENT(inout)    :: s
-    REAL(dp), DIMENSION(ndim, *), &
-      INTENT(inout)                          :: wvec, prod
+      INTEGER, INTENT(inout)                             :: n, npt
+      REAL(dp), DIMENSION(*), INTENT(inout)              :: xopt
+      REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: xpt
+      INTEGER, INTENT(inout)                             :: ndim, idz
+      REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: zmat
+      REAL(dp), DIMENSION(ndim, *), INTENT(inout)        :: bmat
+      INTEGER, INTENT(inout)                             :: kopt, knew
+      REAL(dp), DIMENSION(*), INTENT(inout)              :: d, w, vlag
+      REAL(dp), INTENT(inout)                            :: beta
+      REAL(dp), DIMENSION(*), INTENT(inout)              :: s
+      REAL(dp), DIMENSION(ndim, *), INTENT(inout)        :: wvec, prod
 
-    REAL(dp), PARAMETER                      :: half = 0.5_dp, one = 1._dp, &
-                                                quart = 0.25_dp, two = 2._dp, &
-                                                zero = 0._dp
+      REAL(dp), PARAMETER                                :: half = 0.5_dp, one = 1._dp, &
+                                                            quart = 0.25_dp, two = 2._dp, &
+                                                            zero = 0._dp
 
-    INTEGER                                  :: i, ip, isave, iterc, iu, j, &
-                                                jc, k, ksav, nptm, nw
-    REAL(dp) :: alpha, angle, dd, denmax, denold, densav, diff, ds, dstemp, &
-      dtest, ss, ssden, sstemp, step, sum, sumold, tau, temp, tempa, tempb, &
-      tempc, xoptd, xopts, xoptsq
-    REAL(dp), DIMENSION(9)                   :: den, denex, par
+      INTEGER                                            :: i, ip, isave, iterc, iu, j, jc, k, ksav, &
+                                                            nptm, nw
+      REAL(dp) :: alpha, angle, dd, denmax, denold, densav, diff, ds, dstemp, dtest, ss, ssden, &
+         sstemp, step, sum, sumold, tau, temp, tempa, tempb, tempc, xoptd, xopts, xoptsq
+      REAL(dp), DIMENSION(9)                             :: den, denex, par
 
 !
 !     N is the number of variables.
@@ -1405,7 +1399,7 @@ CONTAINS
   END SUBROUTINE bigden
 !******************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param npt ...
@@ -1424,32 +1418,28 @@ CONTAINS
 !> \param gd ...
 !> \param s ...
 !> \param w ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE biglag (n,npt,xopt,xpt,bmat,zmat,idz,ndim,knew,&
        delta,d,alpha,hcol,gc,gd,s,w)
-    INTEGER, INTENT(inout)                   :: n, npt
-    REAL(dp), DIMENSION(*), INTENT(inout)    :: xopt
-    REAL(dp), DIMENSION(npt, *), &
-      INTENT(inout)                          :: xpt
-    INTEGER, INTENT(inout)                   :: ndim, idz
-    REAL(dp), DIMENSION(npt, *), &
-      INTENT(inout)                          :: zmat
-    REAL(dp), DIMENSION(ndim, *), &
-      INTENT(inout)                          :: bmat
-    INTEGER, INTENT(inout)                   :: knew
-    REAL(dp), INTENT(inout)                  :: delta
-    REAL(dp), DIMENSION(*), INTENT(inout)    :: d
-    REAL(dp), INTENT(inout)                  :: alpha
-    REAL(dp), DIMENSION(*), INTENT(inout)    :: hcol, gc, gd, s, w
+      INTEGER, INTENT(inout)                             :: n, npt
+      REAL(dp), DIMENSION(*), INTENT(inout)              :: xopt
+      REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: xpt
+      INTEGER, INTENT(inout)                             :: ndim, idz
+      REAL(dp), DIMENSION(npt, *), INTENT(inout)         :: zmat
+      REAL(dp), DIMENSION(ndim, *), INTENT(inout)        :: bmat
+      INTEGER, INTENT(inout)                             :: knew
+      REAL(dp), INTENT(inout)                            :: delta
+      REAL(dp), DIMENSION(*), INTENT(inout)              :: d
+      REAL(dp), INTENT(inout)                            :: alpha
+      REAL(dp), DIMENSION(*), INTENT(inout)              :: hcol, gc, gd, s, w
 
-    REAL(dp), PARAMETER                      :: half = 0.5_dp, one = 1._dp, &
-                                                zero = 0._dp
+      REAL(dp), PARAMETER                                :: half = 0.5_dp, one = 1._dp, zero = 0._dp
 
-    INTEGER                                  :: i, isave, iterc, iu, j, k, &
-                                                nptm
-    REAL(dp) :: angle, cf1, cf2, cf3, cf4, cf5, cth, dd, delsq, denom, dhd, &
-      gg, scale, sp, ss, step, sth, sum, tau, taubeg, taumax, tauold, temp, &
-      tempa, tempb
+      INTEGER                                            :: i, isave, iterc, iu, j, k, nptm
+      REAL(dp)                                           :: angle, cf1, cf2, cf3, cf4, cf5, cth, dd, &
+                                                            delsq, denom, dhd, gg, scale, sp, ss, &
+                                                            step, sth, sum, tau, taubeg, taumax, &
+                                                            tauold, temp, tempa, tempb
 
 !
 !
@@ -1637,7 +1627,7 @@ CONTAINS
   END SUBROUTINE biglag
 !******************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param npt ...
@@ -1653,7 +1643,7 @@ CONTAINS
 !> \param hd ...
 !> \param hs ...
 !> \param crvmin ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE trsapp (n,npt,xopt,xpt,gq,hq,pq,delta,step,d,g,hd,hs,crvmin)
 
     INTEGER, INTENT(INOUT)                   :: n, npt
@@ -1887,11 +1877,11 @@ CONTAINS
 
     !*******************************************************************************
   CONTAINS
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE updatehd
-    INTEGER                                  :: i, ih, j, k
+      INTEGER                                            :: i, ih, j, k
 
       DO i=1,n
          hd(i)=zero
@@ -1919,7 +1909,7 @@ CONTAINS
   END SUBROUTINE trsapp
 !******************************************************************************
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param npt ...
@@ -1931,26 +1921,23 @@ CONTAINS
 !> \param beta ...
 !> \param knew ...
 !> \param w ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE update (n,npt,bmat,zmat,idz,ndim,vlag,beta,knew,w)
 
-    INTEGER, INTENT(IN)                      :: n, npt, ndim
-    INTEGER, INTENT(INOUT)                   :: idz
-    REAL(dp), DIMENSION(npt, *), &
-      INTENT(INOUT)                          :: zmat
-    REAL(dp), DIMENSION(ndim, *), &
-      INTENT(INOUT)                          :: bmat
-    REAL(dp), DIMENSION(*), INTENT(INOUT)    :: vlag
-    REAL(dp), INTENT(INOUT)                  :: beta
-    INTEGER, INTENT(INOUT)                   :: knew
-    REAL(dp), DIMENSION(*), INTENT(INOUT)    :: w
+      INTEGER, INTENT(IN)                                :: n, npt, ndim
+      INTEGER, INTENT(INOUT)                             :: idz
+      REAL(dp), DIMENSION(npt, *), INTENT(INOUT)         :: zmat
+      REAL(dp), DIMENSION(ndim, *), INTENT(INOUT)        :: bmat
+      REAL(dp), DIMENSION(*), INTENT(INOUT)              :: vlag
+      REAL(dp), INTENT(INOUT)                            :: beta
+      INTEGER, INTENT(INOUT)                             :: knew
+      REAL(dp), DIMENSION(*), INTENT(INOUT)              :: w
 
-    REAL(dp), PARAMETER                      :: one = 1.0_dp, zero = 0.0_dp
+      REAL(dp), PARAMETER                                :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: i, iflag, j, ja, jb, jl, jp, &
-                                                nptm
-    REAL(dp)                                 :: alpha, denom, scala, scalb, &
-                                                tau, tausq, temp, tempa, tempb
+      INTEGER                                            :: i, iflag, j, ja, jb, jl, jp, nptm
+      REAL(dp)                                           :: alpha, denom, scala, scalb, tau, tausq, &
+                                                            temp, tempa, tempb
 
 !   The arrays BMAT and ZMAT with IDZ are updated, in order to shift the
 !   interpolation point that has index KNEW. On entry, VLAG contains the

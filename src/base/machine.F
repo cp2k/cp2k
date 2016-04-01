@@ -1,25 +1,24 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \par History
 !>      JGH (05.07.2001) : added G95 interface
 !>      - m_flush added (12.06.2002,MK)
 !>      - Missing print_memory added (24.09.2002,MK)
 !> \author APSI & JGH
-! *****************************************************************************
+! **************************************************************************************************
 MODULE machine
-  USE ISO_FORTRAN_ENV,                 ONLY: input_unit,&
-                                             output_unit
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             int_8
-  USE machine_internal,                ONLY: &
-       m_abort, m_chdir, m_flush_internal=>m_flush, m_getarg, m_getcwd, &
-       m_getlog, m_getpid, m_hostnm, m_iargc, m_memory, m_memory_details, &
-       m_memory_max, m_mov, m_procrun
+   USE ISO_FORTRAN_ENV,                 ONLY: input_unit,&
+                                              output_unit
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
+                                              int_8
+   USE machine_internal,                ONLY: &
+        m_abort, m_chdir, m_flush_internal=>m_flush, m_getarg, m_getcwd, m_getlog, m_getpid, &
+        m_hostnm, m_iargc, m_memory, m_memory_details, m_memory_max, m_mov, m_procrun
 
  !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads, OMP_GET_WTIME
 
@@ -47,20 +46,20 @@ MODULE machine
 CONTAINS
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief flushes units if the &GLOBAL flag is set accordingly
 !> \param lunit ...
 !> \par History
 !>      10.2008 created [Joost VandeVondele]
 !> \note
 !>      flushing might degrade performance significantly (30% and more)
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE m_flush(lunit)
-    INTEGER, INTENT(IN)                      :: lunit
+      INTEGER, INTENT(IN)                                :: lunit
 
    IF (flush_should_flush) CALL m_flush_internal(lunit)
 END SUBROUTINE
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns time from a real-time clock, protected against rolling
 !>      early/easily
 !> \retval wt ...
@@ -69,13 +68,13 @@ END SUBROUTINE
 !> \note
 !>      same implementation for all machines.
 !>      might still roll, if not called multiple times per count_max/count_rate
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                            :: wt
+      REAL(KIND=dp)                                      :: wt
 
-    INTEGER(KIND=int_8)                      :: count
-    INTEGER(KIND=int_8), SAVE                :: count_max, count_rate, &
-                                                cycles = -1, last_count
+      INTEGER(KIND=int_8)                                :: count
+      INTEGER(KIND=int_8), SAVE                          :: count_max, count_rate, cycles = -1, &
+                                                            last_count
 
     !$ IF (.FALSE.) THEN
 ! count lies in [0,count_max] and increases monotonically
@@ -111,17 +110,17 @@ FUNCTION m_walltime() RESULT (wt)
     !$ ENDIF
 END FUNCTION m_walltime
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief reads /proc/cpuinfo if it exists (i.e. Linux) to return relevant info
 !> \param model_name as obtained from the 'model name' field, UNKNOWN otherwise
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE m_cpuinfo(model_name)
-    CHARACTER(LEN=default_string_length)     :: model_name
+      CHARACTER(LEN=default_string_length)               :: model_name
 
-    INTEGER, PARAMETER                       :: bufferlen = 2048 
+      INTEGER, PARAMETER                                 :: bufferlen = 2048 
 
-    CHARACTER(LEN=bufferlen)                 :: buffer
-    INTEGER                                  :: i, icol, iline, imod, stat
+      CHARACTER(LEN=bufferlen)                           :: buffer
+      INTEGER                                            :: i, icol, iline, imod, stat
 
     model_name="UNKNOWN"
     buffer=""
@@ -141,14 +140,14 @@ SUBROUTINE m_cpuinfo(model_name)
     ENDIF
 END SUBROUTINE m_cpuinfo
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the energy used since some time in the past.
 !>        The precise meaning depends on the infrastructure is available.
 !>        In the cray_pm_energy case, this is the energy used by the node in kJ.
 !> \retval wt ...
 !> \par History
 !>      09.2013 created [Joost VandeVondele, Ole Schuett]
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION m_energy() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
@@ -163,20 +162,20 @@ FUNCTION m_energy() RESULT (wt)
 END FUNCTION m_energy
 
 #if defined(__CRAY_PM_ACCEL_ENERGY) || defined(__CRAY_PM_ENERGY)
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief reads energy values from the sys-filesystem
 !> \param filename ...
 !> \retval wt ...
 !> \par History
 !>      09.2013 created [Joost VandeVondele, Ole Schuett]
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION read_energy(filename) RESULT (wt)
-    CHARACTER(LEN=*)                         :: filename
-    REAL(KIND=dp)                            :: wt
+      CHARACTER(LEN=*)                                   :: filename
+      REAL(KIND=dp)                                      :: wt
 
-    CHARACTER(LEN=80)                        :: DATA
-    INTEGER                                  :: i, iostat
-    INTEGER(KIND=int_8)                      :: raw
+      CHARACTER(LEN=80)                                  :: DATA
+      INTEGER                                            :: i, iostat
+      INTEGER(KIND=int_8)                                :: raw
 
     OPEN(121245,FILE=filename,ACTION="READ",STATUS="OLD",ACCESS="STREAM")
     DO I=1,80
@@ -195,17 +194,17 @@ END FUNCTION read_energy
 #endif
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns a datum in human readable format using a standard Fortran routine
 !> \param cal_date ...
 !> \par History
 !>      10.2009 created [Joost VandeVondele]
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE m_datum(cal_date)
-    CHARACTER(len=*), INTENT(OUT)            :: cal_date
+      CHARACTER(len=*), INTENT(OUT)                      :: cal_date
 
-    CHARACTER(len=10)                        :: time
-    CHARACTER(len=8)                         :: date
+      CHARACTER(len=10)                                  :: time
+      CHARACTER(len=8)                                   :: date
 
     CALL DATE_AND_TIME(date=date, time=time)
     cal_date=date(1:4)//"-"//date(5:6)//"-"//date(7:8)//" "//time(1:2)//":"//time(3:4)//":"//time(5:10)

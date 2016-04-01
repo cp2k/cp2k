@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Empirical interatomic potentials for Silicon
 !> \note
 !>      Stefan Goedecker's OpenMP implementation of Bazant's EDIP & Lenosky's
@@ -11,32 +11,32 @@
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE eip_silicon
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE eip_environment_types,           ONLY: eip_env_get,&
-                                             eip_environment_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
-  USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
-  USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: angstrom,&
-                                             evolt
+   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE eip_environment_types,           ONLY: eip_env_get,&
+                                              eip_environment_type
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
+   USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_sum
+   USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 #include "./base/base_uses.f90"
@@ -53,7 +53,7 @@ MODULE eip_silicon
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface routine of Goedecker's Bazant EDIP to CP2K
 !> \param eip_env ...
 !> \par Literature
@@ -69,31 +69,28 @@ CONTAINS
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_bazant(eip_env)
-    TYPE(eip_environment_type), POINTER      :: eip_env
+      TYPE(eip_environment_type), POINTER                :: eip_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_bazant', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_bazant', routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
-      natom, nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: rxyz
-    REAL(KIND=dp), DIMENSION(3)              :: abc
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: eip_section
+      INTEGER                                            :: handle, i, iparticle, iparticle_kind, &
+                                                            iparticle_local, iw, natom, &
+                                                            nparticle_kind, nparticle_local
+      REAL(KIND=dp)                                      :: ekin, ener, ener_var, mass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rxyz
+      REAL(KIND=dp), DIMENSION(3)                        :: abc
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(section_vals_type), POINTER                   :: eip_section
 
 !   ------------------------------------------------------------------------
 
@@ -229,7 +226,7 @@ CONTAINS
 
   END SUBROUTINE eip_bazant
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface routine of Goedecker's Lenosky force field to CP2K
 !> \param eip_env ...
 !> \par Literature
@@ -240,31 +237,28 @@ CONTAINS
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_lenosky(eip_env)
-    TYPE(eip_environment_type), POINTER      :: eip_env
+      TYPE(eip_environment_type), POINTER                :: eip_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_lenosky', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_lenosky', routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iparticle, iparticle_kind, iparticle_local, iw, &
-      natom, nparticle_kind, nparticle_local
-    REAL(KIND=dp)                            :: ekin, ener, ener_var, mass
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: rxyz
-    REAL(KIND=dp), DIMENSION(3)              :: abc
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: eip_section
+      INTEGER                                            :: handle, i, iparticle, iparticle_kind, &
+                                                            iparticle_local, iw, natom, &
+                                                            nparticle_kind, nparticle_local
+      REAL(KIND=dp)                                      :: ekin, ener, ener_var, mass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rxyz
+      REAL(KIND=dp), DIMENSION(3)                        :: abc
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(section_vals_type), POINTER                   :: eip_section
 
 !   ------------------------------------------------------------------------
 
@@ -400,7 +394,7 @@ CONTAINS
 
   END SUBROUTINE eip_lenosky
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Print routine for the EIP energies
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
@@ -410,13 +404,13 @@ CONTAINS
 !> \note
 !>      As usual the EIP energies differ from the DFT energies!
 !>      Only the relative energy differneces are correctly reproduced.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_print_energies(eip_env, output_unit)
-    TYPE(eip_environment_type), POINTER      :: eip_env
-    INTEGER, INTENT(IN)                      :: output_unit
+      TYPE(eip_environment_type), POINTER                :: eip_env
+      INTEGER, INTENT(IN)                                :: output_unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energies', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energies', &
+         routineP = moduleN//':'//routineN
 
 !   ------------------------------------------------------------------------
 
@@ -429,22 +423,22 @@ CONTAINS
 
   END SUBROUTINE eip_print_energies
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Print routine for the variance of the energy/atom
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_print_energy_var(eip_env, output_unit)
-    TYPE(eip_environment_type), POINTER      :: eip_env
-    INTEGER, INTENT(IN)                      :: output_unit
+      TYPE(eip_environment_type), POINTER                :: eip_env
+      INTEGER, INTENT(IN)                                :: output_unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energy_var', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_energy_var', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr
+      INTEGER                                            :: unit_nr
 
 !   ------------------------------------------------------------------------
 
@@ -461,24 +455,23 @@ CONTAINS
 
   END SUBROUTINE eip_print_energy_var
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Print routine for the forces
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_print_forces(eip_env, output_unit)
-    TYPE(eip_environment_type), POINTER      :: eip_env
-    INTEGER, INTENT(IN)                      :: output_unit
+      TYPE(eip_environment_type), POINTER                :: eip_env
+      INTEGER, INTENT(IN)                                :: output_unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_forces', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_forces', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, natom, unit_nr
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+      INTEGER                                            :: iatom, natom, unit_nr
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
 !   ------------------------------------------------------------------------
 
@@ -504,22 +497,22 @@ CONTAINS
 
   END SUBROUTINE eip_print_forces
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Print routine for the average coordination number
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_print_coord_avg(eip_env, output_unit)
-    TYPE(eip_environment_type), POINTER      :: eip_env
-    INTEGER, INTENT(IN)                      :: output_unit
+      TYPE(eip_environment_type), POINTER                :: eip_env
+      INTEGER, INTENT(IN)                                :: output_unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_avg', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_avg', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr
+      INTEGER                                            :: unit_nr
 
 !   ------------------------------------------------------------------------
 
@@ -536,22 +529,22 @@ CONTAINS
 
   END SUBROUTINE eip_print_coord_avg
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Print routine for the variance of the coordination number
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_print_coord_var(eip_env, output_unit)
-    TYPE(eip_environment_type), POINTER      :: eip_env
-    INTEGER, INTENT(IN)                      :: output_unit
+      TYPE(eip_environment_type), POINTER                :: eip_env
+      INTEGER, INTENT(IN)                                :: output_unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_var', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_coord_var', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr
+      INTEGER                                            :: unit_nr
 
 !   ------------------------------------------------------------------------
 
@@ -568,22 +561,22 @@ CONTAINS
 
   END SUBROUTINE eip_print_coord_var
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Print routine for the function call counter
 !> \param eip_env The eip environment of matter
 !> \param output_unit The output unit
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE eip_print_count(eip_env, output_unit)
-    TYPE(eip_environment_type), POINTER      :: eip_env
-    INTEGER, INTENT(IN)                      :: output_unit
+      TYPE(eip_environment_type), POINTER                :: eip_env
+      INTEGER, INTENT(IN)                                :: output_unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_count', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'eip_print_count', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: unit_nr
+      INTEGER                                            :: unit_nr
 
 !   ------------------------------------------------------------------------
 
@@ -600,7 +593,7 @@ CONTAINS
 
   END SUBROUTINE eip_print_count
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Bazant's EDIP (environment-dependent interatomic potential) for Silicon
 !>      by Stefan Goedecker
 !> \param nat number of atoms
@@ -628,14 +621,13 @@ CONTAINS
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE eip_bazant_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                   coord_var,count)
 
-    INTEGER                                  :: nat
-    REAL(KIND=dp)                            :: alat, rxyz0, fxyz, ener, &
-                                                coord, ener_var, coord_var, &
-                                                count
+      INTEGER                                            :: nat
+      REAL(KIND=dp)                                      :: alat, rxyz0, fxyz, ener, coord, &
+                                                            ener_var, coord_var, count
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -670,10 +662,10 @@ CONTAINS
 
 ! determine number of threads
         npr=1
-!$omp parallel private(iam)  shared (npr) default(none)
+!$OMP PARALLEL PRIVATE(iam)  SHARED (npr) DEFAULT(NONE)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
-!$omp end parallel
+!$OMP END PARALLEL
 
 ! linear scaling calculation of verlet list
 
@@ -713,13 +705,13 @@ CONTAINS
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
-!$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
+!$OMP PARALLEL DO SHARED (alat,nat,rxyz0) PRIVATE(iat) DEFAULT(NONE)
         DO iat=1,nat
            rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
            rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
            rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
         END DO
-!$omp end parallel do
+!$OMP END PARALLEL DO
 
 ! assignment to cell is done serially
 ! set ncx for parallel case, ncx for serial case set above
@@ -1145,10 +1137,10 @@ CONTAINS
 
            indlstx=0
 
-!$omp parallel default(none) &
-!$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
-!$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
-!$omp rel,rxyz,cut,myspaceout)
+!$OMP PARALLEL DEFAULT(NONE) &
+!$OMP PRIVATE(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
+!$OMP SHARED (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
+!$OMP rel,rxyz,cut,myspaceout)
 
            npr=1
 !$         npr=omp_get_num_threads()
@@ -1181,10 +1173,10 @@ CONTAINS
                  END DO loop_l1
               END DO loop_l2
            END DO loop_l3
-!$omp critical
+!$OMP CRITICAL
            indlstx=MAX(indlstx,indlst)
-!$omp end critical
-!$omp end parallel
+!$OMP END CRITICAL
+!$OMP END PARALLEL
 
            IF (indlstx.ge.myspaceout) THEN
               WRITE(10,*) count,'NNBRX too  small', nnbrx
@@ -1197,10 +1189,10 @@ CONTAINS
 
         istopg=0
 
-!$omp parallel default(none)  &
-!$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
-!$omp tener,tener2,txyz,s2,s3,sz,num2,num3,numz,max_nbrs) &
-!$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
+!$OMP PARALLEL DEFAULT(NONE)  &
+!$OMP PRIVATE(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
+!$OMP tener,tener2,txyz,s2,s3,sz,num2,num3,numz,max_nbrs) &
+!$OMP SHARED (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
 
         npr=1
 !$       npr=omp_get_num_threads()
@@ -1213,23 +1205,23 @@ CONTAINS
 ! PARALLEL CASE
 ! create temporary private scalars for reduction sum on energies and
 !        temporary private array for reduction sum on forces
-!$omp critical
+!$OMP CRITICAL
         ALLOCATE(txyz(3,nat),s2(max_nbrs,8),s3(max_nbrs,7),sz(max_nbrs,6),  &
                  num2(max_nbrs),num3(max_nbrs),numz(max_nbrs))
-!$omp end critical
+!$OMP END CRITICAL
         IF (iam.eq.0) THEN
         ener=0.e0_dp
         ener2=0.e0_dp
         coord=0.e0_dp
         coord2=0.e0_dp
         ENDIF
-!$omp do
+!$OMP DO
         DO iat=1,nat
         fxyz(1,iat)=0.e0_dp
         fxyz(2,iat)=0.e0_dp
         fxyz(3,iat)=0.e0_dp
         ENDDO
-!$omp barrier
+!$OMP BARRIER
 
 ! Each thread treats at most lot atoms
         lot=INT(float(nat)/float(npr)+.999999999999e0_dp)
@@ -1242,7 +1234,7 @@ CONTAINS
           num2,s3(1,1),s3(1,2),s3(1,3),s3(1,4),s3(1,5),s3(1,6),s3(1,7),  &
           num3,sz(1,1),sz(1,2),sz(1,3),sz(1,4),sz(1,5),sz(1,6),numz)
 
-!$omp critical
+!$OMP CRITICAL
         ener=ener+tener
         ener2=ener2+tener2
         coord=coord+tcoord
@@ -1254,7 +1246,7 @@ CONTAINS
         fxyz(3,iat)=fxyz(3,iat)+txyz(3,iat)
 8093    CONTINUE
         DEALLOCATE(txyz,s2,s3,sz,num2,num3,numz)
-!$omp end critical
+!$OMP END CRITICAL
 
         ELSE
 ! SERIAL CASE
@@ -1270,7 +1262,7 @@ CONTAINS
         DEALLOCATE(s2,s3,sz,num2,num3,numz)
 
         ENDIF
-!$omp end parallel
+!$OMP END PARALLEL
 
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
@@ -1283,7 +1275,7 @@ CONTAINS
 
         END SUBROUTINE eip_bazant_silicon
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iat1 ...
 !> \param iat2 ...
@@ -1323,7 +1315,7 @@ CONTAINS
 !> \param sz_dz ...
 !> \param sz_r ...
 !> \param numz ...
-! *****************************************************************************
+! **************************************************************************************************
         SUBROUTINE subfeniat_b(iat1,iat2,nat,lsta,lstb,rel,ener,ener2,  &
           coord,coord2,nnbrx,ff,max_nbrs,istop,  &
           s2_t0,s2_t1,s2_t2,s2_t3,s2_dx,s2_dy,s2_dz,s2_r,  &
@@ -1336,36 +1328,33 @@ CONTAINS
 ! The routines are included with the permission of M. Bazant into this package.
 
 !  ------------------------- VARIABLE DECLARATIONS -------------------------
-    INTEGER                                  :: iat1, iat2, nat, lsta(2,nat)
-    REAL(KIND=dp)                            :: ener, ener2, coord, coord2
-    INTEGER                                  :: nnbrx
-    REAL(KIND=dp)                            :: rel(5,nnbrx*nat)
-    INTEGER                                  :: lstb(nnbrx*nat)
-    REAL(KIND=dp)                            :: ff(3,nat)
-    INTEGER                                  :: max_nbrs, istop
-    REAL(KIND=dp) :: s2_t0(max_nbrs), s2_t1(max_nbrs), s2_t2(max_nbrs), &
-      s2_t3(max_nbrs), s2_dx(max_nbrs), s2_dy(max_nbrs), s2_dz(max_nbrs), &
-      s2_r(max_nbrs)
-    INTEGER                                  :: num2(max_nbrs)
-    REAL(KIND=dp) :: s3_g(max_nbrs), s3_dg(max_nbrs), s3_rinv(max_nbrs), &
-      s3_dx(max_nbrs), s3_dy(max_nbrs), s3_dz(max_nbrs), s3_r(max_nbrs)
-    INTEGER                                  :: num3(max_nbrs)
-    REAL(KIND=dp) :: sz_df(max_nbrs), sz_sum(max_nbrs), sz_dx(max_nbrs), &
-      sz_dy(max_nbrs), sz_dz(max_nbrs), sz_r(max_nbrs)
-    INTEGER                                  :: numz(max_nbrs)
+      INTEGER                                            :: iat1, iat2, nat, lsta(2,nat)
+      REAL(KIND=dp)                                      :: ener, ener2, coord, coord2
+      INTEGER                                            :: nnbrx
+      REAL(KIND=dp)                                      :: rel(5,nnbrx*nat)
+      INTEGER                                            :: lstb(nnbrx*nat)
+      REAL(KIND=dp)                                      :: ff(3,nat)
+      INTEGER                                            :: max_nbrs, istop
+      REAL(KIND=dp) :: s2_t0(max_nbrs), s2_t1(max_nbrs), s2_t2(max_nbrs), s2_t3(max_nbrs), &
+         s2_dx(max_nbrs), s2_dy(max_nbrs), s2_dz(max_nbrs), s2_r(max_nbrs)
+      INTEGER                                            :: num2(max_nbrs)
+      REAL(KIND=dp) :: s3_g(max_nbrs), s3_dg(max_nbrs), s3_rinv(max_nbrs), s3_dx(max_nbrs), &
+         s3_dy(max_nbrs), s3_dz(max_nbrs), s3_r(max_nbrs)
+      INTEGER                                            :: num3(max_nbrs)
+      REAL(KIND=dp)                                      :: sz_df(max_nbrs), sz_sum(max_nbrs), &
+                                                            sz_dx(max_nbrs), sz_dy(max_nbrs), &
+                                                            sz_dz(max_nbrs), sz_r(max_nbrs)
+      INTEGER                                            :: numz(max_nbrs)
 
-    INTEGER                                  :: i, j, k, l, n, n2, n3, nj, &
-                                                nk, nl, nz
-    REAL(KIND=dp) :: bmc, cmbinv, coord_iat, dEdrl, dEdrlx, dEdrly, dEdrlz, &
-      den, dhdl, dHdx, dp1, dtau, dV2dZ, dV2ijx, dV2ijy, dV2ijz, dV2j, dV3dZ, &
-      dV3l, dV3ljx, dV3ljy, dV3ljz, dV3lkx, dV3lky, dV3lkz, dV3rij, dV3rijx, &
-      dV3rijy, dV3rijz, dV3rik, dV3rikx, dV3riky, dV3rikz, dwinv, dx, dxdZ, &
-      dy, dz, ener_iat, fjx, fjy, fjz, fkx, fky, fkz, fZ, H, lcos, muhalf, &
-      par_a, par_alp, par_b, par_bet, par_bg, par_c, par_cap_A, par_cap_B, &
-      par_delta, par_eta, par_gam, par_lam, par_mu, par_palp, par_Qo, par_rh, &
-      par_sig, pZ, Qort, r, rinv, rmainv, rmbinv, tau, temp0, temp1, u1, u2, &
-      u3, u4, u5, winv, x, xarg, xinv
-    REAL(KIND=dp) :: xinv3, Z
+      INTEGER                                            :: i, j, k, l, n, n2, n3, nj, nk, nl, nz
+      REAL(KIND=dp) :: bmc, cmbinv, coord_iat, dEdrl, dEdrlx, dEdrly, dEdrlz, den, dhdl, dHdx, &
+         dp1, dtau, dV2dZ, dV2ijx, dV2ijy, dV2ijz, dV2j, dV3dZ, dV3l, dV3ljx, dV3ljy, dV3ljz, &
+         dV3lkx, dV3lky, dV3lkz, dV3rij, dV3rijx, dV3rijy, dV3rijz, dV3rik, dV3rikx, dV3riky, &
+         dV3rikz, dwinv, dx, dxdZ, dy, dz, ener_iat, fjx, fjy, fjz, fkx, fky, fkz, fZ, H, lcos, &
+         muhalf, par_a, par_alp, par_b, par_bet, par_bg, par_c, par_cap_A, par_cap_B, par_delta, &
+         par_eta, par_gam, par_lam, par_mu, par_palp, par_Qo, par_rh, par_sig, pZ, Qort, r, rinv, &
+         rmainv, rmbinv, tau, temp0, temp1, u1, u2, u3, u4, u5, winv, x, xarg
+      REAL(KIND=dp) :: xinv, xinv3, Z
 
 !   size of s2[]
 !   atom ID numbers for s2[]
@@ -1706,7 +1695,7 @@ CONTAINS
         RETURN
         END SUBROUTINE subfeniat_b
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iat ...
 !> \param nn ...
@@ -1725,17 +1714,17 @@ CONTAINS
 !> \param rel ...
 !> \param cut2 ...
 !> \param indlst ...
-! *****************************************************************************
+! **************************************************************************************************
         SUBROUTINE sublstiat_b(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-    INTEGER                                  :: iat, nn, ncx, ll1, ll2, ll3, &
-                                                l1, l2, l3, myspace
-    REAL(KIND=dp)                            :: rxyz
-    INTEGER                                  :: icell, lstb, lay
-    REAL(KIND=dp)                            :: rel, cut2
-    INTEGER                                  :: indlst
+      INTEGER                                            :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, &
+                                                            myspace
+      REAL(KIND=dp)                                      :: rxyz
+      INTEGER                                            :: icell, lstb, lay
+      REAL(KIND=dp)                                      :: rel, cut2
+      INTEGER                                            :: indlst
 
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
@@ -1774,7 +1763,7 @@ CONTAINS
         RETURN
         END SUBROUTINE sublstiat_b
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Lenosky's "highly optimized empirical potential model of silicon"
 !>      by Stefan Goedecker
 !> \param nat number of atoms
@@ -1797,14 +1786,13 @@ CONTAINS
 !> \par History
 !>      03.2006 initial create [tdk]
 !> \author Thomas D. Kuehne (tkuehne@phys.chem.ethz.ch)
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE eip_lenosky_silicon(nat,alat,rxyz0,fxyz,ener,coord,ener_var,&
                                    coord_var,count)
 
-    INTEGER                                  :: nat
-    REAL(KIND=dp)                            :: alat, rxyz0, fxyz, ener, &
-                                                coord, ener_var, coord_var, &
-                                                count
+      INTEGER                                            :: nat
+      REAL(KIND=dp)                                      :: alat, rxyz0, fxyz, ener, coord, &
+                                                            ener_var, coord_var, count
 
         DIMENSION rxyz0(3,nat),fxyz(3,nat),alat(3)
         REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: rxyz
@@ -1840,10 +1828,10 @@ CONTAINS
 
 ! determine number of threads
         npr=1
-!$omp parallel private(iam)  shared (npr) default(none)
+!$OMP PARALLEL PRIVATE(iam)  SHARED (npr) DEFAULT(NONE)
 !$       iam=omp_get_thread_num()
 !$       if (iam.eq.0) npr=omp_get_num_threads()
-!$omp end parallel
+!$OMP END PARALLEL
 
 ! linear scaling calculation of verlet list
 
@@ -1883,13 +1871,13 @@ CONTAINS
      ELSE  ! parallel case
 
 ! periodization of particles can be done in parallel
-!$omp parallel do shared (alat,nat,rxyz0) private(iat) default(none)
+!$OMP PARALLEL DO SHARED (alat,nat,rxyz0) PRIVATE(iat) DEFAULT(NONE)
         DO iat=1,nat
            rxyz0(1,iat)=MODULO(MODULO(rxyz0(1,iat),alat(1)),alat(1))
            rxyz0(2,iat)=MODULO(MODULO(rxyz0(2,iat),alat(2)),alat(2))
            rxyz0(3,iat)=MODULO(MODULO(rxyz0(3,iat),alat(3)),alat(3))
         END DO
-!$omp end parallel do
+!$OMP END PARALLEL DO
 
 ! assignment to cell is done serially
 ! set ncx for parallel case, ncx for serial case set above
@@ -2314,10 +2302,10 @@ CONTAINS
 
            indlstx=0
 
-!$omp parallel default(none)  &
-!$omp private(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
-!$omp shared (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
-!$omp rel,rxyz,cut,myspaceout)
+!$OMP PARALLEL DEFAULT(NONE)  &
+!$OMP PRIVATE(iat,cut2,iam,ii,indlst,l1,l2,l3,myspace,npr) &
+!$OMP SHARED (indlstx,nat,nn,nnbrx,ncx,ll1,ll2,ll3,icell,lsta,lstb,lay, &
+!$OMP rel,rxyz,cut,myspaceout)
 
            npr=1
 !$         npr=omp_get_num_threads()
@@ -2351,10 +2339,10 @@ CONTAINS
               END DO loop_l2
            END DO loop_l3
 
-!$omp critical
+!$OMP CRITICAL
            indlstx=MAX(indlstx,indlst)
-!$omp end critical
-!$omp end parallel
+!$OMP END CRITICAL
+!$OMP END PARALLEL
 
            IF (indlstx.ge.myspaceout) THEN
                WRITE(10,*) count,'NNBRX too  small', nnbrx
@@ -2366,10 +2354,10 @@ CONTAINS
         END DO loop_nnbrx
 
         istopg=0
-!$omp parallel default(none)  &
-!$omp private(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
-!$omp tener,tener2,txyz,f2ij,f3ij,f3ik,npjx,npjkx) &
-!$omp shared (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
+!$OMP PARALLEL DEFAULT(NONE)  &
+!$OMP PRIVATE(iam,npr,iat,iat1,iat2,lot,istop,tcoord,tcoord2, &
+!$OMP tener,tener2,txyz,f2ij,f3ij,f3ik,npjx,npjkx) &
+!$OMP SHARED (nat,nnbrx,lsta,lstb,rel,ener,ener2,fxyz,coord,coord2,istopg)
 
         npr=1
 !$       npr=omp_get_num_threads()
@@ -2382,22 +2370,22 @@ CONTAINS
 ! PARALLEL CASE
 ! create temporary private scalars for reduction sum on energies and
 !        temporary private array for reduction sum on forces
-!$omp critical
+!$OMP CRITICAL
         ALLOCATE(txyz(3,nat),f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx))
-!$omp end critical
+!$OMP END CRITICAL
         IF (iam.eq.0) THEN
         ener=0.e0_dp
         ener2=0.e0_dp
         coord=0.e0_dp
         coord2=0.e0_dp
         ENDIF
-!$omp do
+!$OMP DO
         DO 121,iat=1,nat
         fxyz(1,iat)=0.e0_dp
         fxyz(2,iat)=0.e0_dp
         fxyz(3,iat)=0.e0_dp
 121     CONTINUE
-!$omp barrier
+!$OMP BARRIER
 
 ! Each thread treats at most lot atoms
         lot=INT(float(nat)/float(npr)+.999999999999e0_dp)
@@ -2406,7 +2394,7 @@ CONTAINS
 !       write(*,*) 'subfeniat:iat1,iat2,iam',iat1,iat2,iam
         CALL subfeniat_l(iat1,iat2,nat,lsta,lstb,rel,tener,tener2, &
                tcoord,tcoord2,nnbrx,txyz,f2ij,npjx,f3ij,npjkx,f3ik,istop)
-!$omp critical
+!$OMP CRITICAL
         ener=ener+tener
         ener2=ener2+tener2
         coord=coord+tcoord
@@ -2418,7 +2406,7 @@ CONTAINS
         fxyz(3,iat)=fxyz(3,iat)+txyz(3,iat)
 8093    CONTINUE
         DEALLOCATE(txyz,f2ij,f3ij,f3ik)
-!$omp end critical
+!$OMP END CRITICAL
 
         ELSE
 ! SERIAL CASE
@@ -2430,7 +2418,7 @@ CONTAINS
         DEALLOCATE(f2ij,f3ij,f3ik)
 
         ENDIF
-!$omp end parallel
+!$OMP END PARALLEL
 
 !         write(*,*) 'ener,norm force', &
 !                    ener,DNRM2(3*nat,fxyz,1)
@@ -2443,7 +2431,7 @@ CONTAINS
 
         END SUBROUTINE eip_lenosky_silicon
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iat1 ...
 !> \param iat2 ...
@@ -2463,7 +2451,7 @@ CONTAINS
 !> \param npjkx ...
 !> \param f3ik ...
 !> \param istop ...
-! *****************************************************************************
+! **************************************************************************************************
         SUBROUTINE subfeniat_l(iat1,iat2,nat,lsta,lstb,rel,tener,tener2, &
                tcoord,tcoord2,nnbrx,txyz,f2ij,npjx,f3ij,npjkx,f3ik,istop)
 ! for a subset of atoms iat1 to iat2 the routine calculates the (partial) forces
@@ -2471,16 +2459,15 @@ CONTAINS
 ! with them and their contribution to the energy (tener).
 ! In addition the coordination number tcoord and the second moment of the
 ! local energy tener2 and coordination number tcoord2 are returned
-    INTEGER                                  :: iat1, iat2, nat, lsta, lstb
-    REAL(KIND=dp)                            :: rel, tener, tener2, tcoord, &
-                                                tcoord2
-    INTEGER                                  :: nnbrx
-    REAL(KIND=dp)                            :: txyz, f2ij
-    INTEGER                                  :: npjx
-    REAL(KIND=dp)                            :: f3ij
-    INTEGER                                  :: npjkx
-    REAL(KIND=dp)                            :: f3ik
-    INTEGER                                  :: istop
+      INTEGER                                            :: iat1, iat2, nat, lsta, lstb
+      REAL(KIND=dp)                                      :: rel, tener, tener2, tcoord, tcoord2
+      INTEGER                                            :: nnbrx
+      REAL(KIND=dp)                                      :: txyz, f2ij
+      INTEGER                                            :: npjx
+      REAL(KIND=dp)                                      :: f3ij
+      INTEGER                                            :: npjkx
+      REAL(KIND=dp)                                      :: f3ik
+      INTEGER                                            :: istop
 
         DIMENSION lsta(2,nat),lstb(nnbrx*nat),rel(5,nnbrx*nat),txyz(3,nat)
         DIMENSION f2ij(3,npjx),f3ij(3,npjkx),f3ik(3,npjkx)
@@ -2897,7 +2884,7 @@ CONTAINS
 
         END SUBROUTINE subfeniat_l
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iat ...
 !> \param nn ...
@@ -2916,17 +2903,17 @@ CONTAINS
 !> \param rel ...
 !> \param cut2 ...
 !> \param indlst ...
-! *****************************************************************************
+! **************************************************************************************************
         SUBROUTINE sublstiat_l(iat,nn,ncx,ll1,ll2,ll3,l1,l2,l3,myspace, &
                    rxyz,icell,lstb,lay,rel,cut2,indlst)
 ! finds the neighbours of atom iat (specified by lsta and lstb) and and
 ! the relative position rel of iat with respect to these neighbours
-    INTEGER                                  :: iat, nn, ncx, ll1, ll2, ll3, &
-                                                l1, l2, l3, myspace
-    REAL(KIND=dp)                            :: rxyz
-    INTEGER                                  :: icell, lstb, lay
-    REAL(KIND=dp)                            :: rel, cut2
-    INTEGER                                  :: indlst
+      INTEGER                                            :: iat, nn, ncx, ll1, ll2, ll3, l1, l2, l3, &
+                                                            myspace
+      REAL(KIND=dp)                                      :: rxyz
+      INTEGER                                            :: icell, lstb, lay
+      REAL(KIND=dp)                                      :: rel, cut2
+      INTEGER                                            :: indlst
 
         DIMENSION rxyz(3,nn),lay(nn),icell(0:ncx,-1:ll1,-1:ll2,-1:ll3), &
                   lstb(0:myspace-1),rel(5,0:myspace-1)
@@ -2965,7 +2952,7 @@ CONTAINS
         RETURN
         END SUBROUTINE sublstiat_l
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ya ...
 !> \param y2a ...
@@ -2978,12 +2965,11 @@ CONTAINS
 !> \param x ...
 !> \param y ...
 !> \param yp ...
-! *****************************************************************************
+! **************************************************************************************************
         SUBROUTINE splint(ya,y2a,tmin,tmax,hsixth,h2sixth,hi,n,x,y,yp)
-    REAL(KIND=dp)                            :: ya, y2a, tmin, tmax, hsixth, &
-                                                h2sixth, hi
-    INTEGER                                  :: n
-    REAL(KIND=dp)                            :: x, y, yp
+      REAL(KIND=dp)                                      :: ya, y2a, tmin, tmax, hsixth, h2sixth, hi
+      INTEGER                                            :: n
+      REAL(KIND=dp)                                      :: x, y, yp
 
         DIMENSION y2a(0:n-1),ya(0:n-1)
         REAL(KIND=dp) :: a,a2,b,b2,cof1,cof2,cof3,cof4,tt,&

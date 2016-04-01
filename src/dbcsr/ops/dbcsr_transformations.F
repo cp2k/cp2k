@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   DBCSR transformations
 !> \author  Urban Borstnik
 !> \date    2010-02-18
@@ -11,103 +11,95 @@
 !>
 !> <b>Modification history:</b>
 !> - 2010-02-18 Moved from dbcsr_util and dbcsr_operations
-! *****************************************************************************
+! **************************************************************************************************
 MODULE dbcsr_transformations
 
-  USE array_types,                     ONLY: array_data,&
-                                             array_hold,&
-                                             array_i1d_obj,&
-                                             array_release
-  USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
-                                             dbcsr_put_block
-  USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
-                                             dbcsr_block_partial_copy,&
-                                             dbcsr_block_real_neg,&
-                                             dbcsr_block_transpose,&
-                                             dbcsr_data_clear,&
-                                             dbcsr_data_copy,&
-                                             dbcsr_data_set
-  USE dbcsr_data_methods,              ONLY: &
-       dbcsr_data_clear_pointer, dbcsr_data_ensure_size, &
-       dbcsr_data_get_memory_type, dbcsr_data_get_size, &
-       dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
-       dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, &
-       dbcsr_data_set_pointer, dbcsr_data_set_size_referenced, &
-       dbcsr_get_data, dbcsr_type_1d_to_2d
-  USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data,&
-                                             dbcsr_switch_data_area
-  USE dbcsr_dist_methods,              ONLY: &
-       dbcsr_distribution_col_dist, dbcsr_distribution_hold, &
-       dbcsr_distribution_local_cols, dbcsr_distribution_local_rows, &
-       dbcsr_distribution_mp, dbcsr_distribution_ncols, &
-       dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, &
-       dbcsr_distribution_nrows, dbcsr_distribution_release, &
-       dbcsr_distribution_row_dist
-  USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_cols,&
-                                             dbcsr_get_local_rows,&
-                                             dbcsr_get_stored_coordinates,&
-                                             dbcsr_reblocking_targets,&
-                                             dbcsr_transpose_dims,&
-                                             dbcsr_transpose_distribution
-  USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
-                                             dbcsr_failure_level,&
-                                             dbcsr_fatal_level,&
-                                             dbcsr_internal_error,&
-                                             dbcsr_unimplemented_error_nr,&
-                                             dbcsr_wrong_args_error
-  USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
-                                             dbcsr_clearfrom_index_array,&
-                                             dbcsr_repoint_index,&
-                                             make_dense_index,&
-                                             make_undense_index,&
-                                             transpose_index_local
-  USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
-                                             dbcsr_iterator_next_block,&
-                                             dbcsr_iterator_start,&
-                                             dbcsr_iterator_stop
-  USE dbcsr_methods,                   ONLY: &
-       dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, &
-       dbcsr_get_matrix_type, dbcsr_has_symmetry, dbcsr_init, &
-       dbcsr_is_initialized, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-       dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
-       dbcsr_row_block_sizes, dbcsr_valid_index
-  USE dbcsr_mp_methods,                ONLY: &
-       dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, dbcsr_mp_group, &
-       dbcsr_mp_has_subgroups, dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, &
-       dbcsr_mp_mynode, dbcsr_mp_mypcol, dbcsr_mp_myprow, dbcsr_mp_npcols, &
-       dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
-  USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
-                                             hybrid_alltoall_any,&
-                                             hybrid_alltoall_c1,&
-                                             hybrid_alltoall_d1,&
-                                             hybrid_alltoall_i1,&
-                                             hybrid_alltoall_s1,&
-                                             hybrid_alltoall_z1
-  USE dbcsr_ptr_util,                  ONLY: pointer_view
-  USE dbcsr_types,                     ONLY: &
-       dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, &
-       dbcsr_meta_size, dbcsr_mp_obj, dbcsr_obj, dbcsr_repl_col, &
-       dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, dbcsr_slot_blk_p, &
-       dbcsr_slot_col_i, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
-       dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, &
-       dbcsr_type_complex_4, dbcsr_type_complex_8, dbcsr_type_no_symmetry, &
-       dbcsr_type_real_4, dbcsr_type_real_8
-  USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
-                                             dbcsr_checksum,&
-                                             dbcsr_pack_meta,&
-                                             dbcsr_unpack_meta,&
-                                             dbcsr_verify_matrix,&
-                                             get_internal_offsets,&
-                                             global_offsets_to_local,&
-                                             nfull_elements
-  USE dbcsr_work_operations,           ONLY: dbcsr_create,&
-                                             dbcsr_finalize,&
-                                             dbcsr_work_create
-  USE kinds,                           ONLY: dp,&
-                                             int_8,&
-                                             sp
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_alltoall
+   USE array_types,                     ONLY: array_data,&
+                                              array_hold,&
+                                              array_i1d_obj,&
+                                              array_release
+   USE dbcsr_block_access,              ONLY: dbcsr_get_block_p,&
+                                              dbcsr_put_block
+   USE dbcsr_block_operations,          ONLY: dbcsr_block_conjg,&
+                                              dbcsr_block_partial_copy,&
+                                              dbcsr_block_real_neg,&
+                                              dbcsr_block_transpose,&
+                                              dbcsr_data_clear,&
+                                              dbcsr_data_copy,&
+                                              dbcsr_data_set
+   USE dbcsr_data_methods,              ONLY: &
+        dbcsr_data_clear_pointer, dbcsr_data_ensure_size, dbcsr_data_get_memory_type, &
+        dbcsr_data_get_size, dbcsr_data_get_size_referenced, dbcsr_data_get_type, dbcsr_data_hold, &
+        dbcsr_data_init, dbcsr_data_new, dbcsr_data_release, dbcsr_data_set_pointer, &
+        dbcsr_data_set_size_referenced, dbcsr_get_data, dbcsr_type_1d_to_2d
+   USE dbcsr_data_operations,           ONLY: dbcsr_copy_sort_data,&
+                                              dbcsr_switch_data_area
+   USE dbcsr_dist_methods,              ONLY: &
+        dbcsr_distribution_col_dist, dbcsr_distribution_hold, dbcsr_distribution_local_cols, &
+        dbcsr_distribution_local_rows, dbcsr_distribution_mp, dbcsr_distribution_ncols, &
+        dbcsr_distribution_nlocal_cols, dbcsr_distribution_nlocal_rows, dbcsr_distribution_nrows, &
+        dbcsr_distribution_release, dbcsr_distribution_row_dist
+   USE dbcsr_dist_operations,           ONLY: dbcsr_get_local_cols,&
+                                              dbcsr_get_local_rows,&
+                                              dbcsr_get_stored_coordinates,&
+                                              dbcsr_reblocking_targets,&
+                                              dbcsr_transpose_dims,&
+                                              dbcsr_transpose_distribution
+   USE dbcsr_error_handling,            ONLY: dbcsr_assert,&
+                                              dbcsr_failure_level,&
+                                              dbcsr_fatal_level,&
+                                              dbcsr_internal_error,&
+                                              dbcsr_unimplemented_error_nr,&
+                                              dbcsr_wrong_args_error
+   USE dbcsr_index_operations,          ONLY: dbcsr_addto_index_array,&
+                                              dbcsr_clearfrom_index_array,&
+                                              dbcsr_repoint_index,&
+                                              make_dense_index,&
+                                              make_undense_index,&
+                                              transpose_index_local
+   USE dbcsr_iterator_operations,       ONLY: dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop
+   USE dbcsr_methods,                   ONLY: &
+        dbcsr_col_block_sizes, dbcsr_distribution, dbcsr_get_data_type, dbcsr_get_matrix_type, &
+        dbcsr_has_symmetry, dbcsr_init, dbcsr_is_initialized, dbcsr_nblkcols_total, &
+        dbcsr_nblkrows_total, dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_release, &
+        dbcsr_row_block_sizes, dbcsr_valid_index
+   USE dbcsr_mp_methods,                ONLY: &
+        dbcsr_mp_grid_remove, dbcsr_mp_grid_setup, dbcsr_mp_group, dbcsr_mp_has_subgroups, &
+        dbcsr_mp_my_col_group, dbcsr_mp_my_row_group, dbcsr_mp_mynode, dbcsr_mp_mypcol, &
+        dbcsr_mp_myprow, dbcsr_mp_npcols, dbcsr_mp_nprows, dbcsr_mp_numnodes, dbcsr_mp_pgrid
+   USE dbcsr_mp_operations,             ONLY: dbcsr_allgatherv,&
+                                              hybrid_alltoall_any,&
+                                              hybrid_alltoall_c1,&
+                                              hybrid_alltoall_d1,&
+                                              hybrid_alltoall_i1,&
+                                              hybrid_alltoall_s1,&
+                                              hybrid_alltoall_z1
+   USE dbcsr_ptr_util,                  ONLY: pointer_view
+   USE dbcsr_types,                     ONLY: &
+        dbcsr_data_obj, dbcsr_distribution_obj, dbcsr_iterator, dbcsr_meta_size, dbcsr_mp_obj, &
+        dbcsr_obj, dbcsr_repl_col, dbcsr_repl_full, dbcsr_repl_none, dbcsr_repl_row, &
+        dbcsr_slot_blk_p, dbcsr_slot_col_i, dbcsr_slot_home_pcol, dbcsr_slot_home_prow, &
+        dbcsr_slot_nblks, dbcsr_slot_nze, dbcsr_slot_row_p, dbcsr_type_complex_4, &
+        dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_4, dbcsr_type_real_8
+   USE dbcsr_util,                      ONLY: convert_sizes_to_offsets,&
+                                              dbcsr_checksum,&
+                                              dbcsr_pack_meta,&
+                                              dbcsr_unpack_meta,&
+                                              dbcsr_verify_matrix,&
+                                              get_internal_offsets,&
+                                              global_offsets_to_local,&
+                                              nfull_elements
+   USE dbcsr_work_operations,           ONLY: dbcsr_create,&
+                                              dbcsr_finalize,&
+                                              dbcsr_work_create
+   USE kinds,                           ONLY: dp,&
+                                              int_8,&
+                                              sp
+   USE message_passing,                 ONLY: mp_allgather,&
+                                              mp_alltoall
 #include "../../base/base_uses.f90"
 
   !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
@@ -129,7 +121,7 @@ MODULE dbcsr_transformations
 CONTAINS
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Transposes a DBCSR matrix.
 !> \param[out] transposed     transposed DBCSR matrix
 !> \param[in] normal          input DBCSR matrix
@@ -149,30 +141,27 @@ CONTAINS
 !>      By default the distribution is transposed. If transpose_distribution
 !>      is false, then an undetermined distribution is created that is
 !>      compatible with the same process grid.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_new_transposed (transposed, normal, shallow_data_copy,&
        transpose_data, transpose_distribution, transpose_index,&
        use_distribution, redistribute)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: transposed
-    TYPE(dbcsr_obj), INTENT(IN)              :: normal
-    LOGICAL, INTENT(IN), OPTIONAL            :: shallow_data_copy, &
-                                                transpose_data, &
-                                                transpose_distribution, &
-                                                transpose_index
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(IN), OPTIONAL                   :: use_distribution
-    LOGICAL, INTENT(IN), OPTIONAL            :: redistribute
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: transposed
+      TYPE(dbcsr_obj), INTENT(IN)                        :: normal
+      LOGICAL, INTENT(IN), OPTIONAL                      :: shallow_data_copy, transpose_data, &
+                                                            transpose_distribution, transpose_index
+      TYPE(dbcsr_distribution_obj), INTENT(IN), OPTIONAL :: use_distribution
+      LOGICAL, INTENT(IN), OPTIONAL                      :: redistribute
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_new_transposed', &
+         routineP = moduleN//':'//routineN
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
-    INTEGER                                  :: handle, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: blk_p
-    LOGICAL                                  :: redist, shallow, tr_blocks, &
-                                                tr_dist, tr_index
-    TYPE(dbcsr_distribution_obj)             :: new_dist
-    TYPE(dbcsr_obj)                          :: t2
+      INTEGER                                            :: handle, stat
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_p
+      LOGICAL                                            :: redist, shallow, tr_blocks, tr_dist, &
+                                                            tr_index
+      TYPE(dbcsr_distribution_obj)                       :: new_dist
+      TYPE(dbcsr_obj)                                    :: t2
 
 !   ---------------------------------------------------------------------------
 
@@ -311,41 +300,38 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE dbcsr_new_transposed
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Duplicates data in symmetric matrix to make it normal (w.r.t. data
 !>        structure. Can handle symmetric/antisymmetric/hermitian/skewhermitian
 !>        matrices
 !> \param[in] sm              input symmetric matrix
 !> \param[out] desm           desymmetrized matrix
 !> \param untransposed_data ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_desymmetrize_deep(sm, desm, untransposed_data)
-    TYPE(dbcsr_obj), INTENT(IN)              :: sm
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: desm
-    LOGICAL, INTENT(IN), OPTIONAL            :: untransposed_data
+      TYPE(dbcsr_obj), INTENT(IN)                        :: sm
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: desm
+      LOGICAL, INTENT(IN), OPTIONAL                      :: untransposed_data
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_desymmetrize_deep', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: idata = 2, imeta = 1, &
-                                                metalen = 3
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_desymmetrize_deep', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: idata = 2, imeta = 1, metalen = 3
 
-    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, handle, &
-      mp_group, nsymmetries, numproc, nze, pcol, prow, row, row_size, src_p, &
-      stored_col, stored_row, symmetry_i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
-                                                sd_disp, sdp, send_meta, &
-                                                sm_disp, smp
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
-                                                total_recv_count, &
-                                                total_send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: make_untr, tr
-    TYPE(dbcsr_data_obj)                     :: recv_data, send_data
-    TYPE(dbcsr_distribution_obj)             :: target_dist
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
+      INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, dst_p, handle, mp_group, &
+         nsymmetries, numproc, nze, pcol, prow, row, row_size, src_p, stored_col, stored_row, &
+         symmetry_i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rd_disp, recv_meta, rm_disp, sd_disp, &
+                                                            sdp, send_meta, sm_disp, smp
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: recv_count, send_count, &
+                                                            total_recv_count, total_send_count
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
+                                                            row_dist
+      INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
+      LOGICAL                                            :: make_untr, tr
+      TYPE(dbcsr_data_obj)                               :: recv_data, send_data
+      TYPE(dbcsr_distribution_obj)                       :: target_dist
+      TYPE(dbcsr_iterator)                               :: iter
+      TYPE(dbcsr_mp_obj)                                 :: mp_obj
 
 !   ---------------------------------------------------------------------------
 
@@ -561,32 +547,31 @@ CONTAINS
   END SUBROUTINE dbcsr_desymmetrize_deep
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Distributes a matrix that is currently replicated.
 !> \param[in,out] matrix      matrix to replicate
 !> \param[in] fast            change just the index, don't touch the data
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_distribute(matrix, fast)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    LOGICAL, INTENT(in), OPTIONAL            :: fast
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      LOGICAL, INTENT(in), OPTIONAL                      :: fast
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribute', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_distribute', &
+         routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: c_dp
-    COMPLEX(KIND=sp), DIMENSION(:), POINTER  :: c_sp
-    INTEGER                                  :: blk, col, handle, mynode, &
-                                                nblks, nze, p, row
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, row_blk_size, &
-                                                tmp_index
-    LOGICAL                                  :: mini, tr
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_dp
-    REAL(KIND=sp), DIMENSION(:), POINTER     :: r_sp
-    TYPE(dbcsr_data_obj)                     :: tmp_data
-    TYPE(dbcsr_distribution_obj)             :: dist
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_obj)                          :: distributed
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: c_dp
+      COMPLEX(KIND=sp), DIMENSION(:), POINTER            :: c_sp
+      INTEGER                                            :: blk, col, handle, mynode, nblks, nze, p, &
+                                                            row
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size, tmp_index
+      LOGICAL                                            :: mini, tr
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: r_dp
+      REAL(KIND=sp), DIMENSION(:), POINTER               :: r_sp
+      TYPE(dbcsr_data_obj)                               :: tmp_data
+      TYPE(dbcsr_distribution_obj)                       :: dist
+      TYPE(dbcsr_iterator)                               :: iter
+      TYPE(dbcsr_mp_obj)                                 :: mp_obj
+      TYPE(dbcsr_obj)                                    :: distributed
 
 !   ---------------------------------------------------------------------------
 
@@ -685,23 +670,21 @@ CONTAINS
   END SUBROUTINE dbcsr_distribute
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Detransposes all blocks in a matrix
 !> \param[in,out] matrix      DBCSR matrix
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_make_untransposed_blocks(matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'dbcsr_make_untransposed_blocks', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_untransposed_blocks', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, col, col_size, handle, &
-                                                row, row_size
-    INTEGER, DIMENSION(:), POINTER           :: cbs, rbs
-    LOGICAL                                  :: sym_negation, tr
-    TYPE(dbcsr_data_obj)                     :: block_data
-    TYPE(dbcsr_iterator)                     :: iter
+      INTEGER                                            :: blk, col, col_size, handle, row, row_size
+      INTEGER, DIMENSION(:), POINTER                     :: cbs, rbs
+      LOGICAL                                            :: sym_negation, tr
+      TYPE(dbcsr_data_obj)                               :: block_data
+      TYPE(dbcsr_iterator)                               :: iter
 
 !   ---------------------------------------------------------------------------
 
@@ -747,7 +730,7 @@ CONTAINS
   END SUBROUTINE dbcsr_make_untransposed_blocks
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Makes a dense matrix, inplace.
 !> \param[in,out] matrix      matrix to make dense
 !> \param dense_matrix ...
@@ -757,26 +740,23 @@ CONTAINS
 !> \param row_map ...
 !> \param col_map ...
 !> \note Used for making matrices dense/undense
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_make_dense (matrix, dense_matrix, dense_dist,&
        dense_row_sizes, dense_col_sizes, row_map, col_map)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_obj), INTENT(OUT)             :: dense_matrix
-    TYPE(dbcsr_distribution_obj), &
-      INTENT(INOUT)                          :: dense_dist
-    TYPE(array_i1d_obj), INTENT(IN)          :: dense_row_sizes, &
-                                                dense_col_sizes, row_map, &
-                                                col_map
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_obj), INTENT(OUT)                       :: dense_matrix
+      TYPE(dbcsr_distribution_obj), INTENT(INOUT)        :: dense_dist
+      TYPE(array_i1d_obj), INTENT(IN)                    :: dense_row_sizes, dense_col_sizes, &
+                                                            row_map, col_map
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dense', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dense', &
+         routineP = moduleN//':'//routineN
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
-    INTEGER                                  :: handle
-    REAL(kind=dp)                            :: cs
-    TYPE(array_i1d_obj)                      :: dense_local_cols, &
-                                                dense_local_rows
-    TYPE(dbcsr_distribution_obj)             :: old_distribution
+      INTEGER                                            :: handle
+      REAL(kind=dp)                                      :: cs
+      TYPE(array_i1d_obj)                                :: dense_local_cols, dense_local_rows
+      TYPE(dbcsr_distribution_obj)                       :: old_distribution
 
 !   ---------------------------------------------------------------------------
 
@@ -813,7 +793,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE dbcsr_make_dense
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies a matrix and makes its data dense.
 !> \param[in] und_matrix         Original non-dense matrix
 !> \param[in,out] dense_matrix   Dense copy of und_matrix
@@ -839,34 +819,31 @@ CONTAINS
 !> \param[in] join_rows              Make rows dense
 !> \param[in] join_cols              Make columns dense
 !> \note the dense_matrix must have been created
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_make_dense_low (und_matrix, dense_matrix,&
        und_local_rows, und_local_cols,&
        und_row_blk_offsets, und_col_blk_offsets,&
        dense_local_rows, dense_local_cols,&
        dense_row_blk_offsets, dense_col_blk_offsets,&
        row_map, col_map, join_rows, join_cols)
-    TYPE(dbcsr_obj), INTENT(IN)              :: und_matrix
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: dense_matrix
-    INTEGER, DIMENSION(:), INTENT(IN) :: und_local_rows, und_local_cols, &
-      und_row_blk_offsets, und_col_blk_offsets, dense_local_rows, &
-      dense_local_cols, dense_row_blk_offsets, dense_col_blk_offsets, &
-      row_map, col_map
-    LOGICAL, INTENT(IN)                      :: join_rows, join_cols
+      TYPE(dbcsr_obj), INTENT(IN)                        :: und_matrix
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: dense_matrix
+      INTEGER, DIMENSION(:), INTENT(IN) :: und_local_rows, und_local_cols, und_row_blk_offsets, &
+         und_col_blk_offsets, dense_local_rows, dense_local_cols, dense_row_blk_offsets, &
+         dense_col_blk_offsets, row_map, col_map
+      LOGICAL, INTENT(IN)                                :: join_rows, join_cols
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dense_low', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_dense_low', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: dense_nblkcols_local, dense_nblkcols_total, &
-      dense_nblkrows_local, dense_nblkrows_total, dense_nlocal_blocks, &
-      error_handle, nfullcols, nfullrows, und_nblkcols_total, &
-      und_nblkrows_total
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: col_internal_offsets, &
-      dense_local_col_blk_offsets, dense_local_row_blk_offsets, &
-      row_internal_offsets, und_local_col_blk_offsets, &
-      und_local_row_blk_offsets
-    INTEGER, DIMENSION(dbcsr_meta_size)      :: meta
-    TYPE(dbcsr_data_obj)                     :: dense_data, und_data
+      INTEGER :: dense_nblkcols_local, dense_nblkcols_total, dense_nblkrows_local, &
+         dense_nblkrows_total, dense_nlocal_blocks, error_handle, nfullcols, nfullrows, &
+         und_nblkcols_total, und_nblkrows_total
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: col_internal_offsets, dense_local_col_blk_offsets, &
+         dense_local_row_blk_offsets, row_internal_offsets, und_local_col_blk_offsets, &
+         und_local_row_blk_offsets
+      INTEGER, DIMENSION(dbcsr_meta_size)                :: meta
+      TYPE(dbcsr_data_obj)                               :: dense_data, und_data
 
 !   ---------------------------------------------------------------------------
 
@@ -982,7 +959,7 @@ CONTAINS
   END SUBROUTINE dbcsr_make_dense_low
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Makes a blocked matrix from a dense matrix, inplace
 !> \param[in] matrix                 dense matrix
 !> \param[in,out] undense_matrix     matrix to make undense
@@ -994,31 +971,31 @@ CONTAINS
 !> \param[in] row_map mapping from non-dense rows
 !> \param[in] col_map mapping from non-dense columns
 !> \note Used for making matrices dense/undense
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_make_undense (matrix, undense_matrix, distribution,&
        row_blk_offsets, col_blk_offsets, row_blk_sizes, col_blk_sizes,&
        row_map, col_map)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: undense_matrix
-    TYPE(dbcsr_distribution_obj), INTENT(IN) :: distribution
-    TYPE(array_i1d_obj), INTENT(IN)          :: row_blk_offsets, &
-                                                col_blk_offsets, &
-                                                row_blk_sizes, col_blk_sizes, &
-                                                row_map, col_map
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: undense_matrix
+      TYPE(dbcsr_distribution_obj), INTENT(IN)           :: distribution
+      TYPE(array_i1d_obj), INTENT(IN)                    :: row_blk_offsets, col_blk_offsets, &
+                                                            row_blk_sizes, col_blk_sizes, row_map, &
+                                                            col_map
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_undense', &
-      routineP = moduleN//':'//routineN
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_make_undense', &
+         routineP = moduleN//':'//routineN
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
-    INTEGER :: handle, nblkcols_local, nblkcols_total, nblkrows_local, &
-      nblkrows_total, nfullcols_local, nfullrows_local
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: col_internal_offsets, &
-      dense_local_col_blk_offsets, dense_local_row_blk_offsets, &
-      local_col_blk_offsets, local_row_blk_offsets, row_internal_offsets
-    INTEGER, DIMENSION(:), POINTER           :: local_cols, local_rows, meta
-    REAL(kind=dp)                            :: cs
-    TYPE(dbcsr_data_obj)                     :: blocked_data, dense_data
-    TYPE(dbcsr_distribution_obj)             :: dense_distribution
+      INTEGER                                            :: handle, nblkcols_local, nblkcols_total, &
+                                                            nblkrows_local, nblkrows_total, &
+                                                            nfullcols_local, nfullrows_local
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: col_internal_offsets, dense_local_col_blk_offsets, &
+         dense_local_row_blk_offsets, local_col_blk_offsets, local_row_blk_offsets, &
+         row_internal_offsets
+      INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows, meta
+      REAL(kind=dp)                                      :: cs
+      TYPE(dbcsr_data_obj)                               :: blocked_data, dense_data
+      TYPE(dbcsr_distribution_obj)                       :: dense_distribution
 
 !   ---------------------------------------------------------------------------
 
@@ -1130,7 +1107,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE dbcsr_make_undense
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Shuffles the data from blocked to standard dense form
 !> \param[in] matrix                 Existing blocked matrix
 !> \param[in,out] dense_data         Dense data
@@ -1149,30 +1126,29 @@ CONTAINS
 !>                                yes
 !> \param[in] make_tr             (optional) make the dense blocks transposed
 !> \note Used for making matrices dense/undense
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE make_dense_data (matrix, dense_data, nfullrows, nfullcols,&
        und_row_blk_offsets, und_col_blk_offsets,&
        dense_row_blk_offsets, dense_col_blk_offsets,&
        row_map, col_map,&
        row_internal_offsets, col_internal_offsets,&
        join_rows, join_cols, make_tr)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dense_data
-    INTEGER, INTENT(IN)                      :: nfullrows, nfullcols
-    INTEGER, DIMENSION(:), INTENT(IN) :: und_row_blk_offsets, &
-      und_col_blk_offsets, dense_row_blk_offsets, dense_col_blk_offsets, &
-      row_map, col_map, row_internal_offsets, col_internal_offsets
-    LOGICAL, INTENT(IN)                      :: join_rows, join_cols, make_tr
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_data_obj), INTENT(INOUT)                :: dense_data
+      INTEGER, INTENT(IN)                                :: nfullrows, nfullcols
+      INTEGER, DIMENSION(:), INTENT(IN) :: und_row_blk_offsets, und_col_blk_offsets, &
+         dense_row_blk_offsets, dense_col_blk_offsets, row_map, col_map, row_internal_offsets, &
+         col_internal_offsets
+      LOGICAL, INTENT(IN)                                :: join_rows, join_cols, make_tr
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_data', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_dense_data', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_col, blk_col_size, blk_row, blk_row_size, dense_col, &
-      dense_row, error_handle, target_col_offset, target_cs, target_offset, &
-      target_row_offset, target_rs, tco, tro
-    LOGICAL                                  :: tr
-    TYPE(dbcsr_data_obj)                     :: block
-    TYPE(dbcsr_iterator)                     :: iter
+      INTEGER :: blk_col, blk_col_size, blk_row, blk_row_size, dense_col, dense_row, error_handle, &
+         target_col_offset, target_cs, target_offset, target_row_offset, target_rs, tco, tro
+      LOGICAL                                            :: tr
+      TYPE(dbcsr_data_obj)                               :: block
+      TYPE(dbcsr_iterator)                               :: iter
 
 !   ---------------------------------------------------------------------------
 
@@ -1187,7 +1163,7 @@ CONTAINS
     CALL dbcsr_data_clear (dense_data)
     IF (dbcsr_data_get_size(matrix%m%data_area) .GT. 0&
          .AND. nfullrows .GT. 0 .AND. nfullcols .GT. 0) THEN
-!$OMP PARALLEL DEFAULT(none) &
+!$OMP PARALLEL DEFAULT(NONE) &
 !$OMP PRIVATE (block, iter, &
 !$OMP         target_rs, target_cs, blk_row, blk_col, tr, blk_row_size, blk_col_size,&
 !$OMP         tro, tco, target_offset,&
@@ -1253,7 +1229,7 @@ CONTAINS
     CALL timestop (error_handle)
   END SUBROUTINE make_dense_data
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Shuffles the data from standard dense to blocked form
 !> \param[in,out] matrix             Matrix with data to fill
 !> \param[in] dense_data             Dense data
@@ -1266,26 +1242,26 @@ CONTAINS
 !> \param row_internal_offsets ...
 !> \param col_internal_offsets ...
 !> \note Used for making matrices dense/undense
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE make_undense_data (matrix, dense_data, nfullrows, nfullcols,&
        dense_row_blk_offsets, dense_col_blk_offsets,&
        row_map, col_map, row_internal_offsets, col_internal_offsets)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    TYPE(dbcsr_data_obj), INTENT(IN)         :: dense_data
-    INTEGER, INTENT(IN)                      :: nfullrows, nfullcols
-    INTEGER, DIMENSION(:), INTENT(IN) :: dense_row_blk_offsets, &
-      dense_col_blk_offsets, row_map, col_map, row_internal_offsets, &
-      col_internal_offsets
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      TYPE(dbcsr_data_obj), INTENT(IN)                   :: dense_data
+      INTEGER, INTENT(IN)                                :: nfullrows, nfullcols
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: dense_row_blk_offsets, &
+                                                            dense_col_blk_offsets, row_map, &
+                                                            col_map, row_internal_offsets, &
+                                                            col_internal_offsets
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'make_undense_data', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'make_undense_data', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: blk_col, blk_col_size, blk_row, blk_row_size, dense_col, &
-      dense_col_offset, dense_cs, dense_offset, dense_row, dense_row_offset, &
-      dense_rs, sco, sro
-    LOGICAL                                  :: tr
-    TYPE(dbcsr_data_obj)                     :: block
-    TYPE(dbcsr_iterator)                     :: iter
+      INTEGER :: blk_col, blk_col_size, blk_row, blk_row_size, dense_col, dense_col_offset, &
+         dense_cs, dense_offset, dense_row, dense_row_offset, dense_rs, sco, sro
+      LOGICAL                                            :: tr
+      TYPE(dbcsr_data_obj)                               :: block
+      TYPE(dbcsr_iterator)                               :: iter
 
 !   ---------------------------------------------------------------------------
 
@@ -1294,7 +1270,7 @@ CONTAINS
          "Dense data too small",__LINE__)
     IF (dbcsr_data_get_size(matrix%m%data_area) .GT. 0) THEN
        CALL dbcsr_data_clear (matrix%m%data_area)
-!$OMP PARALLEL DEFAULT(none) &
+!$OMP PARALLEL DEFAULT(NONE) &
 !$OMP PRIVATE (block, iter,&
 !$OMP          blk_row, blk_col, tr,&
 !$OMP          blk_row_size, blk_col_size, sro, sco,&
@@ -1343,19 +1319,19 @@ CONTAINS
   END SUBROUTINE make_undense_data
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Replicates a DBCSR on all processors.
 !> \param[in,out] matrix      matrix to replicate
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_replicate_all (matrix)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
 
     CALL dbcsr_replicate (matrix, replicate_rows = .TRUE.,&
          replicate_columns=.TRUE.)
   END SUBROUTINE dbcsr_replicate_all
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Replicates a DBCSR matrix among process rows and columns
 !> \param[in,out] matrix      matrix to replicate
 !> \param[in] replicate_rows  Row should be replicated among all
@@ -1368,39 +1344,36 @@ CONTAINS
 !>      Row replication means that all processors in a process grid sharing
 !>      the same row get the data of the entire row. (In a 1-column grid the
 !>      operation has no effect.) Similar logic applies to column replication.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_replicate (matrix, replicate_rows, replicate_columns,&
        restrict_source)
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
-    LOGICAL, INTENT(IN)                      :: replicate_rows, &
-                                                replicate_columns
-    INTEGER, INTENT(IN), OPTIONAL            :: restrict_source
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
+      LOGICAL, INTENT(IN)                                :: replicate_rows, replicate_columns
+      INTEGER, INTENT(IN), OPTIONAL                      :: restrict_source
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 3
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_replicate', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: metalen = 3
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
-    CHARACTER                                :: rep_type
-    INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, data_type, &
-      dst_p, handle, mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, &
-      offset, row, row_size, smp, src_p, stored_blk_p, stored_col, stored_row
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
-                                                send_meta
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count
-    INTEGER, DIMENSION(2)                    :: send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size, col_dist, &
-                                                row_blk_size, row_dist, &
-                                                tmp_index
-    INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
-    LOGICAL                                  :: had_subcomms, &
-                                                i_am_restricted, rest_src, tr
-    TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
-                                                send_data, tmp_data
-    TYPE(dbcsr_distribution_obj)             :: target_dist
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_mp_obj)                       :: mp_obj
-    TYPE(dbcsr_obj)                          :: replicated
+      CHARACTER                                          :: rep_type
+      INTEGER :: blk, blk_l, blk_p, blk_ps, blks, col, col_size, data_type, dst_p, handle, &
+         mp_group, mynode, mypcol, myprow, nblks, numnodes, nze, offset, row, row_size, smp, &
+         src_p, stored_blk_p, stored_col, stored_row
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rd_disp, recv_meta, rm_disp, send_meta
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: recv_count
+      INTEGER, DIMENSION(2)                              :: send_count
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
+                                                            row_dist, tmp_index
+      INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
+      LOGICAL                                            :: had_subcomms, i_am_restricted, rest_src, &
+                                                            tr
+      TYPE(dbcsr_data_obj)                               :: data_block, recv_data, send_data, &
+                                                            tmp_data
+      TYPE(dbcsr_distribution_obj)                       :: target_dist
+      TYPE(dbcsr_iterator)                               :: iter
+      TYPE(dbcsr_mp_obj)                                 :: mp_obj
+      TYPE(dbcsr_obj)                                    :: replicated
 
 !   ---------------------------------------------------------------------------
 
@@ -1635,7 +1608,7 @@ CONTAINS
   END SUBROUTINE dbcsr_replicate
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Fully redistributes a DBCSR matrix.
 !>
 !>        The new distribution may be arbitrary as long as the total
@@ -1645,41 +1618,39 @@ CONTAINS
 !> \param[in,out] redist      redistributed matrix
 !> \param[in] keep_sparsity   (optional) retains the sparsity of the redist
 !>                            matrix
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_complete_redistribute(matrix, redist, keep_sparsity)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: redist
-    LOGICAL, INTENT(IN), OPTIONAL            :: keep_sparsity
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: redist
+      LOGICAL, INTENT(IN), OPTIONAL                      :: keep_sparsity
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_complete_redistribute', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 7
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_complete_redistribute', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: metalen = 7
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
-    INTEGER :: blk, blk_col_new, blk_ps, blk_row_new, blks, cnt_fnd, cnt_new, &
-      cnt_skip, col, col_int, col_offset_new, col_offset_old, col_rle, &
-      col_size, col_size_new, data_offset_l, data_type, dst_p, handle, i, &
-      meta_l, mp_group, numnodes, nze_rle, row, row_int, row_offset_new, &
-      row_offset_old, row_rle, row_size, row_size_new, src_p, stored_col_new, &
-      stored_row_new
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, &
-      col_start_new, col_start_old, rd_disp, recv_meta, rm_disp, row_end_new, &
-      row_end_old, row_start_new, row_start_old, sd_disp, sdp, send_meta, &
-      sm_disp, smp
-    INTEGER, ALLOCATABLE, DIMENSION(:, :) :: col_reblocks, n_col_reblocks, &
-      n_row_reblocks, recv_count, row_reblocks, send_count, total_recv_count, &
-      total_send_count
-    INTEGER, DIMENSION(:), POINTER :: col_blk_size_new, col_blk_size_old, &
-      col_dist_new, row_blk_size_new, row_blk_size_old, row_dist_new
-    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    LOGICAL                                  :: found, my_keep_sparsity, sym, &
-                                                tr, valid_block
-    REAL(kind=dp)                            :: cs1, cs2
-    TYPE(dbcsr_data_obj)                     :: buff_data, data_block, &
-                                                recv_data, send_data
-    TYPE(dbcsr_distribution_obj)             :: dist_new
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_mp_obj)                       :: mp_obj_new
+      INTEGER :: blk, blk_col_new, blk_ps, blk_row_new, blks, cnt_fnd, cnt_new, cnt_skip, col, &
+         col_int, col_offset_new, col_offset_old, col_rle, col_size, col_size_new, data_offset_l, &
+         data_type, dst_p, handle, i, meta_l, mp_group, numnodes, nze_rle, row, row_int, &
+         row_offset_new, row_offset_old, row_rle, row_size, row_size_new, src_p, stored_col_new, &
+         stored_row_new
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: col_end_new, col_end_old, col_start_new, &
+         col_start_old, rd_disp, recv_meta, rm_disp, row_end_new, row_end_old, row_start_new, &
+         row_start_old, sd_disp, sdp, send_meta, sm_disp, smp
+      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: col_reblocks, n_col_reblocks, n_row_reblocks, &
+         recv_count, row_reblocks, send_count, total_recv_count, total_send_count
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_new, col_blk_size_old, &
+                                                            col_dist_new, row_blk_size_new, &
+                                                            row_blk_size_old, row_dist_new
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      LOGICAL                                            :: found, my_keep_sparsity, sym, tr, &
+                                                            valid_block
+      REAL(kind=dp)                                      :: cs1, cs2
+      TYPE(dbcsr_data_obj)                               :: buff_data, data_block, recv_data, &
+                                                            send_data
+      TYPE(dbcsr_distribution_obj)                       :: dist_new
+      TYPE(dbcsr_iterator)                               :: iter
+      TYPE(dbcsr_mp_obj)                                 :: mp_obj_new
 
 !   ---------------------------------------------------------------------------
 
@@ -2040,42 +2011,37 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE dbcsr_complete_redistribute
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Redistributes a DBCSR matrix.
 !>
 !>        The new distribution should have compatible row and column blocks.
 !> \param[in] matrix          matrix to redistribute
 !> \param[in,out] redist      redistributed matrix, which should already be
 !>                            created
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_redistribute(matrix, redist)
-    TYPE(dbcsr_obj), INTENT(IN)              :: matrix
-    TYPE(dbcsr_obj), INTENT(INOUT)           :: redist
+      TYPE(dbcsr_obj), INTENT(IN)                        :: matrix
+      TYPE(dbcsr_obj), INTENT(INOUT)                     :: redist
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_redistribute', &
-      routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: metalen = 2
-    LOGICAL, PARAMETER                       :: dbg = .FALSE.
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_redistribute', &
+         routineP = moduleN//':'//routineN
+      INTEGER, PARAMETER                                 :: metalen = 2
+      LOGICAL, PARAMETER                                 :: dbg = .FALSE.
 
-    INTEGER :: blk, blk_ps, blks, col, col_size, data_type, dst_p, handle, &
-      meta_l, mp_group, numnodes, nze, row, row_size, src_p, stored_col_new, &
-      stored_row_new
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: rd_disp, recv_meta, rm_disp, &
-                                                sd_disp, sdp, send_meta, &
-                                                sm_disp, smp
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: recv_count, send_count, &
-                                                total_recv_count, &
-                                                total_send_count
-    INTEGER, DIMENSION(:), POINTER           :: col_blk_size_new, &
-                                                col_dist_new, &
-                                                row_blk_size_new, row_dist_new
-    INTEGER, DIMENSION(:, :), POINTER        :: pgrid
-    LOGICAL                                  :: sym_tr, tr
-    TYPE(dbcsr_data_obj)                     :: data_block, recv_data, &
-                                                send_data
-    TYPE(dbcsr_distribution_obj)             :: dist_new
-    TYPE(dbcsr_iterator)                     :: iter
-    TYPE(dbcsr_mp_obj)                       :: mp_obj_new
+      INTEGER :: blk, blk_ps, blks, col, col_size, data_type, dst_p, handle, meta_l, mp_group, &
+         numnodes, nze, row, row_size, src_p, stored_col_new, stored_row_new
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rd_disp, recv_meta, rm_disp, sd_disp, &
+                                                            sdp, send_meta, sm_disp, smp
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: recv_count, send_count, &
+                                                            total_recv_count, total_send_count
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_new, col_dist_new, &
+                                                            row_blk_size_new, row_dist_new
+      INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
+      LOGICAL                                            :: sym_tr, tr
+      TYPE(dbcsr_data_obj)                               :: data_block, recv_data, send_data
+      TYPE(dbcsr_distribution_obj)                       :: dist_new
+      TYPE(dbcsr_iterator)                               :: iter
+      TYPE(dbcsr_mp_obj)                                 :: mp_obj_new
 
 !   ---------------------------------------------------------------------------
 
@@ -2279,7 +2245,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE dbcsr_redistribute
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Redistributes data blocks of a DBCSR matrix read from a file. 
 !>        This routine should be used with dbcsr_binary_read in the module 
 !>        dbcsr_io.F 
@@ -2302,7 +2268,7 @@ CONTAINS
 !> 
 !> \par History
 !>      11.2012 created [Hossein Bani-Hashemian]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_datablock_redistribute (dblk, row_p, col_i, blk_p,&
                                            proc_nblks, proc_darea_sizes, new_matrix)
 
@@ -2536,18 +2502,16 @@ CONTAINS
     CALL timestop(handle)
     CONTAINS
     
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param arr ...
 !> \param cumsum ...
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE cumsum_l(arr,cumsum)
-    INTEGER(kind=int_8), DIMENSION(:), &
-      INTENT(IN)                             :: arr
-    INTEGER(kind=int_8), DIMENSION(:), &
-      INTENT(OUT)                            :: cumsum
+      INTEGER(kind=int_8), DIMENSION(:), INTENT(IN)      :: arr
+      INTEGER(kind=int_8), DIMENSION(:), INTENT(OUT)     :: cumsum
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
       IF (SIZE(cumsum)>0) THEN
         cumsum(1)=arr(1)

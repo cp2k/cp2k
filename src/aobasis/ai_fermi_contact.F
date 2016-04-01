@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculation of the Fermi contact integrals over Cartesian
 !>        Gaussian-type functions.
 !> \par Literature
@@ -23,27 +23,27 @@
 !>      - zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 !>      - zetp      : Reciprocal of the sum of the exponents of orbital a and b.
 !> \author Matthias Krack (08.10.1999)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE ai_fermi_contact
-  
-  USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
-  USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
+
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: pi
+   USE orbital_pointers,                ONLY: coset,&
+                                              ncoset
 #include "../base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ai_fermi_contact'
 
 ! *** Public subroutines ***
-  PUBLIC :: fermi_contact
+   PUBLIC :: fermi_contact
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Purpose: Calculation of the two-center Fermi contact integrals
 !>          4/3*pi*[a|delta(r-c)|b] over Cartesian Gaussian-type functions.
 !> \param la_max ...
@@ -64,105 +64,102 @@ CONTAINS
 !> \date    27.02.2009
 !> \author  VW
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE fermi_contact(la_max,la_min,npgfa,rpgfa,zeta,&
-                           lb_max,lb_min,npgfb,rpgfb,zetb,&
-                           rac,rbc,dab,fcab,ldfc)
-    INTEGER, INTENT(IN)                      :: la_max, la_min, npgfa
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfa, zeta
-    INTEGER, INTENT(IN)                      :: lb_max, lb_min, npgfb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rpgfb, zetb
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
-    REAL(KIND=dp)                            :: dab
-    INTEGER, INTENT(IN)                      :: ldfc
-    REAL(KIND=dp), DIMENSION(ldfc, *), &
-      INTENT(INOUT)                          :: fcab
+! **************************************************************************************************
+   SUBROUTINE fermi_contact(la_max, la_min, npgfa, rpgfa, zeta, &
+                            lb_max, lb_min, npgfb, rpgfb, zetb, &
+                            rac, rbc, dab, fcab, ldfc)
+      INTEGER, INTENT(IN)                                :: la_max, la_min, npgfa
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
+      INTEGER, INTENT(IN)                                :: lb_max, lb_min, npgfb
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfb, zetb
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac, rbc
+      REAL(KIND=dp)                                      :: dab
+      INTEGER, INTENT(IN)                                :: ldfc
+      REAL(KIND=dp), DIMENSION(ldfc, *), INTENT(INOUT)   :: fcab
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'fermi_contact', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'fermi_contact', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
-                                                cob, i, ipgf, j, jpgf, la, &
-                                                lb, ma, mb, na, nb
-    REAL(KIND=dp)                            :: dac2, dbc2, f0, fax, fay, &
-                                                faz, fbx, fby, fbz
+      INTEGER                                            :: ax, ay, az, bx, by, bz, coa, cob, i, &
+                                                            ipgf, j, jpgf, la, lb, ma, mb, na, nb
+      REAL(KIND=dp)                                      :: dac2, dbc2, f0, fax, fay, faz, fbx, fby, &
+                                                            fbz
 
 ! *** Calculate some prefactors ***
 
-    dac2 = rac(1)**2 + rac(2)**2 + rac(3)**2
-    dbc2 = rbc(1)**2 + rbc(2)**2 + rbc(3)**2
+      dac2 = rac(1)**2+rac(2)**2+rac(3)**2
+      dbc2 = rbc(1)**2+rbc(2)**2+rbc(3)**2
 
-    ! *** Loop over all pairs of primitive Gaussian-type functions ***
+      ! *** Loop over all pairs of primitive Gaussian-type functions ***
 
-    na = 0
+      na = 0
 
-    DO ipgf=1,npgfa
+      DO ipgf = 1, npgfa
 
-       nb = 0
+         nb = 0
 
-       DO jpgf=1,npgfb
+         DO jpgf = 1, npgfb
 
-          ! *** Screening ***
+            ! *** Screening ***
 
-          IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) THEN
-             DO j=nb+1,nb+ncoset(lb_max)
-                DO i=na+1,na+ncoset(la_max)
-                   fcab(i,j) = 0.0_dp
-                ENDDO
-             ENDDO
-             nb = nb + ncoset(lb_max)
-             CYCLE
-          ENDIF
+            IF (rpgfa(ipgf)+rpgfb(jpgf) < dab) THEN
+               DO j = nb+1, nb+ncoset(lb_max)
+                  DO i = na+1, na+ncoset(la_max)
+                     fcab(i, j) = 0.0_dp
+                  ENDDO
+               ENDDO
+               nb = nb+ncoset(lb_max)
+               CYCLE
+            ENDIF
 
-          ! *** Calculate some prefactors ***
+            ! *** Calculate some prefactors ***
 
-          f0 = 4.0_dp/3.0_dp*pi*EXP(-zeta(ipgf)*dac2-zetb(jpgf)*dbc2)
+            f0 = 4.0_dp/3.0_dp*pi*EXP(-zeta(ipgf)*dac2-zetb(jpgf)*dbc2)
 
-          ! *** Calculate the primitive Fermi contact integrals ***
+            ! *** Calculate the primitive Fermi contact integrals ***
 
-          DO lb = lb_min,lb_max
-          DO bx = 0,lb
-             fbx = 1.0_dp
-             IF(bx.GT.0) fbx = (rbc(1))**bx
-          DO by = 0,lb-bx
-             bz = lb - bx - by
-             cob = coset(bx,by,bz)
-             mb = nb + cob
-             fby = 1.0_dp
-             IF(by.GT.0) fby = (rbc(2))**by
-             fbz = 1.0_dp
-             IF(bz.GT.0) fbz = (rbc(3))**bz
-             DO la = la_min,la_max
-             DO ax = 0,la
-                fax = fbx
-                IF(ax.GT.0) fax = fbx * (rac(1))**ax
-             DO ay = 0,la-ax
-                az = la - ax - ay
-                coa = coset(ax,ay,az)
-                ma = na + coa
-                fay = fby
-                IF(ay.GT.0) fay = fby * (rac(2))**ay
-                faz = fbz
-                IF(az.GT.0) faz = fbz * (rac(3))**az
+            DO lb = lb_min, lb_max
+            DO bx = 0, lb
+               fbx = 1.0_dp
+               IF (bx .GT. 0) fbx = (rbc(1))**bx
+               DO by = 0, lb-bx
+                  bz = lb-bx-by
+                  cob = coset(bx, by, bz)
+                  mb = nb+cob
+                  fby = 1.0_dp
+                  IF (by .GT. 0) fby = (rbc(2))**by
+                  fbz = 1.0_dp
+                  IF (bz .GT. 0) fbz = (rbc(3))**bz
+                  DO la = la_min, la_max
+                  DO ax = 0, la
+                     fax = fbx
+                     IF (ax .GT. 0) fax = fbx*(rac(1))**ax
+                     DO ay = 0, la-ax
+                        az = la-ax-ay
+                        coa = coset(ax, ay, az)
+                        ma = na+coa
+                        fay = fby
+                        IF (ay .GT. 0) fay = fby*(rac(2))**ay
+                        faz = fbz
+                        IF (az .GT. 0) faz = fbz*(rac(3))**az
 
-                fcab(ma,mb) = f0 * fax * fay * faz
+                        fcab(ma, mb) = f0*fax*fay*faz
 
-             ENDDO
-             ENDDO
-             ENDDO !la
+                     ENDDO
+                  ENDDO
+                  ENDDO !la
 
-          ENDDO
-          ENDDO
-          ENDDO !lb
+               ENDDO
+            ENDDO
+            ENDDO !lb
 
-          nb = nb + ncoset(lb_max)
+            nb = nb+ncoset(lb_max)
 
-       ENDDO
+         ENDDO
 
-       na = na + ncoset(la_max)
+         na = na+ncoset(la_max)
 
-    ENDDO
+      ENDDO
 
-  END SUBROUTINE fermi_contact
+   END SUBROUTINE fermi_contact
 
 END MODULE ai_fermi_contact

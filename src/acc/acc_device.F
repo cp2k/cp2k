@@ -1,7 +1,7 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 MODULE acc_device
 #if defined (__ACC)
@@ -9,77 +9,76 @@ MODULE acc_device
 #endif
 #include "../base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PUBLIC :: acc_get_ndevices, acc_set_active_device
+   PUBLIC :: acc_get_ndevices, acc_set_active_device
 
-  PRIVATE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'acc_device'
 
 #if defined (__ACC)
-  INTERFACE
-    FUNCTION acc_get_ndevices_cu (n_devices) RESULT (istat) &
-          BIND(C, name="acc_get_ndevices")
-      IMPORT
-      INTEGER(KIND=C_INT), INTENT(OUT)         :: n_devices
-      INTEGER(KIND=C_INT)                      :: istat
+   INTERFACE
+      FUNCTION acc_get_ndevices_cu(n_devices) RESULT(istat) &
+         BIND(C, name="acc_get_ndevices")
+         IMPORT
+         INTEGER(KIND=C_INT), INTENT(OUT)         :: n_devices
+         INTEGER(KIND=C_INT)                      :: istat
 
-    END FUNCTION acc_get_ndevices_cu
+      END FUNCTION acc_get_ndevices_cu
 
-    FUNCTION acc_set_active_device_cu (dev_id) RESULT (istat) &
-          BIND(C, name="acc_set_active_device")
-      IMPORT
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dev_id
-      INTEGER(KIND=C_INT)                      :: istat
+      FUNCTION acc_set_active_device_cu(dev_id) RESULT(istat) &
+         BIND(C, name="acc_set_active_device")
+         IMPORT
+         INTEGER(KIND=C_INT), INTENT(IN), VALUE   :: dev_id
+         INTEGER(KIND=C_INT)                      :: istat
 
-    END FUNCTION acc_set_active_device_cu
-  END INTERFACE
+      END FUNCTION acc_set_active_device_cu
+   END INTERFACE
 
 #endif
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Get number of accelerator devices
 !> \retval n number of accelerator devices
-! *****************************************************************************
-  FUNCTION acc_get_ndevices() RESULT(n)
-    INTEGER                                  :: n
+! **************************************************************************************************
+   FUNCTION acc_get_ndevices() RESULT(n)
+      INTEGER                                  :: n
 
 #if defined (__ACC)
-    INTEGER                                  :: istat
+      INTEGER                                  :: istat
 #endif
 
-     n = 0
+      n = 0
 #if defined (__ACC)
-    istat = acc_get_ndevices_cu(n)
-    IF (istat /= 0)&
-       CPABORT("acc_get_ndevices: failed")
+      istat = acc_get_ndevices_cu(n)
+      IF (istat /= 0) &
+         CPABORT("acc_get_ndevices: failed")
 #endif
-  END FUNCTION acc_get_ndevices
+   END FUNCTION acc_get_ndevices
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Set active accelerator device
 !> \param dev_id device ID
-! *****************************************************************************
-  SUBROUTINE acc_set_active_device(dev_id)
-    INTEGER :: dev_id
+! **************************************************************************************************
+   SUBROUTINE acc_set_active_device(dev_id)
+      INTEGER :: dev_id
 
 #if defined (__ACC)
-    INTEGER :: istat
+      INTEGER :: istat
 
-!$omp parallel default(none) private(istat) shared(dev_id)
-    istat = acc_set_active_device_cu (dev_id)
-    IF (istat /= 0)&
-       CPABORT("acc_set_active_device: failed")
-!$omp end parallel
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(istat) SHARED(dev_id)
+      istat = acc_set_active_device_cu(dev_id)
+      IF (istat /= 0) &
+         CPABORT("acc_set_active_device: failed")
+!$OMP END PARALLEL
 
 #else
-    MARK_USED(dev_id)
-    CPABORT("__ACC not compiled in")
+      MARK_USED(dev_id)
+      CPABORT("__ACC not compiled in")
 #endif
-  END SUBROUTINE acc_set_active_device
+   END SUBROUTINE acc_set_active_device
 
 END MODULE acc_device

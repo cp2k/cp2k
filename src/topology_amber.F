@@ -1,46 +1,46 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief  Handles all functions used to read and interpret AMBER coordinates
 !>         and topology files
 !>
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
 MODULE topology_amber
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_type,&
-                                             cp_to_string
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                             parser_get_object,&
-                                             parser_search_string,&
-                                             parser_test_next_token
-  USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_release
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE force_field_types,               ONLY: amber_info_type
-  USE input_cp2k_restarts_util,        ONLY: section_velocity_val_set
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE memory_utilities,                ONLY: reallocate
-  USE particle_types,                  ONLY: particle_type
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE string_table,                    ONLY: id2str,&
-                                             s2s,&
-                                             str2id
-  USE topology_generate_util,          ONLY: topology_generate_molname
-  USE topology_types,                  ONLY: atom_info_type,&
-                                             connectivity_info_type,&
-                                             topology_parameters_type
-  USE util,                            ONLY: sort
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type,&
+                                              cp_to_string
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                              parser_get_object,&
+                                              parser_search_string,&
+                                              parser_test_next_token
+   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                              parser_create,&
+                                              parser_release
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE force_field_types,               ONLY: amber_info_type
+   USE input_cp2k_restarts_util,        ONLY: section_velocity_val_set
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE memory_utilities,                ONLY: reallocate
+   USE particle_types,                  ONLY: particle_type
+   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+   USE string_table,                    ONLY: id2str,&
+                                              s2s,&
+                                              str2id
+   USE topology_generate_util,          ONLY: topology_generate_molname
+   USE topology_types,                  ONLY: atom_info_type,&
+                                              connectivity_info_type,&
+                                              topology_parameters_type
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -62,7 +62,7 @@ MODULE topology_amber
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief  Reads the `coord' version generated by the PARM or LEaP programs, as
 !>         well as the  `restrt' version, resulting from  energy minimization or
 !>         molecular dynamics in SANDER or GIBBS. It may contain velocity and
@@ -95,23 +95,23 @@ CONTAINS
 !> \param para_env ...
 !> \param subsys_section ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE read_coordinate_crd (topology,para_env,subsys_section)
-    TYPE(topology_parameters_type)           :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+      TYPE(topology_parameters_type)                     :: topology
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: subsys_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_crd', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_crd', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: handle, iw, j, natom
-    LOGICAL                                  :: my_end, setup_velocities
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: velocity
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(section_vals_type), POINTER         :: velocity_section
+      CHARACTER(LEN=default_string_length)               :: string
+      INTEGER                                            :: handle, iw, j, natom
+      LOGICAL                                            :: my_end, setup_velocities
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: velocity
+      TYPE(atom_info_type), POINTER                      :: atom_info
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_parser_type), POINTER                      :: parser
+      TYPE(section_vals_type), POINTER                   :: velocity_section
 
     NULLIFY(parser, logger, velocity)
     logger => cp_get_default_logger()
@@ -271,7 +271,7 @@ CONTAINS
 
   END SUBROUTINE read_coordinate_crd
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Read AMBER topology file (.top) : At this level we parse only the
 !>        connectivity info the .top file. ForceField information will be
 !>        handled later
@@ -281,21 +281,20 @@ CONTAINS
 !> \param para_env ...
 !> \param subsys_section ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE read_connectivity_amber (filename, topology, para_env, subsys_section)
-    CHARACTER(LEN=*), INTENT(IN)             :: filename
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: subsys_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_connectivity_amber', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(connectivity_info_type), POINTER    :: conn_info
-    TYPE(cp_logger_type), POINTER            :: logger
+      INTEGER                                            :: handle, iw
+      TYPE(atom_info_type), POINTER                      :: atom_info
+      TYPE(connectivity_info_type), POINTER              :: conn_info
+      TYPE(cp_logger_type), POINTER                      :: logger
 
     NULLIFY(logger)
     CALL timeset(routineN,handle)
@@ -318,7 +317,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE read_connectivity_amber
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief  Access information form the AMBER topology file
 !>         Notes on file structure:
 !>
@@ -364,40 +363,39 @@ CONTAINS
 !> \param amb_info ...
 !> \param particle_set ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rdparm_amber_8(filename, output_unit, para_env, do_connectivity,&
        do_forcefield, atom_info, conn_info, amb_info, particle_set)
 
-    CHARACTER(LEN=*), INTENT(IN)             :: filename
-    INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, INTENT(IN)                      :: do_connectivity, do_forcefield
-    TYPE(atom_info_type), OPTIONAL, POINTER  :: atom_info
-    TYPE(connectivity_info_type), OPTIONAL, &
-      POINTER                                :: conn_info
-    TYPE(amber_info_type), OPTIONAL, POINTER :: amb_info
-    TYPE(particle_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: particle_set
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      INTEGER, INTENT(IN)                                :: output_unit
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: do_connectivity, do_forcefield
+      TYPE(atom_info_type), OPTIONAL, POINTER            :: atom_info
+      TYPE(connectivity_info_type), OPTIONAL, POINTER    :: conn_info
+      TYPE(amber_info_type), OPTIONAL, POINTER           :: amb_info
+      TYPE(particle_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: particle_set
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rdparm_amber_8', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rdparm_amber_8', routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: input_format, section
-    CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:)              :: isymbl, labres, strtmp_a
-    INTEGER :: handle, handle2, i, ifbox, ifcap, ifpert, index_now, info(31), &
-      istart, mbona, mbper, mdper, mgper, mphia, mtheta, natom, natom_prev, &
-      natyp, nbona, nbond_prev, nbonh, nbper, ndper, ngper, nhparm, nmxrs, &
-      nnb, nparm, nphb, nphi_prev, nphia, nphih, nptra, nres, nsize, ntheta, &
-      ntheta_prev, ntheth, ntypes, numang, numbnd, numextra, unique_torsions
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: iac, ib, ibh, icb, icbh, ico, icp, &
-      icph, ict, icth, ip, iph, ipres, it, ith, iwork, jb, jbh, jp, jph, jt, &
-      jth, kp, kph, kt, kth, lp, lph
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: full_torsions
-    LOGICAL                                  :: check, valid_format
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: asol, bsol, cn1, cn2, phase, &
-                                                pk, pn, req, rk, teq, tk
-    TYPE(cp_parser_type), POINTER            :: parser
+      CHARACTER(LEN=default_string_length)               :: input_format, section
+      CHARACTER(LEN=default_string_length), &
+         ALLOCATABLE, DIMENSION(:)                       :: isymbl, labres, strtmp_a
+      INTEGER :: handle, handle2, i, ifbox, ifcap, ifpert, index_now, info(31), istart, mbona, &
+         mbper, mdper, mgper, mphia, mtheta, natom, natom_prev, natyp, nbona, nbond_prev, nbonh, &
+         nbper, ndper, ngper, nhparm, nmxrs, nnb, nparm, nphb, nphi_prev, nphia, nphih, nptra, &
+         nres, nsize, ntheta, ntheta_prev, ntheth, ntypes, numang, numbnd, numextra, &
+         unique_torsions
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iac, ib, ibh, icb, icbh, ico, icp, icph, &
+                                                            ict, icth, ip, iph, ipres, it, ith, &
+                                                            iwork, jb, jbh, jp, jph, jt, jth, kp, &
+                                                            kph, kt, kth, lp, lph
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: full_torsions
+      LOGICAL                                            :: check, valid_format
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: asol, bsol, cn1, cn2, phase, pk, pn, &
+                                                            req, rk, teq, tk
+      TYPE(cp_parser_type), POINTER                      :: parser
 
     CALL timeset(routineN,handle)
     NULLIFY(parser)
@@ -932,7 +930,7 @@ CONTAINS
           /' IFBOX  = ',i7,' NMXRS  = ',i7,' IFCAP = ',i7,' NEXTRA = ',i7, /)
   END SUBROUTINE rdparm_amber_8
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Low level routine to identify and rename unique atom types
 !> \param isymbl ...
 !> \param iwork ...
@@ -940,23 +938,22 @@ CONTAINS
 !> \param istart ...
 !> \param charges ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE conform_atom_type_low(isymbl, iwork, i, istart, charges)
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:)                           :: isymbl
-    INTEGER, DIMENSION(:)                    :: iwork
-    INTEGER, INTENT(IN)                      :: i
-    INTEGER, INTENT(INOUT)                   :: istart
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: charges
+      CHARACTER(LEN=default_string_length), DIMENSION(:) :: isymbl
+      INTEGER, DIMENSION(:)                              :: iwork
+      INTEGER, INTENT(IN)                                :: i
+      INTEGER, INTENT(INOUT)                             :: istart
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'conform_atom_type_low', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: counter, gind, handle, iend, &
-                                                ind, isize, j, k, kend, kstart
-    INTEGER, DIMENSION(:), POINTER           :: cindx, lindx
-    REAL(KIND=dp)                            :: ctmp
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cwork
+      INTEGER                                            :: counter, gind, handle, iend, ind, isize, &
+                                                            j, k, kend, kstart
+      INTEGER, DIMENSION(:), POINTER                     :: cindx, lindx
+      REAL(KIND=dp)                                      :: ctmp
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: cwork
 
     CALL timeset(routineN, handle)
     iend = i - 1
@@ -1008,7 +1005,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE conform_atom_type_low
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
 !>        reading 1 array of integers of length dim
 !> \param parser ...
@@ -1016,19 +1013,18 @@ CONTAINS
 !> \param array1 ...
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rd_amber_section_i1(parser, section, array1, dim)
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: section
-    INTEGER, DIMENSION(:)                    :: array1
-    INTEGER, INTENT(IN)                      :: dim
+      TYPE(cp_parser_type), POINTER                      :: parser
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
+      INTEGER, DIMENSION(:)                              :: array1
+      INTEGER, INTENT(IN)                                :: dim
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i1', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: my_end
+      INTEGER                                            :: i
+      LOGICAL                                            :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1045,7 +1041,7 @@ CONTAINS
             "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i1
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
 !>        reading 3 arrays of integers of length dim
 !> \param parser ...
@@ -1055,19 +1051,18 @@ CONTAINS
 !> \param array3 ...
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rd_amber_section_i3(parser, section, array1, array2, array3, dim)
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: section
-    INTEGER, DIMENSION(:)                    :: array1, array2, array3
-    INTEGER, INTENT(IN)                      :: dim
+      TYPE(cp_parser_type), POINTER                      :: parser
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
+      INTEGER, DIMENSION(:)                              :: array1, array2, array3
+      INTEGER, INTENT(IN)                                :: dim
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i3', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i3', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: my_end
+      INTEGER                                            :: i
+      LOGICAL                                            :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1095,7 +1090,7 @@ CONTAINS
             "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i3
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
 !>        reading 4 arrays of integers of length dim
 !> \param parser ...
@@ -1106,19 +1101,18 @@ CONTAINS
 !> \param array4 ...
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rd_amber_section_i4(parser, section, array1, array2, array3, array4, dim)
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: section
-    INTEGER, DIMENSION(:)                    :: array1, array2, array3, array4
-    INTEGER, INTENT(IN)                      :: dim
+      TYPE(cp_parser_type), POINTER                      :: parser
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
+      INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4
+      INTEGER, INTENT(IN)                                :: dim
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i4', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i4', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: my_end
+      INTEGER                                            :: i
+      LOGICAL                                            :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1151,7 +1145,7 @@ CONTAINS
             "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i4
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
 !>        reading 5 arrays of integers of length dim
 !> \param parser ...
@@ -1163,21 +1157,19 @@ CONTAINS
 !> \param array5 ...
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rd_amber_section_i5(parser, section, array1, array2, array3, array4, &
        array5, dim)
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: section
-    INTEGER, DIMENSION(:)                    :: array1, array2, array3, &
-                                                array4, array5
-    INTEGER, INTENT(IN)                      :: dim
+      TYPE(cp_parser_type), POINTER                      :: parser
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
+      INTEGER, DIMENSION(:)                              :: array1, array2, array3, array4, array5
+      INTEGER, INTENT(IN)                                :: dim
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i5', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_i5', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: my_end
+      INTEGER                                            :: i
+      LOGICAL                                            :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1215,7 +1207,7 @@ CONTAINS
             "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_i5
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
 !>        reading 1 array of strings of length dim
 !> \param parser ...
@@ -1223,20 +1215,18 @@ CONTAINS
 !> \param array1 ...
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rd_amber_section_c1(parser, section, array1, dim)
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: section
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:)                           :: array1
-    INTEGER, INTENT(IN)                      :: dim
+      TYPE(cp_parser_type), POINTER                      :: parser
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
+      CHARACTER(LEN=default_string_length), DIMENSION(:) :: array1
+      INTEGER, INTENT(IN)                                :: dim
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_c1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_c1', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: my_end
+      INTEGER                                            :: i
+      LOGICAL                                            :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1253,7 +1243,7 @@ CONTAINS
             "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_c1
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Set of Low level subroutines reading section for parmtop
 !>        reading 1 array of strings of length dim
 !> \param parser ...
@@ -1261,19 +1251,18 @@ CONTAINS
 !> \param array1 ...
 !> \param dim ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE rd_amber_section_r1(parser, section, array1, dim)
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: section
-    REAL(KIND=dp), DIMENSION(:)              :: array1
-    INTEGER, INTENT(IN)                      :: dim
+      TYPE(cp_parser_type), POINTER                      :: parser
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: section
+      REAL(KIND=dp), DIMENSION(:)                        :: array1
+      INTEGER, INTENT(IN)                                :: dim
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_r1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'rd_amber_section_r1', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
-    LOGICAL                                  :: my_end
+      INTEGER                                            :: i
+      LOGICAL                                            :: my_end
 
     CALL parser_get_next_line(parser,1,at_end=my_end)
     i = 1
@@ -1290,25 +1279,24 @@ CONTAINS
             "End of file while reading section "//TRIM(section)//" in amber topology file!")
   END SUBROUTINE rd_amber_section_r1
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Check the version of the AMBER topology file (we can handle from v8 on)
 !> \param parser ...
 !> \param section ...
 !> \param input_format ...
 !> \retval another_section ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION  get_section_parmtop(parser, section, input_format) RESULT(another_section)
-    TYPE(cp_parser_type), POINTER            :: parser
-    CHARACTER(LEN=default_string_length), &
-      INTENT(OUT)                            :: section, input_format
-    LOGICAL                                  :: another_section
+      TYPE(cp_parser_type), POINTER                      :: parser
+      CHARACTER(LEN=default_string_length), INTENT(OUT)  :: section, input_format
+      LOGICAL                                            :: another_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'get_section_parmtop', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: end_f, indflag, start_f
-    LOGICAL                                  :: found, my_end
+      INTEGER                                            :: end_f, indflag, start_f
+      LOGICAL                                            :: found, my_end
 
     CALL parser_search_string(parser,"%FLAG",.TRUE.,found,begin_line=.TRUE.)
     IF (found) THEN
@@ -1332,20 +1320,20 @@ CONTAINS
     END IF
   END FUNCTION get_section_parmtop
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Check the version of the AMBER topology file (we can handle from v8 on)
 !> \param parser ...
 !> \param output_unit ...
 !> \retval found_AMBER_V8 ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION check_amber_8_std(parser, output_unit) RESULT(found_AMBER_V8)
-    TYPE(cp_parser_type), POINTER            :: parser
-    INTEGER, INTENT(IN)                      :: output_unit
-    LOGICAL                                  :: found_AMBER_V8
+      TYPE(cp_parser_type), POINTER                      :: parser
+      INTEGER, INTENT(IN)                                :: output_unit
+      LOGICAL                                            :: found_AMBER_V8
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'check_amber_8_std', &
+         routineP = moduleN//':'//routineN
 
     CALL parser_search_string(parser,"%VERSION ",.TRUE.,found_AMBER_V8,begin_line=.TRUE.)
     IF(.NOT.found_AMBER_V8)&
@@ -1357,7 +1345,7 @@ CONTAINS
 
   END FUNCTION check_amber_8_std
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Post processing of forcefield information related to bonds
 !> \param label_a ...
 !> \param label_b ...
@@ -1372,28 +1360,27 @@ CONTAINS
 !> \param rk ...
 !> \param req ...
 !> \author Teodoro Laino [tlaino] - 11.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE post_process_bonds_info(label_a, label_b, k, r0, particle_set, ibond, &
        nbond, ib, jb, icb, rk, req)
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: label_a, label_b
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: k, r0
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, INTENT(INOUT)                   :: ibond
-    INTEGER, INTENT(IN)                      :: nbond
-    INTEGER, DIMENSION(:), INTENT(IN)        :: ib, jb, icb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rk, req
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: label_a, label_b
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: k, r0
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(INOUT)                             :: ibond
+      INTEGER, INTENT(IN)                                :: nbond
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ib, jb, icb
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rk, req
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bonds_info', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bonds_info', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b
-    CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: handle, i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: l_dum
+      CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b
+      CHARACTER(LEN=default_string_length), &
+         ALLOCATABLE, DIMENSION(:, :)                    :: work_label
+      INTEGER                                            :: handle, i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      LOGICAL                                            :: l_dum
 
     CALL timeset(routineN, handle)
     IF (nbond/=0) THEN
@@ -1445,7 +1432,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE post_process_bonds_info
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Post processing of forcefield information related to bends
 !> \param label_a ...
 !> \param label_b ...
@@ -1462,29 +1449,27 @@ CONTAINS
 !> \param tk ...
 !> \param teq ...
 !> \author Teodoro Laino [tlaino] - 11.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE post_process_bends_info(label_a, label_b, label_c, k, theta0, &
        particle_set, itheta, ntheta, it, jt, kt, ict, tk, teq)
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: label_a, label_b, label_c
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: k, theta0
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, INTENT(INOUT)                   :: itheta
-    INTEGER, INTENT(IN)                      :: ntheta
-    INTEGER, DIMENSION(:), INTENT(IN)        :: it, jt, kt, ict
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tk, teq
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: label_a, label_b, label_c
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: k, theta0
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(INOUT)                             :: itheta
+      INTEGER, INTENT(IN)                                :: ntheta
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: it, jt, kt, ict
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tk, teq
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bends_info', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_bends_info', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b, &
-                                                name_atm_c
-    CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: handle, i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: l_dum
+      CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c
+      CHARACTER(LEN=default_string_length), &
+         ALLOCATABLE, DIMENSION(:, :)                    :: work_label
+      INTEGER                                            :: handle, i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      LOGICAL                                            :: l_dum
 
     CALL timeset(routineN,handle)
     IF (ntheta/=0) THEN
@@ -1545,7 +1530,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE post_process_bends_info
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Post processing of forcefield information related to torsions
 !> \param label_a ...
 !> \param label_b ...
@@ -1566,32 +1551,30 @@ CONTAINS
 !> \param pn ...
 !> \param phase ...
 !> \author Teodoro Laino [tlaino] - 11.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE post_process_torsions_info(label_a, label_b, label_c, label_d, k,&
        m, phi0, particle_set, iphi, nphi, ip, jp, kp, lp, icp, pk, pn, phase)
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: label_a, label_b, label_c, &
-                                                label_d
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: k
-    INTEGER, DIMENSION(:), POINTER           :: m
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: phi0
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, INTENT(INOUT)                   :: iphi
-    INTEGER, INTENT(IN)                      :: nphi
-    INTEGER, DIMENSION(:), INTENT(IN)        :: ip, jp, kp, lp, icp
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: pk, pn, phase
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: label_a, label_b, label_c, label_d
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: k
+      INTEGER, DIMENSION(:), POINTER                     :: m
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: phi0
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(INOUT)                             :: iphi
+      INTEGER, INTENT(IN)                                :: nphi
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: ip, jp, kp, lp, icp
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: pk, pn, phase
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_torsions_info', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_torsions_info', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: name_atm_a, name_atm_b, &
-                                                name_atm_c, name_atm_d
-    CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:, :)           :: work_label
-    INTEGER                                  :: handle, i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: l_dum
+      CHARACTER(LEN=default_string_length)               :: name_atm_a, name_atm_b, name_atm_c, &
+                                                            name_atm_d
+      CHARACTER(LEN=default_string_length), &
+         ALLOCATABLE, DIMENSION(:, :)                    :: work_label
+      INTEGER                                            :: handle, i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      LOGICAL                                            :: l_dum
 
     CALL timeset(routineN, handle)
     IF (nphi/=0) THEN
@@ -1681,7 +1664,7 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE post_process_torsions_info
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Post processing of forcefield information related to Lennard-Jones
 !> \param atom_label ...
 !> \param eps ...
@@ -1695,31 +1678,29 @@ CONTAINS
 !> \param cn2 ...
 !> \param natom ...
 !> \author Teodoro Laino [tlaino] - 11.2008
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE post_process_LJ_info(atom_label, eps, sigma, particle_set,&
        ntypes, nsize, iac, ico, cn1, cn2, natom)
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: atom_label
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eps, sigma
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, INTENT(IN)                      :: ntypes
-    INTEGER, INTENT(INOUT)                   :: nsize
-    INTEGER, DIMENSION(:), INTENT(IN)        :: iac, ico
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cn1, cn2
-    INTEGER, INTENT(IN)                      :: natom
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: atom_label
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eps, sigma
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER, INTENT(IN)                                :: ntypes
+      INTEGER, INTENT(INOUT)                             :: nsize
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: iac, ico
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cn1, cn2
+      INTEGER, INTENT(IN)                                :: natom
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'post_process_LJ_info', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: name_atm_a
-    CHARACTER(LEN=default_string_length), &
-      ALLOCATABLE, DIMENSION(:)              :: work_label
-    INTEGER                                  :: handle, i
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
-    LOGICAL                                  :: check, l_dum
-    REAL(KIND=dp)                            :: F12, F6, my_eps, my_sigma, &
-                                                sigma6
+      CHARACTER(LEN=default_string_length)               :: name_atm_a
+      CHARACTER(LEN=default_string_length), &
+         ALLOCATABLE, DIMENSION(:)                       :: work_label
+      INTEGER                                            :: handle, i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iwork
+      LOGICAL                                            :: check, l_dum
+      REAL(KIND=dp)                                      :: F12, F6, my_eps, my_sigma, sigma6
 
     CALL timeset(routineN, handle)
     ALLOCATE(work_label(natom))

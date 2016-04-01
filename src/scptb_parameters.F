@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Default parameter sets for SCPTB method
 !>      key, atomname            key, atomic name
 !>      z, zeff                  atomic number, core charge
@@ -18,62 +18,61 @@
 !>      ag                       Gaussian exponents
 !> \par History
 !> \author JGH (12.2012)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE scptb_parameters
-  
-  USE kinds,                           ONLY: dp
-  USE periodic_table,                  ONLY: ptable
-  USE scptb_types,                     ONLY: scptb_parameter_type
+
+   USE kinds,                           ONLY: dp
+   USE periodic_table,                  ONLY: ptable
+   USE scptb_types,                     ONLY: scptb_parameter_type
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scptb_parameters'
 
-  INTEGER, PARAMETER, PRIVATE :: nelem = 106
+   INTEGER, PARAMETER, PRIVATE :: nelem = 106
 
-  PUBLIC :: scptb_default_parameter
+   PUBLIC :: scptb_default_parameter
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Default parameter sets for SCPTB method
 !> \param param ...
-! *****************************************************************************
-  SUBROUTINE scptb_default_parameter ( param)
-    TYPE(scptb_parameter_type), &
-      INTENT(INOUT)                          :: param
+! **************************************************************************************************
+   SUBROUTINE scptb_default_parameter(param)
+      TYPE(scptb_parameter_type), INTENT(INOUT)          :: param
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'scptb_default_parameter', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'scptb_default_parameter', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, l
+      INTEGER                                            :: i, l
 
-    param%parameterization = "UZH.00.00"
-    SELECT CASE (TRIM(param%key))
-    CASE DEFAULT
-       CPABORT("")
-    CASE ("XX")
-       param%defined          = .TRUE.
-    CASE ("H")
-       !Hydrogen
-       param%defined               = .TRUE.
-       param%key                   = "H"
-       param%z                     = 1
-       param%zeff                  = 1
-       param%lmaxorb               = 0
-       param%lmaxscp               = 1
-       param%norb(0:3)             = (/1,0,0,0/)
-       param%nqm(1,0)              = 1
-       param%zeta(1,0)             = 1.2_dp
-       param%hcore(1,0)            = 1.0_dp
-       param%occupation(1,0)       = 1
-       param%crep(1:3)             = (/1.0_dp,1.0_dp,1.0_dp/)
-       param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
-       param%ag                    = 4.0_dp
-       param%energy                = -0.5_dp
+      param%parameterization = "UZH.00.00"
+      SELECT CASE (TRIM (param%key))
+      CASE DEFAULT
+         CPABORT("")
+      CASE ("XX")
+         param%defined = .TRUE.
+      CASE ("H")
+         !Hydrogen
+         param%defined = .TRUE.
+         param%key = "H"
+         param%z = 1
+         param%zeff = 1
+         param%lmaxorb = 0
+         param%lmaxscp = 1
+         param%norb(0:3) = (/1, 0, 0, 0/)
+         param%nqm(1, 0) = 1
+         param%zeta(1, 0) = 1.2_dp
+         param%hcore(1, 0) = 1.0_dp
+         param%occupation(1, 0) = 1
+         param%crep(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+         param%pol(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+         param%ag = 4.0_dp
+         param%energy = -0.5_dp
 !   CASE (2)
 !      !Helium
 !   CASE (3)
@@ -86,40 +85,40 @@ CONTAINS
 !      !Carbon
 !   CASE (7)
 !      !Nitrogen
-    CASE ("O")
-       !Oxygen
-       param%defined               = .TRUE.
-       param%key                   = "O"
-       param%z                     = 8
-       param%zeff                  = 6
-       param%lmaxorb               = 1
-       param%lmaxscp               = 2
-       param%norb(0:3)             = (/1,1,0,0/)
-       param%nqm(1,0:1)            = (/2,2/)
-       param%zeta(1,0:1)           = (/1.8_dp,1.8_dp/)
-       param%hcore(1,0:1)          = (/1.0_dp,1.0_dp/)
-       param%occupation(1,0:1)     = (/2,4/)
-       param%crep(1:3)             = (/1.0_dp,1.0_dp,1.0_dp/)
-       param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
-       param%ag                    = 1.0_dp
-       param%energy                = -0.5_dp
-    CASE ("F")
-       !Fluorine
-       param%defined               = .TRUE.
-       param%key                   = "F"
-       param%z                     = 9
-       param%zeff                  = 7
-       param%lmaxorb               = 1
-       param%lmaxscp               = 2
-       param%norb(0:3)             = (/1,1,0,0/)
-       param%nqm(1,0:1)            = (/2,2/)
-       param%zeta(1,0:1)           = (/1.8_dp,1.8_dp/)
-       param%hcore(1,0:1)          = (/1.0_dp,1.0_dp/)
-       param%occupation(1,0:1)     = (/2,5/)
-       param%crep(1:3)             = (/1.0_dp,1.0_dp,1.0_dp/)
-       param%pol(1:3)              = (/1.0_dp,1.0_dp,1.0_dp/)
-       param%ag                    = 4.0_dp
-       param%energy                = -0.5_dp
+      CASE ("O")
+         !Oxygen
+         param%defined = .TRUE.
+         param%key = "O"
+         param%z = 8
+         param%zeff = 6
+         param%lmaxorb = 1
+         param%lmaxscp = 2
+         param%norb(0:3) = (/1, 1, 0, 0/)
+         param%nqm(1, 0:1) = (/2, 2/)
+         param%zeta(1, 0:1) = (/1.8_dp, 1.8_dp/)
+         param%hcore(1, 0:1) = (/1.0_dp, 1.0_dp/)
+         param%occupation(1, 0:1) = (/2, 4/)
+         param%crep(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+         param%pol(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+         param%ag = 1.0_dp
+         param%energy = -0.5_dp
+      CASE ("F")
+         !Fluorine
+         param%defined = .TRUE.
+         param%key = "F"
+         param%z = 9
+         param%zeff = 7
+         param%lmaxorb = 1
+         param%lmaxscp = 2
+         param%norb(0:3) = (/1, 1, 0, 0/)
+         param%nqm(1, 0:1) = (/2, 2/)
+         param%zeta(1, 0:1) = (/1.8_dp, 1.8_dp/)
+         param%hcore(1, 0:1) = (/1.0_dp, 1.0_dp/)
+         param%occupation(1, 0:1) = (/2, 5/)
+         param%crep(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+         param%pol(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+         param%ag = 4.0_dp
+         param%energy = -0.5_dp
 !   CASE (10)
 !      !Neon
 !   CASE (11)
@@ -241,19 +240,19 @@ CONTAINS
 !   CASE (97)
 !   CASE (98)
 !   CASE (99:nelem)
-    END SELECT
+      END SELECT
 
-    IF(param%defined) THEN
-      param%natorb = 0
-      DO l=0,3
-        param%natorb = param%natorb + ((l+1)*(l+2))/2 * param%norb(l)
-      END DO
-      ! check atomic name
-      i = param%z
-      param%atomname = ptable(i)%symbol
-    END IF
+      IF (param%defined) THEN
+         param%natorb = 0
+         DO l = 0, 3
+            param%natorb = param%natorb+((l+1)*(l+2))/2*param%norb(l)
+         END DO
+         ! check atomic name
+         i = param%z
+         param%atomname = ptable(i)%symbol
+      END IF
 
-  END SUBROUTINE scptb_default_parameter
+   END SUBROUTINE scptb_default_parameter
 
 END MODULE scptb_parameters
 

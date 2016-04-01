@@ -1,87 +1,85 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Full parametrization of Fock matrix, ie. the identity parametrization.
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 MODULE pao_linpot_full
-  USE basis_set_types,                 ONLY: gto_basis_set_type
-  USE kinds,                           ONLY: dp
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                             qs_kind_type
+   USE basis_set_types,                 ONLY: gto_basis_set_type
+   USE kinds,                           ONLY: dp
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pao_linpot_full'
 
-  PUBLIC :: linpot_full_count_terms, linpot_full_calc_term
+   PUBLIC :: linpot_full_count_terms, linpot_full_calc_term
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Count number of terms for given atomic kind
 !> \param qs_env ...
 !> \param ikind ...
 !> \param nterms ...
-! *****************************************************************************
-  SUBROUTINE linpot_full_count_terms(qs_env, ikind, nterms)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: ikind
-    INTEGER, INTENT(OUT)                     :: nterms
+! **************************************************************************************************
+   SUBROUTINE linpot_full_count_terms(qs_env, ikind, nterms)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      INTEGER, INTENT(IN)                                :: ikind
+      INTEGER, INTENT(OUT)                               :: nterms
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_count_terms', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_count_terms', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n
-    TYPE(gto_basis_set_type), POINTER        :: basis_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
+      INTEGER                                            :: n
+      TYPE(gto_basis_set_type), POINTER                  :: basis_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-     CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
-     CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
-     n = basis_set%nsgf
-     nterms = n + n*(n-1)/2
+      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set)
+      CALL get_qs_kind(qs_kind_set(ikind), basis_set=basis_set)
+      n = basis_set%nsgf
+      nterms = n+n*(n-1)/2
 
-  END SUBROUTINE linpot_full_count_terms
+   END SUBROUTINE linpot_full_count_terms
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Count number of linear terms in parametrization
 !> \param kterm ...
 !> \param block_V ...
-! *****************************************************************************
-  SUBROUTINE linpot_full_calc_term(kterm, block_V)
-    INTEGER, INTENT(IN)                      :: kterm
-    REAL(dp), DIMENSION(:, :), INTENT(OUT)   :: block_V
+! **************************************************************************************************
+   SUBROUTINE linpot_full_calc_term(kterm, block_V)
+      INTEGER, INTENT(IN)                                :: kterm
+      REAL(dp), DIMENSION(:, :), INTENT(OUT)             :: block_V
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_calc_term', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'linpot_full_calc_term', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: a, i, j, n
+      INTEGER                                            :: a, i, j, n
 
-    block_V = 0.0
-    n = SIZE(block_V,1)
-    IF(kterm > n + n*(n-1)/2) CPABORT("kterm out of bounds")
+      block_V = 0.0
+      n = SIZE(block_V, 1)
+      IF (kterm > n+n*(n-1)/2) CPABORT("kterm out of bounds")
 
-    a = 0
-    outer: &
-    DO i=1, SIZE(block_V,1)
-    DO j=1, SIZE(block_V,2)
-      IF(i>=j) a = a + 1
-      IF(a==kterm) EXIT outer
-    ENDDO
-    ENDDO outer
+      a = 0
+      outer: &
+         DO i = 1, SIZE(block_V, 1)
+      DO j = 1, SIZE(block_V, 2)
+         IF (i >= j) a = a+1
+         IF (a == kterm) EXIT outer
+      ENDDO
+      ENDDO outer
 
-    block_V(i,j) = 1.0_dp
-    block_V(j,i) = 1.0_dp
-  END SUBROUTINE linpot_full_calc_term
+      block_V(i, j) = 1.0_dp
+      block_V(j, i) = 1.0_dp
+   END SUBROUTINE linpot_full_calc_term
 
 END MODULE pao_linpot_full

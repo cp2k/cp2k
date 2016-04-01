@@ -1,29 +1,29 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 MODULE pint_transformations
-  USE input_constants,                 ONLY: transformation_stage
-  USE kinds,                           ONLY: dp
-  USE pint_normalmode,                 ONLY: normalmode_f2uf,&
-                                             normalmode_u2x,&
-                                             normalmode_x2u
-  USE pint_staging,                    ONLY: staging_f2uf,&
-                                             staging_u2x,&
-                                             staging_x2u
-  USE pint_types,                      ONLY: pint_env_type
+   USE input_constants,                 ONLY: transformation_stage
+   USE kinds,                           ONLY: dp
+   USE pint_normalmode,                 ONLY: normalmode_f2uf,&
+                                              normalmode_u2x,&
+                                              normalmode_x2u
+   USE pint_staging,                    ONLY: staging_f2uf,&
+                                              staging_u2x,&
+                                              staging_x2u
+   USE pint_types,                      ONLY: pint_env_type
 #include "../base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+   PRIVATE
+   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pint_transformations'
 
-  PUBLIC :: pint_x2u, &
-            pint_u2x, &
-            pint_f2uf
+   PUBLIC :: pint_x2u, &
+             pint_u2x, &
+             pint_f2uf
 
 CONTAINS
 
@@ -36,35 +36,34 @@ CONTAINS
 !> \par History
 !>      Added normal mode transformation [hforbert]
 !> \author fawzi
-! *****************************************************************************
-  SUBROUTINE pint_x2u(pint_env,ux,x)
-    TYPE(pint_env_type), POINTER             :: pint_env
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(out), OPTIONAL, TARGET          :: ux
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(in), OPTIONAL, TARGET           :: x
+! **************************************************************************************************
+   SUBROUTINE pint_x2u(pint_env, ux, x)
+      TYPE(pint_env_type), POINTER                       :: pint_env
+      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
+         OPTIONAL, TARGET                                :: ux
+      REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
+         OPTIONAL, TARGET                                :: x
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_x2u', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_x2u', routineP = moduleN//':'//routineN
 
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
-    CPASSERT(ASSOCIATED(pint_env))
-    CPASSERT(pint_env%ref_count>0)
-    my_x => pint_env%x
-    my_ux => pint_env%ux
-    IF (PRESENT(x)) my_x => x
-    IF (PRESENT(ux)) my_ux => ux
-    CPASSERT(ASSOCIATED(my_ux))
-    CPASSERT(ASSOCIATED(my_x))
+      CPASSERT(ASSOCIATED(pint_env))
+      CPASSERT(pint_env%ref_count > 0)
+      my_x => pint_env%x
+      my_ux => pint_env%ux
+      IF (PRESENT(x)) my_x => x
+      IF (PRESENT(ux)) my_ux => ux
+      CPASSERT(ASSOCIATED(my_ux))
+      CPASSERT(ASSOCIATED(my_x))
 
-    IF (pint_env%transform == transformation_stage) THEN
-      CALL staging_x2u(pint_env%staging_env,ux=my_ux,x=my_x)
-    ELSE
-      CALL normalmode_x2u(pint_env%normalmode_env,ux=my_ux,x=my_x)
-    END IF
-    RETURN
-  END SUBROUTINE pint_x2u
+      IF (pint_env%transform == transformation_stage) THEN
+         CALL staging_x2u(pint_env%staging_env, ux=my_ux, x=my_x)
+      ELSE
+         CALL normalmode_x2u(pint_env%normalmode_env, ux=my_ux, x=my_x)
+      END IF
+      RETURN
+   END SUBROUTINE pint_x2u
 
 ! ***************************************************************************
 !> \brief transform from the u variable to the x (inverse of x2u)
@@ -74,35 +73,34 @@ CONTAINS
 !> \par History
 !>      Added normal mode transformation by hforbert
 !> \author fawzi
-! *****************************************************************************
-  SUBROUTINE pint_u2x(pint_env,ux,x)
-    TYPE(pint_env_type), POINTER             :: pint_env
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(in), OPTIONAL, TARGET           :: ux
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(out), OPTIONAL, TARGET          :: x
+! **************************************************************************************************
+   SUBROUTINE pint_u2x(pint_env, ux, x)
+      TYPE(pint_env_type), POINTER                       :: pint_env
+      REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
+         OPTIONAL, TARGET                                :: ux
+      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
+         OPTIONAL, TARGET                                :: x
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_u2x', routineP = moduleN//':'//routineN
 
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_ux, my_x
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_ux, my_x
 
-    CPASSERT(ASSOCIATED(pint_env))
-    CPASSERT(pint_env%ref_count>0)
-    my_x => pint_env%x
-    my_ux => pint_env%ux
-    IF (PRESENT(x)) my_x => x
-    IF (PRESENT(ux)) my_ux => ux
-    CPASSERT(ASSOCIATED(my_ux))
-    CPASSERT(ASSOCIATED(my_x))
+      CPASSERT(ASSOCIATED(pint_env))
+      CPASSERT(pint_env%ref_count > 0)
+      my_x => pint_env%x
+      my_ux => pint_env%ux
+      IF (PRESENT(x)) my_x => x
+      IF (PRESENT(ux)) my_ux => ux
+      CPASSERT(ASSOCIATED(my_ux))
+      CPASSERT(ASSOCIATED(my_x))
 
-    IF (pint_env%transform == transformation_stage) THEN
-      CALL staging_u2x(pint_env%staging_env,ux=my_ux,x=my_x)
-    ELSE
-      CALL normalmode_u2x(pint_env%normalmode_env,ux=my_ux,x=my_x)
-    END IF
-    RETURN
-  END SUBROUTINE pint_u2x
+      IF (pint_env%transform == transformation_stage) THEN
+         CALL staging_u2x(pint_env%staging_env, ux=my_ux, x=my_x)
+      ELSE
+         CALL normalmode_u2x(pint_env%normalmode_env, ux=my_ux, x=my_x)
+      END IF
+      RETURN
+   END SUBROUTINE pint_u2x
 
 ! ***************************************************************************
 !> \brief transformation x to u for the forces
@@ -115,36 +113,35 @@ CONTAINS
 !>      Divide forces by the number of beads, since the replication
 !>        environment (should) give raw forces [hforbert]
 !> \author fawzi
-! *****************************************************************************
-  SUBROUTINE pint_f2uf(pint_env,uf,f)
-    TYPE(pint_env_type), POINTER             :: pint_env
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(out), OPTIONAL, TARGET          :: uf
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(in), OPTIONAL, TARGET           :: f
+! **************************************************************************************************
+   SUBROUTINE pint_f2uf(pint_env, uf, f)
+      TYPE(pint_env_type), POINTER                       :: pint_env
+      REAL(kind=dp), DIMENSION(:, :), INTENT(out), &
+         OPTIONAL, TARGET                                :: uf
+      REAL(kind=dp), DIMENSION(:, :), INTENT(in), &
+         OPTIONAL, TARGET                                :: f
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'pint_f2uf', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'pint_f2uf', routineP = moduleN//':'//routineN
 
-    REAL(kind=dp), DIMENSION(:, :), POINTER  :: my_f, my_uf
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_f, my_uf
 
-    CPASSERT(ASSOCIATED(pint_env))
-    CPASSERT(pint_env%ref_count>0)
-    my_f => pint_env%f
-    my_uf => pint_env%uf
-    IF (PRESENT(f)) my_f => f
-    IF (PRESENT(uf)) my_uf => uf
-    CPASSERT(ASSOCIATED(my_uf))
-    CPASSERT(ASSOCIATED(my_f))
+      CPASSERT(ASSOCIATED(pint_env))
+      CPASSERT(pint_env%ref_count > 0)
+      my_f => pint_env%f
+      my_uf => pint_env%uf
+      IF (PRESENT(f)) my_f => f
+      IF (PRESENT(uf)) my_uf => uf
+      CPASSERT(ASSOCIATED(my_uf))
+      CPASSERT(ASSOCIATED(my_f))
 
-    IF (pint_env%transform == transformation_stage) THEN
-      CALL staging_f2uf(pint_env%staging_env,uf=my_uf,f=my_f)
-    ELSE
-      CALL normalmode_f2uf(pint_env%normalmode_env,uf=my_uf,f=my_f)
-    END IF
+      IF (pint_env%transform == transformation_stage) THEN
+         CALL staging_f2uf(pint_env%staging_env, uf=my_uf, f=my_f)
+      ELSE
+         CALL normalmode_f2uf(pint_env%normalmode_env, uf=my_uf, f=my_f)
+      END IF
 
-   my_uf=my_uf/pint_env%mass_fict * pint_env%propagator%physpotscale
-    RETURN
-  END SUBROUTINE pint_f2uf
+      my_uf = my_uf/pint_env%mass_fict*pint_env%propagator%physpotscale
+      RETURN
+   END SUBROUTINE pint_f2uf
 
 END MODULE pint_transformations

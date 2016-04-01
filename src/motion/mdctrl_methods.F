@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief A common interface (wrapper) for a callback into the md_run loop.
 !>        Currently this is only used by the glbopt machinery, but its meant
 !>        to be extended if others need to controll the md_run loop, too.
@@ -11,49 +11,49 @@
 !> \par History
 !>      11.2012 created [Ole]
 !> \author Ole
-! *****************************************************************************
+! **************************************************************************************************
 MODULE mdctrl_methods
-  USE glbopt_callback,                 ONLY: glbopt_md_callback
-  USE md_environment_types,            ONLY: md_environment_type
-  USE mdctrl_types,                    ONLY: mdctrl_type
+   USE glbopt_callback,                 ONLY: glbopt_md_callback
+   USE md_environment_types,            ONLY: md_environment_type
+   USE mdctrl_types,                    ONLY: mdctrl_type
 #include "../base/base_uses.f90"
 
-  IMPLICIT NONE
-  PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 
- PUBLIC :: mdctrl_callback
+   PUBLIC :: mdctrl_callback
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mdctrl_methods'
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief This is called by md_run for each step during during its main-loop.
 !> \param mdctrl data which is passed on to the wrapped client-routine
 !> \param md_env contains the current state of the md_run
 !> \param should_stop can be used to abort the md_run
-! *****************************************************************************
-  SUBROUTINE mdctrl_callback(mdctrl, md_env, should_stop)
-    TYPE(mdctrl_type), POINTER               :: mdctrl
-    TYPE(md_environment_type), POINTER       :: md_env
-    LOGICAL, INTENT(inout)                   :: should_stop
+! **************************************************************************************************
+   SUBROUTINE mdctrl_callback(mdctrl, md_env, should_stop)
+      TYPE(mdctrl_type), POINTER                         :: mdctrl
+      TYPE(md_environment_type), POINTER                 :: md_env
+      LOGICAL, INTENT(inout)                             :: should_stop
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'mdctrl_callback', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'mdctrl_callback', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(ASSOCIATED(md_env))
-    CPASSERT(ASSOCIATED(mdctrl))
+      CPASSERT(ASSOCIATED(md_env))
+      CPASSERT(ASSOCIATED(mdctrl))
 
-    IF(ASSOCIATED(mdctrl%glbopt)) THEN
-      CALL glbopt_md_callback(mdctrl%glbopt, md_env, should_stop)
+      IF (ASSOCIATED(mdctrl%glbopt)) THEN
+         CALL glbopt_md_callback(mdctrl%glbopt, md_env, should_stop)
 
-    !ELSE IF(ASSOCIATED(mdctrl%your_own_hook)) THEN ...
+         !ELSE IF(ASSOCIATED(mdctrl%your_own_hook)) THEN ...
 
-    ELSE
-      CPABORT("mdctrl_callback: No hook found.")
-    ENDIF
+      ELSE
+         CPABORT("mdctrl_callback: No hook found.")
+      ENDIF
 
-  END SUBROUTINE mdctrl_callback
+   END SUBROUTINE mdctrl_callback
 
 END MODULE mdctrl_methods
 

@@ -1,1084 +1,1080 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief builds the input structure for the ATOM module
 !> \author jgh
-! *****************************************************************************
+! **************************************************************************************************
 MODULE input_cp2k_atom
-  USE cp_output_handling,              ONLY: cp_print_key_section_create,&
-                                             debug_print_level,&
-                                             high_print_level,&
-                                             medium_print_level,&
-                                             silent_print_level
-  USE input_constants,                 ONLY: &
-       atom_basis_run, atom_energy_run, atom_no_run, atom_pseudo_run, &
-       barrier_conf, contracted_gto, do_analytic, do_dkh0_atom, do_dkh1_atom, &
-       do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, &
-       do_gapw_gct, do_gapw_log, do_nonrel_atom, do_numeric, do_rhf_atom, &
-       do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
-       do_uhf_atom, do_uks_atom, do_zoramp_atom, ecp_pseudo, gaussian, &
-       geometrical_gto, gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, &
-       slater, upf_pseudo
-  USE input_cp2k_xc,                   ONLY: create_xc_section
-  USE input_keyword_types,             ONLY: keyword_create,&
-                                             keyword_release,&
-                                             keyword_type
-  USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_create,&
-                                             section_release,&
-                                             section_type
-  USE input_val_types,                 ONLY: char_t,&
-                                             integer_t,&
-                                             lchar_t,&
-                                             logical_t,&
-                                             real_t
-  USE kinds,                           ONLY: dp
-  USE string_utilities,                ONLY: s2a
+   USE cp_output_handling,              ONLY: cp_print_key_section_create,&
+                                              debug_print_level,&
+                                              high_print_level,&
+                                              medium_print_level,&
+                                              silent_print_level
+   USE input_constants,                 ONLY: &
+        atom_basis_run, atom_energy_run, atom_no_run, atom_pseudo_run, barrier_conf, &
+        contracted_gto, do_analytic, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, &
+        do_dkh4_atom, do_dkh5_atom, do_gapw_gcs, do_gapw_gct, do_gapw_log, do_nonrel_atom, &
+        do_numeric, do_rhf_atom, do_rks_atom, do_rohf_atom, do_sczoramp_atom, do_semi_analytic, &
+        do_uhf_atom, do_uks_atom, do_zoramp_atom, ecp_pseudo, gaussian, geometrical_gto, &
+        gth_pseudo, no_conf, no_pseudo, numerical, poly_conf, slater, upf_pseudo
+   USE input_cp2k_xc,                   ONLY: create_xc_section
+   USE input_keyword_types,             ONLY: keyword_create,&
+                                              keyword_release,&
+                                              keyword_type
+   USE input_section_types,             ONLY: section_add_keyword,&
+                                              section_add_subsection,&
+                                              section_create,&
+                                              section_release,&
+                                              section_type
+   USE input_val_types,                 ONLY: char_t,&
+                                              integer_t,&
+                                              lchar_t,&
+                                              logical_t,&
+                                              real_t
+   USE kinds,                           ONLY: dp
+   USE string_utilities,                ONLY: s2a
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
-  PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_atom'
 
-  PUBLIC :: create_atom_section
+   PUBLIC :: create_atom_section
 
-! *****************************************************************************
+! **************************************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates the input section for the atom code
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_atom_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_atom_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="ATOM",&
-         description="Section handling input for atomic calculations.",&
-         n_keywords=1, n_subsections=1, repeats=.FALSE.)
-    NULLIFY(keyword, subsection)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="ATOM", &
+                          description="Section handling input for atomic calculations.", &
+                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+      NULLIFY (keyword, subsection)
 
-    CALL keyword_create(keyword, name="ATOMIC_NUMBER",&
-         description="Specify the atomic number",&
-         default_i_val=1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="ATOMIC_NUMBER", &
+                          description="Specify the atomic number", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="ELEMENT",&
-         description="Specify the element to be calculated",&
-         usage="ELEMENT char",n_var=1,type_of_var=char_t,&
-         default_c_val="H")
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="ELEMENT", &
+                          description="Specify the element to be calculated", &
+                          usage="ELEMENT char", n_var=1, type_of_var=char_t, &
+                          default_c_val="H")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="RUN_TYPE",&
-         description="Type of run that you want to perform "//&
-             "[ENERGY,BASIS_OPTIMIZATION,PSEUDOPOTENTIAL_OPTIMIZATION,,...] ",&
-         usage="RUN_TYPE (NONE|ENERGY|BASIS_OPTIMIZATION|PSEUDOPOTENTIAL_OPTIMIZATION)",&
-         default_i_val=atom_energy_run,&
-         enum_c_vals=s2a("NONE","ENERGY","BASIS_OPTIMIZATION","PSEUDOPOTENTIAL_OPTIMIZATION"),&
-         enum_i_vals=(/atom_no_run, atom_energy_run, atom_basis_run, atom_pseudo_run/),&
-         enum_desc=s2a("Perform no run",&
-                       "Perform energy optimization",&
-                       "Perform basis optimization",&
-                       "Perform pseudopotential optimization"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="RUN_TYPE", &
+                          description="Type of run that you want to perform "// &
+                          "[ENERGY,BASIS_OPTIMIZATION,PSEUDOPOTENTIAL_OPTIMIZATION,,...] ", &
+                          usage="RUN_TYPE (NONE|ENERGY|BASIS_OPTIMIZATION|PSEUDOPOTENTIAL_OPTIMIZATION)", &
+                          default_i_val=atom_energy_run, &
+                          enum_c_vals=s2a("NONE", "ENERGY", "BASIS_OPTIMIZATION", "PSEUDOPOTENTIAL_OPTIMIZATION"), &
+                          enum_i_vals=(/atom_no_run, atom_energy_run, atom_basis_run, atom_pseudo_run/), &
+                          enum_desc=s2a("Perform no run", &
+                                        "Perform energy optimization", &
+                                        "Perform basis optimization", &
+                                        "Perform pseudopotential optimization"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="COULOMB_INTEGRALS",&
-         description="Method to calculate Coulomb integrals",&
-         usage="COULOMB_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)",&
-         default_i_val=do_numeric,&
-         enum_c_vals=(/"ANALYTIC                 ",&
-                       "SEMI_ANALYTIC            ",&
-                       "NUMERIC                  "/),&
-         enum_i_vals= (/ do_analytic, do_semi_analytic, do_numeric /),&
-         enum_desc=s2a("Use analytical method",&
-                       "Use semi-analytical method",&
-                       "Use numerical method"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="COULOMB_INTEGRALS", &
+                          description="Method to calculate Coulomb integrals", &
+                          usage="COULOMB_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)", &
+                          default_i_val=do_numeric, &
+                          enum_c_vals=(/"ANALYTIC                 ", &
+                                        "SEMI_ANALYTIC            ", &
+                                        "NUMERIC                  "/), &
+                          enum_i_vals=(/do_analytic, do_semi_analytic, do_numeric/), &
+                          enum_desc=s2a("Use analytical method", &
+                                        "Use semi-analytical method", &
+                                        "Use numerical method"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="EXCHANGE_INTEGRALS",&
-         description="Method to calculate Exchange integrals",&
-         usage="EXCHANGE_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)",&
-         default_i_val=do_numeric,&
-         enum_c_vals=(/"ANALYTIC                 ",&
-                       "SEMI_ANALYTIC            ",&
-                       "NUMERIC                  "/),&
-         enum_i_vals= (/ do_analytic, do_semi_analytic, do_numeric /),&
-         enum_desc=s2a("Use analytical method",&
-                       "Use semi-analytical method",&
-                       "Use numerical method"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="EXCHANGE_INTEGRALS", &
+                          description="Method to calculate Exchange integrals", &
+                          usage="EXCHANGE_INTEGRALS (ANALYTIC|SEMI_ANALYTIC|NUMERIC)", &
+                          default_i_val=do_numeric, &
+                          enum_c_vals=(/"ANALYTIC                 ", &
+                                        "SEMI_ANALYTIC            ", &
+                                        "NUMERIC                  "/), &
+                          enum_i_vals=(/do_analytic, do_semi_analytic, do_numeric/), &
+                          enum_desc=s2a("Use analytical method", &
+                                        "Use semi-analytical method", &
+                                        "Use numerical method"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="CORE",&
-         description="Specifies the core electrons for a pseudopotential",&
-         usage="CORE 1s2 ... or CORE [Ne] or CORE none for 0 electron cores",  repeats=.FALSE.,&
-         n_var=-1,type_of_var=char_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="CORE", &
+                          description="Specifies the core electrons for a pseudopotential", &
+                          usage="CORE 1s2 ... or CORE [Ne] or CORE none for 0 electron cores", repeats=.FALSE., &
+                          n_var=-1, type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="ELECTRON_CONFIGURATION",&
-         description="Specifies the electron configuration. "//&
-         "Optional the multiplicity (m) and a core state [XX] can be declared",&
-         usage="ELECTRON_CONFIGURATION (1) [Ne] 3s2 ... ",  repeats=.TRUE.,&
-         n_var=-1,type_of_var=char_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="ELECTRON_CONFIGURATION", &
+                          description="Specifies the electron configuration. "// &
+                          "Optional the multiplicity (m) and a core state [XX] can be declared", &
+                          usage="ELECTRON_CONFIGURATION (1) [Ne] 3s2 ... ", repeats=.TRUE., &
+                          n_var=-1, type_of_var=char_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="MAX_ANGULAR_MOMENTUM",&
-         description="Specifies the largest angular momentum calculated [0-3]",&
-         usage="MAX_ANGULAR_MOMENTUM 3",  repeats=.FALSE.,&
-         default_i_val=3)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="MAX_ANGULAR_MOMENTUM", &
+                          description="Specifies the largest angular momentum calculated [0-3]", &
+                          usage="MAX_ANGULAR_MOMENTUM 3", repeats=.FALSE., &
+                          default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="CALCULATE_STATES",&
-         description="Specifies the number of states calculated per l value",&
-         usage="CALCULATE_STATES  5 5 5 3 ",  repeats=.FALSE.,&
-         default_i_val=0, n_var=-1,type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="CALCULATE_STATES", &
+                          description="Specifies the number of states calculated per l value", &
+                          usage="CALCULATE_STATES  5 5 5 3 ", repeats=.FALSE., &
+                          default_i_val=0, n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL create_atom_print_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_atom_print_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-    CALL create_atom_aebasis_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_atom_aebasis_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-    CALL create_atom_ppbasis_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_atom_ppbasis_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-    CALL create_atom_method_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_atom_method_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-    CALL create_optimization_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_optimization_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-    CALL create_potential_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_potential_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-    CALL create_powell_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_powell_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
+   END SUBROUTINE create_atom_section
 
-  END SUBROUTINE create_atom_section
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create the print atom section
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_atom_print_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_atom_print_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_print_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_print_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: print_key
 
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="print",&
-         description="Section of possible print options specific of the ATOM code.",&
-         n_keywords=0, n_subsections=1, repeats=.FALSE.)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="print", &
+                          description="Section of possible print options specific of the ATOM code.", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-    NULLIFY(print_key, keyword)
+      NULLIFY (print_key, keyword)
 
-    CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
-         description="Controls the printing of the banner of the ATOM program",&
-         print_level=silent_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "PROGRAM_BANNER", &
+                                       description="Controls the printing of the banner of the ATOM program", &
+                                       print_level=silent_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"METHOD_INFO",&
-         description="Controls the printing of method information",&
-         print_level=medium_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "METHOD_INFO", &
+                                       description="Controls the printing of method information", &
+                                       print_level=medium_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"BASIS_SET",&
-         description="Controls the printing of the basis sets",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "BASIS_SET", &
+                                       description="Controls the printing of the basis sets", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"POTENTIAL",&
-         description="Controls the printing of the potentials",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "POTENTIAL", &
+                                       description="Controls the printing of the potentials", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"FIT_DENSITY",&
-         description="Fit the total electronic density to a linear combination of Gaussian functions",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL keyword_create(keyword, name="NUM_GTO",&
-         description="Number of Gaussian type functions for density fit",&
-         usage="NUM_GTO integer ",type_of_var=integer_t,&
-         default_i_val=40)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "FIT_DENSITY", &
+                                     description="Fit the total electronic density to a linear combination of Gaussian functions", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL keyword_create(keyword, name="NUM_GTO", &
+                          description="Number of Gaussian type functions for density fit", &
+                          usage="NUM_GTO integer ", type_of_var=integer_t, &
+                          default_i_val=40)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"FIT_KGPOT",&
-         description="Fit an approximation to the non-additive kinetic energy potential used in KG",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL keyword_create(keyword, name="NUM_GAUSSIAN",&
-         description="Number of Gaussian terms for the fit",&
-         usage="NUM_GAUSSIAN integer ",type_of_var=integer_t,&
-         default_i_val=1)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="NUM_POLYNOM",&
-         description="Number of terms in the polynomial expansion",&
-         usage="NUM_POLYNOM integer ",type_of_var=integer_t,&
-         default_i_val=4)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
+      CALL cp_print_key_section_create(print_key, "FIT_KGPOT", &
+                                       description="Fit an approximation to the non-additive kinetic energy potential used in KG", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL keyword_create(keyword, name="NUM_GAUSSIAN", &
+                          description="Number of Gaussian terms for the fit", &
+                          usage="NUM_GAUSSIAN integer ", type_of_var=integer_t, &
+                          default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="NUM_POLYNOM", &
+                          description="Number of terms in the polynomial expansion", &
+                          usage="NUM_POLYNOM integer ", type_of_var=integer_t, &
+                          default_i_val=4)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"RESPONSE_BASIS",&
-         description="Calculate a response basis set contraction scheme",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL keyword_create(keyword, name="DELTA_CHARGE",&
-         description="Variation of charge used in finite difference calculation",&
-         usage="DELTA_CHARGE real ",type_of_var=real_t,&
-         default_r_val=0.05_dp)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="DERIVATIVES",&
-         description="Number of wavefunction derivatives to calculate",&
-         usage="DERIVATIVES integer ",type_of_var=integer_t,&
-         default_i_val=2)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "RESPONSE_BASIS", &
+                                       description="Calculate a response basis set contraction scheme", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL keyword_create(keyword, name="DELTA_CHARGE", &
+                          description="Variation of charge used in finite difference calculation", &
+                          usage="DELTA_CHARGE real ", type_of_var=real_t, &
+                          default_r_val=0.05_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="DERIVATIVES", &
+                          description="Number of wavefunction derivatives to calculate", &
+                          usage="DERIVATIVES integer ", type_of_var=integer_t, &
+                          default_i_val=2)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"SCF_INFO",&
-         description="Controls the printing of SCF information",&
-         print_level=medium_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "SCF_INFO", &
+                                       description="Controls the printing of SCF information", &
+                                       print_level=medium_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"ORBITALS",&
-         description="Controls the printing of the optimized orbitals information",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "ORBITALS", &
+                                       description="Controls the printing of the optimized orbitals information", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"ANALYZE_BASIS",&
-         description="Calculates some basis set analysis data",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL keyword_create(keyword, name="OVERLAP_CONDITION_NUMBER",&
-         description="Condition number of the basis set overlap matrix calculated for a cubic crystal",&
-         usage="OVERLAP_CONDITION_NUMBER <logical>",type_of_var=logical_t,default_l_val=.FALSE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="COMPLETENESS",&
-         description="Calculate a completeness estimate for the basis set.",&
-         usage="COMPLETENESS <logical>",type_of_var=logical_t,default_l_val=.FALSE.)
-    CALL section_add_keyword(print_key,keyword)
-    CALL keyword_release(keyword)
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "ANALYZE_BASIS", &
+                                       description="Calculates some basis set analysis data", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL keyword_create(keyword, name="OVERLAP_CONDITION_NUMBER", &
+                          description="Condition number of the basis set overlap matrix calculated for a cubic crystal", &
+                          usage="OVERLAP_CONDITION_NUMBER <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="COMPLETENESS", &
+                          description="Calculate a completeness estimate for the basis set.", &
+                          usage="COMPLETENESS <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"FIT_PSEUDO",&
-         description="Controls the printing of FIT PSEUDO task",&
-         print_level=medium_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "FIT_PSEUDO", &
+                                       description="Controls the printing of FIT PSEUDO task", &
+                                       print_level=medium_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"FIT_BASIS",&
-         description="Controls the printing of FIT BASIS task",&
-         print_level=medium_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "FIT_BASIS", &
+                                       description="Controls the printing of FIT BASIS task", &
+                                       print_level=medium_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"UPF_FILE",&
-         description="Write GTH pseudopotential in UPF format",&
-         print_level=high_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
+      CALL cp_print_key_section_create(print_key, "UPF_FILE", &
+                                       description="Write GTH pseudopotential in UPF format", &
+                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
 
-    CALL cp_print_key_section_create(print_key,"ENERGIES_MINUS_KINETIC",&
-         description="Print out the total energy and orbital energies without "  //&
-         "the kinetic energy component. Useful for atomic calculations used" //&
-         "during SCPTB parametrization",&
-         print_level=debug_print_level,filename="__STD_OUT__")
-    CALL section_add_subsection(section,print_key)
-    CALL section_release(print_key)
-  END SUBROUTINE create_atom_print_section
+      CALL cp_print_key_section_create(print_key, "ENERGIES_MINUS_KINETIC", &
+                                       description="Print out the total energy and orbital energies without "// &
+                                       "the kinetic energy component. Useful for atomic calculations used"// &
+                                       "during SCPTB parametrization", &
+                                       print_level=debug_print_level, filename="__STD_OUT__")
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+   END SUBROUTINE create_atom_print_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create the all-electron basis section
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_atom_aebasis_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_atom_aebasis_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_aebasis_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_aebasis_section', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="AE_BASIS",&
-         description="Section of basis set information for all-electron calculations.",&
-         n_keywords=0, n_subsections=0, repeats=.FALSE.)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="AE_BASIS", &
+                          description="Section of basis set information for all-electron calculations.", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
-    CALL atom_basis_section(section)
+      CALL atom_basis_section(section)
 
-  END SUBROUTINE create_atom_aebasis_section
+   END SUBROUTINE create_atom_aebasis_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create the pseudopotential basis section
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_atom_ppbasis_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_atom_ppbasis_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_ppbasis_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_ppbasis_section', &
+         routineP = moduleN//':'//routineN
 
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="PP_BASIS",&
-         description="Section of basis set information for pseudopotential calculations.",&
-         n_keywords=0, n_subsections=0, repeats=.FALSE.)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="PP_BASIS", &
+                          description="Section of basis set information for pseudopotential calculations.", &
+                          n_keywords=0, n_subsections=0, repeats=.FALSE.)
 
-    CALL atom_basis_section(section)
+      CALL atom_basis_section(section)
 
-  END SUBROUTINE create_atom_ppbasis_section
+   END SUBROUTINE create_atom_ppbasis_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Keywords in the atom basis section
 !> \param section the section to fill
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE atom_basis_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE atom_basis_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atom_basis_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
-    CPASSERT(ASSOCIATED(section))
-    NULLIFY(keyword)
+      CPASSERT(ASSOCIATED(section))
+      NULLIFY (keyword)
 
-    CALL keyword_create(keyword, name="BASIS_TYPE",&
-         description="Basis set type",&
-         usage="BASIS_TYPE (GAUSSIAN|GEOMETRICAL_GTO|CONTRACTED_GTO|SLATER|NUMERICAL)",&
-         default_i_val=gaussian,&
-         enum_c_vals=(/"GAUSSIAN                 ",&
-                       "GEOMETRICAL_GTO          ",&
-                       "CONTRACTED_GTO           ",&
-                       "SLATER                   ",&
-                       "NUMERICAL                "/),&
-         enum_i_vals= (/ gaussian, geometrical_gto, contracted_gto, slater, numerical /),&
-         enum_desc=s2a("Gaussian type orbitals",&
-                       "Geometrical Gaussian type orbitals",&
-                       "Contracted Gaussian type orbitals",&
-                       "Slater-type orbitals",&
-                       "Numerical basis type"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="BASIS_TYPE", &
+                          description="Basis set type", &
+                          usage="BASIS_TYPE (GAUSSIAN|GEOMETRICAL_GTO|CONTRACTED_GTO|SLATER|NUMERICAL)", &
+                          default_i_val=gaussian, &
+                          enum_c_vals=(/"GAUSSIAN                 ", &
+                                        "GEOMETRICAL_GTO          ", &
+                                        "CONTRACTED_GTO           ", &
+                                        "SLATER                   ", &
+                                        "NUMERICAL                "/), &
+                          enum_i_vals=(/gaussian, geometrical_gto, contracted_gto, slater, numerical/), &
+                          enum_desc=s2a("Gaussian type orbitals", &
+                                        "Geometrical Gaussian type orbitals", &
+                                        "Contracted Gaussian type orbitals", &
+                                        "Slater-type orbitals", &
+                                        "Numerical basis type"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="NUM_GTO",&
-         description="Number of Gaussian type functions for s, p, d, ...",&
-         usage="NUM_GTO 5 5 5 ",n_var=-1,type_of_var=integer_t,&
-         default_i_val=-1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="NUM_GTO", &
+                          description="Number of Gaussian type functions for s, p, d, ...", &
+                          usage="NUM_GTO 5 5 5 ", n_var=-1, type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="NUM_SLATER",&
-         description="Number of Slater type functions for s, p, d, ...",&
-         usage="NUM_SLATER 5 5 5 ",n_var=-1,type_of_var=integer_t,&
-         default_i_val=-1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="NUM_SLATER", &
+                          description="Number of Slater type functions for s, p, d, ...", &
+                          usage="NUM_SLATER 5 5 5 ", n_var=-1, type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="START_INDEX",&
-         description="Starting index for Geometrical Basis sets",&
-         usage="START_INDEX 0 2 5 4 ",n_var=-1,type_of_var=integer_t,&
-         default_i_val=0)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="START_INDEX", &
+                          description="Starting index for Geometrical Basis sets", &
+                          usage="START_INDEX 0 2 5 4 ", n_var=-1, type_of_var=integer_t, &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="S_EXPONENTS",&
-         description="Exponents for s functions",&
-         usage="S_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="P_EXPONENTS",&
-         description="Exponents for p functions",&
-         usage="P_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="D_EXPONENTS",&
-         description="Exponents for d functions",&
-         usage="D_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="F_EXPONENTS",&
-         description="Exponents for f functions",&
-         usage="F_EXPONENTS 1.0 2.0 ... ",n_var=-1,type_of_var=real_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="S_EXPONENTS", &
+                          description="Exponents for s functions", &
+                          usage="S_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="P_EXPONENTS", &
+                          description="Exponents for p functions", &
+                          usage="P_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="D_EXPONENTS", &
+                          description="Exponents for d functions", &
+                          usage="D_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="F_EXPONENTS", &
+                          description="Exponents for f functions", &
+                          usage="F_EXPONENTS 1.0 2.0 ... ", n_var=-1, type_of_var=real_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="S_QUANTUM_NUMBERS",&
-         description="Main quantum numbers for s functions",&
-         usage="S_QUANTUM_NUMBERS 1 2 ... ",n_var=-1,type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="P_QUANTUM_NUMBERS",&
-         description="Main quantum numbers for p functions",&
-         usage="P_QUANTUM_NUMBERS 2 3 ... ",n_var=-1,type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="D_QUANTUM_NUMBERS",&
-         description="Main quantum numbers for d functions",&
-         usage="D_QUANTUM_NUMBERS 3 4 ... ",n_var=-1,type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-    CALL keyword_create(keyword, name="F_QUANTUM_NUMBERS",&
-         description="Main quantum numbers for f functions",&
-         usage="F_QUANTUM_NUMBERS 4 5 ... ",n_var=-1,type_of_var=integer_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="S_QUANTUM_NUMBERS", &
+                          description="Main quantum numbers for s functions", &
+                          usage="S_QUANTUM_NUMBERS 1 2 ... ", n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="P_QUANTUM_NUMBERS", &
+                          description="Main quantum numbers for p functions", &
+                          usage="P_QUANTUM_NUMBERS 2 3 ... ", n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="D_QUANTUM_NUMBERS", &
+                          description="Main quantum numbers for d functions", &
+                          usage="D_QUANTUM_NUMBERS 3 4 ... ", n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="F_QUANTUM_NUMBERS", &
+                          description="Main quantum numbers for f functions", &
+                          usage="F_QUANTUM_NUMBERS 4 5 ... ", n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="GEOMETRICAL_FACTOR",&
-         description="Geometrical basis: factor C in a*C^k",&
-         usage="GEOMETRICAL_FACTOR real",&
-         default_r_val=2.6_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="GEOMETRICAL_FACTOR", &
+                          description="Geometrical basis: factor C in a*C^k", &
+                          usage="GEOMETRICAL_FACTOR real", &
+                          default_r_val=2.6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="GEO_START_VALUE",&
-         description="Geometrical basis: starting value a in a*C^k",&
-         usage="GEO_START_VALUE real",&
-         default_r_val=0.016_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="GEO_START_VALUE", &
+                          description="Geometrical basis: starting value a in a*C^k", &
+                          usage="GEO_START_VALUE real", &
+                          default_r_val=0.016_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME",&
-         description="Name of the basis set file, may include a path",&
-         usage="BASIS_SET_FILE_NAME <FILENAME>",&
-         default_lc_val="BASIS_SET")
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="BASIS_SET_FILE_NAME", &
+                          description="Name of the basis set file, may include a path", &
+                          usage="BASIS_SET_FILE_NAME <FILENAME>", &
+                          default_lc_val="BASIS_SET")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="BASIS_SET",&
-         variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
-         description="The contracted Gaussian basis set",&
-         usage="BASIS_SET DZVP", default_c_val=" ", &
-         n_var=1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="BASIS_SET", &
+                          variants=s2a("ORBITAL_BASIS_SET", "ORB_BASIS"), &
+                          description="The contracted Gaussian basis set", &
+                          usage="BASIS_SET DZVP", default_c_val=" ", &
+                          n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="QUADRATURE",&
-         description="Algorithm to construct the atomic radial grids",&
-         usage="QUADRATURE (GC_SIMPLE|GC_TRANSFORMED|GC_LOG)",&
-         enum_c_vals=s2a("GC_SIMPLE","GC_TRANSFORMED","GC_LOG"),&
-         enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
-         enum_desc=s2a("Gauss-Chebyshev quadrature",&
-                       "Transformed Gauss-Chebyshev quadrature",&
-                       "Logarithmic transformed Gauss-Chebyshev quadrature"),&
-         default_i_val=do_gapw_log)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="QUADRATURE", &
+                          description="Algorithm to construct the atomic radial grids", &
+                          usage="QUADRATURE (GC_SIMPLE|GC_TRANSFORMED|GC_LOG)", &
+                          enum_c_vals=s2a("GC_SIMPLE", "GC_TRANSFORMED", "GC_LOG"), &
+                          enum_i_vals=(/do_gapw_gcs, do_gapw_gct, do_gapw_log/), &
+                          enum_desc=s2a("Gauss-Chebyshev quadrature", &
+                                        "Transformed Gauss-Chebyshev quadrature", &
+                                        "Logarithmic transformed Gauss-Chebyshev quadrature"), &
+                          default_i_val=do_gapw_log)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="GRID_POINTS",&
-         description="Number of radial grid points",&
-         usage="GRID_POINTS integer",&
-         default_i_val=400)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="GRID_POINTS", &
+                          description="Number of radial grid points", &
+                          usage="GRID_POINTS integer", &
+                          default_i_val=400)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="EPS_EIGENVALUE",&
-         description="Cutoff of overlap matrix eigenvalues included into basis",&
-         usage="EPS_EIGENVALUE real",&
-         default_r_val=1.e-12_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="EPS_EIGENVALUE", &
+                          description="Cutoff of overlap matrix eigenvalues included into basis", &
+                          usage="EPS_EIGENVALUE real", &
+                          default_r_val=1.e-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    NULLIFY(subsection)
-    CALL create_basis_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      NULLIFY (subsection)
+      CALL create_basis_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-  END SUBROUTINE atom_basis_section
+   END SUBROUTINE atom_basis_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create the method section for Atom calculations
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_atom_method_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_atom_method_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_method_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_atom_method_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
-    NULLIFY(subsection,keyword)
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="METHOD",&
-         description="Section of information on method to use.",&
-         n_keywords=0, n_subsections=2, repeats=.TRUE.)
+      NULLIFY (subsection, keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="METHOD", &
+                          description="Section of information on method to use.", &
+                          n_keywords=0, n_subsections=2, repeats=.TRUE.)
 
-    CALL keyword_create(keyword, name="METHOD_TYPE",&
-         description="Type of electronic structure method to be used",&
-         usage="METHOD_TYPE (KOHN-SHAM|RKS|UKS|HARTREE-FOCK|RHF|UHF|ROHF)",&
-         default_i_val=do_rks_atom,&
-         enum_c_vals=(/"KOHN-SHAM                ",&
-                       "RKS                      ",&
-                       "UKS                      ",&
-                       "HARTREE-FOCK             ",&
-                       "RHF                      ",&
-                       "UHF                      ",&
-                       "ROHF                     "/),&
-         enum_i_vals= (/ do_rks_atom, do_rks_atom, do_uks_atom, do_rhf_atom, &
-                         do_rhf_atom, do_uhf_atom, do_rohf_atom /),&
-         enum_desc=s2a("Kohn-Sham electronic structure method",&
-                       "Restricted Kohn-Sham electronic structure method",&
-                       "Unrestricted Kohn-Sham electronic structure method",&
-                       "Hartree-Fock electronic structure method",&
-                       "Restricted Hartree-Fock electronic structure method",&
-                       "Unrestricted Hartree-Fock electronic structure method",&
-                       "Restricted open-shell Hartree-Fock electronic structure method"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="METHOD_TYPE", &
+                          description="Type of electronic structure method to be used", &
+                          usage="METHOD_TYPE (KOHN-SHAM|RKS|UKS|HARTREE-FOCK|RHF|UHF|ROHF)", &
+                          default_i_val=do_rks_atom, &
+                          enum_c_vals=(/"KOHN-SHAM                ", &
+                                        "RKS                      ", &
+                                        "UKS                      ", &
+                                        "HARTREE-FOCK             ", &
+                                        "RHF                      ", &
+                                        "UHF                      ", &
+                                        "ROHF                     "/), &
+                          enum_i_vals=(/do_rks_atom, do_rks_atom, do_uks_atom, do_rhf_atom, &
+                                        do_rhf_atom, do_uhf_atom, do_rohf_atom/), &
+                          enum_desc=s2a("Kohn-Sham electronic structure method", &
+                                        "Restricted Kohn-Sham electronic structure method", &
+                                        "Unrestricted Kohn-Sham electronic structure method", &
+                                        "Hartree-Fock electronic structure method", &
+                                        "Restricted Hartree-Fock electronic structure method", &
+                                        "Unrestricted Hartree-Fock electronic structure method", &
+                                        "Restricted open-shell Hartree-Fock electronic structure method"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="RELATIVISTIC",&
-         description="Type of scalar relativistic method to be used",&
-         usage="RELATIVISTIC (OFF|ZORA(MP)|scZORA(MP)|DKH(0)|DKH(1)|DKH(2)|DKH(3)|DKH(4)|(DKH(5))",&
-         default_i_val=do_nonrel_atom,&
-         enum_c_vals=(/"OFF                      ",&
-                       "ZORA(MP)                 ",&
-                       "scZORA(MP)               ",&
-                       "DKH(0)                   ",&
-                       "DKH(1)                   ",&
-                       "DKH(2)                   ",&
-                       "DKH(3)                   ",&
-                       "DKH(4)                   ",&
-                       "DKH(5)                   "/),&
-         enum_i_vals= (/ do_nonrel_atom, do_zoramp_atom, do_sczoramp_atom, do_dkh0_atom,&
-         do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom /),&
-         enum_desc=s2a("Use no scalar relativistic method",&
-                       "Use ZORA method with atomic model potential",&
-                       "Use scaled ZORA method with atomic model potential",&
-                       "Use Douglas-Kroll-Hess Hamiltonian of order 0",&
-                       "Use Douglas-Kroll-Hess Hamiltonian of order 1",&
-                       "Use Douglas-Kroll-Hess Hamiltonian of order 2",&
-                       "Use Douglas-Kroll-Hess Hamiltonian of order 3",&
-                       "Use Douglas-Kroll-Hess Hamiltonian of order 4",&
-                       "Use Douglas-Kroll-Hess Hamiltonian of order 5"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="RELATIVISTIC", &
+                          description="Type of scalar relativistic method to be used", &
+                          usage="RELATIVISTIC (OFF|ZORA(MP)|scZORA(MP)|DKH(0)|DKH(1)|DKH(2)|DKH(3)|DKH(4)|(DKH(5))", &
+                          default_i_val=do_nonrel_atom, &
+                          enum_c_vals=(/"OFF                      ", &
+                                        "ZORA(MP)                 ", &
+                                        "scZORA(MP)               ", &
+                                        "DKH(0)                   ", &
+                                        "DKH(1)                   ", &
+                                        "DKH(2)                   ", &
+                                        "DKH(3)                   ", &
+                                        "DKH(4)                   ", &
+                                        "DKH(5)                   "/), &
+                          enum_i_vals=(/do_nonrel_atom, do_zoramp_atom, do_sczoramp_atom, do_dkh0_atom, &
+                                        do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_dkh4_atom, do_dkh5_atom/), &
+                          enum_desc=s2a("Use no scalar relativistic method", &
+                                        "Use ZORA method with atomic model potential", &
+                                        "Use scaled ZORA method with atomic model potential", &
+                                        "Use Douglas-Kroll-Hess Hamiltonian of order 0", &
+                                        "Use Douglas-Kroll-Hess Hamiltonian of order 1", &
+                                        "Use Douglas-Kroll-Hess Hamiltonian of order 2", &
+                                        "Use Douglas-Kroll-Hess Hamiltonian of order 3", &
+                                        "Use Douglas-Kroll-Hess Hamiltonian of order 4", &
+                                        "Use Douglas-Kroll-Hess Hamiltonian of order 5"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL create_xc_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_xc_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
 ! ZMP creating zubsection for the zmp calculations
-    CALL create_zmp_section(subsection) 
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
-                       
-    CALL create_external_vxc(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_zmp_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-  END SUBROUTINE create_atom_method_section
+      CALL create_external_vxc(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-! *****************************************************************************
+   END SUBROUTINE create_atom_method_section
+
+! **************************************************************************************************
 !> \brief Create the ZMP subsection for Atom calculations
-!>  
+!>
 !> \param section ...
-!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
-! *****************************************************************************
-  SUBROUTINE create_zmp_section(section)
-    TYPE(section_type), POINTER              :: section
+!> \author D. Varsano [daniele.varsano@nano.cnr.it]
+! **************************************************************************************************
+   SUBROUTINE create_zmp_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
-    NULLIFY(subsection,keyword)
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="ZMP",&
-          description="Section used to specify ZMP Potentials.",&
-          n_keywords=3, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (subsection, keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="ZMP", &
+                          description="Section used to specify ZMP Potentials.", &
+                          n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
-    CALL keyword_create(keyword, name="FILE_DENSITY",&
-         description="Specifies the filename containing the target density ",&
-         usage="FILE_DENSITY <FILENAME>",&
-         type_of_var=char_t,default_c_val="RHO_O.dat", n_var=-1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="FILE_DENSITY", &
+                          description="Specifies the filename containing the target density ", &
+                          usage="FILE_DENSITY <FILENAME>", &
+                          type_of_var=char_t, default_c_val="RHO_O.dat", n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="GRID_TOL",&
-         description="Tolerance in the equivalence of read-grid in ZMP method",&
-         usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="GRID_TOL", &
+                          description="Tolerance in the equivalence of read-grid in ZMP method", &
+                          usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="LAMBDA",&
-         description="Parameter used for the constraint in ZMP method",&
-         usage="LAMBDA <REAL>", default_r_val=10.0_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="LAMBDA", &
+                          description="Parameter used for the constraint in ZMP method", &
+                          usage="LAMBDA <REAL>", default_r_val=10.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="DM",&
-         description="read external density from density matrix",&
-         usage="DM <LOGICAL>", type_of_var=logical_t,default_l_val=.FALSE.)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="DM", &
+                          description="read external density from density matrix", &
+                          usage="DM <LOGICAL>", type_of_var=logical_t, default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL create_zmp_restart_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      CALL create_zmp_restart_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-  END SUBROUTINE create_zmp_section
+   END SUBROUTINE create_zmp_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create the ZMP restart subsection for Atom calculations
-!>  
+!>
 !> \param section ...
-!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
-! *****************************************************************************
-  SUBROUTINE create_zmp_restart_section(section)
-    TYPE(section_type), POINTER              :: section
+!> \author D. Varsano [daniele.varsano@nano.cnr.it]
+! **************************************************************************************************
+   SUBROUTINE create_zmp_restart_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_restart_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_zmp_restart_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    NULLIFY(keyword)
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="RESTART",&
-          description="Section used to specify the restart option in the ZMP"//&
-                      "procedure, and the file that must be read.",&
-          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="RESTART", &
+                          description="Section used to specify the restart option in the ZMP"// &
+                          "procedure, and the file that must be read.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-    CALL keyword_create(keyword, name="FILE_RESTART",&
-         description="Specifies the filename containing the restart file density ",&
-         usage="FILE_RESTART <FILENAME>",&
-         type_of_var=char_t,default_c_val="RESTART.wfn", n_var=-1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="FILE_RESTART", &
+                          description="Specifies the filename containing the restart file density ", &
+                          usage="FILE_RESTART <FILENAME>", &
+                          type_of_var=char_t, default_c_val="RESTART.wfn", n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-  END SUBROUTINE create_zmp_restart_section
+   END SUBROUTINE create_zmp_restart_section
 
-! *****************************************************************************
-!> \brief Subroutine to create the external v_xc potential 
-!>  
+! **************************************************************************************************
+!> \brief Subroutine to create the external v_xc potential
+!>
 !> \param section ...
-!> \author D. Varsano [daniele.varsano@nano.cnr.it] 
-! *****************************************************************************
-  SUBROUTINE create_external_vxc(section)
-    TYPE(section_type), POINTER              :: section
+!> \author D. Varsano [daniele.varsano@nano.cnr.it]
+! **************************************************************************************************
+   SUBROUTINE create_external_vxc(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_external_vxc', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_external_vxc', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    NULLIFY(keyword)
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="EXTERNAL_VXC",&
-          description="Section used to specify exernal VXC Potentials.",&
-          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="EXTERNAL_VXC", &
+                          description="Section used to specify exernal VXC Potentials.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
-    CALL keyword_create(keyword, name="FILE_VXC",&
-          description="Specifies the filename containing the external vxc ",&
-          usage="FILE_VXC <FILENAME>",&
-          type_of_var=char_t,default_c_val="VXC.dat", n_var=-1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="FILE_VXC", &
+                          description="Specifies the filename containing the external vxc ", &
+                          usage="FILE_VXC <FILENAME>", &
+                          type_of_var=char_t, default_c_val="VXC.dat", n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, name="GRID_TOL", &
+                          description="Tolerance in the equivalence of read-grid in ZMP method", &
+                          usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-     CALL keyword_create(keyword, name="GRID_TOL",&
-          description="Tolerance in the equivalence of read-grid in ZMP method",&
-          usage="GRID_TOL <REAL>", default_r_val=1.E-12_dp)
-     CALL section_add_keyword(section,keyword)
-     CALL keyword_release(keyword)
+   END SUBROUTINE create_external_vxc
 
-  END SUBROUTINE create_external_vxc
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create the optimization section for Atom calculations
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_optimization_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_optimization_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_optimization_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_optimization_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    NULLIFY(keyword)
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="OPTIMIZATION",&
-         description="Section of information on optimization thresholds and algorithms.",&
-         n_keywords=0, n_subsections=1, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="OPTIMIZATION", &
+                          description="Section of information on optimization thresholds and algorithms.", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-    CALL keyword_create(keyword, name="MAX_ITER",&
-         description="Maximum number of iterations for optimization",&
-         usage="MAX_ITER  50", default_i_val=200)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="MAX_ITER", &
+                          description="Maximum number of iterations for optimization", &
+                          usage="MAX_ITER  50", default_i_val=200)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="EPS_SCF",&
-         description="Convergence criterion for SCF",&
-         usage="EPS_SCF 1.e-10", default_r_val=1.e-6_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="EPS_SCF", &
+                          description="Convergence criterion for SCF", &
+                          usage="EPS_SCF 1.e-10", default_r_val=1.e-6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="DAMPING",&
-         description="Damping parameter for extrapolation method",&
-         usage="DAMPING 0.4", default_r_val=0.4_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="DAMPING", &
+                          description="Damping parameter for extrapolation method", &
+                          usage="DAMPING 0.4", default_r_val=0.4_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="EPS_DIIS",&
-         description="Starting DIIS method at convergence to EPS_DIIS",&
-         usage="EPS_DIIS  0.01", default_r_val=10000._dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="EPS_DIIS", &
+                          description="Starting DIIS method at convergence to EPS_DIIS", &
+                          usage="EPS_DIIS  0.01", default_r_val=10000._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="N_DIIS",&
-         description="Maximum number of DIIS vectors",&
-         usage="N_DIIS  6", default_i_val=5)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="N_DIIS", &
+                          description="Maximum number of DIIS vectors", &
+                          usage="N_DIIS  6", default_i_val=5)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-  END SUBROUTINE create_optimization_section
+   END SUBROUTINE create_optimization_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Create the potential section for Atom calculations
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_potential_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_potential_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_potential_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_potential_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+      TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
-    NULLIFY(keyword)
-    CPASSERT(.NOT.ASSOCIATED(section))
-    CALL section_create(section,name="POTENTIAL",&
-         description="Section of information on potential.",&
-         n_keywords=0, n_subsections=1, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, name="POTENTIAL", &
+                          description="Section of information on potential.", &
+                          n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
-    CALL keyword_create(keyword, name="CONFINEMENT_TYPE",&
-         description="Define functional form of confinement potential.",&
-         usage="CONFINEMENT_TYPE (NONE|POLYNOM|BARRIER)",&
-         default_i_val=poly_conf,&
-         enum_c_vals=(/"NONE                     ",&
-                       "POLYNOM                  ",&
-                       "BARRIER                  "/),&
-         enum_i_vals= (/ no_conf, poly_conf, barrier_conf /),&
-         enum_desc=s2a("Do not use confinement potential",&
-                       "Use polynomial confinement potential: a*R^b",&
-                       "Use a smooth barrier potential: a*F[r-ron)/w]"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="CONFINEMENT_TYPE", &
+                          description="Define functional form of confinement potential.", &
+                          usage="CONFINEMENT_TYPE (NONE|POLYNOM|BARRIER)", &
+                          default_i_val=poly_conf, &
+                          enum_c_vals=(/"NONE                     ", &
+                                        "POLYNOM                  ", &
+                                        "BARRIER                  "/), &
+                          enum_i_vals=(/no_conf, poly_conf, barrier_conf/), &
+                          enum_desc=s2a("Do not use confinement potential", &
+                                        "Use polynomial confinement potential: a*R^b", &
+                                        "Use a smooth barrier potential: a*F[r-ron)/w]"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="CONFINEMENT",&
-         description="Definition of parameters for confinement potential",&
-         usage="CONFINEMENT prefactor range exponent (POLYNOM)"//&
-               "CONFINEMENT prefactor range r_onset (BARRIER)", &
-         default_r_vals=(/ 0._dp, 0._dp, 0._dp /),&
-         repeats=.FALSE., n_var=-1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="CONFINEMENT", &
+                          description="Definition of parameters for confinement potential", &
+                          usage="CONFINEMENT prefactor range exponent (POLYNOM)"// &
+                          "CONFINEMENT prefactor range r_onset (BARRIER)", &
+                          default_r_vals=(/0._dp, 0._dp, 0._dp/), &
+                          repeats=.FALSE., n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="PSEUDO_TYPE",&
-         description="Pseudopotential type",&
-         usage="PSEUDO_TYPE (NONE|GTH|UPF|ECP)",&
-         default_i_val=no_pseudo,&
-         enum_c_vals=(/"NONE                     ",&
-                       "GTH                      ",&
-                       "UPF                      ",&
-                       "ECP                      "/),&
-         enum_i_vals= (/ no_pseudo, gth_pseudo, upf_pseudo, ecp_pseudo /),&
-         enum_desc=s2a("Do not use pseudopotentials",&
-                       "Use Goedecker-Teter-Hutter pseudopotentials",&
-                       "Use UPF norm-conserving pseudopotentials",&
-                       "Use ECP semi-local pseudopotentials"))
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="PSEUDO_TYPE", &
+                          description="Pseudopotential type", &
+                          usage="PSEUDO_TYPE (NONE|GTH|UPF|ECP)", &
+                          default_i_val=no_pseudo, &
+                          enum_c_vals=(/"NONE                     ", &
+                                        "GTH                      ", &
+                                        "UPF                      ", &
+                                        "ECP                      "/), &
+                          enum_i_vals=(/no_pseudo, gth_pseudo, upf_pseudo, ecp_pseudo/), &
+                          enum_desc=s2a("Do not use pseudopotentials", &
+                                        "Use Goedecker-Teter-Hutter pseudopotentials", &
+                                        "Use UPF norm-conserving pseudopotentials", &
+                                        "Use ECP semi-local pseudopotentials"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
-         description="Name of the pseudo potential file, may include a path",&
-         usage="POTENTIAL_FILE_NAME <FILENAME>",&
-         default_lc_val="POTENTIAL")
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME", &
+                          description="Name of the pseudo potential file, may include a path", &
+                          usage="POTENTIAL_FILE_NAME <FILENAME>", &
+                          default_lc_val="POTENTIAL")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="POTENTIAL_NAME",&
-         variants=(/ "POT_NAME" /),&
-         description="The name of the pseudopotential for the defined kind.",&
-         usage="POTENTIAL_NAME <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="POTENTIAL_NAME", &
+                          variants=(/"POT_NAME"/), &
+                          description="The name of the pseudopotential for the defined kind.", &
+                          usage="POTENTIAL_NAME <PSEUDO-POTENTIAL-NAME>", default_c_val=" ", n_var=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    NULLIFY(subsection)
-    CALL create_gthpotential_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      NULLIFY (subsection)
+      CALL create_gthpotential_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-    NULLIFY(subsection)
-    CALL create_ecp_section(subsection)
-    CALL section_add_subsection(section, subsection)
-    CALL section_release(subsection)
+      NULLIFY (subsection)
+      CALL create_ecp_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
-  END SUBROUTINE create_potential_section
+   END SUBROUTINE create_potential_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates the &GTH_POTENTIAL section
 !> \param section the section to create
 !> \author teo
-! *****************************************************************************
-  SUBROUTINE create_gthpotential_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_gthpotential_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_gthpotential_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_gthpotential_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    CALL section_create(section,name="GTH_POTENTIAL",&
-         description="Section used to specify Potentials.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE.)
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-         description="CP2K Pseudo Potential Standard Format (GTH, ALL or KG)",&
-         repeats=.TRUE.,type_of_var=lchar_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-  END SUBROUTINE create_gthpotential_section
+      CALL section_create(section, name="GTH_POTENTIAL", &
+                          description="Section used to specify Potentials.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+                          description="CP2K Pseudo Potential Standard Format (GTH, ALL or KG)", &
+                          repeats=.TRUE., type_of_var=lchar_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_gthpotential_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates the &ECP section
 !> \param section the section to create
 !> \author jgh
-! *****************************************************************************
-  SUBROUTINE create_ecp_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_ecp_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_ecp_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_ecp_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    CALL section_create(section,name="ECP",&
-         description="Section used to specify ECP's.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE.)
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-         description="Effective Core Potentials definition",&
-         repeats=.TRUE.,type_of_var=lchar_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-  END SUBROUTINE create_ecp_section
+      CALL section_create(section, name="ECP", &
+                          description="Section used to specify ECP's.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+                          description="Effective Core Potentials definition", &
+                          repeats=.TRUE., type_of_var=lchar_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_ecp_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates the &BASIS section
 !> \param section the section to create
 !> \author teo
-! *****************************************************************************
-  SUBROUTINE create_basis_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_basis_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_basis_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_basis_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    CALL section_create(section,name="basis",&
-         description="Section used to specify a general basis set for QM calculations.",&
-         n_keywords=1, n_subsections=0, repeats=.FALSE.)
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-         description="CP2K Basis Set Standard Format",repeats=.TRUE.,&
-         type_of_var=lchar_t)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
-  END SUBROUTINE create_basis_section
+      CALL section_create(section, name="basis", &
+                          description="Section used to specify a general basis set for QM calculations.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
+                          description="CP2K Basis Set Standard Format", repeats=.TRUE., &
+                          type_of_var=lchar_t)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_basis_section
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Creates the &POWELL section
 !> \param section the section to create
 !> \author teo
-! *****************************************************************************
-  SUBROUTINE create_powell_section(section)
-    TYPE(section_type), POINTER              :: section
+! **************************************************************************************************
+   SUBROUTINE create_powell_section(section)
+      TYPE(section_type), POINTER                        :: section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_powell_section', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'create_powell_section', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(keyword_type), POINTER              :: keyword
+      TYPE(keyword_type), POINTER                        :: keyword
 
-    CALL section_create(section,name="powell",&
-         description="Section defines basic parameters for Powell optimization",&
-         n_keywords=4, n_subsections=0, repeats=.FALSE.)
+      CALL section_create(section, name="powell", &
+                          description="Section defines basic parameters for Powell optimization", &
+                          n_keywords=4, n_subsections=0, repeats=.FALSE.)
 
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="ACCURACY",&
-         description="Final accuracy requested in optimization (RHOEND)",&
-         usage="ACCURACY 0.00001",&
-         default_r_val=1.e-6_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, name="ACCURACY", &
+                          description="Final accuracy requested in optimization (RHOEND)", &
+                          usage="ACCURACY 0.00001", &
+                          default_r_val=1.e-6_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="STEP_SIZE",&
-         description="Initial step size for search algorithm (RHOBEG)",&
-         usage="STEP_SIZE 0.005",&
-         default_r_val=0.005_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="STEP_SIZE", &
+                          description="Initial step size for search algorithm (RHOBEG)", &
+                          usage="STEP_SIZE 0.005", &
+                          default_r_val=0.005_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="MAX_FUN",&
-         description="Maximum number of function evaluations",&
-         usage="MAX_FUN 1000",&
-         default_i_val=5000)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="MAX_FUN", &
+                          description="Maximum number of function evaluations", &
+                          usage="MAX_FUN 1000", &
+                          default_i_val=5000)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL",&
-         description="Weight for virtual states in pseudopotential optimization",&
-         usage="WEIGHT_POT_VIRTUAL 1.0",&
-         default_r_val=1._dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_POT_VIRTUAL", &
+                          description="Weight for virtual states in pseudopotential optimization", &
+                          usage="WEIGHT_POT_VIRTUAL 1.0", &
+                          default_r_val=1._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_POT_SEMICORE",&
-         description="Weight for semi core states in pseudopotential optimization",&
-         usage="WEIGHT_POT_SEMICORE 1.0",&
-         default_r_val=1._dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_POT_SEMICORE", &
+                          description="Weight for semi core states in pseudopotential optimization", &
+                          usage="WEIGHT_POT_SEMICORE 1.0", &
+                          default_r_val=1._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_POT_VALENCE",&
-         description="Weight for valence states in pseudopotential optimization",&
-         usage="WEIGHT_POT_VALENCE 1.0",&
-         default_r_val=1.0_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_POT_VALENCE", &
+                          description="Weight for valence states in pseudopotential optimization", &
+                          usage="WEIGHT_POT_VALENCE 1.0", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_POT_NODE",&
-         description="Weight for node mismatch in pseudopotential optimization",&
-         usage="WEIGHT_POT_NODE 1.0",&
-         default_r_val=1.0_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_POT_NODE", &
+                          description="Weight for node mismatch in pseudopotential optimization", &
+                          usage="WEIGHT_POT_NODE 1.0", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_DELTA_ENERGY",&
-         description="Weight for energy differences in pseudopotential optimization",&
-         usage="WEIGHT_DELTA_ENERGY 1.0",&
-         default_r_val=1._dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_DELTA_ENERGY", &
+                          description="Weight for energy differences in pseudopotential optimization", &
+                          usage="WEIGHT_DELTA_ENERGY 1.0", &
+                          default_r_val=1._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_ELECTRON_CONFIGURATION",&
-         description="Weight for different electronic states in optimization",&
-         usage="WEIGHT_ELECTRON_CONFIGURATION 1.0 0.1 ...",&
-         n_var=-1,type_of_var=real_t, default_r_val=1.0_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_ELECTRON_CONFIGURATION", &
+                          description="Weight for different electronic states in optimization", &
+                          usage="WEIGHT_ELECTRON_CONFIGURATION 1.0 0.1 ...", &
+                          n_var=-1, type_of_var=real_t, default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_METHOD",&
-         description="Weight for different methods in optimization",&
-         usage="WEIGHT_METHOD 1.0 0.1 ...",&
-         n_var=-1,type_of_var=real_t, default_r_val=1.0_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_METHOD", &
+                          description="Weight for different methods in optimization", &
+                          usage="WEIGHT_METHOD 1.0 0.1 ...", &
+                          n_var=-1, type_of_var=real_t, default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="TARGET_POT_VIRTUAL",&
-         description="Target accuracy for virtual state eigenvalues in pseudopotential optimization",&
-         usage="TARGET_POT_VIRTUAL 0.0001",&
-         default_r_val=1.0e-3_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="TARGET_POT_VIRTUAL", &
+                          description="Target accuracy for virtual state eigenvalues in pseudopotential optimization", &
+                          usage="TARGET_POT_VIRTUAL 0.0001", &
+                          default_r_val=1.0e-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="TARGET_POT_VALENCE",&
-         description="Target accuracy for valence state eigenvalues in pseudopotential optimization",&
-         usage="TARGET_POT_VALENCE 0.0001",&
-         default_r_val=1.0e-5_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="TARGET_POT_VALENCE", &
+                          description="Target accuracy for valence state eigenvalues in pseudopotential optimization", &
+                          usage="TARGET_POT_VALENCE 0.0001", &
+                          default_r_val=1.0e-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="TARGET_POT_SEMICORE",&
-         description="Target accuracy for semicore state eigenvalues in pseudopotential optimization",&
-         usage="TARGET_POT_SEMICORE 0.01",&
-         default_r_val=1.0e-3_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="TARGET_POT_SEMICORE", &
+                          description="Target accuracy for semicore state eigenvalues in pseudopotential optimization", &
+                          usage="TARGET_POT_SEMICORE 0.01", &
+                          default_r_val=1.0e-3_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="TARGET_DELTA_ENERGY",&
-         description="Target accuracy for energy differences in pseudopotential optimization",&
-         usage="TARGET_DELTA_ENERGY 0.01",&
-         default_r_val=1.0e-4_dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="TARGET_DELTA_ENERGY", &
+                          description="Target accuracy for energy differences in pseudopotential optimization", &
+                          usage="TARGET_DELTA_ENERGY 0.01", &
+                          default_r_val=1.0e-4_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="WEIGHT_PSIR0",&
-         description="Weight for the wavefunctions at r=0 (only occupied states)",&
-         usage="WEIGHT_PSIR0 0.01",&
-         default_r_val=0._dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="WEIGHT_PSIR0", &
+                          description="Weight for the wavefunctions at r=0 (only occupied states)", &
+                          usage="WEIGHT_PSIR0 0.01", &
+                          default_r_val=0._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-    CALL keyword_create(keyword, name="RCOV_MULTIPLICATION",&
-         description="Multiply Rcov integration limit for charge conservation",&
-         usage="RCOV_MULTIPLICATION  1.10",&
-         default_r_val=1._dp)
-    CALL section_add_keyword(section,keyword)
-    CALL keyword_release(keyword)
+      CALL keyword_create(keyword, name="RCOV_MULTIPLICATION", &
+                          description="Multiply Rcov integration limit for charge conservation", &
+                          usage="RCOV_MULTIPLICATION  1.10", &
+                          default_r_val=1._dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
-  END SUBROUTINE create_powell_section
+   END SUBROUTINE create_powell_section
 
-! *****************************************************************************
+! **************************************************************************************************
 
 END MODULE input_cp2k_atom

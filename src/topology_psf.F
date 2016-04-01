@@ -1,52 +1,52 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Functionality to read in PSF topologies and convert it into local
 !>      data structures
 !> \author ikuo
 !>      tlaino 10.2006
-! *****************************************************************************
+! **************************************************************************************************
 MODULE topology_psf
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_get_default_io_unit,&
-                                             cp_logger_type,&
-                                             cp_to_string
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_generate_filename,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                             parser_get_object,&
-                                             parser_search_string,&
-                                             parser_test_next_token
-  USE cp_parser_types,                 ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_release
-  USE force_fields_input,              ONLY: read_chrg_section
-  USE input_constants,                 ONLY: do_conn_psf,&
-                                             do_conn_psf_u
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE memory_utilities,                ONLY: reallocate
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE string_table,                    ONLY: id2str,&
-                                             s2s,&
-                                             str2id
-  USE string_utilities,                ONLY: uppercase
-  USE topology_types,                  ONLY: atom_info_type,&
-                                             connectivity_info_type,&
-                                             topology_parameters_type
-  USE topology_util,                   ONLY: array1_list_type,&
-                                             reorder_structure,&
-                                             tag_molecule
-  USE util,                            ONLY: sort
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type,&
+                                              cp_to_string
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_generate_filename,&
+                                              cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                              parser_get_object,&
+                                              parser_search_string,&
+                                              parser_test_next_token
+   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                              parser_create,&
+                                              parser_release
+   USE force_fields_input,              ONLY: read_chrg_section
+   USE input_constants,                 ONLY: do_conn_psf,&
+                                              do_conn_psf_u
+   USE input_section_types,             ONLY: section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE memory_utilities,                ONLY: reallocate
+   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+   USE string_table,                    ONLY: id2str,&
+                                              s2s,&
+                                              str2id
+   USE string_utilities,                ONLY: uppercase
+   USE topology_types,                  ONLY: atom_info_type,&
+                                              connectivity_info_type,&
+                                              topology_parameters_type
+   USE topology_util,                   ONLY: array1_list_type,&
+                                              reorder_structure,&
+                                              tag_molecule
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
   IMPLICIT NONE
@@ -61,7 +61,7 @@ MODULE topology_psf
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Read PSF topology file
 !>      Teodoro Laino - Introduced CHARMM31 EXT PSF standard format
 !> \param filename ...
@@ -73,30 +73,28 @@ CONTAINS
 !>      04-2007 Teodoro Laino - Zurich University [tlaino]
 !>      This routine should contain only information read from the PSF format
 !>      and all post_process should be performef in the psf_post_process
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE read_topology_psf (filename,topology,para_env,subsys_section, psf_type)
-    CHARACTER(LEN=*), INTENT(IN)             :: filename
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
-    INTEGER, INTENT(IN)                      :: psf_type
+      CHARACTER(LEN=*), INTENT(IN)                       :: filename
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(section_vals_type), POINTER                   :: subsys_section
+      INTEGER, INTENT(IN)                                :: psf_type
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_psf', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_psf', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2*default_string_length)   :: psf_format
-    CHARACTER(LEN=3)                         :: c_int
-    CHARACTER(LEN=default_string_length)     :: dummy_field, field, label, &
-                                                strtmp1, strtmp2, strtmp3
-    INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, &
-      natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
-      ntheta_prev, output_unit
-    LOGICAL                                  :: found
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(connectivity_info_type), POINTER    :: conn_info
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_parser_type), POINTER            :: parser
+      CHARACTER(LEN=2*default_string_length)             :: psf_format
+      CHARACTER(LEN=3)                                   :: c_int
+      CHARACTER(LEN=default_string_length)               :: dummy_field, field, label, strtmp1, &
+                                                            strtmp2, strtmp3
+      INTEGER :: handle, i, iatom, ibond, idum, index_now, iphi, itheta, iw, natom, natom_prev, &
+         nbond, nbond_prev, nphi, nphi_prev, ntheta, ntheta_prev, output_unit
+      LOGICAL                                            :: found
+      TYPE(atom_info_type), POINTER                      :: atom_info
+      TYPE(connectivity_info_type), POINTER              :: conn_info
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_parser_type), POINTER                      :: parser
 
     NULLIFY(parser, logger)
     logger => cp_get_default_logger()
@@ -409,27 +407,25 @@ CONTAINS
 
   END SUBROUTINE read_topology_psf
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Post processing of PSF informations
 !> \param topology ...
 !> \param subsys_section ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE  psf_post_process(topology,subsys_section)
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(section_vals_type), POINTER         :: subsys_section
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+      TYPE(section_vals_type), POINTER                   :: subsys_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'psf_post_process', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'psf_post_process', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iatom, ibond, &
-                                                ionfo, iw, jatom, N, natom, &
-                                                nbond, nonfo, nphi, ntheta
-    TYPE(array1_list_type), DIMENSION(:), &
-      POINTER                                :: ex_bend_list, ex_bond_list
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(connectivity_info_type), POINTER    :: conn_info
-    TYPE(cp_logger_type), POINTER            :: logger
+      INTEGER                                            :: handle, i, iatom, ibond, ionfo, iw, &
+                                                            jatom, N, natom, nbond, nonfo, nphi, &
+                                                            ntheta
+      TYPE(array1_list_type), DIMENSION(:), POINTER      :: ex_bend_list, ex_bond_list
+      TYPE(atom_info_type), POINTER                      :: atom_info
+      TYPE(connectivity_info_type), POINTER              :: conn_info
+      TYPE(cp_logger_type), POINTER                      :: logger
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -556,33 +552,29 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO/PSF_INFO")
   END SUBROUTINE psf_post_process
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Input driven modification (IDM) of PSF defined structures
 !> \param topology ...
 !> \param section ...
 !> \param subsys_section ...
 !> \author Teodoro Laino - Zurich University 04.2007
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE  idm_psf(topology,section,subsys_section)
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(section_vals_type), POINTER         :: section, subsys_section
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+      TYPE(section_vals_type), POINTER                   :: section, subsys_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'idm_psf', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'idm_psf', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iend, iend1, &
-                                                istart, istart1, item, iw, j, &
-                                                mol_id, n_rep, natom, nbond, &
-                                                nimpr, noe, nphi, ntheta
-    INTEGER, DIMENSION(:), POINTER           :: tag_mols, tmp, wrk
-    LOGICAL                                  :: explicit
-    TYPE(array1_list_type), DIMENSION(:), &
-      POINTER                                :: ex_bond_list
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(connectivity_info_type), POINTER    :: conn_info
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: subsection
+      INTEGER                                            :: handle, i, iend, iend1, istart, istart1, &
+                                                            item, iw, j, mol_id, n_rep, natom, &
+                                                            nbond, nimpr, noe, nphi, ntheta
+      INTEGER, DIMENSION(:), POINTER                     :: tag_mols, tmp, wrk
+      LOGICAL                                            :: explicit
+      TYPE(array1_list_type), DIMENSION(:), POINTER      :: ex_bond_list
+      TYPE(atom_info_type), POINTER                      :: atom_info
+      TYPE(connectivity_info_type), POINTER              :: conn_info
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: subsection
 
     NULLIFY(logger)
     logger => cp_get_default_logger()
@@ -718,37 +710,33 @@ CONTAINS
 
   END SUBROUTINE idm_psf
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Teodoro Laino - 01.2006
 !>      Write PSF topology file in the CHARMM31 EXT standard format
 !> \param file_unit ...
 !> \param topology ...
 !> \param subsys_section ...
 !> \param force_env_section ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE write_topology_psf (file_unit,topology,subsys_section,force_env_section)
-    INTEGER, INTENT(IN)                      :: file_unit
-    TYPE(topology_parameters_type), &
-      INTENT(INOUT)                          :: topology
-    TYPE(section_vals_type), POINTER         :: subsys_section, &
-                                                force_env_section
+      INTEGER, INTENT(IN)                                :: file_unit
+      TYPE(topology_parameters_type), INTENT(INOUT)      :: topology
+      TYPE(section_vals_type), POINTER                   :: subsys_section, force_env_section
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_topology_psf', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=2*default_string_length)   :: psf_format
-    CHARACTER(LEN=default_string_length)     :: c_int, my_tag1, my_tag2, &
-                                                my_tag3, record
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: charge_atm
-    INTEGER                                  :: handle, i, iw, j, my_index, &
-                                                nchg
-    LOGICAL                                  :: explicit, ldum
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge_inp, charges
-    TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(connectivity_info_type), POINTER    :: conn_info
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key, tmp_section
+      CHARACTER(LEN=2*default_string_length)             :: psf_format
+      CHARACTER(LEN=default_string_length)               :: c_int, my_tag1, my_tag2, my_tag3, record
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: charge_atm
+      INTEGER                                            :: handle, i, iw, j, my_index, nchg
+      LOGICAL                                            :: explicit, ldum
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: charge_inp, charges
+      TYPE(atom_info_type), POINTER                      :: atom_info
+      TYPE(connectivity_info_type), POINTER              :: conn_info
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_key, tmp_section
 
     NULLIFY(logger)
     logger => cp_get_default_logger()

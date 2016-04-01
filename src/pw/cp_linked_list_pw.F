@@ -1,14 +1,13 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 ! less not much meaningful...
 #define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
 #define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
 
-
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief describes a generic linked list template.
 !>      Linked list are supposed to always use pointers to the nodes for
 !>      basically everything: a pointer to the node is a list, an element of
@@ -43,98 +42,98 @@
 !>             always through pointers (identifying pointer, list and iterators)
 !>      6.2004 removed %initialized from list elements
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 MODULE cp_linked_list_pw
-  USE pw_types,                        ONLY: pw_p_type,&
-                                             pw_type
+   USE pw_types,                        ONLY: pw_p_type,&
+                                              pw_type
 #include "../common/../base/base_uses.f90"
 
-  IMPLICIT NONE
-  PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_linked_list_pw'
 
 !API type
-  PUBLIC :: cp_sll_pw_type, cp_sll_pw_p_type
+   PUBLIC :: cp_sll_pw_type, cp_sll_pw_p_type
 !API common methods
-  PUBLIC :: cp_create, cp_dealloc, cp_next
+   PUBLIC :: cp_create, cp_dealloc, cp_next
 !API special get
-  PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_length, cp_get_element_at, cp_to_array
+   PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_length, cp_get_element_at, cp_to_array
 !API special set
-  PUBLIC :: cp_set_element_at
+   PUBLIC :: cp_set_element_at
 !API structure manipulation
-  PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
+   PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
 
-  !API underlying routines
-  PUBLIC :: cp_sll_pw_create, cp_sll_pw_dealloc,&
-       cp_sll_pw_next,&
-       cp_sll_pw_get_length,&
-       cp_sll_pw_get_el_at, cp_sll_pw_set_el_at,&
-       cp_sll_pw_get_first_el, cp_sll_pw_get_rest,&
-       cp_sll_pw_insert_el, cp_sll_pw_insert_el_at,&
-       cp_sll_pw_rm_first_el, cp_sll_pw_rm_el_at,&
-       cp_sll_pw_rm_all_el, &
-       cp_sll_pw_to_array
+   !API underlying routines
+   PUBLIC :: cp_sll_pw_create, cp_sll_pw_dealloc, &
+             cp_sll_pw_next, &
+             cp_sll_pw_get_length, &
+             cp_sll_pw_get_el_at, cp_sll_pw_set_el_at, &
+             cp_sll_pw_get_first_el, cp_sll_pw_get_rest, &
+             cp_sll_pw_insert_el, cp_sll_pw_insert_el_at, &
+             cp_sll_pw_rm_first_el, cp_sll_pw_rm_el_at, &
+             cp_sll_pw_rm_all_el, &
+             cp_sll_pw_to_array
 
 ! creation of an object (from a pointer)
-  INTERFACE cp_create
-     MODULE PROCEDURE cp_sll_pw_create
-  END INTERFACE
+   INTERFACE cp_create
+      MODULE PROCEDURE cp_sll_pw_create
+   END INTERFACE
 ! destruction of an object (from a pointer)
-  INTERFACE cp_dealloc
-     MODULE PROCEDURE cp_sll_pw_dealloc
-  END INTERFACE
+   INTERFACE cp_dealloc
+      MODULE PROCEDURE cp_sll_pw_dealloc
+   END INTERFACE
 ! iterates to the next element
-  INTERFACE cp_next
-     MODULE PROCEDURE cp_sll_pw_next
-  END INTERFACE
+   INTERFACE cp_next
+      MODULE PROCEDURE cp_sll_pw_next
+   END INTERFACE
 ! returns the first element
-  INTERFACE cp_get_first_el
-     MODULE PROCEDURE cp_sll_pw_get_first_el
-  END INTERFACE
+   INTERFACE cp_get_first_el
+      MODULE PROCEDURE cp_sll_pw_get_first_el
+   END INTERFACE
 ! returns the rest of the list
-  INTERFACE cp_get_rest
-     MODULE PROCEDURE cp_sll_pw_get_rest
-  END INTERFACE
+   INTERFACE cp_get_rest
+      MODULE PROCEDURE cp_sll_pw_get_rest
+   END INTERFACE
 ! returns the length of the list
-  INTERFACE cp_get_length
-     MODULE PROCEDURE cp_sll_pw_get_length
-  END INTERFACE
+   INTERFACE cp_get_length
+      MODULE PROCEDURE cp_sll_pw_get_length
+   END INTERFACE
 ! returns the element at the given position
-  INTERFACE cp_get_element_at
-     MODULE PROCEDURE cp_sll_pw_get_el_at
-  END INTERFACE
+   INTERFACE cp_get_element_at
+      MODULE PROCEDURE cp_sll_pw_get_el_at
+   END INTERFACE
 ! sets the element at the given position
-  INTERFACE cp_set_element_at
-     MODULE PROCEDURE cp_sll_pw_set_el_at
-  END INTERFACE
+   INTERFACE cp_set_element_at
+      MODULE PROCEDURE cp_sll_pw_set_el_at
+   END INTERFACE
 ! inserts one element call cp_insert(list,element,...)
-  INTERFACE cp_insert
-     MODULE PROCEDURE cp_sll_pw_insert_el
-  END INTERFACE
-  INTERFACE cp_insert_at
-     MODULE PROCEDURE cp_sll_pw_insert_el_at
-  END INTERFACE
+   INTERFACE cp_insert
+      MODULE PROCEDURE cp_sll_pw_insert_el
+   END INTERFACE
+   INTERFACE cp_insert_at
+      MODULE PROCEDURE cp_sll_pw_insert_el_at
+   END INTERFACE
 ! removes an element
-  INTERFACE cp_remove_el
-     MODULE PROCEDURE cp_sll_pw_rm_first_el, &
-          cp_sll_pw_rm_el_at
-  END INTERFACE
+   INTERFACE cp_remove_el
+      MODULE PROCEDURE cp_sll_pw_rm_first_el, &
+         cp_sll_pw_rm_el_at
+   END INTERFACE
 ! removes the first el
-  INTERFACE cp_remove_first_el
-     MODULE PROCEDURE cp_sll_pw_rm_first_el
-  END INTERFACE
+   INTERFACE cp_remove_first_el
+      MODULE PROCEDURE cp_sll_pw_rm_first_el
+   END INTERFACE
 ! remove all the elments
-  INTERFACE cp_remove_all
-     MODULE PROCEDURE cp_sll_pw_rm_all_el
-  END INTERFACE
+   INTERFACE cp_remove_all
+      MODULE PROCEDURE cp_sll_pw_rm_all_el
+   END INTERFACE
 ! transorms the list in array
-  INTERFACE cp_to_array
-     MODULE PROCEDURE cp_sll_pw_to_array
-  END INTERFACE
+   INTERFACE cp_to_array
+      MODULE PROCEDURE cp_sll_pw_to_array
+   END INTERFACE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a single linked list that stores pointers to the elements
 !> \param first_el the element that is stored in this node.
 !> \param rest the rest of the list
@@ -155,29 +154,28 @@ MODULE cp_linked_list_pw
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  TYPE cp_sll_pw_type
-     TYPE(pw_type),POINTER :: first_el
-     TYPE(cp_sll_pw_type), POINTER :: rest
-  END TYPE cp_sll_pw_type
+! **************************************************************************************************
+   TYPE cp_sll_pw_type
+      TYPE(pw_type), POINTER :: first_el
+      TYPE(cp_sll_pw_type), POINTER :: rest
+   END TYPE cp_sll_pw_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief pointer to a linked list (to make arrays of pointers)
 !> \param list the pointer to the list
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  TYPE cp_sll_pw_p_type
-     TYPE(cp_sll_pw_type), POINTER :: list
-  END TYPE cp_sll_pw_p_type
+! **************************************************************************************************
+   TYPE cp_sll_pw_p_type
+      TYPE(cp_sll_pw_type), POINTER :: list
+   END TYPE cp_sll_pw_p_type
 
 CONTAINS
 
-
 ! =========== creation / distruction ========
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief allocates and initializes a single linked list
 !> \param sll the single linked list to initialize
 !> \param first_el the first element of this list
@@ -185,27 +183,27 @@ CONTAINS
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_create(sll,first_el,rest)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    TYPE(pw_type), OPTIONAL, POINTER         :: first_el
-    TYPE(cp_sll_pw_type), OPTIONAL, POINTER  :: rest
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_create(sll, first_el, rest)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      TYPE(pw_type), OPTIONAL, POINTER                   :: first_el
+      TYPE(cp_sll_pw_type), OPTIONAL, POINTER            :: rest
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_create', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_create', &
+         routineP = moduleN//':'//routineN
 
-    IF (.NOT.PRESENT(first_el)) THEN
-       NULLIFY(sll)
-       IF (PRESENT(rest)) sll => rest
-    ELSE
-       ALLOCATE(sll)
-       sll%first_el => first_el
-       NULLIFY(sll%rest)
-       IF (PRESENT(rest)) sll%rest => rest
-    END IF
-  END SUBROUTINE cp_sll_pw_create
+      IF (.NOT. PRESENT(first_el)) THEN
+         NULLIFY (sll)
+         IF (PRESENT(rest)) sll => rest
+      ELSE
+         ALLOCATE (sll)
+         sll%first_el => first_el
+         NULLIFY (sll%rest)
+         IF (PRESENT(rest)) sll%rest => rest
+      END IF
+   END SUBROUTINE cp_sll_pw_create
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief deallocates the singly linked list starting at sll.
 !>      Does not work if loops are present!
 !> \param sll the list to be deallocated
@@ -215,55 +213,55 @@ CONTAINS
 !> \note
 !>      does not deallocate the elments that are stored in the list
 !>      check more?
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_dealloc(sll)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_dealloc(sll)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_dealloc', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_dealloc', &
+         routineP = moduleN//':'//routineN
 
-    CALL cp_sll_pw_rm_all_el(sll)
-  END SUBROUTINE cp_sll_pw_dealloc
+      CALL cp_sll_pw_rm_all_el(sll)
+   END SUBROUTINE cp_sll_pw_dealloc
 
 ! * low-level *
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief deallocates a node of a singly linked list (low level)
 !> \param sll the node to be deallocated
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_dealloc_node(sll)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_dealloc_node(sll)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_dealloc_node', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_dealloc_node', &
+         routineP = moduleN//':'//routineN
 
-    DEALLOCATE(sll)
-  END SUBROUTINE cp_sll_pw_dealloc_node
+      DEALLOCATE (sll)
+   END SUBROUTINE cp_sll_pw_dealloc_node
 
 ! ============= get/set ============
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the first element stored in the list
 !> \param sll the single linked list to get the element from
 !> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION cp_sll_pw_get_first_el(sll) RESULT(res)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    TYPE(pw_type), POINTER                   :: res
+! **************************************************************************************************
+   FUNCTION cp_sll_pw_get_first_el(sll) RESULT(res)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      TYPE(pw_type), POINTER                             :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_first_el', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_first_el', &
+         routineP = moduleN//':'//routineN
 
-    res => sll%first_el
-  END FUNCTION cp_sll_pw_get_first_el
+      res => sll%first_el
+   END FUNCTION cp_sll_pw_get_first_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the rest of the list
 !> \param sll the single linked list to get the rest from
 !> \param iter how many times the call to rest should be iterated,
@@ -274,42 +272,42 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      split the case iter=1 to make it more optimized?
-! *****************************************************************************
-  FUNCTION cp_sll_pw_get_rest(sll, iter) RESULT(res)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    INTEGER, OPTIONAL                        :: iter
-    TYPE(cp_sll_pw_type), POINTER            :: res
+! **************************************************************************************************
+   FUNCTION cp_sll_pw_get_rest(sll, iter) RESULT(res)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      INTEGER, OPTIONAL                                  :: iter
+      TYPE(cp_sll_pw_type), POINTER                      :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_rest', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_rest', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
-    IF (.NOT.ASSOCIATED(sll)) THEN
-       NULLIFY(res)
-    ELSE
-       IF (PRESENT(iter)) THEN
-          res => sll
-          DO i=1,iter
-             IF (ASSOCIATED(res%rest)) THEN
-                res => res%rest
-             ELSE
-                CPABORT("tried to go past end")
-             END IF
-          END DO
-          IF (iter==-1) THEN
-             DO
-                IF (.NOT.ASSOCIATED(res%rest)) EXIT
-                res => res%rest
-             END DO
-          END IF
-       ELSE
-          res => sll%rest ! make the common case fast...
-       END IF
-    END IF
-  END FUNCTION cp_sll_pw_get_rest
+      IF (.NOT. ASSOCIATED(sll)) THEN
+         NULLIFY (res)
+      ELSE
+         IF (PRESENT(iter)) THEN
+            res => sll
+            DO i = 1, iter
+               IF (ASSOCIATED(res%rest)) THEN
+                  res => res%rest
+               ELSE
+                  CPABORT("tried to go past end")
+               END IF
+            END DO
+            IF (iter == -1) THEN
+               DO
+                  IF (.NOT. ASSOCIATED(res%rest)) EXIT
+                  res => res%rest
+               END DO
+            END IF
+         ELSE
+            res => sll%rest ! make the common case fast...
+         END IF
+      END IF
+   END FUNCTION cp_sll_pw_get_rest
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the length of the list
 !> \param sll the list you want to know the length of
 !> \retval res ...
@@ -318,29 +316,29 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(n))
-! *****************************************************************************
-  FUNCTION cp_sll_pw_get_length(sll) RESULT(res)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    INTEGER                                  :: res
+! **************************************************************************************************
+   FUNCTION cp_sll_pw_get_length(sll) RESULT(res)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      INTEGER                                            :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_length', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_length', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: iterator
+      TYPE(cp_sll_pw_type), POINTER                      :: iterator
 
-    res=0
-    iterator => sll
-    DO
-       IF (ASSOCIATED(iterator)) THEN
-          res=res+1
-          iterator => iterator%rest
-       ELSE
-          EXIT
-       END IF
-    END DO
-  END FUNCTION cp_sll_pw_get_length
+      res = 0
+      iterator => sll
+      DO
+         IF (ASSOCIATED(iterator)) THEN
+            res = res+1
+            iterator => iterator%rest
+         ELSE
+            EXIT
+         END IF
+      END DO
+   END FUNCTION cp_sll_pw_get_length
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
@@ -350,28 +348,28 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
-  FUNCTION cp_sll_pw_get_el_at(sll,index) RESULT(res)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    INTEGER, INTENT(in)                      :: index
-    TYPE(pw_type), POINTER                   :: res
+! **************************************************************************************************
+   FUNCTION cp_sll_pw_get_el_at(sll, index) RESULT(res)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      INTEGER, INTENT(in)                                :: index
+      TYPE(pw_type), POINTER                             :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_el_at', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_get_el_at', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: pos
+      TYPE(cp_sll_pw_type), POINTER                      :: pos
 
-    IF (index==-1) THEN
-       pos => cp_sll_pw_get_rest(sll, iter=-1)
-    ELSE
-       pos => cp_sll_pw_get_rest(sll, iter=index-1)
-    END IF
-    CPASSERT(ASSOCIATED(pos))
+      IF (index == -1) THEN
+         pos => cp_sll_pw_get_rest(sll, iter=-1)
+      ELSE
+         pos => cp_sll_pw_get_rest(sll, iter=index-1)
+      END IF
+      CPASSERT(ASSOCIATED(pos))
 
-    res => pos%first_el
-  END FUNCTION cp_sll_pw_get_el_at
+      res => pos%first_el
+   END FUNCTION cp_sll_pw_get_el_at
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief sets the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
@@ -382,30 +380,30 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_set_el_at(sll,index,value)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    INTEGER, INTENT(in)                      :: index
-    TYPE(pw_type), POINTER                   :: value
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_set_el_at(sll, index, value)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      INTEGER, INTENT(in)                                :: index
+      TYPE(pw_type), POINTER                             :: value
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_set_el_at', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_set_el_at', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: pos
+      TYPE(cp_sll_pw_type), POINTER                      :: pos
 
-    IF (index==-1) THEN
-       pos => cp_sll_pw_get_rest(sll, iter=-1)
-    ELSE
-       pos => cp_sll_pw_get_rest(sll, iter=index-1)
-    END IF
-    CPASSERT(ASSOCIATED(pos))
+      IF (index == -1) THEN
+         pos => cp_sll_pw_get_rest(sll, iter=-1)
+      ELSE
+         pos => cp_sll_pw_get_rest(sll, iter=index-1)
+      END IF
+      CPASSERT(ASSOCIATED(pos))
 
-    pos%first_el => value
-  END SUBROUTINE cp_sll_pw_set_el_at
+      pos%first_el => value
+   END SUBROUTINE cp_sll_pw_set_el_at
 
 ! * iteration *
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns true if the actual element is valid (i.e. iterator ont at end)
 !>      moves the iterator to the next element
 !> \param iterator iterator that moves along the list
@@ -414,27 +412,26 @@ CONTAINS
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  FUNCTION cp_sll_pw_next(iterator,el_att) RESULT(res)
-    TYPE(cp_sll_pw_type), POINTER            :: iterator
-    TYPE(pw_type), OPTIONAL, POINTER         :: el_att
-    LOGICAL                                  :: res
+! **************************************************************************************************
+   FUNCTION cp_sll_pw_next(iterator, el_att) RESULT(res)
+      TYPE(cp_sll_pw_type), POINTER                      :: iterator
+      TYPE(pw_type), OPTIONAL, POINTER                   :: el_att
+      LOGICAL                                            :: res
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_next', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_next', routineP = moduleN//':'//routineN
 
-    IF (ASSOCIATED(iterator)) THEN
-       res=.TRUE.
-       IF (PRESENT(el_att)) el_att => iterator%first_el
-       iterator => iterator%rest
-    ELSE
-       res=.FALSE.
-    END IF
-  END FUNCTION cp_sll_pw_next
+      IF (ASSOCIATED(iterator)) THEN
+         res = .TRUE.
+         IF (PRESENT(el_att)) el_att => iterator%first_el
+         iterator => iterator%rest
+      ELSE
+         res = .FALSE.
+      END IF
+   END FUNCTION cp_sll_pw_next
 
 ! ============ structure modifications ============
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief insert an element at the beginning of the list
 !> \param sll the single linked list point at the beginning of which
 !>           you want to add the element
@@ -444,24 +441,24 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      fast (O(1))
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_insert_el(sll,el)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    TYPE(pw_type), POINTER                   :: el
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_insert_el(sll, el)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      TYPE(pw_type), POINTER                             :: el
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_insert_el', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_insert_el', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: newSlot
+      TYPE(cp_sll_pw_type), POINTER                      :: newSlot
 
-    NULLIFY(newSlot)
+      NULLIFY (newSlot)
 
-    CALL cp_sll_pw_create(newSlot,first_el=el,&
-         rest=sll)
-    sll => newSlot
-  END SUBROUTINE cp_sll_pw_insert_el
+      CALL cp_sll_pw_create(newSlot, first_el=el, &
+                            rest=sll)
+      sll => newSlot
+   END SUBROUTINE cp_sll_pw_insert_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief remove the first element of the linked list
 !> \param sll the list whose first element has to be removed
 !> \par History
@@ -469,26 +466,26 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      fast (O(1))
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_rm_first_el(sll)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_rm_first_el(sll)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_rm_first_el', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_rm_first_el', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: node_to_rm
+      TYPE(cp_sll_pw_type), POINTER                      :: node_to_rm
 
-    node_to_rm => sll
+      node_to_rm => sll
 
-    IF (ASSOCIATED(sll)) THEN
-       sll => sll%rest
-       CALL cp_sll_pw_dealloc_node(node_to_rm)
-    ELSE
-       CPABORT("tried to remove first el of an empty list")
-    END IF
-  END SUBROUTINE cp_sll_pw_rm_first_el
+      IF (ASSOCIATED(sll)) THEN
+         sll => sll%rest
+         CALL cp_sll_pw_dealloc_node(node_to_rm)
+      ELSE
+         CPABORT("tried to remove first el of an empty list")
+      END IF
+   END SUBROUTINE cp_sll_pw_rm_first_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief inserts the element at the given index
 !> \param sll the list you get the element from
 !> \param el the new element
@@ -499,31 +496,31 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_insert_el_at(sll,el,index)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    TYPE(pw_type), POINTER                   :: el
-    INTEGER, INTENT(in)                      :: index
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_insert_el_at(sll, el, index)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      TYPE(pw_type), POINTER                             :: el
+      INTEGER, INTENT(in)                                :: index
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_insert_el_at', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_insert_el_at', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: pos
+      TYPE(cp_sll_pw_type), POINTER                      :: pos
 
-    IF (index==1) THEN
-       CALL cp_sll_pw_insert_el(sll,el)
-    ELSE
-       IF (index==-1) THEN
-          pos => cp_sll_pw_get_rest(sll, iter=-1)
-       ELSE
-          pos => cp_sll_pw_get_rest(sll, iter=index-2)
-       END IF
-       CPASSERT(ASSOCIATED(pos))
-       CALL cp_sll_pw_insert_el(pos%rest,el)
-    END IF
-  END SUBROUTINE cp_sll_pw_insert_el_at
+      IF (index == 1) THEN
+         CALL cp_sll_pw_insert_el(sll, el)
+      ELSE
+         IF (index == -1) THEN
+            pos => cp_sll_pw_get_rest(sll, iter=-1)
+         ELSE
+            pos => cp_sll_pw_get_rest(sll, iter=index-2)
+         END IF
+         CPASSERT(ASSOCIATED(pos))
+         CALL cp_sll_pw_insert_el(pos%rest, el)
+      END IF
+   END SUBROUTINE cp_sll_pw_insert_el_at
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief removes the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
@@ -532,30 +529,30 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_rm_el_at(sll,index)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    INTEGER, INTENT(in)                      :: index
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_rm_el_at(sll, index)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      INTEGER, INTENT(in)                                :: index
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_rm_el_at', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_rm_el_at', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: pos
+      TYPE(cp_sll_pw_type), POINTER                      :: pos
 
-    IF (index==1) THEN
-       CALL cp_sll_pw_rm_first_el(sll)
-    ELSE
-       IF (index==-1) THEN
-          pos => cp_sll_pw_get_rest(sll, iter=-1)
-       ELSE
-          pos => cp_sll_pw_get_rest(sll, iter=index-2)
-       END IF
-       CPASSERT(ASSOCIATED(pos))
-       CALL cp_sll_pw_rm_first_el(pos%rest)
-    END IF
-  END SUBROUTINE cp_sll_pw_rm_el_at
+      IF (index == 1) THEN
+         CALL cp_sll_pw_rm_first_el(sll)
+      ELSE
+         IF (index == -1) THEN
+            pos => cp_sll_pw_get_rest(sll, iter=-1)
+         ELSE
+            pos => cp_sll_pw_get_rest(sll, iter=index-2)
+         END IF
+         CPASSERT(ASSOCIATED(pos))
+         CALL cp_sll_pw_rm_first_el(pos%rest)
+      END IF
+   END SUBROUTINE cp_sll_pw_rm_el_at
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief removes all the elements from the list
 !> \param sll the list that should be removed
 !> \par History
@@ -563,26 +560,26 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      check more?
-! *****************************************************************************
-  SUBROUTINE cp_sll_pw_rm_all_el(sll)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
+! **************************************************************************************************
+   SUBROUTINE cp_sll_pw_rm_all_el(sll)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_rm_all_el', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_rm_all_el', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: actual_node, next_node
+      TYPE(cp_sll_pw_type), POINTER                      :: actual_node, next_node
 
-    actual_node => sll
-    DO
-       IF (.NOT.ASSOCIATED(actual_node)) EXIT
-       next_node => actual_node%rest
-       CALL cp_sll_pw_dealloc_node(actual_node)
-       actual_node => next_node
-    END DO
-    NULLIFY(sll)
-  END SUBROUTINE cp_sll_pw_rm_all_el
+      actual_node => sll
+      DO
+         IF (.NOT. ASSOCIATED(actual_node)) EXIT
+         next_node => actual_node%rest
+         CALL cp_sll_pw_dealloc_node(actual_node)
+         actual_node => next_node
+      END DO
+      NULLIFY (sll)
+   END SUBROUTINE cp_sll_pw_rm_all_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns a newly allocated array with the same contents as
 !>      the linked list
 !> \param sll the list to trasform in array
@@ -590,39 +587,39 @@ CONTAINS
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
-FUNCTION cp_sll_pw_to_array(sll) RESULT(res)
-    TYPE(cp_sll_pw_type), POINTER            :: sll
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: res
+! **************************************************************************************************
+   FUNCTION cp_sll_pw_to_array(sll) RESULT(res)
+      TYPE(cp_sll_pw_type), POINTER                      :: sll
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: res
 
-    INTEGER                                  :: i, len
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_to_array', &
-      routineP = moduleN//':'//routineN
+      INTEGER                                            :: i, len
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_sll_pw_to_array', &
+         routineP = moduleN//':'//routineN
 
-    TYPE(cp_sll_pw_type), POINTER            :: iter
+      TYPE(cp_sll_pw_type), POINTER                      :: iter
 
-  len=cp_sll_pw_get_length(sll)
-  ALLOCATE(res(len))
-  iter => sll
-  DO i=1,len
-     res(i)%pw => iter%first_el
-     CPASSERT(cp_sll_pw_next(iter).OR.i==len)
-  END DO
-END FUNCTION cp_sll_pw_to_array
+      len = cp_sll_pw_get_length(sll)
+      ALLOCATE (res(len))
+      iter => sll
+      DO i = 1, len
+         res(i)%pw => iter%first_el
+         CPASSERT(cp_sll_pw_next(iter) .OR. i == len)
+      END DO
+   END FUNCTION cp_sll_pw_to_array
 
 ! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE = 
+!  USE =
 !    "USE kinds, only: dp
 !     USE pw_types, ONLY: pw_type, pw_p_type
 !     USE pw_methods, ONLY: pw_write"
 !  array= = "=>"
 !  arrayEl = "%pw"
 !  common_dir = "../common"
-!  defines = 
+!  defines =
 !    "! less not much meaningful...
 !     #define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
 !     #define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
@@ -637,7 +634,6 @@ END FUNCTION cp_sll_pw_to_array
 !  type1in = "type(pw_type), pointer"
 !  type1out = "type(pw_type), pointer"
 !  write_el = ""
-
 
 END MODULE cp_linked_list_pw
 

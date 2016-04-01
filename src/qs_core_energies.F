@@ -1,70 +1,70 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculation of the energies concerning the core charge distribution
 !> \par History
 !>      - Full refactoring of calculate_ecore and calculate_ecore_overlap (jhu)
 !> \author Matthias Krack (27.04.2001)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE qs_core_energies
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
-  USE atprop_types,                    ONLY: atprop_array_init,&
-                                             atprop_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
-                                             cp_dbcsr_trace,&
-                                             cp_dbcsr_type
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE erf_fn,                          ONLY: erfc
-  USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: oorootpi,&
-                                             twopi
-  USE message_passing,                 ONLY: mp_sum
-  USE particle_types,                  ONLY: particle_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                             qs_kind_type
-  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                             neighbor_list_iterate,&
-                                             neighbor_list_iterator_create,&
-                                             neighbor_list_iterator_p_type,&
-                                             neighbor_list_iterator_release,&
-                                             neighbor_list_set_p_type
-  USE virial_methods,                  ONLY: virial_pair_force
-  USE virial_types,                    ONLY: virial_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind,&
+                                              get_atomic_kind_set
+   USE atprop_types,                    ONLY: atprop_array_init,&
+                                              atprop_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_p_type,&
+                                              cp_dbcsr_trace,&
+                                              cp_dbcsr_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE erf_fn,                          ONLY: erfc
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: oorootpi,&
+                                              twopi
+   USE message_passing,                 ONLY: mp_sum
+   USE particle_types,                  ONLY: particle_type
+   USE qs_energy_types,                 ONLY: qs_energy_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type
+   USE virial_methods,                  ONLY: virial_pair_force
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
 ! *** Global parameters ***
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_energies'
 
-  PUBLIC :: calculate_ptrace,&
-            calculate_ecore_overlap,&
-            calculate_ecore_self
+   PUBLIC :: calculate_ptrace, &
+             calculate_ecore_overlap, &
+             calculate_ecore_self
 
-  INTERFACE calculate_ptrace
-    MODULE PROCEDURE calculate_ptrace_1, calculate_ptrace_gamma, calculate_ptrace_kp
-  END INTERFACE
+   INTERFACE calculate_ptrace
+      MODULE PROCEDURE calculate_ptrace_1, calculate_ptrace_gamma, calculate_ptrace_kp
+   END INTERFACE
 
-! *****************************************************************************
+! **************************************************************************************************
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief  Calculate the trace of a operator matrix with the density matrix.
 !>         Sum over all spin components (in P, no spin in H)
 !> \param hmat ...
@@ -76,34 +76,33 @@ CONTAINS
 !>         - none
 !> \author  JGH
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE calculate_ptrace_gamma(hmat,pmat,ecore,nspin)
+! **************************************************************************************************
+   SUBROUTINE calculate_ptrace_gamma(hmat, pmat, ecore, nspin)
 
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: hmat, pmat
-    REAL(KIND=dp), INTENT(OUT)               :: ecore
-    INTEGER, INTENT(IN)                      :: nspin
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: hmat, pmat
+      REAL(KIND=dp), INTENT(OUT)                         :: ecore
+      INTEGER, INTENT(IN)                                :: nspin
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_gamma', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_gamma', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin
-    REAL(KIND=dp)                            :: etr
+      INTEGER                                            :: handle, ispin
+      REAL(KIND=dp)                                      :: etr
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    ecore = 0.0_dp
-    DO ispin=1,nspin
-       etr=0.0_dp
-       CALL cp_dbcsr_trace(hmat(1)%matrix,pmat(ispin)%matrix,etr)
-       ecore = ecore + etr
-    END DO
+      ecore = 0.0_dp
+      DO ispin = 1, nspin
+         etr = 0.0_dp
+         CALL cp_dbcsr_trace(hmat(1)%matrix, pmat(ispin)%matrix, etr)
+         ecore = ecore+etr
+      END DO
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE calculate_ptrace_gamma
+   END SUBROUTINE calculate_ptrace_gamma
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief  Calculate the trace of a operator matrix with the density matrix.
 !>         Sum over all spin components (in P, no spin in H) and the real space
 !>         coordinates
@@ -114,38 +113,37 @@ CONTAINS
 !> \date    29.07.2014
 !> \author  JGH
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE calculate_ptrace_kp(hmat,pmat,ecore,nspin)
+! **************************************************************************************************
+   SUBROUTINE calculate_ptrace_kp(hmat, pmat, ecore, nspin)
 
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: hmat, pmat
-    REAL(KIND=dp), INTENT(OUT)               :: ecore
-    INTEGER, INTENT(IN)                      :: nspin
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: hmat, pmat
+      REAL(KIND=dp), INTENT(OUT)                         :: ecore
+      INTEGER, INTENT(IN)                                :: nspin
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_kp', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_kp', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ic, ispin, nc
-    REAL(KIND=dp)                            :: etr
+      INTEGER                                            :: handle, ic, ispin, nc
+      REAL(KIND=dp)                                      :: etr
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    nc = SIZE(pmat,2)
+      nc = SIZE(pmat, 2)
 
-    ecore = 0.0_dp
-    DO ispin=1,nspin
-       DO ic = 1, nc
-          etr=0.0_dp
-          CALL cp_dbcsr_trace(hmat(1,ic)%matrix,pmat(ispin,ic)%matrix,etr)
-          ecore = ecore + etr
-       END DO
-    END DO
+      ecore = 0.0_dp
+      DO ispin = 1, nspin
+         DO ic = 1, nc
+            etr = 0.0_dp
+            CALL cp_dbcsr_trace(hmat(1, ic)%matrix, pmat(ispin, ic)%matrix, etr)
+            ecore = ecore+etr
+         END DO
+      END DO
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE calculate_ptrace_kp
+   END SUBROUTINE calculate_ptrace_kp
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief  Calculate the core Hamiltonian energy which includes the kinetic
 !>          and the potential energy of the electrons. It is assumed, that
 !>          the core Hamiltonian matrix h and the density matrix p have the
@@ -161,27 +159,27 @@ CONTAINS
 !>         - simplified using DBCSR trace function (21.07.2010, jhu)
 !> \author  MK
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE calculate_ptrace_1(h,p,ecore)
+! **************************************************************************************************
+   SUBROUTINE calculate_ptrace_1(h, p, ecore)
 
-    TYPE(cp_dbcsr_type), POINTER             :: h, p
-    REAL(KIND=dp), INTENT(OUT)               :: ecore
+      TYPE(cp_dbcsr_type), POINTER                       :: h, p
+      REAL(KIND=dp), INTENT(OUT)                         :: ecore
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_1', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ptrace_1', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+      INTEGER                                            :: handle
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    ecore = 0.0_dp
-    CALL cp_dbcsr_trace(h,p,ecore)
+      ecore = 0.0_dp
+      CALL cp_dbcsr_trace(h, p, ecore)
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE calculate_ptrace_1
+   END SUBROUTINE calculate_ptrace_1
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Calculate the overlap energy of the core charge distribution.
 !> \param qs_env ...
 !> \param para_env ...
@@ -196,232 +194,221 @@ CONTAINS
 !>       - Use precomputed neighborlists (sab_core) and nl iterator (28.07.2010,jhu)
 !> \author  MK
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE calculate_ecore_overlap(qs_env,para_env,calculate_forces,molecular, &
-                                     E_overlap_core)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL, INTENT(IN)                      :: calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL            :: molecular
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
+! **************************************************************************************************
+   SUBROUTINE calculate_ecore_overlap(qs_env, para_env, calculate_forces, molecular, &
+                                      E_overlap_core)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      LOGICAL, INTENT(IN), OPTIONAL                      :: molecular
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_overlap_core
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_overlap', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, atom_b, group, &
-                                                handle, iatom, ikind, jatom, &
-                                                jkind, natom, nkind
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    INTEGER, DIMENSION(3)                    :: periodic
-    LOGICAL                                  :: atenergy, only_molecule, &
-                                                use_virial
-    REAL(KIND=dp)                            :: aab, dab, eab, ecore_overlap, &
-                                                f, fab, rab2, rootaab, zab
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
-    REAL(KIND=dp), DIMENSION(3)              :: deab, rab
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atprop_type), POINTER               :: atprop
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(neighbor_list_iterator_p_type), &
-      DIMENSION(:), POINTER                  :: nl_iterator
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_core
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: atom_a, atom_b, group, handle, iatom, &
+                                                            ikind, jatom, jkind, natom, nkind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
+      INTEGER, DIMENSION(3)                              :: periodic
+      LOGICAL                                            :: atenergy, only_molecule, use_virial
+      REAL(KIND=dp)                                      :: aab, dab, eab, ecore_overlap, f, fab, &
+                                                            rab2, rootaab, zab
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: alpha, radius, zeff
+      REAL(KIND=dp), DIMENSION(3)                        :: deab, rab
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_core
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(virial_type), POINTER                         :: virial
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    NULLIFY (atomic_kind_set)
-    NULLIFY (qs_kind_set)
-    NULLIFY (cell)
-    NULLIFY (energy)
-    NULLIFY (atprop)
-    NULLIFY (force)
-    NULLIFY (particle_set)
+      NULLIFY (atomic_kind_set)
+      NULLIFY (qs_kind_set)
+      NULLIFY (cell)
+      NULLIFY (energy)
+      NULLIFY (atprop)
+      NULLIFY (force)
+      NULLIFY (particle_set)
 
-    group = para_env%group
+      group = para_env%group
 
-    only_molecule = .FALSE.
-    IF (PRESENT(molecular)) only_molecule = molecular
+      only_molecule = .FALSE.
+      IF (PRESENT(molecular)) only_molecule = molecular
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    qs_kind_set=qs_kind_set,&
-                    cell=cell,&
-                    particle_set=particle_set,&
-                    energy=energy,&
-                    force=force,&
-                    sab_core=sab_core,&
-                    atprop=atprop,&
-                    virial = virial)
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      cell=cell, &
+                      particle_set=particle_set, &
+                      energy=energy, &
+                      force=force, &
+                      sab_core=sab_core, &
+                      atprop=atprop, &
+                      virial=virial)
 
-    CALL get_cell(cell=cell,periodic=periodic)
+      CALL get_cell(cell=cell, periodic=periodic)
 
-    ! Allocate work storage
-    nkind = SIZE(atomic_kind_set)
-    natom = SIZE(particle_set)
+      ! Allocate work storage
+      nkind = SIZE(atomic_kind_set)
+      natom = SIZE(particle_set)
 
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
-    ALLOCATE (alpha(nkind),radius(nkind),zeff(nkind))
-    alpha(:) = 0.0_dp
-    radius(:) = 0.0_dp
-    zeff(:) = 0.0_dp
+      ALLOCATE (alpha(nkind), radius(nkind), zeff(nkind))
+      alpha(:) = 0.0_dp
+      radius(:) = 0.0_dp
+      zeff(:) = 0.0_dp
 
-    IF (calculate_forces) THEN
-       ALLOCATE (atom_of_kind(natom))
-       CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
-    END IF
+      IF (calculate_forces) THEN
+         ALLOCATE (atom_of_kind(natom))
+         CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind)
+      END IF
 
-    atenergy = .FALSE.
-    IF (ASSOCIATED(atprop)) THEN
-       IF (atprop%energy) THEN
-          atenergy = .TRUE.
-          CALL atprop_array_init(atprop%atecc,natom)
-       END IF
-    END IF
+      atenergy = .FALSE.
+      IF (ASSOCIATED(atprop)) THEN
+         IF (atprop%energy) THEN
+            atenergy = .TRUE.
+            CALL atprop_array_init(atprop%atecc, natom)
+         END IF
+      END IF
 
-    DO ikind=1,nkind
-      CALL get_qs_kind(qs_kind_set(ikind),&
-                           alpha_core_charge=alpha(ikind),&
-                           core_charge_radius=radius(ikind),&
-                           zeff=zeff(ikind))
-    END DO
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), &
+                          alpha_core_charge=alpha(ikind), &
+                          core_charge_radius=radius(ikind), &
+                          zeff=zeff(ikind))
+      END DO
 
-    ecore_overlap = 0.0_dp
+      ecore_overlap = 0.0_dp
 
-    CALL neighbor_list_iterator_create(nl_iterator,sab_core)
-    DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-       CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,jatom=jatom,r=rab)
-       zab = zeff(ikind)*zeff(jkind)
-       aab = alpha(ikind)*alpha(jkind)/(alpha(ikind) + alpha(jkind))
-       rootaab = SQRT(aab)
-       fab = 2.0_dp*oorootpi*zab*rootaab
-       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-       IF (rab2 > 1.e-8_dp) THEN
-          IF (ikind==jkind .AND. iatom==jatom) THEN
-            f=0.5_dp
-          ELSE
-            f=1.0_dp
-          END IF
-          dab = SQRT(rab2)
-          eab = zab*erfc(rootaab*dab)/dab
-          ecore_overlap = ecore_overlap + f*eab
-          IF (atenergy) THEN
-             atprop%atecc(iatom) = atprop%atecc(iatom) + 0.5_dp*f*eab
-             atprop%atecc(jatom) = atprop%atecc(jatom) + 0.5_dp*f*eab
-          END IF
-          IF (calculate_forces) THEN
-             deab(:) = rab(:)*f*(eab + fab*EXP(-aab*rab2))/rab2
-             atom_a = atom_of_kind(iatom)
-             atom_b = atom_of_kind(jatom)
-             force(ikind)%core_overlap(:,atom_a) = force(ikind)%core_overlap(:,atom_a) + deab(:)
-             force(jkind)%core_overlap(:,atom_b) = force(jkind)%core_overlap(:,atom_b) - deab(:)
-             IF (use_virial) THEN
-                CALL virial_pair_force ( virial%pv_virial, 1._dp, deab, rab)
-             END IF
-          END IF
-       END IF
-    END DO
-    CALL neighbor_list_iterator_release(nl_iterator)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_core)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rab)
+         zab = zeff(ikind)*zeff(jkind)
+         aab = alpha(ikind)*alpha(jkind)/(alpha(ikind)+alpha(jkind))
+         rootaab = SQRT(aab)
+         fab = 2.0_dp*oorootpi*zab*rootaab
+         rab2 = rab(1)*rab(1)+rab(2)*rab(2)+rab(3)*rab(3)
+         IF (rab2 > 1.e-8_dp) THEN
+            IF (ikind == jkind .AND. iatom == jatom) THEN
+               f = 0.5_dp
+            ELSE
+               f = 1.0_dp
+            END IF
+            dab = SQRT(rab2)
+            eab = zab*erfc(rootaab*dab)/dab
+            ecore_overlap = ecore_overlap+f*eab
+            IF (atenergy) THEN
+               atprop%atecc(iatom) = atprop%atecc(iatom)+0.5_dp*f*eab
+               atprop%atecc(jatom) = atprop%atecc(jatom)+0.5_dp*f*eab
+            END IF
+            IF (calculate_forces) THEN
+               deab(:) = rab(:)*f*(eab+fab*EXP(-aab*rab2))/rab2
+               atom_a = atom_of_kind(iatom)
+               atom_b = atom_of_kind(jatom)
+               force(ikind)%core_overlap(:, atom_a) = force(ikind)%core_overlap(:, atom_a)+deab(:)
+               force(jkind)%core_overlap(:, atom_b) = force(jkind)%core_overlap(:, atom_b)-deab(:)
+               IF (use_virial) THEN
+                  CALL virial_pair_force(virial%pv_virial, 1._dp, deab, rab)
+               END IF
+            END IF
+         END IF
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
 
-    DEALLOCATE (alpha,radius,zeff)
-    IF (calculate_forces) THEN
-       DEALLOCATE (atom_of_kind)
-    END IF
+      DEALLOCATE (alpha, radius, zeff)
+      IF (calculate_forces) THEN
+         DEALLOCATE (atom_of_kind)
+      END IF
 
-    CALL mp_sum(ecore_overlap,group)
+      CALL mp_sum(ecore_overlap, group)
 
-    energy%core_overlap = ecore_overlap
+      energy%core_overlap = ecore_overlap
 
-    IF (PRESENT(E_overlap_core)) THEN
-      E_overlap_core = energy%core_overlap
-    END IF
+      IF (PRESENT(E_overlap_core)) THEN
+         E_overlap_core = energy%core_overlap
+      END IF
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE calculate_ecore_overlap
+   END SUBROUTINE calculate_ecore_overlap
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Calculate the self energy of the core charge distribution.
 !> \param qs_env ...
 !> \param E_self_core ...
 !> \date    27.04.2001
 !> \author  MK
 !> \version 1.0
-! *****************************************************************************
-  SUBROUTINE calculate_ecore_self(qs_env,E_self_core)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_self_core
+! **************************************************************************************************
+   SUBROUTINE calculate_ecore_self(qs_env, E_self_core)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: E_self_core
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_ecore_self', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatom, ikind, &
-                                                iparticle_local, natom, &
-                                                nparticle_local
-    REAL(KIND=dp)                            :: alpha_core_charge, &
-                                                ecore_self, es, zeff
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atprop_type), POINTER               :: atprop
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
+      INTEGER                                            :: handle, iatom, ikind, iparticle_local, &
+                                                            natom, nparticle_local
+      REAL(KIND=dp)                                      :: alpha_core_charge, ecore_self, es, zeff
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
 ! -------------------------------------------------------------------------
 
-    NULLIFY(atprop)
-    CALL timeset(routineN,handle)
+      NULLIFY (atprop)
+      CALL timeset(routineN, handle)
 
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-                    qs_kind_set=qs_kind_set,energy=energy,atprop=atprop)
+      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, energy=energy, atprop=atprop)
 
-    ecore_self = 0.0_dp
+      ecore_self = 0.0_dp
 
-    DO ikind=1,SIZE(atomic_kind_set)
-      CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
-      CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
-      ecore_self = ecore_self - REAL(natom,dp)*zeff**2*SQRT(alpha_core_charge)
-    END DO
+      DO ikind = 1, SIZE(atomic_kind_set)
+         CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
+         CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
+         ecore_self = ecore_self-REAL(natom, dp)*zeff**2*SQRT(alpha_core_charge)
+      END DO
 
-    energy%core_self = ecore_self/SQRT(twopi)
-    IF (PRESENT(E_self_core)) THEN
-      E_self_core = energy%core_self
-    END IF
-
-    IF (ASSOCIATED(atprop)) THEN
-      IF (atprop%energy) THEN
-        ! atomic energy
-        CALL get_qs_env(qs_env=qs_env,particle_set=particle_set,&
-                        local_particles=local_particles)
-        natom = SIZE(particle_set)
-        CALL atprop_array_init(atprop%ateself,natom)
-
-        DO ikind=1,SIZE(atomic_kind_set)
-           nparticle_local = local_particles%n_el(ikind)
-           CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff,alpha_core_charge=alpha_core_charge)
-           es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
-           DO iparticle_local = 1, nparticle_local
-              iatom = local_particles%list(ikind)%array(iparticle_local)
-              atprop%ateself(iatom) = atprop%ateself(iatom) - es
-           END DO
-        END DO
+      energy%core_self = ecore_self/SQRT(twopi)
+      IF (PRESENT(E_self_core)) THEN
+         E_self_core = energy%core_self
       END IF
-    END IF
 
-    CALL timestop(handle)
+      IF (ASSOCIATED(atprop)) THEN
+         IF (atprop%energy) THEN
+            ! atomic energy
+            CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, &
+                            local_particles=local_particles)
+            natom = SIZE(particle_set)
+            CALL atprop_array_init(atprop%ateself, natom)
 
-  END SUBROUTINE calculate_ecore_self
+            DO ikind = 1, SIZE(atomic_kind_set)
+               nparticle_local = local_particles%n_el(ikind)
+               CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
+               es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)
+               DO iparticle_local = 1, nparticle_local
+                  iatom = local_particles%list(ikind)%array(iparticle_local)
+                  atprop%ateself(iatom) = atprop%ateself(iatom)-es
+               END DO
+            END DO
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_ecore_self
 
 END MODULE qs_core_energies

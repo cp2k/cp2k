@@ -1,11 +1,11 @@
-!-----------------------------------------------------------------------------!
-!   FES: a fast and general program to map metadynamics on grids              !
-!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013 !
+!--------------------------------------------------------------------------------------------------!
+!   FES: a fast and general program to map metadynamics on grids                                   !
+!   Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013                      !
 !                 2014                                                        !
 !                 Teodoro Laino                                               !
 !-----------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief   Program to Map on grid the hills spawned during a metadynamics run
 !> \author Teodoro Laino [tlaino] - 06.2009
 !> \par History
@@ -15,24 +15,24 @@
 !>
 !> \par Note
 !>     Please report any bug to the author
-! *****************************************************************************
+! **************************************************************************************************
 PROGRAM graph
 
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE graph_methods,                   ONLY: fes_compute_low,&
-                                             fes_cube_write,&
-                                             fes_min,&
-                                             fes_only_write,&
-                                             fes_path,&
-                                             fes_write
-  USE graph_utils,                     ONLY: get_val_res,&
-                                             mep_input_data_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
-  USE machine,                         ONLY: m_getarg,&
-                                             m_iargc
-  USE mathconstants,                   ONLY: pi
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
+   USE graph_methods,                   ONLY: fes_compute_low,&
+                                              fes_cube_write,&
+                                              fes_min,&
+                                              fes_only_write,&
+                                              fes_path,&
+                                              fes_write
+   USE graph_utils,                     ONLY: get_val_res,&
+                                              mep_input_data_type
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
+   USE machine,                         ONLY: m_getarg,&
+                                              m_iargc
+   USE mathconstants,                   ONLY: pi
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE

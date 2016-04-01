@@ -1,25 +1,22 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
-!> \brief utillities for the TMC 
+! **************************************************************************************************
+!> \brief utillities for the TMC
 !> \par History
 !>      11.2012 created [Mandes Schönherr]
 !> \author Mandes
-! *****************************************************************************
+! **************************************************************************************************
 
 MODULE tmc_utils
 
-
 #include "../base/base_uses.f90"
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tmc_utils'
-
-
 
 END MODULE tmc_utils

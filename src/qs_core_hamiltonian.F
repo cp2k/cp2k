@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculation of the core Hamiltonian integral matrix <a|H|b> over
 !>      Cartesian Gaussian-type functions.
 !>
@@ -71,588 +71,571 @@
 !>      - Refactoring related to the new kinetic energy and overlap routines (07.2014,JGH)
 !>      - k-point functionality (07.2015,JGH)
 !> \author Matthias Krack (14.09.2000,21.03.02)
-! *****************************************************************************
+! **************************************************************************************************
 MODULE qs_core_hamiltonian
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
-  USE core_ae,                         ONLY: build_core_ae
-  USE core_ppl,                        ONLY: build_core_ppl
-  USE core_ppnl,                       ONLY: build_core_ppnl
-  USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: &
-       cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, &
-       cp_dbcsr_deallocate_matrix_set, cp_dbcsr_init, cp_dbcsr_iterator, &
-       cp_dbcsr_iterator_blocks_left, cp_dbcsr_iterator_next_block, &
-       cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, cp_dbcsr_p_type, &
-       cp_dbcsr_type, dbcsr_distribution_obj
-  USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
-                                             cp_dbcsr_write_sparse_matrix
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: do_ppl_analytic,&
-                                             kg_tnadd_atomic,&
-                                             rel_none,&
-                                             rel_trans_atom
-  USE input_section_types,             ONLY: section_vals_val_get
-  USE kg_environment_types,            ONLY: kg_environment_type
-  USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
-  USE kinds,                           ONLY: dp
-  USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                             kpoint_type
-  USE lri_environment_methods,         ONLY: build_lri_matrices
-  USE lri_environment_types,           ONLY: lri_environment_type
-  USE orbital_pointers,                ONLY: ncoset
-  USE particle_types,                  ONLY: particle_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                             get_qs_kind_set,&
-                                             qs_kind_type
-  USE qs_kinetic,                      ONLY: build_kinetic_matrix
-  USE qs_ks_types,                     ONLY: get_ks_env,&
-                                             qs_ks_env_type,&
-                                             set_ks_env
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
-  USE qs_oce_methods,                  ONLY: build_oce_matrices
-  USE qs_oce_types,                    ONLY: allocate_oce_set,&
-                                             create_oce_set,&
-                                             oce_matrix_type
-  USE qs_overlap,                      ONLY: build_overlap_matrix
-  USE qs_rho_types,                    ONLY: qs_rho_get,&
-                                             qs_rho_type
-  USE virial_types,                    ONLY: virial_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
+   USE core_ae,                         ONLY: build_core_ae
+   USE core_ppl,                        ONLY: build_core_ppl
+   USE core_ppnl,                       ONLY: build_core_ppnl
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_interface,              ONLY: &
+        cp_dbcsr_add, cp_dbcsr_allocate_matrix_set, cp_dbcsr_copy, cp_dbcsr_deallocate_matrix_set, &
+        cp_dbcsr_init, cp_dbcsr_iterator, cp_dbcsr_iterator_blocks_left, &
+        cp_dbcsr_iterator_next_block, cp_dbcsr_iterator_start, cp_dbcsr_iterator_stop, &
+        cp_dbcsr_p_type, cp_dbcsr_type, dbcsr_distribution_obj
+   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_matrix_dist,&
+                                              cp_dbcsr_write_sparse_matrix
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE input_constants,                 ONLY: do_ppl_analytic,&
+                                              kg_tnadd_atomic,&
+                                              rel_none,&
+                                              rel_trans_atom
+   USE input_section_types,             ONLY: section_vals_val_get
+   USE kg_environment_types,            ONLY: kg_environment_type
+   USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
+   USE kinds,                           ONLY: dp
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
+   USE lri_environment_methods,         ONLY: build_lri_matrices
+   USE lri_environment_types,           ONLY: lri_environment_type
+   USE orbital_pointers,                ONLY: ncoset
+   USE particle_types,                  ONLY: particle_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type,&
+                                              set_qs_env
+   USE qs_force_types,                  ONLY: qs_force_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
+                                              qs_kind_type
+   USE qs_kinetic,                      ONLY: build_kinetic_matrix
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type,&
+                                              set_ks_env
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_oce_methods,                  ONLY: build_oce_matrices
+   USE qs_oce_types,                    ONLY: allocate_oce_set,&
+                                              create_oce_set,&
+                                              oce_matrix_type
+   USE qs_overlap,                      ONLY: build_overlap_matrix
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
+   USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
-  PUBLIC :: build_core_hamiltonian_matrix
-  PUBLIC :: dump_info_core_hamiltonian
+   PUBLIC :: build_core_hamiltonian_matrix
+   PUBLIC :: dump_info_core_hamiltonian
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Cosntruction of the QS Core Hamiltonian Matrix
 !> \param qs_env ...
 !> \param calculate_forces ...
 !> \author Creation (11.03.2002,MK)
 !>      Non-redundant calculation of the non-local part of the GTH PP (22.05.2003,MK)
 !>      New parallelization scheme (27.06.2003,MK)
-! *****************************************************************************
-  SUBROUTINE build_core_hamiltonian_matrix(qs_env,calculate_forces)
+! **************************************************************************************************
+   SUBROUTINE build_core_hamiltonian_matrix(qs_env, calculate_forces)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: calculate_forces
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'build_core_hamiltonian_matrix', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_hamiltonian_matrix', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, img, maxder, natom, &
-                                                nder, nders, nimages, nkind
-    INTEGER, DIMENSION(:, :, :), POINTER     :: cell_to_index
-    LOGICAL :: all_potential_present, gth_potential_present, kgpot, lrigpw, &
-      ofdft, ppl_present, use_virial
-    REAL(KIND=dp)                            :: eps_filter, eps_fit, eps_ppnl
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s_aux_fit, &
-                                                matrix_s_aux_fit_vs_orb
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrix_h, matrix_p, matrix_s, &
-                                                matrix_t, matrix_w
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dbcsr_distribution_obj), POINTER    :: dbcsr_dist
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(kpoint_type), POINTER               :: kpoints
-    TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_aux_fit, &
-                                                sab_aux_fit_vs_orb, sab_orb, &
-                                                sac_ae, sac_ppl, sap_oce, &
-                                                sap_ppnl
-    TYPE(oce_matrix_type), POINTER           :: oce
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: handle, img, maxder, natom, nder, nders, &
+                                                            nimages, nkind
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: all_potential_present, &
+                                                            gth_potential_present, kgpot, lrigpw, &
+                                                            ofdft, ppl_present, use_virial
+      REAL(KIND=dp)                                      :: eps_filter, eps_fit, eps_ppnl
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrix_h, matrix_p, matrix_s, matrix_t, &
+                                                            matrix_w
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_distribution_obj), POINTER              :: dbcsr_dist
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_aux_fit, sab_aux_fit_vs_orb, &
+                                                            sab_orb, sac_ae, sac_ppl, sap_oce, &
+                                                            sap_ppnl
+      TYPE(oce_matrix_type), POINTER                     :: oce
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(virial_type), POINTER                         :: virial
 
-    IF (calculate_forces) THEN
-      CALL timeset(routineN//"_forces",handle)
-    ELSE
-      CALL timeset(routineN,handle)
-    ENDIF
+      IF (calculate_forces) THEN
+         CALL timeset(routineN//"_forces", handle)
+      ELSE
+         CALL timeset(routineN, handle)
+      ENDIF
 
-    NULLIFY(logger)
-    logger => cp_get_default_logger()
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
 
-    NULLIFY (atomic_kind_set)
-    NULLIFY (qs_kind_set)
-    NULLIFY (particle_set)
-    NULLIFY (para_env)
-    NULLIFY (ks_env)
-    NULLIFY (dft_control)
+      NULLIFY (atomic_kind_set)
+      NULLIFY (qs_kind_set)
+      NULLIFY (particle_set)
+      NULLIFY (para_env)
+      NULLIFY (ks_env)
+      NULLIFY (dft_control)
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    qs_kind_set=qs_kind_set,&
-                    particle_set=particle_set,&
-                    virial=virial,&
-                    para_env=para_env,&
-                    ks_env=ks_env,&
-                    dft_control=dft_control)
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      qs_kind_set=qs_kind_set, &
+                      particle_set=particle_set, &
+                      virial=virial, &
+                      para_env=para_env, &
+                      ks_env=ks_env, &
+                      dft_control=dft_control)
 
-    ! is this a orbital-free method calculation
-    ofdft = dft_control%qs_control%ofgpw
-    ! is this a LRI method calculation
-    lrigpw = dft_control%qs_control%lrigpw
-    ! is this a KG method calculation using atomic TNADD potentials
-    IF (dft_control%qs_control%do_kg) THEN
-       kgpot = (qs_env%kg_env%tnadd_method==kg_tnadd_atomic)
-    ELSE
-       kgpot = .FALSE.
-    END IF
-
-    nkind = SIZE(atomic_kind_set)
-    natom = SIZE(particle_set)
-    nimages = dft_control%nimages
-
-    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-
-    NULLIFY (rho,force,matrix_p,matrix_w)
-    nders = 0
-    IF (calculate_forces) THEN
-       nder = 1
-       CALL get_qs_env(qs_env=qs_env,force=force,matrix_w_kp=matrix_w)
-       CALL get_qs_env(qs_env=qs_env,rho=rho)
-       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-       !     *** If LSD, then combine alpha density and beta density to
-       !     *** total density: alpha <- alpha + beta   and
-       !     *** spin density:   beta <- alpha - beta
-       !     (since all things can be computed based on the sum of these matrices anyway)
-       !     (matrix_p is restored at the end of the run, matrix_w is left in its modified state
-       !     (as it should not be needed afterwards)
-       IF (SIZE(matrix_p,1) == 2) THEN
-          DO img=1,nimages
-             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
-                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp)
-             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
-                         alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
-             CALL cp_dbcsr_add(matrix_w(1,img)%matrix, matrix_w(2,img)%matrix, &
-                         alpha_scalar= 1.0_dp, beta_scalar=1.0_dp)
-          END DO
-       END IF
-    ELSE
-       IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/DERIVATIVES")/=0) THEN
-          nder = 1
-       ELSE
-          nder = 0
-       END IF
-    END IF
-
-    IF ((cp_print_key_should_output(logger%iter_info,qs_env%input,&
-         "DFT%PRINT%AO_MATRICES/OVERLAP")/=0.AND.&
-         BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-         "DFT%PRINT%AO_MATRICES/DERIVATIVES"),cp_p_file))) THEN
-       nders = 1
-    END IF
-
-    ! the delta pulse in the periodic case needs the momentum operator,
-    ! which is equivalent to the derivative of the overlap matrix
-    IF (ASSOCIATED(dft_control%rtp_control)) THEN
-       IF (dft_control%rtp_control%apply_delta_pulse .AND. &
-           dft_control%rtp_control%periodic) THEN
-           nders = 1
-       ENDIF
-    ENDIF
-
-    ! filter for new matrices
-    eps_filter = dft_control%qs_control%eps_filter_matrix
-
-    maxder = ncoset(nder)
-
-    NULLIFY (matrix_s,matrix_t)
-    CALL get_qs_env(qs_env=qs_env, kinetic_kp=matrix_t, matrix_s_kp=matrix_s)
-    NULLIFY (sab_orb)
-    CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb)
-    IF (calculate_forces) THEN
-       ! S matrix
-       CALL build_overlap_matrix(ks_env,nderivative=nders,matrixkp_s=matrix_s,&
-                                 matrix_name="OVERLAP MATRIX",&
-                                 basis_type_a="ORB",&
-                                 basis_type_b="ORB", &
-                                 sab_nl=sab_orb,calculate_forces=.TRUE.,&
-                                 matrixkp_p=matrix_w,qs_input=qs_env%input)
-       ! T matrix
-       IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
-                                    matrix_name="KINETIC ENERGY MATRIX",&
-                                    basis_type="ORB",&
-                                    sab_nl=sab_orb,calculate_forces=.TRUE.,&
-                                    matrixkp_p=matrix_p,&
-                                    eps_filter=eps_filter)
-    ELSE
-       ! S matrix
-       CALL build_overlap_matrix(ks_env,nderivative=nders,matrixkp_s=matrix_s,&
-                                 matrix_name="OVERLAP MATRIX",&
-                                 basis_type_a="ORB",&
-                                 basis_type_b="ORB", &
-                                 sab_nl=sab_orb,qs_input=qs_env%input)
-       ! T matrix
-       IF (.NOT.ofdft) &
-          CALL build_kinetic_matrix(ks_env,matrixkp_t=matrix_t,&
-                                    matrix_name="KINETIC ENERGY MATRIX",&
-                                    basis_type="ORB",&
-                                    sab_nl=sab_orb,&
-                                    eps_filter=eps_filter)
-
-       IF(dft_control%do_admm) THEN
-         NULLIFY(matrix_s_aux_fit,matrix_s_aux_fit_vs_orb,&
-                 sab_aux_fit,sab_aux_fit_vs_orb)
-         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, &
-                                        sab_aux_fit=sab_aux_fit)
-         CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit,&
-                                   matrix_name="AUX_FIT_OVERLAP",&
-                                   basis_type_a="AUX_FIT",&
-                                   basis_type_b="AUX_FIT", &
-                                   sab_nl=sab_aux_fit,qs_input=qs_env%input)
-         CALL set_ks_env(ks_env,matrix_s_aux_fit=matrix_s_aux_fit)
-         CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
-                                        sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
-         CALL build_overlap_matrix(ks_env,matrix_s=matrix_s_aux_fit_vs_orb,&
-                                   matrix_name="MIXED_OVERLAP",&
-                                   basis_type_a="AUX_FIT",&
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_aux_fit_vs_orb,qs_input=qs_env%input)
-         CALL set_ks_env(ks_env,matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
-       END IF
-    END IF
-
-    ! initialize H matrix
-    NULLIFY(matrix_h)
-    CALL get_qs_env(qs_env=qs_env, matrix_h_kp=matrix_h)
-    CALL cp_dbcsr_allocate_matrix_set(matrix_h,1,nimages)
-    DO img=1,nimages
-       ALLOCATE(matrix_h(1,img)%matrix)
-       CALL cp_dbcsr_init(matrix_h(1,img)%matrix)
-       IF (.NOT.ofdft) THEN
-          CALL cp_dbcsr_copy(matrix_h(1,img)%matrix,matrix_t(1,img)%matrix,&
-              name="CORE HAMILTONIAN MATRIX")
-          ! relativistic atomic correction to kinetic energy
-       END IF
-    END DO
-    IF (.NOT.ofdft) THEN
-       IF(qs_env%rel_control%rel_method /= rel_none)THEN
-          IF(qs_env%rel_control%rel_transformation == rel_trans_atom)THEN
-             CALL build_atomic_relmat(matrix_h(1,1)%matrix, &
-                  atomic_kind_set, qs_kind_set, particle_set)
-          END IF
-       END IF
-    END IF
-
-    !   *** Allocate the matrix of coefficients for one center expansions
-    NULLIFY(oce)
-    IF(dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-       CALL get_qs_env(qs_env=qs_env,oce=oce)
-       CALL create_oce_set(oce)
-       CALL allocate_oce_set(oce,nkind)
-       ! force analytic ppl calcuation for GAPW methods
-       dft_control%qs_control%do_ppl_method=do_ppl_analytic
-    ENDIF
-
-    NULLIFY(sac_ae,sac_ppl,sap_ppnl,sap_oce)
-    CALL get_qs_env(qs_env=qs_env,&
-                    sac_ae=sac_ae,&
-                    sac_ppl=sac_ppl,&
-                    sap_ppnl=sap_ppnl,&
-                    sap_oce=sap_oce)
-    CALL get_qs_kind_set(qs_kind_set,&
-                         gth_potential_present=gth_potential_present,&
-                         all_potential_present=all_potential_present)
-    ppl_present = ASSOCIATED(sac_ppl)
-
-    IF (calculate_forces) THEN
-       ! *** If LSD, then recover alpha density and beta density     ***
-       ! *** from the total density (1) and the spin density (2)     ***
-       ! *** The W matrix is neglected, since it will be destroyed   ***
-       ! *** in the calling force routine after leaving this routine ***
-       IF (SIZE(matrix_p,1) == 2) THEN
-          DO img=1,nimages
-             CALL cp_dbcsr_add(matrix_p(1,img)%matrix, matrix_p(2,img)%matrix, &
-                         alpha_scalar= 0.5_dp, beta_scalar=0.5_dp)
-             CALL cp_dbcsr_add(matrix_p(2,img)%matrix, matrix_p(1,img)%matrix, &
-                         alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
-          END DO
-       END IF
-    END IF
-
-    ! prepare for k-points
-    NULLIFY(cell_to_index)
-    IF (nimages>1) THEN
-       CALL get_ks_env(ks_env=ks_env,kpoints=kpoints)
-       CALL get_kpoint_info(kpoint=kpoints,cell_to_index=cell_to_index)
-    END IF
-
-    ! *** compute the ppl contribution to the core hamiltonian ***
-    IF (ppl_present) THEN
-      IF(dft_control%qs_control%do_ppl_method==do_ppl_analytic) THEN
-        CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, nimages, cell_to_index)
+      ! is this a orbital-free method calculation
+      ofdft = dft_control%qs_control%ofgpw
+      ! is this a LRI method calculation
+      lrigpw = dft_control%qs_control%lrigpw
+      ! is this a KG method calculation using atomic TNADD potentials
+      IF (dft_control%qs_control%do_kg) THEN
+         kgpot = (qs_env%kg_env%tnadd_method == kg_tnadd_atomic)
+      ELSE
+         kgpot = .FALSE.
       END IF
-    END IF
 
-    ! *** compute the nuclear attraction contribution to the core hamiltonian ***
-    IF (all_potential_present) THEN
-      CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-           qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, nimages, cell_to_index)
-    END IF
+      nkind = SIZE(atomic_kind_set)
+      natom = SIZE(particle_set)
+      nimages = dft_control%nimages
 
-    ! *** compute the ppnl contribution to the core hamiltonian ***
-    eps_ppnl = dft_control%qs_control%eps_ppnl
-    CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder,&
-         qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, nimages, cell_to_index)
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
 
-    ! *** GAPW one-center-expansion (oce) matrices
-    IF(dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-      eps_fit  = dft_control%qs_control%gapw_control%eps_fit
-      IF (ASSOCIATED(sap_oce)) &
-         CALL build_oce_matrices(oce%intac,calculate_forces,nder,qs_kind_set,particle_set,&
-              sap_oce,eps_fit)
-    END IF
+      NULLIFY (rho, force, matrix_p, matrix_w)
+      nders = 0
+      IF (calculate_forces) THEN
+         nder = 1
+         CALL get_qs_env(qs_env=qs_env, force=force, matrix_w_kp=matrix_w)
+         CALL get_qs_env(qs_env=qs_env, rho=rho)
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+         !     *** If LSD, then combine alpha density and beta density to
+         !     *** total density: alpha <- alpha + beta   and
+         !     *** spin density:   beta <- alpha - beta
+         !     (since all things can be computed based on the sum of these matrices anyway)
+         !     (matrix_p is restored at the end of the run, matrix_w is left in its modified state
+         !     (as it should not be needed afterwards)
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimages
+               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                                 alpha_scalar=-2.0_dp, beta_scalar=1.0_dp)
+               CALL cp_dbcsr_add(matrix_w(1, img)%matrix, matrix_w(2, img)%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            END DO
+         END IF
+      ELSE
+         IF (cp_print_key_should_output(logger%iter_info, qs_env%input, &
+                                        "DFT%PRINT%AO_MATRICES/DERIVATIVES") /= 0) THEN
+            nder = 1
+         ELSE
+            nder = 0
+         END IF
+      END IF
 
-    ! *** LRIGPW  matrices
-    IF(lrigpw) THEN
-       CALL get_qs_env(qs_env=qs_env,lri_env=lri_env)
-       CALL build_lri_matrices(lri_env,qs_env,calculate_forces)
-    END IF
+      IF ((cp_print_key_should_output(logger%iter_info, qs_env%input, &
+                                      "DFT%PRINT%AO_MATRICES/OVERLAP") /= 0 .AND. &
+           BTEST(cp_print_key_should_output(logger%iter_info, qs_env%input, &
+                                            "DFT%PRINT%AO_MATRICES/DERIVATIVES"), cp_p_file))) THEN
+         nders = 1
+      END IF
 
-    ! *** KG atomic potentials for nonadditive kinetic energy
-    IF (kgpot) THEN
-       CALL get_qs_env(qs_env=qs_env,kg_env=kg_env,dbcsr_dist=dbcsr_dist)
-       CALL build_tnadd_mat(kg_env, matrix_p, force, virial, calculate_forces, use_virial,&
-                    qs_kind_set, atomic_kind_set, particle_set, sab_orb, dbcsr_dist)
-    END IF
+      ! the delta pulse in the periodic case needs the momentum operator,
+      ! which is equivalent to the derivative of the overlap matrix
+      IF (ASSOCIATED(dft_control%rtp_control)) THEN
+         IF (dft_control%rtp_control%apply_delta_pulse .AND. &
+             dft_control%rtp_control%periodic) THEN
+            nders = 1
+         ENDIF
+      ENDIF
 
-    ! *** Put the core Hamiltonian matrix in the QS environment ***
-    CALL set_qs_env(qs_env, oce=oce)
-    CALL set_ks_env(ks_env,&
-                    matrix_s_kp=matrix_s,&
-                    kinetic_kp=matrix_t,&
-                    matrix_h_kp=matrix_h)
+      ! filter for new matrices
+      eps_filter = dft_control%qs_control%eps_filter_matrix
 
-    IF(qs_env%rel_control%rel_method /= rel_none)THEN
-       IF(qs_env%rel_control%rel_transformation /= rel_trans_atom)THEN
-          CPABORT("Relativistic corrections of this type are currently not implemented")
-       END IF
-    END IF
+      maxder = ncoset(nder)
 
-    ! Print matrices if requested
-    CALL dump_info_core_hamiltonian(qs_env, calculate_forces)
-    CALL timestop(handle)
+      NULLIFY (matrix_s, matrix_t)
+      CALL get_qs_env(qs_env=qs_env, kinetic_kp=matrix_t, matrix_s_kp=matrix_s)
+      NULLIFY (sab_orb)
+      CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb)
+      IF (calculate_forces) THEN
+         ! S matrix
+         CALL build_overlap_matrix(ks_env, nderivative=nders, matrixkp_s=matrix_s, &
+                                   matrix_name="OVERLAP MATRIX", &
+                                   basis_type_a="ORB", &
+                                   basis_type_b="ORB", &
+                                   sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                   matrixkp_p=matrix_w, qs_input=qs_env%input)
+         ! T matrix
+         IF (.NOT. ofdft) &
+            CALL build_kinetic_matrix(ks_env, matrixkp_t=matrix_t, &
+                                      matrix_name="KINETIC ENERGY MATRIX", &
+                                      basis_type="ORB", &
+                                      sab_nl=sab_orb, calculate_forces=.TRUE., &
+                                      matrixkp_p=matrix_p, &
+                                      eps_filter=eps_filter)
+      ELSE
+         ! S matrix
+         CALL build_overlap_matrix(ks_env, nderivative=nders, matrixkp_s=matrix_s, &
+                                   matrix_name="OVERLAP MATRIX", &
+                                   basis_type_a="ORB", &
+                                   basis_type_b="ORB", &
+                                   sab_nl=sab_orb, qs_input=qs_env%input)
+         ! T matrix
+         IF (.NOT. ofdft) &
+            CALL build_kinetic_matrix(ks_env, matrixkp_t=matrix_t, &
+                                      matrix_name="KINETIC ENERGY MATRIX", &
+                                      basis_type="ORB", &
+                                      sab_nl=sab_orb, &
+                                      eps_filter=eps_filter)
 
-  END SUBROUTINE build_core_hamiltonian_matrix
+         IF (dft_control%do_admm) THEN
+            NULLIFY (matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
+                     sab_aux_fit, sab_aux_fit_vs_orb)
+            CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit=matrix_s_aux_fit, &
+                            sab_aux_fit=sab_aux_fit)
+            CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_fit, &
+                                      matrix_name="AUX_FIT_OVERLAP", &
+                                      basis_type_a="AUX_FIT", &
+                                      basis_type_b="AUX_FIT", &
+                                      sab_nl=sab_aux_fit, qs_input=qs_env%input)
+            CALL set_ks_env(ks_env, matrix_s_aux_fit=matrix_s_aux_fit)
+            CALL get_qs_env(qs_env=qs_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
+                            sab_aux_fit_vs_orb=sab_aux_fit_vs_orb)
+            CALL build_overlap_matrix(ks_env, matrix_s=matrix_s_aux_fit_vs_orb, &
+                                      matrix_name="MIXED_OVERLAP", &
+                                      basis_type_a="AUX_FIT", &
+                                      basis_type_b="ORB", &
+                                      sab_nl=sab_aux_fit_vs_orb, qs_input=qs_env%input)
+            CALL set_ks_env(ks_env, matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb)
+         END IF
+      END IF
 
-! *****************************************************************************
+      ! initialize H matrix
+      NULLIFY (matrix_h)
+      CALL get_qs_env(qs_env=qs_env, matrix_h_kp=matrix_h)
+      CALL cp_dbcsr_allocate_matrix_set(matrix_h, 1, nimages)
+      DO img = 1, nimages
+         ALLOCATE (matrix_h(1, img)%matrix)
+         CALL cp_dbcsr_init(matrix_h(1, img)%matrix)
+         IF (.NOT. ofdft) THEN
+            CALL cp_dbcsr_copy(matrix_h(1, img)%matrix, matrix_t(1, img)%matrix, &
+                               name="CORE HAMILTONIAN MATRIX")
+            ! relativistic atomic correction to kinetic energy
+         END IF
+      END DO
+      IF (.NOT. ofdft) THEN
+         IF (qs_env%rel_control%rel_method /= rel_none) THEN
+            IF (qs_env%rel_control%rel_transformation == rel_trans_atom) THEN
+               CALL build_atomic_relmat(matrix_h(1, 1)%matrix, &
+                                        atomic_kind_set, qs_kind_set, particle_set)
+            END IF
+         END IF
+      END IF
+
+      !   *** Allocate the matrix of coefficients for one center expansions
+      NULLIFY (oce)
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+         CALL get_qs_env(qs_env=qs_env, oce=oce)
+         CALL create_oce_set(oce)
+         CALL allocate_oce_set(oce, nkind)
+         ! force analytic ppl calcuation for GAPW methods
+         dft_control%qs_control%do_ppl_method = do_ppl_analytic
+      ENDIF
+
+      NULLIFY (sac_ae, sac_ppl, sap_ppnl, sap_oce)
+      CALL get_qs_env(qs_env=qs_env, &
+                      sac_ae=sac_ae, &
+                      sac_ppl=sac_ppl, &
+                      sap_ppnl=sap_ppnl, &
+                      sap_oce=sap_oce)
+      CALL get_qs_kind_set(qs_kind_set, &
+                           gth_potential_present=gth_potential_present, &
+                           all_potential_present=all_potential_present)
+      ppl_present = ASSOCIATED(sac_ppl)
+
+      IF (calculate_forces) THEN
+         ! *** If LSD, then recover alpha density and beta density     ***
+         ! *** from the total density (1) and the spin density (2)     ***
+         ! *** The W matrix is neglected, since it will be destroyed   ***
+         ! *** in the calling force routine after leaving this routine ***
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimages
+               CALL cp_dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                                 alpha_scalar=0.5_dp, beta_scalar=0.5_dp)
+               CALL cp_dbcsr_add(matrix_p(2, img)%matrix, matrix_p(1, img)%matrix, &
+                                 alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
+            END DO
+         END IF
+      END IF
+
+      ! prepare for k-points
+      NULLIFY (cell_to_index)
+      IF (nimages > 1) THEN
+         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      END IF
+
+      ! *** compute the ppl contribution to the core hamiltonian ***
+      IF (ppl_present) THEN
+         IF (dft_control%qs_control%do_ppl_method == do_ppl_analytic) THEN
+            CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                                qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, nimages, cell_to_index)
+         END IF
+      END IF
+
+      ! *** compute the nuclear attraction contribution to the core hamiltonian ***
+      IF (all_potential_present) THEN
+         CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, nimages, cell_to_index)
+      END IF
+
+      ! *** compute the ppnl contribution to the core hamiltonian ***
+      eps_ppnl = dft_control%qs_control%eps_ppnl
+      CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
+                           qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, nimages, cell_to_index)
+
+      ! *** GAPW one-center-expansion (oce) matrices
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+         eps_fit = dft_control%qs_control%gapw_control%eps_fit
+         IF (ASSOCIATED(sap_oce)) &
+            CALL build_oce_matrices(oce%intac, calculate_forces, nder, qs_kind_set, particle_set, &
+                                    sap_oce, eps_fit)
+      END IF
+
+      ! *** LRIGPW  matrices
+      IF (lrigpw) THEN
+         CALL get_qs_env(qs_env=qs_env, lri_env=lri_env)
+         CALL build_lri_matrices(lri_env, qs_env, calculate_forces)
+      END IF
+
+      ! *** KG atomic potentials for nonadditive kinetic energy
+      IF (kgpot) THEN
+         CALL get_qs_env(qs_env=qs_env, kg_env=kg_env, dbcsr_dist=dbcsr_dist)
+         CALL build_tnadd_mat(kg_env, matrix_p, force, virial, calculate_forces, use_virial, &
+                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, dbcsr_dist)
+      END IF
+
+      ! *** Put the core Hamiltonian matrix in the QS environment ***
+      CALL set_qs_env(qs_env, oce=oce)
+      CALL set_ks_env(ks_env, &
+                      matrix_s_kp=matrix_s, &
+                      kinetic_kp=matrix_t, &
+                      matrix_h_kp=matrix_h)
+
+      IF (qs_env%rel_control%rel_method /= rel_none) THEN
+         IF (qs_env%rel_control%rel_transformation /= rel_trans_atom) THEN
+            CPABORT("Relativistic corrections of this type are currently not implemented")
+         END IF
+      END IF
+
+      ! Print matrices if requested
+      CALL dump_info_core_hamiltonian(qs_env, calculate_forces)
+      CALL timestop(handle)
+
+   END SUBROUTINE build_core_hamiltonian_matrix
+
+! **************************************************************************************************
 !> \brief Adds atomic blocks of relativistic correction for the kinetic energy
 !> \param matrix_h ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
-! *****************************************************************************
-  SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set, particle_set)
-    TYPE(cp_dbcsr_type), POINTER             :: matrix_h
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(qs_kind_type), DIMENSION(:), &
-      POINTER                                :: qs_kind_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+! **************************************************************************************************
+   SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set, particle_set)
+      TYPE(cp_dbcsr_type), POINTER                       :: matrix_h
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_atomic_relmat', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'build_atomic_relmat', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: blk, iatom, ikind, jatom, &
-                                                natom
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: kind_of
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hblock, reltmat
-    TYPE(cp_dbcsr_iterator)                  :: iter
+      INTEGER                                            :: blk, iatom, ikind, jatom, natom
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hblock, reltmat
+      TYPE(cp_dbcsr_iterator)                            :: iter
 
-    natom = SIZE(particle_set)
-    ALLOCATE (kind_of(natom))
+      natom = SIZE(particle_set)
+      ALLOCATE (kind_of(natom))
 
-    CALL get_atomic_kind_set(atomic_kind_set,kind_of=kind_of)
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
 
-    CALL cp_dbcsr_iterator_start(iter,matrix_h)
-    DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
-       CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
-       IF (iatom==jatom) THEN
-          ikind = kind_of(iatom)
-          CALL get_qs_kind(qs_kind_set(ikind),reltmat=reltmat)
-          hblock = hblock + reltmat
-       END IF
-    END DO
-    CALL cp_dbcsr_iterator_stop(iter)
+      CALL cp_dbcsr_iterator_start(iter, matrix_h)
+      DO WHILE (cp_dbcsr_iterator_blocks_left(iter))
+         CALL cp_dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
+         IF (iatom == jatom) THEN
+            ikind = kind_of(iatom)
+            CALL get_qs_kind(qs_kind_set(ikind), reltmat=reltmat)
+            hblock = hblock+reltmat
+         END IF
+      END DO
+      CALL cp_dbcsr_iterator_stop(iter)
 
-    DEALLOCATE (kind_of)
+      DEALLOCATE (kind_of)
 
-  END SUBROUTINE build_atomic_relmat
+   END SUBROUTINE build_atomic_relmat
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Possibly prints matrices after the construction of the Core
 !>     Hamiltonian Matrix
 !> \param qs_env ...
 !> \param calculate_forces ...
-! *****************************************************************************
-  SUBROUTINE dump_info_core_hamiltonian(qs_env, calculate_forces)
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN)                      :: calculate_forces
+! **************************************************************************************************
+   SUBROUTINE dump_info_core_hamiltonian(qs_env, calculate_forces)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: calculate_forces
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_info_core_hamiltonian', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: after, handle, i, ic, iw, &
-                                                output_unit
-    LOGICAL                                  :: omit_headers
-    TYPE(cp_dbcsr_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, matrix_v
-    TYPE(cp_dbcsr_p_type), DIMENSION(:, :), &
-      POINTER                                :: matrixkp_h, matrixkp_s, &
-                                                matrixkp_t
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
+      INTEGER                                            :: after, handle, i, ic, iw, output_unit
+      LOGICAL                                            :: omit_headers
+      TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s, matrix_v
+      TYPE(cp_dbcsr_p_type), DIMENSION(:, :), POINTER    :: matrixkp_h, matrixkp_s, matrixkp_t
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
-    CALL timeset(routineN,handle)
+      CALL timeset(routineN, handle)
 
-    NULLIFY (logger, matrix_v, matrix_s, para_env)
-    logger => cp_get_default_logger()
-    CALL get_qs_env(qs_env, para_env=para_env)
+      NULLIFY (logger, matrix_v, matrix_s, para_env)
+      logger => cp_get_default_logger()
+      CALL get_qs_env(qs_env, para_env=para_env)
 
-    ! Print the distribution of the overlap matrix blocks
-    ! this duplicates causes duplicate printing at the force calc
-    IF (.NOT.calculate_forces) THEN
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-                 qs_env%input,"PRINT%DISTRIBUTION"),cp_p_file)) THEN
-          output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%DISTRIBUTION",&
-                                             extension=".distribution")
-          CALL get_qs_env(qs_env, matrix_s_kp=matrixkp_s)
-          CALL cp_dbcsr_write_matrix_dist(matrixkp_s(1,1)%matrix,output_unit,para_env)
-          CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,"PRINT%DISTRIBUTION")
-       END IF
-    END IF
+      ! Print the distribution of the overlap matrix blocks
+      ! this duplicates causes duplicate printing at the force calc
+      IF (.NOT. calculate_forces) THEN
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                              qs_env%input, "PRINT%DISTRIBUTION"), cp_p_file)) THEN
+            output_unit = cp_print_key_unit_nr(logger, qs_env%input, "PRINT%DISTRIBUTION", &
+                                               extension=".distribution")
+            CALL get_qs_env(qs_env, matrix_s_kp=matrixkp_s)
+            CALL cp_dbcsr_write_matrix_dist(matrixkp_s(1, 1)%matrix, output_unit, para_env)
+            CALL cp_print_key_finished_output(output_unit, logger, qs_env%input, "PRINT%DISTRIBUTION")
+         END IF
+      END IF
 
-    CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%OMIT_HEADERS",l_val=omit_headers)
-    ! Print the overlap integral matrix, if requested
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP"),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
-                                 extension=".Log")
-       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-       after = MIN(MAX(after,1),16)
-       CALL get_qs_env(qs_env, matrix_s_kp=matrixkp_s)
-       IF (ASSOCIATED(matrixkp_s)) THEN
-          DO ic=1,SIZE(matrixkp_s,2)
-             CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(1,ic)%matrix,4,after,qs_env,para_env,&
-                  output_unit=iw,omit_headers=omit_headers)
-          END DO
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-              "DFT%PRINT%AO_MATRICES/DERIVATIVES"),cp_p_file) &
-              .AND. ASSOCIATED(matrix_s)) THEN
-             DO ic=1,SIZE(matrixkp_s,2)
-                DO i=2,SIZE(matrix_s)
-                   CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(i,ic)%matrix,4,after,qs_env,para_env,&
-                        output_unit=iw,omit_headers=omit_headers)
-                END DO
-             END DO
-          END IF
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/OVERLAP")
-    END IF
+      CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%OMIT_HEADERS", l_val=omit_headers)
+      ! Print the overlap integral matrix, if requested
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%AO_MATRICES/OVERLAP", &
+                                   extension=".Log")
+         CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
+         after = MIN(MAX(after, 1), 16)
+         CALL get_qs_env(qs_env, matrix_s_kp=matrixkp_s)
+         IF (ASSOCIATED(matrixkp_s)) THEN
+            DO ic = 1, SIZE(matrixkp_s, 2)
+               CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(1, ic)%matrix, 4, after, qs_env, para_env, &
+                                                 output_unit=iw, omit_headers=omit_headers)
+            END DO
+            IF (BTEST(cp_print_key_should_output(logger%iter_info, qs_env%input, &
+                                                 "DFT%PRINT%AO_MATRICES/DERIVATIVES"), cp_p_file) &
+                .AND. ASSOCIATED(matrix_s)) THEN
+               DO ic = 1, SIZE(matrixkp_s, 2)
+                  DO i = 2, SIZE(matrix_s)
+                     CALL cp_dbcsr_write_sparse_matrix(matrixkp_s(i, ic)%matrix, 4, after, qs_env, para_env, &
+                                                       output_unit=iw, omit_headers=omit_headers)
+                  END DO
+               END DO
+            END IF
+         END IF
+         CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
+                                           "DFT%PRINT%AO_MATRICES/OVERLAP")
+      END IF
 
-    ! Print the kinetic energy integral matrix, if requested
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY"),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
-            extension=".Log")
-       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-       after = MIN(MAX(after,1),16)
-       CALL get_qs_env(qs_env, kinetic_kp=matrixkp_t)
-       IF (ASSOCIATED(matrixkp_t)) THEN
-          DO ic=1,SIZE(matrixkp_t,2)
-             CALL cp_dbcsr_write_sparse_matrix(matrixkp_t(1,ic)%matrix,4,after,qs_env,para_env,&
-                  output_unit=iw,omit_headers=omit_headers)
-          END DO
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY")
-    END IF
+      ! Print the kinetic energy integral matrix, if requested
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           qs_env%input, "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY", &
+                                   extension=".Log")
+         CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
+         after = MIN(MAX(after, 1), 16)
+         CALL get_qs_env(qs_env, kinetic_kp=matrixkp_t)
+         IF (ASSOCIATED(matrixkp_t)) THEN
+            DO ic = 1, SIZE(matrixkp_t, 2)
+               CALL cp_dbcsr_write_sparse_matrix(matrixkp_t(1, ic)%matrix, 4, after, qs_env, para_env, &
+                                                 output_unit=iw, omit_headers=omit_headers)
+            END DO
+         END IF
+         CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
+                                           "DFT%PRINT%AO_MATRICES/KINETIC_ENERGY")
+      END IF
 
-    ! Print the potential energy matrix, if requested
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY"),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",&
-            extension=".Log")
-       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-       after = MIN(MAX(after,1),16)
-       CALL get_qs_env(qs_env,matrix_h_kp=matrixkp_h,kinetic_kp=matrixkp_t)
-       IF (ASSOCIATED(matrixkp_h)) THEN
-          IF (SIZE(matrixkp_h,2) == 1) THEN
-             CALL cp_dbcsr_allocate_matrix_set(matrix_v,1)
-             ALLOCATE (matrix_v(1)%matrix)
-             CALL cp_dbcsr_init(matrix_v(1)%matrix)
-             CALL cp_dbcsr_copy(matrix_v(1)%matrix,matrixkp_h(1,1)%matrix,name="POTENTIAL ENERGY MATRIX")
-             CALL cp_dbcsr_add(matrix_v(1)%matrix,matrixkp_t(1,1)%matrix,&
-                  alpha_scalar=1.0_dp,beta_scalar=-1.0_dp)
-             CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix,4,after,qs_env,&
-                  para_env,output_unit=iw,omit_headers=omit_headers)
-             CALL cp_dbcsr_deallocate_matrix_set(matrix_v)
-          ELSE
-             CPWARN("Printing of potential energy matrix not implemented for k-points")
-          END IF
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY")
-    END IF
+      ! Print the potential energy matrix, if requested
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           qs_env%input, "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", &
+                                   extension=".Log")
+         CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
+         after = MIN(MAX(after, 1), 16)
+         CALL get_qs_env(qs_env, matrix_h_kp=matrixkp_h, kinetic_kp=matrixkp_t)
+         IF (ASSOCIATED(matrixkp_h)) THEN
+            IF (SIZE(matrixkp_h, 2) == 1) THEN
+               CALL cp_dbcsr_allocate_matrix_set(matrix_v, 1)
+               ALLOCATE (matrix_v(1)%matrix)
+               CALL cp_dbcsr_init(matrix_v(1)%matrix)
+               CALL cp_dbcsr_copy(matrix_v(1)%matrix, matrixkp_h(1, 1)%matrix, name="POTENTIAL ENERGY MATRIX")
+               CALL cp_dbcsr_add(matrix_v(1)%matrix, matrixkp_t(1, 1)%matrix, &
+                                 alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+               CALL cp_dbcsr_write_sparse_matrix(matrix_v(1)%matrix, 4, after, qs_env, &
+                                                 para_env, output_unit=iw, omit_headers=omit_headers)
+               CALL cp_dbcsr_deallocate_matrix_set(matrix_v)
+            ELSE
+               CPWARN("Printing of potential energy matrix not implemented for k-points")
+            END IF
+         END IF
+         CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
+                                           "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY")
+      END IF
 
-    ! Print the core Hamiltonian matrix, if requested
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-              qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN"),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
-            extension=".Log")
-       CALL section_vals_val_get(qs_env%input,"DFT%PRINT%AO_MATRICES%NDIGITS",i_val=after)
-       after = MIN(MAX(after,1),16)
-       CALL get_qs_env(qs_env, matrix_h_kp=matrixkp_h)
-       IF (ASSOCIATED(matrixkp_h)) THEN
-          DO ic=1,SIZE(matrixkp_h,2)
-             CALL cp_dbcsr_write_sparse_matrix(matrixkp_h(1,ic)%matrix,4,after,qs_env,para_env,&
-                  output_unit=iw,omit_headers=omit_headers)
-          END DO
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN")
-    END IF
+      ! Print the core Hamiltonian matrix, if requested
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                           qs_env%input, "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN"), cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", &
+                                   extension=".Log")
+         CALL section_vals_val_get(qs_env%input, "DFT%PRINT%AO_MATRICES%NDIGITS", i_val=after)
+         after = MIN(MAX(after, 1), 16)
+         CALL get_qs_env(qs_env, matrix_h_kp=matrixkp_h)
+         IF (ASSOCIATED(matrixkp_h)) THEN
+            DO ic = 1, SIZE(matrixkp_h, 2)
+               CALL cp_dbcsr_write_sparse_matrix(matrixkp_h(1, ic)%matrix, 4, after, qs_env, para_env, &
+                                                 output_unit=iw, omit_headers=omit_headers)
+            END DO
+         END IF
+         CALL cp_print_key_finished_output(iw, logger, qs_env%input, &
+                                           "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN")
+      END IF
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
-  END SUBROUTINE dump_info_core_hamiltonian
+   END SUBROUTINE dump_info_core_hamiltonian
 
 END MODULE qs_core_hamiltonian

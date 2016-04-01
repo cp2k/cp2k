@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a simple array based list of the given type
 !> \note
 !>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
@@ -31,27 +31,27 @@
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 MODULE atomic_kind_list_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             deallocate_atomic_kind_set
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              deallocate_atomic_kind_set
 #include "../base/base_uses.f90"
 
-  IMPLICIT NONE
-  PRIVATE
+   IMPLICIT NONE
+   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'atomic_kind_list_types'
-  INTEGER, PRIVATE, SAVE :: last_atomic_kind_list_id=0
+   INTEGER, PRIVATE, SAVE :: last_atomic_kind_list_id = 0
 
-  !API
-  PUBLIC :: atomic_kind_list_type, atomic_kind_list_p_type,&
-            atomic_kind_list_create, atomic_kind_list_retain,&
-            atomic_kind_list_release
+   !API
+   PUBLIC :: atomic_kind_list_type, atomic_kind_list_p_type, &
+             atomic_kind_list_create, atomic_kind_list_retain, &
+             atomic_kind_list_release
 
 !***
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a list of objects
 !> \param id_nr identification number of this list
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
@@ -63,27 +63,27 @@ MODULE atomic_kind_list_types
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  TYPE atomic_kind_list_type
-     INTEGER :: id_nr, ref_count, n_els
-     LOGICAL :: owns_els
-     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: els
-  END TYPE atomic_kind_list_type
+! **************************************************************************************************
+   TYPE atomic_kind_list_type
+      INTEGER :: id_nr, ref_count, n_els
+      LOGICAL :: owns_els
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER :: els
+   END TYPE atomic_kind_list_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represents a pointer to a list
 !> \param list the pointer to the list
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
-  TYPE atomic_kind_list_p_type
-     TYPE(atomic_kind_list_type), POINTER :: list
-  END TYPE atomic_kind_list_p_type
+! **************************************************************************************************
+   TYPE atomic_kind_list_p_type
+      TYPE(atomic_kind_list_type), POINTER :: list
+   END TYPE atomic_kind_list_p_type
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief creates a list
 !> \param list the list to allocate and initialize
 !> \param els_ptr the elements to store in the list (the array is only,
@@ -95,88 +95,87 @@ CONTAINS
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE atomic_kind_list_create(list, els_ptr, &
-     owns_els, n_els)
-    TYPE(atomic_kind_list_type), OPTIONAL, &
-      POINTER                                :: list
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: els_ptr
-    LOGICAL, INTENT(in), OPTIONAL            :: owns_els
-    INTEGER, INTENT(in), OPTIONAL            :: n_els
+! **************************************************************************************************
+   SUBROUTINE atomic_kind_list_create(list, els_ptr, &
+                                      owns_els, n_els)
+      TYPE(atomic_kind_list_type), OPTIONAL, POINTER     :: list
+      TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: els_ptr
+      LOGICAL, INTENT(in), OPTIONAL                      :: owns_els
+      INTEGER, INTENT(in), OPTIONAL                      :: n_els
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_create', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_create', &
+         routineP = moduleN//':'//routineN
 
-  CPASSERT(PRESENT(els_ptr).OR.PRESENT(n_els))
+      CPASSERT(PRESENT(els_ptr) .OR. PRESENT(n_els))
 
-  ALLOCATE(list)
-  last_atomic_kind_list_id=last_atomic_kind_list_id+1
-  list%id_nr=last_atomic_kind_list_id
-  list%ref_count=1
-  list%owns_els=.TRUE.
-  list%n_els=0
-  IF (PRESENT(owns_els)) list%owns_els=owns_els
-  NULLIFY(list%els)
-  IF (PRESENT(els_ptr)) THEN
-     list%els => els_ptr
-     IF (ASSOCIATED(els_ptr)) THEN
-        list%n_els=SIZE(els_ptr)
-     END IF
-  END IF
-  IF (PRESENT(n_els)) list%n_els=n_els
-  IF (.NOT.ASSOCIATED(list%els)) THEN
-     ALLOCATE(list%els(list%n_els))
-     CPASSERT(list%owns_els)
-  END IF
-END SUBROUTINE atomic_kind_list_create
+      ALLOCATE (list)
+      last_atomic_kind_list_id = last_atomic_kind_list_id+1
+      list%id_nr = last_atomic_kind_list_id
+      list%ref_count = 1
+      list%owns_els = .TRUE.
+      list%n_els = 0
+      IF (PRESENT(owns_els)) list%owns_els = owns_els
+      NULLIFY (list%els)
+      IF (PRESENT(els_ptr)) THEN
+         list%els => els_ptr
+         IF (ASSOCIATED(els_ptr)) THEN
+            list%n_els = SIZE(els_ptr)
+         END IF
+      END IF
+      IF (PRESENT(n_els)) list%n_els = n_els
+      IF (.NOT. ASSOCIATED(list%els)) THEN
+         ALLOCATE (list%els(list%n_els))
+         CPASSERT(list%owns_els)
+      END IF
+   END SUBROUTINE atomic_kind_list_create
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief retains a list (see doc/ReferenceCounting.html)
 !> \param list the list to retain
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE atomic_kind_list_retain(list)
-    TYPE(atomic_kind_list_type), POINTER     :: list
+! **************************************************************************************************
+   SUBROUTINE atomic_kind_list_retain(list)
+      TYPE(atomic_kind_list_type), POINTER               :: list
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_retain', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_retain', &
+         routineP = moduleN//':'//routineN
 
-  CPASSERT(ASSOCIATED(list))
-  CPASSERT(list%ref_count>0)
-  list%ref_count=list%ref_count+1
-END SUBROUTINE atomic_kind_list_retain
+      CPASSERT(ASSOCIATED(list))
+      CPASSERT(list%ref_count > 0)
+      list%ref_count = list%ref_count+1
+   END SUBROUTINE atomic_kind_list_retain
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief releases a  list (see doc/ReferenceCounting.html)
 !> \param list the list to release
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
-SUBROUTINE atomic_kind_list_release(list)
-    TYPE(atomic_kind_list_type), POINTER     :: list
+! **************************************************************************************************
+   SUBROUTINE atomic_kind_list_release(list)
+      TYPE(atomic_kind_list_type), POINTER               :: list
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_release', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'atomic_kind_list_release', &
+         routineP = moduleN//':'//routineN
 
-  IF (ASSOCIATED(list)) THEN
-     CPASSERT(list%ref_count>0)
-     list%ref_count=list%ref_count-1
-     IF (list%ref_count==0) THEN
-        IF (list%owns_els) THEN
-           IF (ASSOCIATED(list%els)) THEN
-              CALL deallocate_atomic_kind_set(list%els)
-           END IF
-        END IF
-        NULLIFY(list%els)
-        DEALLOCATE(list)
-     END IF
-  END IF
-  NULLIFY(list)
-END SUBROUTINE atomic_kind_list_release
+      IF (ASSOCIATED(list)) THEN
+         CPASSERT(list%ref_count > 0)
+         list%ref_count = list%ref_count-1
+         IF (list%ref_count == 0) THEN
+            IF (list%owns_els) THEN
+               IF (ASSOCIATED(list%els)) THEN
+                  CALL deallocate_atomic_kind_set(list%els)
+               END IF
+            END IF
+            NULLIFY (list%els)
+            DEALLOCATE (list)
+         END IF
+      END IF
+      NULLIFY (list)
+   END SUBROUTINE atomic_kind_list_release
 
 ! template def put here so that line numbers in template and derived
 ! files are almost the same (multi-line use change it a bit)
@@ -186,6 +185,5 @@ END SUBROUTINE atomic_kind_list_release
 !  deallocate_els_code = "call deallocate_atomic_kind_set(list%els)"
 !  el_type = "type(atomic_kind_type)"
 !  el_typename = "atomic_kind"
-
 
 END MODULE atomic_kind_list_types

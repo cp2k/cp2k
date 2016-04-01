@@ -1,60 +1,60 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Initialize the analysis of trajectories to be done
 !>      by activating the REFTRAJ ensemble
 !> \par History
 !>      Created 10-07 [MI]
 !> \author MI
-! *****************************************************************************
+! **************************************************************************************************
 MODULE reftraj_util
 
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_type,&
-                                             cp_to_string
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
-  USE machine,                         ONLY: m_flush
-  USE md_environment_types,            ONLY: get_md_env,&
-                                             md_environment_type
-  USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type
-  USE molecule_types_new,              ONLY: get_molecule,&
-                                             molecule_type
-  USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
-  USE physcon,                         ONLY: angstrom,&
-                                             femtoseconds
-  USE reftraj_types,                   ONLY: reftraj_msd_type,&
-                                             reftraj_type
-  USE simpar_types,                    ONLY: simpar_type
-  USE util,                            ONLY: get_limit
+   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE cp_files,                        ONLY: close_file,&
+                                              open_file
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_type,&
+                                              cp_to_string
+   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                              cp_print_key_unit_nr
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_parser_methods,               ONLY: parser_get_next_line
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              force_env_type
+   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
+   USE machine,                         ONLY: m_flush
+   USE md_environment_types,            ONLY: get_md_env,&
+                                              md_environment_type
+   USE message_passing,                 ONLY: mp_bcast,&
+                                              mp_sum
+   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_types,             ONLY: get_molecule_kind,&
+                                              molecule_kind_type
+   USE molecule_types_new,              ONLY: get_molecule,&
+                                              molecule_type
+   USE particle_list_types,             ONLY: particle_list_type
+   USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: angstrom,&
+                                              femtoseconds
+   USE reftraj_types,                   ONLY: reftraj_msd_type,&
+                                              reftraj_type
+   USE simpar_types,                    ONLY: simpar_type
+   USE util,                            ONLY: get_limit
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -67,7 +67,7 @@ MODULE reftraj_util
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param reftraj ...
 !> \param reftraj_section ...
@@ -75,24 +75,24 @@ CONTAINS
 !> \par History
 !>      10.2007 created
 !> \author MI
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE initialize_reftraj(reftraj,reftraj_section,md_env)
 
-    TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: reftraj_section
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(reftraj_type), POINTER                        :: reftraj
+      TYPE(section_vals_type), POINTER                   :: reftraj_section
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_reftraj', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: natom, nline_to_skip, nskip
-    LOGICAL                                  :: my_end
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: msd_section
-    TYPE(simpar_type), POINTER               :: simpar
+      INTEGER                                            :: natom, nline_to_skip, nskip
+      LOGICAL                                            :: my_end
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(section_vals_type), POINTER                   :: msd_section
+      TYPE(simpar_type), POINTER                         :: simpar
 
     NULLIFY (force_env, msd_section, particles, simpar, subsys)
     CALL get_md_env(md_env=md_env, force_env=force_env, para_env=para_env,&
@@ -143,7 +143,7 @@ CONTAINS
 
   END SUBROUTINE initialize_reftraj
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param msd ...
 !> \param msd_section ...
@@ -152,40 +152,35 @@ CONTAINS
 !> \par History
 !>      10.2007 created
 !> \author MI
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE initialize_msd_reftraj(msd,msd_section,reftraj,md_env)
-    TYPE(reftraj_msd_type), POINTER          :: msd
-    TYPE(section_vals_type), POINTER         :: msd_section
-    TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(reftraj_msd_type), POINTER                    :: msd
+      TYPE(section_vals_type), POINTER                   :: msd_section
+      TYPE(reftraj_type), POINTER                        :: reftraj
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'initialize_msd_reftraj', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=10)                        :: AA
-    CHARACTER(LEN=default_path_length)       :: filename
-    CHARACTER(LEN=default_string_length)     :: name, title
-    INTEGER                                  :: first_atom, iatom, ikind, &
-                                                imol, last_atom, natom_read, &
-                                                nkind, nmol, nmolecule, &
-                                                nmolkind, npart
-    REAL(KIND=dp)                            :: com(3), mass, mass_mol, tol, &
-                                                x, y, z
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+      CHARACTER(LEN=10)                                  :: AA
+      CHARACTER(LEN=default_path_length)                 :: filename
+      CHARACTER(LEN=default_string_length)               :: name, title
+      INTEGER                                            :: first_atom, iatom, ikind, imol, &
+                                                            last_atom, natom_read, nkind, nmol, &
+                                                            nmolecule, nmolkind, npart
+      REAL(KIND=dp)                                      :: com(3), mass, mass_mol, tol, x, y, z
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(molecule_type), POINTER                       :: molecule
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
     NULLIFY (molecule, molecules, molecule_kind, molecule_kind_set,&
              molecule_kinds, molecule_set, subsys, force_env, particles, particle_set)
@@ -314,7 +309,7 @@ CONTAINS
 
   END SUBROUTINE initialize_msd_reftraj
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param reftraj ...
 !> \param md_env ...
@@ -322,37 +317,33 @@ CONTAINS
 !> \par History
 !>      10.2007 created
 !> \author MI
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE compute_msd_reftraj(reftraj,md_env,particle_set)
 
-    TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+      TYPE(reftraj_type), POINTER                        :: reftraj
+      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'compute_msd_reftraj', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, &
-      last_atom, mepos, natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    REAL(KIND=dp)                            :: com(3), diff2_com(4), dr2, &
-                                                dx, dy, dz, mass, mass_mol, &
-                                                msd_mkind(4), rcom(3)
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(molecule_type), POINTER             :: molecule
+      INTEGER :: atom, bo(2), first_atom, iatom, ikind, imol, imol_global, last_atom, mepos, &
+         natom_kind, nmol_per_kind, nmolecule, nmolkind, num_pe
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list
+      REAL(KIND=dp)                                      :: com(3), diff2_com(4), dr2, dx, dy, dz, &
+                                                            mass, mass_mol, msd_mkind(4), rcom(3)
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_kind_type), POINTER                  :: molecule_kind
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(molecule_type), POINTER                       :: molecule
 
     NULLIFY(force_env,para_env,subsys)
     NULLIFY(atomic_kind,atomic_kinds,atom_list)
@@ -489,26 +480,26 @@ CONTAINS
 
   END SUBROUTINE compute_msd_reftraj
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param md_env ...
 !> \par History
 !>      10.2007 created
 !> \author MI
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE write_output_reftraj(md_env)
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'write_output_reftraj', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'write_output_reftraj', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: my_act, my_mittle, my_pos
-    INTEGER                                  :: iat, ikind, nkind, out_msd
-    LOGICAL, SAVE                            :: first_entry = .FALSE.
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(reftraj_type), POINTER              :: reftraj
-    TYPE(section_vals_type), POINTER         :: reftraj_section, root_section
+      CHARACTER(LEN=default_string_length)               :: my_act, my_mittle, my_pos
+      INTEGER                                            :: iat, ikind, nkind, out_msd
+      LOGICAL, SAVE                                      :: first_entry = .FALSE.
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(reftraj_type), POINTER                        :: reftraj
+      TYPE(section_vals_type), POINTER                   :: reftraj_section, root_section
 
     NULLIFY(logger)
     logger => cp_get_default_logger()

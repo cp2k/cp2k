@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief provides a uniform framework to add references to CP2K
 !>      cite and output these
 !> \note
@@ -18,12 +18,12 @@
 !> \par History
 !>      08.2007 [Joost VandeVondele]
 !> \author Joost VandeVondele
-! *****************************************************************************
+! **************************************************************************************************
 MODULE reference_manager
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length
-  USE message_passing,                 ONLY: mp_max
-  USE util,                            ONLY: sort
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE kinds,                           ONLY: default_string_length
+   USE message_passing,                 ONLY: mp_max
+   USE util,                            ONLY: sort
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -47,7 +47,7 @@ MODULE reference_manager
   INTEGER, PARAMETER :: ISI_length=128
 
   ! the way we store a reference, should remain fully private
-! *****************************************************************************
+! **************************************************************************************************
   TYPE reference_type
        PRIVATE
        ! the reference in a format as returned by the web of science
@@ -61,7 +61,7 @@ MODULE reference_manager
   END TYPE reference_type
 
   ! useful to build arrays
-! *****************************************************************************
+! **************************************************************************************************
   TYPE reference_p_type
      TYPE(reference_type), POINTER :: ref
   END TYPE
@@ -76,14 +76,14 @@ MODULE reference_manager
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief marks a given reference as cited.
 !> \param key citation key as returned from add_reference
 !> \par History
 !>      XX.2007 created [ ]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cite_reference(key)
-    INTEGER, INTENT(IN)                      :: key
+      INTEGER, INTENT(IN)                                :: key
 
     IF (key<1 .OR. key>max_reference) CPABORT("citation key out of range")
 
@@ -92,16 +92,16 @@ CONTAINS
 
   END SUBROUTINE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Checks for each reference if any mpi-rank has marked it for citation.
 !> \param para_env ...
 !> \par History
 !>      12.2013 created [Ole Schuett]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE collect_citations_from_ranks(para_env)
-    TYPE(cp_para_env_type), POINTER          :: para_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
 
-    INTEGER                                  :: i, t
+      INTEGER                                            :: i, t
 
     DO i=1, nbib
        t = 0
@@ -112,7 +112,7 @@ CONTAINS
 
   END SUBROUTINE collect_citations_from_ranks
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief add a reference to the bibliography
 !> \param key output, this handle is needed to cite this reference later
 !> \param ISI_record ...
@@ -125,19 +125,18 @@ CONTAINS
 !>        or contain a key indicating the record type. See the header of this file for tools
 !>        that can convert e.g. bibtex or endnote files to the ISI format
 !>      - DOI: provide the DOI without a link. The link will be automatically created as needed.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE add_reference(key,ISI_record,DOI)
-    INTEGER, INTENT(OUT)                     :: key
-    CHARACTER(LEN=*), DIMENSION(:)           :: ISI_record
-    CHARACTER(LEN=*)                         :: DOI
+      INTEGER, INTENT(OUT)                               :: key
+      CHARACTER(LEN=*), DIMENSION(:)                     :: ISI_record
+      CHARACTER(LEN=*)                                   :: DOI
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'add_reference', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'add_reference', routineP = moduleN//':'//routineN
 
-    CHARACTER                                :: tmp
-    CHARACTER(LEN=ISI_length)                :: author, citation_key, year
-    INTEGER                                  :: commaloc, i, ires, line, &
-                                                match, mylen, nlines
+      CHARACTER                                          :: tmp
+      CHARACTER(LEN=ISI_length)                          :: author, citation_key, year
+      INTEGER                                            :: commaloc, i, ires, line, match, mylen, &
+                                                            nlines
 
     IF (nbib+1>max_reference) CPABORT("increase max_reference")
     nbib=nbib+1
@@ -191,13 +190,13 @@ CONTAINS
 
   END SUBROUTINE add_reference
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief deallocate the bibliography
 !> \par History
 !>      08.2007 Joost VandeVondele [ ]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE remove_all_references()
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
     DO i=1,nbib
        IF (ASSOCIATED(thebib(i)%ref%ISI_record)) DEALLOCATE(thebib(i)%ref%ISI_record)
@@ -208,7 +207,7 @@ CONTAINS
   END SUBROUTINE remove_all_references
 !****f* reference_manager/print_all_references *
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief printout of all references in a specific format
 !>      optionally printing only those that are actually cited
 !>      during program execution
@@ -220,18 +219,17 @@ CONTAINS
 !> \param list optionally, output a sub-list only
 !> \par History
 !>      08.2007 Joost VandeVondele [ ]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE print_all_references(cited_only,sorted,FORMAT,unit,list)
-    LOGICAL, INTENT(IN)                      :: cited_only, sorted
-    INTEGER, INTENT(IN)                      :: FORMAT, unit
-    INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: list
+      LOGICAL, INTENT(IN)                                :: cited_only, sorted
+      INTEGER, INTENT(IN)                                :: FORMAT, unit
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: list
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'print_all_references', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_all_references', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, irecord, nref
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: indx, irank, ival
+      INTEGER                                            :: I, irecord, nref
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indx, irank, ival
 
 ! we'll sort the references wrt to the publication year
 ! the most recent first, publications without a year get last
@@ -305,21 +303,21 @@ CONTAINS
   END SUBROUTINE print_all_references
 !****f* reference_manager/print_reference *
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief printout of a specified reference to a given unit in a selectable format
 !> \param key as returned from add_reference
 !> \param FORMAT see module parameters print_format_XXXXXXXXX
 !> \param unit ...
 !> \par History
 !>      08.2007 Joost VandeVondele [ ]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE print_reference(key,FORMAT,unit)
-    INTEGER, INTENT(IN)                      :: key, FORMAT, unit
+      INTEGER, INTENT(IN)                                :: key, FORMAT, unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'print_reference', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_reference', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I
+      INTEGER                                            :: I
 
     IF (key<1 .OR. key>max_reference) CPABORT("citation key out of range")
 
@@ -337,24 +335,23 @@ CONTAINS
     END SELECT
   END SUBROUTINE print_reference
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief prints a reference in a journal style citation format,
 !>      adding also a DOI link, which is convenient
 !> \param key ...
 !> \param unit ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE print_reference_journal(key,unit)
-    INTEGER, INTENT(IN)                      :: key, unit
+      INTEGER, INTENT(IN)                                :: key, unit
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'print_reference_journal', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'print_reference_journal', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=4*ISI_length)              :: journal
-    CHARACTER(LEN=ISI_length)                :: author, title
-    INTEGER                                  :: iauthor, ipos_line, ititle, &
-                                                line
+      CHARACTER(LEN=4*ISI_length)                        :: journal
+      CHARACTER(LEN=ISI_length)                          :: author, title
+      INTEGER                                            :: iauthor, ipos_line, ititle, line
 
 ! write the author list
 
@@ -418,7 +415,7 @@ CONTAINS
 
   END SUBROUTINE print_reference_journal
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief prints a reference in a journal style citation format,
 !>      adding 'beautifying' html tags, and a link to the journal
 !>      using the DOI
@@ -426,13 +423,13 @@ CONTAINS
 !> \param unit ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE print_reference_html(key,unit)
-    INTEGER, INTENT(IN)                      :: key, unit
+      INTEGER, INTENT(IN)                                :: key, unit
 
-    CHARACTER(LEN=ISI_length)                :: author, title
-    CHARACTER(LEN=ISI_length*4)              :: journal
-    INTEGER                                  :: iauthor, ititle, line
+      CHARACTER(LEN=ISI_length)                          :: author, title
+      CHARACTER(LEN=ISI_length*4)                        :: journal
+      INTEGER                                            :: iauthor, ititle, line
 
 ! write the author list
 
@@ -482,7 +479,7 @@ CONTAINS
 
   END SUBROUTINE print_reference_html
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the corresponding fields from an ISI record.
 !>       returns an empty string if the field can not be found
 !>       iline_start should be initialized to 1 to obtain the first matching entry
@@ -492,15 +489,14 @@ CONTAINS
 !> \retval res ...
 !> \par History
 !>      08.2007 created [Joost VandeVondele]
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_next_author(ISI_record,iline_start) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    INTEGER, INTENT(INOUT)                   :: iline_start
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      INTEGER, INTENT(INOUT)                             :: iline_start
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    INTEGER                                  :: I, N
-    LOGICAL                                  :: in_au_section
+      INTEGER                                            :: I, N
+      LOGICAL                                            :: in_au_section
 
     res=""
     in_au_section=.FALSE.
@@ -522,20 +518,19 @@ CONTAINS
 
   END FUNCTION get_next_author
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \param iline_start ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_next_title(ISI_record,iline_start) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    INTEGER, INTENT(INOUT)                   :: iline_start
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      INTEGER, INTENT(INOUT)                             :: iline_start
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    INTEGER                                  :: I, N
-    LOGICAL                                  :: in_ti_section
+      INTEGER                                            :: I, N
+      LOGICAL                                            :: in_ti_section
 
     res=""
 
@@ -556,17 +551,16 @@ CONTAINS
 
   END FUNCTION get_next_title
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_source(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=4*ISI_length)              :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      CHARACTER(LEN=4*ISI_length)                        :: res
 
-    INTEGER                                  :: I, J, N
+      INTEGER                                            :: I, J, N
 
     N=SIZE(ISI_record,1)
     res=""
@@ -585,17 +579,16 @@ CONTAINS
     ENDDO
   END FUNCTION get_source
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_year(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    INTEGER                                  :: I, N
+      INTEGER                                            :: I, N
 
     N=SIZE(ISI_record,1)
     res=""
@@ -604,17 +597,16 @@ CONTAINS
     ENDDO
   END FUNCTION get_year
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_month(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    INTEGER                                  :: I, N
+      INTEGER                                            :: I, N
 
     N=SIZE(ISI_record,1)
     res=""
@@ -623,17 +615,16 @@ CONTAINS
     ENDDO
   END FUNCTION get_month
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_day(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    INTEGER                                  :: D, I, N
+      INTEGER                                            :: D, I, N
 
     N=SIZE(ISI_record,1)
     res=""
@@ -650,17 +641,16 @@ CONTAINS
     res=""
   END FUNCTION get_day
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_volume(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    INTEGER                                  :: I, N
+      INTEGER                                            :: I, N
 
     N=SIZE(ISI_record,1)
     res=""
@@ -669,17 +659,16 @@ CONTAINS
     ENDDO
   END FUNCTION get_volume
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_issue(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    INTEGER                                  :: I, N
+      INTEGER                                            :: I, N
 
     N=SIZE(ISI_record,1)
     res=""
@@ -688,18 +677,17 @@ CONTAINS
     ENDDO
   END FUNCTION get_issue
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_pages(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    CHARACTER(LEN=ISI_length)                :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      CHARACTER(LEN=ISI_length)                          :: res
 
-    CHARACTER(LEN=ISI_length)                :: ar, bp, ep
-    INTEGER                                  :: I, N
+      CHARACTER(LEN=ISI_length)                          :: ar, bp, ep
+      INTEGER                                            :: I, N
 
     N=SIZE(ISI_record,1)
     res=""
@@ -719,14 +707,14 @@ CONTAINS
     IF (res.EQ."".AND.ar.NE."") res=ar
   END FUNCTION get_pages
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param key ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_citation_key(key) RESULT(res)
-    INTEGER                                  :: key
-    CHARACTER(LEN=default_string_length)     :: res
+      INTEGER                                            :: key
+      CHARACTER(LEN=default_string_length)               :: res
 
     res=thebib(key)%ref%citation_key
   END FUNCTION get_citation_key
@@ -735,18 +723,17 @@ CONTAINS
 ! This returns something epoch like, but can only be used to order the records
 ! missing years, months, days are implied zero(1900)
 !
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param ISI_record ...
 !> \retval res ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION get_epoch(ISI_record) RESULT(res)
-    CHARACTER(LEN=ISI_length), &
-      DIMENSION(:), POINTER                  :: ISI_record
-    INTEGER                                  :: res
+      CHARACTER(LEN=ISI_length), DIMENSION(:), POINTER   :: ISI_record
+      INTEGER                                            :: res
 
-    CHARACTER(LEN=ISI_length)                :: tmp
-    INTEGER                                  :: day, istat, month, year
+      CHARACTER(LEN=ISI_length)                          :: tmp
+      INTEGER                                            :: day, istat, month, year
 
 ! read year
 

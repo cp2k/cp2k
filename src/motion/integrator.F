@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Provides integrator routines (velocity verlet) for all the
 !>      ensemble types
 !> \par History
@@ -20,85 +20,84 @@
 !>                                       integrator only the INTEGRATORS
 !>      Lianheng Tong [LT]     12.2013 - Added regions to Langevin MD
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
 MODULE integrator
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind,&
-                                             get_atomic_kind_set
-  USE barostat_types,                  ONLY: barostat_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             init_cell,&
-                                             parse_cell_line
-  USE constraint,                      ONLY: rattle_control,&
-                                             shake_control,&
-                                             shake_roll_control,&
-                                             shake_update_targets
-  USE constraint_fxd,                  ONLY: fix_atom_control
-  USE constraint_util,                 ONLY: getold,&
-                                             pv_constraint
-  USE cp_control_types,                ONLY: dft_control_type
-  USE cp_log_handling,                 ONLY: cp_to_string
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser_methods,               ONLY: parser_get_next_line,&
-                                             parser_read_line
-  USE cp_subsys_types,                 ONLY: cp_subsys_get,&
-                                             cp_subsys_type
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE eigenvalueproblems,              ONLY: diagonalise
-  USE extended_system_dynamics,        ONLY: shell_scale_comv
-  USE extended_system_types,           ONLY: npt_info_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
-  USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: ehrenfest,&
-                                             npe_f_ensemble,&
-                                             npe_i_ensemble
-  USE integrator_utils,                ONLY: &
-       allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, &
-       get_s_ds, old_variables_type, rattle_roll_setup, set, &
-       tmp_variables_type, update_dealloc_tmp, update_pv, update_veps, &
-       variable_timestep, vv_first, vv_second
-  USE kinds,                           ONLY: dp
-  USE mathlib,                         ONLY: matmul_3x3,&
-                                             transpose_3d
-  USE md_environment_types,            ONLY: get_md_env,&
-                                             md_environment_type,&
-                                             set_md_env
-  USE metadynamics,                    ONLY: metadyn_integrator,&
-                                             metadyn_velocities_colvar
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types_new,              ONLY: global_constraint_type,&
-                                             molecule_type
-  USE parallel_rng_types,              ONLY: next_random_number,&
-                                             rng_stream_type
-  USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             update_particle_set
-  USE physcon,                         ONLY: bohr,&
-                                             femtoseconds
-  USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
-  USE qmmmx_update,                    ONLY: qmmmx_update_force_env
-  USE qs_environment_types,            ONLY: get_qs_env
-  USE reftraj_types,                   ONLY: reftraj_type
-  USE reftraj_util,                    ONLY: compute_msd_reftraj
-  USE rt_propagation_methods,          ONLY: propagation_step
-  USE rt_propagation_output,           ONLY: rt_prop_output
-  USE rt_propagation_types,            ONLY: rt_prop_type
-  USE shell_opt,                       ONLY: optimize_shell_core
-  USE simpar_types,                    ONLY: simpar_type
-  USE thermal_region_types,            ONLY: thermal_region_type,&
-                                             thermal_regions_type
-  USE thermostat_methods,              ONLY: apply_thermostat_baro,&
-                                             apply_thermostat_particles,&
-                                             apply_thermostat_shells
-  USE thermostat_types,                ONLY: thermostat_type
-  USE virial_methods,                  ONLY: virial_evaluate
-  USE virial_types,                    ONLY: virial_type
+   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind,&
+                                              get_atomic_kind_set
+   USE barostat_types,                  ONLY: barostat_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              init_cell,&
+                                              parse_cell_line
+   USE constraint,                      ONLY: rattle_control,&
+                                              shake_control,&
+                                              shake_roll_control,&
+                                              shake_update_targets
+   USE constraint_fxd,                  ONLY: fix_atom_control
+   USE constraint_util,                 ONLY: getold,&
+                                              pv_constraint
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_log_handling,                 ONLY: cp_to_string
+   USE cp_para_types,                   ONLY: cp_para_env_type
+   USE cp_parser_methods,               ONLY: parser_get_next_line,&
+                                              parser_read_line
+   USE cp_subsys_types,                 ONLY: cp_subsys_get,&
+                                              cp_subsys_type
+   USE cp_units,                        ONLY: cp_unit_to_cp2k
+   USE distribution_1d_types,           ONLY: distribution_1d_type
+   USE eigenvalueproblems,              ONLY: diagonalise
+   USE extended_system_dynamics,        ONLY: shell_scale_comv
+   USE extended_system_types,           ONLY: npt_info_type
+   USE force_env_methods,               ONLY: force_env_calc_energy_force
+   USE force_env_types,                 ONLY: force_env_get,&
+                                              force_env_type
+   USE global_types,                    ONLY: global_environment_type
+   USE input_constants,                 ONLY: ehrenfest,&
+                                              npe_f_ensemble,&
+                                              npe_i_ensemble
+   USE integrator_utils,                ONLY: &
+        allocate_old, allocate_tmp, damp_v, damp_veps, deallocate_old, get_s_ds, &
+        old_variables_type, rattle_roll_setup, set, tmp_variables_type, update_dealloc_tmp, &
+        update_pv, update_veps, variable_timestep, vv_first, vv_second
+   USE kinds,                           ONLY: dp
+   USE mathlib,                         ONLY: matmul_3x3,&
+                                              transpose_3d
+   USE md_environment_types,            ONLY: get_md_env,&
+                                              md_environment_type,&
+                                              set_md_env
+   USE metadynamics,                    ONLY: metadyn_integrator,&
+                                              metadyn_velocities_colvar
+   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+   USE mol_new_list_types,              ONLY: mol_new_list_type
+   USE molecule_kind_types,             ONLY: molecule_kind_type
+   USE molecule_types_new,              ONLY: global_constraint_type,&
+                                              molecule_type
+   USE parallel_rng_types,              ONLY: next_random_number,&
+                                              rng_stream_type
+   USE particle_list_types,             ONLY: particle_list_type
+   USE particle_types,                  ONLY: particle_type,&
+                                              update_particle_set
+   USE physcon,                         ONLY: bohr,&
+                                              femtoseconds
+   USE qmmm_util,                       ONLY: apply_qmmm_walls_reflective
+   USE qmmmx_update,                    ONLY: qmmmx_update_force_env
+   USE qs_environment_types,            ONLY: get_qs_env
+   USE reftraj_types,                   ONLY: reftraj_type
+   USE reftraj_util,                    ONLY: compute_msd_reftraj
+   USE rt_propagation_methods,          ONLY: propagation_step
+   USE rt_propagation_output,           ONLY: rt_prop_output
+   USE rt_propagation_types,            ONLY: rt_prop_type
+   USE shell_opt,                       ONLY: optimize_shell_core
+   USE simpar_types,                    ONLY: simpar_type
+   USE thermal_region_types,            ONLY: thermal_region_type,&
+                                              thermal_regions_type
+   USE thermostat_methods,              ONLY: apply_thermostat_baro,&
+                                              apply_thermostat_particles,&
+                                              apply_thermostat_shells
+   USE thermostat_types,                ONLY: thermostat_type
+   USE virial_methods,                  ONLY: virial_evaluate
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
   IMPLICIT NONE
@@ -113,7 +112,7 @@ MODULE integrator
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Langevin integrator for particle positions & momenta (Brownian dynamics)
 !> \param md_env ...
 !> \par Literature
@@ -126,48 +125,41 @@ CONTAINS
 !>   - Added support for only performing Langevin MD on a region of atoms
 !>     (01.12.2013, LT)
 !> \author Matthias Krack
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE langevin(md_env)
 
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'langevin', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'langevin', routineP = moduleN//':'//routineN
 
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, &
-      ireg, nparticle, nparticle_kind, nparticle_local, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: do_langevin
-    REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
-                                                gam, mass, reg_temp, sigma
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: var_w
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pos, vel, w
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(thermal_region_type), POINTER       :: thermal_region
-    TYPE(thermal_regions_type), POINTER      :: thermal_regions
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER :: iparticle, iparticle_kind, iparticle_local, iparticle_reg, ireg, nparticle, &
+         nparticle_kind, nparticle_local, nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: do_langevin
+      REAL(KIND=dp)                                      :: c, c1, c2, c3, c4, dm, dt, gam, mass, &
+                                                            reg_temp, sigma
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: var_w
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pos, vel, w
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermal_region_type), POINTER                 :: thermal_region
+      TYPE(thermal_regions_type), POINTER                :: thermal_regions
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY(cell, para_env, gci, force_env)
     NULLIFY(atomic_kinds, local_particles,subsys,local_molecules,molecule_kinds,molecules)
@@ -374,7 +366,7 @@ CONTAINS
 
   END SUBROUTINE langevin
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief nve integrator for particle positions & momenta
 !> \param md_env ...
 !> \param globenv ...
@@ -382,54 +374,44 @@ CONTAINS
 !>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
 !>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE nve ( md_env, globenv)
 
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(global_environment_type), POINTER   :: globenv
+      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(global_environment_type), POINTER             :: globenv
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nve', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'nve', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_iter, n_iter, nparticle, &
-                                                nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: deallocate_vel, ehrenfest_md, &
-                                                shell_adiabatic, &
-                                                shell_check_distance, &
-                                                shell_present
-    REAL(KIND=dp)                            :: dt
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: v_old
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(rt_prop_type), POINTER              :: rtp
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
-                                                thermostat_shell
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: i_iter, n_iter, nparticle, &
+                                                            nparticle_kind, nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: deallocate_vel, ehrenfest_md, &
+                                                            shell_adiabatic, shell_check_distance, &
+                                                            shell_present
+      REAL(KIND=dp)                                      :: dt
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: v_old
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_shell
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY (thermostat_coeff, tmp)
     NULLIFY (subsys, simpar, para_env, cell, gci, force_env, virial)
@@ -593,7 +575,7 @@ CONTAINS
 
   END SUBROUTINE nve
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief simplest version of the isokinetic gaussian thermostat
 !> \param md_env ...
 !> \par History
@@ -606,34 +588,29 @@ CONTAINS
 !>        see:
 !>         - Zhang F. , JCP 106, 6102 (1997)
 !>         - Minary P. et al, JCP 118, 2510 (2003)
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE isokin ( md_env)
 
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'isokin', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'isokin', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nparticle, nparticle_kind, &
-                                                nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dt
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(tmp_variables_type), POINTER        :: tmp
+      INTEGER                                            :: nparticle, nparticle_kind, nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: shell_adiabatic, shell_present
+      REAL(KIND=dp)                                      :: dt
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(tmp_variables_type), POINTER                  :: tmp
 
     NULLIFY(force_env, tmp, simpar, itimes)
     NULLIFY(atomic_kinds,para_env,subsys,local_particles)
@@ -722,7 +699,7 @@ CONTAINS
          core_particle_set, para_env, shell_adiabatic, vel=.TRUE.)
 
   END SUBROUTINE isokin
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief nvt adiabatic integrator for particle positions & momenta
 !> \param md_env ...
 !> \param globenv ...
@@ -730,53 +707,42 @@ CONTAINS
 !>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
 !>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE nvt_adiabatic ( md_env, globenv)
 
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(global_environment_type), POINTER   :: globenv
+      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(global_environment_type), POINTER             :: globenv
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nvt_adiabatic', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'nvt_adiabatic', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ivar, nparticle, &
-                                                nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: shell_adiabatic, &
-                                                shell_check_distance, &
-                                                shell_present
-    REAL(KIND=dp)                            :: dt
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rand
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
-                                                thermostat_fast, &
-                                                thermostat_shell, &
-                                                thermostat_slow
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: ivar, nparticle, nparticle_kind, nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: shell_adiabatic, shell_check_distance, &
+                                                            shell_present
+      REAL(KIND=dp)                                      :: dt
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rand
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_fast, &
+                                                            thermostat_shell, thermostat_slow
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY(gci, force_env, thermostat_coeff, tmp, &
          thermostat_fast, thermostat_slow, thermostat_shell, cell, shell_particles, &
@@ -946,7 +912,7 @@ CONTAINS
   END SUBROUTINE nvt_adiabatic
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief nvt integrator for particle positions & momenta
 !> \param md_env ...
 !> \param globenv ...
@@ -954,52 +920,42 @@ CONTAINS
 !>   - the local particle lists are used instead of pnode (Sep. 2003,MK)
 !>   - usage of fragments retrieved from the force environment (Oct. 2003,MK)
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE nvt ( md_env, globenv)
 
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(global_environment_type), POINTER   :: globenv
+      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(global_environment_type), POINTER             :: globenv
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nvt', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'nvt', routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ivar, nparticle, &
-                                                nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: shell_adiabatic, &
-                                                shell_check_distance, &
-                                                shell_present
-    REAL(KIND=dp)                            :: dt
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rand
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(thermostat_type), POINTER           :: thermostat_coeff, &
-                                                thermostat_part, &
-                                                thermostat_shell
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: ivar, nparticle, nparticle_kind, nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: shell_adiabatic, shell_check_distance, &
+                                                            shell_present
+      REAL(KIND=dp)                                      :: dt
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rand
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermostat_type), POINTER                     :: thermostat_coeff, thermostat_part, &
+                                                            thermostat_shell
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY(gci, force_env, thermostat_coeff, tmp, &
          thermostat_part, thermostat_shell, cell, shell_particles, &
@@ -1200,7 +1156,7 @@ CONTAINS
 
   END SUBROUTINE nvt
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief npt_i integrator for particle positions & momenta
 !>      isotropic box changes
 !> \param md_env ...
@@ -1208,63 +1164,50 @@ CONTAINS
 !> \par History
 !>      none
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE npt_i ( md_env, globenv)
 
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(global_environment_type), POINTER   :: globenv
+      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(global_environment_type), POINTER             :: globenv
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'npt_i', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
-                                                e4 = e2/20.0_dp, &
-                                                e6 = e4/42.0_dp, &
-                                                e8 = e6/72.0_dp
+      CHARACTER(len=*), PARAMETER :: routineN = 'npt_i', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
+                                                            e6 = e4/42.0_dp, e8 = e6/72.0_dp
 
-    INTEGER                                  :: iroll, ivar, nparticle, &
-                                                nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, first_time, &
-                                                shell_adiabatic, &
-                                                shell_check_distance, &
-                                                shell_present
-    REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
-                                                roll_tol_thrs
-    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
-    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: rand
-    REAL(KIND=dp), SAVE                      :: eps_0
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(npt_info_type), POINTER             :: npt(:,:)
-    TYPE(old_variables_type), POINTER        :: old
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(thermostat_type), POINTER           :: thermostat_baro, &
-                                                thermostat_part, &
-                                                thermostat_shell
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: iroll, ivar, nparticle, nparticle_kind, &
+                                                            nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: first, first_time, shell_adiabatic, &
+                                                            shell_check_distance, shell_present
+      REAL(KIND=dp)                                      :: dt, infree, kin, roll_tol, roll_tol_thrs
+      REAL(KIND=dp), DIMENSION(3)                        :: vector_r, vector_v
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_kin
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: rand
+      REAL(KIND=dp), SAVE                                :: eps_0
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(npt_info_type), POINTER                       :: npt(:,:)
+      TYPE(old_variables_type), POINTER                  :: old
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(rng_stream_type), POINTER                     :: rng_stream
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermostat_type), POINTER                     :: thermostat_baro, thermostat_part, &
+                                                            thermostat_shell
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -1546,7 +1489,7 @@ CONTAINS
 
   END SUBROUTINE npt_i
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief uses coordinates in a file and generates frame after frame of these
 !> \param md_env ...
 !> \par History
@@ -1554,30 +1497,28 @@ CONTAINS
 !>   - modified to make it more general [MI]
 !> \note
 !>     it can be used to compute some properties on already available trajectories
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE reftraj ( md_env)
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'reftraj', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'reftraj', routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=10)                        :: AA
-    INTEGER                                  :: cell_itimes, I, nparticle, &
-                                                Nread, trj_itimes
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: init, my_end, test_ok
-    REAL(KIND=dp)                            :: cell_time, h(3,3), trj_epot, &
-                                                trj_time, vol
-    REAL(KIND=dp), POINTER                   :: time
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(reftraj_type), POINTER              :: reftraj_env
-    TYPE(simpar_type), POINTER               :: simpar
+      CHARACTER(LEN=10)                                  :: AA
+      INTEGER                                            :: cell_itimes, I, nparticle, Nread, &
+                                                            trj_itimes
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: init, my_end, test_ok
+      REAL(KIND=dp)                                      :: cell_time, h(3,3), trj_epot, trj_time, &
+                                                            vol
+      REAL(KIND=dp), POINTER                             :: time
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(reftraj_type), POINTER                        :: reftraj_env
+      TYPE(simpar_type), POINTER                         :: simpar
 
     NULLIFY(reftraj_env, particle_set, particles, force_env, subsys, simpar, para_env, cell, itimes, time)
     CALL get_md_env(md_env=md_env, init=init, reftraj=reftraj_env, force_env=force_env,&
@@ -1689,7 +1630,7 @@ CONTAINS
     END IF
   END SUBROUTINE reftraj
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief nph_uniaxial integrator (non-Hamiltonian version)
 !>      for particle positions & momenta undergoing
 !>      uniaxial stress ( in x-direction of orthorhombic cell)
@@ -1699,53 +1640,43 @@ CONTAINS
 !> \par History
 !>      none
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE nph_uniaxial ( md_env)
 
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial', &
-      routineP = moduleN//':'//routineN
-    REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
-                                                e4 = e2/20._dp, &
-                                                e6 = e4/42._dp, e8 = e6/72._dp
+      CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial', routineP = moduleN//':'//routineN
+      REAL(dp), PARAMETER                                :: e2 = 1._dp/6._dp, e4 = e2/20._dp, &
+                                                            e6 = e4/42._dp, e8 = e6/72._dp
 
-    INTEGER                                  :: iroll, nparticle, &
-                                                nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, first_time, &
-                                                shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
-                                                roll_tol_thrs
-    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
-    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(old_variables_type), POINTER        :: old
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: iroll, nparticle, nparticle_kind, nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: first, first_time, shell_adiabatic, &
+                                                            shell_present
+      REAL(KIND=dp)                                      :: dt, infree, kin, roll_tol, roll_tol_thrs
+      REAL(KIND=dp), DIMENSION(3)                        :: vector_r, vector_v
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_kin
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(npt_info_type), POINTER                       :: npt( :, : )
+      TYPE(old_variables_type), POINTER                  :: old
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY(gci, force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -1943,7 +1874,7 @@ CONTAINS
 
   END SUBROUTINE nph_uniaxial
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief nph_uniaxial integrator (non-Hamiltonian version)
 !>      for particle positions & momenta undergoing
 !>      uniaxial stress ( in x-direction of orthorhombic cell)
@@ -1954,53 +1885,45 @@ CONTAINS
 !> \par History
 !>      none
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE nph_uniaxial_damped ( md_env)
 
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial_damped', &
-      routineP = moduleN//':'//routineN
-    REAL(dp), PARAMETER                      :: e2 = 1._dp/6._dp, &
-                                                e4 = e2/20._dp, &
-                                                e6 = e4/42._dp, e8 = e6/72._dp
+      CHARACTER(len=*), PARAMETER :: routineN = 'nph_uniaxial_damped', &
+         routineP = moduleN//':'//routineN
+      REAL(dp), PARAMETER                                :: e2 = 1._dp/6._dp, e4 = e2/20._dp, &
+                                                            e6 = e4/42._dp, e8 = e6/72._dp
 
-    INTEGER                                  :: iroll, nparticle, &
-                                                nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, first_time, &
-                                                shell_adiabatic, shell_present
-    REAL(KIND=dp)                            :: aa, aax, dt, gamma1, infree, &
-                                                kin, roll_tol, roll_tol_thrs
-    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
-    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(old_variables_type), POINTER        :: old
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: iroll, nparticle, nparticle_kind, nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: first, first_time, shell_adiabatic, &
+                                                            shell_present
+      REAL(KIND=dp)                                      :: aa, aax, dt, gamma1, infree, kin, &
+                                                            roll_tol, roll_tol_thrs
+      REAL(KIND=dp), DIMENSION(3)                        :: vector_r, vector_v
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_kin
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(npt_info_type), POINTER                       :: npt( :, : )
+      TYPE(old_variables_type), POINTER                  :: old
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY(gci, force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -2211,68 +2134,56 @@ CONTAINS
 
   END SUBROUTINE nph_uniaxial_damped
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Velocity Verlet integrator for the NPT ensemble with fully flexible cell
 !> \param md_env ...
 !> \param globenv ...
 !> \par History
 !>      none
 !> \author CJM
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE npt_f ( md_env, globenv)
 
-    TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(global_environment_type), POINTER   :: globenv
+      TYPE(md_environment_type), POINTER                 :: md_env
+      TYPE(global_environment_type), POINTER             :: globenv
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'npt_f', &
-      routineP = moduleN//':'//routineN
-    REAL(KIND=dp), PARAMETER                 :: e2 = 1.0_dp/6.0_dp, &
-                                                e4 = e2/20.0_dp, &
-                                                e6 = e4/42.0_dp, &
-                                                e8 = e6/72.0_dp
+      CHARACTER(len=*), PARAMETER :: routineN = 'npt_f', routineP = moduleN//':'//routineN
+      REAL(KIND=dp), PARAMETER                           :: e2 = 1.0_dp/6.0_dp, e4 = e2/20.0_dp, &
+                                                            e6 = e4/42.0_dp, e8 = e6/72.0_dp
 
-    INTEGER                                  :: i, iroll, j, nparticle, &
-                                                nparticle_kind, nshell
-    INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: first, first_time, &
-                                                shell_adiabatic, &
-                                                shell_check_distance, &
-                                                shell_present
-    REAL(KIND=dp)                            :: dt, infree, kin, roll_tol, &
-                                                roll_tol_thrs, trvg
-    REAL(KIND=dp), DIMENSION(3)              :: vector_r, vector_v
-    REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin, uh
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(barostat_type), POINTER             :: barostat
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(npt_info_type), POINTER             :: npt( :, : )
-    TYPE(old_variables_type), POINTER        :: old
-    TYPE(particle_list_type), POINTER        :: core_particles, particles, &
-                                                shell_particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: core_particle_set, &
-                                                particle_set, &
-                                                shell_particle_set
-    TYPE(simpar_type), POINTER               :: simpar
-    TYPE(thermostat_type), POINTER           :: thermostat_baro, &
-                                                thermostat_part, &
-                                                thermostat_shell
-    TYPE(tmp_variables_type), POINTER        :: tmp
-    TYPE(virial_type), POINTER               :: virial
+      INTEGER                                            :: i, iroll, j, nparticle, nparticle_kind, &
+                                                            nshell
+      INTEGER, POINTER                                   :: itimes
+      LOGICAL                                            :: first, first_time, shell_adiabatic, &
+                                                            shell_check_distance, shell_present
+      REAL(KIND=dp)                                      :: dt, infree, kin, roll_tol, &
+                                                            roll_tol_thrs, trvg
+      REAL(KIND=dp), DIMENSION(3)                        :: vector_r, vector_v
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_kin, uh
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(barostat_type), POINTER                       :: barostat
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(npt_info_type), POINTER                       :: npt( :, : )
+      TYPE(old_variables_type), POINTER                  :: old
+      TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
+                                                            shell_particles
+      TYPE(particle_type), DIMENSION(:), POINTER         :: core_particle_set, particle_set, &
+                                                            shell_particle_set
+      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(thermostat_type), POINTER                     :: thermostat_baro, thermostat_part, &
+                                                            thermostat_shell
+      TYPE(tmp_variables_type), POINTER                  :: tmp
+      TYPE(virial_type), POINTER                         :: virial
 
     NULLIFY(gci,thermostat_baro,thermostat_part,thermostat_shell,force_env)
     NULLIFY(atomic_kinds,cell,para_env,subsys,local_molecules,local_particles)
@@ -2532,46 +2443,40 @@ CONTAINS
 
   END SUBROUTINE npt_f
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief RESPA integrator for nve ensemble for particle positions & momenta
 !> \param md_env ...
 !> \author FS
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE nve_respa ( md_env)
 
-    TYPE(md_environment_type), POINTER       :: md_env
+      TYPE(md_environment_type), POINTER                 :: md_env
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'nve_respa', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(len=*), PARAMETER :: routineN = 'nve_respa', routineP = moduleN//':'//routineN
 
-    INTEGER :: i_step, iparticle, iparticle_kind, iparticle_local, &
-      n_time_steps, nparticle, nparticle_kind, nparticle_local
-    INTEGER, POINTER                         :: itimes
-    REAL(KIND=dp)                            :: dm, dt, mass
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: pos, vel
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_subsys_type), POINTER            :: subsys, subsys_respa
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_constraint_type), POINTER    :: gci
-    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles, particles_respa
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set, &
-                                                particle_set_respa
-    TYPE(simpar_type), POINTER               :: simpar
+      INTEGER                                            :: i_step, iparticle, iparticle_kind, &
+                                                            iparticle_local, n_time_steps, &
+                                                            nparticle, nparticle_kind, &
+                                                            nparticle_local
+      INTEGER, POINTER                                   :: itimes
+      REAL(KIND=dp)                                      :: dm, dt, mass
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: pos, vel
+      TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(atomic_kind_type), POINTER                    :: atomic_kind
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_para_env_type), POINTER                    :: para_env
+      TYPE(cp_subsys_type), POINTER                      :: subsys, subsys_respa
+      TYPE(distribution_1d_type), POINTER                :: local_molecules, local_particles
+      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(mol_kind_new_list_type), POINTER              :: molecule_kinds
+      TYPE(mol_new_list_type), POINTER                   :: molecules
+      TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
+      TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      TYPE(particle_list_type), POINTER                  :: particles, particles_respa
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set, particle_set_respa
+      TYPE(simpar_type), POINTER                         :: simpar
 
     NULLIFY (para_env,cell,subsys_respa,particles_respa, particle_set_respa, gci, force_env, atomic_kinds)
     NULLIFY (atomic_kind_set,simpar,subsys,particles,particle_set)

@@ -1,71 +1,71 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
-!> \brief routines that build the Kohn-Sham matrix for the LRIGPW 
+! **************************************************************************************************
+!> \brief routines that build the Kohn-Sham matrix for the LRIGPW
 !>      and xc parts
 !> \par History
 !>      09.2013 created [Dorothea Golze]
 !> \author Dorothea Golze
-! *****************************************************************************
+! **************************************************************************************************
 MODULE lri_ks_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set
-  USE cp_control_types,                ONLY: dft_control_type
-  USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add_block_node,&
-                                             cp_dbcsr_finalize,&
-                                             cp_dbcsr_get_block_p,&
-                                             cp_dbcsr_type
-  USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                             cp_logger_get_default_io_unit,&
-                                             cp_logger_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
-  USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-  USE input_section_types,             ONLY: section_get_ivals,&
-                                             section_get_lval,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             dp
-  USE lri_environment_types,           ONLY: lri_environment_type,&
-                                             lri_int_type,&
-                                             lri_kind_type
-  USE particle_list_types,             ONLY: particle_list_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_methods,                      ONLY: pw_axpy,&
-                                             pw_copy,&
-                                             pw_scale
-  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
-                                             pw_pool_give_back_pw,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE,&
-                                             pw_p_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
-  USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
-                                             neighbor_list_iterate,&
-                                             neighbor_list_iterator_create,&
-                                             neighbor_list_iterator_p_type,&
-                                             neighbor_list_iterator_release,&
-                                             neighbor_list_set_p_type
-  USE qs_subsys_types,                 ONLY: qs_subsys_get,&
-                                             qs_subsys_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_interface,              ONLY: cp_dbcsr_add_block_node,&
+                                              cp_dbcsr_finalize,&
+                                              cp_dbcsr_get_block_p,&
+                                              cp_dbcsr_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE input_section_types,             ONLY: section_get_ivals,&
+                                              section_get_lval,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type
+   USE kinds,                           ONLY: default_path_length,&
+                                              dp
+   USE lri_environment_types,           ONLY: lri_environment_type,&
+                                              lri_int_type,&
+                                              lri_kind_type
+   USE particle_list_types,             ONLY: particle_list_type
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
+                                              pw_scale
+   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                              pw_pool_give_back_pw,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: REALDATA3D,&
+                                              REALSPACE,&
+                                              pw_p_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type
+   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                              qs_subsys_type
 #include "./base/base_uses.f90"
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  PRIVATE
+   PRIVATE
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'lri_ks_methods'
 
-  PUBLIC :: calculate_lri_ks_matrix
+   PUBLIC :: calculate_lri_ks_matrix
 
 CONTAINS
 
@@ -76,291 +76,286 @@ CONTAINS
 !> \param h_matrix KS matrix, on entry containing the core hamiltonian
 !> \param atomic_kind_set ...
 !> \note including this in lri_environment_methods?
-! *****************************************************************************
-  SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, &
-                                     atomic_kind_set)
+! **************************************************************************************************
+   SUBROUTINE calculate_lri_ks_matrix(lri_env, lri_v_int, h_matrix, &
+                                      atomic_kind_set)
 
-    TYPE(lri_environment_type), POINTER      :: lri_env
-    TYPE(lri_kind_type), DIMENSION(:), &
-      POINTER                                :: lri_v_int
-    TYPE(cp_dbcsr_type), POINTER             :: h_matrix
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+      TYPE(lri_environment_type), POINTER                :: lri_env
+      TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri_v_int
+      TYPE(cp_dbcsr_type), POINTER                       :: h_matrix
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
 
-    CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'calculate_lri_ks_matrix', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ikind, ilist, &
-      jatom, jkind, jneighbor, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, &
-      nneighbor, row
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: found, trans
-    REAL(KIND=dp)                            :: dab, rab(3)
-    REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: h_work
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
-    TYPE(lri_int_type), POINTER              :: lrii
-    TYPE(neighbor_list_iterator_p_type), &
-      DIMENSION(:), POINTER                  :: nl_iterator
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: soo_list
+      INTEGER :: atom_a, atom_b, col, handle, i, iac, iatom, ikind, ilist, jatom, jkind, &
+         jneighbor, natom, nba, nbb, nfa, nfb, nkind, nlist, nn, nneighbor, row
+      INTEGER, DIMENSION(:), POINTER                     :: atom_of_kind
+      LOGICAL                                            :: found, trans
+      REAL(KIND=dp)                                      :: dab, rab(3)
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: h_work
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_block
+      TYPE(lri_int_type), POINTER                        :: lrii
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: soo_list
 
-    CALL timeset(routineN,handle)
-    NULLIFY(atom_of_kind, h_block, lrii, nl_iterator, soo_list)
+      CALL timeset(routineN, handle)
+      NULLIFY (atom_of_kind, h_block, lrii, nl_iterator, soo_list)
 
-    IF ( ASSOCIATED(lri_env%soo_list) ) THEN
-      soo_list => lri_env%soo_list
- 
-      nkind = lri_env%lri_ints%nkind
+      IF (ASSOCIATED(lri_env%soo_list)) THEN
+         soo_list => lri_env%soo_list
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
-      ALLOCATE(atom_of_kind(natom))
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               atom_of_kind=atom_of_kind)
-      CALL neighbor_list_iterator_create(nl_iterator,soo_list)
+         nkind = lri_env%lri_ints%nkind
 
-      DO WHILE (neighbor_list_iterate(nl_iterator)==0)
-         CALL get_iterator_info(nl_iterator,ikind=ikind,jkind=jkind,iatom=iatom,&
-              jatom=jatom,nlist=nlist,ilist=ilist,nnode=nneighbor,inode=jneighbor,&
-              r=rab)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, natom=natom)
+         ALLOCATE (atom_of_kind(natom))
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                                  atom_of_kind=atom_of_kind)
+         CALL neighbor_list_iterator_create(nl_iterator, soo_list)
 
-         iac = ikind + nkind*(jkind - 1)
-         dab = SQRT(SUM(rab*rab))
- 
-         IF(.NOT.ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, &
+                                   jatom=jatom, nlist=nlist, ilist=ilist, nnode=nneighbor, inode=jneighbor, &
+                                   r=rab)
 
-         lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
-         
-         nfa=lrii%nfa
-         nfb=lrii%nfb
-         nba = lrii%nba
-         nbb = lrii%nbb
-         nn=nfa+nfb
+            iac = ikind+nkind*(jkind-1)
+            dab = SQRT(SUM(rab*rab))
 
-         ALLOCATE(h_work(nba,nbb))
-         h_work(:,:)=0.0_dp
+            IF (.NOT. ASSOCIATED(lri_env%lri_ints%lri_atom(iac)%lri_node)) CYCLE
 
-         IF (iatom <= jatom) THEN
-            row = iatom
-            col = jatom
-            trans = .FALSE.
-         ELSE
-            row = jatom
-            col = iatom
-            trans = .TRUE.
-         END IF
+            lrii => lri_env%lri_ints%lri_atom(iac)%lri_node(ilist)%lri_int(jneighbor)
 
-         NULLIFY(h_block)
-         CALL cp_dbcsr_get_block_p(h_matrix,row,col,h_block,found)
-         IF (.NOT.ASSOCIATED(h_block)) THEN
-              CALL cp_dbcsr_add_block_node (h_matrix, row, col, h_block)
-         END IF
+            nfa = lrii%nfa
+            nfb = lrii%nfb
+            nba = lrii%nba
+            nbb = lrii%nbb
+            nn = nfa+nfb
 
-         atom_a = atom_of_kind(iatom)
-         atom_b = atom_of_kind(jatom)
+            ALLOCATE (h_work(nba, nbb))
+            h_work(:, :) = 0.0_dp
 
-         ! sum: Hab(a)+Hab(b)
-         ! Hab(a)
-         DO i=1,nfa
-            h_work(1:nba, 1:nbb) = h_work(1:nba,1:nbb) + &
-                                   lri_v_int(ikind)%v_int(atom_a,i)*lrii%dacoef(1:nba,1:nbb,i)
-         ENDDO
-         ! Hab(b)
-         IF(dab > lri_env%delta) THEN
-          DO i=1,nfb
-              h_work(1:nba, 1:nbb) = h_work(1:nba,1:nbb) + &
-                                     lri_v_int(jkind)%v_int(atom_b,i)*lrii%dacoef(1:nba,1:nbb,nfa+i) 
-          ENDDO
-         ENDIF
+            IF (iatom <= jatom) THEN
+               row = iatom
+               col = jatom
+               trans = .FALSE.
+            ELSE
+               row = jatom
+               col = iatom
+               trans = .TRUE.
+            END IF
 
-         ! add h_work to core hamiltonian
-         IF(trans) THEN
-           h_work(1:nba,1:nbb)= h_work(1:nba,1:nbb) + TRANSPOSE(h_block(1:nbb,1:nba))
-           h_block(1:nbb,1:nba)=TRANSPOSE(h_work(1:nba,1:nbb))
-         ELSE
-           h_block(1:nba,1:nbb)=h_block(1:nba,1:nbb)+h_work(1:nba,1:nbb)
-         ENDIF
- 
-         DEALLOCATE(h_work)
-      END DO
+            NULLIFY (h_block)
+            CALL cp_dbcsr_get_block_p(h_matrix, row, col, h_block, found)
+            IF (.NOT. ASSOCIATED(h_block)) THEN
+               CALL cp_dbcsr_add_block_node(h_matrix, row, col, h_block)
+            END IF
 
-      CALL cp_dbcsr_finalize(h_matrix)
- 
-      CALL neighbor_list_iterator_release(nl_iterator)
-      DEALLOCATE(atom_of_kind)
-  
-    END IF
+            atom_a = atom_of_kind(iatom)
+            atom_b = atom_of_kind(jatom)
 
-    CALL timestop(handle)
+            ! sum: Hab(a)+Hab(b)
+            ! Hab(a)
+            DO i = 1, nfa
+               h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+ &
+                                      lri_v_int(ikind)%v_int(atom_a, i)*lrii%dacoef(1:nba, 1:nbb, i)
+            ENDDO
+            ! Hab(b)
+            IF (dab > lri_env%delta) THEN
+               DO i = 1, nfb
+                  h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+ &
+                                         lri_v_int(jkind)%v_int(atom_b, i)*lrii%dacoef(1:nba, 1:nbb, nfa+i)
+               ENDDO
+            ENDIF
 
-  END SUBROUTINE calculate_lri_ks_matrix
+            ! add h_work to core hamiltonian
+            IF (trans) THEN
+               h_work(1:nba, 1:nbb) = h_work(1:nba, 1:nbb)+TRANSPOSE(h_block(1:nbb, 1:nba))
+               h_block(1:nbb, 1:nba) = TRANSPOSE(h_work(1:nba, 1:nbb))
+            ELSE
+               h_block(1:nba, 1:nbb) = h_block(1:nba, 1:nbb)+h_work(1:nba, 1:nbb)
+            ENDIF
 
-! *****************************************************************************
+            DEALLOCATE (h_work)
+         END DO
+
+         CALL cp_dbcsr_finalize(h_matrix)
+
+         CALL neighbor_list_iterator_release(nl_iterator)
+         DEALLOCATE (atom_of_kind)
+
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_lri_ks_matrix
+
+! **************************************************************************************************
 !> \brief ...
 !> \param rho_tot_gspace ...
 !> \param qs_env ...
 !> \param lri_rho_g ...
 !> \param skip_nuclear_density ...
 !> \note  routine for testing, to be deleted later
-! *****************************************************************************
-  SUBROUTINE calc_lri_rho_tot_gspace(rho_tot_gspace, qs_env, lri_rho_g,&
-                                     skip_nuclear_density)
-    TYPE(pw_p_type), INTENT(INOUT)           :: rho_tot_gspace
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: lri_rho_g
-    LOGICAL, INTENT(IN), OPTIONAL            :: skip_nuclear_density
+! **************************************************************************************************
+   SUBROUTINE calc_lri_rho_tot_gspace(rho_tot_gspace, qs_env, lri_rho_g, &
+                                      skip_nuclear_density)
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_tot_gspace
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: lri_rho_g
+      LOGICAL, INTENT(IN), OPTIONAL                      :: skip_nuclear_density
 
-    CHARACTER(*), PARAMETER :: routineN = 'calc_lri_rho_tot_gspace', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'calc_lri_rho_tot_gspace', &
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin
-    LOGICAL                                  :: my_skip
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pw_p_type), POINTER                 :: rho_core
+      INTEGER                                            :: ispin
+      LOGICAL                                            :: my_skip
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_p_type), POINTER                           :: rho_core
 
-    NULLIFY (rho_core, dft_control)
-    my_skip = .FALSE.
-    IF (PRESENT(skip_nuclear_density)) my_skip=skip_nuclear_density
-    CALL get_qs_env(qs_env=qs_env,&
-                    rho_core=rho_core,&
-                    dft_control=dft_control)
+      NULLIFY (rho_core, dft_control)
+      my_skip = .FALSE.
+      IF (PRESENT(skip_nuclear_density)) my_skip = skip_nuclear_density
+      CALL get_qs_env(qs_env=qs_env, &
+                      rho_core=rho_core, &
+                      dft_control=dft_control)
 
-    IF (.NOT.my_skip) THEN
-       CALL pw_copy(rho_core%pw,rho_tot_gspace%pw)
-       CALL pw_axpy(lri_rho_g(1)%pw,rho_tot_gspace%pw)
-    ELSE
-       CALL pw_axpy(lri_rho_g(1)%pw, rho_tot_gspace%pw)
-    END IF
-    DO ispin=2, dft_control%nspins
-       CALL pw_axpy(lri_rho_g(ispin)%pw, rho_tot_gspace%pw)
-    END DO
- 
-  END SUBROUTINE calc_lri_rho_tot_gspace
-! *****************************************************************************
+      IF (.NOT. my_skip) THEN
+         CALL pw_copy(rho_core%pw, rho_tot_gspace%pw)
+         CALL pw_axpy(lri_rho_g(1)%pw, rho_tot_gspace%pw)
+      ELSE
+         CALL pw_axpy(lri_rho_g(1)%pw, rho_tot_gspace%pw)
+      END IF
+      DO ispin = 2, dft_control%nspins
+         CALL pw_axpy(lri_rho_g(ispin)%pw, rho_tot_gspace%pw)
+      END DO
+
+   END SUBROUTINE calc_lri_rho_tot_gspace
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param rho_r ...
 !> \param lri ...
 !> \note only NSPIN=1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !> \note routine for testing, to be deleted later
-! *****************************************************************************
-  SUBROUTINE print_lri_density_cube(qs_env, rho_r, lri)
+! **************************************************************************************************
+   SUBROUTINE print_lri_density_cube(qs_env, rho_r, lri)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_r
-    LOGICAL, INTENT(IN)                      :: lri
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r
+      LOGICAL, INTENT(IN)                                :: lri
 
-    CHARACTER(*), PARAMETER :: routineN = 'print_lri_density_cube', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'print_lri_density_cube', &
+         routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename, my_pos_cube
-    INTEGER                                  :: output_unit, unit_nr
-    LOGICAL                                  :: append_cube
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(qs_subsys_type), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER         :: dft_section, input
+      CHARACTER(LEN=default_path_length)                 :: filename, my_pos_cube
+      INTEGER                                            :: output_unit, unit_nr
+      LOGICAL                                            :: append_cube
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
 
-    NULLIFY(dft_section, logger, particles, subsys)
+      NULLIFY (dft_section, logger, particles, subsys)
 
-    CALL get_qs_env(qs_env=qs_env, input=input, subsys=subsys) 
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
-    dft_section => section_vals_get_subs_vals(input,"DFT")
-    CALL qs_subsys_get(subsys,particles=particles)
- 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-       "DFT%PRINT%E_DENSITY_CUBE"),cp_p_file)) THEN
+      CALL get_qs_env(qs_env=qs_env, input=input, subsys=subsys)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      CALL qs_subsys_get(subsys, particles=particles)
 
-       append_cube = section_get_lval(input,"DFT%PRINT%E_DENSITY_CUBE%APPEND")
-       my_pos_cube="REWIND"
-       IF(append_cube) THEN
-         my_pos_cube="APPEND"
-       END IF 
-  
-       IF(lri) THEN
-        filename = "E_DENSITY_LRI"
-       ELSE
-        filename = "E_DENSITY_NORMAL"
-       ENDIF
-       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%E_DENSITY_CUBE",&
-               extension=".cube",middle_name=TRIM(filename),file_position=my_pos_cube,&
-               log_filename=.FALSE.)
-       CALL cp_pw_to_cube(rho_r(1)%pw,unit_nr,"ELECTRONIC DENSITY",&
-            particles=particles,&
-            stride=section_get_ivals(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"))
-       CALL cp_print_key_finished_output(unit_nr,logger,input,&
-            "DFT%PRINT%E_DENSITY_CUBE")
-    END IF
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%PRINT%E_DENSITY_CUBE"), cp_p_file)) THEN
 
-  END SUBROUTINE print_lri_density_cube
-! *****************************************************************************
+         append_cube = section_get_lval(input, "DFT%PRINT%E_DENSITY_CUBE%APPEND")
+         my_pos_cube = "REWIND"
+         IF (append_cube) THEN
+            my_pos_cube = "APPEND"
+         END IF
+
+         IF (lri) THEN
+            filename = "E_DENSITY_LRI"
+         ELSE
+            filename = "E_DENSITY_NORMAL"
+         ENDIF
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+                                        extension=".cube", middle_name=TRIM(filename), file_position=my_pos_cube, &
+                                        log_filename=.FALSE.)
+         CALL cp_pw_to_cube(rho_r(1)%pw, unit_nr, "ELECTRONIC DENSITY", &
+                            particles=particles, &
+                            stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"))
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%PRINT%E_DENSITY_CUBE")
+      END IF
+
+   END SUBROUTINE print_lri_density_cube
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param v_rspace_new ...
 !> \note only NSPIN=1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !> \note routine for testing, to be deleted later
-! *****************************************************************************
-  SUBROUTINE print_v_xc_cube(qs_env, v_rspace_new)
+! **************************************************************************************************
+   SUBROUTINE print_v_xc_cube(qs_env, v_rspace_new)
 
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(pw_p_type)                          :: v_rspace_new
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type)                                    :: v_rspace_new
 
-    CHARACTER(*), PARAMETER :: routineN = 'print_v_xc_cube', &
-      routineP = moduleN//':'//routineN
+      CHARACTER(*), PARAMETER :: routineN = 'print_v_xc_cube', routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: my_pos_cube
-    INTEGER                                  :: output_unit, unit_nr
-    LOGICAL                                  :: append_cube
-    REAL(KIND=dp)                            :: udvol
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type)                          :: aux_r
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_subsys_type), POINTER            :: subsys
-    TYPE(section_vals_type), POINTER         :: dft_section, input
+      CHARACTER(LEN=default_path_length)                 :: my_pos_cube
+      INTEGER                                            :: output_unit, unit_nr
+      LOGICAL                                            :: append_cube
+      REAL(KIND=dp)                                      :: udvol
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(particle_list_type), POINTER                  :: particles
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type)                                    :: aux_r
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(section_vals_type), POINTER                   :: dft_section, input
 
-    NULLIFY(dft_section, logger, particles, subsys)
-    NULLIFY(auxbas_pw_pool, pw_env)
+      NULLIFY (dft_section, logger, particles, subsys)
+      NULLIFY (auxbas_pw_pool, pw_env)
 
-    CALL get_qs_env(qs_env=qs_env, input=input, subsys=subsys) 
-    logger => cp_get_default_logger()
-    output_unit= cp_logger_get_default_io_unit(logger)
-    dft_section => section_vals_get_subs_vals(input,"DFT")
-    CALL qs_subsys_get(subsys,particles=particles)
- 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
-         "DFT%PRINT%V_HARTREE_CUBE"),cp_p_file)) THEN
+      CALL get_qs_env(qs_env=qs_env, input=input, subsys=subsys)
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      CALL qs_subsys_get(subsys, particles=particles)
 
-       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-       CALL pw_pool_create_pw(auxbas_pw_pool,aux_r%pw,&
-                               use_data = REALDATA3D,&
-                               in_space = REALSPACE)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
+                                           "DFT%PRINT%V_HARTREE_CUBE"), cp_p_file)) THEN
 
-       append_cube = section_get_lval(input,"DFT%PRINT%V_HARTREE_CUBE%APPEND")
-       my_pos_cube="REWIND"
-       IF(append_cube) THEN
-         my_pos_cube="APPEND"
-       END IF
-       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-       CALL pw_env_get(pw_env)
-       unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
-            extension=".cube",middle_name="v_xc",file_position=my_pos_cube)
-       udvol = 1.0_dp/v_rspace_new%pw%pw_grid%dvol
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+         CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+         CALL pw_pool_create_pw(auxbas_pw_pool, aux_r%pw, &
+                                use_data=REALDATA3D, &
+                                in_space=REALSPACE)
 
-       CALL pw_copy(v_rspace_new%pw,aux_r%pw)
-       CALL pw_scale(aux_r%pw,udvol)
+         append_cube = section_get_lval(input, "DFT%PRINT%V_HARTREE_CUBE%APPEND")
+         my_pos_cube = "REWIND"
+         IF (append_cube) THEN
+            my_pos_cube = "APPEND"
+         END IF
+         CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
+         CALL pw_env_get(pw_env)
+         unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%V_HARTREE_CUBE", &
+                                        extension=".cube", middle_name="v_xc", file_position=my_pos_cube)
+         udvol = 1.0_dp/v_rspace_new%pw%pw_grid%dvol
 
-       CALL cp_pw_to_cube(aux_r%pw,unit_nr,"Exchange POTENTIAL",particles=particles,&
-            stride=section_get_ivals(dft_section,&
-            "PRINT%V_HARTREE_CUBE%STRIDE"))
-       CALL cp_print_key_finished_output(unit_nr,logger,input,&
-            "DFT%PRINT%V_HARTREE_CUBE")
+         CALL pw_copy(v_rspace_new%pw, aux_r%pw)
+         CALL pw_scale(aux_r%pw, udvol)
 
-       CALL pw_pool_give_back_pw(auxbas_pw_pool,aux_r%pw)
-    ENDIF
-  END SUBROUTINE print_v_xc_cube
+         CALL cp_pw_to_cube(aux_r%pw, unit_nr, "Exchange POTENTIAL", particles=particles, &
+                            stride=section_get_ivals(dft_section, &
+                                                     "PRINT%V_HARTREE_CUBE%STRIDE"))
+         CALL cp_print_key_finished_output(unit_nr, logger, input, &
+                                           "DFT%PRINT%V_HARTREE_CUBE")
+
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, aux_r%pw)
+      ENDIF
+   END SUBROUTINE print_v_xc_cube
 !
 END MODULE lri_ks_methods

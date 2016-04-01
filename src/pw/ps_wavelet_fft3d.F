@@ -1,13 +1,13 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 MODULE ps_wavelet_fft3d
 
   
-  USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp
 #include "../base/base_uses.f90"
 
  IMPLICIT NONE
@@ -24,32 +24,29 @@ MODULE ps_wavelet_fft3d
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Give a number n_next > n compatible for the FFT
 !> \param n ...
 !> \param n_next ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE fourier_dim(n,n_next)
-    INTEGER, INTENT(in)                      :: n
-    INTEGER, INTENT(out)                     :: n_next
+      INTEGER, INTENT(in)                                :: n
+      INTEGER, INTENT(out)                               :: n_next
 
-    INTEGER, PARAMETER                       :: ndata = 149, ndata1024 = 149
-    INTEGER, DIMENSION(ndata), PARAMETER :: idata = (/   3,    4,   5,     6, &
-      8,    9,   12,   15,   16,   18, 20,   24,   25,   27,   30,   32,   36,&
-      40,   45,   48, 54,   60,   64,   72,   75,   80,   81,   90,   96,  100&
-      , 108,  120,  125,  128,  135,  144,  150,  160,  162,  180, 192,  200, &
-      216,  225,  240,  243,  256,  270,  288,  300, 320,  324,  360,  375,  &
-      384,  400,  405,  432,  450,  480, 486,  500,  512,  540,  576,  600,  &
-      625,  640,  648,  675, 720,  729,  750,  768,  800,  810,  864,  900,  &
-      960,  972, 1000, 1024, 1080, 1125, 1152, 1200, 1215, 1280, 1296, 1350,&
-      1440, 1458, 1500, 1536, 1600, 1620, 1728, 1800, 1875, 1920,1944, 2000, &
-      2025, 2048, 2160, 2250, 2304, 2400, 2430, 2500,2560, 2592, 2700, 2880, &
-      3000, 3072, 3125, 3200, 3240, 3375,3456, 3600, 3750, 3840, 3888, 4000, &
-      4050, 4096, 4320, 4500,4608, 4800, 5000, 5120, 5184, 5400, 5625, 5760, &
-      6000, 6144,6400, 6480, 6750, 6912, 7200, 7500, 7680, 8000, ctrig_length &
-      /)
+      INTEGER, PARAMETER                                 :: ndata = 149, ndata1024 = 149
+      INTEGER, DIMENSION(ndata), PARAMETER :: idata = (/   3,    4,   5,     6, 8,    9,   12,   15&
+         ,   16,   18, 20,   24,   25,   27,   30,   32,   36,40,   45,   48, 54,   60,   64,   72,&
+         75,   80,   81,   90,   96,  100, 108,  120,  125,  128,  135,  144,  150,  160,  162,  &
+         180, 192,  200, 216,  225,  240,  243,  256,  270,  288,  300, 320,  324,  360,  375,  384&
+         ,  400,  405,  432,  450,  480, 486,  500,  512,  540,  576,  600,  625,  640,  648,  675,&
+         720,  729,  750,  768,  800,  810,  864,  900,  960,  972, 1000, 1024, 1080, 1125, 1152, &
+         1200, 1215, 1280, 1296, 1350,1440, 1458, 1500, 1536, 1600, 1620, 1728, 1800, 1875, 1920,&
+         1944, 2000, 2025, 2048, 2160, 2250, 2304, 2400, 2430, 2500,2560, 2592, 2700, 2880, 3000, &
+         3072, 3125, 3200, 3240, 3375,3456, 3600, 3750, 3840, 3888, 4000, 4050, 4096, 4320, 4500,&
+         4608, 4800, 5000, 5120, 5184, 5400, 5625, 5760, 6000, 6144,6400, 6480, 6750, 6912, 7200, &
+         7500, 7680, 8000, ctrig_length /)
 
-    INTEGER                                  :: i
+      INTEGER                                            :: i
 
 !Multiple of 2,3,5
 
@@ -94,7 +91,7 @@ CONTAINS
 
 ! FFT PART -----------------------------------------------------------------
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param n ...
 !> \param trig ...
@@ -103,7 +100,7 @@ CONTAINS
 !> \param now ...
 !> \param isign ...
 !> \param ic ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE ctrig(n,trig,after,before,now,isign,ic)
 !  Copyright (C) Stefan Goedecker, Lausanne, Switzerland, August 1, 1991
 !  Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
@@ -113,12 +110,12 @@ CONTAINS
 
 !     Different factorizations affect the performance
 !     Factoring 64 as 4*4*4 might for example be faster on some machines than 8*8.
-    INTEGER                                  :: n
-    REAL(KIND=dp)                            :: trig
-    INTEGER                                  :: after, before, now, isign, ic
+      INTEGER                                            :: n
+      REAL(KIND=dp)                                      :: trig
+      INTEGER                                            :: after, before, now, isign, ic
 
-    INTEGER                                  :: i, itt, j, nh
-    REAL(KIND=dp)                            :: angle, trigc, trigs, twopi
+      INTEGER                                            :: i, itt, j, nh
+      REAL(KIND=dp)                                      :: angle, trigc, trigs, twopi
 
           DIMENSION now(7),after(7),before(7),trig(2,ctrig_length)
           INTEGER, DIMENSION(7,149) :: idata
@@ -264,7 +261,7 @@ CONTAINS
 
 !ccccccccccccccccccccccccccccccccccccccccccccccc
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param mm ...
 !> \param nfft ...
@@ -278,25 +275,25 @@ CONTAINS
 !> \param now ...
 !> \param before ...
 !> \param isign ...
-! *****************************************************************************
+! **************************************************************************************************
       SUBROUTINE fftstp(mm,nfft,m,nn,n,zin,zout,trig,after,now,before,isign)
 !  Copyright (C) Stefan Goedecker, Cornell University, Ithaca, USA, 1994
 !  Copyright (C) Stefan Goedecker, MPI Stuttgart, Germany, 1995, 1999
 !  This file is distributed under the terms of the
 !  GNU General Public License, see http://www.gnu.org/copyleft/gpl.txt .
 
-    INTEGER                                  :: mm, nfft, m, nn, n
-    REAL(KIND=dp)                            :: zin, zout, trig
-    INTEGER                                  :: after, now, before, isign
+      INTEGER                                            :: mm, nfft, m, nn, n
+      REAL(KIND=dp)                                      :: zin, zout, trig
+      INTEGER                                            :: after, now, before, isign
 
-    INTEGER :: atb, atn, ia, ias, ib, itrig, itt, j, nin1, nin2, nin3, nin4, &
-      nin5, nin6, nin7, nin8, nout1, nout2, nout3, nout4, nout5, nout6, &
-      nout7, nout8
-    REAL(KIND=dp) :: am, ap, bb, bm, bp, ci2, ci3, ci4, ci5, ci6, ci7, ci8, &
-      cm, cos2, cos4, cp, cr2, cr3, cr4, cr5, cr6, cr7, cr8, dm, dpp, r, r1, &
-      r2, r25, r3, r34, r4, r5, r6, r7, r8, rt2i, s, s1, s2, s25, s3, s34, &
-      s4, s5, s6, s7, s8, sin2, sin4, ui1, ui2, ui3, ur1, ur2, ur3, vi1, vi2, &
-      vi3, vr1, vr2, vr3
+      INTEGER                                            :: atb, atn, ia, ias, ib, itrig, itt, j, &
+                                                            nin1, nin2, nin3, nin4, nin5, nin6, &
+                                                            nin7, nin8, nout1, nout2, nout3, &
+                                                            nout4, nout5, nout6, nout7, nout8
+      REAL(KIND=dp) :: am, ap, bb, bm, bp, ci2, ci3, ci4, ci5, ci6, ci7, ci8, cm, cos2, cos4, cp, &
+         cr2, cr3, cr4, cr5, cr6, cr7, cr8, dm, dpp, r, r1, r2, r25, r3, r34, r4, r5, r6, r7, r8, &
+         rt2i, s, s1, s2, s25, s3, s34, s4, s5, s6, s7, s8, sin2, sin4, ui1, ui2, ui3, ur1, ur2, &
+         ur3, vi1, vi2, vi3, vr1, vr2, vr3
 
         DIMENSION trig(2,ctrig_length),zin(2,mm,m),zout(2,nn,n)
         atn=after*now

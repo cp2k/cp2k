@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief uses a combination of graphs and hashing to determine if two molecules
 !>      are topologically equivalent, and if so, finds the one by one mapping
 !> \note
@@ -17,10 +17,10 @@
 !> \par History
 !>      09.2006 [Joost VandeVondele]
 !> \author Joost VandeVondele
-! *****************************************************************************
+! **************************************************************************************************
 MODULE graphcon
   
-  USE util,                            ONLY: sort
+   USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
     IMPLICIT NONE
@@ -31,18 +31,18 @@ MODULE graphcon
     ! a molecule is an array of vertices, each vertex has a kind
     ! and a list of edges (bonds).
     ! (the number is the index of the other vertex in the array that builds the molecule)
-! *****************************************************************************
+! **************************************************************************************************
     TYPE graph_type
        TYPE(vertex), POINTER, DIMENSION(:) :: graph
     END TYPE graph_type
 
-! *****************************************************************************
+! **************************************************************************************************
     TYPE vertex
        INTEGER :: kind
        INTEGER, POINTER, DIMENSION(:) :: bonds
     END TYPE vertex
 
-! *****************************************************************************
+! **************************************************************************************************
     TYPE class
        INTEGER, DIMENSION(:), POINTER :: reference
        INTEGER, DIMENSION(:), POINTER :: unordered
@@ -53,7 +53,7 @@ MODULE graphcon
        INTEGER, DIMENSION(:), POINTER :: q
     END TYPE class
 
-! *****************************************************************************
+! **************************************************************************************************
     TYPE superclass
        INTEGER :: Nele
        INTEGER, DIMENSION(:), POINTER :: classes
@@ -61,7 +61,7 @@ MODULE graphcon
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief hashes a molecule to a number. Molecules that are the (topologically) the same
 !>      have the same hash. However, there is a small chance that molecules with the same hash
 !>      are different
@@ -73,15 +73,15 @@ CONTAINS
 !> \note
 !>      Although relatively fast in general, might be quadratic with molecule size for
 !>      some systems (e.g. linear alkanes)
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE hash_molecule(reference,kind_ref,hash)
-    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: kind_ref
-    INTEGER, INTENT(OUT)                     :: hash
+      TYPE(vertex), DIMENSION(:), INTENT(IN)             :: reference
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: kind_ref
+      INTEGER, INTENT(OUT)                               :: hash
 
-    INTEGER                                  :: I, Ihash, N, Nclasses, &
-                                                Nclasses_old, old_class
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, kind_new
+      INTEGER                                            :: I, Ihash, N, Nclasses, Nclasses_old, &
+                                                            old_class
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index, kind_new
 
         N=SIZE(kind_ref)
         ALLOCATE(kind_new(N),INDEX(N))
@@ -113,7 +113,7 @@ CONTAINS
         DEALLOCATE(kind_new,index)
     END SUBROUTINE hash_molecule
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief If two molecules are topologically the same, finds the ordering that maps
 !>      the unordered one on the ordered one.
 !> \param reference molecular description (see type definition)
@@ -127,22 +127,22 @@ CONTAINS
 !>      See not at the top of the file about why this algorithm might consider
 !>      molecules with a large number of equivalent atoms as different
 !>      despite the fact that an ordering could exist for which they are the same
-! *****************************************************************************
+! **************************************************************************************************
     SUBROUTINE reorder_graph(reference, unordered, order, matches)
-    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
-    INTEGER, DIMENSION(:), INTENT(OUT)       :: order
-    LOGICAL, INTENT(OUT)                     :: matches
+      TYPE(vertex), DIMENSION(:), INTENT(IN)             :: reference, unordered
+      INTEGER, DIMENSION(:), INTENT(OUT)                 :: order
+      LOGICAL, INTENT(OUT)                               :: matches
 
-    INTEGER, PARAMETER                       :: max_tries = 1000000
+      INTEGER, PARAMETER                                 :: max_tries = 1000000
 
-    INTEGER                                  :: hash_re, hash_un, I, Iclass, &
-                                                iele, isuperclass, itries, J, &
-                                                N, Nclasses, Nele, old_class
-    INTEGER, ALLOCATABLE, DIMENSION(:) :: class_of_atom, index_ref, index_un, &
-      kind_ref, kind_ref_ordered, kind_un, kind_un_ordered, superclass_of_atom
-    TYPE(class), ALLOCATABLE, DIMENSION(:)   :: classes
-    TYPE(superclass), ALLOCATABLE, &
-      DIMENSION(:)                           :: superclasses
+      INTEGER                                            :: hash_re, hash_un, I, Iclass, iele, &
+                                                            isuperclass, itries, J, N, Nclasses, &
+                                                            Nele, old_class
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: class_of_atom, index_ref, index_un, &
+                                                            kind_ref, kind_ref_ordered, kind_un, &
+                                                            kind_un_ordered, superclass_of_atom
+      TYPE(class), ALLOCATABLE, DIMENSION(:)             :: classes
+      TYPE(superclass), ALLOCATABLE, DIMENSION(:)        :: superclasses
 
 ! allows for worst case matching of two benzenes ... (6!)*(6!)/6=86400
 ! with some margin for other molecules
@@ -319,7 +319,7 @@ CONTAINS
         DEALLOCATE(superclasses)
     END SUBROUTINE reorder_graph
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief spreads the superclass over all atoms of this class and all their bonded atoms
 !>      provided that the latter belong to a class which contains more than one element
 !> \param I ...
@@ -330,16 +330,16 @@ CONTAINS
 !> \param reference ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
-! *****************************************************************************
+! **************************************************************************************************
     RECURSIVE SUBROUTINE spread_superclass(I,isuperclass,superclass_of_atom,class_of_atom, &
                                              classes, reference)
-    INTEGER, INTENT(IN)                      :: i, isuperclass
-    INTEGER, DIMENSION(:), INTENT(INOUT)     :: superclass_of_atom
-    INTEGER, DIMENSION(:), INTENT(IN)        :: class_of_atom
-    TYPE(class), DIMENSION(:), INTENT(IN)    :: classes
-    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference
+      INTEGER, INTENT(IN)                                :: i, isuperclass
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: superclass_of_atom
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: class_of_atom
+      TYPE(class), DIMENSION(:), INTENT(IN)              :: classes
+      TYPE(vertex), DIMENSION(:), INTENT(IN)             :: reference
 
-    INTEGER                                  :: J
+      INTEGER                                            :: J
 
         IF (superclass_of_atom(I).EQ.-1 .AND. classes(class_of_atom(I))%Nele>1) THEN
            superclass_of_atom(I)=isuperclass
@@ -354,7 +354,7 @@ CONTAINS
         ENDIF
     END SUBROUTINE spread_superclass
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief determines of the vertices of this superclass have the same edges
 !> \param reference ...
 !> \param unordered ...
@@ -364,15 +364,15 @@ CONTAINS
 !> \retval res ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
-! *****************************************************************************
+! **************************************************************************************************
     FUNCTION matrix_superclass_equal(reference,unordered,order,super,classes) RESULT(res)
-    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
-    INTEGER, DIMENSION(:), INTENT(IN)        :: order
-    TYPE(superclass), INTENT(IN)             :: super
-    TYPE(class), DIMENSION(:), INTENT(IN)    :: classes
-    LOGICAL                                  :: res
+      TYPE(vertex), DIMENSION(:), INTENT(IN)             :: reference, unordered
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: order
+      TYPE(superclass), INTENT(IN)                       :: super
+      TYPE(class), DIMENSION(:), INTENT(IN)              :: classes
+      LOGICAL                                            :: res
 
-    INTEGER                                  :: I, iclass, iele, J
+      INTEGER                                            :: I, iclass, iele, J
 
 ! I is the atom in the unordered set
 
@@ -395,7 +395,7 @@ loop:   DO iclass=1,super%Nele
         ENDDO loop
     END FUNCTION matrix_superclass_equal
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief determines of the vertices of the full set is equal, i.e.
 !>      we have the same connectivity graph
 !> \param reference ...
@@ -404,13 +404,13 @@ loop:   DO iclass=1,super%Nele
 !> \retval res ...
 !> \par History
 !>      09.2006 created [Joost VandeVondele]
-! *****************************************************************************
+! **************************************************************************************************
     FUNCTION matrix_equal(reference,unordered,order) RESULT(res)
-    TYPE(vertex), DIMENSION(:), INTENT(IN)   :: reference, unordered
-    INTEGER, DIMENSION(:), INTENT(IN)        :: order
-    LOGICAL                                  :: res
+      TYPE(vertex), DIMENSION(:), INTENT(IN)             :: reference, unordered
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: order
+      LOGICAL                                            :: res
 
-    INTEGER                                  :: I, J
+      INTEGER                                            :: I, J
 
 loop:   DO I=1,SIZE(reference)
            res=( reference(order(I))%kind == unordered(I)%kind .AND. &
@@ -428,7 +428,7 @@ loop:   DO I=1,SIZE(reference)
         ENDDO loop
     END FUNCTION matrix_equal
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief creates a hash for an atom based on its own kind and on the kinds
 !>       of its bonded neighbors
 !> \param me ...
@@ -439,14 +439,14 @@ loop:   DO I=1,SIZE(reference)
 !> \note
 !>       bonds are sorted so that the order of neighbors appearing in the bonded list
 !>       is not important
-! *****************************************************************************
+! **************************************************************************************************
     FUNCTION hash_kind(me,bonds) RESULT(res)
-    INTEGER, INTENT(IN)                      :: me
-    INTEGER, DIMENSION(:), INTENT(IN)        :: bonds
-    INTEGER                                  :: res
+      INTEGER, INTENT(IN)                                :: me
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: bonds
+      INTEGER                                            :: res
 
-    INTEGER                                  :: I, N
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: index, ordered_bonds
+      INTEGER                                            :: I, N
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index, ordered_bonds
 
        N=SIZE(bonds)
        ALLOCATE(ordered_bonds(N+1),INDEX(N))
@@ -459,7 +459,7 @@ loop:   DO I=1,SIZE(reference)
        res=joaat_hash_i(ordered_bonds)
     END FUNCTION hash_kind
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief generates the hash of an array of integers and the index in the table
 !> \param key an integer array of any length
 !> \retval hash_index ...
@@ -471,16 +471,16 @@ loop:   DO I=1,SIZE(reference)
 !>       However, since fortran doesn't have an unsigned 4 byte int
 !>       we compute it using an integer with the appropriate range
 !>       we return already the index in the table as a final result
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION joaat_hash_i(key) RESULT(hash_index)
-    INTEGER, DIMENSION(:), INTENT(IN)        :: key
-    INTEGER                                  :: hash_index
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: key
+      INTEGER                                            :: hash_index
 
-    INTEGER, PARAMETER                       :: k64 = SELECTED_INT_KIND(10)
-    INTEGER(KIND=k64), PARAMETER             :: b32 = 2_k64**32-1_k64
+      INTEGER, PARAMETER                                 :: k64 = SELECTED_INT_KIND(10)
+      INTEGER(KIND=k64), PARAMETER                       :: b32 = 2_k64**32-1_k64
 
-    INTEGER                                  :: i
-    INTEGER(KIND=k64)                        :: hash
+      INTEGER                                            :: i
+      INTEGER(KIND=k64)                                  :: hash
 
     hash=0_k64
     DO i=1,SIZE(key)
@@ -514,18 +514,18 @@ loop:   DO I=1,SIZE(reference)
 !   x = initial values (/1...n/), first=.TRUE.
 !   q = scratch
 !   first = .TRUE. if you're back at the original order
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param x ...
 !> \param n ...
 !> \param q ...
 !> \param first ...
-! *****************************************************************************
+! **************************************************************************************************
         SUBROUTINE all_permutations(x,n,q,first)
-    INTEGER                                  :: n, x(n), q(n)
-    LOGICAL                                  :: first
+      INTEGER                                            :: n, x(n), q(n)
+      LOGICAL                                            :: first
 
-    INTEGER                                  :: k, m, t
+      INTEGER                                            :: k, m, t
 
         IF (n==1) RETURN
         IF (first) THEN
