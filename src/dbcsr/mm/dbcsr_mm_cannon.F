@@ -226,12 +226,20 @@ MODULE dbcsr_mm_cannon
    INTEGER, DIMENSION(:), SAVE, POINTER :: meta_scatter => Null(), local_meta_scatter => Null()
    INTEGER, ALLOCATABLE, DIMENSION(:), PRIVATE :: left_total_row_counts
    INTEGER, ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_no_empty_clusters, &
-                                                          left_no_empty_clusters_displ, right_no_empty_clusters, &
-                                                         right_no_empty_clusters_displ, left_refs_data_size, right_refs_data_size, &
-                                                          left_local_refs_data_size, right_local_refs_data_size
+                                                          left_no_empty_clusters_displ, &
+                                                          right_no_empty_clusters, &
+                                                          right_no_empty_clusters_displ, &
+                                                          left_refs_data_size, &
+                                                          right_refs_data_size, &
+                                                          left_local_refs_data_size, &
+                                                          right_local_refs_data_size
    INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET, PRIVATE  :: left_refs_displ_unmerged, &
-                                       right_refs_displ_unmerged, left_local_refs_displ_unmerged, right_local_refs_displ_unmerged, &
-                                                             left_refs_meta_size, right_refs_meta_size, left_local_refs_meta_size, &
+                                                              right_refs_displ_unmerged, &
+                                                              left_local_refs_displ_unmerged, &
+                                                              right_local_refs_displ_unmerged, &
+                                                              left_refs_meta_size, &
+                                                              right_refs_meta_size, &
+                                                              left_local_refs_meta_size, &
                                                               right_local_refs_meta_size
    REAL(kind=sp), ALLOCATABLE, DIMENSION(:), TARGET, PRIVATE :: left_max_norms, right_max_norms, &
                                                                 left_local_max_norms, right_local_max_norms
@@ -4461,7 +4469,8 @@ CONTAINS
          meta_size_scatter = 0
          DO v_ki = 1, nclusters_scatter
             buffer_scatter%mats(v_ki)%m%index => local_meta_scatter(meta_size_scatter+dbcsr_slot_size: &
-                                                            meta_size_scatter+local_meta_scatter(meta_size_scatter+dbcsr_slot_size))
+                                                                    meta_size_scatter+ &
+                                                                    local_meta_scatter(meta_size_scatter+dbcsr_slot_size))
             meta_size_scatter = meta_size_scatter+local_meta_scatter(meta_size_scatter+dbcsr_slot_size)
             CALL dbcsr_reset_vlocals(buffer_scatter%mats(v_ki), imgdist_right, do_rows=.TRUE.)
             ! Set local cols
@@ -4862,9 +4871,11 @@ CONTAINS
                      local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_nze)
                   product_matrix_scatter%m%row_p(:) = product_matrix_scatter%m%row_p(:)+ &
                                                       local_meta_scatter(meta_displ_gather(iproc)+ &
-                                                                    local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_row_p): &
+                                                                         local_meta_scatter(meta_displ_gather(iproc)+ &
+                                                                                            dbcsr_slot_row_p): &
                                                                          meta_displ_gather(iproc)+ &
-                                                                    local_meta_scatter(meta_displ_gather(iproc)+dbcsr_slot_row_p+1))
+                                                                         local_meta_scatter(meta_displ_gather(iproc)+ &
+                                                                                            dbcsr_slot_row_p+1))
                ENDIF
             ENDDO
             product_matrix_scatter%m%index(dbcsr_slot_size) = &
