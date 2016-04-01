@@ -885,7 +885,7 @@ CONTAINS
     desca = matrix%matrix_struct%descriptor
     CALL pzpotri('U',my_n,aa(1,1),1,1,desca,info)
 #else
-    CALL zpotri('U',my_n,aa(1,1),SIZE(a,1),info)
+    CALL zpotri('U',my_n,aa(1,1),SIZE(aa,1),info)
 #endif
 
     IF (PRESENT(info_out)) THEN
