@@ -223,13 +223,6 @@ def main():
                   'replace':1, 'interface-dir':None,
                   'backup-dir':'preprettify'}
 
-    # current defaults (FIXME: change to future defaults)
-    defaultsDict={'upcase':1,'normalize-use':1,'omp-upcase':0,
-                  'decl-linelength':79, 'decl-offset':40,
-                  'reformat':0, 'indent':2, 'whitespace':1,
-                  'replace':1, 'interface-dir':None,
-                  'backup-dir':'preprettify'}
-
     usageDesc=("usage:\n"+sys.argv[0]+ """
     [--[no-]upcase] [--[no-]normalize-use] [--[no-]omp-upcase] [--[no-]replace]
     [--[no-]reformat] --indent=3 --whitespace=1 [--interface-dir=~/cp2k/obj/platform/target] [--help]

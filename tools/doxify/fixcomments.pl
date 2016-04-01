@@ -586,7 +586,7 @@ sub processSubroutineDefinition {
                     }
                     if (($briefs eq $EMPTY) or ($briefs eq "!> \\brief\n")) {
                         # \brief does not exist or is present but empty - add text
-                        print $OUTPUT "! *****************************************************************************\n";
+                        print $OUTPUT "! **************************************************************************************************\n";
                         print $OUTPUT "!> \\brief ...\n";
                     } else {
                         # \brief exists and contains text
@@ -675,7 +675,7 @@ sub processSubroutineDefinition {
             # Dumps out whatever else remainded in the header (e.g. stuff begining !> without a \ or stuff beginning with just a !) for the SUBROUTINE/FUNCTION at the end
             print $OUTPUT $remainders;
         }
-        print $OUTPUT "! *****************************************************************************\n";
+        print $OUTPUT "! **************************************************************************************************\n";
         print $OUTPUT "$leftoverlines$buffer$currline";
         # Reset all the variables after writing out the header
         initVariables();
