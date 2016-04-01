@@ -1542,7 +1542,7 @@
 #else
     MARK_USED(root)
     MARK_USED(gid)
-    msg = msg_scatter
+    msg = msg_scatter(1)
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)
@@ -1644,7 +1644,7 @@
     MARK_USED(recvcount)
     MARK_USED(root)
     MARK_USED(gid)
-    msg = msg_scatter
+    msg(1:recvcount) = msg_scatter(1+displs(1):1+displs(1)+sendcounts(1))
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)
@@ -1683,7 +1683,7 @@
 #else
     MARK_USED(root)
     MARK_USED(gid)
-    msg_gather = msg
+    msg_gather(1) = msg
 #endif
     CALL mp_timestop(handle)
   END SUBROUTINE mp_gather_i
@@ -1882,7 +1882,7 @@
     MARK_USED(recvcounts)
     MARK_USED(root)
     MARK_USED(comm)
-    recvbuf(1+displs(1):) = sendbuf
+    recvbuf(1+displs(1):1+displs(1)+recvcounts(1)) = sendbuf(1:sendcount)
     request = mp_request_null
 #endif
     CALL mp_timestop(handle)

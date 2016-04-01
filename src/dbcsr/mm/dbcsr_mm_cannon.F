@@ -4965,7 +4965,8 @@ MODULE dbcsr_mm_cannon
           ! Collect col_i and blk_p, row by row
 !$omp parallel default (none) &
 !$omp shared (product_matrix_scatter,meta_size_gather,&
-!$omp         local_meta_scatter,right_npcols,meta_displ_gather) &
+!$omp         local_meta_scatter,right_npcols,meta_displ_gather,&
+!$omp         data_displ_gather) &
 !$omp private (local_meta_size_gather,iproc,v_ci,v_ki,&
 !$omp          col_i,blk_p)
 !$omp do
@@ -4991,7 +4992,8 @@ MODULE dbcsr_mm_cannon
                    product_matrix_scatter%m%col_i(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
                         col_i(local_meta_scatter(v_ci)+1:local_meta_scatter(v_ci+1))
                    product_matrix_scatter%m%blk_p(local_meta_size_gather:local_meta_size_gather+v_ki-1) = &
-                        blk_p(local_meta_scatter(v_ci)+1:local_meta_scatter(v_ci+1))
+                        blk_p(local_meta_scatter(v_ci)+1:local_meta_scatter(v_ci+1)) + &
+                        data_displ_gather(iproc)
                    local_meta_size_gather = local_meta_size_gather + v_ki
                 ENDIF
              ENDDO
