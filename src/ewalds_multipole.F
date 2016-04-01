@@ -112,7 +112,8 @@ CONTAINS
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, &
                                                  cell, particle_set, local_particles, energy_local, energy_glob, e_neut, e_self, &
-                                             task, do_correction_bonded, do_forces, do_stress, do_efield, radii, charges, dipoles, &
+                                                 task, do_correction_bonded, do_forces, do_stress, &
+                                                 do_efield, radii, charges, dipoles, &
                                                  quadrupoles, forces_local, forces_glob, pv_local, pv_glob, efield0, efield1, &
                                                  efield2, iw, do_debug, atomic_kind_set, mm_section)
       TYPE(ewald_environment_type), POINTER              :: ewald_env

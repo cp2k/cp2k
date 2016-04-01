@@ -316,13 +316,15 @@ CONTAINS
       DO r = 1, rows
          IF (.NOT. t) THEN
             IF (PRESENT(variable_name)) THEN
-        WRITE (iunit, '(A,I4,A,I4,A,E23.16,A)') variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix(r+(c-1)*rows), ';'
+               WRITE (iunit, '(A,I4,A,I4,A,E23.16,A)') &
+                  variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix(r+(c-1)*rows), ';'
             ELSE
                WRITE (iunit, '(A,I4,A,I4,A,E23.16,A)') 'a(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix(r+(c-1)*rows), ';'
             ENDIF
          ELSE
             IF (PRESENT(variable_name)) THEN
-        WRITE (iunit, '(A,I4,A,I4,A,E23.16,A)') variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix((r-1)*cols+c), ';'
+               WRITE (iunit, '(A,I4,A,I4,A,E23.16,A)') &
+                  variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix((r-1)*cols+c), ';'
             ELSE
                WRITE (iunit, '(A,I4,A,I4,A,E23.16,A)') 'a(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix((r-1)*cols+c), ';'
             ENDIF
@@ -372,13 +374,15 @@ CONTAINS
       DO r = 1, rows
          IF (.NOT. t) THEN
             IF (PRESENT(variable_name)) THEN
-         WRITE (iunit, '(A,I4,A,I4,A,E15.7,A)') variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix(r+(c-1)*rows), ';'
+               WRITE (iunit, '(A,I4,A,I4,A,E15.7,A)') &
+                  variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix(r+(c-1)*rows), ';'
             ELSE
                WRITE (iunit, '(A,I4,A,I4,A,E15.7,A)') 'a(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix(r+(c-1)*rows), ';'
             ENDIF
          ELSE
             IF (PRESENT(variable_name)) THEN
-         WRITE (iunit, '(A,I4,A,I4,A,E15.7,A)') variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix((r-1)*cols+c), ';'
+               WRITE (iunit, '(A,I4,A,I4,A,E15.7,A)') &
+                  variable_name//'(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix((r-1)*cols+c), ';'
             ELSE
                WRITE (iunit, '(A,I4,A,I4,A,E15.7,A)') 'a(', r+r_offset-1, ',', c+c_offset-1, ')=', matrix((r-1)*cols+c), ';'
             ENDIF

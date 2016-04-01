@@ -747,10 +747,12 @@ CONTAINS
                            valh = valh-G(jb)*mixing_store%dcpc_h_in(jb, iatom, ispin)%r_coef(j, i)
                            vals = vals-G(jb)*mixing_store%dcpc_s_in(jb, iatom, ispin)%r_coef(j, i)
                         END DO
-                        rho_atom(iatom)%cpc_h(ispin)%r_coef(j, i) = alpha*rho_atom(iatom)%cpc_h(ispin)%r_coef(j, i)+ &
-                                                                 mixing_store%cpc_h_in(iatom, ispin)%r_coef(j, i)*(1._dp-alpha)+valh
-                        rho_atom(iatom)%cpc_s(ispin)%r_coef(j, i) = alpha*rho_atom(iatom)%cpc_s(ispin)%r_coef(j, i)+ &
-                                                                 mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i)*(1._dp-alpha)+vals
+                        rho_atom(iatom)%cpc_h(ispin)%r_coef(j, i) = &
+                           alpha*rho_atom(iatom)%cpc_h(ispin)%r_coef(j, i)+ &
+                           mixing_store%cpc_h_in(iatom, ispin)%r_coef(j, i)*(1._dp-alpha)+valh
+                        rho_atom(iatom)%cpc_s(ispin)%r_coef(j, i) = &
+                           alpha*rho_atom(iatom)%cpc_s(ispin)%r_coef(j, i)+ &
+                           mixing_store%cpc_s_in(iatom, ispin)%r_coef(j, i)*(1._dp-alpha)+vals
                      END DO
                      END DO
 
@@ -1841,10 +1843,13 @@ CONTAINS
       IF (rho_g(1)%pw%pw_grid%have_g0) ig1 = 2
       DO ig = ig1, mixing_store%ig_max
          mixing_store%kerker_factor(ig) = MAX(g2(ig)/(g2(ig)+beta*beta), kmin)
-         mixing_store%special_metric(ig) = 1.0_dp+50.0_dp/8.0_dp*(1.0_dp+ &
-                                        COS(g_vec(1, ig))+COS(g_vec(2, ig))+COS(g_vec(3, ig))+COS(g_vec(1, ig))*COS(g_vec(2, ig))+ &
-                                                          COS(g_vec(2, ig))*COS(g_vec(3, ig))+COS(g_vec(1, ig))*COS(g_vec(3, ig))+ &
-                                                                  COS(g_vec(1, ig))*COS(g_vec(2, ig))*COS(g_vec(3, ig)))
+         mixing_store%special_metric(ig) = &
+            1.0_dp+50.0_dp/8.0_dp*( &
+            1.0_dp+COS(g_vec(1, ig))+COS(g_vec(2, ig))+COS(g_vec(3, ig))+ &
+            COS(g_vec(1, ig))*COS(g_vec(2, ig))+ &
+            COS(g_vec(2, ig))*COS(g_vec(3, ig))+ &
+            COS(g_vec(1, ig))*COS(g_vec(3, ig))+ &
+            COS(g_vec(1, ig))*COS(g_vec(2, ig))*COS(g_vec(3, ig)))
       END DO
 
       nbuffer = mixing_store%nbuffer

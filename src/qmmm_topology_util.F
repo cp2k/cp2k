@@ -71,10 +71,10 @@ CONTAINS
                             .AND. (MINVAL(qmmm_env%qm_atom_index) > 0)
       CPASSERT(qmmm_index_in_range)
       DO iatm = 1, SIZE(qmmm_env%qm_atom_index)
-         topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm)) = str2id(s2s("_QM_"// &
-                                                         TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm))))))
-         topology%atom_info%id_resname(qmmm_env%qm_atom_index(iatm)) = str2id(s2s("_QM_"// &
-                                                         TRIM(id2str(topology%atom_info%id_resname(qmmm_env%qm_atom_index(iatm))))))
+         topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm)) = &
+            str2id(s2s("_QM_"//TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%qm_atom_index(iatm))))))
+         topology%atom_info%id_resname(qmmm_env%qm_atom_index(iatm)) = &
+            str2id(s2s("_QM_"//TRIM(id2str(topology%atom_info%id_resname(qmmm_env%qm_atom_index(iatm))))))
       END DO
       !
       ! Modify type for MM link atoms
@@ -84,10 +84,10 @@ CONTAINS
             prefix_lnk = "_LNK000"
             WRITE (prefix_lnk(5:), '(I20)') iatm
             CALL compress(prefix_lnk, .TRUE.)
-            topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm)) = str2id(s2s(TRIM(prefix_lnk)// &
-                                                         TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm))))))
-            topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm)) = str2id(s2s(TRIM(prefix_lnk)// &
-                                                         TRIM(id2str(topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm))))))
+            topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm)) = &
+               str2id(s2s(TRIM(prefix_lnk)//TRIM(id2str(topology%atom_info%id_atmname(qmmm_env%mm_link_atoms(iatm))))))
+            topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm)) = &
+               str2id(s2s(TRIM(prefix_lnk)//TRIM(id2str(topology%atom_info%id_resname(qmmm_env%mm_link_atoms(iatm))))))
          END DO
       END IF
       !

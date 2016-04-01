@@ -139,9 +139,10 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "lagrange_multipliers", &
-                                     description="Prints out the lagrange multipliers of the specified constraints during an MD.", &
-                                       print_level=high_print_level, filename="")
+      CALL cp_print_key_section_create( &
+         print_key, "lagrange_multipliers", &
+         description="Prints out the lagrange multipliers of the specified constraints during an MD.", &
+         print_level=high_print_level, filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -389,28 +390,30 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MM_SUBSYS", &
-                          variants=(/"PROTEIN"/), &
-                          description="In a QM/MM run all  MM atoms are fixed according to the argument.", &
-                          usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
-                          enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
-                          enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
-                          enum_desc=s2a("fix nothing", &
-                                        "only the MM atoms itself", &
-                                 "the full molecule/residue that contains a MM atom (i.e. some QM atoms might be fixed as well)"), &
-                          default_i_val=do_constr_none, repeats=.FALSE.)
+      CALL keyword_create( &
+         keyword, name="MM_SUBSYS", &
+         variants=(/"PROTEIN"/), &
+         description="In a QM/MM run all  MM atoms are fixed according to the argument.", &
+         usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
+         enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
+         enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
+         enum_desc=s2a("fix nothing", &
+                       "only the MM atoms itself", &
+                       "the full molecule/residue that contains a MM atom (i.e. some QM atoms might be fixed as well)"), &
+         default_i_val=do_constr_none, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="QM_SUBSYS", &
-                          description="In a QM/MM run all QM atoms are fixed according to the argument.", &
-                          usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
-                          enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
-                          enum_desc=s2a("fix nothing", &
-                                        "only the QM atoms itself", &
-                                 "the full molecule/residue that contains a QM atom (i.e. some MM atoms might be fixed as well)"), &
-                          enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
-                          default_i_val=do_constr_none, repeats=.FALSE.)
+      CALL keyword_create( &
+         keyword, name="QM_SUBSYS", &
+         description="In a QM/MM run all QM atoms are fixed according to the argument.", &
+         usage="QM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
+         enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
+         enum_desc=s2a("fix nothing", &
+                       "only the QM atoms itself", &
+                       "the full molecule/residue that contains a QM atom (i.e. some MM atoms might be fixed as well)"), &
+         enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
+         default_i_val=do_constr_none, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

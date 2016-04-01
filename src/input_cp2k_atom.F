@@ -229,9 +229,10 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FIT_DENSITY", &
-                                     description="Fit the total electronic density to a linear combination of Gaussian functions", &
-                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL cp_print_key_section_create( &
+         print_key, "FIT_DENSITY", &
+         description="Fit the total electronic density to a linear combination of Gaussian functions", &
+         print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, name="NUM_GTO", &
                           description="Number of Gaussian type functions for density fit", &
                           usage="NUM_GTO integer ", type_of_var=integer_t, &

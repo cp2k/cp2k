@@ -792,7 +792,8 @@ CONTAINS
       IF (calculate_forces) THEN
          nforce = 0
          DO i = 1, SIZE(force)
-        force(i)%ch_pulay(:, :) = force(i)%ch_pulay(:, :)*full_scaling+store_forces(1:3, nforce+1:nforce+SIZE(force(i)%ch_pulay, 2))
+            force(i)%ch_pulay(:, :) = force(i)%ch_pulay(:, :)*full_scaling+ &
+                                      store_forces(1:3, nforce+1:nforce+SIZE(force(i)%ch_pulay, 2))
             nforce = nforce+SIZE(force(i)%ch_pulay, 2)
          ENDDO
       ENDIF

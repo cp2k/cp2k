@@ -2179,7 +2179,8 @@ CONTAINS
                                            exp_min_val, nswapmoves, &
                                            weight_old, start_atom_swap, nunits_tot(box_number), nunits, nunits(molecule_type), &
                                            mass(:, molecule_type), ldum, rdum, old_energy, &
-                                   ionode, .TRUE., mol_type(start_mol:end_mol), nchains(:, box_number), source, group, rng_stream, &
+                                           ionode, .TRUE., mol_type(start_mol:end_mol), nchains(:, box_number), &
+                                           source, group, rng_stream, &
                                            avbmc_atom=avbmc_atom(molecule_type), &
                                            rmin=avbmc_rmin(molecule_type), rmax=avbmc_rmax(molecule_type), move_type='out', &
                                            target_atom=target_atom)
@@ -2191,7 +2192,8 @@ CONTAINS
                                            exp_min_val, nswapmoves, &
                                            weight_old, start_atom_swap, nunits_tot(box_number), nunits, nunits(molecule_type), &
                                            mass(:, molecule_type), ldum, rdum, old_energy, &
-                                   ionode, .TRUE., mol_type(start_mol:end_mol), nchains(:, box_number), source, group, rng_stream, &
+                                           ionode, .TRUE., mol_type(start_mol:end_mol), nchains(:, box_number), &
+                                           source, group, rng_stream, &
                                            avbmc_atom=avbmc_atom(molecule_type), &
                                            rmin=avbmc_rmin(molecule_type), rmax=avbmc_rmax(molecule_type), move_type='in', &
                                            target_atom=target_atom)
@@ -2203,7 +2205,8 @@ CONTAINS
                                         exp_min_val, nswapmoves, &
                                         weight_new, start_atom_swap, nunits_tot(box_number), nunits, nunits(molecule_type), &
                                         mass(:, molecule_type), loverlap, new_energy, old_energy, &
-                                  ionode, .FALSE., mol_type(start_mol:end_mol), nchains(:, box_number), source, group, rng_stream, &
+                                        ionode, .FALSE., mol_type(start_mol:end_mol), nchains(:, box_number), &
+                                        source, group, rng_stream, &
                                         avbmc_atom=avbmc_atom(molecule_type), &
                                         rmin=avbmc_rmin(molecule_type), rmax=avbmc_rmax(molecule_type), move_type=move_type, &
                                         target_atom=target_atom)

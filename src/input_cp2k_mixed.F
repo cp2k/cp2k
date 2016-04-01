@@ -66,23 +66,24 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
-      CALL keyword_create(keyword, name="MIXING_TYPE", &
-                          description="The type of mixing to be employed", &
-                          usage="MIXING_TYPE LINEAR_COMBINATION", &
-                          default_i_val=mix_linear_combination, &
-                          enum_c_vals=s2a("LINEAR_COMBINATION", &
-                                          "MINIMUM", &
-                                          "COUPLED", &
-                                          "RESTRAINT", &
-                                          "GENMIX"), &
-                          enum_desc=s2a("Linear combination of force envs (support only 2 force_evals)", &
-                                        "Use the force env with the minimum energy (support only 2 force_evals)", &
-                                        "Consider the force envs as a two state system with a given"// &
-                                        " coupling matrix element (support only 2 force_evals)", &
-                                        "Use the difference between the energy of the force envs as a"// &
-                                        " restraint on the first (support only 2 force_evals)", &
-                                       "Defines a user-driven generica coupling (support for an unlimited number of force_eval)"), &
-                          enum_i_vals=(/mix_linear_combination, mix_minimum, mix_coupled, mix_restrained, mix_generic/))
+      CALL keyword_create( &
+         keyword, name="MIXING_TYPE", &
+         description="The type of mixing to be employed", &
+         usage="MIXING_TYPE LINEAR_COMBINATION", &
+         default_i_val=mix_linear_combination, &
+         enum_c_vals=s2a("LINEAR_COMBINATION", &
+                         "MINIMUM", &
+                         "COUPLED", &
+                         "RESTRAINT", &
+                         "GENMIX"), &
+         enum_desc=s2a("Linear combination of force envs (support only 2 force_evals)", &
+                       "Use the force env with the minimum energy (support only 2 force_evals)", &
+                       "Consider the force envs as a two state system with a given"// &
+                       " coupling matrix element (support only 2 force_evals)", &
+                       "Use the difference between the energy of the force envs as a"// &
+                       " restraint on the first (support only 2 force_evals)", &
+                       "Defines a user-driven generica coupling (support for an unlimited number of force_eval)"), &
+         enum_i_vals=(/mix_linear_combination, mix_minimum, mix_coupled, mix_restrained, mix_generic/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -241,12 +242,13 @@ CONTAINS
                           "needs to be provided as parameter)", &
                           n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="DEFINE_FRAGMENTS", &
-                          description="Specify the fragments definition of the force_eval through the fragments of the"// &
-                          " force_eval_mixed. This avoids the pedantic definition of the fragments for the force_eval,"// &
-                          " assuming the order of the fragments for the specified force_eval is the same as the sequence "// &
-                         " of integers provided. Easier to USE should be preferred to the specification of the single fragments.", &
-                          usage="DEFINE_FRAGMENTS <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1)
+      CALL keyword_create( &
+         keyword, name="DEFINE_FRAGMENTS", &
+         description="Specify the fragments definition of the force_eval through the fragments of the"// &
+         " force_eval_mixed. This avoids the pedantic definition of the fragments for the force_eval,"// &
+         " assuming the order of the fragments for the specified force_eval is the same as the sequence "// &
+         " of integers provided. Easier to USE should be preferred to the specification of the single fragments.", &
+         usage="DEFINE_FRAGMENTS <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(sub2section, keyword)
       CALL keyword_release(keyword)
 

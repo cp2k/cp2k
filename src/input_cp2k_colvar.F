@@ -1209,10 +1209,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WEIGHTS", &
-                        description="Specifies the weights for a weighted geometrical center. Default is 1/natoms for every atom", &
-                          usage="WEIGHTS {real} {real} {real} {real}", &
-                          n_var=-1, type_of_var=real_t, repeats=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="WEIGHTS", &
+         description="Specifies the weights for a weighted geometrical center. Default is 1/natoms for every atom", &
+         usage="WEIGHTS {real} {real} {real} {real}", &
+         n_var=-1, type_of_var=real_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1936,13 +1937,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LAMBDA", &
-                         description="Specifies the exponent of the Gaussian used in the integral representation of the colvar."// &
-                          "The shape of the space orthogonal to the reaction path is defined by this choice. "// &
-                          "In the limit of large values, it is given by the plane orthogonal to the path."// &
-                          "In practice, modest values are required for stable numerical integration.", &
-                          usage="LAMBDA {real}", &
-                          type_of_var=real_t, default_r_val=5.0_dp)
+      CALL keyword_create( &
+         keyword, name="LAMBDA", &
+         description="Specifies the exponent of the Gaussian used in the integral representation of the colvar."// &
+         "The shape of the space orthogonal to the reaction path is defined by this choice. "// &
+         "In the limit of large values, it is given by the plane orthogonal to the path."// &
+         "In practice, modest values are required for stable numerical integration.", &
+         usage="LAMBDA {real}", &
+         type_of_var=real_t, default_r_val=5.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1961,11 +1963,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, name="MAP", &
-                       description="Activating this print key will print once a file with the values of the FUNCTION on a grid "// &
-                                       "of COLVAR values in a specified range. "// &
-                  "GRID_SPACING and RANGE for every COLVAR has to be specified again in the same order as they are in the input.", &
-                                       print_level=high_print_level, filename="PATH")
+      CALL cp_print_key_section_create( &
+         print_key, name="MAP", &
+         description="Activating this print key will print once a file with the values of the FUNCTION on a grid "// &
+         "of COLVAR values in a specified range. "// &
+         "GRID_SPACING and RANGE for every COLVAR has to be specified again in the same order as they are in the input.", &
+         print_level=high_print_level, filename="PATH")
 
       CALL keyword_create(keyword, name="RANGE", &
                           description="The range of of the grid of the COLVAR.", &

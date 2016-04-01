@@ -305,9 +305,10 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "GRID_INFORMATION", &
-                                      description="Controls the printing of information regarding the PW and RS grid structures.", &
-                                       print_level=medium_print_level, filename="__STD_OUT__")
+      CALL cp_print_key_section_create( &
+         print_key, "GRID_INFORMATION", &
+         description="Controls the printing of information regarding the PW and RS grid structures.", &
+         print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

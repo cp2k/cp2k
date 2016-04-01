@@ -1466,13 +1466,15 @@ CONTAINS
                         IF (.NOT. buffer_overflow .AND. .NOT. geometry_did_change) THEN
                            nints = current_counter
                            IF (.NOT. use_disk_storage) THEN
-                              CALL hfx_get_single_cache_element(estimate_to_store_int, 6, &
-                                                             maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                                                use_disk_storage)
+                              CALL hfx_get_single_cache_element( &
+                                 estimate_to_store_int, 6, &
+                                 maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
+                                 use_disk_storage)
                            ELSE
-                              CALL hfx_get_single_cache_element(estimate_to_store_int, 6, &
-                                              maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
-                                                                use_disk_storage)
+                              CALL hfx_get_single_cache_element( &
+                                 estimate_to_store_int, 6, &
+                                 maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
+                                 use_disk_storage)
                            END IF
                            spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
                            IF (spherical_estimate*pmax_entry < eps_schwarz) CYCLE
@@ -1550,13 +1552,15 @@ CONTAINS
                            IF (.NOT. buffer_overflow .AND. geometry_did_change) THEN
                               IF (cartesian_estimate < eps_schwarz) THEN
                                  IF (.NOT. use_disk_storage) THEN
-                                    CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                                             maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                                                      use_disk_storage, max_val_memory)
+                                    CALL hfx_add_single_cache_element( &
+                                       estimate_to_store_int, 6, &
+                                       maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
+                                       use_disk_storage, max_val_memory)
                                  ELSE
-                                    CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                              maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
-                                                                      use_disk_storage)
+                                    CALL hfx_add_single_cache_element( &
+                                       estimate_to_store_int, 6, &
+                                       maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
+                                       use_disk_storage)
                                  END IF
                               END IF
                            END IF
@@ -1575,13 +1579,15 @@ CONTAINS
 
                            IF (.NOT. buffer_overflow .AND. geometry_did_change) THEN
                               IF (.NOT. use_disk_storage) THEN
-                                 CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                                             maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                                                   use_disk_storage, max_val_memory)
+                                 CALL hfx_add_single_cache_element( &
+                                    estimate_to_store_int, 6, &
+                                    maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
+                                    use_disk_storage, max_val_memory)
                               ELSE
-                                 CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                              maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
-                                                                   use_disk_storage)
+                                 CALL hfx_add_single_cache_element( &
+                                    estimate_to_store_int, 6, &
+                                    maxval_cache_disk, maxval_container_disk, memory_parameter%actual_memory_usage_disk, &
+                                    use_disk_storage)
                               END IF
                            END IF
                            spherical_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
@@ -1631,43 +1637,48 @@ CONTAINS
                         END IF
                         !!!  DEBUG, print out primitive integrals and indices. Only works serial no OMP  !!!
                         IF (.FALSE.) THEN
-                           CALL print_integrals(iatom, jatom, katom, latom, shm_set_offset, shm_atomic_block_offset, &
-                                    iset, jset, kset, lset, nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), primitive_integrals)
+                           CALL print_integrals( &
+                              iatom, jatom, katom, latom, shm_set_offset, shm_atomic_block_offset, &
+                              iset, jset, kset, lset, nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), primitive_integrals)
                         ENDIF
                         IF (.NOT. is_anti_symmetric) THEN
                            !! Update Kohn-Sham matrix
-                           CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                   fac, symm_fac, full_density_alpha(:, 1), full_ks_alpha(:, 1), &
-                                                   primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
-                                                   kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
-                                               iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
-                                                   atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
+                           CALL update_fock_matrix( &
+                              nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                              fac, symm_fac, full_density_alpha(:, 1), full_ks_alpha(:, 1), &
+                              primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
+                              kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
+                              iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
+                              atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                            IF (.NOT. treat_lsd_in_core) THEN
                               IF (nspins == 2) THEN
-                                 CALL update_fock_matrix(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                         fac, symm_fac, full_density_beta(:, 1), full_ks_beta(:, 1), &
-                                                         primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
-                                                         kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
-                                               iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
-                                                         atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
+                                 CALL update_fock_matrix( &
+                                    nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                    fac, symm_fac, full_density_beta(:, 1), full_ks_beta(:, 1), &
+                                    primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
+                                    kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
+                                    iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
+                                    atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                               END IF
                            END IF
                         ELSE
                            !! Update Kohn-Sham matrix
-                           CALL update_fock_matrix_as(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                      fac, symm_fac, full_density_alpha(:, 1), full_ks_alpha(:, 1), &
-                                                      primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
-                                                      kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
-                                               iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
-                                                      atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
+                           CALL update_fock_matrix_as( &
+                              nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                              fac, symm_fac, full_density_alpha(:, 1), full_ks_alpha(:, 1), &
+                              primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
+                              kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
+                              iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
+                              atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                            IF (.NOT. treat_lsd_in_core) THEN
                               IF (nspins == 2) THEN
-                                 CALL update_fock_matrix_as(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
-                                                            fac, symm_fac, full_density_beta(:, 1), full_ks_beta(:, 1), &
-                                                            primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
-                                                            kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
-                                               iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
-                                                            atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
+                                 CALL update_fock_matrix_as( &
+                                    nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
+                                    fac, symm_fac, full_density_beta(:, 1), full_ks_beta(:, 1), &
+                                    primitive_integrals, pbd_buf, pbc_buf, pad_buf, pac_buf, kbd_buf, &
+                                    kbc_buf, kad_buf, kac_buf, iatom, jatom, katom, latom, &
+                                    iset, jset, kset, lset, offset_bd_set, offset_bc_set, offset_ad_set, offset_ac_set, &
+                                    atomic_offset_bd, atomic_offset_bc, atomic_offset_ad, atomic_offset_ac)
                               END IF
                            END IF
                         END IF

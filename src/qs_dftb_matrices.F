@@ -936,8 +936,9 @@ CONTAINS
 
                            indder = 2+2*i+j
                            dsblocks(indder)%block = 0.0_dp
-                           dsblocks(indder)%block = dsblocks(indder)%block+(dsblock+dsblockm- &
-                                                                  dsblock1(:, :, i)-dsblock1(:, :, j)+2.0_dp*sblock)/(2.0_dp*ddr**2)
+                           dsblocks(indder)%block = &
+                              dsblocks(indder)%block+( &
+                              dsblock+dsblockm-dsblock1(:, :, i)-dsblock1(:, :, j)+2.0_dp*sblock)/(2.0_dp*ddr**2)
                         END DO
                      END DO
                   END IF
@@ -1775,17 +1776,19 @@ CONTAINS
                      CALL build_mm_pot(qpot(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
                                        qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
                                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
-                     CALL build_mm_dpot(mcharge(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
-                                        qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, Forces_QM(:, iqm), &
-                                        rcutoff, particles_qm)
+                     CALL build_mm_dpot( &
+                        mcharge(iatom), 1, eta_a(0), qmmm_env%added_charges%potentials, &
+                        qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
+                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, Forces_QM(:, iqm), &
+                        rcutoff, particles_qm)
                      CALL build_mm_pot(qpot(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
                                        qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
                                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, rcutoff, particles_qm)
-                     CALL build_mm_dpot(mcharge(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
-                                        qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
-                                    qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, Forces_QM(:, iqm), &
-                                        rcutoff, particles_qm)
+                     CALL build_mm_dpot( &
+                        mcharge(iatom), 2, alpha, qmmm_env%added_charges%potentials, &
+                        qmmm_env%added_charges%added_particles, qmmm_env%added_charges%mm_atom_chrg, &
+                        qmmm_env%added_charges%mm_atom_index, mm_cell, iatom, Forces_added_charges, Forces_QM(:, iqm), &
+                        rcutoff, particles_qm)
                   END IF
                END DO
             END DO

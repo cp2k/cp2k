@@ -349,7 +349,8 @@ CONTAINS
                   diff = ABS(vxc_rho(ispin)%pw%cr3d(i, j, k)- &
                              vxc_rho2(ispin)%pw%cr3d(i, j, k))
                   IF (ii == 1) THEN
-                   PRINT*, "vxc", ispin, "=", vxc_rho(ispin)%pw%cr3d(i, j, k), "vs", vxc_rho2(ispin)%pw%cr3d(i, j, k), "diff=", diff
+                     PRINT*, "vxc", ispin, "=", vxc_rho(ispin)%pw%cr3d(i, j, k), &
+                        "vs", vxc_rho2(ispin)%pw%cr3d(i, j, k), "diff=", diff
                   END IF
                   IF (maxDiff < diff) THEN
                      maxDiff = diff
@@ -377,7 +378,8 @@ CONTAINS
                      diff = ABS(vxc_tau(ispin)%pw%cr3d(i, j, k)- &
                                 vxc_tau2(ispin)%pw%cr3d(i, j, k))
                      IF (ii == 1) THEN
-               PRINT*, "vxc_tau", ispin, "=", vxc_tau(ispin)%pw%cr3d(i, j, k), "vs", vxc_tau2(ispin)%pw%cr3d(i, j, k), "diff=", diff
+                        PRINT*, "vxc_tau", ispin, "=", vxc_tau(ispin)%pw%cr3d(i, j, k), &
+                           "vs", vxc_tau2(ispin)%pw%cr3d(i, j, k), "diff=", diff
                      END IF
                      IF (maxDiff < diff) THEN
                         maxDiff = diff

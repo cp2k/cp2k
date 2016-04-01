@@ -712,8 +712,9 @@ CONTAINS
                         EXIT
                      ENDIF
                   ENDDO
-                  IF (molecule_type == 0) CALL cp_abort(__LOCATION__, &
-                                               'Did not choose a molecule type to conf change...PMTRAION_MOL should not be all 0.0')
+                  IF (molecule_type == 0) CALL cp_abort( &
+                     __LOCATION__, &
+                     'Did not choose a molecule type to conf change...PMTRAION_MOL should not be all 0.0')
 
                   ! now pick a molecule, automatically rejecting the move if the
                   ! box is empty
@@ -769,8 +770,9 @@ CONTAINS
                         EXIT
                      ENDIF
                   ENDDO
-                  IF (molecule_type == 0) CALL cp_abort(__LOCATION__, &
-                                                  'Did not choose a molecule type to translate...PMTRANS_MOL should not be all 0.0')
+                  IF (molecule_type == 0) CALL cp_abort( &
+                     __LOCATION__, &
+                     'Did not choose a molecule type to translate...PMTRANS_MOL should not be all 0.0')
 
                   ! now pick a molecule of that type
                   IF (ionode) &
@@ -800,8 +802,9 @@ CONTAINS
                         EXIT
                      ENDIF
                   ENDDO
-                  IF (molecule_type == 0) CALL cp_abort(__LOCATION__, &
-                                                       'Did not choose a molecule type to rotate...PMROT_MOL should not be all 0.0')
+                  IF (molecule_type == 0) CALL cp_abort( &
+                     __LOCATION__, &
+                     'Did not choose a molecule type to rotate...PMROT_MOL should not be all 0.0')
 
                   IF (ionode) &
                      CALL find_mc_test_molecule(mc_molecule_info, &
@@ -1183,9 +1186,8 @@ CONTAINS
       virial_stepsize(2) = 0.1
       virial_stepsize(3) = 0.2
 
-      nbins = CEILING(virial_cutoffs(1)/virial_stepsize(1)+(virial_cutoffs(2)- &
-                                                            virial_cutoffs(1))/virial_stepsize(2)+(virial_cutoffs(3)- &
-                                                                                              virial_cutoffs(2))/virial_stepsize(3))
+      nbins = CEILING(virial_cutoffs(1)/virial_stepsize(1)+(virial_cutoffs(2)-virial_cutoffs(1))/ &
+                      virial_stepsize(2)+(virial_cutoffs(3)-virial_cutoffs(2))/virial_stepsize(3))
 
       ! figure out what the default write unit is
       iw = cp_logger_get_default_io_unit()

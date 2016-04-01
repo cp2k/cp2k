@@ -573,13 +573,11 @@ CONTAINS
             x1 = angstrom*0.5_dp*helium%cell_size
             ! 10.8 is in Kelvin, x1 needs to be in Angstrom,
             ! since 2.9673 is in Angstrom
-            helium%e_corr = (twopi* &
-                             helium%density/angstrom**3*10.8_dp*(544850.4_dp* &
-                                                                 EXP(-13.353384_dp*x1/2.9673_dp)*(2.9673_dp/13.353384_dp)**3* &
-                                                                 (2.0_dp+2.0_dp*13.353384_dp*x1/2.9673_dp+(13.353384_dp* &
-                                                                          x1/2.9673_dp)**2)-(((0.1781_dp/7.0_dp*(2.9673_dp/x1)**2+ &
-                                                                      0.4253785_dp/5.0_dp)*(2.9673_dp/x1)**2+1.3732412_dp/3.0_dp)* &
-                                                                                            (2.9673_dp/x1)**3)*2.9673_dp**3))/kelvin
+            helium%e_corr = (twopi*helium%density/angstrom**3*10.8_dp* &
+                             (544850.4_dp*EXP(-13.353384_dp*x1/2.9673_dp)*(2.9673_dp/13.353384_dp)**3* &
+                              (2.0_dp+2.0_dp*13.353384_dp*x1/2.9673_dp+(13.353384_dp*x1/2.9673_dp)**2)- &
+                              (((0.1781_dp/7.0_dp*(2.9673_dp/x1)**2+0.4253785_dp/5.0_dp)*(2.9673_dp/x1)**2+ &
+                                1.3732412_dp/3.0_dp)*(2.9673_dp/x1)**3)*2.9673_dp**3))/kelvin
          END IF
       END IF
 

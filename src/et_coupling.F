@@ -656,8 +656,8 @@ CONTAINS
                            IF (iatom .NE. jatom) THEN
                               d_sum_Pm_dR(:, jatom) = d_sum_Pm_dR(:, jatom)+dP_i_dRj(:, iatom, jatom)
 
-                          IF (is_constraint(iatom)) d_sum_const_dR(:, jatom) = d_sum_const_dR(:, jatom)+dP_i_dRj(:, iatom, jatom)* &
-                                                                                   coefficients(iatom)
+                              IF (is_constraint(iatom)) d_sum_const_dR(:, jatom) = &
+                                 d_sum_const_dR(:, jatom)+dP_i_dRj(:, iatom, jatom)*coefficients(iatom)
                            END IF
                         END DO
                      ELSE

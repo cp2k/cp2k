@@ -237,10 +237,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(print_key, "GRID_INFORMATION", &
-                                      description="Controls the printing of information regarding the PW and RS grid structures"// &
-                                       " (ONLY for TEST run).", &
-                                       print_level=medium_print_level, filename="__STD_OUT__")
+      CALL cp_print_key_section_create( &
+         print_key, "GRID_INFORMATION", &
+         description="Controls the printing of information regarding the PW and RS grid structures"// &
+         " (ONLY for TEST run).", &
+         print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -632,11 +633,12 @@ CONTAINS
                           repeats=.FALSE.)
       NULLIFY (keyword, print_key)
 
-      CALL keyword_create(keyword, name="MASTER_SLAVE", &
-                description="If a master-slave setup should be employed, in which one process is used to distribute the tasks. "// &
-                          "This is most useful to load-balance if not all jobs have the same length, "// &
-                          "and a lot of CPUs/groups are availabe.", &
-                          usage="MASTER_SLAVE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="MASTER_SLAVE", &
+         description="If a master-slave setup should be employed, in which one process is used to distribute the tasks. "// &
+         "This is most useful to load-balance if not all jobs have the same length, "// &
+         "and a lot of CPUs/groups are availabe.", &
+         usage="MASTER_SLAVE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -673,15 +675,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CYCLE", &
-               description="If farming should process all jobs in a cyclic way, stopping only if MAX_JOBS_PER_GROUP is exceeded.", &
-                          usage="CYCLE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="CYCLE", &
+         description="If farming should process all jobs in a cyclic way, stopping only if MAX_JOBS_PER_GROUP is exceeded.", &
+         usage="CYCLE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="WAIT_TIME", &
+      CALL keyword_create( &
+         keyword, name="WAIT_TIME", &
          description="Time to wait [s] for a new task if no task is currently available, make this zero if no clock is available", &
-                          usage="WAIT_TIME 0.1", default_r_val=0.5_dp)
+         usage="WAIT_TIME 0.1", default_r_val=0.5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -704,10 +708,11 @@ CONTAINS
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OUTPUT_FILE_NAME", &
-                description="the filename of the output file, if not specified will use the project name in the &GLOBAL section.", &
-                          usage="OUTPUT_FILE_NAME my_input.inp", &
-                          default_lc_val="")
+      CALL keyword_create( &
+         keyword, name="OUTPUT_FILE_NAME", &
+         description="the filename of the output file, if not specified will use the project name in the &GLOBAL section.", &
+         usage="OUTPUT_FILE_NAME my_input.inp", &
+         default_lc_val="")
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
@@ -719,19 +724,20 @@ CONTAINS
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DEPENDENCIES", &
-                          description="specifies a list of JOB_IDs on which the current job depends. "// &
-                          "The current job will not be executed before all the dependencies have finished. "// &
-                          "The keyword requires a MASTER_SLAVE farming run. "// &
-                          "Beyond the default case, some special cases might arise: "// &
-                          "1) circular dependencies will lead to a deadlock. "// &
-                          "2) This keyword is not compatible with CYCLE. "// &
-                   "3) MAX_JOBS_PER_GROUP is ignored (though only a total of MAX_JOBS_PER_GROUP*NGROUPS jobs will be executed) "// &
-                        "4) dependencies on jobs that will not be executed (due to RESTART or MAX_JOBS_PER_GROUP) are ignored. "// &
-                          "Additionally, note that, on some file systems, "// &
-                          " output (restart) files might not be immediately available on all compute nodes,"// &
-                          "potentially resulting in unexpected failures.", &
-                          usage="DEPENDENCIES 13 1 7", type_of_var=integer_t, n_var=-1)
+      CALL keyword_create( &
+         keyword, name="DEPENDENCIES", &
+         description="specifies a list of JOB_IDs on which the current job depends. "// &
+         "The current job will not be executed before all the dependencies have finished. "// &
+         "The keyword requires a MASTER_SLAVE farming run. "// &
+         "Beyond the default case, some special cases might arise: "// &
+         "1) circular dependencies will lead to a deadlock. "// &
+         "2) This keyword is not compatible with CYCLE. "// &
+         "3) MAX_JOBS_PER_GROUP is ignored (though only a total of MAX_JOBS_PER_GROUP*NGROUPS jobs will be executed) "// &
+         "4) dependencies on jobs that will not be executed (due to RESTART or MAX_JOBS_PER_GROUP) are ignored. "// &
+         "Additionally, note that, on some file systems, "// &
+         " output (restart) files might not be immediately available on all compute nodes,"// &
+         "potentially resulting in unexpected failures.", &
+         usage="DEPENDENCIES 13 1 7", type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(sub_section, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, sub_section)

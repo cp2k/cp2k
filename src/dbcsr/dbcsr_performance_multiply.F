@@ -647,7 +647,8 @@ CONTAINS
             ", ", dbcsr_get_matrix_type(m_b), &
             ", ", dbcsr_get_matrix_type(m_c), &
             ")"
-  WRITE (io_unit, '(T4,3(A,I6,A,I6),A)') "matrix sizes A(", r_a, " x", c_a, "), B(", r_b, " x", c_b, ") and C(", r_c, " x", c_c, ")"
+         WRITE (io_unit, '(T4,3(A,I6,A,I6),A)') &
+            "matrix sizes A(", r_a, " x", c_a, "), B(", r_b, " x", c_b, ") and C(", r_c, " x", c_c, ")"
          WRITE (io_unit, '(T4,A,I5)') 'numnodes        = ', numnodes
          WRITE (io_unit, '(T4,A,I5)') 'nthreads        = ', nthreads
          WRITE (io_unit, '(T4,A,E26.15)') 'checksum(A)     = ', chksum_a

@@ -1950,8 +1950,9 @@ CONTAINS
             CALL cp_fm_set_all(residual, 0.0_dp)
             IF (.NOT. alpha_beta) THEN
                DO iiB = 1, iiter
-                  residual%local_data(1:nrow_local, 1:ncol_local) = residual%local_data(1:nrow_local, 1:ncol_local)+ &
-                                                               b_small(iiB, 1)*Ax(iiB)%matrix%local_data(1:nrow_local, 1:ncol_local)
+                  residual%local_data(1:nrow_local, 1:ncol_local) = &
+                     residual%local_data(1:nrow_local, 1:ncol_local)+ &
+                     b_small(iiB, 1)*Ax(iiB)%matrix%local_data(1:nrow_local, 1:ncol_local)
                END DO
                residual%local_data(1:nrow_local, 1:ncol_local) = residual%local_data(1:nrow_local, 1:ncol_local)- &
                                                                  L_jb%local_data(1:nrow_local, 1:ncol_local)
@@ -2020,8 +2021,9 @@ CONTAINS
                                                           b_small(iiter, 1)*xn(iiter)%matrix%local_data(1:nrow_local, 1:ncol_local)
             ! The same for beta
             IF (alpha_beta) THEN
-               P_ia_beta%local_data(1:nrow_local_b, 1:ncol_local_b) = P_ia_beta%local_data(1:nrow_local_b, 1:ncol_local_b)+ &
-                                                     b_small(iiter, 1)*xn_b(iiter)%matrix%local_data(1:nrow_local_b, 1:ncol_local_b)
+               P_ia_beta%local_data(1:nrow_local_b, 1:ncol_local_b) = &
+                  P_ia_beta%local_data(1:nrow_local_b, 1:ncol_local_b)+ &
+                  b_small(iiter, 1)*xn_b(iiter)%matrix%local_data(1:nrow_local_b, 1:ncol_local_b)
             ENDIF
          END DO
 

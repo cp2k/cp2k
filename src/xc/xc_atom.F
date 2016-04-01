@@ -255,9 +255,12 @@ CONTAINS
                      DO ia = 1, na
                         DO idir = 1, 3
                            IF (rho_set%norm_drho(ia, ir, 1) > drho_cutoff) THEN
-                              vxg(idir, ia, ir, 1:2) = vxg(idir, ia, ir, 1:2)+ &
-                                                      (rho_set%drhoa(idir)%array(ia, ir, 1)+rho_set%drhob(idir)%array(ia, ir, 1))* &
-                                            deriv_data(ia, ir, 1)*w(ia, ir)/rho_set%norm_drho(ia, ir, 1)*my_adiabatic_rescale_factor
+                              vxg(idir, ia, ir, 1:2) = &
+                                 vxg(idir, ia, ir, 1:2)+( &
+                                 rho_set%drhoa(idir)%array(ia, ir, 1)+ &
+                                 rho_set%drhob(idir)%array(ia, ir, 1))* &
+                                 deriv_data(ia, ir, 1)*w(ia, ir)/rho_set%norm_drho(ia, ir, 1)* &
+                                 my_adiabatic_rescale_factor
                            END IF
                         END DO
                      END DO

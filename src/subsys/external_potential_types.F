@@ -1738,7 +1738,8 @@ CONTAINS
                               END DO
                               ! add to input section
                               irep = irep+1
-                           WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') potential%alpha_nlcc(ipot), potential%nct_nlcc(ipot), &
+                              WRITE (line_att, '(E24.16,1X,I0,100(1X,E24.16))') &
+                                 potential%alpha_nlcc(ipot), potential%nct_nlcc(ipot), &
                                  tmp_vals(1:potential%nct_nlcc(ipot))
                               CALL section_vals_val_set(potential_section, "_DEFAULT_KEYWORD_", i_rep_val=irep, &
                                                         c_val=TRIM(line_att))

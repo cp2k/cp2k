@@ -766,9 +766,11 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(T2,A23,4I14)") "MEMORY| Buffers        ", Buffers, Buffers_min, Buffers_max, Buffers_avr
          WRITE (UNIT=output_unit, FMT="(T2,A23,4I14)") "MEMORY| Cached         ", Cached, Cached_min, Cached_max, Cached_avr
          WRITE (UNIT=output_unit, FMT="(T2,A23,4I14)") "MEMORY| Slab           ", Slab, Slab_min, Slab_max, Slab_avr
-        WRITE (UNIT=output_unit, FMT="(T2,A23,4I14)") "MEMORY| SReclaimable   ", SReclaimable, SReclaimable_min, SReclaimable_max, &
+         WRITE (UNIT=output_unit, FMT="(T2,A23,4I14)") &
+            "MEMORY| SReclaimable   ", SReclaimable, SReclaimable_min, SReclaimable_max, &
             SReclaimable_avr
-     WRITE (UNIT=output_unit, FMT="(T2,A23,4I14)") "MEMORY| MemLikelyFree  ", MemLikelyFree, MemLikelyFree_min, MemLikelyFree_max, &
+         WRITE (UNIT=output_unit, FMT="(T2,A23,4I14)") &
+            "MEMORY| MemLikelyFree  ", MemLikelyFree, MemLikelyFree_min, MemLikelyFree_max, &
             MemLikelyFree_avr
          WRITE (UNIT=output_unit, FMT='()')
 

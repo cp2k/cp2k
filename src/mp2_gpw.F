@@ -386,19 +386,20 @@ CONTAINS
          ! RI-GPW integrals (same stuff for both RPA and MP2)
          IF (nspins == 2) THEN
             ! open shell case (RI) here the (ia|K) integrals are computed for both the alpha and beta components
-            CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, ends_array, ends_B_virtual, sizes_array, &
-                                       sizes_B_virtual, starts_array, starts_B_virtual, &
-                                       dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-                                       atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, rho_r, rho_g, pot_g, &
-                                       mat_munu, sab_orb_sub, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
-                                       mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
-                                       mp2_env%mp2_gpw%eps_filter, unit_nr, &
-                                       mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
-                                       starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
-                                      BIb_C_beta, BIb_C_gw_beta, ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
-                                       homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, mo_coeff_all_beta, mo_coeff_gw_beta, &
-                                       do_im_time=do_im_time, mat_B_munu=mat_B_munu, ri_metric=ri_metric, &
-                                       ri_metric_gw=ri_metric_gw, my_Lrows=my_Lrows)
+            CALL mp2_ri_gpw_compute_in( &
+               BIb_C, BIb_C_gw, ends_array, ends_B_virtual, sizes_array, &
+               sizes_B_virtual, starts_array, starts_B_virtual, &
+               dimen_RI, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, rho_r, rho_g, pot_g, &
+               mat_munu, sab_orb_sub, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
+               mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, &
+               mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               mp2_env%mp2_memory, mp2_env%calc_PQ_cond_num, calc_forces, blacs_env_sub, my_do_gw, &
+               starts_B_all, sizes_B_all, ends_B_all, gw_corr_lev_occ, gw_corr_lev_virt, &
+               BIb_C_beta, BIb_C_gw_beta, ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, &
+               homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, mo_coeff_all_beta, mo_coeff_gw_beta, &
+               do_im_time=do_im_time, mat_B_munu=mat_B_munu, ri_metric=ri_metric, &
+               ri_metric_gw=ri_metric_gw, my_Lrows=my_Lrows)
          ELSE
             ! closed shell case (RI)
             CALL mp2_ri_gpw_compute_in(BIb_C, BIb_C_gw, ends_array, ends_B_virtual, sizes_array, &
@@ -420,29 +421,32 @@ CONTAINS
             ! alpha-alpha and alpha-beta components
             IF (unit_nr > 0) WRITE (unit_nr, *)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Alpha (ia|'
-         CALL mp2_gpw_compute(Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-                                 atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, rho_r, rho_g, pot_g, &
-                                 mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
-                                 mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
-                                 mp2_env%mp2_memory, calc_ex, blacs_env_sub, &
-                                 homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, Eigenval_beta, Emp2_AB)
+            CALL mp2_gpw_compute( &
+               Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, rho_r, rho_g, pot_g, &
+               mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
+               mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               mp2_env%mp2_memory, calc_ex, blacs_env_sub, &
+               homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, Eigenval_beta, Emp2_AB)
 
             ! beta-beta component
             IF (unit_nr > 0) WRITE (unit_nr, *)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A)') 'Beta (ia|'
-CALL mp2_gpw_compute(Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-                                 atomic_kind_set, qs_kind_set, mo_coeff_beta, Eigenval_beta, nmo, homo_beta, rho_r, rho_g, pot_g, &
-                                 mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
-                                 mo_coeff_o_beta, mo_coeff_v_beta, mp2_env%mp2_gpw%eps_filter, unit_nr, &
-                                 mp2_env%mp2_memory, calc_ex, blacs_env_sub)
+            CALL mp2_gpw_compute( &
+               Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff_beta, Eigenval_beta, nmo, homo_beta, rho_r, rho_g, pot_g, &
+               mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
+               mo_coeff_o_beta, mo_coeff_v_beta, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               mp2_env%mp2_memory, calc_ex, blacs_env_sub)
 
          ELSE
             ! closed shell case
-         CALL mp2_gpw_compute(Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
-                                 atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, rho_r, rho_g, pot_g, &
-                                 mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
-                                 mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
-                                 mp2_env%mp2_memory, calc_ex, blacs_env_sub)
+            CALL mp2_gpw_compute( &
+               Emp2, Emp2_Cou, Emp2_EX, qs_env, para_env, para_env_sub, color_sub, dft_control, cell, particle_set, &
+               atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, rho_r, rho_g, pot_g, &
+               mat_munu, pw_env_sub, poisson_env, auxbas_pw_pool, task_list_sub, &
+               mo_coeff_o, mo_coeff_v, mp2_env%mp2_gpw%eps_filter, unit_nr, &
+               mp2_env%mp2_memory, calc_ex, blacs_env_sub)
          END IF
       END IF
 
@@ -571,30 +575,34 @@ CALL mp2_gpw_compute(Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_en
             ! RI-MP2-GPW compute energy
             IF (nspins == 2) THEN
                ! alpha-alpha component
-               CALL mp2_ri_gpw_compute_en(Emp2, Emp2_Cou, Emp2_EX, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
-                                         ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
-                                          Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex, &
-                                          open_shell_SS=.TRUE.)
+               CALL mp2_ri_gpw_compute_en( &
+                  Emp2, Emp2_Cou, Emp2_EX, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
+                  ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
+                  Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex, &
+                  open_shell_SS=.TRUE.)
 
                ! beta-beta component
-              CALL mp2_ri_gpw_compute_en(Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, BIb_C_beta, mp2_env, para_env, para_env_sub, color_sub, &
-                                          ends_array, ends_B_virtual_beta, sizes_array, &
-                                          sizes_B_virtual_beta, starts_array, starts_B_virtual_beta, &
-                                          Eigenval_beta, nmo, homo_beta, dimen_RI, unit_nr, calc_forces, calc_ex, &
-                                          open_shell_SS=.TRUE.)
+               CALL mp2_ri_gpw_compute_en( &
+                  Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, BIb_C_beta, mp2_env, para_env, para_env_sub, color_sub, &
+                  ends_array, ends_B_virtual_beta, sizes_array, &
+                  sizes_B_virtual_beta, starts_array, starts_B_virtual_beta, &
+                  Eigenval_beta, nmo, homo_beta, dimen_RI, unit_nr, calc_forces, calc_ex, &
+                  open_shell_SS=.TRUE.)
 
                ! alpha-beta case
-               CALL mp2_ri_gpw_compute_en(Emp2_d_AB, Emp2_AB, Emp2_d2_AB, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
-                                         ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
-                                          Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, .FALSE., &
-                                          .FALSE., BIb_C_beta, homo_beta, Eigenval_beta, &
-                                          ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta)
+               CALL mp2_ri_gpw_compute_en( &
+                  Emp2_d_AB, Emp2_AB, Emp2_d2_AB, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
+                  ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
+                  Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, .FALSE., &
+                  .FALSE., BIb_C_beta, homo_beta, Eigenval_beta, &
+                  ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta)
 
             ELSE
                ! closed shell case
-               CALL mp2_ri_gpw_compute_en(Emp2, Emp2_Cou, Emp2_EX, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
-                                         ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
-                                          Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
+               CALL mp2_ri_gpw_compute_en( &
+                  Emp2, Emp2_Cou, Emp2_EX, BIb_C, mp2_env, para_env, para_env_sub, color_sub, &
+                  ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, starts_array, starts_B_virtual, &
+                  Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
             END IF
             ! if we need forces time to calculate the MP2 non-separable contribution
             ! and start coputing the Largrangian
@@ -806,7 +814,8 @@ CALL mp2_gpw_compute(Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_en
                               cell, particle_set, atomic_kind_set, qs_kind_set, mo_coeff, Eigenval, nmo, homo, &
                               rho_r, rho_g, pot_g, mat_munu, pw_env_sub, &
                               poisson_env, auxbas_pw_pool, task_list_sub, mo_coeff_o, mo_coeff_v, eps_filter, unit_nr, &
-                            mp2_memory, calc_ex, blacs_env_sub, homo_beta, mo_coeff_o_beta, mo_coeff_v_beta, Eigenval_beta, Emp2_AB)
+                              mp2_memory, calc_ex, blacs_env_sub, homo_beta, mo_coeff_o_beta, &
+                              mo_coeff_v_beta, Eigenval_beta, Emp2_AB)
 
       REAL(KIND=dp)                                      :: Emp2, Emp2_Cou, Emp2_EX
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -1196,7 +1205,8 @@ CALL mp2_gpw_compute(Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_en
             ! and finally (ia|munu)
             CALL timeset(routineN//"_int", handle3)
             CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
-         CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
+            CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
+                                    calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                     pw_env_external=pw_env_sub, task_list_external=task_list_sub)
             CALL timestop(handle3)
 
@@ -1298,7 +1308,8 @@ CALL mp2_gpw_compute(Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, qs_env, para_env, para_en
                size_EX_send = exchange_group_sizes(proc_send, 3)
 
                ALLOCATE (BIb_send(my_B_size, size_EX_send, my_I_batch_size))
-         BIb_send(1:my_B_size, 1:size_EX_send, 1:my_I_batch_size) = BIb_C(1:my_B_size, EX_start_send:EX_end_send, 1:my_I_batch_size)
+               BIb_send(1:my_B_size, 1:size_EX_send, 1:my_I_batch_size) = &
+                  BIb_C(1:my_B_size, EX_start_send:EX_end_send, 1:my_I_batch_size)
 
                ! send and receive the exchange array
                CALL mp_sendrecv(BIb_send, proc_send, BIb_EX, proc_receive, para_env_exchange%group)

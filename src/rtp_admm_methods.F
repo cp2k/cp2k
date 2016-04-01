@@ -507,7 +507,8 @@ CONTAINS
       ALLOCATE (matrix_k_tilde)
       CALL cp_dbcsr_init(matrix_k_tilde)
       CALL cp_dbcsr_create(matrix_k_tilde, 'MATRIX K_tilde', &
-                        cp_dbcsr_distribution(matrix_ks(ispin)%matrix), cp_dbcsr_get_matrix_type(matrix_ks_aux_fit(ispin)%matrix), &
+                           cp_dbcsr_distribution(matrix_ks(ispin)%matrix), &
+                           cp_dbcsr_get_matrix_type(matrix_ks_aux_fit(ispin)%matrix), &
                            cp_dbcsr_row_block_sizes(matrix_ks(ispin)%matrix), &
                            cp_dbcsr_col_block_sizes(matrix_ks(ispin)%matrix), &
                            cp_dbcsr_get_data_size(matrix_ks(ispin)%matrix), &

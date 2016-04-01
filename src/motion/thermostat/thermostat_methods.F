@@ -298,9 +298,10 @@ CONTAINS
                   CALL get_atomic_kind_set(atomic_kind_set=atomic_kinds%els, shell_adiabatic=shell_adiabatic)
                   region_sections => section_vals_get_subs_vals(thermo_shell_section, "DEFINE_REGION")
                   CALL section_vals_val_get(thermo_shell_section, "REGION", i_val=region)
-                  CALL setup_thermostat_info(thermostats%thermostat_info_shell, molecule_kinds_new%els, &
-                                        local_molecules, molecules_new, particles, region, simpar%ensemble, shell=shell_adiabatic, &
-                                             region_sections=region_sections, qmmm_env=qmmm_env)
+                  CALL setup_thermostat_info( &
+                     thermostats%thermostat_info_shell, molecule_kinds_new%els, &
+                     local_molecules, molecules_new, particles, region, simpar%ensemble, shell=shell_adiabatic, &
+                     region_sections=region_sections, qmmm_env=qmmm_env)
                   IF (shell_adiabatic) THEN
                      ! Initialize thermostat
                      IF (thermostats%thermostat_shell%type_of_thermostat == do_thermo_nose) THEN
@@ -558,7 +559,8 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE apply_thermostat_particles(thermostat, force_env, molecule_kind_set, molecule_set, &
-                                       particle_set, local_molecules, local_particles, group, shell_adiabatic, shell_particle_set, &
+                                         particle_set, local_molecules, local_particles, &
+                                         group, shell_adiabatic, shell_particle_set, &
                                          core_particle_set, vel, shell_vel, core_vel)
 
       TYPE(thermostat_type), POINTER                     :: thermostat

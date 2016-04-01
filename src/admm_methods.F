@@ -1316,8 +1316,9 @@ CONTAINS
                IF (dft_control%nspins == 2) THEN
                   CALL calc_spin_dep_aux_exch_ener(qs_env=qs_env, admm_env=admm_env, ener_k_ispin=ener_k(ispin), &
                                                    ener_x_ispin=ener_x(ispin), ispin=ispin)
-                  admm_env%lambda_merlot(ispin) = (trace_tmp+2.0_dp/3.0_dp*((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*ener_x(ispin)- &
-                                             ((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*trace_tmp_two)/(admm_env%n_large_basis(ispin))
+                  admm_env%lambda_merlot(ispin) = &
+                     (trace_tmp+2.0_dp/3.0_dp*((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*ener_x(ispin)- &
+                      ((admm_env%gsi(ispin))**(2.0_dp/3.0_dp))*trace_tmp_two)/(admm_env%n_large_basis(ispin))
 
                ELSE
                   admm_env%lambda_merlot(ispin) = (trace_tmp+(admm_env%gsi(ispin))**(2.0_dp/3.0_dp)* &

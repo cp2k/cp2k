@@ -254,7 +254,8 @@ CONTAINS
                         CALL section_typo_match(typo_match_section, TRIM(section%name), TRIM(token), "", &
                                                 typo_matching_rank, typo_matching_line, bonus=0)
                         DO imatch = 1, SIZE(typo_matching_rank)
-                        WRITE (output_unit, '(T2,A,1X,I0)') TRIM(typo_matching_line(imatch))//" score: ", typo_matching_rank(imatch)
+                           WRITE (output_unit, '(T2,A,1X,I0)') &
+                              TRIM(typo_matching_line(imatch))//" score: ", typo_matching_rank(imatch)
                         ENDDO
                      ENDIF
                      CALL cp_abort(__LOCATION__, &

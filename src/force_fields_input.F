@@ -367,7 +367,8 @@ CONTAINS
          END DO
          CALL read_bends_section(inp_info%bend_kind, inp_info%bend_a, inp_info%bend_b, inp_info%bend_c, &
                                  inp_info%bend_k, inp_info%bend_theta0, inp_info%bend_cb, &
-                              inp_info%bend_r012, inp_info%bend_r032, inp_info%bend_kbs12, inp_info%bend_kbs32, inp_info%bend_kss, &
+                                 inp_info%bend_r012, inp_info%bend_r032, inp_info%bend_kbs12, &
+                                 inp_info%bend_kbs32, inp_info%bend_kss, &
                                  inp_info%bend_legendre, tmp_section, ntot)
       END IF
       tmp_section => section_vals_get_subs_vals(ff_section, "BEND")

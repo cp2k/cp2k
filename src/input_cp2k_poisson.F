@@ -287,23 +287,24 @@ CONTAINS
                           citations=(/Ewald1921, Darden1993, Essmann1995, Toukmaji1996, Laino2008/))
 
       NULLIFY (keyword, print_key, subsection)
-      CALL keyword_create(keyword, name="EWALD_TYPE", &
-                          description="The type of ewald you want to perform.", &
-                          citations=(/Ewald1921, Essmann1995, Darden1993/), &
-                          usage="EWALD_TYPE (NONE|EWALD|PME|SPME)", &
-                          default_i_val=do_ewald_ewald, &
-                          enum_c_vals=(/"none     ", &
-                                        "ewald    ", &
-                                        "pme      ", &
-                                        "spme     "/), &
-                          enum_i_vals=(/do_ewald_none, &
-                                        do_ewald_ewald, &
-                                        do_ewald_pme, &
-                                        do_ewald_spme/), &
-                enum_desc=s2a("NONE standard real-space coulomb potential is computed together with the non-bonded contributions", &
-                                        "EWALD is the standard non-fft based ewald", &
-                                        "PME is the particle mesh using fft interpolation", &
-                                        "SPME is the smooth particle mesh using beta-Euler splines (recommended)"))
+      CALL keyword_create( &
+         keyword, name="EWALD_TYPE", &
+         description="The type of ewald you want to perform.", &
+         citations=(/Ewald1921, Essmann1995, Darden1993/), &
+         usage="EWALD_TYPE (NONE|EWALD|PME|SPME)", &
+         default_i_val=do_ewald_ewald, &
+         enum_c_vals=(/"none     ", &
+                       "ewald    ", &
+                       "pme      ", &
+                       "spme     "/), &
+         enum_i_vals=(/do_ewald_none, &
+                       do_ewald_ewald, &
+                       do_ewald_pme, &
+                       do_ewald_spme/), &
+         enum_desc=s2a("NONE standard real-space coulomb potential is computed together with the non-bonded contributions", &
+                       "EWALD is the standard non-fft based ewald", &
+                       "PME is the particle mesh using fft interpolation", &
+                       "SPME is the smooth particle mesh using beta-Euler splines (recommended)"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -538,23 +539,25 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="wavelet", &
-                          description="Sets up parameters of  wavelet based poisson solver."// &
-                         "This solver allows for non-periodic (PERIODIC NONE) boundary conditions and slab-boundary conditions "// &
-                          "(but only PERIODIC XZ)."// &
-                       "It does not require very large unit cells, only that the density goes to zero on the faces of the cell."// &
-                          "The use of PREFERRED_FFT_LIBRARY FFTSG is required", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Genovese2006, Genovese2007/))
+      CALL section_create( &
+         section, name="wavelet", &
+         description="Sets up parameters of  wavelet based poisson solver."// &
+         "This solver allows for non-periodic (PERIODIC NONE) boundary conditions and slab-boundary conditions "// &
+         "(but only PERIODIC XZ)."// &
+         "It does not require very large unit cells, only that the density goes to zero on the faces of the cell."// &
+         "The use of PREFERRED_FFT_LIBRARY FFTSG is required", &
+         n_keywords=1, n_subsections=0, repeats=.FALSE., &
+         citations=(/Genovese2006, Genovese2007/))
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="SCF_TYPE", &
-                   description="Type of scaling function used in the wavelet approach, the total energy depends on this choice,"// &
-                          "and the convergence with respect to cutoff depends on the selected scaling functions."// &
-                          "Possible values are 8,14,16,20,24,30,40,50,60,100 ", &
-                          usage="SCF_TYPE integer", &
-                          n_var=1, default_i_val=40)
+      CALL keyword_create( &
+         keyword, name="SCF_TYPE", &
+         description="Type of scaling function used in the wavelet approach, the total energy depends on this choice,"// &
+         "and the convergence with respect to cutoff depends on the selected scaling functions."// &
+         "Possible values are 8,14,16,20,24,30,40,50,60,100 ", &
+         usage="SCF_TYPE integer", &
+         n_var=1, default_i_val=40)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -590,14 +593,15 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      CALL keyword_create(keyword, name="BOUNDARY_CONDITIONS", &
-                          enum_c_vals=s2a('PERIODIC', 'MIXED', 'MIXED_PERIODIC', 'NEUMANN'), &
-                          enum_desc=s2a('periodic boundary conditions', 'Dirichlet + homogeneous Neumann boundary conditions', &
-                                    'Dirichlet + periodic boundary conditions', 'homogeneous Neumann BC (zero-average solution)'), &
-                          enum_i_vals=(/PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC, NEUMANN_BC/), &
-                     description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv. "// &
-                          "Mixed and Neumann boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
-                          usage="BOUNDARY_CONDITIONS <bc_type>", default_i_val=PERIODIC_BC)
+      CALL keyword_create( &
+         keyword, name="BOUNDARY_CONDITIONS", &
+         enum_c_vals=s2a('PERIODIC', 'MIXED', 'MIXED_PERIODIC', 'NEUMANN'), &
+         enum_desc=s2a('periodic boundary conditions', 'Dirichlet + homogeneous Neumann boundary conditions', &
+                       'Dirichlet + periodic boundary conditions', 'homogeneous Neumann BC (zero-average solution)'), &
+         enum_i_vals=(/PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC, NEUMANN_BC/), &
+         description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv. "// &
+         "Mixed and Neumann boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
+         usage="BOUNDARY_CONDITIONS <bc_type>", default_i_val=PERIODIC_BC)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -625,14 +629,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NEUMANN_DIRECTIONS", &
-                          enum_c_vals=s2a('XYZ', 'XY', 'XZ', 'YZ', 'X', 'Y', 'Z'), &
-                          enum_i_vals=(/neumannXYZ, neumannXY, neumannXZ, neumannYZ, neumannX, neumannY, neumannZ/), &
-                      description="Directions in which homogeneous Neumann conditions are imposed. In the remaining directions "// &
-                          "periodic conditions will be enforced. Having specified MIXED or NEUMANN as BOUNDARY_CONDITIONS, "// &
-                          "the keyword is meant to be used to combine periodic and homogeneous Neumann conditions at the "// &
-                          "boundaries of the simulation cell.", &
-                          usage="NEUMANN_DIRECTIONS <direction>", default_i_val=neumannXYZ)
+      CALL keyword_create( &
+         keyword, name="NEUMANN_DIRECTIONS", &
+         enum_c_vals=s2a('XYZ', 'XY', 'XZ', 'YZ', 'X', 'Y', 'Z'), &
+         enum_i_vals=(/neumannXYZ, neumannXY, neumannXZ, neumannYZ, neumannX, neumannY, neumannZ/), &
+         description="Directions in which homogeneous Neumann conditions are imposed. In the remaining directions "// &
+         "periodic conditions will be enforced. Having specified MIXED or NEUMANN as BOUNDARY_CONDITIONS, "// &
+         "the keyword is meant to be used to combine periodic and homogeneous Neumann conditions at the "// &
+         "boundaries of the simulation cell.", &
+         usage="NEUMANN_DIRECTIONS <direction>", default_i_val=neumannXYZ)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -669,16 +674,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DIELECTRIC_FUNCTION_TYPE", &
-                          enum_c_vals=s2a('density_dependent', 'spatially_dependent', 'spatially_rho_dependent'), &
-                          enum_i_vals=(/rho_dependent, spatially_dependent, spatially_rho_dependent/), &
-                          enum_desc=s2a("Dielectric constant as a function of the electron density "// &
-                                        "as e.g. proposed within the SCCS model.", &
-                                        "Various regions with different dielectric constants.", &
-                                  "Various regions with different dielectric constants. The dielectric constant decays to 1.0, "// &
-                                        "wherever the electron density is present."), &
-                          description="Preferred type for the dielectric constant function.", &
-                          usage="DIELECTRIC_FUNCTION_TYPE  <method>", default_i_val=rho_dependent)
+      CALL keyword_create( &
+         keyword, name="DIELECTRIC_FUNCTION_TYPE", &
+         enum_c_vals=s2a('density_dependent', 'spatially_dependent', 'spatially_rho_dependent'), &
+         enum_i_vals=(/rho_dependent, spatially_dependent, spatially_rho_dependent/), &
+         enum_desc=s2a("Dielectric constant as a function of the electron density "// &
+                       "as e.g. proposed within the SCCS model.", &
+                       "Various regions with different dielectric constants.", &
+                       "Various regions with different dielectric constants. The dielectric constant decays to 1.0, "// &
+                       "wherever the electron density is present."), &
+         description="Preferred type for the dielectric constant function.", &
+         usage="DIELECTRIC_FUNCTION_TYPE  <method>", default_i_val=rho_dependent)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -700,18 +706,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DERIVATIVE_METHOD", &
-                          enum_c_vals=s2a('fft', 'fft_use_deps', 'fft_use_drho', 'cd3', 'cd5', 'cd7'), &
-                          enum_i_vals=(/derivative_fft, derivative_fft_use_deps, derivative_fft_use_drho, &
-                                        derivative_cd3, derivative_cd5, derivative_cd7/), &
-                          enum_desc=s2a("FFT based deriv of epsilon, without correction (high cutoff needed).", &
-                                    "FFT based deriv of epsilon, with correction using gradient of epsilon (high cutoff needed).", &
-                                        "FFT based deriv of epsilon, with correction using gradient of rho (high cutoff needed).", &
-                                        "3-point central difference derivative.", &
-                                        "5-point central difference derivative.", &
-                                        "7-point central difference derivative (recommended)."), &
-                          description="Preferred method for evaluating the gradient of ln(eps).", &
-                          usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd7)
+      CALL keyword_create( &
+         keyword, name="DERIVATIVE_METHOD", &
+         enum_c_vals=s2a('fft', 'fft_use_deps', 'fft_use_drho', 'cd3', 'cd5', 'cd7'), &
+         enum_i_vals=(/derivative_fft, derivative_fft_use_deps, derivative_fft_use_drho, &
+                       derivative_cd3, derivative_cd5, derivative_cd7/), &
+         enum_desc=s2a("FFT based deriv of epsilon, without correction (high cutoff needed).", &
+                       "FFT based deriv of epsilon, with correction using gradient of epsilon (high cutoff needed).", &
+                       "FFT based deriv of epsilon, with correction using gradient of rho (high cutoff needed).", &
+                       "3-point central difference derivative.", &
+                       "5-point central difference derivative.", &
+                       "7-point central difference derivative (recommended)."), &
+         description="Preferred method for evaluating the gradient of ln(eps).", &
+         usage="DERIVATIVE_METHOD  <method>", default_i_val=derivative_cd7)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -983,9 +990,10 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="PLANAR", &
-                       description="Parameters for creating planar (rectangular) Dirichlet boundary regions with given vertices.", &
-                          n_keywords=7, n_subsections=0, repeats=.TRUE.)
+      CALL section_create( &
+         section, name="PLANAR", &
+         description="Parameters for creating planar (rectangular) Dirichlet boundary regions with given vertices.", &
+         n_keywords=7, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -1016,11 +1024,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_PRTN", &
-                         description="The number of partitions along the edges for tiling the rectangular region. If the edges "// &
-                         "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
-                          usage="N_PRTN <integer> <integer>", &
-                          n_var=2, default_i_vals=(/1, 1/))
+      CALL keyword_create( &
+         keyword, name="N_PRTN", &
+         description="The number of partitions along the edges for tiling the rectangular region. If the edges "// &
+         "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
+         usage="N_PRTN <integer> <integer>", &
+         n_var=2, default_i_vals=(/1, 1/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1098,11 +1107,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="N_PRTN", &
-                          description="The number of partitions along the face edges of the prism for tiling. If the edges "// &
-                         "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
-                          usage="N_PRTN <integer> <integer>", &
-                          n_var=2, default_i_vals=(/1, 1/))
+      CALL keyword_create( &
+         keyword, name="N_PRTN", &
+         description="The number of partitions along the face edges of the prism for tiling. If the edges "// &
+         "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
+         usage="N_PRTN <integer> <integer>", &
+         n_var=2, default_i_vals=(/1, 1/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1118,11 +1128,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="delta_alpha", &
-                     description="A central angle specifying the gap between the faces of the n-gonal prism. To avoide overlap "// &
-                     "between the cuboids (of the given thickness) built on top of the faces, a larger value is required if the"// &
-                          " number of faces (N_SIDES) is quite few and/or the base radius is fairly small.", &
-                          usage="delta_alpha <real>", default_r_val=0.05_dp, unit_str="rad")
+      CALL keyword_create( &
+         keyword, name="delta_alpha", &
+         description="A central angle specifying the gap between the faces of the n-gonal prism. To avoide overlap "// &
+         "between the cuboids (of the given thickness) built on top of the faces, a larger value is required if the"// &
+         " number of faces (N_SIDES) is quite few and/or the base radius is fairly small.", &
+         usage="delta_alpha <real>", default_r_val=0.05_dp, unit_str="rad")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

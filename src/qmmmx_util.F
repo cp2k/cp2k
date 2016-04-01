@@ -273,10 +273,11 @@ CONTAINS
       ! (need intra molecule bond info, which isn't available for QM molecules yet)
 
       ! add core using hysteretic selection(core_list, r_core) + unbreakable bonds
-      CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
-                                    orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
-                             force_mixing_label_QM_core_list, force_mixing_label_QM_core_list, force_mixing_label_QM_core, r_core, &
-                                    max_n_qm, adaptive_exclude_molecules, molecule_set, broken_bonds)
+      CALL add_layer_hysteretically( &
+         nlist, particle_set, cell, nearest_dist, &
+         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
+         force_mixing_label_QM_core_list, force_mixing_label_QM_core_list, force_mixing_label_QM_core, r_core, &
+         max_n_qm, adaptive_exclude_molecules, molecule_set, broken_bonds)
       ![NB] should actually pass this back for making link sections?
       DEALLOCATE (broken_bonds)
 
@@ -307,10 +308,11 @@ CONTAINS
       ENDIF
 
       ! add buffer using hysteretic selection (>= QM extended, r_buf) + unbreakable bonds
-      CALL add_layer_hysteretically(nlist, particle_set, cell, nearest_dist, &
-                                    orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
-                                force_mixing_label_QM_dynamics, force_mixing_label_QM_core_list, force_mixing_label_buffer, r_buf, &
-                                    max_n_qm, adaptive_exclude_molecules, molecule_set, broken_bonds)
+      CALL add_layer_hysteretically( &
+         nlist, particle_set, cell, nearest_dist, &
+         orig_full_labels, new_full_labels, n_new, new_indices, new_labels, &
+         force_mixing_label_QM_dynamics, force_mixing_label_QM_core_list, force_mixing_label_buffer, r_buf, &
+         max_n_qm, adaptive_exclude_molecules, molecule_set, broken_bonds)
       ![NB] should actually pass this back for making link sections?
       DEALLOCATE (broken_bonds)
 

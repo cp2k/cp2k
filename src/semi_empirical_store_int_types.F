@@ -252,9 +252,10 @@ CONTAINS
             IF (store_int_env%compress) THEN
                ! Reset caches and containers
                DO i = 1, 64
-                  CALL hfx_reset_cache_and_container(store_int_env%integral_caches(i), &
-                                         store_int_env%integral_containers(i), store_int_env%memory_parameter%actual_memory_usage, &
-                                                     .FALSE.)
+                  CALL hfx_reset_cache_and_container( &
+                     store_int_env%integral_caches(i), &
+                     store_int_env%integral_containers(i), store_int_env%memory_parameter%actual_memory_usage, &
+                     .FALSE.)
                END DO
             END IF
          END IF

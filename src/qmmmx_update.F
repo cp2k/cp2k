@@ -183,8 +183,9 @@ CONTAINS
                from_nparticle_local = from_local_particles%n_el(from_iparticle_kind)
                IF (MINVAL(ABS(from_local_particles%list(from_iparticle_kind)%array(1:from_nparticle_local)- &
                               to_iparticle_global)) == 0) THEN
-                  from_iparticle_local = MINLOC(ABS( &
-                                  from_local_particles%list(from_iparticle_kind)%array(1:from_nparticle_local)-to_iparticle_global))
+                  from_iparticle_local = &
+                     MINLOC(ABS(from_local_particles%list(from_iparticle_kind)%array(1:from_nparticle_local)- &
+                                to_iparticle_global))
                   to_local_particles%local_particle_set(to_iparticle_kind)%rng(to_iparticle_local)%stream = &
                      from_local_particles%local_particle_set(from_iparticle_kind)%rng(from_iparticle_local(1))%stream
                   found_it = .TRUE.

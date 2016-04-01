@@ -773,8 +773,9 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
          e_neut = 0.0_dp
          e_self = 0.0_dp
          CALL ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, particle_set, &
-                                      local_particles, energy_local, energy_glob, e_neut, e_self, task, .FALSE., .FALSE., .FALSE., &
-                                       .FALSE., radii, lcharges, dipoles, quadrupoles, iw=iw, do_debug=.FALSE.)
+                                       local_particles, energy_local, energy_glob, e_neut, e_self, &
+                                       task, .FALSE., .FALSE., .FALSE., .FALSE., radii, &
+                                       lcharges, dipoles, quadrupoles, iw=iw, do_debug=.FALSE.)
          ene(k) = energy_local+energy_glob+e_neut+e_self
       END DO
       pot = (ene(2)-ene(1))/(2.0_dp*dq)
@@ -807,9 +808,10 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
             e_self = 0.0_dp
             efield0 = 0.0_dp
             CALL ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, particle_set, &
-                                        local_particles, energy_local, energy_glob, e_neut, e_self, task, .FALSE., .TRUE., .TRUE., &
-                                       .TRUE., radii, charges, dipoles, quadrupoles, forces_local, forces_glob, pv_local, pv_glob, &
-                                          efield0, iw=iw, do_debug=.FALSE.)
+                                          local_particles, energy_local, energy_glob, e_neut, e_self, &
+                                          task, .FALSE., .TRUE., .TRUE., .TRUE., radii, &
+                                          charges, dipoles, quadrupoles, forces_local, forces_glob, &
+                                          pv_local, pv_glob, efield0, iw=iw, do_debug=.FALSE.)
             ene(k) = efield0(i)
             particle_set(i)%r(j) = coord(j)
          END DO
@@ -847,9 +849,10 @@ SUBROUTINE debug_ewald_multipoles_fields(ewald_env, ewald_pw, nonbond_env, cell,
             e_self = 0.0_dp
             efield1 = 0.0_dp
             CALL ewald_multipole_evaluate(ewald_env, ewald_pw, nonbond_env, cell, particle_set, &
-                                        local_particles, energy_local, energy_glob, e_neut, e_self, task, .FALSE., .TRUE., .TRUE., &
-                                       .TRUE., radii, charges, dipoles, quadrupoles, forces_local, forces_glob, pv_local, pv_glob, &
-                                          efield1=efield1, iw=iw, do_debug=.FALSE.)
+                                          local_particles, energy_local, energy_glob, e_neut, e_self, &
+                                          task, .FALSE., .TRUE., .TRUE., .TRUE., radii, &
+                                          charges, dipoles, quadrupoles, forces_local, forces_glob, &
+                                          pv_local, pv_glob, efield1=efield1, iw=iw, do_debug=.FALSE.)
             enev(:, k) = efield1(:, i)
             particle_set(i)%r(j) = coord(j)
          END DO

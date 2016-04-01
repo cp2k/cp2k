@@ -187,26 +187,27 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SYMMETRY", &
-                          description="Imposes an initial cell symmetry.", &
-                          usage="SYMMETRY monoclinic", &
-                          enum_desc=s2a("No cell symmetry", &
-                                 "Triclinic (a &ne; b &ne; c &ne; a, &alpha; &ne; &beta; &ne; &gamma; &ne; &alpha; &ne; 90&deg;)", &
-                                        "Monoclinic (a &ne; b &ne; c &ne; a, &alpha; = &gamma; = 90&deg;, &beta; &ne; 90&deg;)", &
-                                        "Orthorhombic (a &ne; b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)", &
-                                        "Tetragonal (a = b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)", &
-                                        "Tetragonal (a = c &ne; b, &alpha; = &beta; = &gamma; = 90&deg;)", &
-                                        "Tetragonal (a &ne; b = c, &alpha; = &beta; = &gamma; = 90&deg;)", &
-                                        "Tetragonal (alias for TETRAGONAL_AB)", &
-                                        "Rhombohedral (a = b = c, &alpha; = &beta; = &gamma; &ne; 90&deg;)", &
-                                        "Hexagonal (a = b &ne; c, &alpha; = &beta; = 90&deg;, &gamma; = 60&deg;)", &
-                                        "Cubic (a = b = c, &alpha; = &beta; = &gamma; = 90&deg;)"), &
-                          enum_c_vals=s2a("NONE", "TRICLINIC", "MONOCLINIC", "ORTHORHOMBIC", "TETRAGONAL_AB", "TETRAGONAL_AC", &
-                                          "TETRAGONAL_BC", "TETRAGONAL", "RHOMBOHEDRAL", "HEXAGONAL", "CUBIC"), &
-                          enum_i_vals=(/cell_sym_none, cell_sym_triclinic, cell_sym_monoclinic, cell_sym_orthorhombic, &
-                                        cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, &
-                                        cell_sym_tetragonal_ab, cell_sym_rhombohedral, cell_sym_hexagonal, cell_sym_cubic/), &
-                          default_i_val=cell_sym_none)
+      CALL keyword_create( &
+         keyword, name="SYMMETRY", &
+         description="Imposes an initial cell symmetry.", &
+         usage="SYMMETRY monoclinic", &
+         enum_desc=s2a("No cell symmetry", &
+                       "Triclinic (a &ne; b &ne; c &ne; a, &alpha; &ne; &beta; &ne; &gamma; &ne; &alpha; &ne; 90&deg;)", &
+                       "Monoclinic (a &ne; b &ne; c &ne; a, &alpha; = &gamma; = 90&deg;, &beta; &ne; 90&deg;)", &
+                       "Orthorhombic (a &ne; b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)", &
+                       "Tetragonal (a = b &ne; c, &alpha; = &beta; = &gamma; = 90&deg;)", &
+                       "Tetragonal (a = c &ne; b, &alpha; = &beta; = &gamma; = 90&deg;)", &
+                       "Tetragonal (a &ne; b = c, &alpha; = &beta; = &gamma; = 90&deg;)", &
+                       "Tetragonal (alias for TETRAGONAL_AB)", &
+                       "Rhombohedral (a = b = c, &alpha; = &beta; = &gamma; &ne; 90&deg;)", &
+                       "Hexagonal (a = b &ne; c, &alpha; = &beta; = 90&deg;, &gamma; = 60&deg;)", &
+                       "Cubic (a = b = c, &alpha; = &beta; = &gamma; = 90&deg;)"), &
+         enum_c_vals=s2a("NONE", "TRICLINIC", "MONOCLINIC", "ORTHORHOMBIC", "TETRAGONAL_AB", "TETRAGONAL_AC", &
+                         "TETRAGONAL_BC", "TETRAGONAL", "RHOMBOHEDRAL", "HEXAGONAL", "CUBIC"), &
+         enum_i_vals=(/cell_sym_none, cell_sym_triclinic, cell_sym_monoclinic, cell_sym_orthorhombic, &
+                       cell_sym_tetragonal_ab, cell_sym_tetragonal_ac, cell_sym_tetragonal_bc, &
+                       cell_sym_tetragonal_ab, cell_sym_rhombohedral, cell_sym_hexagonal, cell_sym_cubic/), &
+         default_i_val=cell_sym_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -849,31 +850,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_", &
-                          repeats=.TRUE., type_of_var=lchar_t, &
-                          description="<u>CP2K Basis Set Standard Format</u>"//newline// &
-                          "<pre>"//newline// &
-                          "Element symbol  Name of the basis set  Alias names"//newline// &
-                          "nset (repeat the following block of lines nset times)"//newline// &
-                          "n lmin lmax nexp nshell(lmin) nshell(lmin+1) ... nshell(lmax-1) nshell(lmax)"//newline// &
-                      "a(1)      c(1,l,1)      c(1,l,2) ...      c(1,l,nshell(l)-1)      c(1,l,nshell(l)), l=lmin,lmax"//newline// &
-                      "a(2)      c(2,l,1)      c(2,l,2) ...      c(2,l,nshell(l)-1)      c(2,l,nshell(l)), l=lmin,lmax"//newline// &
-                          " .         .             .                 .                       ."//newline// &
-                          " .         .             .                 .                       ."//newline// &
-                          " .         .             .                 .                       ."//newline// &
-                 "a(nexp-1) c(nexp-1,l,1) c(nexp-1,l,2) ... c(nexp-1,l,nshell(l)-1) c(nexp-1,l,nshell(l)), l=lmin,lmax"//newline// &
-                   "a(nexp)   c(nexp,l,1)   c(nexp,l,2)   ... c(nexp,l,nshell(l)-1)   c(nexp,l,nshell(l)), l=lmin,lmax"//newline// &
-                          newline// &
-                          newline// &
-                          "nset     : Number of exponent sets"//newline// &
-                          "n        : Principle quantum number (only for orbital label printing)"//newline// &
-                          "lmax     : Maximum angular momentum quantum number l"//newline// &
-                          "lmin     : Minimum angular momentum quantum number l"//newline// &
-                          "nshell(l): Number of shells for angular momentum quantum number l"//newline// &
-                          "a        : Exponent"//newline// &
-                          "c        : Contraction coefficient"//newline// &
-                          "</pre>"//newline// &
-                          "Source: ftp://ftp.aip.org/epaps/journ_chem_phys/E-JCPSA6-127-308733/BASIS_MOLOPT_JCP.txt")
+      CALL keyword_create( &
+         keyword, name="_DEFAULT_KEYWORD_", &
+         repeats=.TRUE., type_of_var=lchar_t, &
+         description="<u>CP2K Basis Set Standard Format</u>"//newline// &
+         "<pre>"//newline// &
+         "Element symbol  Name of the basis set  Alias names"//newline// &
+         "nset (repeat the following block of lines nset times)"//newline// &
+         "n lmin lmax nexp nshell(lmin) nshell(lmin+1) ... nshell(lmax-1) nshell(lmax)"//newline// &
+         "a(1)      c(1,l,1)      c(1,l,2) ...      c(1,l,nshell(l)-1)      c(1,l,nshell(l)), l=lmin,lmax"//newline// &
+         "a(2)      c(2,l,1)      c(2,l,2) ...      c(2,l,nshell(l)-1)      c(2,l,nshell(l)), l=lmin,lmax"//newline// &
+         " .         .             .                 .                       ."//newline// &
+         " .         .             .                 .                       ."//newline// &
+         " .         .             .                 .                       ."//newline// &
+         "a(nexp-1) c(nexp-1,l,1) c(nexp-1,l,2) ... c(nexp-1,l,nshell(l)-1) c(nexp-1,l,nshell(l)), l=lmin,lmax"//newline// &
+         "a(nexp)   c(nexp,l,1)   c(nexp,l,2)   ... c(nexp,l,nshell(l)-1)   c(nexp,l,nshell(l)), l=lmin,lmax"//newline// &
+         newline// &
+         newline// &
+         "nset     : Number of exponent sets"//newline// &
+         "n        : Principle quantum number (only for orbital label printing)"//newline// &
+         "lmax     : Maximum angular momentum quantum number l"//newline// &
+         "lmin     : Minimum angular momentum quantum number l"//newline// &
+         "nshell(l): Number of shells for angular momentum quantum number l"//newline// &
+         "a        : Exponent"//newline// &
+         "c        : Contraction coefficient"//newline// &
+         "</pre>"//newline// &
+         "Source: ftp://ftp.aip.org/epaps/journ_chem_phys/E-JCPSA6-127-308733/BASIS_MOLOPT_JCP.txt")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1075,12 +1077,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="AUX_FIT_BASIS_SET", &
-                          variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"), &
-                description="DEPRECATED (use BASIS_SET): The auxliliary basis set (GTO type) for auxiliary density matrix method", &
-                          usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
-                          citations=(/Guidon2010/), &
-                          n_var=1)
+      CALL keyword_create( &
+         keyword, name="AUX_FIT_BASIS_SET", &
+         variants=s2a("AUXILIARY_FIT_BASIS_SET", "AUX_FIT_BASIS"), &
+         description="DEPRECATED (use BASIS_SET): The auxliliary basis set (GTO type) for auxiliary density matrix method", &
+         usage="AUX_FIT_BASIS_SET DZVP", default_c_val=" ", &
+         citations=(/Guidon2010/), &
+         n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       ! end of old basis set keywords
@@ -1597,12 +1600,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MULTIPLE_UNIT_CELL", &
-                          description="Specifies the numbers of repetition in space (X, Y, Z) of the defined cell, "// &
-                        "assuming it as a unit cell. This keyword affects only the coordinates specification. The same keyword "// &
-                          "in SUBSYS%CELL%MULTIPLE_UNIT_CELL should be modified in order to affect the cell "// &
-                          "specification.", usage="MULTIPLE_UNIT_CELL 1 1 1", &
-                          n_var=3, default_i_vals=(/1, 1, 1/), repeats=.FALSE.)
+      CALL keyword_create( &
+         keyword, name="MULTIPLE_UNIT_CELL", &
+         description="Specifies the numbers of repetition in space (X, Y, Z) of the defined cell, "// &
+         "assuming it as a unit cell. This keyword affects only the coordinates specification. The same keyword "// &
+         "in SUBSYS%CELL%MULTIPLE_UNIT_CELL should be modified in order to affect the cell "// &
+         "specification.", usage="MULTIPLE_UNIT_CELL 1 1 1", &
+         n_var=3, default_i_vals=(/1, 1, 1/), repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

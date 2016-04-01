@@ -564,10 +564,10 @@ CONTAINS
          fp = 0.0_dp
       END IF
 
-      dvij = angstrom*(10.8_dp/2.9673_dp)*((-13.353384_dp*544850.4_dp)* &
-                                           EXP(-13.353384_dp*x)-fp+f*(((10.0_dp*0.1781_dp)*x2+ &
-                                                                    (8.0_dp*0.4253785_dp))*x2+(6.0_dp*1.3732412_dp))*x2*x2*x2/x)/( &
-             r*kelvin)
+      dvij = angstrom*(10.8_dp/2.9673_dp)*( &
+             (-13.353384_dp*544850.4_dp)*EXP(-13.353384_dp*x)-fp+ &
+             f*(((10.0_dp*0.1781_dp)*x2+(8.0_dp*0.4253785_dp))*x2+(6.0_dp*1.3732412_dp))* &
+             x2*x2*x2/x)/(r*kelvin)
       RETURN
    END FUNCTION helium_d_vij
 

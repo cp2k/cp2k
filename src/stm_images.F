@@ -353,8 +353,8 @@ CONTAINS
                occ_tot(istates+1:istates+nstates(ispin)) = &
                   occupation(ispin)%array(state_start(ispin):state_start(ispin)-1+nstates(ispin))
             ELSE
-               occ_tot(istates+1:istates+nstates(ispin)) = alpha- &
-                                                     occupation(ispin)%array(state_start(ispin):state_start(ispin)-1+nstates(ispin))
+               occ_tot(istates+1:istates+nstates(ispin)) = &
+                  alpha-occupation(ispin)%array(state_start(ispin):state_start(ispin)-1+nstates(ispin))
             END IF
             istates = istates+nstates(ispin)
          ENDDO

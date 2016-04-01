@@ -1349,7 +1349,8 @@ CONTAINS
       row_blk_size_tmp => row_blk_size
       col_blk_size_tmp => col_blk_size
       CALL cp_dbcsr_create(bc_mat, "Block-cyclic"//cp_dbcsr_name(matrix), bc_dist, &
-                      dbcsr_type_no_symmetry, row_blk_size_tmp, col_blk_size_tmp, nze=0, data_type=cp_dbcsr_get_data_type(matrix), &
+                           dbcsr_type_no_symmetry, row_blk_size_tmp, col_blk_size_tmp, &
+                           nze=0, data_type=cp_dbcsr_get_data_type(matrix), &
                            reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(bc_dist)
       CALL cp_dbcsr_complete_redistribute(matrix, bc_mat)

@@ -290,9 +290,10 @@ CONTAINS
                CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff, ncol_global=ncol)
                alpha = 1.0_dp
                IF (SIZE(mo_array) == 1) alpha = 2*alpha
-               CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_old(re)%matrix, &
-                                    matrix_v=mo_array(ispin)%mo_set%mo_coeff, matrix_g=mo_array(ispin)%mo_set%mo_coeff, ncol=ncol, &
-                                          keep_sparsity=.FALSE., alpha=alpha)
+               CALL cp_dbcsr_plus_fm_fm_t( &
+                  sparse_matrix=rho_old(re)%matrix, &
+                  matrix_v=mo_array(ispin)%mo_set%mo_coeff, matrix_g=mo_array(ispin)%mo_set%mo_coeff, ncol=ncol, &
+                  keep_sparsity=.FALSE., alpha=alpha)
             END DO
             DO i = 1, nspin
                CALL cp_dbcsr_copy(rho_new(i)%matrix, rho_old(i)%matrix)

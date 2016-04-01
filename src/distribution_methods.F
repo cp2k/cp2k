@@ -226,8 +226,8 @@ CONTAINS
          DO imolecule = 1, nmolecule
             IF (has_prev_subsys_info) THEN
                DO imolecule_prev_kind = 1, SIZE(prev_molecule_kind_set)
-                 IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array(1:prev_local_molecules%n_el(imolecule_prev_kind)) == &
-                          molecule_list(imolecule))) THEN
+                  IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array( &
+                          1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
                      ! molecule used to be local
                      nmolecule_local(imolecule_kind) = nmolecule_local(imolecule_kind)+1
                   ENDIF
@@ -274,8 +274,8 @@ CONTAINS
             is_local = .FALSE.
             IF (has_prev_subsys_info) THEN
                DO imolecule_prev_kind = 1, SIZE(prev_molecule_kind_set)
-                 IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array(1:prev_local_molecules%n_el(imolecule_prev_kind)) == &
-                          molecule_list(imolecule))) THEN
+                  IF (ANY(prev_local_molecules%list(imolecule_prev_kind)%array( &
+                          1:prev_local_molecules%n_el(imolecule_prev_kind)) == molecule_list(imolecule))) THEN
                      is_local = .TRUE.
                   END IF
                END DO

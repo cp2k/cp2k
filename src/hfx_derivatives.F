@@ -1301,9 +1301,10 @@ CONTAINS
                            cartesian_estimate = SET_EXPONENT(1.0_dp, estimate_to_store_int+1)
                            IF (.NOT. buffer_overflow .AND. actual_x_data%memory_parameter%recalc_forces) THEN
                               IF (cartesian_estimate < eps_schwarz) THEN
-                                 CALL hfx_add_single_cache_element(estimate_to_store_int, 6, &
-                                                             maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
-                                                                   use_disk_storage, max_val_memory)
+                                 CALL hfx_add_single_cache_element( &
+                                    estimate_to_store_int, 6, &
+                                    maxval_cache, maxval_container, memory_parameter%actual_memory_usage, &
+                                    use_disk_storage, max_val_memory)
                               END IF
                            END IF
 
@@ -1447,8 +1448,9 @@ CONTAINS
                         IF (use_virial .AND. spherical_estimate_virial*pmax_entry >= eps_schwarz) THEN
                            DO coord = 1, 12
                               DO i = 1, 3
-                               T2 => primitive_forces_virial(((i-1)*12+coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1: &
-                                                               ((i-1)*12+coord)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
+                                 T2 => primitive_forces_virial( &
+                                       ((i-1)*12+coord-1)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset)+1: &
+                                       ((i-1)*12+coord)*nsgfa(iset)*nsgfb(jset)*nsgfc(kset)*nsgfd(lset))
                                  IF (with_mp2_density) THEN
                                     CALL update_virial(nsgfa(iset), nsgfb(jset), nsgfc(kset), nsgfd(lset), &
                                                        pbd_buf, pbc_buf, pad_buf, pac_buf, fac, &

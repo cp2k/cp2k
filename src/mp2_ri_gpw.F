@@ -596,7 +596,8 @@ CONTAINS
                CALL timeset(routineN//"_E_Ex_2_gw", handle3)
 
                CALL copy_dbcsr_to_fm(matrix_in_jm_beta, fm_BIb_gw_beta)
-              CALL grep_my_integrals(para_env_sub, fm_BIb_gw_beta, BIb_C_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
+               CALL grep_my_integrals(para_env_sub, fm_BIb_gw_beta, &
+                                      BIb_C_gw_beta(i_counter, 1:my_B_all_size, 1:gw_corr_lev_total), &
                                       max_row_col_local_gw, &
                                       sub_proc_map, local_col_row_info_gw, &
                                       my_B_all_end, my_B_all_start)
@@ -658,7 +659,8 @@ CONTAINS
             ! and finally (K|mu nu)
             CALL timeset(routineN//"_int_trunc", handle3)
             CALL cp_dbcsr_set(mat_munu%matrix, 0.0_dp)
-         CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
+            CALL integrate_v_rspace(rho_r, hmat=mat_munu, qs_env=qs_env, &
+                                    calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE., &
                                     pw_env_external=pw_env_sub, task_list_external=task_list_sub)
             CALL timestop(handle3)
 
@@ -1646,9 +1648,10 @@ CONTAINS
 
                   ! integration result has to be scaled since from basis set differing exponent exp_q
                   ! causes different normalization
-                  L_local_col_q(offset-nsgfa(iset)+1:offset, i_counter) = I_ab(1:nsgfa(iset), 1)* &
-                                                                    (exp_q(1)/zeta(1, iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)* &
-                                                             (exp_q(1)/zetb(1, j_ref_set))**(lb_max(j_ref_set)*0.5_dp+3.0_dp/4.0_dp)
+                  L_local_col_q(offset-nsgfa(iset)+1:offset, i_counter) = &
+                     I_ab(1:nsgfa(iset), 1)* &
+                     (exp_q(1)/zeta(1, iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)* &
+                     (exp_q(1)/zetb(1, j_ref_set))**(lb_max(j_ref_set)*0.5_dp+3.0_dp/4.0_dp)
                END IF
 
                DEALLOCATE (I_tmp2)
@@ -1857,16 +1860,17 @@ CONTAINS
                      I_tmp(1:ncoa_a, 1:nsgfb(jset)) = MATMUL(vac(1:ncoa_a, 1:ncoa_b), &
                                                              sphi_b(1:ncoa_b, ref_at_se_sgf_ofs(jatom, jset, 3): &
                                                                     (ref_at_se_sgf_ofs(jatom, jset, 3)+nsgfb(jset)-1)))
-                     I_tmp2(1:nsgfa(iset), 1:nsgfb(jset)) = I_tmp2(1:nsgfa(iset), 1:nsgfb(jset))- &
-                                                            MATMUL(TRANSPOSE(sphi_a(1:ncoa_a, ref_at_se_sgf_ofs(iatom, iset, 3): &
-                                                                              (ref_at_se_sgf_ofs(iatom, iset, 3)+nsgfa(iset)-1))), &
-                                                                   I_tmp(1:ncoa_a, 1:nsgfb(jset)))/ &
-                                                            (zeta(1, iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/ &
-                                                            (zetb(1, jset))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)* &
-                                                            exp_q(1)**(la_max(iset)*1.0_dp+3.0_dp/2.0_dp)* &
-                                                            exp_q(1)**(lb_max(jset)*1.0_dp+3.0_dp/2.0_dp)/ &
-                                                (zeta(1, ref_at_se_sgf_ofs(iatom, iset, 2)))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/ &
-                                                   (zetb(1, ref_at_se_sgf_ofs(jatom, jset, 2)))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)
+                     I_tmp2(1:nsgfa(iset), 1:nsgfb(jset)) = &
+                        I_tmp2(1:nsgfa(iset), 1:nsgfb(jset))- &
+                        MATMUL(TRANSPOSE(sphi_a(1:ncoa_a, ref_at_se_sgf_ofs(iatom, iset, 3): &
+                                                (ref_at_se_sgf_ofs(iatom, iset, 3)+nsgfa(iset)-1))), &
+                               I_tmp(1:ncoa_a, 1:nsgfb(jset)))/ &
+                        (zeta(1, iset))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/ &
+                        (zetb(1, jset))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)* &
+                        exp_q(1)**(la_max(iset)*1.0_dp+3.0_dp/2.0_dp)* &
+                        exp_q(1)**(lb_max(jset)*1.0_dp+3.0_dp/2.0_dp)/ &
+                        (zeta(1, ref_at_se_sgf_ofs(iatom, iset, 2)))**(la_max(iset)*0.5_dp+3.0_dp/4.0_dp)/ &
+                        (zetb(1, ref_at_se_sgf_ofs(jatom, jset, 2)))**(lb_max(jset)*0.5_dp+3.0_dp/4.0_dp)
 
                      ! add contribution from (a|b)_s-(q_a|q_b)_s
                      DO i = 1, nsgfa(iset)
@@ -2692,11 +2696,12 @@ CONTAINS
       virtual = nmo-homo
       IF (my_alpha_beta_case) virtual_beta = nmo-homo_beta
 
-      CALL mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, &
-           starts_array, starts_B_virtual, homo, dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, block_size, &
-                         integ_group_size, min_integ_group_size, my_B_size, my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
-           my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group, pos_integ_group, virtual, my_alpha_beta_case, &
-                            my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
+      CALL mp2_ri_get_sizes( &
+         mp2_env, para_env, para_env_sub, ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, &
+         starts_array, starts_B_virtual, homo, dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, block_size, &
+         integ_group_size, min_integ_group_size, my_B_size, my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
+         my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group, pos_integ_group, virtual, my_alpha_beta_case, &
+         my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
 
       IF (my_alpha_beta_case) THEN
          my_B_virtual_start_beta = starts_B_virtual_beta(para_env_sub%mepos)
@@ -2713,12 +2718,13 @@ CONTAINS
       ! now create a group that contains all the proc that have the same virtual starting point
       ! in the integ group
       ! sub_sub_color=para_env_sub%mepos
-      CALL mp2_ri_create_group(BIb_C, para_env, para_env_sub, homo, color_sub, &
-                               sizes_array, calc_forces, &
-                               comm_exchange, integ_group_size, my_B_size, iiB, my_group_L_end, &
-                               my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
-                              sub_sub_color, integ_group_pos2color_sub, new_sizes_array, proc_map, proc_map_rep, sizes_array_orig, &
-                               sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
+      CALL mp2_ri_create_group( &
+         BIb_C, para_env, para_env_sub, homo, color_sub, &
+         sizes_array, calc_forces, &
+         comm_exchange, integ_group_size, my_B_size, iiB, my_group_L_end, &
+         my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
+         sub_sub_color, integ_group_pos2color_sub, new_sizes_array, proc_map, proc_map_rep, sizes_array_orig, &
+         sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
 
       ! *****************************************************************
       ! **********  REPLICATION-BLOCKED COMMUNICATION SCHEME  ***********
@@ -2812,7 +2818,8 @@ CONTAINS
 
                IF (ij_index <= send_ij_index) THEN
                   ! ij_counter_send=(ij_index-MIN(1,proc_send))*ngroup+proc_send
-               ij_counter_send = (ij_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
+                  ij_counter_send = (ij_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+ &
+                                    integ_group_pos2color_sub(proc_send)
                   send_i = ij_map(ij_counter_send, 1)
                   send_j = ij_map(ij_counter_send, 2)
                   send_block_size = ij_map(ij_counter_send, 3)
@@ -3021,7 +3028,8 @@ CONTAINS
                         b_global = b+my_B_virtual_start_beta-1
                         DO a = 1, virtual
                            Emp2_Cou = Emp2_Cou-local_ab(a, b)**2/ &
-                                 (Eigenval(homo+a)+Eigenval_beta(homo_beta+b_global)-Eigenval(my_i+iiB-1)-Eigenval_beta(my_j+jjB-1))
+                                      (Eigenval(homo+a)+Eigenval_beta(homo_beta+b_global)- &
+                                       Eigenval(my_i+iiB-1)-Eigenval_beta(my_j+jjB-1))
                         END DO
                      END DO
                   END IF
@@ -3039,7 +3047,8 @@ CONTAINS
                                      (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
                            IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) &
                               t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b)-local_ab(b_global, a))/ &
-                                         (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
+                                                  (Eigenval(homo+a_global)+Eigenval(homo+b_global)- &
+                                                   Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
                         END DO
                      END DO
                      ! ... and then with external data
@@ -3070,7 +3079,8 @@ CONTAINS
                                         (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
                               IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) &
                                  t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b)-external_ab(b, a))/ &
-                                         (Eigenval(homo+a_global)+Eigenval(homo+b_global)-Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
+                                                     (Eigenval(homo+a_global)+Eigenval(homo+b_global)- &
+                                                      Eigenval(my_i+iiB-1)-Eigenval(my_j+jjB-1))
                            END DO
                         END DO
 
@@ -3118,7 +3128,8 @@ CONTAINS
                IF (ij_index <= send_ij_index) THEN
                   ! something to send
                   ! ij_counter_send=(ij_index-MIN(1,proc_send))*ngroup+proc_send
-               ij_counter_send = (ij_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
+                  ij_counter_send = (ij_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+ &
+                                    integ_group_pos2color_sub(proc_send)
                   send_i = ij_map(ij_counter_send, 1)
                   send_j = ij_map(ij_counter_send, 2)
                   send_block_size = ij_map(ij_counter_send, 3)
@@ -3205,19 +3216,23 @@ CONTAINS
          ! Start counting the number of almost degenerate ij pairs according
          ! to eps_canonical
          IF (.NOT. my_alpha_beta_case) THEN
-            CALL quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, my_open_shell_ss, &
-             my_beta_beta_case, my_alpha_beta_case, Bib_C, unit_nr, dimen_RI, my_B_size, ngroup, num_integ_group, my_group_L_size, &
-                                       color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
-                                       my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
-                                       starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, local_ab)
+            CALL quasi_degenerate_P_ij( &
+               mp2_env, Eigenval, homo, virtual, my_open_shell_ss, &
+               my_beta_beta_case, my_alpha_beta_case, Bib_C, unit_nr, dimen_RI, &
+               my_B_size, ngroup, num_integ_group, my_group_L_size, &
+               color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
+               my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
+               starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, local_ab)
          ELSE
-            CALL quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, my_open_shell_ss, &
-             my_beta_beta_case, my_alpha_beta_case, Bib_C, unit_nr, dimen_RI, my_B_size, ngroup, num_integ_group, my_group_L_size, &
-                                       color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
-                                       my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
-                                  starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C_beta, my_B_size_beta, &
-                                       ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, my_B_virtual_start_beta, &
-                                       virtual_beta, homo_beta, Eigenval_beta, my_B_virtual_end_beta)
+            CALL quasi_degenerate_P_ij( &
+               mp2_env, Eigenval, homo, virtual, my_open_shell_ss, &
+               my_beta_beta_case, my_alpha_beta_case, Bib_C, unit_nr, dimen_RI, &
+               my_B_size, ngroup, num_integ_group, my_group_L_size, &
+               color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
+               my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
+               starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C_beta, my_B_size_beta, &
+               ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, my_B_virtual_start_beta, &
+               virtual_beta, homo_beta, Eigenval_beta, my_B_virtual_end_beta)
          ENDIF
 
       END IF
@@ -3880,7 +3895,8 @@ CONTAINS
                                   sizes_array, calc_forces, &
                                   comm_exchange, integ_group_size, my_B_size, iiB, my_group_L_end, &
                                   my_group_L_size, my_group_L_size_orig, my_group_L_start, my_new_group_L_size, &
-                              sub_sub_color, integ_group_pos2color_sub, new_sizes_array, proc_map, proc_map_rep, sizes_array_orig, &
+                                  sub_sub_color, integ_group_pos2color_sub, new_sizes_array, &
+                                  proc_map, proc_map_rep, sizes_array_orig, &
                                   sub_proc_map, ranges_info_array, para_env_exchange, para_env_rep, num_integ_group)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -3999,10 +4015,14 @@ CONTAINS
 !> \param mem_real ...
 ! **************************************************************************************************
    SUBROUTINE mp2_ri_get_sizes(mp2_env, para_env, para_env_sub, ends_array, ends_B_virtual, sizes_array, sizes_B_virtual, &
-           starts_array, starts_B_virtual, homo, dimen_RI, unit_nr, color_sub, best_block_size, best_integ_group_size, block_size, &
-                         integ_group_size, min_integ_group_size, my_B_size, my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
-           my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group, pos_integ_group, virtual, my_alpha_beta_case, &
-                             my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
+                               starts_array, starts_B_virtual, homo, dimen_RI, unit_nr, color_sub, &
+                               best_block_size, best_integ_group_size, block_size, &
+                               integ_group_size, min_integ_group_size, my_B_size, &
+                               my_B_virtual_end, my_B_virtual_start, my_group_L_size, &
+                               my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, num_integ_group, &
+                               pos_integ_group, virtual, my_alpha_beta_case, &
+                               my_open_shell_SS, mem_for_aK, mem_for_comm, &
+                               mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array, ends_B_virtual, sizes_array, &
@@ -5043,10 +5063,12 @@ CONTAINS
 !> \param my_B_virtual_end_beta ...
 ! **************************************************************************************************
    SUBROUTINE quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, open_shell, &
-                             beta_beta, alpha_beta, Bib_C, unit_nr, dimen_RI, my_B_size, ngroup, num_integ_group, my_group_L_size, &
+                                    beta_beta, alpha_beta, Bib_C, unit_nr, dimen_RI, &
+                                    my_B_size, ngroup, num_integ_group, my_group_L_size, &
                                     color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                                     my_B_virtual_start, my_B_virtual_end, sizes_array, ends_B_virtual, sizes_B_virtual, &
-                                  starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C_beta, my_B_size_beta, &
+                                    starts_B_virtual, sub_proc_map, integ_group_pos2color_sub, &
+                                    local_ab, BIb_C_beta, my_B_size_beta, &
                                     ends_B_virtual_beta, sizes_B_virtual_beta, starts_B_virtual_beta, my_B_virtual_start_beta, &
                                     virtual_beta, homo_beta, Eigenval_beta, my_B_virtual_end_beta)
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -5194,7 +5216,8 @@ CONTAINS
 
                   IF (ijk_index <= send_ijk_index) THEN
                      ! something to send
-             ijk_counter_send = (ijk_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
+                     ijk_counter_send = (ijk_index-MIN(1, integ_group_pos2color_sub(proc_send)))* &
+                                        ngroup+integ_group_pos2color_sub(proc_send)
                      IF (iloops .EQ. 1) THEN
                         send_i = ijk_map(ijk_counter_send, 1)
                         send_j = ijk_map(ijk_counter_send, 2)
@@ -5368,7 +5391,8 @@ CONTAINS
                         DO a = 1, my_B_size
                            a_global = a+my_B_virtual_start-1
                            t_ab(a_global, b) = local_ab(a_global, b)/ &
-                                      (Eigenval(my_i)+Eigenval_beta(my_k)-Eigenval(homo+a_global)-Eigenval_beta(homo_beta+b_global))
+                                               (Eigenval(my_i)+Eigenval_beta(my_k)-Eigenval(homo+a_global)- &
+                                                Eigenval_beta(homo_beta+b_global))
                         END DO
                      END DO
                   ELSE ! Alpha-beta for beta-beta density
@@ -5377,7 +5401,8 @@ CONTAINS
                         DO a = 1, my_B_size_beta
                            a_global = a+my_B_virtual_start_beta-1
                            t_ab(a_global, b) = local_ab(a_global, b)/ &
-                                      (Eigenval_beta(my_i)+Eigenval(my_k)-Eigenval_beta(homo_beta+a_global)-Eigenval(homo+b_global))
+                                               (Eigenval_beta(my_i)+Eigenval(my_k)-Eigenval_beta(homo_beta+a_global)- &
+                                                Eigenval(homo+b_global))
                         END DO
                      END DO
                   ENDIF
@@ -5474,7 +5499,8 @@ CONTAINS
                         DO a = 1, my_B_size
                            a_global = a+my_B_virtual_start-1
                            local_ab(a_global, b) = local_ab(a_global, b)/ &
-                                      (Eigenval(my_j)+Eigenval_beta(my_k)-Eigenval(homo+a_global)-Eigenval_beta(homo_beta+b_global))
+                                                   (Eigenval(my_j)+Eigenval_beta(my_k)-Eigenval(homo+a_global)- &
+                                                    Eigenval_beta(homo_beta+b_global))
                         END DO
                      END DO
                   ELSE ! Alpha-beta for beta-beta density
@@ -5483,7 +5509,8 @@ CONTAINS
                         DO a = 1, my_B_size_beta
                            a_global = a+my_B_virtual_start_beta-1
                            local_ab(a_global, b) = local_ab(a_global, b)/ &
-                                      (Eigenval_beta(my_j)+Eigenval(my_k)-Eigenval_beta(homo_beta+a_global)-Eigenval(homo+b_global))
+                                                   (Eigenval_beta(my_j)+Eigenval(my_k)-Eigenval_beta(homo_beta+a_global)- &
+                                                    Eigenval(homo+b_global))
                         END DO
                      END DO
                   ENDIF
@@ -5512,7 +5539,8 @@ CONTAINS
 
                   IF (ijk_index <= send_ijk_index) THEN
                      ! somethig to send
-             ijk_counter_send = (ijk_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+integ_group_pos2color_sub(proc_send)
+                     ijk_counter_send = (ijk_index-MIN(1, integ_group_pos2color_sub(proc_send)))*ngroup+ &
+                                        integ_group_pos2color_sub(proc_send)
                      IF (iloops .EQ. 1) THEN
                         send_i = ijk_map(ijk_counter_send, 1)
                         send_j = ijk_map(ijk_counter_send, 2)

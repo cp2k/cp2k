@@ -151,7 +151,8 @@ CONTAINS
          CPASSERT(ASSOCIATED(core_particle_set))
          nshell = SIZE(shell_particle_set)
          CALL structure_factor_allocate(grid_s%bounds, npart, exp_igr, &
-                                       allocate_centre=.TRUE., allocate_shell_e=.TRUE., allocate_shell_centre=.TRUE., nshell=nshell)
+                                        allocate_centre=.TRUE., allocate_shell_e=.TRUE., &
+                                        allocate_shell_centre=.TRUE., nshell=nshell)
 
       ELSE
          CALL structure_factor_allocate(grid_s%bounds, npart, exp_igr, &

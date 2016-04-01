@@ -106,48 +106,52 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PREFERRED_DIAG_LIBRARY", &
-                  description="Specifies the DIAGONALIZATION library to be used. If not availabe, the standard scalapack is used", &
-                          usage="PREFERRED_DIAG_LIBRARY ELPA", &
-                          default_i_val=do_diag_sl, &
-                          enum_i_vals=(/do_diag_sl, do_diag_sl2, do_diag_elpa/), &
-                          enum_c_vals=s2a("SL", "SL2", "ELPA"), &
-                          enum_desc=s2a("Standard scalapack: syevd", "Scalapack 2.0: syevr", "ELPA"))
+      CALL keyword_create( &
+         keyword, name="PREFERRED_DIAG_LIBRARY", &
+         description="Specifies the DIAGONALIZATION library to be used. If not availabe, the standard scalapack is used", &
+         usage="PREFERRED_DIAG_LIBRARY ELPA", &
+         default_i_val=do_diag_sl, &
+         enum_i_vals=(/do_diag_sl, do_diag_sl2, do_diag_elpa/), &
+         enum_c_vals=s2a("SL", "SL2", "ELPA"), &
+         enum_desc=s2a("Standard scalapack: syevd", "Scalapack 2.0: syevr", "ELPA"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ELPA_KERNEL", &
-                          description="Specifies the kernel to be used when ELPA is in use", &
-                          usage="ELPA_KERNEL SSE", &
-                          default_i_val=elpa_gen, &
-                      enum_i_vals=(/elpa_gen, elpa_gen_sim, elpa_bgp, elpa_bgq, elpa_sse, elpa_avx_b2, elpa_avx_b4, elpa_avx_b6/), &
-                      enum_c_vals=s2a("GENERIC", "GENERIC_SIMPLE", "BGP", "BGQ", "SSE", "AVX_BLOCK2", "AVX_BLOCK4", "AVX_BLOCK6"), &
-      enum_desc=s2a("Generic kernel", "Simplified generic kernel", "Kernel optimized for IBM BGP", "Kernel optimized for IBM BGQ", &
-                            "Kernel wiwth assembler for SSE vectorization", "Kernel optimized for x86_64 using SSE2/SSE3 (Intel)", &
-                                        "Kernel optimized for x86_64 using SSE2/SSE4 (AMD Bulldozer) ", &
-                                        "Kernel optimized for x86_64 using SSE2/SSE4 (block6)"))
+      CALL keyword_create( &
+         keyword, name="ELPA_KERNEL", &
+         description="Specifies the kernel to be used when ELPA is in use", &
+         usage="ELPA_KERNEL SSE", &
+         default_i_val=elpa_gen, &
+         enum_i_vals=(/elpa_gen, elpa_gen_sim, elpa_bgp, elpa_bgq, elpa_sse, elpa_avx_b2, elpa_avx_b4, elpa_avx_b6/), &
+         enum_c_vals=s2a("GENERIC", "GENERIC_SIMPLE", "BGP", "BGQ", "SSE", "AVX_BLOCK2", "AVX_BLOCK4", "AVX_BLOCK6"), &
+         enum_desc=s2a( &
+         "Generic kernel", "Simplified generic kernel", "Kernel optimized for IBM BGP", "Kernel optimized for IBM BGQ", &
+         "Kernel wiwth assembler for SSE vectorization", "Kernel optimized for x86_64 using SSE2/SSE3 (Intel)", &
+         "Kernel optimized for x86_64 using SSE2/SSE4 (AMD Bulldozer) ", &
+         "Kernel optimized for x86_64 using SSE2/SSE4 (block6)"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PREFERRED_FFT_LIBRARY", &
-                          description="Specifies the FFT library which should be preferred. "// &
-                          "If it is not available, use FFTW3 if this is linked in, if FFTW3 is not available use FFTSG. "// &
-                          "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. "// &
-                          "Contrary to earlier CP2K versions, all libraries will result in the same grids, "// &
-                          "i.e. the subset of grids which all FFT libraries can transform. "// &
-                        "See EXTENDED_FFT_LENGTHS if larger FFTs or grids that more precisely match a given cutoff are needed, "// &
-                          "or older results need to be reproduced. "// &
-                          "FFTW3 is often (close to) optimal, and well tested with CP2K.", &
-                          usage="PREFERRED_FFT_LIBRARY FFTW3", &
-                          citations=(/Frigo2005/), &
-                          default_i_val=do_fft_fftw3, &
-                          enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3/), &
-                          enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
-                          enum_desc=s2a("Stefan Goedecker''s FFT (FFTSG), always available,"// &
-                                        "will be used in case a FFT lib is specified and not available", &
-                                        "a fast portable FFT library. Recommended."// &
-                                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
-                                        "Same as FFTW3 (for compatability with CP2K 2.3)"))
+      CALL keyword_create( &
+         keyword, name="PREFERRED_FFT_LIBRARY", &
+         description="Specifies the FFT library which should be preferred. "// &
+         "If it is not available, use FFTW3 if this is linked in, if FFTW3 is not available use FFTSG. "// &
+         "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. "// &
+         "Contrary to earlier CP2K versions, all libraries will result in the same grids, "// &
+         "i.e. the subset of grids which all FFT libraries can transform. "// &
+         "See EXTENDED_FFT_LENGTHS if larger FFTs or grids that more precisely match a given cutoff are needed, "// &
+         "or older results need to be reproduced. "// &
+         "FFTW3 is often (close to) optimal, and well tested with CP2K.", &
+         usage="PREFERRED_FFT_LIBRARY FFTW3", &
+         citations=(/Frigo2005/), &
+         default_i_val=do_fft_fftw3, &
+         enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3/), &
+         enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
+         enum_desc=s2a("Stefan Goedecker''s FFT (FFTSG), always available,"// &
+                       "will be used in case a FFT lib is specified and not available", &
+                       "a fast portable FFT library. Recommended."// &
+                       "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
+                       "Same as FFTW3 (for compatability with CP2K 2.3)"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -226,24 +230,25 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PROGRAM_NAME", &
-                          variants=(/"PROGRAM"/), &
-                          description="Which program should be run", &
-                          usage="PROGRAM_NAME <STRING>", &
-            enum_c_vals=s2a("ATOM", "FARMING", "TEST", "CP2K", "OPTIMIZE_INPUT", "OPTIMIZE_BASIS", "TMC", "MC_ANALYSIS", "SWARM"), &
-                          enum_desc=s2a("Runs single atom calculations", &
-                                        "Runs N independent jobs in a single run", &
-                                        "Do some benchmarking and testing", &
-                                        "Runs one of the CP2K package", &
-                                        "A tool to optimize parameters in a CP2K input", &
-                                        "A tool to create a MOLOPT or ADMM basis for a given set"// &
-                                        " of training structures", &
-                                        "Runs Tree Monte Carlo algorithm using additional input file(s)", &
-                                        "Runs (Tree) Monte Carlo trajectory file analysis", &
-                                        "Runs swarm based calculation"), &
-                          enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input, &
-                                        do_opt_basis, do_tree_mc, do_tree_mc_ana, do_swarm/), &
-                          default_i_val=do_cp2k)
+      CALL keyword_create( &
+         keyword, name="PROGRAM_NAME", &
+         variants=(/"PROGRAM"/), &
+         description="Which program should be run", &
+         usage="PROGRAM_NAME <STRING>", &
+         enum_c_vals=s2a("ATOM", "FARMING", "TEST", "CP2K", "OPTIMIZE_INPUT", "OPTIMIZE_BASIS", "TMC", "MC_ANALYSIS", "SWARM"), &
+         enum_desc=s2a("Runs single atom calculations", &
+                       "Runs N independent jobs in a single run", &
+                       "Do some benchmarking and testing", &
+                       "Runs one of the CP2K package", &
+                       "A tool to optimize parameters in a CP2K input", &
+                       "A tool to create a MOLOPT or ADMM basis for a given set"// &
+                       " of training structures", &
+                       "Runs Tree Monte Carlo algorithm using additional input file(s)", &
+                       "Runs (Tree) Monte Carlo trajectory file analysis", &
+                       "Runs swarm based calculation"), &
+         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input, &
+                       do_opt_basis, do_tree_mc, do_tree_mc_ana, do_swarm/), &
+         default_i_val=do_cp2k)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -264,35 +269,36 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RUN_TYPE", &
-                          description="Type of run that you want to perform Geometry "// &
-                          "optimization, md, montecarlo,...", &
-                          usage="RUN_TYPE MD", &
-                          default_i_val=energy_force_run, &
-                          citations=(/Ceriotti2014, Schonherr2014/), &
-                          enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCE", "MD", "GEO_OPT", &
-                                          "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS", &
-                                          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION", &
-                                          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO", &
-                                          "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION", &
-                                          "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER"), &
-                          enum_i_vals=(/none_run, energy_run, energy_force_run, mol_dyn_run, &
-                                        geo_opt_run, mon_car_run, electronic_spectra_run, debug_run, &
-                                        bsse_run, linear_response_run, pint_run, vib_anal, do_band, &
-                                        cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run, &
-                                        mon_car_run, electronic_spectra_run, linear_response_run, &
-                                        vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run/), &
-                          enum_desc=s2a("Perform no tasks", "Computes energy", "Computes energy and forces", &
-                                      "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", "Computes absorption Spectra", &
-                                        "Performs a Debug analysis", "Basis set superposition error", "Linear Response", &
-                                        "Path integral", "Vibrational analysis", "Band methods", "Cell optimization", &
-                                        "Alias for ENERGY", "Alias for ENERGY", "Alias for MD", "Alias for GEO_OPT", &
-                                        "Alias for MC", "Alias for SPECTRA", "Alias for LR", "Alias for VIBRATIONAL_ANALYSIS", &
-                                        "Real Time propagation run (fixed ionic positions)", &
-                                        "Ehrenfest dynamics (using real time propagation of the wavefunction)", &
-                                        "Temperature Accelerated Monte Carlo (TAMC)", &
-                                        "Tree Monte Carlo (TMC), a pre-sampling MC algorithm", &
-                                        "i-PI driver mode"))
+      CALL keyword_create( &
+         keyword, name="RUN_TYPE", &
+         description="Type of run that you want to perform Geometry "// &
+         "optimization, md, montecarlo,...", &
+         usage="RUN_TYPE MD", &
+         default_i_val=energy_force_run, &
+         citations=(/Ceriotti2014, Schonherr2014/), &
+         enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCE", "MD", "GEO_OPT", &
+                         "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS", &
+                         "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION", &
+                         "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO", &
+                         "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION", &
+                         "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER"), &
+         enum_i_vals=(/none_run, energy_run, energy_force_run, mol_dyn_run, &
+                       geo_opt_run, mon_car_run, electronic_spectra_run, debug_run, &
+                       bsse_run, linear_response_run, pint_run, vib_anal, do_band, &
+                       cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run, &
+                       mon_car_run, electronic_spectra_run, linear_response_run, &
+                       vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run/), &
+         enum_desc=s2a("Perform no tasks", "Computes energy", "Computes energy and forces", &
+                       "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", "Computes absorption Spectra", &
+                       "Performs a Debug analysis", "Basis set superposition error", "Linear Response", &
+                       "Path integral", "Vibrational analysis", "Band methods", "Cell optimization", &
+                       "Alias for ENERGY", "Alias for ENERGY", "Alias for MD", "Alias for GEO_OPT", &
+                       "Alias for MC", "Alias for SPECTRA", "Alias for LR", "Alias for VIBRATIONAL_ANALYSIS", &
+                       "Real Time propagation run (fixed ionic positions)", &
+                       "Ehrenfest dynamics (using real time propagation of the wavefunction)", &
+                       "Temperature Accelerated Monte Carlo (TAMC)", &
+                       "Tree Monte Carlo (TMC), a pre-sampling MC algorithm", &
+                       "i-PI driver mode"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -330,23 +336,26 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRACE_MAX", &
-                   description="Limit the total number a given subroutine is printed in the trace. Accounting is not influenced.", &
-                          usage="TRACE_MAX 100", default_i_val=HUGE(0))
+      CALL keyword_create( &
+         keyword, name="TRACE_MAX", &
+         description="Limit the total number a given subroutine is printed in the trace. Accounting is not influenced.", &
+         usage="TRACE_MAX 100", default_i_val=HUGE(0))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRACE_ROUTINES", &
-                  description="A list of routines to trace. If left empty all routines are traced. Accounting is not influenced.", &
-                          usage="TRACE_ROUTINES {routine_name1} {routine_name2} ...", type_of_var=char_t, &
-                          n_var=-1)
+      CALL keyword_create( &
+         keyword, name="TRACE_ROUTINES", &
+         description="A list of routines to trace. If left empty all routines are traced. Accounting is not influenced.", &
+         usage="TRACE_ROUTINES {routine_name1} {routine_name2} ...", type_of_var=char_t, &
+         n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FLUSH_SHOULD_FLUSH", &
-          description="Flush output regularly, enabling this option might degrade performance significantly on certain machines.", &
-                          usage="FLUSH_SHOULD_FLUSH", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="FLUSH_SHOULD_FLUSH", &
+         description="Flush output regularly, enabling this option might degrade performance significantly on certain machines.", &
+         usage="FLUSH_SHOULD_FLUSH", &
+         default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

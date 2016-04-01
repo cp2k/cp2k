@@ -204,8 +204,9 @@ CONTAINS
                         hypiso(iatom) = hypiso(iatom)+ &
                                         (rho_rad_h(1)%r_coef(ir, iso)-rho_rad_h(2)%r_coef(ir, iso))* &
                                         harmonics%slm(ia, iso)*grid_atom%wr(ir)*grid_atom%wa(ia)* &
-                                        2._dp/(REAL(z, KIND=dp)*a_fine**2*(1._dp+2._dp*grid_atom%rad(ir)/ &
-                                                                       (REAL(z, KIND=dp)*a_fine**2))**2*fourpi*grid_atom%rad(ir)**2)
+                                        2._dp/(REAL(z, KIND=dp)*a_fine**2* &
+                                               (1._dp+2._dp*grid_atom%rad(ir)/(REAL(z, KIND=dp)*a_fine**2))**2* &
+                                               fourpi*grid_atom%rad(ir)**2)
                         hypanisotemp = hypanisotemp+ &
                                        (rho_rad_h(1)%r_coef(ir, iso)-rho_rad_h(2)%r_coef(ir, iso) &
                                         -(rho_rad_s(1)%r_coef(ir, iso)-rho_rad_s(2)%r_coef(ir, iso)))* &

@@ -536,7 +536,8 @@ CONTAINS
 !>      f77_interface:create_force_env, f77_interface:destroy_force_env
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE create_force_env(new_env_id, input_declaration, input_path, &
-                                        output_path, mpi_comm, output_unit, owns_out_unit, input, ierr, work_dir, initial_variables)
+                                         output_path, mpi_comm, output_unit, owns_out_unit, &
+                                         input, ierr, work_dir, initial_variables)
       INTEGER, INTENT(out)                               :: new_env_id
       TYPE(section_type), POINTER                        :: input_declaration
       CHARACTER(len=*), INTENT(in)                       :: input_path

@@ -4271,8 +4271,8 @@ CONTAINS
       DO i = 1, ncolv
          DO j = 1, colvar%reaction_path_param%colvar_p(i)%colvar%n_atom_s
             ii = ii+1
-            fi(:, ii) = colvar%reaction_path_param%colvar_p(i)%colvar%dsdr(:, j)*lambda*(ds1(i, 1) &
-                                                                          /s1(2)/REAL(nconf-1, dp)-colvar%ss*ds1(i, 2)/s1(2))*2.0_dp
+            fi(:, ii) = colvar%reaction_path_param%colvar_p(i)%colvar%dsdr(:, j)*lambda* &
+                        (ds1(i, 1)/s1(2)/REAL(nconf-1, dp)-colvar%ss*ds1(i, 2)/s1(2))*2.0_dp
          END DO
       END DO
 
@@ -5128,7 +5128,8 @@ CONTAINS
       CALL rmsd3(my_particles, r, r0(:, 1), output_unit=-1, weights=weights, my_val=rmsd(1), rotate=.FALSE., drmsd3=drmsd(:, :, 1))
 
       IF (nframes == 2) THEN
-       CALL rmsd3(my_particles, r, r0(:, 2), output_unit=-1, weights=weights, my_val=rmsd(2), rotate=.FALSE., drmsd3=drmsd(:, :, 2))
+         CALL rmsd3(my_particles, r, r0(:, 2), output_unit=-1, weights=weights, &
+                    my_val=rmsd(2), rotate=.FALSE., drmsd3=drmsd(:, :, 2))
 
          f1 = 1.0_dp/(rmsd(1)+rmsd(2))
          ! (rmsdA-rmsdB)/(rmsdA+rmsdB)
@@ -5406,7 +5407,8 @@ CONTAINS
          count1 = v_count+1
          DO i = p_bounds(1, count1), p_bounds(2, count1)
             gp(count1) = REAL(i, KIND=dp)*grid_sp(count1)
-         k = rec_eval_grid(iw1, ncol, f_vals, count1, gp, grid_sp, step_size, istart, iend, s1v, s1, p_bounds, lambda, ifunc, nconf)
+            k = rec_eval_grid(iw1, ncol, f_vals, count1, gp, grid_sp, step_size, &
+                              istart, iend, s1v, s1, p_bounds, lambda, ifunc, nconf)
          END DO
       ELSE IF (v_count == ncol .AND. ifunc == 1) THEN
          DO i = istart, iend

@@ -282,7 +282,8 @@ CONTAINS
       my_localized_wfn = .FALSE.
       NULLIFY (admm_env, dft_control, pw_env, auxbas_pw_pool, pw_pools, mos, rho, &
                mo_coeff, ks_rmpv, matrix_s, qs_loc_env_homo, qs_loc_env_lumo, scf_control, &
-            unoccupied_orbs, unoccupied_orbs_stm, mo_eigenvalues, unoccupied_evals, unoccupied_evals_stm, molecule_set, mo_derivs, &
+               unoccupied_orbs, unoccupied_orbs_stm, mo_eigenvalues, unoccupied_evals, &
+               unoccupied_evals_stm, molecule_set, mo_derivs, &
                subsys, particles, input, print_key, kinetic_m, marked_states)
       NULLIFY (homo_localized, lumo_localized, lumo_ptr, rho_ao)
 
@@ -802,10 +803,11 @@ CONTAINS
             ! Compute the molecular states
             IF (BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                  "MOLECULAR_STATES"), cp_p_file)) THEN
-               CALL construct_molecular_states(molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix, &
-                                               evals(ispin)%array, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
-                                            loc_print_section=loc_print_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo), &
-                                               marked_states=marked_states_spin)
+               CALL construct_molecular_states( &
+                  molecule_set, mo_local(ispin)%matrix, coeff(ispin)%matrix, &
+                  evals(ispin)%array, ks_rmpv(ispin)%matrix, matrix_s(1)%matrix, qs_env, wf_r, wf_g, &
+                  loc_print_section=loc_print_section, particles=particles, tag=TRIM(qs_loc_env%tag_mo), &
+                  marked_states=marked_states_spin)
                IF (ASSOCIATED(marked_states_spin)) THEN
                   IF (.NOT. ASSOCIATED(marked_states)) THEN
                      ALLOCATE (marked_states(SIZE(marked_states_spin), dft_control%nspins, 2))

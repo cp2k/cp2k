@@ -52,10 +52,11 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="TMC", &
-                  description="A parallelized MC algorithm, presampling the configurations, espacially the Markov chain elements", &
-                          citations=(/Schonherr2014/), &
-                          n_keywords=1, n_subsections=1, repeats=.FALSE.)
+      CALL section_create( &
+         section, name="TMC", &
+         description="A parallelized MC algorithm, presampling the configurations, espacially the Markov chain elements", &
+         citations=(/Schonherr2014/), &
+         n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
 

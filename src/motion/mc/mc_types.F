@@ -1113,8 +1113,9 @@ CONTAINS
                WRITE (iw, *) 'Number of molecule types ', nmol_types
                WRITE (iw, *) '&MOLECULE sections found ', irep
             END IF
-            CALL cp_abort(__LOCATION__, &
-                  'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
+            CALL cp_abort( &
+               __LOCATION__, &
+               'Did not find MOLECULE sections for every molecule in the simulation (make sure both input files have all types)')
          ENDIF
       ENDIF
 

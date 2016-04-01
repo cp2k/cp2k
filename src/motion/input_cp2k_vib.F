@@ -63,13 +63,14 @@ CONTAINS
       TYPE(section_type), POINTER                        :: subsection
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="VIBRATIONAL_ANALYSIS", &
-                          description="Section to setup parameters to perform a Normal Modes, vibrational, or phonon analysis. "// &
-                          "Vibrations are computed using finite differences, "// &
-                      "which implies a very tight (e.g. 1E-8) threshold is needed for EPS_SCF to get accurate low frequencies. "// &
-                          "The analysis assumes a stationary state (minimum or TS),"// &
-                          " i.e. tight geometry optimization (MAX_FORCE) is needed as well.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+      CALL section_create( &
+         section, name="VIBRATIONAL_ANALYSIS", &
+         description="Section to setup parameters to perform a Normal Modes, vibrational, or phonon analysis. "// &
+         "Vibrations are computed using finite differences, "// &
+         "which implies a very tight (e.g. 1E-8) threshold is needed for EPS_SCF to get accurate low frequencies. "// &
+         "The analysis assumes a stationary state (minimum or TS),"// &
+         " i.e. tight geometry optimization (MAX_FORCE) is needed as well.", &
+         n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, name="DX", &
@@ -243,25 +244,27 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_NORM", &
-                        description="Convergence criterium for the davidson algorithm. Specifies the maximal value of the norm "// &
-                          "of the residuum vectors ", &
-                          usage="EPS_NORM {REAL}", default_r_val=2.0E-6_dp)
+      CALL keyword_create( &
+         keyword, name="EPS_NORM", &
+         description="Convergence criterium for the davidson algorithm. Specifies the maximal value of the norm "// &
+         "of the residuum vectors ", &
+         usage="EPS_NORM {REAL}", default_r_val=2.0E-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INITIAL_GUESS", &
-                          description="The type of initial guess for the normal modes", &
-                          usage="INITIAL_GUESS BFGS_HESS", &
-                          default_i_val=ms_guess_atomic, &
-                          enum_c_vals=s2a("BFGS_HESS", "ATOMIC", "RESTART", "RESTART_VEC", "MOLDEN_RESTART"), &
-                          enum_desc=s2a("get the first displacement vector out of the BFGS approximate Hessian", &
-                                        "use random displacements for a set of atoms specified", &
-                                        "use data from MS_RESTART as initial guess", &
-                          "use a vector from MS_RESTART, useful if you want to increase accurcy by changing functionals or basis", &
-                                        "use the .mol file of a former run, to restart a vector"// &
-                                        "(similar to Restart_vec, but a different file FORMAT is used)"), &
-                          enum_i_vals=(/ms_guess_bfgs, ms_guess_atomic, ms_guess_restart, ms_guess_restart_vec, ms_guess_molden/))
+      CALL keyword_create( &
+         keyword, name="INITIAL_GUESS", &
+         description="The type of initial guess for the normal modes", &
+         usage="INITIAL_GUESS BFGS_HESS", &
+         default_i_val=ms_guess_atomic, &
+         enum_c_vals=s2a("BFGS_HESS", "ATOMIC", "RESTART", "RESTART_VEC", "MOLDEN_RESTART"), &
+         enum_desc=s2a("get the first displacement vector out of the BFGS approximate Hessian", &
+                       "use random displacements for a set of atoms specified", &
+                       "use data from MS_RESTART as initial guess", &
+                       "use a vector from MS_RESTART, useful if you want to increase accurcy by changing functionals or basis", &
+                       "use the .mol file of a former run, to restart a vector"// &
+                       "(similar to Restart_vec, but a different file FORMAT is used)"), &
+         enum_i_vals=(/ms_guess_bfgs, ms_guess_atomic, ms_guess_restart, ms_guess_restart_vec, ms_guess_molden/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -307,23 +310,26 @@ CONTAINS
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="INVOLVED_ATOMS", &
-                         description="All parameters needed for the tracking of modes dominated by the motion of selected atoms ", &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+      CALL section_create( &
+         section, name="INVOLVED_ATOMS", &
+         description="All parameters needed for the tracking of modes dominated by the motion of selected atoms ", &
+         n_keywords=2, n_subsections=0, repeats=.FALSE.)
 
-      CALL keyword_create(keyword, name="RANGE", &
-                  description=" Specifies the range of wavenumbers in which the modes related to the ATOMS have to be tracked. "// &
-                     " If not specified frequencies >400cm-1 will be used to avoid tracking of translational or rotational modes", &
-                          usage="RANGE {REAL} {REAL}", &
-                          n_var=-1, type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="RANGE", &
+         description=" Specifies the range of wavenumbers in which the modes related to the ATOMS have to be tracked. "// &
+         " If not specified frequencies >400cm-1 will be used to avoid tracking of translational or rotational modes", &
+         usage="RANGE {REAL} {REAL}", &
+         n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="INVOLVED_ATOMS", &
-                       description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "// &
-                          "similar to looking for the vibration of a set of atoms", &
-                          usage="INVOLVED_ATOMS {integer} {integer} .. {integer}", &
-                          n_var=-1, type_of_var=integer_t)
+      CALL keyword_create( &
+         keyword, name="INVOLVED_ATOMS", &
+         description="Specifies the list of atoms on which the tracked eigenvector should have the highest value "// &
+         "similar to looking for the vibration of a set of atoms", &
+         usage="INVOLVED_ATOMS {integer} {integer} .. {integer}", &
+         n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

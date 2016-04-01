@@ -71,10 +71,11 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "SHELL_TRAJECTORY", &
-                                      description="Controls the output of the trajectory of shells when the shell-model is used ", &
-                                       print_level=high_print_level, common_iter_levels=1, &
-                                       filename="", unit_str="angstrom")
+      CALL cp_print_key_section_create( &
+         print_key, "SHELL_TRAJECTORY", &
+         description="Controls the output of the trajectory of shells when the shell-model is used ", &
+         print_level=high_print_level, common_iter_levels=1, &
+         filename="", unit_str="angstrom")
       CALL add_format_keyword(keyword, print_key, pos=.TRUE., &
                               description="Specifies the format of the output file for the trajectory of shells.")
       CALL section_add_subsection(section, print_key)
@@ -134,10 +135,11 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "FORCE_MIXING_LABELS", &
-                                      description="Controls the output of the force mixing (FORCE_EVAL&QMMM&FORCE_MIXING) labels", &
-                                       print_level=high_print_level, common_iter_levels=1, &
-                                       filename="")
+      CALL cp_print_key_section_create( &
+         print_key, "FORCE_MIXING_LABELS", &
+         description="Controls the output of the force mixing (FORCE_EVAL&QMMM&FORCE_MIXING) labels", &
+         print_level=high_print_level, common_iter_levels=1, &
+         filename="")
       CALL add_format_keyword(keyword, print_key, pos=.FALSE., &
                               description="Specifies the format of the output file for the force mixing labels.")
       CALL section_add_subsection(section, print_key)
@@ -258,19 +260,20 @@ CONTAINS
 
       IF (pos) THEN
 
-         CALL keyword_create(keyword, name="FORMAT", &
-                             description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)", &
-                             default_i_val=dump_xmol, &
-                             enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ"), &
-                             enum_i_vals=(/dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol/), &
-                             enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
-                                           "Write the coordinates (no element labels) and the cell information to a binary file", &
-                               "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "// &
-                              "the cell vector <b>a</b> is aligned with the <i>x</i> axis and the cell vector <b>b</b> lies in "// &
-                              "the <i>xy</i> plane. This allows the reconstruction of scaled coordinates from the DCD data only.", &
-                                           "Write the atomic information in PDB format to a formatted file", &
-                                           "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z", &
-                                           "Alias name for XMOL"))
+         CALL keyword_create( &
+            keyword, name="FORMAT", &
+            description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)", &
+            default_i_val=dump_xmol, &
+            enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ"), &
+            enum_i_vals=(/dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol/), &
+            enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
+                          "Write the coordinates (no element labels) and the cell information to a binary file", &
+                          "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "// &
+                          "the cell vector <b>a</b> is aligned with the <i>x</i> axis and the cell vector <b>b</b> lies in "// &
+                          "the <i>xy</i> plane. This allows the reconstruction of scaled coordinates from the DCD data only.", &
+                          "Write the atomic information in PDB format to a formatted file", &
+                          "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z", &
+                          "Alias name for XMOL"))
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 

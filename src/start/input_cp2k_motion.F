@@ -223,10 +223,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NVIRIAL", &
-                       description="Use this many random orientations to compute the second virial coefficient (ENSEMBLE=VIRIAL)", &
-                          usage="NVIRIAL {integer}", &
-                          default_i_val=1000)
+      CALL keyword_create( &
+         keyword, name="NVIRIAL", &
+         description="Use this many random orientations to compute the second virial coefficient (ENSEMBLE=VIRIAL)", &
+         usage="NVIRIAL {integer}", &
+         default_i_val=1000)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -316,10 +317,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VIRIAL_TEMPS", &
-                    description="The temperatures you wish to compute the virial coefficient for.  Only used if ensemble=VIRIAL.", &
-                          usage="VIRIAL_TEMPS {real} {real} ... ", &
-                          n_var=-1, type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="VIRIAL_TEMPS", &
+         description="The temperatures you wish to compute the virial coefficient for.  Only used if ensemble=VIRIAL.", &
+         usage="VIRIAL_TEMPS {real} {real} ... ", &
+         n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -385,10 +387,11 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="PBIAS", &
-                       description="The probability of swapping to an inner region in an AVBMC swap move for each molecule type.", &
-                          usage="PBIAS {real} {real} ... ", &
-                          n_var=-1, type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="PBIAS", &
+         description="The probability of swapping to an inner region in an AVBMC swap move for each molecule type.", &
+         usage="PBIAS {real} {real} ... ", &
+         n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -788,18 +791,19 @@ CONTAINS
          CALL keyword_release(keyword)
       END IF
 
-      CALL keyword_create(keyword, name="OPTIMIZER", &
-                          variants=(/"MINIMIZER"/), &
-                          citations=(/Byrd1995/), &
-                          description="Specify which method to use to perform a geometry optimization.", &
-                          usage="OPTIMIZER {BFGS|LBFGS|CG}", &
-                          enum_c_vals=s2a("BFGS", "LBFGS", "CG"), &
-                          enum_desc=s2a("Most efficient minimizer, but only for 'small' systems, "// &
-                                        "as it relies on diagonalization of a full Hessian matrix", &
-                                "Limit memory variant of the above, can also be applied to large systems, not as well fine-tuned", &
-                                "conjugate gradients, robust minimizer (depending on the line search) also OK for large systems"), &
-                          enum_i_vals=(/default_bfgs_method_id, default_lbfgs_method_id, default_cg_method_id/), &
-                          default_i_val=default_bfgs_method_id)
+      CALL keyword_create( &
+         keyword, name="OPTIMIZER", &
+         variants=(/"MINIMIZER"/), &
+         citations=(/Byrd1995/), &
+         description="Specify which method to use to perform a geometry optimization.", &
+         usage="OPTIMIZER {BFGS|LBFGS|CG}", &
+         enum_c_vals=s2a("BFGS", "LBFGS", "CG"), &
+         enum_desc=s2a("Most efficient minimizer, but only for 'small' systems, "// &
+                       "as it relies on diagonalization of a full Hessian matrix", &
+                       "Limit memory variant of the above, can also be applied to large systems, not as well fine-tuned", &
+                       "conjugate gradients, robust minimizer (depending on the line search) also OK for large systems"), &
+         enum_i_vals=(/default_bfgs_method_id, default_lbfgs_method_id, default_cg_method_id/), &
+         default_i_val=default_bfgs_method_id)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -871,9 +875,10 @@ CONTAINS
                              description="Controls the printing properties during a geometry optimization run", &
                              n_keywords=0, n_subsections=1, repeats=.TRUE.)
          NULLIFY (print_key)
-         CALL cp_print_key_section_create(print_key, "program_run_info", &
-                                        description="Controls the printing of basic information during the Geometry Optimization", &
-                                          print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+         CALL cp_print_key_section_create( &
+            print_key, "program_run_info", &
+            description="Controls the printing of basic information during the Geometry Optimization", &
+            print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
          CALL section_add_subsection(subsection, print_key)
          CALL section_release(print_key)
          CALL section_add_subsection(section, subsection)
@@ -895,12 +900,13 @@ CONTAINS
 
       TYPE(section_type), POINTER                        :: print_key, subsection
 
-      CALL create_geoopt_section(section, label="SHELL_OPT", &
-                                description="This section sets the environment for the optimization of the shell-core distances"// &
-                                 " that might turn to be necessary along a MD run using a shell-model potential. "// &
-                                 " The optimization procedure is activated when at least one of the shell-core "// &
-                                 "pairs becomes too elongated,  i.e. when the assumption of point dipole is not longer valid.", &
-                                 just_optimizers=.TRUE.)
+      CALL create_geoopt_section( &
+         section, label="SHELL_OPT", &
+         description="This section sets the environment for the optimization of the shell-core distances"// &
+         " that might turn to be necessary along a MD run using a shell-model potential. "// &
+         " The optimization procedure is activated when at least one of the shell-core "// &
+         "pairs becomes too elongated,  i.e. when the assumption of point dipole is not longer valid.", &
+         just_optimizers=.TRUE.)
 
       NULLIFY (print_key, subsection)
 
@@ -940,37 +946,40 @@ CONTAINS
                                  " (2) Finite temperature optimization. ", just_optimizers=.TRUE.)
 
       NULLIFY (keyword, print_key, subsection)
-      CALL keyword_create(keyword, name="TYPE", &
-                          description="Specify which kind of method to use for the optimization of the simulation cell", &
-                          usage="TYPE (GEO_OPT|MD|DIRECT_CELL_OPT)", &
-                          enum_c_vals=s2a("GEO_OPT", "MD", "DIRECT_CELL_OPT"), &
-                          enum_desc=s2a( &
-                      "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps. "// &
-                          " The stress tensor is computed at the optimized geometry.", &
-                        "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor "// &
-                          " used for the cell optimization.", &
-                          "Performs a geometry and cell optimization at the same time."// &
-                          " The stress tensor is computed at every step"), &
-                          enum_i_vals=(/default_cell_geo_opt_id, default_cell_md_id, default_cell_direct_id/), &
-                          default_i_val=default_cell_direct_id)
+      CALL keyword_create( &
+         keyword, name="TYPE", &
+         description="Specify which kind of method to use for the optimization of the simulation cell", &
+         usage="TYPE (GEO_OPT|MD|DIRECT_CELL_OPT)", &
+         enum_c_vals=s2a("GEO_OPT", "MD", "DIRECT_CELL_OPT"), &
+         enum_desc=s2a( &
+         "Performs a geometry optimization (the GEO_OPT section must be defined) between cell optimization steps. "// &
+         " The stress tensor is computed at the optimized geometry.", &
+         "Performs a molecular dynamics run (the MD section needs must defined) for computing the stress tensor "// &
+         " used for the cell optimization.", &
+         "Performs a geometry and cell optimization at the same time."// &
+         " The stress tensor is computed at every step"), &
+         enum_i_vals=(/default_cell_geo_opt_id, default_cell_md_id, default_cell_direct_id/), &
+         default_i_val=default_cell_direct_id)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXTERNAL_PRESSURE", &
-                        description="Specifies the external pressure (1 value or the full 9 components of the pressure tensor) "// &
-                          "applied during the cell optimization.", &
-                          usage="EXTERNAL_PRESSURE {REAL} .. {REAL}", unit_str="bar", &
-                          default_r_vals=(/cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, 0.0_dp, &
-                                           0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, &
-                                           0.0_dp, 0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar")/), n_var=-1)
+      CALL keyword_create( &
+         keyword, name="EXTERNAL_PRESSURE", &
+         description="Specifies the external pressure (1 value or the full 9 components of the pressure tensor) "// &
+         "applied during the cell optimization.", &
+         usage="EXTERNAL_PRESSURE {REAL} .. {REAL}", unit_str="bar", &
+         default_r_vals=(/cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, 0.0_dp, &
+                          0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, &
+                          0.0_dp, 0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar")/), n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="KEEP_ANGLES", &
-                          description="Keep angles between the cell vectors constant, but allow the lenghts of the"// &
-                          " cell vectors to change independently."// &
-                       " Albeit general, this is most useful for triclinic cells, to enforce higher symmetry, see KEEP_SYMMETRY.", &
-                          usage="KEEP_ANGLES TRUE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="KEEP_ANGLES", &
+         description="Keep angles between the cell vectors constant, but allow the lenghts of the"// &
+         " cell vectors to change independently."// &
+         " Albeit general, this is most useful for triclinic cells, to enforce higher symmetry, see KEEP_SYMMETRY.", &
+         usage="KEEP_ANGLES TRUE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1000,10 +1009,11 @@ CONTAINS
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
-      CALL cp_print_key_section_create(print_key, "cell", &
-                              description="Controls the printing of the cell eveytime a calculation using a new cell is started.", &
-                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__", &
-                                       unit_str="angstrom")
+      CALL cp_print_key_section_create( &
+         print_key, "cell", &
+         description="Controls the printing of the cell eveytime a calculation using a new cell is started.", &
+         print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__", &
+         unit_str="angstrom")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
       CALL section_add_subsection(section, subsection)
@@ -1071,9 +1081,10 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL create_geoopt_section(subsection2, label="ROT_OPT", &
-                               description="This section sets the environment for the optimization of the rotation of the Dimer.", &
-                                 just_optimizers=.TRUE.)
+      CALL create_geoopt_section( &
+         subsection2, label="ROT_OPT", &
+         description="This section sets the environment for the optimization of the rotation of the Dimer.", &
+         just_optimizers=.TRUE.)
       NULLIFY (subsection3)
       CALL section_create(subsection3, name="PRINT", &
                           description="Controls the printing properties during the dimer rotation optimization run", &
@@ -1268,10 +1279,11 @@ CONTAINS
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="LINMIN_GRAD_ONLY", &
-                        description="Use only the gradient, not the energy for line minimizations (e.g. in conjugate gradients).", &
-                          usage="LINMIN_GRAD_ONLY T", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="LINMIN_GRAD_ONLY", &
+         description="Use only the gradient, not the energy for line minimizations (e.g. in conjugate gradients).", &
+         usage="LINMIN_GRAD_ONLY T", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1377,10 +1389,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="TRUST_RADIUS", &
-           description="Trust radius used in LBFGS. Not completely in dept tested. Negativ values means no trust radius is used.", &
-                          usage="TRUST_RADIUS {real}", unit_str='angstrom', &
-                          default_r_val=-1.0_dp)
+      CALL keyword_create( &
+         keyword, name="TRUST_RADIUS", &
+         description="Trust radius used in LBFGS. Not completely in dept tested. Negativ values means no trust radius is used.", &
+         usage="TRUST_RADIUS {real}", unit_str='angstrom', &
+         default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

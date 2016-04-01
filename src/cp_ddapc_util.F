@@ -420,7 +420,8 @@ CONTAINS
             !NB just returns rows, since dAm is symmetric, and missing columns can be
             !NB reconstructed with a simple transpose, as below
             CALL build_der_A_matrix_rows(dAm, cp_ddapc_env%gfunc, cp_ddapc_env%w, &
-                                       particle_set, radii, rho_tot_g, gcut, iparticle0, nparticles, g_dot_rvec_sin, g_dot_rvec_cos)
+                                         particle_set, radii, rho_tot_g, gcut, iparticle0, &
+                                         nparticles, g_dot_rvec_sin, g_dot_rvec_cos)
             !NB no more reduction of dbv and dAm - instead we go through with each node's contribution
             !NB and reduce resulting charges/forces once, at the end.  Intermediate speedup can be
             !NB had by reducing dqv after the inner loop, and then other routines don't need to know

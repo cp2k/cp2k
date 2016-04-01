@@ -1964,7 +1964,8 @@ CONTAINS
             IF (unit_nr > 0) THEN
                WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
                   "INTEG_INFO| Range for the minimax approximation:", E_Range
-           WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "INTEG_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
+                  "INTEG_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
                DO jquad = 1, num_integ_points
                   WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(jquad), tau_tj(jquad)
                END DO
@@ -2839,7 +2840,8 @@ CONTAINS
                               fm_mat_S_beta%local_data(iiB, jjB) = fm_mat_S_contour_def_beta%local_data(iiB, jjB)
 
                               ! update
-                         fm_mat_S_beta%local_data(iiB, jjB) = fm_mat_S_beta%local_data(iiB, jjB)*eigen_diff/(eigen_diff**2-omega**2)
+                              fm_mat_S_beta%local_data(iiB, jjB) = &
+                                 fm_mat_S_beta%local_data(iiB, jjB)*eigen_diff/(eigen_diff**2-omega**2)
 
                            END IF
 
@@ -2869,7 +2871,8 @@ CONTAINS
                   END SELECT
 
                   t_end = m_walltime()
-               actual_flop_rate = 2.0_dp*REAL(dimen_ia_beta, KIND=dp)*dimen_RI*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end-t_start))
+                  actual_flop_rate = 2.0_dp*REAL(dimen_ia_beta, KIND=dp)* &
+                                     dimen_RI*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end-t_start))
                   IF (para_env_RPA%mepos == 0) my_flop_rate = my_flop_rate+actual_flop_rate
                   my_num_dgemm_call = my_num_dgemm_call+1
 
@@ -3024,7 +3027,8 @@ CONTAINS
                DO iiB = 1, nrow_local
                   nm_global = row_indices(iiB)
                   DO jjB = 1, ncol_local
-                    vec_W_gw(nm_global) = vec_W_gw(nm_global)+fm_mat_S_gw_work%local_data(iiB, jjB)*fm_mat_S_gw%local_data(iiB, jjB)
+                     vec_W_gw(nm_global) = vec_W_gw(nm_global)+ &
+                                           fm_mat_S_gw_work%local_data(iiB, jjB)*fm_mat_S_gw%local_data(iiB, jjB)
                      IF (my_open_shell) THEN
                         vec_W_gw_beta(nm_global) = vec_W_gw_beta(nm_global)+ &
                                                    fm_mat_S_gw_work_beta%local_data(iiB, jjB)*fm_mat_S_gw_beta%local_data(iiB, jjB)
@@ -3189,12 +3193,13 @@ CONTAINS
                                          fermi_level_offset)
 
                IF (my_open_shell) THEN
-                  CALL fit_and_continuation(vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
-                                  z_value_beta, m_value_beta, vec_Sigma_c_gw_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), &
-                                            Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
-                                            gw_corr_lev_occ_beta, num_poles, &
-                                            num_fit_points, max_iter_fit, crossing_search, homo_beta, check_fit, stop_crit, &
-                                            fermi_level_offset)
+                  CALL fit_and_continuation( &
+                     vec_gw_energ_beta, vec_gw_energ_error_fit_beta, vec_omega_fit_gw, &
+                     z_value_beta, m_value_beta, vec_Sigma_c_gw_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), &
+                     Eigenval_beta, Eigenval_scf_beta, n_level_gw, &
+                     gw_corr_lev_occ_beta, num_poles, &
+                     num_fit_points, max_iter_fit, crossing_search, homo_beta, check_fit, stop_crit, &
+                     fermi_level_offset)
 
                END IF
 
@@ -3251,7 +3256,8 @@ CONTAINS
                   index_contour_def = 1
 
                   ! only correct levels for which contour deformation is enabled
-                DO n_level_gw = contour_def_start-(homo_beta-gw_corr_lev_occ_beta), contour_def_end-(homo_beta-gw_corr_lev_occ_beta)
+                  DO n_level_gw = contour_def_start-(homo_beta-gw_corr_lev_occ_beta), &
+                                  contour_def_end-(homo_beta-gw_corr_lev_occ_beta)
 
                      ! reset the values from analytic continuation
                      vec_gw_energ_beta(n_level_gw) = 0.0_dp
@@ -3279,24 +3285,27 @@ CONTAINS
             ! print the quasiparticle energies and update Eigenval in case you do eigenvalue self-consistent GW
             IF (my_open_shell) THEN
 
-               CALL print_and_update_for_ev_sc(vec_gw_energ, vec_gw_energ_error_fit, &
-                                               z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), Eigenval, &
-                                               Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                                            count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details, &
-                                               do_alpha=.TRUE.)
+               CALL print_and_update_for_ev_sc( &
+                  vec_gw_energ, vec_gw_energ_error_fit, &
+                  z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), Eigenval, &
+                  Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
+                  count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details, &
+                  do_alpha=.TRUE.)
 
-               CALL print_and_update_for_ev_sc(vec_gw_energ_beta, vec_gw_energ_error_fit_beta, &
-                                        z_value_beta, m_value_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), Eigenval_beta, &
-                              Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, gw_corr_lev_tot, &
-                                       count_ev_sc_GW, crossing_search, homo_beta, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details, &
-                                               do_beta=.TRUE.)
+               CALL print_and_update_for_ev_sc( &
+                  vec_gw_energ_beta, vec_gw_energ_error_fit_beta, &
+                  z_value_beta, m_value_beta, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 2), Eigenval_beta, &
+                  Eigenval_last_beta, Eigenval_scf_beta, gw_corr_lev_occ_beta, gw_corr_lev_virt_beta, gw_corr_lev_tot, &
+                  count_ev_sc_GW, crossing_search, homo_beta, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details, &
+                  do_beta=.TRUE.)
 
             ELSE
 
-               CALL print_and_update_for_ev_sc(vec_gw_energ, vec_gw_energ_error_fit, &
-                                               z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), Eigenval, &
-                                               Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
-                                              count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details)
+               CALL print_and_update_for_ev_sc( &
+                  vec_gw_energ, vec_gw_energ_error_fit, &
+                  z_value, m_value, mp2_env%ri_g0w0%vec_Sigma_x_minus_vxc_gw(:, 1), Eigenval, &
+                  Eigenval_last, Eigenval_scf, gw_corr_lev_occ, gw_corr_lev_virt, gw_corr_lev_tot, &
+                  count_ev_sc_GW, crossing_search, homo, nmo, unit_nr, mp2_env%ri_g0w0%print_gw_details)
 
             END IF
 
@@ -3806,8 +3815,9 @@ CONTAINS
                left_term_beta = left_term_beta+wj(jquad)* &
                                 (LOG(ONE+(M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))- &
                                  (M_ia_beta(iiB)-D_ia_beta(iiB)**2)/(omega**2+D_ia_beta(iiB)**2))
-               first_deriv_beta = first_deriv_beta+wj(jquad)*cottj(jquad)**2* &
-                                ((-M_ia_beta(iiB)+D_ia_beta(iiB)**2)**2/((omega**2+D_ia_beta(iiB)**2)**2*(omega**2+M_ia_beta(iiB))))
+               first_deriv_beta = &
+                  first_deriv_beta+wj(jquad)*cottj(jquad)**2* &
+                  ((-M_ia_beta(iiB)+D_ia_beta(iiB)**2)**2/((omega**2+D_ia_beta(iiB)**2)**2*(omega**2+M_ia_beta(iiB))))
             END DO
          END IF
 

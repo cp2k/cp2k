@@ -82,20 +82,22 @@ CONTAINS
                                       Tao2003, Wellendorff2012/))
 
       NULLIFY (subsection, keyword)
-      CALL keyword_create(keyword, name="_SECTION_PARAMETERS_", &
-                          description="Shortcut for the most common functional combinations.", &
-                          usage="&xc_functional BLYP", &
-enum_c_vals=s2a("B3LYP", "PBE0", "BLYP", "BP", "PADE", "LDA", "PBE", "TPSS", "HCTH120", "OLYP", "BEEFVDW", "NO_SHORTCUT", "NONE"), &
-              enum_i_vals=(/xc_funct_b3lyp, xc_funct_pbe0, xc_funct_blyp, xc_funct_bp, xc_funct_pade, xc_funct_pade, xc_funct_pbe, &
-                                xc_funct_tpss, xc_funct_hcth120, xc_funct_olyp, xc_funct_beefvdw, xc_funct_no_shortcut, xc_none/), &
-                          enum_desc=s2a("B3LYP", &
-                                        "PBE0. See note in section XC/XC_FUNCTIONAL/PBE.", &
-                                        "BLYP", "BP", "PADE", "Alias for PADE", &
-                                        "PBE. See note in section XC/XC_FUNCTIONAL/PBE.", &
-                                        "TPSS", "HCTH120", "OLYP", &
-                                        "BEEFVDW", "NO_SHORTCUT", "NONE"), &
-                          default_i_val=xc_funct_no_shortcut, &
-                          lone_keyword_i_val=xc_funct_no_shortcut)
+      CALL keyword_create( &
+         keyword, name="_SECTION_PARAMETERS_", &
+         description="Shortcut for the most common functional combinations.", &
+         usage="&xc_functional BLYP", &
+         enum_c_vals=s2a("B3LYP", "PBE0", "BLYP", "BP", "PADE", "LDA", "PBE", &
+                         "TPSS", "HCTH120", "OLYP", "BEEFVDW", "NO_SHORTCUT", "NONE"), &
+         enum_i_vals=(/xc_funct_b3lyp, xc_funct_pbe0, xc_funct_blyp, xc_funct_bp, xc_funct_pade, xc_funct_pade, xc_funct_pbe, &
+                       xc_funct_tpss, xc_funct_hcth120, xc_funct_olyp, xc_funct_beefvdw, xc_funct_no_shortcut, xc_none/), &
+         enum_desc=s2a("B3LYP", &
+                       "PBE0. See note in section XC/XC_FUNCTIONAL/PBE.", &
+                       "BLYP", "BP", "PADE", "Alias for PADE", &
+                       "PBE. See note in section XC/XC_FUNCTIONAL/PBE.", &
+                       "TPSS", "HCTH120", "OLYP", &
+                       "BEEFVDW", "NO_SHORTCUT", "NONE"), &
+         default_i_val=xc_funct_no_shortcut, &
+         lone_keyword_i_val=xc_funct_no_shortcut)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -571,9 +573,10 @@ enum_c_vals=s2a("B3LYP", "PBE0", "BLYP", "BP", "PADE", "LDA", "PBE", "TPSS", "HC
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, "scale_x", &
-                description="scales the exchange part of the functional, if -1 the default for the given parametrization is used", &
-                          default_r_val=-1._dp)
+      CALL keyword_create( &
+         keyword, "scale_x", &
+         description="scales the exchange part of the functional, if -1 the default for the given parametrization is used", &
+         default_r_val=-1._dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, "scale_c", &
@@ -1077,17 +1080,18 @@ enum_c_vals=s2a("B3LYP", "PBE0", "BLYP", "BP", "PADE", "LDA", "PBE", "TPSS", "HC
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FUNCTIONAL_ROUTINE", &
-                          description="Select the code for xc calculation", &
-                          usage="FUNCTIONAL_ROUTINE (NEW|OLD|TEST_LSD|DEBUG)", &
-                          default_i_val=xc_new_f_routine, &
-                          enum_c_vals=s2a("NEW", "OLD", "TEST_LSD", "DEBUG"), &
-                          enum_i_vals=(/xc_new_f_routine, xc_old_f_routine, &
-                                        xc_test_lsd_f_routine, xc_debug_new_routine/), &
-                          enum_desc=s2a("Use new code for exchange-correlation functional calculation", &
-                                        "Use old code for exchange-correlation functional calculation", &
-                                 "Use test local-spin-density approximation code for exchange-correlation functional calculation", &
-                                        "Use debug new code for exchange-correlation functional calculation"))
+      CALL keyword_create( &
+         keyword, name="FUNCTIONAL_ROUTINE", &
+         description="Select the code for xc calculation", &
+         usage="FUNCTIONAL_ROUTINE (NEW|OLD|TEST_LSD|DEBUG)", &
+         default_i_val=xc_new_f_routine, &
+         enum_c_vals=s2a("NEW", "OLD", "TEST_LSD", "DEBUG"), &
+         enum_i_vals=(/xc_new_f_routine, xc_old_f_routine, &
+                       xc_test_lsd_f_routine, xc_debug_new_routine/), &
+         enum_desc=s2a("Use new code for exchange-correlation functional calculation", &
+                       "Use old code for exchange-correlation functional calculation", &
+                       "Use test local-spin-density approximation code for exchange-correlation functional calculation", &
+                       "Use debug new code for exchange-correlation functional calculation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

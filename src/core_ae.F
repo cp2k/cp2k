@@ -470,12 +470,15 @@ CONTAINS
                   fa(3) = fa(3)-pab(icoa, icob)*(-zax2*habd(icap3+icax, icob)+ &
                                                  REAL(la(3), KIND=dp)*habd(icam3+icax, icob))
 
-                  fb(1) = fb(1)-pab(icoa, icob)*(-zbx2*(habd(icap1+icax, icob)- &
-                                                     rab(1)*habd(ic_a+icax, icob))+REAL(lb(1), KIND=dp)*habd(ic_a+icax, icbm1+icbx))
-                  fb(2) = fb(2)-pab(icoa, icob)*(-zbx2*(habd(icap2+icax, icob)- &
-                                                     rab(2)*habd(ic_a+icax, icob))+REAL(lb(2), KIND=dp)*habd(ic_a+icax, icbm2+icbx))
-                  fb(3) = fb(3)-pab(icoa, icob)*(-zbx2*(habd(icap3+icax, icob)- &
-                                                     rab(3)*habd(ic_a+icax, icob))+REAL(lb(3), KIND=dp)*habd(ic_a+icax, icbm3+icbx))
+                  fb(1) = fb(1)-pab(icoa, icob)*( &
+                          -zbx2*(habd(icap1+icax, icob)-rab(1)*habd(ic_a+icax, icob))+ &
+                          REAL(lb(1), KIND=dp)*habd(ic_a+icax, icbm1+icbx))
+                  fb(2) = fb(2)-pab(icoa, icob)*( &
+                          -zbx2*(habd(icap2+icax, icob)-rab(2)*habd(ic_a+icax, icob))+ &
+                          REAL(lb(2), KIND=dp)*habd(ic_a+icax, icbm2+icbx))
+                  fb(3) = fb(3)-pab(icoa, icob)*( &
+                          -zbx2*(habd(icap3+icax, icob)-rab(3)*habd(ic_a+icax, icob))+ &
+                          REAL(lb(3), KIND=dp)*habd(ic_a+icax, icbm3+icbx))
 
                END DO ! ic_b
             END DO ! ic_a

@@ -790,9 +790,10 @@ CONTAINS
                               cp_dbcsr_row_block_sizes(mat_a), cp_dbcsr_col_block_sizes(mat_a), &
                               cp_dbcsr_get_data_size(mat_a))
 
-         IF (do_igaim) CALL cp_dbcsr_create(deltajp_d(1)%matrix, ' deltajp_d ', cp_dbcsr_distribution(mat_a), &
-                                cp_dbcsr_get_matrix_type(mat_a), cp_dbcsr_row_block_sizes(mat_a), cp_dbcsr_col_block_sizes(mat_a), &
-                                            cp_dbcsr_get_data_size(mat_a))
+         IF (do_igaim) CALL cp_dbcsr_create( &
+            deltajp_d(1)%matrix, ' deltajp_d ', cp_dbcsr_distribution(mat_a), &
+            cp_dbcsr_get_matrix_type(mat_a), cp_dbcsr_row_block_sizes(mat_a), cp_dbcsr_col_block_sizes(mat_a), &
+            cp_dbcsr_get_data_size(mat_a))
       ELSE
          deltajp_a(1)%matrix => mat_a !mat_jp
          deltajp_b(1)%matrix => mat_b !mat_jp_rii

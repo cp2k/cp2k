@@ -377,8 +377,9 @@ CONTAINS
                                        DO kb = 1, basis%nbas(lb)
                                           ja = ibptr(ka, la)
                                           jb = ibptr(kb, lb)
-                                          smat(ja:ja+nna-1, jb:jb+nnb-1) = smat(ja:ja+nna-1, jb:jb+nnb-1)+ &
-                                                                         sab(1:nna, 1:nnb)*basis%cm(ia, ka, la)*basis%cm(ib, kb, lb)
+                                          smat(ja:ja+nna-1, jb:jb+nnb-1) = &
+                                             smat(ja:ja+nna-1, jb:jb+nnb-1)+ &
+                                             sab(1:nna, 1:nnb)*basis%cm(ia, ka, la)*basis%cm(ib, kb, lb)
                                        END DO
                                     END DO
                                  END IF

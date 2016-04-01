@@ -460,8 +460,9 @@ CONTAINS
          ! Open possible Shake output units
          simpar%info_constraint = cp_print_key_unit_nr(logger, constraint_section, "CONSTRAINT_INFO", &
                                                        extension=".shakeLog", log_filename=.FALSE.)
-         simpar%lagrange_multipliers = cp_print_key_unit_nr(logger, constraint_section, &
-                                                         "LAGRANGE_MULTIPLIERS", extension=".LagrangeMultLog", log_filename=.FALSE.)
+         simpar%lagrange_multipliers = cp_print_key_unit_nr( &
+                                       logger, constraint_section, &
+                                       "LAGRANGE_MULTIPLIERS", extension=".LagrangeMultLog", log_filename=.FALSE.)
          simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info, constraint_section, &
                                                            "LAGRANGE_MULTIPLIERS"), cp_p_file)
 

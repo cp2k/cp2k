@@ -860,7 +860,8 @@ CONTAINS
       buffer_send%sizes(2) = n_entries_local_virt
 
       DO group_iter = 1, ngroup-1
-    CALL mp_irecv(buffer_rec(group_iter)%sizes, proc_rec(group_iter), para_env_exch%group, req_array(group_iter, 2), tag=group_iter)
+         CALL mp_irecv(buffer_rec(group_iter)%sizes, proc_rec(group_iter), para_env_exch%group, &
+                       req_array(group_iter, 2), tag=group_iter)
          CALL mp_isend(buffer_send%sizes, proc_send(group_iter), para_env_exch%group, req_array(group_iter, 1), tag=group_iter)
       END DO
       CALL mp_waitall(req_array(:, :))
@@ -874,7 +875,8 @@ CONTAINS
 
          ! get infos
          CALL timeset(routineN//"_comm_2", handle2)
-     CALL mp_irecv(buffer_rec(group_iter)%indx, proc_rec(group_iter), para_env_exch%group, req_array(group_iter, 2), tag=group_iter)
+         CALL mp_irecv(buffer_rec(group_iter)%indx, proc_rec(group_iter), para_env_exch%group, &
+                       req_array(group_iter, 2), tag=group_iter)
          CALL mp_isend(buffer_info_virt, proc_send(group_iter), para_env_exch%group, req_array(group_iter, 1), tag=group_iter)
          CALL timestop(handle2)
 
@@ -885,7 +887,8 @@ CONTAINS
 
          ! get actual data
          CALL timeset(routineN//"_comm_3", handle2)
-      CALL mp_irecv(buffer_rec(group_iter)%msg, proc_rec(group_iter), para_env_exch%group, req_array(group_iter, 2), tag=group_iter)
+         CALL mp_irecv(buffer_rec(group_iter)%msg, proc_rec(group_iter), para_env_exch%group, &
+                       req_array(group_iter, 2), tag=group_iter)
          CALL mp_isend(buffer_data_virt, proc_send(group_iter), para_env_exch%group, req_array(group_iter, 1), tag=group_iter)
          CALL timestop(handle2)
 

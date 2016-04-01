@@ -136,7 +136,8 @@ CONTAINS
 
             ! first get a copy of the proper orig
             IF (.NOT. ORIG_IS_VIRTUAL) THEN
-             CALL cp_fm_to_fm(mos(orig_spin_index)%mo_set%mo_coeff, matrix_x, 1, mos(orig_spin_index)%mo_set%nmo-orig_mo_index+1, 1)
+               CALL cp_fm_to_fm(mos(orig_spin_index)%mo_set%mo_coeff, matrix_x, 1, &
+                                mos(orig_spin_index)%mo_set%nmo-orig_mo_index+1, 1)
             ELSE
                CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index)%matrix, matrix_x, 1, orig_mo_index, 1)
             ENDIF

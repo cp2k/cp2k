@@ -240,10 +240,11 @@ CONTAINS
             IF (simpar%ensemble == langevin_ensemble .OR. &
                 simpar%ensemble == reftraj_ensemble .OR. &
                 simpar%do_respa) THEN
-               CALL cp_warn(__LOCATION__, &
-                            "The variable timestep  has been required, however "// &
-                          "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "// &
-                            "The run will proceed with constant timestep, as read from input.")
+               CALL cp_warn( &
+                  __LOCATION__, &
+                  "The variable timestep  has been required, however "// &
+                  "this option is not available either with the Langevin ensemble or with the multiple timestep schme. "// &
+                  "The run will proceed with constant timestep, as read from input.")
             END IF
          END IF
       END IF

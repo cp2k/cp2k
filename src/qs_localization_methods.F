@@ -1618,7 +1618,8 @@ CONTAINS
                   CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, rmat_loc(1, 1), n1+n2, 1.0_dp, gmat, nstate)
                ELSE
                   CALL dgemm("N", "N", nstate, n1, n2, 1.0_dp, rotmat(1, k), nstate, rmat_loc(1, n2+1), n1+n2, 0.0_dp, gmat, nstate)
-               CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, rmat_loc(n2+1, n2+1), n1+n2, 1.0_dp, gmat, nstate)
+                  CALL dgemm("N", "N", nstate, n1, n1, 1.0_dp, rotmat(1, 1), nstate, &
+                             rmat_loc(n2+1, n2+1), n1+n2, 1.0_dp, gmat, nstate)
                END IF
 
                CALL dcopy(nstate*n1, gmat(1, 1), 1, rotmat(1, 1), 1)
@@ -1631,8 +1632,9 @@ CONTAINS
                   DO istate = 1, n1
                      DO jstate = 1, nstate
                         DO i = 1, n2
-                           xyz_mix_ns(idim)%c_array(jstate, istate) = xyz_mix_ns(idim)%c_array(jstate, istate)+ &
-                                                                    c_array_partner(jstate, i, idim)*rmat_loc(il2+i-1, il1+istate-1)
+                           xyz_mix_ns(idim)%c_array(jstate, istate) = &
+                              xyz_mix_ns(idim)%c_array(jstate, istate)+ &
+                              c_array_partner(jstate, i, idim)*rmat_loc(il2+i-1, il1+istate-1)
                         END DO
                      END DO
                   END DO

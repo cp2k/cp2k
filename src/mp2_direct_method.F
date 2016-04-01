@@ -857,10 +857,11 @@ CONTAINS
                                                              BI1, C_T, mp2_biel, para_env, elements_ij_proc, &
                                                              multiple, proc_map, BIb)
                   ELSE
-                     CALL transform_occupied_orbitals_second_big(dimen, iatom, jatom, iset, jset, &
-                                                                nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
-                                                                 ij_elem_max, BI1, C_T, mp2_biel, para_env, elements_ij_proc, &
-                                                                 proc_map, BIb)
+                     CALL transform_occupied_orbitals_second_big( &
+                        dimen, iatom, jatom, iset, jset, &
+                        nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
+                        ij_elem_max, BI1, C_T, mp2_biel, para_env, elements_ij_proc, &
+                        proc_map, BIb)
                   END IF
                ELSE
                   IF (.NOT. mp2_env%direct_canonical%big_send) THEN
@@ -869,10 +870,11 @@ CONTAINS
                                                              BI1, C_beta_T, mp2_biel, para_env, elements_ij_proc, &
                                                              multiple, proc_map, BIb)
                   ELSE
-                     CALL transform_occupied_orbitals_second_big(dimen, iatom, jatom, iset, jset, &
-                                                                nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
-                                                                 ij_elem_max, BI1, C_beta_T, mp2_biel, para_env, elements_ij_proc, &
-                                                                 proc_map, BIb)
+                     CALL transform_occupied_orbitals_second_big( &
+                        dimen, iatom, jatom, iset, jset, &
+                        nsgfa(iset), nsgfb(jset), Ni_occupied, Nj_occupied, j_batch_start, &
+                        ij_elem_max, BI1, C_beta_T, mp2_biel, para_env, elements_ij_proc, &
+                        proc_map, BIb)
                   END IF
                END IF
             END IF
@@ -1086,10 +1088,11 @@ CONTAINS
                                                         j_batch_start, BIb, C, Auto, elements_ij_proc, ij_list_proc, &
                                                         nspins, Emp2, Emp2_Cou, Emp2_ex)
       ELSE
-        CALL transform_virtual_orbitals_and_accumulate_ABcase(dimen, occupied, occupied_beta, dimen-occupied, dimen-occupied_beta, &
-                                                               i_batch_start, j_batch_start, &
-                                                               BIb, C, C_beta, Auto, Auto_beta, &
-                                                               elements_ij_proc, ij_list_proc, Emp2, Emp2_Cou)
+         CALL transform_virtual_orbitals_and_accumulate_ABcase( &
+            dimen, occupied, occupied_beta, dimen-occupied, dimen-occupied_beta, &
+            i_batch_start, j_batch_start, &
+            BIb, C, C_beta, Auto, Auto_beta, &
+            elements_ij_proc, ij_list_proc, Emp2, Emp2_Cou)
          DEALLOCATE (C_beta_T)
       END IF
 
@@ -1616,7 +1619,8 @@ CONTAINS
       BIa = zero
       DO index_ij = 1, elements_ij_proc
 
-  CALL DGEMM('T', 'N', dimen, virtual, dimen, 1.0_dp, Bib(1, 1, index_ij), dimen, C(1, occupied+1), dimen, 0.0_dp, Bia(1, 1), dimen)
+         CALL DGEMM('T', 'N', dimen, virtual, dimen, 1.0_dp, Bib(1, 1, index_ij), &
+                    dimen, C(1, occupied+1), dimen, 0.0_dp, Bia(1, 1), dimen)
          Bib(1:dimen, 1:virtual, index_ij) = Bia(1:dimen, 1:virtual)
 
       END DO

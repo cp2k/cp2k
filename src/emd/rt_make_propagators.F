@@ -301,23 +301,27 @@ CONTAINS
                prefac = -0.5_dp*dt
                CALL cp_dbcsr_scale(exp_H_old(im)%matrix, prefac)
                IF (.NOT. rtp%do_hfx .AND. rtp_control%fixed_ions) THEN
-                  CALL bch_expansion_imaginary_propagator(exp_H_old(im)%matrix, &
-                                rho_next(re)%matrix, rho_next(im)%matrix, rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
+                  CALL bch_expansion_imaginary_propagator( &
+                     exp_H_old(im)%matrix, rho_next(re)%matrix, rho_next(im)%matrix, &
+                     rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
                ELSE
                   CALL cp_dbcsr_scale(exp_H_old(re)%matrix, prefac)
-                  CALL bch_expansion_complex_propagator(exp_H_old(re)%matrix, exp_H_old(im)%matrix, &
-                                rho_next(re)%matrix, rho_next(im)%matrix, rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
+                  CALL bch_expansion_complex_propagator( &
+                     exp_H_old(re)%matrix, exp_H_old(im)%matrix, rho_next(re)%matrix, rho_next(im)%matrix, &
+                     rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
                ENDIF
             END IF
          END IF
          CALL cp_dbcsr_copy(rho_new(re)%matrix, rho_next(re)%matrix)
          CALL cp_dbcsr_copy(rho_new(im)%matrix, rho_next(im)%matrix)
          IF (.NOT. rtp%do_hfx .AND. rtp_control%fixed_ions) THEN
-            CALL bch_expansion_imaginary_propagator(propagator_matrix(im)%matrix, &
-                                  rho_new(re)%matrix, rho_new(im)%matrix, rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
+            CALL bch_expansion_imaginary_propagator( &
+               propagator_matrix(im)%matrix, rho_new(re)%matrix, rho_new(im)%matrix, &
+               rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
          ELSE
-            CALL bch_expansion_complex_propagator(propagator_matrix(re)%matrix, propagator_matrix(im)%matrix, &
-                                  rho_new(re)%matrix, rho_new(im)%matrix, rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
+            CALL bch_expansion_complex_propagator( &
+               propagator_matrix(re)%matrix, propagator_matrix(im)%matrix, rho_new(re)%matrix, rho_new(im)%matrix, &
+               rtp%filter_eps, rtp%filter_eps_small, rtp_control%eps_exp)
          ENDIF
 
       END DO

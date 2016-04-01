@@ -771,7 +771,8 @@ CONTAINS
                END IF
 
                WRITE (UNIT=iw, FMT="(A,I0,A,I0,A,I0,A,F12.6,A)") &
-                 "# Projected DOS for list ", ildos, " of ", ldos_p(ildos)%ldos%nlist, " atoms, at iteration step i = ", iterstep, &
+                  "# Projected DOS for list ", ildos, " of ", ldos_p(ildos)%ldos%nlist, &
+                  " atoms, at iteration step i = ", iterstep, &
                   ", E(Fermi) = ", e_fermi, " a.u."
                IF (ldos_p(ildos)%ldos%separate_components) THEN
                   ALLOCATE (tmp_str(0:0, 0:ldos_p(ildos)%ldos%maxl, -ldos_p(ildos)%ldos%maxl:ldos_p(ildos)%ldos%maxl))

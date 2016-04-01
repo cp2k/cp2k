@@ -340,7 +340,8 @@ CONTAINS
             grid_print_section => section_vals_get_subs_vals(force_env_section, "PRINT%GRID_INFORMATION")
             CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_qm, pw_pool=cp_ddapc_ewald%pw_pool_qm, &
                                     coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, &
-                                  param_section=multipole_section, tag="ddapc", para_env=para_env, print_section=grid_print_section)
+                                    param_section=multipole_section, tag="ddapc", &
+                                    para_env=para_env, print_section=grid_print_section)
             DEALLOCATE (LG)
             DEALLOCATE (gx)
             DEALLOCATE (gy)

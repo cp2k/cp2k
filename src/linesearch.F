@@ -131,17 +131,18 @@ CONTAINS
       CALL section_create(section, "LINE_SEARCH", repeats=.FALSE., &
                           description="Detail settings or linesearch method.")
 
-      CALL keyword_create(keyword, name="METHOD", &
-                          description="Linesearch method.", &
-                          default_i_val=linesearch_method_adapt, &
-                          enum_c_vals=s2a("ADAPT", "3PNT", "2PNT", "GOLD", "NONE"), &
-                          enum_desc=s2a("extrapolates usually based on 3 points, uses additional points on demand, very robust.", &
-                                        "extrapolate based on 3 points", &
-                                 "extrapolate based on 2 points and the slope (super fast, but might get stuck at saddle points)", &
-                                        "perform 1D golden section search of the minimum (very expensive)", &
-                                        "always take steps of fixed INITIAL_STEP_SIZE"), &
-                          enum_i_vals=(/linesearch_method_adapt, linesearch_method_3pnt, linesearch_method_2pnt, &
-                                        linesearch_method_gold, linesearch_method_none/))
+      CALL keyword_create( &
+         keyword, name="METHOD", &
+         description="Linesearch method.", &
+         default_i_val=linesearch_method_adapt, &
+         enum_c_vals=s2a("ADAPT", "3PNT", "2PNT", "GOLD", "NONE"), &
+         enum_desc=s2a("extrapolates usually based on 3 points, uses additional points on demand, very robust.", &
+                       "extrapolate based on 3 points", &
+                       "extrapolate based on 2 points and the slope (super fast, but might get stuck at saddle points)", &
+                       "perform 1D golden section search of the minimum (very expensive)", &
+                       "always take steps of fixed INITIAL_STEP_SIZE"), &
+         enum_i_vals=(/linesearch_method_adapt, linesearch_method_3pnt, linesearch_method_2pnt, &
+                       linesearch_method_gold, linesearch_method_none/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

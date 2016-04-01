@@ -47,9 +47,10 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="RS_GRID", &
-                         description="Set options that influence how the realspace grids are being distributed in parallel runs.", &
-                          n_keywords=5, n_subsections=0, repeats=.TRUE.)
+      CALL section_create( &
+         section, name="RS_GRID", &
+         description="Set options that influence how the realspace grids are being distributed in parallel runs.", &
+         n_keywords=5, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, name="DISTRIBUTION_TYPE", &

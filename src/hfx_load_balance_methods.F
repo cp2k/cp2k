@@ -276,29 +276,31 @@ CONTAINS
                   new_jatom_end = iatom_end
                   tmp_blocks(current_block_id)%istart = new_iatom_start
                   tmp_blocks(current_block_id)%iend = new_iatom_end
-                 tmp_blocks(current_block_id)%cost = estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
-                                                                   new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
-                                                                   new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
-                                                                          particle_set, &
-                                                                          coeffs_set, coeffs_kind, &
-                                                                          is_assoc_atomic_block_global, do_periodic, &
-                                                                       kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
-                                                                          cell, &
-                                                                          do_p_screening, map_atom_to_kind_atom, eval_type, &
-                                                           log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+                  tmp_blocks(current_block_id)%cost = estimate_block_cost( &
+                                                      natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                      new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
+                                                      new_iatom_start, new_iatom_end, new_iatom_start, new_iatom_end, &
+                                                      particle_set, &
+                                                      coeffs_set, coeffs_kind, &
+                                                      is_assoc_atomic_block_global, do_periodic, &
+                                                      kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                      cell, &
+                                                      do_p_screening, map_atom_to_kind_atom, eval_type, &
+                                                      log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
                   current_block_id = current_block_id+1
                   tmp_blocks(current_block_id)%istart = new_jatom_start
                   tmp_blocks(current_block_id)%iend = new_jatom_end
-                 tmp_blocks(current_block_id)%cost = estimate_block_cost(natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
-                                                                   new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
-                                                                   new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
-                                                                          particle_set, &
-                                                                          coeffs_set, coeffs_kind, &
-                                                                          is_assoc_atomic_block_global, do_periodic, &
-                                                                       kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
-                                                                          cell, &
-                                                                          do_p_screening, map_atom_to_kind_atom, eval_type, &
-                                                           log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
+                  tmp_blocks(current_block_id)%cost = estimate_block_cost( &
+                                                      natom, nkind, list_ij, list_kl, set_list_ij, set_list_kl, &
+                                                      new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
+                                                      new_jatom_start, new_jatom_end, new_jatom_start, new_jatom_end, &
+                                                      particle_set, &
+                                                      coeffs_set, coeffs_kind, &
+                                                      is_assoc_atomic_block_global, do_periodic, &
+                                                      kind_of, basis_parameter, pmax_set, pmax_atom, pmax_blocks, &
+                                                      cell, &
+                                                      do_p_screening, map_atom_to_kind_atom, eval_type, &
+                                                      log10_eps_schwarz, log_2, coeffs_kind_max0, use_virial, atomic_pair_list)
                ELSE
                   tmp_blocks(current_block_id)%istart = iatom_start
                   tmp_blocks(current_block_id)%iend = iatom_end
@@ -1798,7 +1800,8 @@ CONTAINS
          p5 = p(5); p6 = p(6); p7 = p(7); p8 = p(8)
          p9 = p(9); p10 = p(10); p11 = p(11); p12 = p(12)
          res = poly2(nsa, p1, p2, p3)*poly2(nsb, p1, p2, p3)*poly2(nsc, p1, p2, p3)*poly2(nsd, p1, p2, p3)* &
-   poly2(npgfa, p4, p5, p6)*poly2(npgfb, p4, p5, p6)*poly2(npgfc, p4, p5, p6)*poly2(npgfd, p4, p5, p6)*EXP(-p7*ratio+p8*ratio**2)+ &
+               poly2(npgfa, p4, p5, p6)*poly2(npgfb, p4, p5, p6)*poly2(npgfc, p4, p5, p6)* &
+               poly2(npgfd, p4, p5, p6)*EXP(-p7*ratio+p8*ratio**2)+ &
                1000.0_dp*p9+poly2(nsa, p10, p11, p12)*poly2(nsb, p10, p11, p12)*poly2(nsc, p10, p11, p12)*poly2(nsd, p10, p11, p12)
          res = 1+ABS(res)
       END FUNCTION estimate_basic
@@ -2456,7 +2459,8 @@ CONTAINS
          DO i = 1, nranks
             DO j = 1, bins_per_rank(i)/2
                k = k+1
-              WRITE (iw, FMT="(T6,I5,T15,I5,T27,I16,T55,F19.8)") i-1, j, buffer_out(2*(k-1)+1), REAL(buffer_out(2*k), dp)/10000.0_dp
+               WRITE (iw, FMT="(T6,I5,T15,I5,T27,I16,T55,F19.8)") &
+                  i-1, j, buffer_out(2*(k-1)+1), REAL(buffer_out(2*k), dp)/10000.0_dp
                summary(2*(i-1)+1) = summary(2*(i-1)+1)+buffer_out(2*(k-1)+1)
                summary(2*i) = summary(2*i)+buffer_out(2*k)
             END DO

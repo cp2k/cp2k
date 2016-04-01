@@ -406,22 +406,24 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="QUADRATURE_POINTS", &
-                          variants=(/"LAPLACE_NUM_QUAD_POINTS"/), &
-                        description="Number of quadrature points for the numerical integration in the RI-SOS-MP2-Laplace method.", &
-                          usage="QUADRATURE_POINTS 6", &
-                          default_i_val=5)
+      CALL keyword_create( &
+         keyword, name="QUADRATURE_POINTS", &
+         variants=(/"LAPLACE_NUM_QUAD_POINTS"/), &
+         description="Number of quadrature points for the numerical integration in the RI-SOS-MP2-Laplace method.", &
+         usage="QUADRATURE_POINTS 6", &
+         default_i_val=5)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SIZE_INTEG_GROUP", &
-                          variants=(/"LAPLACE_GROUP_SIZE"/), &
-                description="Group size for the integration in the Laplace method, that is the number of processes involved in "// &
-                          "the computation of each integration point. SIZE_INTEG_GROUP has to be a multiple "// &
-                          "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "// &
-                          "is automatic.", &
-                          usage="SIZE_INTEG_GROUP 16", &
-                          default_i_val=-1)
+      CALL keyword_create( &
+         keyword, name="SIZE_INTEG_GROUP", &
+         variants=(/"LAPLACE_GROUP_SIZE"/), &
+         description="Group size for the integration in the Laplace method, that is the number of processes involved in "// &
+         "the computation of each integration point. SIZE_INTEG_GROUP has to be a multiple "// &
+         "of GROUP_SIZE in the WF_CORRELATION section. The default (-1) "// &
+         "is automatic.", &
+         usage="SIZE_INTEG_GROUP 16", &
+         default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -747,15 +749,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FRACTION_EXX", &
-                          variants=(/"ALPHA"/), &
-                         description="Mixing parameter between official CP2K-HFX (EXX) based on the truncated Coulomb operator "// &
-                          "(fraction = alpha) and the RI-HFX (fraction = 1-alpha). To be valid, set MIX_HFX TRUE. "// &
-                          "Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of periodic systems "// &
-                          "with the cell size.", &
-                          usage="FRACTION_EXX 0.21", &
-                          default_r_val=0.21_dp, &
-                          unit_str="")
+      CALL keyword_create( &
+         keyword, name="FRACTION_EXX", &
+         variants=(/"ALPHA"/), &
+         description="Mixing parameter between official CP2K-HFX (EXX) based on the truncated Coulomb operator "// &
+         "(fraction = alpha) and the RI-HFX (fraction = 1-alpha). To be valid, set MIX_HFX TRUE. "// &
+         "Parameter can be used to speed up the convergence of the GW HOMO-LUMO gap of periodic systems "// &
+         "with the cell size.", &
+         usage="FRACTION_EXX 0.21", &
+         default_r_val=0.21_dp, &
+         unit_str="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -811,10 +814,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_FILTER", &
-                      description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID).", &
-                          usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
-                          default_r_val=1.0E-9_dp)
+      CALL keyword_create( &
+         keyword, name="EPS_FILTER", &
+         description="Determines a threshold for the DBCSR based multiply (usually 10 times smaller than EPS_GRID).", &
+         usage="EPS_FILTER 1.0E-10 ", type_of_var=real_t, &
+         default_r_val=1.0E-9_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -869,10 +873,11 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, "CPHF", &
-                       description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.", &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE., &
-                          citations=(/DelBen2013/))
+      CALL section_create( &
+         section, "CPHF", &
+         description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.", &
+         n_keywords=2, n_subsections=0, repeats=.FALSE., &
+         citations=(/DelBen2013/))
 
       NULLIFY (keyword)
 

@@ -563,8 +563,9 @@ CONTAINS
          ! Open possible Shake output units
          simpar%info_constraint = cp_print_key_unit_nr(logger, constraint_section, "CONSTRAINT_INFO", &
                                                        extension=".shakeLog", log_filename=.FALSE.)
-         simpar%lagrange_multipliers = cp_print_key_unit_nr(logger, constraint_section, &
-                                                         "LAGRANGE_MULTIPLIERS", extension=".LagrangeMultLog", log_filename=.FALSE.)
+         simpar%lagrange_multipliers = cp_print_key_unit_nr( &
+                                       logger, constraint_section, &
+                                       "LAGRANGE_MULTIPLIERS", extension=".LagrangeMultLog", log_filename=.FALSE.)
          simpar%dump_lm = BTEST(cp_print_key_should_output(logger%iter_info, constraint_section, &
                                                            "LAGRANGE_MULTIPLIERS"), cp_p_file)
 
@@ -1045,7 +1046,8 @@ CONTAINS
       it1 = force_env%qs_env%sim_step
       IF (output_unit > 0) THEN
          WRITE (output_unit, '(a,l4)') "HMC|restart? ", force_env%meta_env%restart
-   WRITE (output_unit, '(a,3(f16.8,1x))') "HMC|Ep, Epx, Epz ", old_epx+force_env%meta_env%epot_s, old_epx, force_env%meta_env%epot_s
+         WRITE (output_unit, '(a,3(f16.8,1x))') &
+            "HMC|Ep, Epx, Epz ", old_epx+force_env%meta_env%epot_s, old_epx, force_env%meta_env%epot_s
          WRITE (output_unit, '(a)') "#HMC| No | z.. | theta.. | ff_z... | ff_z/n |"
       ENDIF
       DO i = 1, nstep
@@ -1225,7 +1227,8 @@ CONTAINS
       CALL tamc_force(force_env, zpot=new_epz)
       new_energy = new_epx+new_epz
       IF (output_unit > 0) THEN
-       WRITE (output_unit, '(a,4(f16.8,1x))') "HMC|old Ep, Ekx, Epz, Epx ", old_epx+old_epz, hmc_ekin%initial_ekin, old_epz, old_epx
+         WRITE (output_unit, '(a,4(f16.8,1x))') &
+            "HMC|old Ep, Ekx, Epz, Epx ", old_epx+old_epz, hmc_ekin%initial_ekin, old_epz, old_epx
          WRITE (output_unit, '(a,4(f16.8,1x))') "HMC|new Ep, Ekx, Epz, Epx ", new_energy, hmc_ekin%final_ekin, new_epz, new_epx
       ENDIF
       energy_term = new_energy-old_epx-old_epz+hmc_ekin%final_ekin-hmc_ekin%initial_ekin

@@ -170,14 +170,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ROW_DISTRIBUTION", &
-                          description="How to distribute matrix rows over tasks.", &
-                          enum_c_vals=s2a("DBCSR", "CEILING", "FLOOR"), &
-                enum_desc=s2a("Each task holds floor(N_BLOCK/TASKS_PER_POINT) DBCSR block rows for a total of N_BLOCK block rows", &
-                                        "Each task holds ceiling(N/TASKS_PER_POINT) rows for a total of N matrix rows", &
-                                        "Each task holds floor(N/TASKS_PER_POINT) rows for a total of N matrix rows"), &
-                          enum_i_vals=(/csr_dbcsr_blkrow_dist, csr_eqrow_ceil_dist, csr_eqrow_floor_dist/), &
-                          default_i_val=csr_eqrow_floor_dist)
+      CALL keyword_create( &
+         keyword, name="ROW_DISTRIBUTION", &
+         description="How to distribute matrix rows over tasks.", &
+         enum_c_vals=s2a("DBCSR", "CEILING", "FLOOR"), &
+         enum_desc=s2a("Each task holds floor(N_BLOCK/TASKS_PER_POINT) DBCSR block rows for a total of N_BLOCK block rows", &
+                       "Each task holds ceiling(N/TASKS_PER_POINT) rows for a total of N matrix rows", &
+                       "Each task holds floor(N/TASKS_PER_POINT) rows for a total of N matrix rows"), &
+         enum_i_vals=(/csr_dbcsr_blkrow_dist, csr_eqrow_ceil_dist, csr_eqrow_floor_dist/), &
+         default_i_val=csr_eqrow_floor_dist)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -207,11 +208,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CUTOUT", &
-                        description="Degrees of freedom at the beginning and the end of the structure (in the number of atoms) "// &
-                          "where the density should not be changed.", &
-                          usage="CUTOUT <integer> <integer>", &
-                          n_var=2, default_i_vals=(/0, 0/))
+      CALL keyword_create( &
+         keyword, name="CUTOUT", &
+         description="Degrees of freedom at the beginning and the end of the structure (in the number of atoms) "// &
+         "where the density should not be changed.", &
+         usage="CUTOUT <integer> <integer>", &
+         n_var=2, default_i_vals=(/0, 0/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

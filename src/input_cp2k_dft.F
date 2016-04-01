@@ -570,9 +570,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_CRAZY_ANGLE", &
-                       description="Largest allowed angle for the crazy rotations algorithm (smaller is slower but more stable).", &
-                          usage="MAX_CRAZY_ANGLE 0.1", unit_str="rad", default_r_val=0.2_dp)
+      CALL keyword_create( &
+         keyword, name="MAX_CRAZY_ANGLE", &
+         description="Largest allowed angle for the crazy rotations algorithm (smaller is slower but more stable).", &
+         usage="MAX_CRAZY_ANGLE 0.1", unit_str="rad", default_r_val=0.2_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -588,16 +589,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="USE_HISTORY", &
-                      description="Generate an improved initial guess based on a history of results, which is useful during MD."// &
-                          "Will only work if the number of states to be localized remains constant.", &
-                          usage="USE_HISTORY ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="USE_HISTORY", &
+         description="Generate an improved initial guess based on a history of results, which is useful during MD."// &
+         "Will only work if the number of states to be localized remains constant.", &
+         usage="USE_HISTORY ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_OCCUPATION", &
-                         description="Tolerance in the occupation number to select only fully occupied orbitals for the rotation", &
-                          usage="EPS_OCCUPATION 1.E-5", default_r_val=1.0E-8_dp)
+      CALL keyword_create( &
+         keyword, name="EPS_OCCUPATION", &
+         description="Tolerance in the occupation number to select only fully occupied orbitals for the rotation", &
+         usage="EPS_OCCUPATION 1.E-5", default_r_val=1.0E-8_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -623,21 +626,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="METHOD", &
-                          description="Method of optimization if any", &
-                          usage="METHOD (JACOBI|CRAZY|DIRECT|L1SD|NONE)", &
-                          enum_c_vals=s2a("NONE", "JACOBI", "CRAZY", "L1SD", "DIRECT"), &
-                          enum_i_vals=(/do_loc_none, &
-                                        do_loc_jacobi, &
-                                        do_loc_crazy, &
-                                        do_loc_l1_norm_sd, &
-                                        do_loc_direct/), &
-                          enum_desc=s2a("No localization is applied", &
-                                        "Using 2 x 2 rotations of the orbitals, slow but robust", &
-                               "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster", &
-                                        "Steepest descent minimization of an approximate l1 norm", &
-                                        "Using a direct minimisation approach"), &
-                          default_i_val=do_loc_jacobi)
+      CALL keyword_create( &
+         keyword, name="METHOD", &
+         description="Method of optimization if any", &
+         usage="METHOD (JACOBI|CRAZY|DIRECT|L1SD|NONE)", &
+         enum_c_vals=s2a("NONE", "JACOBI", "CRAZY", "L1SD", "DIRECT"), &
+         enum_i_vals=(/do_loc_none, &
+                       do_loc_jacobi, &
+                       do_loc_crazy, &
+                       do_loc_l1_norm_sd, &
+                       do_loc_direct/), &
+         enum_desc=s2a("No localization is applied", &
+                       "Using 2 x 2 rotations of the orbitals, slow but robust", &
+                       "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster", &
+                       "Steepest descent minimization of an approximate l1 norm", &
+                       "Using a direct minimisation approach"), &
+         default_i_val=do_loc_jacobi)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -711,15 +715,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, &
-                          name="ENERGY_RANGE", &
-                          description="Select the orbitals to be localized within the given energy range."// &
-                     "This type of selection cannot be added on top of the selection through a LIST. It reads to reals that are"// &
-                          " lower and higher boundaries of the energy range.", &
-                          usage=" ENERGY_RANGE lower_bound {real}, higher_bound {real}", &
-                          repeats=.FALSE., &
-                          n_var=2, default_r_vals=(/0._dp, 0._dp/), unit_str='eV', &
-                          type_of_var=real_t)
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="ENERGY_RANGE", &
+         description="Select the orbitals to be localized within the given energy range."// &
+         "This type of selection cannot be added on top of the selection through a LIST. It reads to reals that are"// &
+         " lower and higher boundaries of the energy range.", &
+         usage=" ENERGY_RANGE lower_bound {real}, higher_bound {real}", &
+         repeats=.FALSE., &
+         n_var=2, default_r_vals=(/0._dp, 0._dp/), unit_str='eV', &
+         type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1087,10 +1092,11 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="MATRIX_VXC", &
-              description="If the printkey is activated compute and print the matrix of the exchange and correlation potential."// &
-                          "Only the GGA part for GPW is printed", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="MATRIX_VXC", &
+         description="If the printkey is activated compute and print the matrix of the exchange and correlation potential."// &
+         "Only the GGA part for GPW is printed", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="ORTHO", &
@@ -1109,14 +1115,16 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="PSO", &
-                         description="If the printkey is activated controls the printing of the paramagnetic spin-orbit matrices", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="PSO", &
+         description="If the printkey is activated controls the printing of the paramagnetic spin-orbit matrices", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="EFG", &
-                         description="If the printkey is activated controls the printing of the electric field gradient matrices", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="EFG", &
+         description="If the printkey is activated controls the printing of the electric field gradient matrices", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="POTENTIAL_ENERGY", &
@@ -1153,10 +1161,11 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "MO", &
-                                       description="Controls the printing of the molecular orbitals."// &
-                 "Note that this is only functional with diagonalization based methods, in particular not with OT (see MO_CUBES)", &
-                                       print_level=high_print_level, filename="__STD_OUT__")
+      CALL cp_print_key_section_create( &
+         print_key, "MO", &
+         description="Controls the printing of the molecular orbitals."// &
+         "Note that this is only functional with diagonalization based methods, in particular not with OT (see MO_CUBES)", &
+         print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, name="Cartesian", &
                           description="If the printkey is activated controls the printing of the mo in the cartesian basis", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -1453,14 +1462,15 @@ CONTAINS
 !
       !Printing of Moments
       CALL create_dipoles_section(print_key, "MOMENTS", high_print_level)
-      CALL keyword_create(keyword=keyword, &
-                          name="MAX_MOMENT", &
-                   description="Maximum moment to be calculated. Values higher than 1 not implemented under periodic boundaries.", &
-                          usage="MAX_MOMENT {integer}", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          type_of_var=integer_t, &
-                          default_i_val=1)
+      CALL keyword_create( &
+         keyword=keyword, &
+         name="MAX_MOMENT", &
+         description="Maximum moment to be calculated. Values higher than 1 not implemented under periodic boundaries.", &
+         usage="MAX_MOMENT {integer}", &
+         repeats=.FALSE., &
+         n_var=1, &
+         type_of_var=integer_t, &
+         default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword=keyword, &
@@ -1838,10 +1848,11 @@ CONTAINS
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="nhomo", &
-                         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &
-                          " eigenvalues are always all dumped", &
-                          default_i_val=1)
+      CALL keyword_create( &
+         keyword, name="nhomo", &
+         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &
+         " eigenvalues are always all dumped", &
+         default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1886,10 +1897,11 @@ CONTAINS
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="NLUMO", &
-                          description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline// &
-                         "CAUTION: Setting this value to be higher than the number of states present may cause a Cholesky error.", &
-                          usage="NLUMO integer", default_i_val=0)
+      CALL keyword_create( &
+         keyword, name="NLUMO", &
+         description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline// &
+         "CAUTION: Setting this value to be higher than the number of states present may cause a Cholesky error.", &
+         usage="NLUMO integer", default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, name="OUT_EACH_MO", &
@@ -2163,10 +2175,11 @@ CONTAINS
                                        description="Controls printing of molecular states ", &
                                        print_level=high_print_level, filename=" ", citations=(/Hunt2003/))
 
-      CALL keyword_create(keyword, name="CUBE_EVAL_RANGE", &
-             description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
-                          "Default is all states.", &
-                          usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="CUBE_EVAL_RANGE", &
+         description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
+         "Default is all states.", &
+         usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2215,10 +2228,11 @@ CONTAINS
                                        description="Controls printing of molecular states ", &
                                        print_level=high_print_level, filename=" ")
 
-      CALL keyword_create(keyword, name="CUBE_EVAL_RANGE", &
-             description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
-                          "Default is all states.", &
-                          usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="CUBE_EVAL_RANGE", &
+         description="only write cubes if the eigenvalues of the corresponding molecular states lie in the given interval. "// &
+         "Default is all states.", &
+         usage="CUBE_EVAL_RANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2282,10 +2296,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_GVG_RSPACE", &
-                          variants=(/"EPS_GVG"/), &
-                   description="Sets precision of the realspace KS matrix element integration. Overrides SQRT(EPS_DEFAULT) value", &
-                          usage="EPS_GVG_RSPACE real", type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="EPS_GVG_RSPACE", &
+         variants=(/"EPS_GVG"/), &
+         description="Sets precision of the realspace KS matrix element integration. Overrides SQRT(EPS_DEFAULT) value", &
+         usage="EPS_GVG_RSPACE real", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2295,10 +2310,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_KG_ORB", &
-           description="Sets precision used in coloring the subsets for the Kim-Gordon method. Overrides SQRT(EPS_DEFAULT) value", &
-                          usage="EPS_KG_ORB 1.0E-8", &
-                          type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="EPS_KG_ORB", &
+         description="Sets precision used in coloring the subsets for the Kim-Gordon method. Overrides SQRT(EPS_DEFAULT) value", &
+         usage="EPS_KG_ORB 1.0E-8", &
+         type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2308,9 +2324,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_PPNL", &
-                    description="Sets precision of the non-local part of the pseudo potential. Overrides sqrt(EPS_DEFAULT) value", &
-                          usage="EPS_PPNL real", type_of_var=real_t)
+      CALL keyword_create( &
+         keyword, name="EPS_PPNL", &
+         description="Sets precision of the non-local part of the pseudo potential. Overrides sqrt(EPS_DEFAULT) value", &
+         usage="EPS_PPNL real", type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2381,14 +2398,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="FORCE_PAW", &
-                          description="Use the GAPW scheme also for atoms with soft basis sets, i.e. "// &
-                          " the local densities are computed even if hard and soft should be equal. "// &
-                       "If this keyword is not set to true, those atoms with soft basis sets are treated by a GPW scheme, i.e. "// &
-                          "the corresponding density contribution goes on the global grid and is expanded in PW. "// &
-                          " This option nullifies the effect of the GPW_TYPE in the atomic KIND", &
-                          usage="FORCE_PAW", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="FORCE_PAW", &
+         description="Use the GAPW scheme also for atoms with soft basis sets, i.e. "// &
+         " the local densities are computed even if hard and soft should be equal. "// &
+         "If this keyword is not set to true, those atoms with soft basis sets are treated by a GPW scheme, i.e. "// &
+         "the corresponding density contribution goes on the global grid and is expanded in PW. "// &
+         " This option nullifies the effect of the GPW_TYPE in the atomic KIND", &
+         usage="FORCE_PAW", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2507,36 +2525,38 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EXTRAPOLATION", &
-                          variants=s2a("INTERPOLATION", "WF_INTERPOLATION"), &
-                          description="Extrapolation strategy for the wavefunction during e.g. MD."// &
-                          "PS and ASPC are recommended, see also EXTRAPOLATION_ORDER.", &
-                          citations=(/Kolafa2004, VandeVondele2005a/), &
-                          usage="EXTRAPOLATION PS", &
-                          enum_c_vals=s2a("USE_GUESS", "USE_PREV_P", "USE_PREV_RHO_R", "LINEAR_WF", &
-                                          "LINEAR_P", "LINEAR_PS", "USE_PREV_WF", "PS", "FROZEN", "ASPC"), &
-                          enum_desc=s2a("Use the method specified with SCF_GUESS, i.e. no extrapolation", &
-                                        "Use the previous density matrix", &
-                                        "Use the previous density in real space", &
-                                        "Linear extrapolation of the wavefunction", &
-                                        "Linear extrapolation of the density matrix", &
-                                        "Linear extrapolation of the density matrix times the overlap matrix", &
-                                        "Use the previous wavefunction", &
-                                        "Higher order extrapolation of the density matrix times the overlap matrix", &
-                                        "Frozen ...", &
-                "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy."), &
-                          enum_i_vals=(/ &
-                          wfi_use_guess_method_nr, &
-                          wfi_use_prev_p_method_nr, &
-                          wfi_use_prev_rho_r_method_nr, &
-                          wfi_linear_wf_method_nr, &
-                          wfi_linear_p_method_nr, &
-                          wfi_linear_ps_method_nr, &
-                          wfi_use_prev_wf_method_nr, &
-                          wfi_ps_method_nr, &
-                          wfi_frozen_method_nr, &
-                          wfi_aspc_nr/), &
-                          default_i_val=wfi_aspc_nr)
+      CALL keyword_create( &
+         keyword, name="EXTRAPOLATION", &
+         variants=s2a("INTERPOLATION", "WF_INTERPOLATION"), &
+         description="Extrapolation strategy for the wavefunction during e.g. MD."// &
+         "PS and ASPC are recommended, see also EXTRAPOLATION_ORDER.", &
+         citations=(/Kolafa2004, VandeVondele2005a/), &
+         usage="EXTRAPOLATION PS", &
+         enum_c_vals=s2a("USE_GUESS", "USE_PREV_P", "USE_PREV_RHO_R", "LINEAR_WF", &
+                         "LINEAR_P", "LINEAR_PS", "USE_PREV_WF", "PS", "FROZEN", "ASPC"), &
+         enum_desc=s2a( &
+         "Use the method specified with SCF_GUESS, i.e. no extrapolation", &
+         "Use the previous density matrix", &
+         "Use the previous density in real space", &
+         "Linear extrapolation of the wavefunction", &
+         "Linear extrapolation of the density matrix", &
+         "Linear extrapolation of the density matrix times the overlap matrix", &
+         "Use the previous wavefunction", &
+         "Higher order extrapolation of the density matrix times the overlap matrix", &
+         "Frozen ...", &
+         "Always stable predictor corrector, similar to PS, but going for MD stability instead of intial guess accuracy."), &
+         enum_i_vals=(/ &
+         wfi_use_guess_method_nr, &
+         wfi_use_prev_p_method_nr, &
+         wfi_use_prev_rho_r_method_nr, &
+         wfi_linear_wf_method_nr, &
+         wfi_linear_p_method_nr, &
+         wfi_linear_ps_method_nr, &
+         wfi_use_prev_wf_method_nr, &
+         wfi_ps_method_nr, &
+         wfi_frozen_method_nr, &
+         wfi_aspc_nr/), &
+         default_i_val=wfi_aspc_nr)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -3205,12 +3225,13 @@ CONTAINS
                           "calculations.", n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="CUTOFF", &
-                          description="Atomic Cutoff Radius Cutoff for the evaluation of the  Coulomb integrals. "// &
-                          "For non-periodic calculation the default value is exactly the full cell dimension, in order "// &
-                     "to evaluate all pair interactions. Instead, for periodic calculations the default numerical value is used.", &
-                          usage="CUTOFF {real} ", unit_str="angstrom", &
-                          default_r_val=cp_unit_to_cp2k(value=12.0_dp, unit_str="angstrom"))
+      CALL keyword_create( &
+         keyword, name="CUTOFF", &
+         description="Atomic Cutoff Radius Cutoff for the evaluation of the  Coulomb integrals. "// &
+         "For non-periodic calculation the default value is exactly the full cell dimension, in order "// &
+         "to evaluate all pair interactions. Instead, for periodic calculations the default numerical value is used.", &
+         usage="CUTOFF {real} ", unit_str="angstrom", &
+         default_r_val=cp_unit_to_cp2k(value=12.0_dp, unit_str="angstrom"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4087,21 +4108,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="SCF_GUESS", &
-                          description="Change the initial guess for the wavefunction.", &
-                          usage="SCF_GUESS RESTART", default_i_val=atomic_guess, &
-                          enum_c_vals=s2a("ATOMIC", "RESTART", "RANDOM", "CORE", &
-                                          "HISTORY_RESTART", "MOPAC", "SPARSE", "NONE"), &
-                          enum_desc=s2a("Generate an atomic density using the atomic code", &
-                                        "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
-                                        "Use random wavefunction coefficients.", &
-                                        "Diagonalize the core hamiltonian for an initial guess.", &
-                                        "Extrapolated from previous RESTART files.", &
+      CALL keyword_create( &
+         keyword, name="SCF_GUESS", &
+         description="Change the initial guess for the wavefunction.", &
+         usage="SCF_GUESS RESTART", default_i_val=atomic_guess, &
+         enum_c_vals=s2a("ATOMIC", "RESTART", "RANDOM", "CORE", &
+                         "HISTORY_RESTART", "MOPAC", "SPARSE", "NONE"), &
+         enum_desc=s2a("Generate an atomic density using the atomic code", &
+                       "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
+                       "Use random wavefunction coefficients.", &
+                       "Diagonalize the core hamiltonian for an initial guess.", &
+                       "Extrapolated from previous RESTART files.", &
                        "Use same guess as MOPAC for semi-empirical methods or a simple diagonal density matrix for other methods", &
-                                        "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
-                                        "Skip initial guess (only for NON-SCC DFTB)."), &
-                          enum_i_vals=(/atomic_guess, restart_guess, random_guess, core_guess, &
-                                        history_guess, mopac_guess, sparse_guess, no_guess/))
+                       "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
+                       "Skip initial guess (only for NON-SCC DFTB)."), &
+         enum_i_vals=(/atomic_guess, restart_guess, random_guess, core_guess, &
+                       history_guess, mopac_guess, sparse_guess, no_guess/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -4182,12 +4204,13 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "RESTART_HISTORY", &
-                                       description="Dumps unique MO restart files during the run keeping all of them.", &
-                                       print_level=low_print_level, common_iter_levels=0, &
-                                     each_iter_names=s2a("__ROOT__", "MD", "GEO_OPT", "ROT_OPT", "NEB", "METADYNAMICS", "QS_SCF"), &
-                                       each_iter_values=(/500, 500, 500, 500, 500, 500, 500/), &
-                                       filename="RESTART")
+      CALL cp_print_key_section_create( &
+         print_key, "RESTART_HISTORY", &
+         description="Dumps unique MO restart files during the run keeping all of them.", &
+         print_level=low_print_level, common_iter_levels=0, &
+         each_iter_names=s2a("__ROOT__", "MD", "GEO_OPT", "ROT_OPT", "NEB", "METADYNAMICS", "QS_SCF"), &
+         each_iter_values=(/500, 500, 500, 500, 500, 500, 500/), &
+         filename="RESTART")
       CALL keyword_create(keyword, name="BACKUP_COPIES", &
                           description="Specifies the maximum index of backup copies.", &
                           usage="BACKUP_COPIES {int}", &
@@ -4251,9 +4274,10 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "DIAG_SUB_SCF", &
-                                   description="Controls the printing of information on subspace diagonalization internal loop. ", &
-                                       print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL cp_print_key_section_create( &
+         print_key, "DIAG_SUB_SCF", &
+         description="Controls the printing of information on subspace diagonalization internal loop. ", &
+         print_level=medium_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -4409,16 +4433,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="OPTIMIZER", &
-                          description="Method used to bring the outer loop to a stationary point", &
-                          usage="OPTIMIZER SD", &
-                          default_i_val=outer_scf_optimizer_none, &
-                          enum_c_vals=s2a("SD", "DIIS", "NONE", "BISECT"), &
-                          enum_desc=s2a("Takes steps in the direction of the gradient, multiplied by step_size", &
-                                        "Uses a Direct Inversion in the Iterative Subspace method", &
-                                        "Do nothing, useful only with the none type", &
-                                        "Bisection on the gradient, useful for difficult one dimensional cases"), &
-             enum_i_vals=(/outer_scf_optimizer_sd, outer_scf_optimizer_diis, outer_scf_optimizer_none, outer_scf_optimizer_bisect/))
+      CALL keyword_create( &
+         keyword, name="OPTIMIZER", &
+         description="Method used to bring the outer loop to a stationary point", &
+         usage="OPTIMIZER SD", &
+         default_i_val=outer_scf_optimizer_none, &
+         enum_c_vals=s2a("SD", "DIIS", "NONE", "BISECT"), &
+         enum_desc=s2a("Takes steps in the direction of the gradient, multiplied by step_size", &
+                       "Uses a Direct Inversion in the Iterative Subspace method", &
+                       "Do nothing, useful only with the none type", &
+                       "Bisection on the gradient, useful for difficult one dimensional cases"), &
+         enum_i_vals=(/outer_scf_optimizer_sd, outer_scf_optimizer_diis, outer_scf_optimizer_none, outer_scf_optimizer_bisect/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -5161,11 +5186,12 @@ CONTAINS
                           n_var=-1, type_of_var=real_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, name="SPIN_CONFIGURATION", &
-                  description="for each singly occupied orbital, specify if this should be an alpha (=1) or a beta (=2) orbital"// &
-                          "This keyword should be repeated, each repetition corresponding to an additional term.", &
-                          usage="SPIN_CONFIGURATION 1 2", &
-                          n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="SPIN_CONFIGURATION", &
+         description="for each singly occupied orbital, specify if this should be an alpha (=1) or a beta (=2) orbital"// &
+         "This keyword should be repeated, each repetition corresponding to an additional term.", &
+         usage="SPIN_CONFIGURATION 1 2", &
+         n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -5609,16 +5635,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MINIMIZER", &
-                          description="Minimizer to be used with the OT method", &
-                          usage="MINIMIZER DIIS", &
-                          default_i_val=ot_mini_cg, &
-                          enum_c_vals=s2a("SD", "CG", "DIIS", "BROYDEN"), &
-             enum_desc=s2a("Steepest descent: not recommended", "Conjugate Gradients: most reliable, use for difficult systems."// &
-                                       " The total energy should decrease at every OT CG step if the line search is appropriate.", &
-                              "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster", &
-                                        "Broyden mixing approximating the inverse Hessian"), &
-                          enum_i_vals=(/ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden/))
+      CALL keyword_create( &
+         keyword, name="MINIMIZER", &
+         description="Minimizer to be used with the OT method", &
+         usage="MINIMIZER DIIS", &
+         default_i_val=ot_mini_cg, &
+         enum_c_vals=s2a("SD", "CG", "DIIS", "BROYDEN"), &
+         enum_desc=s2a("Steepest descent: not recommended", "Conjugate Gradients: most reliable, use for difficult systems."// &
+                       " The total energy should decrease at every OT CG step if the line search is appropriate.", &
+                       "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster", &
+                       "Broyden mixing approximating the inverse Hessian"), &
+         enum_i_vals=(/ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -5724,13 +5751,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="STEPSIZE", &
-               description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stablize DIIS"// &
-                          " or to improve the CG behavior in the first few steps."// &
-                          " The optimal value depends on the quality of the preconditioner."// &
-                          " A negative values leaves the choice to CP2K depending on the preconditioner.", &
-                          usage="STEPSIZE 0.4", &
-                          default_r_val=-1.0_dp)
+      CALL keyword_create( &
+         keyword, name="STEPSIZE", &
+         description="Initial stepsize used for the line search, sometimes this parameter can be reduced to stablize DIIS"// &
+         " or to improve the CG behavior in the first few steps."// &
+         " The optimal value depends on the quality of the preconditioner."// &
+         " A negative values leaves the choice to CP2K depending on the preconditioner.", &
+         usage="STEPSIZE 0.4", &
+         default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -5741,75 +5769,80 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRECONDITIONER", &
-                          description="Type of preconditioner to be used with all minimization schemes. "// &
-                          "They differ in effectiveness, cost of construction, cost of application. "// &
-                          "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
-                          usage="PRECONDITIONER FULL_ALL", &
-                          default_i_val=ot_precond_full_kinetic, &
-                          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
-                                          "NONE"), &
-                          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
-                                        "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
-                                   "This preconditioner is recommended for almost all systems, except very large systems where "// &
-                                        "make_preconditioner would dominate the total computational cost.", &
-                                       "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
-                                        "but cheaper to construct, "// &
-                                        "might be somewhat less robust. Recommended for large systems.", &
-                                        "Based on H-eS diagonalisation, not as good as FULL_ALL, but somewhat cheaper to apply. ", &
-                                        "Cholesky inversion of S and T, fast construction, robust, and relatively good, "// &
-                                        "use for very large systems.", &
-                                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
-                                        "skip preconditioning"), &
-                          enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
-                                        ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none/), &
-                          citations=(/VandeVondele2003, Weber2008, Schiffmann2015/))
+      CALL keyword_create( &
+         keyword, name="PRECONDITIONER", &
+         description="Type of preconditioner to be used with all minimization schemes. "// &
+         "They differ in effectiveness, cost of construction, cost of application. "// &
+         "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
+         usage="PRECONDITIONER FULL_ALL", &
+         default_i_val=ot_precond_full_kinetic, &
+         enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
+                         "NONE"), &
+         enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
+                       "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
+                       "This preconditioner is recommended for almost all systems, except very large systems where "// &
+                       "make_preconditioner would dominate the total computational cost.", &
+                       "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
+                       "but cheaper to construct, "// &
+                       "might be somewhat less robust. Recommended for large systems.", &
+                       "Based on H-eS diagonalisation, not as good as FULL_ALL, but somewhat cheaper to apply. ", &
+                       "Cholesky inversion of S and T, fast construction, robust, and relatively good, "// &
+                       "use for very large systems.", &
+                       "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
+                       "skip preconditioning"), &
+         enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
+                       ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none/), &
+         citations=(/VandeVondele2003, Weber2008, Schiffmann2015/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRECOND_SOLVER", &
-                          description="How the preconditioner is applied to the residual.", &
-                          usage="PRECOND_SOLVER DIRECT", &
-                          default_i_val=ot_precond_solver_default, &
-                          enum_c_vals=s2a("DEFAULT", "DIRECT", "INVERSE_CHOLESKY", "INVERSE_UPDATE"), &
-                          enum_desc=s2a("the default", "Cholesky decomposition followed by triangular solve "// &
-                                        "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
-                                        "Cholesky decomposition followed by explicit inversion "// &
-                                        "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
-                                        "Performs a Hotelling update of the inverse if a previous preconditioner is present. "// &
-                                   "Mainly useful for GPU accelerated systems (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"), &
-                          enum_i_vals=(/ot_precond_solver_default, &
-                                        ot_precond_solver_direct, &
-                                        ot_precond_solver_inv_chol, &
-                                        ot_precond_solver_update/))
+      CALL keyword_create( &
+         keyword, name="PRECOND_SOLVER", &
+         description="How the preconditioner is applied to the residual.", &
+         usage="PRECOND_SOLVER DIRECT", &
+         default_i_val=ot_precond_solver_default, &
+         enum_c_vals=s2a("DEFAULT", "DIRECT", "INVERSE_CHOLESKY", "INVERSE_UPDATE"), &
+         enum_desc=s2a("the default", "Cholesky decomposition followed by triangular solve "// &
+                       "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
+                       "Cholesky decomposition followed by explicit inversion "// &
+                       "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
+                       "Performs a Hotelling update of the inverse if a previous preconditioner is present. "// &
+                       "Mainly useful for GPU accelerated systems (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"), &
+         enum_i_vals=(/ot_precond_solver_default, &
+                       ot_precond_solver_direct, &
+                       ot_precond_solver_inv_chol, &
+                       ot_precond_solver_update/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENERGY_GAP", &
-                      description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "// &
-                          "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "// &
-                          "of the gap (can be a small number, e.g. 0.002)."// &
-                          " FULL_SINGLE_INVERSE takes it as lower bound (values below 0.05 can cause stability issues)."// &
-                          " In general, heigher values will tame the preconditioner in case of poor initial guesses."// &
-                          " A negative value will leave the choice to CP2K depending on type of preconditioner.", &
-                          usage="ENERGY_GAP 0.001", &
-                          default_r_val=-1.0_dp)
+      CALL keyword_create( &
+         keyword, name="ENERGY_GAP", &
+         description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "// &
+         "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "// &
+         "of the gap (can be a small number, e.g. 0.002)."// &
+         " FULL_SINGLE_INVERSE takes it as lower bound (values below 0.05 can cause stability issues)."// &
+         " In general, heigher values will tame the preconditioner in case of poor initial guesses."// &
+         " A negative value will leave the choice to CP2K depending on type of preconditioner.", &
+         usage="ENERGY_GAP 0.001", &
+         default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_TAYLOR", &
-                          variants=(/"EPSTAYLOR"/), &
-                   description="Target accuracy of the taylor expansion for the matrix functions, should normally be kept as is.", &
-                          usage="EPS_TAYLOR 1.0E-15", &
-                          default_r_val=1.0E-16_dp)
+      CALL keyword_create( &
+         keyword, name="EPS_TAYLOR", &
+         variants=(/"EPSTAYLOR"/), &
+         description="Target accuracy of the taylor expansion for the matrix functions, should normally be kept as is.", &
+         usage="EPS_TAYLOR 1.0E-15", &
+         default_r_val=1.0E-16_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MAX_TAYLOR", &
-                 description="Maximum order of the Taylor expansion before diagonalisation is prefered, for large parallel runs"// &
-                          " a slightly higher order could sometimes result in a small speedup.", &
-                          usage="MAX_TAYLOR 5", &
-                          default_i_val=4)
+      CALL keyword_create( &
+         keyword, name="MAX_TAYLOR", &
+         description="Maximum order of the Taylor expansion before diagonalisation is prefered, for large parallel runs"// &
+         " a slightly higher order could sometimes result in a small speedup.", &
+         usage="MAX_TAYLOR 5", &
+         default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -5987,17 +6020,18 @@ CONTAINS
 
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, name="PRECONDITIONER", &
-                          description="Type of preconditioner to be used with all minimization schemes. ", &
-                          usage="PRECONDITIONER FULL_ALL", &
-                          default_i_val=ot_precond_full_all, &
-                          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "NONE"), &
-                          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization ", &
-                                       "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
-                                        "but cheaper to construct, might be somewhat less robust. Recommended for large systems.", &
-                                        "skip preconditioning"), &
-                          enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_none/), &
-                          citations=(/VandeVondele2003/))
+      CALL keyword_create( &
+         keyword, name="PRECONDITIONER", &
+         description="Type of preconditioner to be used with all minimization schemes. ", &
+         usage="PRECONDITIONER FULL_ALL", &
+         default_i_val=ot_precond_full_all, &
+         enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "NONE"), &
+         enum_desc=s2a("Most effective state selective preconditioner based on diagonalization ", &
+                       "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
+                       "but cheaper to construct, might be somewhat less robust. Recommended for large systems.", &
+                       "skip preconditioning"), &
+         enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_none/), &
+         citations=(/VandeVondele2003/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -6016,13 +6050,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ENERGY_GAP", &
-                      description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "// &
-                          "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "// &
-                         "of the gap (0.001 doing normally fine). For the other preconditioners, making this value larger (0.2)"// &
-                          " will tame the preconditioner in case of poor initial guesses.", &
-                          usage="ENERGY_GAP 0.001", &
-                          default_r_val=0.2_dp)
+      CALL keyword_create( &
+         keyword, name="ENERGY_GAP", &
+         description="Should be an estimate for the energy gap [a.u.] (HOMO-LUMO) and is used in preconditioning, "// &
+         "especially effective with the FULL_ALL preconditioner, in which case it should be an underestimate "// &
+         "of the gap (0.001 doing normally fine). For the other preconditioners, making this value larger (0.2)"// &
+         " will tame the preconditioner in case of poor initial guesses.", &
+         usage="ENERGY_GAP 0.001", &
+         default_r_val=0.2_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -6164,12 +6199,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_SKIP_SUB_DIAG", &
-                       description="Level of convergence to be reached before starting the internal loop of subspace rotations."// &
-                          " Above this threshold only the outer diagonalization method is used. "// &
-                          " If negative the subspace rotation is started at the first iteration", &
-                          usage="EPS_SKIP_SUB_DIAG 0.001", &
-                          default_r_val=-1.0_dp)
+      CALL keyword_create( &
+         keyword, name="EPS_SKIP_SUB_DIAG", &
+         description="Level of convergence to be reached before starting the internal loop of subspace rotations."// &
+         " Above this threshold only the outer diagonalization method is used. "// &
+         " If negative the subspace rotation is started at the first iteration", &
+         usage="EPS_SKIP_SUB_DIAG 0.001", &
+         default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -6388,9 +6424,10 @@ CONTAINS
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "XAS_SPECTRUM", &
-                                     description="Controls the dumping of the CLS output files containing the absorption spectra", &
-                                       print_level=low_print_level, common_iter_levels=3, filename="")
+      CALL cp_print_key_section_create( &
+         print_key, "XAS_SPECTRUM", &
+         description="Controls the dumping of the CLS output files containing the absorption spectra", &
+         print_level=low_print_level, common_iter_levels=3, filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -6714,11 +6751,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ORTHONORMAL", &
-                    description="Performs rtp in the orthonormal basis. This keyword is only intended for development purposes."// &
-                          "It should not be used outside code development", &
-                          usage="ORTHONORMAL", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="ORTHONORMAL", &
+         description="Performs rtp in the orthonormal basis. This keyword is only intended for development purposes."// &
+         "It should not be used outside code development", &
+         usage="ORTHONORMAL", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -6729,11 +6767,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="ACCURACY_REFINEMENT", &
-                 description="If using density propagation some parts should be calculated with a higher accuracy than the rest"// &
-                          " to reduce numerical noise. This factor determines by how much the filtering threshold is"// &
-                          " reduced for these calculations.", &
-                          usage="ACCURACY_REFINEMENT", default_i_val=100)
+      CALL keyword_create( &
+         keyword, name="ACCURACY_REFINEMENT", &
+         description="If using density propagation some parts should be calculated with a higher accuracy than the rest"// &
+         " to reduce numerical noise. This factor determines by how much the filtering threshold is"// &
+         " reduced for these calculations.", &
+         usage="ACCURACY_REFINEMENT", default_i_val=100)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -7239,14 +7278,15 @@ CONTAINS
       CALL section_release(print_key)
 
       ! dirichlet type constraints
-      CALL cp_print_key_section_create(print_key, "DIRICHLET_BC_CUBE", &
-                                       description="Controls the printing of cube files with unit step functions (constraints) "// &
-                                 "representing Dirichlet-type (boundary) regions defined in the implicit (generalized) Poisson "// &
-                                   "solver section. The regions remain unchanged throughout the calculations. If the Dirichlet "// &
-                         " regions are relatively large and/or the number of partitions is quite high, in order to save memory,"// &
-                            " generate the cube files in early steps and perform the rest of the calculations with this keyword"// &
-                                       " switched off.", &
-                                       print_level=high_print_level, filename="")
+      CALL cp_print_key_section_create( &
+         print_key, "DIRICHLET_BC_CUBE", &
+         description="Controls the printing of cube files with unit step functions (constraints) "// &
+         "representing Dirichlet-type (boundary) regions defined in the implicit (generalized) Poisson "// &
+         "solver section. The regions remain unchanged throughout the calculations. If the Dirichlet "// &
+         " regions are relatively large and/or the number of partitions is quite high, in order to save memory,"// &
+         " generate the cube files in early steps and perform the rest of the calculations with this keyword"// &
+         " switched off.", &
+         print_level=high_print_level, filename="")
 
       CALL keyword_create(keyword, name="TILE_CUBES", &
                           description="Print tiles that tessellate the Dirichlet regions into cube files. If TRUE, "// &

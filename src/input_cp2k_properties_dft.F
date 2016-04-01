@@ -156,28 +156,29 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="PRECONDITIONER", &
-                          description="Type of preconditioner to be used with all minimization schemes. "// &
-                          "They differ in effectiveness, cost of construction, cost of application. "// &
-                          "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
-                          usage="PRECONDITIONER FULL_ALL", &
-                          default_i_val=ot_precond_none, &
-                          enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
-                                          "NONE"), &
-                          enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
-                                        "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
-                                   "This preconditioner is recommended for almost all systems, except very large systems where "// &
-                                        "make_preconditioner would dominate the total computational cost.", &
-                                       "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
-                                        "but cheaper to construct, "// &
-                                        "might be somewhat less robust. Recommended for large systems.", &
-                                        "Based on H-eS diagonalisation, not as good as FULL_ALL, but somewhat cheaper to apply. ", &
-                                        "Cholesky inversion of S and T, fast construction, robust, and relatively good, "// &
-                                        "use for very large systems.", &
-                                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
-                                        "skip preconditioning"), &
-                          enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
-                                        ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none/))
+      CALL keyword_create( &
+         keyword, name="PRECONDITIONER", &
+         description="Type of preconditioner to be used with all minimization schemes. "// &
+         "They differ in effectiveness, cost of construction, cost of application. "// &
+         "Properly preconditioned minimization can be orders of magnitude faster than doing nothing.", &
+         usage="PRECONDITIONER FULL_ALL", &
+         default_i_val=ot_precond_none, &
+         enum_c_vals=s2a("FULL_ALL", "FULL_SINGLE_INVERSE", "FULL_SINGLE", "FULL_KINETIC", "FULL_S_INVERSE", &
+                         "NONE"), &
+         enum_desc=s2a("Most effective state selective preconditioner based on diagonalization, "// &
+                       "requires the ENERGY_GAP parameter to be an underestimate of the HOMO-LUMO gap. "// &
+                       "This preconditioner is recommended for almost all systems, except very large systems where "// &
+                       "make_preconditioner would dominate the total computational cost.", &
+                       "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
+                       "but cheaper to construct, "// &
+                       "might be somewhat less robust. Recommended for large systems.", &
+                       "Based on H-eS diagonalisation, not as good as FULL_ALL, but somewhat cheaper to apply. ", &
+                       "Cholesky inversion of S and T, fast construction, robust, and relatively good, "// &
+                       "use for very large systems.", &
+                       "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
+                       "skip preconditioning"), &
+         enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
+                       ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -231,9 +232,10 @@ CONTAINS
       CALL section_create(subsection, "PRINT", "printing of information during the linear response calculation", &
                           repeats=.FALSE.)
 
-      CALL cp_print_key_section_create(print_key, "program_run_info", &
-                                 description="Controls the printing of basic iteration information during the LINRES calculation", &
-                                       print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
+      CALL cp_print_key_section_create( &
+         print_key, "program_run_info", &
+         description="Controls the printing of basic iteration information during the LINRES calculation", &
+         print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -1000,10 +1002,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="COEFF", &
-                   description="Defines the the coefficient of the atom in the atom list (default is one), currently DDAPC only ", &
-                          usage="COEFF 1.0 -1.0", &
-                          type_of_var=real_t, n_var=-1)
+      CALL keyword_create( &
+         keyword, name="COEFF", &
+         description="Defines the the coefficient of the atom in the atom list (default is one), currently DDAPC only ", &
+         usage="COEFF 1.0 -1.0", &
+         type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

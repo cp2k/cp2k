@@ -97,32 +97,35 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="BASIS_COMBINATIONS", &
-                          description="If multiple atomic kinds are fitted at the same time, this keyword "// &
-                          "allows to specify which basis sets should be used together in optimization (underived set ID=0). "// &
-                      "If skipped all combinations are used. The order is taken as the kinds and sets are specified in the input", &
-                          repeats=.TRUE., &
-                          usage="BASIS_COMBINATIONS SET_ID(KIND1) SET_ID(KIND2) ... ", type_of_var=integer_t, n_var=-1)
+      CALL keyword_create( &
+         keyword, name="BASIS_COMBINATIONS", &
+         description="If multiple atomic kinds are fitted at the same time, this keyword "// &
+         "allows to specify which basis sets should be used together in optimization (underived set ID=0). "// &
+         "If skipped all combinations are used. The order is taken as the kinds and sets are specified in the input", &
+         repeats=.TRUE., &
+         usage="BASIS_COMBINATIONS SET_ID(KIND1) SET_ID(KIND2) ... ", type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESIDUUM_WEIGHT", &
-                          description="This keyword allows to give different weight factors to the "// &
-                          "residuum of the different basis combinations. "// &
-                  "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
-                          "in the order given for BASIS_COMBINATIONS.", &
-                          repeats=.TRUE., &
-                          usage="RESIDUUM_WEIGHT REAL ", default_r_val=1.0_dp)
+      CALL keyword_create( &
+         keyword, name="RESIDUUM_WEIGHT", &
+         description="This keyword allows to give different weight factors to the "// &
+         "residuum of the different basis combinations. "// &
+         "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
+         "in the order given for BASIS_COMBINATIONS.", &
+         repeats=.TRUE., &
+         usage="RESIDUUM_WEIGHT REAL ", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CONDITION_WEIGHT", &
-                          description="This keyword allows to give different weight factors to the "// &
-                          "condition number of different basis combinations (LOG(cond) is used). "// &
-                  "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
-                          "in the order given for BASIS_COMBINATIONS.", &
-                          repeats=.TRUE., &
-                          usage="CONTITION_WEIGHT REAL ", default_r_val=1.0_dp)
+      CALL keyword_create( &
+         keyword, name="CONDITION_WEIGHT", &
+         description="This keyword allows to give different weight factors to the "// &
+         "condition number of different basis combinations (LOG(cond) is used). "// &
+         "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
+         "in the order given for BASIS_COMBINATIONS.", &
+         repeats=.TRUE., &
+         usage="CONTITION_WEIGHT REAL ", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

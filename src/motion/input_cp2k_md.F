@@ -491,9 +491,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="VARIABLE_VOLUME", &
-                       description="Enables the possibility to read a CELL file with information on the CELL size during the MD.", &
-                          repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="VARIABLE_VOLUME", &
+         description="Enables the possibility to read a CELL file with information on the CELL size during the MD.", &
+         repeats=.FALSE., default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

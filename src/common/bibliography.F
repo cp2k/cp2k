@@ -95,7 +95,8 @@ CONTAINS
       CALL add_reference(key=Ceriotti2012, ISI_record=s2a( &
                          "AU Ceriotti, M", &
                          "   Manolopoulos, D", &
-                    "TI Efficient First-Principles Calculation of the Quantum Kinetic Energy and Momentum Distribution of Nuclei", &
+                         "TI Efficient First-Principles Calculation of the Quantum "// &
+                         "Kinetic Energy and Momentum Distribution of Nuclei", &
                          "SO PHYSICAL REVIEW LETTERS", &
                          "PY 2012", &
                          "VL 109", &
@@ -127,7 +128,8 @@ CONTAINS
                          "   Norskov, J", &
                          "   Bligaard, T", &
                          "   Jacobsen, K", &
-              "TI Density functionals for surface science: Exchange-correlation model development with Bayesian error estimation", &
+                         "TI Density functionals for surface science: Exchange-correlation "// &
+                         "model development with Bayesian error estimation", &
                          "SO PHYSICAL REVIEW B", &
                          "PY 2012", &
                          "VL 85", &
@@ -1809,7 +1811,8 @@ CONTAINS
                          "AU Chang, DT", &
                          "   Schenter, GK", &
                          "   Garrett, BC ", &
-                       "TI Self-consistent polarization neglect of diatomic differential overlap: Applications to water clusters", &
+                         "TI Self-consistent polarization neglect of diatomic differential overlap: "// &
+                         "Applications to water clusters", &
                          "SO JOURNAL OF CHEMICAL PHYSICS", &
                          "SN 0021-9606", &
                          "PD APR 28", &
@@ -1903,7 +1906,8 @@ CONTAINS
 
       CALL add_reference(key=Kolafa2004, ISI_record=s2a( &
                          "AU Kolafa, J", &
-                    "TI Time-reversible always stable predictor-corrector method for molecular dynamics of polarizable molecules", &
+                         "TI Time-reversible always stable predictor-corrector method for "// &
+                         "molecular dynamics of polarizable molecules", &
                          "SO JOURNAL OF COMPUTATIONAL CHEMISTRY", &
                          "SN 0192-8651", &
                          "J9 J COMPUT CHEM", &
@@ -2711,7 +2715,8 @@ CONTAINS
                          "AF Khaliullin, Rustam Z.", &
                          "   Bell, Alexis T.", &
                          "   Head-Gordon, Martin", &
-                 "TI Analysis of charge transfer effects in molecular complexes based on absolutely localized molecular orbitals", &
+                         "TI Analysis of charge transfer effects in molecular complexes "// &
+                         "based on absolutely localized molecular orbitals", &
                          "SO Journal of Chemical Physics", &
                          "SN 0021-9606", &
                          "PY 2008", &

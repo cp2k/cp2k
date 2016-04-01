@@ -222,21 +222,22 @@ CONTAINS
 
       NULLIFY (subsection, keyword)
 
-      CALL keyword_create(keyword, name="PARMTYPE", &
-                          description="Define the kind of torsion potential", &
-                          usage="PARMTYPE {OFF,CHM,G87,G96}", &
-                          enum_c_vals=s2a("OFF", "CHM", "G87", "G96", "AMBER"), &
-                          enum_desc=s2a("Provides force field parameters through the input file", &
-                                        "Provides force field parameters through an external file with CHARMM format", &
-                                        "Provides force field parameters through an external file with GROMOS 87 format", &
-                                        "Provides force field parameters through an external file with GROMOS 96 format", &
-                                      "Provides force field parameters through an external file with AMBER format (from v.8 on)"), &
-                          enum_i_vals=(/do_ff_undef, &
-                                        do_ff_charmm, &
-                                        do_ff_g87, &
-                                        do_ff_g96, &
-                                        do_ff_amber/), &
-                          default_i_val=do_ff_undef)
+      CALL keyword_create( &
+         keyword, name="PARMTYPE", &
+         description="Define the kind of torsion potential", &
+         usage="PARMTYPE {OFF,CHM,G87,G96}", &
+         enum_c_vals=s2a("OFF", "CHM", "G87", "G96", "AMBER"), &
+         enum_desc=s2a("Provides force field parameters through the input file", &
+                       "Provides force field parameters through an external file with CHARMM format", &
+                       "Provides force field parameters through an external file with GROMOS 87 format", &
+                       "Provides force field parameters through an external file with GROMOS 96 format", &
+                       "Provides force field parameters through an external file with AMBER format (from v.8 on)"), &
+         enum_i_vals=(/do_ff_undef, &
+                       do_ff_charmm, &
+                       do_ff_g87, &
+                       do_ff_g96, &
+                       do_ff_amber/), &
+         default_i_val=do_ff_undef)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -422,9 +423,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="NPOINTS", &
-                  description="Override the default search for an accurate spline by specifying a fixed number of spline points.", &
-                          usage="NPOINTS 1024", default_i_val=-1)
+      CALL keyword_create( &
+         keyword, name="NPOINTS", &
+         description="Override the default search for an accurate spline by specifying a fixed number of spline points.", &
+         usage="NPOINTS 1024", default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -650,33 +652,34 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword=keyword, name="KIND", &
-                          description="Define the kind of bend potential", &
-                          usage="KIND HARMONIC", &
-                          enum_c_vals=s2a("HARMONIC", "CHARMM", "AMBER", "G87", "G96", "CUBIC", "MIXED_BEND_STRETCH", "MM3", &
-                                          "LEGENDRE"), &
-                          enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2", &
-                                        "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2", &
-                                        "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2", &
-                                        "Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2", &
-                                        "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2", &
-                                        "Functional Form (CUBIC): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))", &
-                                        "Functional Form (MIXED_BEND_STRETCH): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))+"// &
-                                     " KSS*(R12-R012)*(R32-R032)+KBS12*(R12-R012)*(THETA-THETA0)+KBS32*(R32-R032)*(THETA-THETA0)", &
-                               "Functional Form (MM3): 1/2*K*(THETA-THETA0)**2*(1-0.014*(THETA-THETA0)+5.6E-5*(THETA-THETA0)**2"// &
-                                        " -7.0E-7*(THETA-THETA0)**3+9.0E-10*(THETA-THETA0)**4)+KBS12*(R12-R012)*(THETA-THETA0)+"// &
-                                        " KBS32*(R32-R032)*(THETA-THETA0)", &
-                                        "Functional Form (LEGENDRE): sum_{i=0}^N c_i*P_i(COS(THETA)) "), &
-                          enum_i_vals=(/do_ff_harmonic, &
-                                        do_ff_charmm, &
-                                        do_ff_amber, &
-                                        do_ff_g87, &
-                                        do_ff_g96, &
-                                        do_ff_cubic, &
-                                        do_ff_mixed_bend_stretch, &
-                                        do_ff_mm3, &
-                                        do_ff_legendre/), &
-                          default_i_val=do_ff_charmm)
+      CALL keyword_create( &
+         keyword=keyword, name="KIND", &
+         description="Define the kind of bend potential", &
+         usage="KIND HARMONIC", &
+         enum_c_vals=s2a("HARMONIC", "CHARMM", "AMBER", "G87", "G96", "CUBIC", "MIXED_BEND_STRETCH", "MM3", &
+                         "LEGENDRE"), &
+         enum_desc=s2a("Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2", &
+                       "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2", &
+                       "Functional Form (CHARMM|AMBER): K*(THETA-THETA0)^2", &
+                       "Functional Form (HARMONIC|G87): 1/2*K*(THETA-THETA0)^2", &
+                       "Functional Form (G96): 1/2*K*(COS(THETA)-THETA0)^2", &
+                       "Functional Form (CUBIC): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))", &
+                       "Functional Form (MIXED_BEND_STRETCH): K*(THETA-THETA0)**2*(1+CB*(THETA-THETA0))+"// &
+                       " KSS*(R12-R012)*(R32-R032)+KBS12*(R12-R012)*(THETA-THETA0)+KBS32*(R32-R032)*(THETA-THETA0)", &
+                       "Functional Form (MM3): 1/2*K*(THETA-THETA0)**2*(1-0.014*(THETA-THETA0)+5.6E-5*(THETA-THETA0)**2"// &
+                       " -7.0E-7*(THETA-THETA0)**3+9.0E-10*(THETA-THETA0)**4)+KBS12*(R12-R012)*(THETA-THETA0)+"// &
+                       " KBS32*(R32-R032)*(THETA-THETA0)", &
+                       "Functional Form (LEGENDRE): sum_{i=0}^N c_i*P_i(COS(THETA)) "), &
+         enum_i_vals=(/do_ff_harmonic, &
+                       do_ff_charmm, &
+                       do_ff_amber, &
+                       do_ff_g87, &
+                       do_ff_g96, &
+                       do_ff_cubic, &
+                       do_ff_mixed_bend_stretch, &
+                       do_ff_mm3, &
+                       do_ff_legendre/), &
+         default_i_val=do_ff_charmm)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -920,10 +923,11 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="QUADRUPOLE", &
-                       description="This section specifies that we will perform an SCF quadrupole calculation of the MM atoms. "// &
-                          "Needs KEYWORD POL_SCF in POISSON secton", &
-                          n_keywords=1, n_subsections=0, repeats=.TRUE.)
+      CALL section_create( &
+         section, name="QUADRUPOLE", &
+         description="This section specifies that we will perform an SCF quadrupole calculation of the MM atoms. "// &
+         "Needs KEYWORD POL_SCF in POISSON secton", &
+         n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -2089,11 +2093,12 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, name="BUCKMORSE", &
-                          description="This section specifies the input parameters for"// &
-                          " Buckingham plus Morse potential type "// &
-                  " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*{EXP[-2*beta*(r-R0)]-2*EXP[-beta*(r-R0)]}.", &
-                          citations=(/Yamada2000/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+      CALL section_create( &
+         section, name="BUCKMORSE", &
+         description="This section specifies the input parameters for"// &
+         " Buckingham plus Morse potential type "// &
+         " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*{EXP[-2*beta*(r-R0)]-2*EXP[-beta*(r-R0)]}.", &
+         citations=(/Yamada2000/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 

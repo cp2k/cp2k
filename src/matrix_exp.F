@@ -766,7 +766,8 @@ CONTAINS
 !$OMP PARALLEL DO PRIVATE(icol_local) DEFAULT(NONE) SHARED(V_mats,norm1,ncol_local)
       DO icol_local = 1, ncol_local
          V_mats(1)%matrix%local_data(:, icol_local) = V_mats(1)%matrix%local_data(:, icol_local)/norm1(icol_local)
-     V_mats(1)%matrix%local_data(:, icol_local+ncol_local) = V_mats(1)%matrix%local_data(:, icol_local+ncol_local)/norm1(icol_local)
+         V_mats(1)%matrix%local_data(:, icol_local+ncol_local) = &
+            V_mats(1)%matrix%local_data(:, icol_local+ncol_local)/norm1(icol_local)
       END DO
 
       ! arnoldi subspace procedure to get H_approx
@@ -789,7 +790,8 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(results,V_mats,ncol_local,l,i)
             DO icol_local = 1, ncol_local
                results(icol_local) = SUM(V_mats(l)%matrix%local_data(:, icol_local)*V_mats(i)%matrix%local_data(:, icol_local))+ &
-                    SUM(V_mats(l)%matrix%local_data(:, icol_local+ncol_local)*V_mats(i)%matrix%local_data(:, icol_local+ncol_local))
+                                     SUM(V_mats(l)%matrix%local_data(:, icol_local+ncol_local)* &
+                                         V_mats(i)%matrix%local_data(:, icol_local+ncol_local))
             END DO
 
             CALL mp_sum(results, col_group)
@@ -799,8 +801,9 @@ CONTAINS
                H_approx_save(l, i-1, icol_local) = results(icol_local)
                V_mats(i)%matrix%local_data(:, icol_local) = V_mats(i)%matrix%local_data(:, icol_local)- &
                                                             results(icol_local)*V_mats(l)%matrix%local_data(:, icol_local)
-               V_mats(i)%matrix%local_data(:, icol_local+ncol_local) = V_mats(i)%matrix%local_data(:, icol_local+ncol_local)- &
-                                                           results(icol_local)*V_mats(l)%matrix%local_data(:, icol_local+ncol_local)
+               V_mats(i)%matrix%local_data(:, icol_local+ncol_local) = &
+                  V_mats(i)%matrix%local_data(:, icol_local+ncol_local)- &
+                  results(icol_local)*V_mats(l)%matrix%local_data(:, icol_local+ncol_local)
             END DO
          END DO
 
@@ -935,10 +938,12 @@ CONTAINS
                   DO icol_local = 1, ncol_local
                      DO idim = 1, mydim
                         prefac = H_approx(idim, 1, icol_local)*norm1(icol_local)
-                        mos_next(1)%matrix%local_data(:, icol_local) = mos_next(1)%matrix%local_data(:, icol_local)+ &
-                                                                       V_mats(idim)%matrix%local_data(:, icol_local)*prefac
-                        mos_next(2)%matrix%local_data(:, icol_local) = mos_next(2)%matrix%local_data(:, icol_local)+ &
-                                                                     V_mats(idim)%matrix%local_data(:, icol_local+ncol_local)*prefac
+                        mos_next(1)%matrix%local_data(:, icol_local) = &
+                           mos_next(1)%matrix%local_data(:, icol_local)+ &
+                           V_mats(idim)%matrix%local_data(:, icol_local)*prefac
+                        mos_next(2)%matrix%local_data(:, icol_local) = &
+                           mos_next(2)%matrix%local_data(:, icol_local)+ &
+                           V_mats(idim)%matrix%local_data(:, icol_local+ncol_local)*prefac
                      END DO
                   END DO
                END IF

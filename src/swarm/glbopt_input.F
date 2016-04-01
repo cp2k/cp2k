@@ -99,11 +99,12 @@ CONTAINS
       !CALL section_add_keyword(glbopt_section, keyword)
       !CALL keyword_release(keyword)
 
-      CALL cp_print_key_section_create(printkey, "PROGRESS_TRAJECTORY", &
-                                       description="Printkey to controll the writting of the progress trajectory. "// &
-                                      "This trajectory contains the minima, which are lower in energy than the by then lowerest.", &
-                                       print_level=low_print_level, common_iter_levels=1, &
-                                       filename="", unit_str="angstrom")
+      CALL cp_print_key_section_create( &
+         printkey, "PROGRESS_TRAJECTORY", &
+         description="Printkey to controll the writting of the progress trajectory. "// &
+         "This trajectory contains the minima, which are lower in energy than the by then lowerest.", &
+         print_level=low_print_level, common_iter_levels=1, &
+         filename="", unit_str="angstrom")
       CALL section_add_subsection(glbopt_section, printkey)
       CALL section_release(printkey)
 

@@ -2217,7 +2217,8 @@ CONTAINS
                                  coarse_coeffs(i-1, j, k) = coarse_coeffs(i-1, j, k) &
                                                             +ww1(1)*vv4
                                  coarse_coeffs(i, j, k) = coarse_coeffs(i, j, k) &
-                                                       +ww1(4)*vv0+ww0(3)*vv1+ww1(3)*vv2+ww0(2)*vv3+ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
+                                                          +ww1(4)*vv0+ww0(3)*vv1+ww1(3)*vv2+ww0(2)*vv3+ &
+                                                          ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
                                  coarse_coeffs(i+1, j, k) = coarse_coeffs(i+1, j, k) &
                                                             +ww1(4)*vv2+ww0(3)*vv3+ww1(3)*vv4+ww0(2)*vv5+ww1(2)*vv6 &
                                                             +ww0(1)*vv7+ww1(1)*vv0

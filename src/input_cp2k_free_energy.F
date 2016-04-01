@@ -703,17 +703,18 @@ CONTAINS
                           description="Controls the activation of walls on COLVAR during a metadynamic run.", &
                           n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
-      CALL keyword_create(keyword, name="TYPE", &
-                          description="Specify the type of wall", &
-                          usage=" TYPE (REFLECTIVE|QUADRATIC|QUARTIC|GAUSSIAN|NONE)", &
-                          enum_c_vals=s2a("REFLECTIVE", "QUADRATIC", "QUARTIC", "GAUSSIAN", "NONE"), &
-                        enum_desc=s2a("Reflective wall. Colvar velocity is inverted when the colvar is beyond the wall position.", &
-                                        "Applies a quadratic potential at the wall position.", &
-                                        "Applies a quartic potential at the wall position.", &
-                                        "Applies a gaussian potential at the wall position.", &
-                                        "No walls are applied."), &
-                          enum_i_vals=(/do_wall_reflective, do_wall_quadratic, do_wall_quartic, do_wall_gaussian, do_wall_none/), &
-                          default_i_val=do_wall_none)
+      CALL keyword_create( &
+         keyword, name="TYPE", &
+         description="Specify the type of wall", &
+         usage=" TYPE (REFLECTIVE|QUADRATIC|QUARTIC|GAUSSIAN|NONE)", &
+         enum_c_vals=s2a("REFLECTIVE", "QUADRATIC", "QUARTIC", "GAUSSIAN", "NONE"), &
+         enum_desc=s2a("Reflective wall. Colvar velocity is inverted when the colvar is beyond the wall position.", &
+                       "Applies a quadratic potential at the wall position.", &
+                       "Applies a quartic potential at the wall position.", &
+                       "Applies a gaussian potential at the wall position.", &
+                       "No walls are applied."), &
+         enum_i_vals=(/do_wall_reflective, do_wall_quadratic, do_wall_quartic, do_wall_gaussian, do_wall_none/), &
+         default_i_val=do_wall_none)
       CALL section_add_keyword(wall_section, keyword)
       CALL keyword_release(keyword)
 

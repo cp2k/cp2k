@@ -282,10 +282,11 @@ CONTAINS
       DEALLOCATE (basis_set_list)
 
       ! redistribute the task list so that all tasks map on the local rs grids
-      CALL distribute_tasks(rs_descs, task_list%ntasks, natoms, maxset, maxpgf, nimages, &
-                            task_list%tasks, rval=task_list%dist_ab, atom_pair_send=task_list%atom_pair_send, &
-                            atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
-                           reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed)
+      CALL distribute_tasks( &
+         rs_descs, task_list%ntasks, natoms, maxset, maxpgf, nimages, &
+         task_list%tasks, rval=task_list%dist_ab, atom_pair_send=task_list%atom_pair_send, &
+         atom_pair_recv=task_list%atom_pair_recv, symmetric=.TRUE., &
+         reorder_rs_grid_ranks=reorder_rs_grid_ranks, skip_load_balance_distributed=skip_load_balance_distributed)
 
       ! If the rank order has changed, reallocate any of the distributed rs_grids
 

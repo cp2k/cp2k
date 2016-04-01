@@ -287,11 +287,14 @@ CONTAINS
                         IF (calculate_forces .AND. PRESENT(force_a)) THEN
                            IF (my_compute_tau) THEN
                               pabval = pab(o1+ico, o2+jco)*0.5_dp*ax*bx
-                       CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax-1, 0), ay, az, MAX(bx-1, 0), by, bz, vab)
+                              CALL force_update( &
+                                 force_a, force_b, rab, pabval, ftza, ftzb, MAX(ax-1, 0), ay, az, MAX(bx-1, 0), by, bz, vab)
                               pabval = pab(o1+ico, o2+jco)*0.5_dp*ay*by
-                       CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay-1, 0), az, bx, MAX(by-1, 0), bz, vab)
+                              CALL force_update( &
+                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, MAX(ay-1, 0), az, bx, MAX(by-1, 0), bz, vab)
                               pabval = pab(o1+ico, o2+jco)*0.5_dp*az*bz
-                       CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az-1, 0), bx, by, MAX(bz-1, 0), vab)
+                              CALL force_update( &
+                                 force_a, force_b, rab, pabval, ftza, ftzb, ax, ay, MAX(az-1, 0), bx, by, MAX(bz-1, 0), vab)
                               pabval = pab(o1+ico, o2+jco)*0.5_dp*(-ftza*bx)
                               CALL force_update(force_a, force_b, rab, pabval, ftza, ftzb, ax+1, ay, az, MAX(bx-1, 0), by, bz, vab)
                               pabval = pab(o1+ico, o2+jco)*0.5_dp*(-ftza*by)
@@ -656,12 +659,13 @@ CONTAINS
                   il = ilx+ily+ilz
                   jl = jlx+jly+jlz
                   kl = klx+kly+klz
-                  coef_xyz(coef_map(lx, ly, lz)) = coef_xyz(coef_map(lx, ly, lz))+coef_ijk(coef_map(il, jl, kl))* &
-                                                   hmatgridp(1, 1, ilx)*hmatgridp(1, 2, jlx)*hmatgridp(1, 3, klx)* &
-                                                   hmatgridp(2, 1, ily)*hmatgridp(2, 2, jly)*hmatgridp(2, 3, kly)* &
-                                                   hmatgridp(3, 1, ilz)*hmatgridp(3, 2, jlz)*hmatgridp(3, 3, klz)* &
-                                                   fac(lx)*fac(ly)*fac(lz)/ &
-                                                  (fac(ilx)*fac(ily)*fac(ilz)*fac(jlx)*fac(jly)*fac(jlz)*fac(klx)*fac(kly)*fac(klz))
+                  coef_xyz(coef_map(lx, ly, lz)) = &
+                     coef_xyz(coef_map(lx, ly, lz))+coef_ijk(coef_map(il, jl, kl))* &
+                     hmatgridp(1, 1, ilx)*hmatgridp(1, 2, jlx)*hmatgridp(1, 3, klx)* &
+                     hmatgridp(2, 1, ily)*hmatgridp(2, 2, jly)*hmatgridp(2, 3, kly)* &
+                     hmatgridp(3, 1, ilz)*hmatgridp(3, 2, jlz)*hmatgridp(3, 3, klz)* &
+                     fac(lx)*fac(ly)*fac(lz)/ &
+                     (fac(ilx)*fac(ily)*fac(ilz)*fac(jlx)*fac(jly)*fac(jlz)*fac(klx)*fac(kly)*fac(klz))
                ENDDO
                ENDDO
                ENDDO

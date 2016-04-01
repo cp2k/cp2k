@@ -104,9 +104,10 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="EPS_SCF", &
-                       description="Target accuracy for the SCF convergence in terms of change of the total energy per electron.", &
-                          usage="EPS_SCF 1.e-6", default_r_val=1.e-7_dp)
+      CALL keyword_create( &
+         keyword, name="EPS_SCF", &
+         description="Target accuracy for the SCF convergence in terms of change of the total energy per electron.", &
+         usage="EPS_SCF 1.e-6", default_r_val=1.e-7_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -195,17 +196,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="MATRIX_CLUSTER_TYPE", &
-               description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "// &
-                          "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."// &
-                          "Furthermore, since screening is on matrix blocks, "// &
-                          "slightly more accurate results can be expected with molecular.", &
-                          usage="MATRIX_CLUSTER_TYPE MOLECULAR", &
-                          default_i_val=ls_cluster_atomic, &
-                          enum_c_vals=s2a("ATOMIC", "MOLECULAR"), &
-                          enum_desc=s2a("Using atomic blocks", &
-                                        "Using molecular blocks."), &
-                          enum_i_vals=(/ls_cluster_atomic, ls_cluster_molecular/))
+      CALL keyword_create( &
+         keyword, name="MATRIX_CLUSTER_TYPE", &
+         description="Specify how atomic blocks should be clustered in the used matrices, in order to improve flop rate, "// &
+         "and possibly speedup the matrix multiply. Note that the atomic s_preconditioner can not be used."// &
+         "Furthermore, since screening is on matrix blocks, "// &
+         "slightly more accurate results can be expected with molecular.", &
+         usage="MATRIX_CLUSTER_TYPE MOLECULAR", &
+         default_i_val=ls_cluster_atomic, &
+         enum_c_vals=s2a("ATOMIC", "MOLECULAR"), &
+         enum_desc=s2a("Using atomic blocks", &
+                       "Using molecular blocks."), &
+         enum_i_vals=(/ls_cluster_atomic, ls_cluster_molecular/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -215,10 +217,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="RESTART_WRITE", &
-                       description="Write the density matrix at the end of the SCF (currently requires EXTRAPOLATION_ORDER>0). "// &
-                          "Files might be rather large.", &
-                          usage="RESTART_READ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL keyword_create( &
+         keyword, name="RESTART_WRITE", &
+         description="Write the density matrix at the end of the SCF (currently requires EXTRAPOLATION_ORDER>0). "// &
+         "Files might be rather large.", &
+         usage="RESTART_READ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -328,14 +331,15 @@ CONTAINS
       CALL section_release(print_key)
 
       ! Energy specific electron density cubes
-      CALL cp_print_key_section_create(print_key, &
-                                       name="PRINT_SPECIFIC_E_DENSITY_CUBE", &
-                                       description="Controls the printing of cube files with "// &
-                                       "the electronic density (states) "// &
-                                       "contributing to the density of states within "// &
-                                       "the specific energy range "// &
-                                "(MIN_ENERGY &le; E &le; MAX_ENERGY). MIN_ENERGY and MAX_ENERGY need to be specified explicitly.", &
-                                       print_level=high_print_level, filename="")
+      CALL cp_print_key_section_create( &
+         print_key, &
+         name="PRINT_SPECIFIC_E_DENSITY_CUBE", &
+         description="Controls the printing of cube files with "// &
+         "the electronic density (states) "// &
+         "contributing to the density of states within "// &
+         "the specific energy range "// &
+         "(MIN_ENERGY &le; E &le; MAX_ENERGY). MIN_ENERGY and MAX_ENERGY need to be specified explicitly.", &
+         print_level=high_print_level, filename="")
 
       CALL keyword_create(keyword, name="stride", &
                           description="The stride (X,Y,Z) used to write the cube file "// &

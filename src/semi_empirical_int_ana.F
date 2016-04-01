@@ -574,16 +574,18 @@ CONTAINS
                IF (l_enuc) scale = scale*(2._dp*xab*EXP(-aab*rija*rija))
             ELSEIF (sepi%z == 6 .AND. sepj%z == 6) THEN
                ! Special Case C-C
-               IF (l_denuc) dscale = dscale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija)) &
-                                   -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija &
-                                     -scale*9.28_dp*EXP(-5.98_dp*rija)*5.98_dp*drija
+               IF (l_denuc) dscale = &
+                  dscale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija)) &
+                  -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija &
+                  -scale*9.28_dp*EXP(-5.98_dp*rija)*5.98_dp*drija
                IF (l_enuc) scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))+9.28_dp*EXP(-5.98_dp*rija))
             ELSEIF ((sepi%z == 8 .AND. sepj%z == 14) .OR. &
                     (sepj%z == 8 .AND. sepi%z == 14)) THEN
                ! Special Case Si-O
-               IF (l_denuc) dscale = dscale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2)) &
-                                  -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija+ &
-                                     scale*0.0007_dp*EXP(-(rija-2.9_dp)**2)*(2.0_dp*(rija-2.9_dp)*drija)
+               IF (l_denuc) dscale = &
+                  dscale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2)) &
+                  -scale*2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))*aab*(1.0_dp+6.0_dp*0.0003_dp*rija**5)*drija+ &
+                  scale*0.0007_dp*EXP(-(rija-2.9_dp)**2)*(2.0_dp*(rija-2.9_dp)*drija)
                IF (l_enuc) scale = scale*(2._dp*xab*EXP(-aab*(rija+0.0003_dp*rija**6))-0.0007_dp*EXP(-(rija-2.9_dp)**2))
             ELSE
                ! General Case

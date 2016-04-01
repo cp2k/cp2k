@@ -757,7 +757,8 @@ CONTAINS
                            ELSE
                               WRITE (pc1, "(I2)") NINT(peig)
                            END IF
-                          CALL atom_orbital_charge(charge, atom%orbitals%wfna(:, k, l), atom%orbitals%rcmax(k, l, 1), l, atom%basis)
+                           CALL atom_orbital_charge( &
+                              charge, atom%orbitals%wfna(:, k, l), atom%orbitals%rcmax(k, l, 1), l, atom%basis)
                            drho = charge-atom%orbitals%refchg(k, l, 1)
                            pchg = pval(2, k, l, j, i)/afun*100._dp
                            IF (pval(6, k, l, j, i) > 0.5_dp) THEN
@@ -776,7 +777,8 @@ CONTAINS
                            ELSE
                               WRITE (pc1, "(I2)") NINT(peig)
                            END IF
-                          CALL atom_orbital_charge(charge, atom%orbitals%wfnb(:, k, l), atom%orbitals%rcmax(k, l, 2), l, atom%basis)
+                           CALL atom_orbital_charge( &
+                              charge, atom%orbitals%wfnb(:, k, l), atom%orbitals%rcmax(k, l, 2), l, atom%basis)
                            drho = charge-atom%orbitals%refchg(k, l, 2)
                            pchg = pval(4, k, l, j, i)/afun*100._dp
                            IF (pval(8, k, l, j, i) > 0.5_dp) THEN
@@ -881,7 +883,8 @@ CONTAINS
                               ELSE
                                  WRITE (pc1, "(I2)") NINT(peig)
                               END IF
-                           CALL atom_orbital_charge(charge, atom%orbitals%wfn(:, k, l), atom%orbitals%rcmax(k, l, 1), l, atom%basis)
+                              CALL atom_orbital_charge( &
+                                 charge, atom%orbitals%wfn(:, k, l), atom%orbitals%rcmax(k, l, 1), l, atom%basis)
                               drho = charge-atom%orbitals%refchg(k, l, 1)
                               pchg = pval(2, k, l, j, i)/afun*100._dp
                               IF (pval(6, k, l, j, i) > 0.5_dp) THEN
@@ -916,7 +919,8 @@ CONTAINS
                               ELSE
                                  WRITE (pc1, "(I2)") NINT(peig)
                               END IF
-                          CALL atom_orbital_charge(charge, atom%orbitals%wfna(:, k, l), atom%orbitals%rcmax(k, l, 1), l, atom%basis)
+                              CALL atom_orbital_charge( &
+                                 charge, atom%orbitals%wfna(:, k, l), atom%orbitals%rcmax(k, l, 1), l, atom%basis)
                               drho = charge-atom%orbitals%refchg(k, l, 1)
                               pchg = pval(2, k, l, j, i)/afun*100._dp
                               IF (pval(6, k, l, j, i) > 0.5_dp) THEN
@@ -935,7 +939,8 @@ CONTAINS
                               ELSE
                                  WRITE (pc1, "(I2)") NINT(peig)
                               END IF
-                          CALL atom_orbital_charge(charge, atom%orbitals%wfnb(:, k, l), atom%orbitals%rcmax(k, l, 2), l, atom%basis)
+                              CALL atom_orbital_charge( &
+                                 charge, atom%orbitals%wfnb(:, k, l), atom%orbitals%rcmax(k, l, 2), l, atom%basis)
                               drho = charge-atom%orbitals%refchg(k, l, 2)
                               pchg = pval(4, k, l, j, i)/afun*100._dp
                               IF (pval(8, k, l, j, i) > 0.5_dp) THEN
@@ -952,10 +957,12 @@ CONTAINS
                      DO k = 1, np
                         CALL atom_wfnr0(pv, atom%orbitals%wfna(:, k, 0), atom%basis)
                         pchg = atom%weight*atom%orbitals%wpsir0(k, 1)*pv*pv/afun*100._dp
-                  WRITE (iunit, '("    s-states"," N=",I5,T35,"Alpha Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k, pv, NINT(pchg)
+                        WRITE (iunit, '("    s-states"," N=",I5,T35,"Alpha Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') &
+                           k, pv, NINT(pchg)
                         CALL atom_wfnr0(pv, atom%orbitals%wfnb(:, k, 0), atom%basis)
                         pchg = atom%weight*atom%orbitals%wpsir0(k, 2)*pv*pv/afun*100._dp
-                   WRITE (iunit, '("    s-states"," N=",I5,T36,"Beta Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') k, pv, NINT(pchg)
+                        WRITE (iunit, '("    s-states"," N=",I5,T36,"Beta Wavefunction at r=0:",T64,F13.6,"[",I2,"]")') &
+                           k, pv, NINT(pchg)
                      END DO
                   END IF
                END IF

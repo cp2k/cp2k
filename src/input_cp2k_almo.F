@@ -103,25 +103,26 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DELOCALIZE_METHOD", &
-                          description="Methods to reintroduce electron delocalization, which is excluded "// &
-                          "with the block-diagonal ALMO reference. Electron delocalization can "// &
-                          "be computed using either fully delocalized MOs or spatially restricted "// &
-                          "ALMOs (called extended ALMOs or XALMOs). All methods below use a PCG "// &
-                          "optimizer controlled by XALMO_OPTIMIZER_PCG. The only exception is "// &
-                          "the non-iterative XALMO_1DIAG.", &
-                          usage="DELOCALIZE_METHOD XALMO_X", &
-                          default_i_val=almo_deloc_xalmo_x, &
-                          enum_c_vals=s2a("NONE", "XALMO_1DIAG", "XALMO_X", "XALMO_SCF", "FULL_X", "FULL_SCF", "FULL_X_THEN_SCF"), &
-                          enum_desc=s2a("Neglect electron delocalization", &
-                                        "Correction based on one diagonalization of the spatially projected Hamiltonian (XALMO)", &
-                                       "Single excitation correction (no Hamiltonian re-build) with spatial restrictions (XALMO)", &
-                                        "Self-consistent treatment of delocalization with spatial restrictions (XALMO)", &
-                                        "Single excitation correction (no Hamiltonian re-build) without spatial restrictions", &
-                                        "Self-consistent treatment of delocalization without spatial restrictions", &
-                                "Single excitation correction followed by full SCF procedure, both without spatial restrictions"), &
-                          enum_i_vals=(/almo_deloc_none, almo_deloc_xalmo_1diag, almo_deloc_xalmo_x, almo_deloc_xalmo_scf, &
-                                        almo_deloc_x, almo_deloc_scf, almo_deloc_x_then_scf/))
+      CALL keyword_create( &
+         keyword, name="DELOCALIZE_METHOD", &
+         description="Methods to reintroduce electron delocalization, which is excluded "// &
+         "with the block-diagonal ALMO reference. Electron delocalization can "// &
+         "be computed using either fully delocalized MOs or spatially restricted "// &
+         "ALMOs (called extended ALMOs or XALMOs). All methods below use a PCG "// &
+         "optimizer controlled by XALMO_OPTIMIZER_PCG. The only exception is "// &
+         "the non-iterative XALMO_1DIAG.", &
+         usage="DELOCALIZE_METHOD XALMO_X", &
+         default_i_val=almo_deloc_xalmo_x, &
+         enum_c_vals=s2a("NONE", "XALMO_1DIAG", "XALMO_X", "XALMO_SCF", "FULL_X", "FULL_SCF", "FULL_X_THEN_SCF"), &
+         enum_desc=s2a("Neglect electron delocalization", &
+                       "Correction based on one diagonalization of the spatially projected Hamiltonian (XALMO)", &
+                       "Single excitation correction (no Hamiltonian re-build) with spatial restrictions (XALMO)", &
+                       "Self-consistent treatment of delocalization with spatial restrictions (XALMO)", &
+                       "Single excitation correction (no Hamiltonian re-build) without spatial restrictions", &
+                       "Self-consistent treatment of delocalization without spatial restrictions", &
+                       "Single excitation correction followed by full SCF procedure, both without spatial restrictions"), &
+         enum_i_vals=(/almo_deloc_none, almo_deloc_xalmo_1diag, almo_deloc_xalmo_x, almo_deloc_xalmo_scf, &
+                       almo_deloc_x, almo_deloc_scf, almo_deloc_x_then_scf/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -810,7 +810,8 @@ CONTAINS
             actual_x_data%maxval_container_disk%file_counter = 1
             actual_x_data%maxval_container_disk%desc = 'Max_'
             actual_x_data%maxval_container_disk%unit = -1
-       WRITE (actual_x_data%maxval_container_disk%filename, '(A,I0,A,A,A)') TRIM(actual_x_data%memory_parameter%storage_location), &
+            WRITE (actual_x_data%maxval_container_disk%filename, '(A,I0,A,A,A)') &
+               TRIM(actual_x_data%memory_parameter%storage_location), &
                storage_id, "_", actual_x_data%maxval_container_disk%desc, "6"
             CALL compress(actual_x_data%maxval_container_disk%filename, .TRUE.)
             ALLOCATE (actual_x_data%integral_containers_disk(64))

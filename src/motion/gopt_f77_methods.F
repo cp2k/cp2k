@@ -244,8 +244,9 @@ USE cp_log_handling, ONLY: cp_logger_type
                avgs_section => section_vals_get_subs_vals(work, "AVERAGES")
                CALL section_vals_get(work, explicit=explicit)
                IF (.NOT. explicit) &
-                  CALL cp_abort(__LOCATION__, &
-                            "Cell optimization at finite temperature was requested. MD section MUST be provided in the input file!")
+                  CALL cp_abort( &
+                  __LOCATION__, &
+                  "Cell optimization at finite temperature was requested. MD section MUST be provided in the input file!")
                ! Only NVT ensemble is allowed..
                CALL section_vals_val_get(gopt_env%motion_section, "MD%ENSEMBLE", i_val=ensemble)
                IF (ensemble /= nvt_ensemble) &

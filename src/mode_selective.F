@@ -380,8 +380,10 @@ CONTAINS
                DO j = 1, nrep
                   DO i = 1, nrep
                      IF (i .NE. j) THEN
-                      ms_vib%b_vec(:, j) = ms_vib%b_vec(:, j)-DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, i))*ms_vib%b_vec(:, i)
-                        ms_vib%b_vec(:, j) = ms_vib%b_vec(:, j)/SQRT(DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, j)))
+                        ms_vib%b_vec(:, j) = &
+                           ms_vib%b_vec(:, j)-DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, i))*ms_vib%b_vec(:, i)
+                        ms_vib%b_vec(:, j) = &
+                           ms_vib%b_vec(:, j)/SQRT(DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, j)))
                      END IF
                   END DO
                END DO
@@ -684,9 +686,10 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
 
       CALL section_vals_val_get(ms_vib_section, "RESTART_FILE_NAME", c_val=ms_filename)
-      IF (ms_filename == "") output_molden = cp_print_key_unit_nr(logger, input, &
-                                                 "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB", extension=".mol", file_status='UNKNOWN', &
-                                                                  file_action="READ")
+      IF (ms_filename == "") output_molden = &
+         cp_print_key_unit_nr(logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB", &
+                              extension=".mol", file_status='UNKNOWN', &
+                              file_action="READ")
       IF (para_env%mepos == para_env%source) THEN
 
          IF (ms_filename == "") THEN
@@ -1290,7 +1293,8 @@ CONTAINS
          tmp_resid = 0._dp
          DO j = 1, count1
             DO i = 1, ms_vib%mat_size
-              tmp_resid(:, j) = tmp_resid(:, j)+approx_H(i, map1(j, 1))*(ms_vib%s_mat(:, i)-eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
+               tmp_resid(:, j) = tmp_resid(:, j)+approx_H(i, map1(j, 1))* &
+                                 (ms_vib%s_mat(:, i)-eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
             END DO
          END DO
 
@@ -1314,7 +1318,8 @@ CONTAINS
          IF (count1 .NE. 0) THEN
             DO j = 1, count1
                DO i = 1, ms_vib%mat_size
-                residuum(:, j) = residuum(:, j)+approx_H(i, map1(j, 1))*(ms_vib%s_mat(:, i)-eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
+                  residuum(:, j) = residuum(:, j)+approx_H(i, map1(j, 1))* &
+                                   (ms_vib%s_mat(:, i)-eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
                END DO
                ind(j) = map1(j, 1)
             END DO

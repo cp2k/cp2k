@@ -458,7 +458,8 @@ CONTAINS
             Emp2_AA = 0.0_dp
             Emp2_AA_Cou = 0.0_dp
             Emp2_AA_ex = 0.0_dp
- CALL mp2_direct_energy(dimen, nelec_alpha, nelec_alpha, mp2_biel, mp2_env, C_alpha, Auto_alpha, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
+            CALL mp2_direct_energy(dimen, nelec_alpha, nelec_alpha, mp2_biel, &
+                                   mp2_env, C_alpha, Auto_alpha, Emp2_AA, Emp2_AA_Cou, Emp2_AA_ex, &
                                    qs_env, rho, para_env, &
                                    unit_nr)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy Alpha-Alpha = ', Emp2_AA
@@ -467,7 +468,8 @@ CONTAINS
             Emp2_BB = 0.0_dp
             Emp2_BB_Cou = 0.0_dp
             Emp2_BB_ex = 0.0_dp
-     CALL mp2_direct_energy(dimen, nelec_beta, nelec_beta, mp2_biel, mp2_env, C_beta, Auto_beta, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, &
+            CALL mp2_direct_energy(dimen, nelec_beta, nelec_beta, mp2_biel, mp2_env, &
+                                   C_beta, Auto_beta, Emp2_BB, Emp2_BB_Cou, Emp2_BB_ex, &
                                    qs_env, rho, para_env, &
                                    unit_nr)
             IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') 'MP2 Energy Beta-Beta= ', Emp2_BB

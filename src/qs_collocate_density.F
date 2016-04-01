@@ -1185,10 +1185,11 @@ CONTAINS
             ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r, cell)
             subpatch_pattern = 0
             !lmax == 0 so set lmax_global to 0
-            CALL collocate_pgf_product_rspace(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
-                                         0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coeff(iatom), pab, 0, 0, rs_rho, &
-                                              cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                              use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, lmax_global=0)
+            CALL collocate_pgf_product_rspace( &
+               0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
+               0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coeff(iatom), pab, 0, 0, rs_rho, &
+               cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
+               use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, lmax_global=0)
          ENDDO
       ENDIF
 
@@ -1384,10 +1385,11 @@ CONTAINS
             ra(:) = pbc(particle_set(iatom)%r, cell)
             subpatch_pattern = 0
             ! la_max==0 so set lmax_global to 0
-            CALL collocate_pgf_product_rspace(0, eta, &
-                                         0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coeff(iatom), pab, 0, 0, rs_rho, &
-                                              cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
-                                              use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, lmax_global=0)
+            CALL collocate_pgf_product_rspace( &
+               0, eta, &
+               0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, coeff(iatom), pab, 0, 0, rs_rho, &
+               cell, pw_env%cube_info(1), eps_rho_rspace, ga_gb_function=FUNC_AB, &
+               use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern, lmax_global=0)
          ENDDO
       ENDIF
 
@@ -3436,12 +3438,13 @@ CONTAINS
                   il = ilx+ily+ilz
                   jl = jlx+jly+jlz
                   kl = klx+kly+klz
-                  coef_ijk(coef_map(il, jl, kl)) = coef_ijk(coef_map(il, jl, kl))+coef_xyz(coef_map(lx, ly, lz))* &
-                                                   hmatgridp(1, 1, ilx)*hmatgridp(1, 2, jlx)*hmatgridp(1, 3, klx)* &
-                                                   hmatgridp(2, 1, ily)*hmatgridp(2, 2, jly)*hmatgridp(2, 3, kly)* &
-                                                   hmatgridp(3, 1, ilz)*hmatgridp(3, 2, jlz)*hmatgridp(3, 3, klz)* &
-                                                   fac(lx)*fac(ly)*fac(lz)/ &
-                                                  (fac(ilx)*fac(ily)*fac(ilz)*fac(jlx)*fac(jly)*fac(jlz)*fac(klx)*fac(kly)*fac(klz))
+                  coef_ijk(coef_map(il, jl, kl)) = &
+                     coef_ijk(coef_map(il, jl, kl))+coef_xyz(coef_map(lx, ly, lz))* &
+                     hmatgridp(1, 1, ilx)*hmatgridp(1, 2, jlx)*hmatgridp(1, 3, klx)* &
+                     hmatgridp(2, 1, ily)*hmatgridp(2, 2, jly)*hmatgridp(2, 3, kly)* &
+                     hmatgridp(3, 1, ilz)*hmatgridp(3, 2, jlz)*hmatgridp(3, 3, klz)* &
+                     fac(lx)*fac(ly)*fac(lz)/ &
+                     (fac(ilx)*fac(ily)*fac(ilz)*fac(jlx)*fac(jly)*fac(jlz)*fac(klx)*fac(kly)*fac(klz))
                ENDDO
                ENDDO
                ENDDO

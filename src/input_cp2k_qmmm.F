@@ -216,10 +216,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="DELTA_CHARGE", &
-               description="Additional net charge relative to that specified in DFT section.  Used automatically by force mixing", &
-                          usage="DELTA_CHARGE q", default_i_val=0, &
-                          n_var=1, type_of_var=integer_t, repeats=.FALSE.)
+      CALL keyword_create( &
+         keyword, name="DELTA_CHARGE", &
+         description="Additional net charge relative to that specified in DFT section.  Used automatically by force mixing", &
+         usage="DELTA_CHARGE q", default_i_val=0, &
+         n_var=1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -485,10 +486,11 @@ CONTAINS
       ![NB] also, breakable bonds?
       ! BUFFER_LINKS subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, name="BUFFER_LINKS", &
-           description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation."// &
-                          "Ignored - need to implement buffer selection by atom and walking of connectivity data.", &
-                          n_keywords=0, n_subsections=1, repeats=.TRUE.)
+      CALL section_create( &
+         subsection, name="BUFFER_LINKS", &
+         description="Information about possible links for automatic covalent bond breaking for the buffer QM/MM calculation."// &
+         "Ignored - need to implement buffer selection by atom and walking of connectivity data.", &
+         n_keywords=0, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (link_subsection)
       CALL create_qmmm_link_section(link_subsection)
@@ -749,9 +751,10 @@ CONTAINS
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
                           citations=(/Laino2006/))
 
-      CALL keyword_create(keyword, name="GMAX", &
-                         description="Specifies the maximum value of G in the reciprocal space over which perform the Ewald sum.", &
-                          usage="GMAX <real>", n_var=1, default_r_val=1.0_dp)
+      CALL keyword_create( &
+         keyword, name="GMAX", &
+         description="Specifies the maximum value of G in the reciprocal space over which perform the Ewald sum.", &
+         usage="GMAX <real>", n_var=1, default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -994,10 +997,11 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CORR_RADIUS", &
-                   description="Overwrite the specification of the correction radius only for the MM atom involved in the link."// &
-                          "Default is to use the same correction radius as for the specified type.", &
-                          usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
+      CALL keyword_create( &
+         keyword, name="CORR_RADIUS", &
+         description="Overwrite the specification of the correction radius only for the MM atom involved in the link."// &
+         "Default is to use the same correction radius as for the specified type.", &
+         usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1126,10 +1130,11 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, name="CORR_RADIUS", &
-                     description="Specifies the correction radius used for the QM/MM electrostatic coupling for the added source", &
-                          usage="RADIUS real", n_var=1, unit_str="angstrom", &
-                          default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT, "angstrom"))
+      CALL keyword_create( &
+         keyword, name="CORR_RADIUS", &
+         description="Specifies the correction radius used for the QM/MM electrostatic coupling for the added source", &
+         usage="RADIUS real", n_var=1, unit_str="angstrom", &
+         default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT, "angstrom"))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1322,9 +1327,10 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, "PERIODIC_INFO", &
-                                    description="Controls the printing of information regarding the periodic boundary condition.", &
-                                       print_level=medium_print_level, filename="__STD_OUT__")
+      CALL cp_print_key_section_create( &
+         print_key, "PERIODIC_INFO", &
+         description="Controls the printing of information regarding the periodic boundary condition.", &
+         print_level=medium_print_level, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
