@@ -1,11 +1,11 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 [defines]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief various utilities that regard array of different kinds:
 !>      output, allocation,...
 !> \note
@@ -37,7 +37,7 @@
 !>      12.2001 first version [fawzi]
 !>      3.2002 templatized [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 MODULE cp_array_utils_[nametype1]
   USE machine,                         ONLY: m_flush
   USE cp_log_handling,                 ONLY: cp_to_string
@@ -68,39 +68,39 @@ MODULE cp_array_utils_[nametype1]
 
 !***
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a pointer to a 1d array
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
-! *****************************************************************************
+! **************************************************************************************************
   type cp_1d_[nametype1]_p_type
      [type1], dimension(:), pointer :: array
   end type cp_1d_[nametype1]_p_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a pointer to a 2d array
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
-! *****************************************************************************
+! **************************************************************************************************
   type cp_2d_[nametype1]_p_type
      [type1], dimension(:,:), pointer :: array
   end type cp_2d_[nametype1]_p_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a pointer to a 3d array
 !> \par History
 !>      02.2003 created [fawzi]
 !> \author fawzi
-! *****************************************************************************
+! **************************************************************************************************
   type cp_3d_[nametype1]_p_type
      [type1], dimension(:,:,:), pointer :: array
   end type cp_3d_[nametype1]_p_type
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief writes an array to the given unit
 !> \param array the array to write
 !> \param unit_nr the unit to write to (defaults to the standard out)
@@ -110,7 +110,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      maybe I will move to a comma separated paretized list
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format)
   [type1], INTENT(in) :: array(:)
   INTEGER, INTENT(in) :: unit_nr
@@ -151,7 +151,7 @@ SUBROUTINE cp_1d_[nametype1]_write(array, unit_nr, el_format)
 
 END SUBROUTINE cp_1d_[nametype1]_write
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief writes an array to the given unit
 !> \param array the array to write
 !> \param unit_nr the unit to write to (defaults to the standard out)
@@ -161,7 +161,7 @@ END SUBROUTINE cp_1d_[nametype1]_write
 !> \author Fawzi Mohamed
 !> \note
 !>      maybe I will move to a comma separated parentized list
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format)
   [type1], INTENT(in) :: array(:,:)
   INTEGER, INTENT(in) :: unit_nr
@@ -188,7 +188,7 @@ SUBROUTINE cp_2d_[nametype1]_write(array, unit_nr, el_format)
   call m_flush(unit_nr)
 END SUBROUTINE cp_2d_[nametype1]_write
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief If the size of the array is changes reallocate it.
 !>      Issues a warning when the size changes (but not on allocation
 !>      and deallocation).
@@ -204,7 +204,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !> \note
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_1d_[nametype1]_guarantee_size(array, n)
     [type1], POINTER :: array(:)
     INTEGER, INTENT(in) :: n
@@ -224,7 +224,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
     END IF
   END SUBROUTINE cp_1d_[nametype1]_guarantee_size
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief If the size of the array is changes reallocate it.
 !>      Issues a warning when the size changes (but not on allocation
 !>      and deallocation).
@@ -240,7 +240,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !> \note
 !>      this is a different behaviour than the realloc in the module
 !>      memory_utilities. It is quite low level
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_2d_[nametype1]_guarantee_size(array, n_rows, n_cols)
     [type1], POINTER :: array(:,:)
     INTEGER, INTENT(in) :: n_rows, n_cols
@@ -261,7 +261,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
     END IF
   END SUBROUTINE cp_2d_[nametype1]_guarantee_size
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the index at which the element el should be inserted in the
 !>      array to keep it ordered (array(i)>=el).
 !>      If the element is bigger than all the elements in the array returns
@@ -276,7 +276,7 @@ END SUBROUTINE cp_2d_[nametype1]_write
 !> \author Fawzi Mohamed
 !> \note
 !>      the array should be ordered in growing order
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION cp_1d_[nametype1]_bsearch(array, el, l_index, u_index)&
      result(res)
   [type1], intent(in) :: array(:)

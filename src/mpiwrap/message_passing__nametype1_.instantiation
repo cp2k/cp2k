@@ -26,7 +26,7 @@
 {
         'nametype1':  'd',
         'ext':        '.f90',
-        'type1':      'real(kind=real_8)',
+        'type1':      'REAL(kind=real_8)',
         'mpi_type1':  'MPI_DOUBLE_PRECISION',
         'mpi_2type1': 'MPI_2DOUBLE_PRECISION',
         'kind1':      'real_8',
@@ -38,7 +38,7 @@
 {
         'nametype1':  'r',
         'ext':        '.f90',
-        'type1':      'real(kind=real_4)',
+        'type1':      'REAL(kind=real_4)',
         'mpi_type1':  'MPI_REAL',
         'mpi_2type1': 'MPI_2REAL',
         'kind1':      'real_4',
@@ -50,7 +50,7 @@
 {
         'nametype1':  'z',
         'ext':        '.f90',
-        'type1':      'complex(kind=real_8)',
+        'type1':      'COMPLEX(kind=real_8)',
         'mpi_type1':  'MPI_DOUBLE_COMPLEX',
         'mpi_2type1': 'MPI_2DOUBLE_COMPLEX',
         'handle1':    '7',
@@ -62,7 +62,7 @@
 {
         'nametype1':  'c',
         'ext':        '.f90',
-        'type1':      'complex(kind=real_4)',
+        'type1':      'COMPLEX(kind=real_4)',
         'mpi_type1':  'MPI_COMPLEX',
         'mpi_2type1': 'MPI_2COMPLEX',
         'handle1':    '5',

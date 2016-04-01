@@ -3429,12 +3429,12 @@
 #endif
 
     ierr = 0
-    msg_len = size(msg)
+    msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, msg_len, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_[nametype1]v @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3465,7 +3465,7 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT(fh, offset, msg, 1, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_[nametype1] @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3499,12 +3499,12 @@
 #endif
 
     ierr = 0
-    msg_len = size(msg)
+    msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, msg_len, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_all_[nametype1]v @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3535,7 +3535,7 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_WRITE_AT_ALL(fh, offset, msg, 1, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_write_at_all_[nametype1] @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3570,12 +3570,12 @@
 #endif
 
     ierr = 0
-    msg_len = size(msg)
+    msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, msg_len, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_[nametype1]v @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3607,7 +3607,7 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT(fh, offset, msg, 1, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_[nametype1] @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3640,12 +3640,12 @@
 #endif
 
     ierr = 0
-    msg_len = size(msg)
+    msg_len = SIZE(msg)
     IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, msg_len, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_all_[nametype1]v @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3676,7 +3676,7 @@
 #if defined(__parallel)
     ALLOCATE(status(MPI_STATUS_SIZE))
     CALL MPI_FILE_READ_AT_ALL(fh, offset, msg, 1, [mpi_type1], status, ierr)
-    IF (ierr .ne. 0)&
+    IF (ierr .NE. 0)&
        CPABORT("mpi_file_read_at_all_[nametype1] @ "//routineN)
     DEALLOCATE(status)
 #else
@@ -3710,7 +3710,7 @@
 #if defined(__parallel)
     type_descriptor%type_handle = [mpi_type1]
     CALL MPI_Get_address (ptr, type_descriptor%base, ierr)
-    if (ierr /= 0)&
+    IF (ierr /= 0)&
        CPABORT("MPI_Get_address @ "//routineN)
 #else
     type_descriptor%type_handle = [handle1]

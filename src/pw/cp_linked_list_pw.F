@@ -612,10 +612,7 @@ CONTAINS
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
-!    "USE kinds, only: dp
-!     USE pw_types, ONLY: pw_type, pw_p_type
-!     USE pw_methods, ONLY: pw_write"
+!  USE = "USE pw_types, ONLY: pw_type, pw_p_type"
 !  array= = "=>"
 !  arrayEl = "%pw"
 !  common_dir = "../common"

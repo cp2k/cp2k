@@ -71,9 +71,9 @@ def upcaseKeywords(infile,outfile,upcase_omp,logFile=sys.stdout):
                 line=upcaseOMP(line)
         outfile.write(line)
 
-def prettifyFile(infile, normalize_use=1, decl_linelength=100, decl_offset=50, 
-                 reformat=0, indent=2, whitespace=2, upcase_keywords=1,
-                 upcase_omp=0, interfaces_dir=None,replace=None,logFile=sys.stdout):
+def prettifyFile(infile, normalize_use, decl_linelength, decl_offset,
+                 reformat, indent, whitespace, upcase_keywords,
+                 upcase_omp, interfaces_dir,replace, logFile):
     """prettifyes the fortran source in infile into a temporary file that is
     returned. It can be the same as infile.
     if normalize_use normalizes the use statements (defaults to true)
@@ -164,20 +164,14 @@ def prettifyFile(infile, normalize_use=1, decl_linelength=100, decl_offset=50,
             logFile.write("error processing file '"+infile.name+"'\n")
             raise
 
-def prettfyInplace(fileName,bkDir="preprettify",normalize_use=1,
-                   decl_linelength=100, decl_offset=50,
-                   reformat=0,indent=2,whitespace=2,
-                   upcase_keywords=1, upcase_omp=0, interfaces_dir=None,
-                   replace=None,logFile=sys.stdout):
+def prettfyInplace(fileName, bkDir, **kwargs):
     """Same as prettify, but inplace, replaces only if needed"""
     if not os.path.exists(bkDir):
         os.mkdir(bkDir)
     if not os.path.isdir(bkDir):
         raise Error("bk-dir must be a directory, was "+bkDir)
     infile=open(fileName,'r')
-    outfile=prettifyFile(infile, normalize_use,decl_linelength, decl_offset, 
-                         reformat, indent, whitespace, upcase_keywords, upcase_omp,
-                         interfaces_dir, replace)
+    outfile=prettifyFile(infile=infile, **kwargs)
     if (infile==outfile):
         return
     infile.seek(0)
@@ -297,7 +291,7 @@ def main():
                     print("file",fileName,"does not exists!")
                 else:
                     try:
-                        prettfyInplace(fileName,bkDir,
+                        prettfyInplace(fileName, bkDir=bkDir, logFile=sys.stdout,
                                    normalize_use=defaultsDict['normalize-use'],
                                    decl_linelength=defaultsDict['decl-linelength'],
                                    decl_offset=defaultsDict['decl-offset'],

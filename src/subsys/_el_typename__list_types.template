@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a simple array based list of the given type
 !> \note
 !>     ____              _ _     __  __           _ _  __         _____ _     _       _____ _ _      _
@@ -31,7 +31,7 @@
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 MODULE [el_typename]_list_types
   [USE]
 #include "../base/base_uses.f90"
@@ -50,7 +50,7 @@ MODULE [el_typename]_list_types
 
 !***
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a list of objects
 !> \param id_nr identification number of this list
 !> \param ref_count reference count (see doc/ReferenceCounting.html)
@@ -62,27 +62,27 @@ MODULE [el_typename]_list_types
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   TYPE [el_typename]_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
      [el_type], DIMENSION(:), POINTER :: els
   END TYPE [el_typename]_list_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represents a pointer to a list
 !> \param list the pointer to the list
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   TYPE [el_typename]_list_p_type
      TYPE([el_typename]_list_type), POINTER :: list
   END TYPE [el_typename]_list_p_type
 
 CONTAINS
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief creates a list
 !> \param list the list to allocate and initialize
 !> \param els_ptr the elements to store in the list (the array is only,
@@ -94,7 +94,7 @@ CONTAINS
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE [el_typename]_list_create(list, els_ptr, &
      owns_els, n_els)
   TYPE([el_typename]_list_type), POINTER, OPTIONAL :: list
@@ -128,13 +128,13 @@ SUBROUTINE [el_typename]_list_create(list, els_ptr, &
   END IF
 END SUBROUTINE [el_typename]_list_create
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief retains a list (see doc/ReferenceCounting.html)
 !> \param list the list to retain
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE [el_typename]_list_retain(list)
   TYPE([el_typename]_list_type), POINTER :: list
 
@@ -147,13 +147,13 @@ SUBROUTINE [el_typename]_list_retain(list)
   list%ref_count=list%ref_count+1
 END SUBROUTINE [el_typename]_list_retain
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief releases a  list (see doc/ReferenceCounting.html)
 !> \param list the list to release
 !> \par History
 !>      08.2003 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE [el_typename]_list_release(list)
   TYPE([el_typename]_list_type), POINTER :: list
 

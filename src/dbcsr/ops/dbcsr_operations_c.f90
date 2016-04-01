@@ -1,14 +1,14 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief traces a DBCSR matrix
 !> \param[in] matrix_a       DBCSR matrix
 !> \param[out] trace         the trace of the matrix
 !>
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_trace_a_c(matrix_a, trace)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     COMPLEX(kind=real_4), INTENT(INOUT)                   :: trace
@@ -74,7 +74,7 @@
     CALL timestop(error_handle)
   END SUBROUTINE dbcsr_trace_a_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief traces a product of DBCSR matrices
 !> \param[in] matrix_a DBCSR matrices
 !> \param[in] matrix_b DBCSR matrices
@@ -82,7 +82,7 @@
 !> \param[in] trans_a            (optional) is matrix_a transposed or not?
 !> \param[in] trans_b            (optional) is matrix_b transposed or not?
 !> \param local_sum ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_trace_ab_c(matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
     COMPLEX(kind=real_4), INTENT(INOUT)                   :: trace
@@ -239,12 +239,12 @@
   END SUBROUTINE dbcsr_trace_ab_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface for matrix scaling by a scalar
 !> \param matrix_a ...
 !> \param alpha_scalar ...
 !> \param last_column ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_scale_c(matrix_a, alpha_scalar, last_column)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     COMPLEX(kind=real_4), INTENT(IN)                      :: alpha_scalar
@@ -270,12 +270,12 @@
     CALL timestop(error_handler)
   END SUBROUTINE dbcsr_scale_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface for matrix scaling by a vector
 !> \param matrix_a ...
 !> \param alpha ...
 !> \param side ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_scale_by_vector_c(matrix_a, alpha, side)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN), TARGET :: alpha
@@ -295,11 +295,11 @@
   END SUBROUTINE dbcsr_scale_by_vector_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface for dbcsr_set
 !> \param matrix ...
 !> \param alpha ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_set_c(matrix, alpha)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     COMPLEX(kind=real_4), INTENT(IN)                      :: alpha
@@ -310,7 +310,7 @@
     ENDIF
   END SUBROUTINE dbcsr_set_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param eps ...
@@ -318,7 +318,7 @@
 !> \param use_absolute ...
 !> \param filter_diag ...
 !> \param quick ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_filter_c (matrix, eps, method, use_absolute, &
        filter_diag, quick)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -329,11 +329,11 @@
          use_absolute, filter_diag, quick)
   END SUBROUTINE dbcsr_filter_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param diag ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_set_diag_c(matrix, diag)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix
     COMPLEX(kind=real_4), DIMENSION(:), INTENT(IN), TARGET :: diag
@@ -353,11 +353,11 @@
     CALL dbcsr_data_release (diag_a)
   END SUBROUTINE dbcsr_set_diag_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param diag ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_diag_c(matrix, diag)
 
     TYPE(dbcsr_obj), INTENT(IN)                    :: matrix
@@ -379,17 +379,17 @@
   END SUBROUTINE dbcsr_get_diag_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief add a constant to the diagonal of a matrix
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in]    alpha_scalar scalar
 !> \param first_row ...
 !> \param last_row ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_add_on_diag_c(matrix, alpha_scalar, first_row, last_row)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     COMPLEX(kind=real_4), INTENT(IN)                      :: alpha_scalar
-    INTEGER, INTENT(in), OPTIONAL            :: first_row, last_row
+    integer, intent(in), optional            :: first_row, last_row
 
     CALL dbcsr_add_on_diag(matrix, dbcsr_scalar(alpha_scalar), first_row, last_row)
   END SUBROUTINE dbcsr_add_on_diag_c

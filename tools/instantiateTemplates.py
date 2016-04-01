@@ -71,18 +71,17 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
       outfile.close()
       infile.close()
       os.rename(outfile.name,outfile.name+".err")
-      raise
+      raise(Exception("error in '%s' at line %d\n"%(infile.name,lineNr)))
   outfile.close()
   infile.close()
 
-def evaluateInstantiationFile(instantiationFile,bkDir,logFile=sys.stdout,outDir=None):
+def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
     import os
     generatedFiles=[]
     try:
       extension=".instantiation"
       if not instantiationFile.endswith(extension):
-          logFile.write("ERROR input '"+ instantiationFile+"' is not a "+extension+" file!!\n")
-          raise
+          raise(Exception("ERROR input '"+ instantiationFile+"' is not a "+extension+" file!!\n"))
       input = open(instantiationFile,'r')
       subst = eval(input.read())
       errors=0
@@ -90,10 +89,7 @@ def evaluateInstantiationFile(instantiationFile,bkDir,logFile=sys.stdout,outDir=
         inName = instantiationFile.replace(extension, ".template")
         if substitution.has_key("template"):
             inName = os.path.join(os.path.dirname(instantiationFile), substitution["template"])
-        try: infile=open(inName,"r")
-        except:
-          logFile.write("ERROR opening template '"+inName+"'\n")
-          raise
+        infile=open(inName,"r")
         outName=instantiationFile[:-len(extension)]
         id_ext=0
         for token in substitution.keys():
@@ -107,12 +103,8 @@ def evaluateInstantiationFile(instantiationFile,bkDir,logFile=sys.stdout,outDir=
         outName=tmpName
         if outDir:
           outName=os.path.join(outDir,os.path.basename(outName))
-        try: outfile=open(outName,'w')
-        except:
-          logFile.write("ERROR opening template '"+outName+"'\n")
-          raise
+        outfile=open(outName,'w')
         instantiateTemplate(infile,outfile,substitution,logFile)
-        prettify.prettfyInplace(outName,bkDir=bkDir,logFile=logFile)
         generatedFiles.append(outName)
     except:
         import sys
@@ -130,14 +122,8 @@ if __name__ == '__main__':
     elif(len(sys.argv)==2 and sys.argv[-1]=="--selftest"):
         pass #TODO implement selftest
     else:
-        if(sys.argv[1].startswith("--backup-dir=")):
-            bkDir = sys.argv[1].split("=",1)[1]
-            files = sys.argv[2:]
-        else:
-            bkDir="preprettify"
-            files = sys.argv[1:]
-
+        files = sys.argv[1:]
         for name in files:
-            evaluateInstantiationFile(name,bkDir,sys.stdout)
+            evaluateInstantiationFile(name,sys.stdout)
 
 #EOF

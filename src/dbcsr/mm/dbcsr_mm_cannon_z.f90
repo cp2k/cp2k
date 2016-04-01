@@ -1,4 +1,4 @@
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculates norms of the entire matrix with minimal overhead.
 !> \param norms ...
 !> \param nrows ...
@@ -10,7 +10,7 @@
 !> \param DATA ...
 !> \param local ...
 !> \param local2global ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE calc_norms_z(norms, nrows,&
        row_p, col_i, blk_p, rbs, cbs, DATA, local, local2global)
     REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
@@ -57,7 +57,7 @@
     !$omp end parallel
   END SUBROUTINE calc_norms_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculates norms of the entire matrix with minimal overhead.
 !> \param norms ...
 !> \param nblks ...
@@ -68,7 +68,7 @@
 !> \param local ...
 !> \param local2global_rows ...
 !> \param local2global_cols ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE calc_norms_list_z(norms, nblks,&
        blki, rbs, cbs, DATA, local, local2global_rows, local2global_cols)
     REAL(kind=sp), DIMENSION(:), INTENT(OUT) :: norms
@@ -113,7 +113,7 @@
     !$omp end parallel
   END SUBROUTINE calc_norms_list_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculates max norms of each cluster with minimal overhead.
 !> \param meta ...
 !> \param data ...
@@ -127,8 +127,8 @@
 !> \param max_norms ...
 !> \param is_left ...
 !> \param is_diagonal ...
-! *****************************************************************************
-  SUBROUTINE calc_max_image_norms_z(meta,DATA,&
+! **************************************************************************************************
+  SUBROUTINE calc_max_image_norms_z(meta,data,&
      refs_size,refs_displ,&
      img_map,&
      img_offset,&
@@ -138,7 +138,7 @@
      max_norms, is_left, off_diagonal)
   INTEGER, DIMENSION(:), TARGET, INTENT(IN) :: meta
   COMPLEX(kind=real_8), DIMENSION(:), &
-       INTENT(IN)                         :: DATA
+       INTENT(IN)                         :: data
   INTEGER, DIMENSION(:, :), &
        INTENT(IN)                         :: refs_size
   INTEGER, DIMENSION(:, :, :), &
@@ -199,7 +199,7 @@
                             col_blk_size(local_col(col(blk))) - 1
                     ENDIF
                     max_norm = MAX(max_norm,&
-                         SQRT (REAL(SUM(ABS(DATA(bps(blk)+refs_displ(idata_displ,mi,ui):&
+                         SQRT (REAL(SUM(ABS(data(bps(blk)+refs_displ(idata_displ,mi,ui):&
                                                  bpe+refs_displ(idata_displ,mi,ui)))**2), KIND=sp)))
                  ENDIF
               ENDDO
@@ -218,11 +218,11 @@
   !$omp end parallel
 END SUBROUTINE calc_max_image_norms_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Calculates norms of each cluster with minimal overhead.
 !> \param buffer ...
 !> \param norms ..
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE calc_image_norms_z(images,norms,uf,ul)
   TYPE(dbcsr_1d_array_type), INTENT(IN)    :: images
   REAL(kind=sp), DIMENSION(:, :), INTENT(INOUT) :: norms
@@ -230,7 +230,7 @@ END SUBROUTINE calc_max_image_norms_z
 
   INTEGER, DIMENSION(:), POINTER    :: row, col, bps, rbs, cbs, &
                                        local_rows, local_cols
-  COMPLEX(kind=real_8), DIMENSION(:), POINTER    :: DATA
+  COMPLEX(kind=real_8), DIMENSION(:), POINTER    :: data
   INTEGER                           :: ui, blk, bpe
 
   !$omp parallel default(none) &
@@ -246,12 +246,12 @@ END SUBROUTINE calc_max_image_norms_z
      cbs => array_data(images%mats(ui)%m%col_blk_size)
      local_rows => array_data(images%mats(ui)%m%local_rows)
      local_cols => array_data(images%mats(ui)%m%local_cols)
-     DATA => dbcsr_get_data_p_z (images%mats(ui)%m%data_area)
+     data => dbcsr_get_data_p_z (images%mats(ui)%m%data_area)
      !$omp do
      DO blk = 1, images%mats(ui)%m%nblks
         IF (bps(blk).NE.0) THEN
            bpe = bps(blk) + rbs(local_rows(row(blk))) * cbs(local_cols(col(blk))) - 1
-           norms(blk,ui) = SQRT (REAL (SUM(ABS(DATA(bps(blk):bpe))**2), KIND=sp))
+           norms(blk,ui) = SQRT (REAL (SUM(ABS(data(bps(blk):bpe))**2), KIND=sp))
         ELSE
            norms(blk,ui) = 0.0_sp
         ENDIF

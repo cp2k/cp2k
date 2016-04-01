@@ -6,9 +6,7 @@
  'type1in':'type(xc_derivative_type),pointer',
  'type1out':'type(xc_derivative_type),pointer',
  'common_dir':'../common',
- 'USE':
-"""USE kinds, only: dp
-USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type""",
+ 'USE':'USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type',
  'defines':
 """#define CP_SLL_DERIV_LESS_Q(el1,el2) cp_sll_deriv_less_q(el1,el2)
 #define CP_SLL_DERIV_EQUAL_Q(el1,el2) ( el1%desc == el2%desc )

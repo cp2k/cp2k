@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Processes MM stack and issues BLAS xGEMM calls
 !>
 !> \param[in] params           Stack of MM parameters
@@ -11,7 +11,7 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE blas_process_mm_stack_d(params,&
        stack_size,&
        a_data, b_data, c_data)
@@ -44,7 +44,7 @@
     ENDDO
   END SUBROUTINE blas_process_mm_stack_d
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Processes MM stack and issues internal MM calls.
 !>
 !> \param[in] params           Stack of MM parameters
@@ -52,7 +52,7 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE internal_process_mm_stack_d(params, stack_size,&
        a_data, b_data, c_data)
     INTEGER, INTENT(IN)                       :: stack_size
@@ -81,7 +81,7 @@
   END SUBROUTINE internal_process_mm_stack_d
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Processes MM stack and issues SMM library calls
 !>
 !> \param stack_descr ...
@@ -90,7 +90,7 @@
 !> \param[in] a_data           Left-matrix data
 !> \param[in] b_data           Right-matrix data
 !> \param[in,out] c_data       Product data
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE smm_process_mm_stack_d(stack_descr, params,&
        stack_size,&
        a_data, b_data, c_data, used_smm)
@@ -143,7 +143,7 @@
   END SUBROUTINE smm_process_mm_stack_d
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Processes MM stack and issues libxsmm calls
 !>
 !> \param stack_descr ...
@@ -154,7 +154,7 @@
 !> \param[in,out] c_data       Product data
 !> \param[out] used_smm        Flag to signal if an efficient kernel was used
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE xsmm_process_mm_stack_d(stack_descr, params,&
        stack_size, a_data, b_data, c_data, used_smm)
 
@@ -293,7 +293,7 @@
 
   END SUBROUTINE xsmm_process_mm_stack_d
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param M ...
 !> \param N ...
@@ -301,7 +301,7 @@
 !> \param A ...
 !> \param B ...
 !> \param C ...
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE internal_mm_d_nn(&
        M,N,K,A,B,C)
     INTEGER, INTENT(IN)                      :: M, N, K

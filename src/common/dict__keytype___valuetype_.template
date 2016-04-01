@@ -1,10 +1,10 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief A dictionary (also known as hashtable or hashmap).
 !>        Internally the dictionary uses an array to holds its data.
 !>        If this array reaches a load-factor of 75%, a new array with twice the
@@ -18,7 +18,7 @@
 !> \par History
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
-! ******************************************************************************
+! ***************************************************************************************************
 
 [macros]
 
@@ -79,7 +79,7 @@ MODULE dict_[keytype]_[valuetype]
   CONTAINS
 
 
-! *****************************************************************************
+! **************************************************************************************************
 ! This is joaat_hash from string_table.F
 !
 !> \brief generates the hash of a given string
@@ -91,7 +91,7 @@ MODULE dict_[keytype]_[valuetype]
 !> \note
 !>       http://en.wikipedia.org/wiki/Hash_table
 !>       http://www.burtleburtle.net/bob/hash/doobs.html
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION hash_str(key) RESULT(hash)
     CHARACTER(LEN=*), INTENT(IN)             :: key
     INTEGER(KIND=int_8)                      :: hash
@@ -110,14 +110,14 @@ FUNCTION hash_str(key) RESULT(hash)
 END FUNCTION hash_str
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates the internal data-structures of the given dictionary.
 !> \param dict ...
 !> \param initial_capacity The initial size of the internal array (default=11).
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE dict_[keytype]_[valuetype]_init(dict, initial_capacity)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     INTEGER, INTENT(in), OPTIONAL                         :: initial_capacity
@@ -138,14 +138,14 @@ SUBROUTINE dict_[keytype]_[valuetype]_init(dict, initial_capacity)
 END SUBROUTINE dict_[keytype]_[valuetype]_init
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Test if the given dictionary has been initialized.
 !> \param dict ...
 !> \retval res ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION dict_[keytype]_[valuetype]_isready(dict) RESULT(res)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     LOGICAL                                               :: res
@@ -153,7 +153,7 @@ FUNCTION dict_[keytype]_[valuetype]_isready(dict) RESULT(res)
 END FUNCTION dict_[keytype]_[valuetype]_isready
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocated the internal data-structures if the given dictionary.
 !>        Caution: If the stored keys or values are pointers, their targets will
 !>                 not get deallocated by this routine.
@@ -161,7 +161,7 @@ END FUNCTION dict_[keytype]_[valuetype]_isready
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE dict_[keytype]_[valuetype]_destroy(dict)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     TYPE(private_item_type), POINTER  :: item, prev_item
@@ -184,7 +184,7 @@ SUBROUTINE dict_[keytype]_[valuetype]_destroy(dict)
 
 END SUBROUTINE dict_[keytype]_[valuetype]_destroy
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Stores, and possibly overwrites, a given value under a given key.
 !> \param dict ...
 !> \param key ...
@@ -192,7 +192,7 @@ END SUBROUTINE dict_[keytype]_[valuetype]_destroy
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE dict_[keytype]_[valuetype]_set(dict, key, value)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort],   intent(in)                          :: key
@@ -206,7 +206,7 @@ SUBROUTINE dict_[keytype]_[valuetype]_set(dict, key, value)
 END SUBROUTINE dict_[keytype]_[valuetype]_set
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Common code used internally by dict_set() and change_capacity().
 !> \param dict ...
 !> \param key ...
@@ -215,7 +215,7 @@ END SUBROUTINE dict_[keytype]_[valuetype]_set
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort],   intent(in)                          :: key
@@ -256,14 +256,14 @@ RECURSIVE SUBROUTINE set_hashed(dict, key, value, hash)
 
 END SUBROUTINE set_hashed
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Internal routine for changing the dictionary's capacity.
 !> \param dict ...
 !> \param new_capacity ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     INTEGER, intent(in) :: new_capacity
@@ -301,7 +301,7 @@ RECURSIVE SUBROUTINE change_capacity(dict, new_capacity)
        CPABORT("dict_[keytype]_[valuetype]_change_capacity: assertion failed")
 END SUBROUTINE change_capacity
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets a value for a given key from the dictionary.
 !>        If the key is not found the default_value will be returned.
 !>        If the key is not found and default_value was not provided the program stops.
@@ -312,7 +312,7 @@ END SUBROUTINE change_capacity
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION dict_[keytype]_[valuetype]_get(dict, key, default_value) RESULT(value)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort]                                        :: key
@@ -347,7 +347,7 @@ FUNCTION dict_[keytype]_[valuetype]_get(dict, key, default_value) RESULT(value)
 END FUNCTION dict_[keytype]_[valuetype]_get
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Remove the value for a given key from the dictionary.
 !>        If the key is not found the proigram stops.	   
 !> \param dict ...
@@ -355,7 +355,7 @@ END FUNCTION dict_[keytype]_[valuetype]_get
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE dict_[keytype]_[valuetype]_del(dict, key)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort]                                        :: key
@@ -390,14 +390,14 @@ SUBROUTINE dict_[keytype]_[valuetype]_del(dict, key)
     CPABORT("dict_[keytype]_[valuetype]_del: Key not found in dictionary.")
 END SUBROUTINE dict_[keytype]_[valuetype]_del
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the number of key/value-items currently stored in the dictionary.
 !> \param dict ...
 !> \retval size ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION dict_[keytype]_[valuetype]_size(dict) RESULT(size)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     INTEGER :: size
@@ -409,7 +409,7 @@ FUNCTION dict_[keytype]_[valuetype]_size(dict) RESULT(size)
 END FUNCTION dict_[keytype]_[valuetype]_size
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Checks whether a given key is currently stored in the dictionary. 
 !> \param dict ...
 !> \param key ...
@@ -417,7 +417,7 @@ END FUNCTION dict_[keytype]_[valuetype]_size
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION dict_[keytype]_[valuetype]_haskey(dict, key) RESULT(res)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     [keytype_fort]                                        :: key
@@ -449,7 +449,7 @@ FUNCTION dict_[keytype]_[valuetype]_haskey(dict, key) RESULT(res)
 END FUNCTION dict_[keytype]_[valuetype]_haskey
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns a pointer to an array of all key/value-items stored in the dictionary.
 !>        Caution: The caller is responsible for deallocating targeted array after usage.	
 !> \param dict ...
@@ -457,7 +457,7 @@ END FUNCTION dict_[keytype]_[valuetype]_haskey
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION dict_[keytype]_[valuetype]_items(dict) RESULT(items)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     TYPE(dict_[keytype]_[valuetype]_item_type), dimension(:), POINTER :: items
@@ -485,7 +485,7 @@ FUNCTION dict_[keytype]_[valuetype]_items(dict) RESULT(items)
 END FUNCTION dict_[keytype]_[valuetype]_items
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies all key/values-items from one dictionary to another.
 !>        Afterards dict will contain all items from the from_dict and 
 !>        additionaly all its previous items, which were not overwritten.
@@ -495,7 +495,7 @@ END FUNCTION dict_[keytype]_[valuetype]_items
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE dict_[keytype]_[valuetype]_update(dict, from_dict)
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: dict
     TYPE(dict_[keytype]_[valuetype]_type), intent(inout)  :: from_dict

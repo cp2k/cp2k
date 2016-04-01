@@ -41,7 +41,7 @@ fi
 
 echo "Comparing MD5-sums ..."
 if ! md5sum --quiet --check checksums.md5 ; then
-  summary="Code not invariant under instantiateTemplates.py or prettify.py"
+  summary='Code not invariant under "make templates pretty"'
   status="FAILED"
 fi
 

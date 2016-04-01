@@ -7,7 +7,7 @@
   'nametype1': 'd',
   'one1': '1.0_real_8',
   'prec1': 'dp',
-  'type1': 'real(kind=real_8)',
+  'type1': 'REAL(kind=real_8)',
   'zero1': '0.0_real_8',
   'xsmm_supported': '1'},
 
@@ -20,7 +20,7 @@
   'nametype1': 's',
   'one1': '1.0_real_4',
   'prec1': 'sp',
-  'type1': 'real(kind=real_4)',
+  'type1': 'REAL(kind=real_4)',
   'zero1': '0.0_real_4',
   'xsmm_supported': '1'},
 
@@ -33,7 +33,7 @@
   'nametype1': 'z',
   'one1': 'CMPLX(1.0, 0.0, real_8)',
   'prec1': 'dp',
-  'type1': 'complex(kind=real_8)',
+  'type1': 'COMPLEX(kind=real_8)',
   'zero1': 'CMPLX(0.0, 0.0, real_8)',
   'xsmm_supported': '0'},
 
@@ -46,6 +46,6 @@
   'nametype1': 'c',
   'one1': 'CMPLX(1.0, 0.0, real_4)',
   'prec1': 'sp',
-  'type1': 'complex(kind=real_4)',
+  'type1': 'COMPLEX(kind=real_4)',
   'zero1': 'CMPLX(0.0, 0.0, real_4)',
   'xsmm_supported': '0'}]

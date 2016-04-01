@@ -1,10 +1,10 @@
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Transfers 1D fortran-array from host to cuda devmem.
 !> \param[in] this device memory
 !> \param hostmem host memory
 !> \param[in] stream stream
 !> \author  Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
  SUBROUTINE host2dev_r4_1D(this, hostmem, stream)
     TYPE(acc_devmem_type), INTENT(IN) :: this
     REAL(kind=real_4), DIMENSION(:), POINTER :: hostmem
@@ -21,13 +21,13 @@
  END SUBROUTINE host2dev_r4_1D
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Transfers 2D fortran-array from host to cuda devmem.
 !> \param[in] this device memory
 !> \param hostmem host memory
 !> \param[in] stream stream
 !> \author  Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
  SUBROUTINE host2dev_r4_2D(this, hostmem, stream)
     TYPE(acc_devmem_type), INTENT(IN) :: this
     REAL(kind=real_4), DIMENSION(:, :), POINTER         :: hostmem
@@ -44,13 +44,13 @@
  END SUBROUTINE host2dev_r4_2D
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Transfers cuda devmem to 1D fortran-array.
 !> \param[in] this device memory
 !> \param hostmem host memory
 !> \param[in] stream stream
 !> \author  Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
  SUBROUTINE dev2host_r4_1D(this, hostmem, stream)
     TYPE(acc_devmem_type), INTENT(IN) :: this
     REAL(kind=real_4), DIMENSION(:), POINTER            :: hostmem

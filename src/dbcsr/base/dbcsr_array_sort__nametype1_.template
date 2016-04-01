@@ -1,11 +1,11 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 [defines]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Routine for sorting an array
 !> \note
 !>      CP2K: 
@@ -23,7 +23,7 @@
 !> \par History
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 MODULE dbcsr_array_sort_[nametype1]
    
   [USE]
@@ -39,7 +39,7 @@ MODULE dbcsr_array_sort_[nametype1]
   CONTAINS
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sorts an array inplace using a combination of merge- and bubble-sort.
 !>        It also returns the indices, which the elements had before the sort.
 !> \param arr the array to sort
@@ -48,7 +48,7 @@ MODULE dbcsr_array_sort_[nametype1]
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 subroutine dbcsr_1d_[nametype1]_sort(arr, n, indices)
    [type1], dimension(1:n), intent(inout) :: arr
    integer, intent(in)                  :: n
@@ -72,7 +72,7 @@ end subroutine dbcsr_1d_[nametype1]_sort
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief The actual sort routing. 
 !> 	   Only dbcsr_1d_[nametype1]_sort and itself should call this.
 !> \param arr the array to sort
@@ -82,7 +82,7 @@ end subroutine dbcsr_1d_[nametype1]_sort
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 recursive subroutine dbcsr_1d_[nametype1]_sort_low(arr, indices, tmp_arr, tmp_idx)
    [type1], dimension(:), intent(inout) :: arr
    integer, dimension(size(arr)), intent(inout) :: indices

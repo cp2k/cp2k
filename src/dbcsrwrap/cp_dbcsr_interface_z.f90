@@ -1,15 +1,15 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Encapsulates a given scalar value and makes it conformant to the
 !>        type of the matrix.
 !> \param scalar ...
 !> \param matrix ...
 !> \retval encapsulated ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION make_conformant_scalar_z (scalar, matrix) RESULT (encapsulated)
     COMPLEX(kind=real_8), INTENT(IN)                      :: scalar
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix
@@ -33,7 +33,7 @@
   END FUNCTION make_conformant_scalar_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param row ...
@@ -41,7 +41,7 @@
 !> \param block ...
 !> \param transposed ...
 !> \param existed ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_reserve_block2d_z (matrix, row, col, block,&
        transposed, existed) 
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -59,7 +59,7 @@
   END SUBROUTINE cp_dbcsr_reserve_block2d_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iterator ...
 !> \param row ...
@@ -70,7 +70,7 @@
 !> \param col_size ...
 !> \param row_offset ...
 !> \param col_offset ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_iterator_next_2d_block_z (iterator, row, column,&
        block,&
        block_number, row_size, col_size, row_offset, col_offset)
@@ -95,7 +95,7 @@
   END SUBROUTINE cp_iterator_next_2d_block_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param iterator ...
 !> \param row ...
@@ -106,7 +106,7 @@
 !> \param col_size ...
 !> \param row_offset ...
 !> \param col_offset ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_iterator_next_1d_block_z (iterator, row, column, block,&
        block_number, row_size, col_size, row_offset, col_offset)
     TYPE(cp_dbcsr_iterator), INTENT(INOUT)    :: iterator
@@ -129,7 +129,7 @@
   END SUBROUTINE cp_iterator_next_1d_block_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param row ...
@@ -137,7 +137,7 @@
 !> \param block ...
 !> \param summation ...
 !> \param scale ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_put_block2d_z (matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -155,7 +155,7 @@
   END SUBROUTINE cp_dbcsr_put_block2d_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param row ...
@@ -163,7 +163,7 @@
 !> \param block ...
 !> \param summation ...
 !> \param scale ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_put_block_z (matrix, row, col, block,&
        summation, scale)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -181,7 +181,7 @@
   END SUBROUTINE cp_dbcsr_put_block_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param row ...
@@ -190,7 +190,7 @@
 !> \param found ...
 !> \param row_size ...
 !> \param col_size ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_get_2d_block_p_z (matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
@@ -211,7 +211,7 @@
   END SUBROUTINE cp_dbcsr_get_2d_block_p_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param row ...
@@ -220,7 +220,7 @@
 !> \param found ...
 !> \param row_size ...
 !> \param col_size ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_get_block_p_z (matrix,row,col,block,found,&
        row_size, col_size)
     TYPE(cp_dbcsr_type), INTENT(IN)           :: matrix
@@ -242,11 +242,11 @@
   END SUBROUTINE cp_dbcsr_get_block_p_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix_a ...
 !> \param trace ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_trace_a_z (matrix_a, trace)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     COMPLEX(kind=real_8), INTENT(OUT)                     :: trace
@@ -263,7 +263,7 @@
   END SUBROUTINE cp_dbcsr_trace_a_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix_a ...
 !> \param matrix_b ...
@@ -271,7 +271,7 @@
 !> \param trans_a ...
 !> \param trans_b ...
 !> \param local_sum ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_trace_ab_z (matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a, matrix_b
     COMPLEX(kind=real_8), INTENT(INOUT)                   :: trace
@@ -285,7 +285,7 @@
   END SUBROUTINE cp_dbcsr_trace_ab_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param transa ...
 !> \param transb ...
@@ -305,7 +305,7 @@
 !>        of matrices with incompatible dimensions. By default it's disabled.
 !> \param filter_eps ...
 !> \param flop ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_multiply_z (transa, transb,&
        alpha, matrix_a, matrix_b, beta, matrix_c,&
        first_row, last_row, first_column, last_column, first_k, last_k,&
@@ -365,12 +365,12 @@
   END SUBROUTINE cp_dbcsr_multiply_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix_a ...
 !> \param alpha ...
 !> \param side ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_scale_by_vector_z (matrix_a, alpha, side)
     TYPE(cp_dbcsr_type), INTENT(INOUT)        :: matrix_a
     COMPLEX(kind=real_8), DIMENSION(:), INTENT(IN), TARGET :: alpha
@@ -383,12 +383,12 @@
   END SUBROUTINE cp_dbcsr_scale_by_vector_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix_a ...
 !> \param alpha_scalar ...
 !> \param last_column ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_scale_z (matrix_a, alpha_scalar, last_column)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     COMPLEX(kind=real_8), INTENT(IN)                      :: alpha_scalar
@@ -401,11 +401,11 @@
   END SUBROUTINE cp_dbcsr_scale_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param alpha ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_set_z (matrix, alpha)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix
     COMPLEX(kind=real_8), INTENT(IN)                      :: alpha
@@ -417,13 +417,13 @@
   END SUBROUTINE cp_dbcsr_set_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix_a ...
 !> \param matrix_b ...
 !> \param alpha_scalar ...
 !> \param beta_scalar ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_dbcsr_add_z (matrix_a, matrix_b, alpha_scalar, beta_scalar)
     TYPE(cp_dbcsr_type), INTENT(INOUT)       :: matrix_a
     TYPE(cp_dbcsr_type), INTENT(IN)          :: matrix_b
@@ -435,14 +435,14 @@
     CALL dbcsr_add(matrix_a%matrix, matrix_b%matrix, alpha_scalar, beta_scalar)
   END SUBROUTINE cp_dbcsr_add_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param index_matrix ...
 !> \param lb ...
 !> \param ub ...
 !> \retval DATA ...
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION cp_dbcsr_get_data_c_z (matrix, index_matrix, select_data_type, lb, ub) RESULT (DATA)
     TYPE(cp_dbcsr_type), INTENT(IN)  :: matrix
     INTEGER, INTENT(IN)              :: index_matrix

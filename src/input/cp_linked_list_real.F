@@ -624,10 +624,10 @@ CONTAINS
 !  nametype1 = "real"
 !  private_routines = ""
 !  template = "../common/cp_linked_list__nametype1_.template"
-!  type1 = "real(kind=dp)"
-!  type1arrayEl = "real(kind=dp)"
-!  type1in = "real(kind=dp), intent(in)"
-!  type1out = "real(kind=dp), intent(out)"
+!  type1 = "REAL(kind=dp)"
+!  type1arrayEl = "REAL(kind=dp)"
+!  type1in = "REAL(kind=dp), intent(in)"
+!  type1out = "REAL(kind=dp), intent(out)"
 !  write_el = ""
 
 END MODULE cp_linked_list_real

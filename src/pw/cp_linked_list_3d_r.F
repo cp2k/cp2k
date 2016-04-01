@@ -631,10 +631,10 @@ CONTAINS
 !  nametype1 = "3d_r"
 !  private_routines = ""
 !  template = "../common/cp_linked_list__nametype1_.template"
-!  type1 = "real(kind=dp),dimension(:,:,:),pointer"
+!  type1 = "REAL(kind=dp),dimension(:,:,:),pointer"
 !  type1arrayEl = "type(cp_3d_r_p_type)"
-!  type1in = "real(kind=dp),dimension(:,:,:), pointer"
-!  type1out = "real(kind=dp),dimension(:,:,:), pointer"
+!  type1in = "REAL(kind=dp),dimension(:,:,:), pointer"
+!  type1out = "REAL(kind=dp),dimension(:,:,:), pointer"
 !  write_el = ""
 
 END MODULE cp_linked_list_3d_r

@@ -171,6 +171,6 @@ CONTAINS
 !     "
 !  lessQ = "CP_R_LESS_Q"
 !  nametype1 = "d"
-!  type1 = "real(kind=real_8)"
+!  type1 = "REAL(kind=real_8)"
 
 END MODULE dbcsr_array_sort_d

@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets a 2-d block from a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix
 !> \param[in]  row    the row
@@ -13,7 +13,7 @@
 !> \param[out] found  whether the block exists in the matrix
 !> \param[out] row_size      (optional) logical row size of block
 !> \param[out] col_size      (optional) logical column size of block
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_2d_block_p_c(matrix,row,col,block,tr,found,&
        row_size, col_size)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -90,7 +90,7 @@
   END SUBROUTINE dbcsr_get_2d_block_p_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets a 1-d block from a dbcsr matrix
 !> \param[in]  matrix DBCSR matrix
 !> \param[in]  row    the row
@@ -100,7 +100,7 @@
 !> \param[out] found  whether the block exists in the matrix
 !> \param[out] row_size      (optional) logical row size of block
 !> \param[out] col_size      (optional) logical column size of block
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_block_p_c(matrix,row,col,block,tr,found,&
        row_size, col_size)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix
@@ -152,7 +152,7 @@
   END SUBROUTINE dbcsr_get_block_p_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Put a 2-D block in a DBCSR matrix using the btree
 !> \param[in.out] matrix      DBCSR matrix
 !> \param[in]  row            the row
@@ -160,7 +160,7 @@
 !> \param[in]  block          the block to reserve; added if not NULL
 !> \param[in] transposed      the block holds transposed data
 !> \param[out] existed        (optional) block already existed
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_reserve_block2d_c(matrix, row, col, block,&
        transposed, existed)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -246,7 +246,7 @@
     IF (PRESENT (existed)) existed = found
   END SUBROUTINE dbcsr_reserve_block2d_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Put a 2-D block in a DBCSR matrix
 !> \param[in.out] matrix      DBCSR matrix
 !> \param[in]  row            the row
@@ -256,7 +256,7 @@
 !> \param[in]  summation      (optional) if block exists, then sum the new
 !>                            block to the old one instead of replacing it
 !> \param[in]  scale          (optional) scale the block being added
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_put_block2d_c(matrix, row, col, block, transposed,&
        summation, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -289,7 +289,7 @@
     ENDIF
   END SUBROUTINE dbcsr_put_block2d_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Inserts a block in a dbcsr matrix.
 !>
 !> If the block exists, the current data is overwritten.
@@ -301,7 +301,7 @@
 !> \param[in]  summation      (optional) if block exists, then sum the new
 !>                            block to the old one instead of replacing it
 !> \param[in]  scale          (optional) scale the block being added
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_put_block_c(matrix, row, col, block, transposed,&
        summation, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -462,14 +462,14 @@
   END SUBROUTINE dbcsr_put_block_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets a pointer, possibly using the buffers.
 !> \param[in] matrix           Matrix to use
 !> \param pointer_any The pointer to set
 !> \param rsize Row size of block to point to
 !> \param csize Column size of block to point to
 !> \param[in] base_offset      The block pointer
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_set_block_pointer_2d_c (&
        matrix, pointer_any, rsize, csize, base_offset)
     TYPE(dbcsr_obj), INTENT(IN)              :: matrix

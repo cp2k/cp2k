@@ -1,9 +1,9 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets the next data block, single/double precision real/complex
 !> \param[in,out] iterator   the iterator
 !> \param[out] row           row of the data block
@@ -15,7 +15,7 @@
 !> \param[out] col_size      (optional) logical column size of block
 !> \param row_offset ...
 !> \param col_offset ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE iterator_next_1d_block_[nametype1] (iterator, row, column, block,&
        transposed, block_number, row_size, col_size, row_offset, col_offset)
     TYPE(dbcsr_iterator), INTENT(INOUT)      :: iterator
@@ -66,7 +66,7 @@
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets the next data block, single/double precision real/complex
 !> \param[in,out] iterator   the iterator
 !> \param[out] row           row of the data block
@@ -78,7 +78,7 @@
 !> \param[out] col_size      (optional) logical column size of block
 !> \param row_offset ...
 !> \param col_offset ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE iterator_next_2d_block_[nametype1] (iterator, row, column,&
        block, transposed,&
        block_number, row_size, col_size, row_offset, col_offset)

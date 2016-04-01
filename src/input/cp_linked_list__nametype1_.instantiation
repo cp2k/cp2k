@@ -23,9 +23,9 @@
 },
 {
  'nametype1':'real',
- 'type1':'real(kind=dp)',
- 'type1in':'real(kind=dp), intent(in)',
- 'type1out':'real(kind=dp), intent(out)',
+ 'type1':'REAL(kind=dp)',
+ 'type1in':'REAL(kind=dp), intent(in)',
+ 'type1out':'REAL(kind=dp), intent(out)',
  'common_dir':'../common',
  'template':'../common/cp_linked_list__nametype1_.template',
  'USE':
@@ -35,7 +35,7 @@
 #define CP_SLL_R_EQUAL_Q(el1,el2) ( el1 == el2 )
 """,
  '=':'=',
- 'type1arrayEl':'real(kind=dp)',
+ 'type1arrayEl':'REAL(kind=dp)',
  'array=':'=',
  'arrayEl':'',
  'lessQ':'CP_SLL_R_LESS_Q',

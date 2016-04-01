@@ -174,6 +174,6 @@ CONTAINS
 !     "
 !  lessQ = "CP_R_LESS_Q"
 !  nametype1 = "r"
-!  type1 = "real(kind=dp)"
+!  type1 = "REAL(kind=dp)"
 
 END MODULE cp_array_sort_r

@@ -1,4 +1,4 @@
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief the real driver routine for the multiply, not all symmetries implemented yet
 !> \param matrix ...
 !> \param vec_in ...
@@ -7,7 +7,7 @@
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_matrix_colvec_multiply_low_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     [type_nametype]                          :: alpha, beta
@@ -33,7 +33,7 @@
 
   END SUBROUTINE dbcsr_matrix_colvec_multiply_low_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief low level routines for matrix vector multiplies
 !> \param matrix ...
 !> \param vec_in ...
@@ -42,7 +42,7 @@
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_matrix_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     [type_nametype]                          :: alpha, beta
@@ -130,7 +130,7 @@
 
   END SUBROUTINE dbcsr_matrix_vector_mult_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param vec_in ...
@@ -140,7 +140,7 @@
 !> \param work_row ...
 !> \param work_col ...
 !> \param skip_diag ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_matrixT_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col, skip_diag)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     [type_nametype]                          :: alpha, beta
@@ -246,13 +246,13 @@
 
   END SUBROUTINE dbcsr_matrixT_vector_mult_[nametype1] 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param vec_in ...
 !> \param rep_col_vec ...
 !> \param rep_row_vec ...
 !> \param fast_vec_col ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_col_vec_to_rep_row_[nametype1](vec_in, rep_col_vec, rep_row_vec, fast_vec_col)
     TYPE(dbcsr_obj)                          :: vec_in, rep_col_vec, &
                                                 rep_row_vec
@@ -316,13 +316,13 @@
 
   END SUBROUTINE dbcsr_col_vec_to_rep_row_[nametype1]    
        
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param rep_col_vec ...
 !> \param rep_row_vec ...
 !> \param fast_vec_row ...
 !> \param fast_vec_col_add ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_rep_row_to_rep_col_vec_[nametype1](rep_col_vec, rep_row_vec, fast_vec_row, fast_vec_col_add)
     TYPE(dbcsr_obj)                          :: rep_col_vec, rep_row_vec
     TYPE(fast_vec_access_type), OPTIONAL     :: fast_vec_col_add
@@ -375,11 +375,11 @@
   END SUBROUTINE dbcsr_rep_row_to_rep_col_vec_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief given a column vector, prepare the fast_vec_access container
 !> \param vec ...
 !> \param fast_vec_access ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE create_fast_col_vec_access_[nametype1](vec, fast_vec_access)
     TYPE(dbcsr_obj)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
@@ -428,11 +428,11 @@
 
   END SUBROUTINE create_fast_col_vec_access_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief given a row vector, prepare the fast_vec_access_container
 !> \param vec ...
 !> \param fast_vec_access ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE create_fast_row_vec_access_[nametype1](vec, fast_vec_access)
     TYPE(dbcsr_obj)                          :: vec
     TYPE(fast_vec_access_type)               :: fast_vec_access
@@ -482,7 +482,7 @@
 
   END SUBROUTINE create_fast_row_vec_access_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param vec_in ...
@@ -491,7 +491,7 @@
 !> \param beta ...
 !> \param work_row ...
 !> \param work_col ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_sym_matrix_vector_mult_[nametype1](matrix, vec_in, vec_out, alpha, beta, work_row, work_col)
     TYPE(dbcsr_obj)                          :: matrix, vec_in, vec_out
     [type_nametype]                          :: alpha, beta

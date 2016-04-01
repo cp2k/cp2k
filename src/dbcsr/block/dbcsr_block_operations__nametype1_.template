@@ -1,16 +1,16 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets the diagonal of a square data block
 !> \param[out] block_data     sets the diagonal of this data block
 !> \param[in] diagonal        set diagonal of block_data to these values
 !> \param[in] d               dimension of block
 !> \par Off-diagonal values
 !>      Other values are untouched.
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE set_block2d_diagonal_[nametype1] (block_data, diagonal, d)
     INTEGER, INTENT(IN)                    :: d
     [type1], DIMENSION(d,d), INTENT(INOUT) :: block_data
@@ -26,12 +26,12 @@
   END SUBROUTINE set_block2d_diagonal_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Gets the diagonal of a square data block
 !> \param[in] block_data      gets the diagonal of this data block
 !> \param[out] diagonal       values of the diagonal elements
 !> \param[in] d               dimension of block
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE get_block2d_diagonal_[nametype1] (block_data, diagonal, d)
     INTEGER, INTENT(IN)                 :: d
     [type1], DIMENSION(d,d), INTENT(IN) :: block_data
@@ -47,7 +47,7 @@
   END SUBROUTINE get_block2d_diagonal_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies a block subset
 !> \param dst ...
 !> \param dst_rs ...
@@ -66,7 +66,7 @@
 !> \param dst_offset ...
 !> \param src_offset ...
 !> \note see block_partial_copy_a 
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE block_partial_copy_[nametype1](dst, dst_rs, dst_cs, dst_tr,&
        src, src_rs, src_cs, src_tr,&
        dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
@@ -122,7 +122,7 @@
     ENDIF
   END SUBROUTINE block_partial_copy_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies a block subset
 !> \param dst ...
 !> \param dst_rs ...
@@ -138,7 +138,7 @@
 !> \param ncol ...
 !> \param dst_offset ...
 !> \note see block_partial_copy_a 
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE block_partial_copy_1d2d_[nametype1](dst, dst_rs, dst_cs, dst_tr,&
        src, src_tr,&
        dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
@@ -191,7 +191,7 @@
        END DO
     ENDIF
   END SUBROUTINE block_partial_copy_1d2d_[nametype1]
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies a block subset
 !> \param dst ...
 !> \param dst_cs ...
@@ -208,7 +208,7 @@
 !> \param ncol ...
 !> \param src_offset ...
 !> \note see block_partial_copy_a
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE block_partial_copy_2d1d_[nametype1](dst, dst_tr,&
        src, src_rs, src_cs, src_tr,&
        dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol,&
@@ -261,7 +261,7 @@
        END DO
     ENDIF
   END SUBROUTINE block_partial_copy_2d1d_[nametype1]
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies a block subset
 !> \param dst ...
 !> \param dst_tr ...
@@ -274,7 +274,7 @@
 !> \param nrow ...
 !> \param ncol ...
 !> \note see block_partial_copy_a
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE block_partial_copy_2d2d_[nametype1](dst, dst_tr,&
        src, src_tr,&
        dst_r_lb, dst_c_lb, src_r_lb, src_c_lb, nrow, ncol)
@@ -326,14 +326,14 @@
   END SUBROUTINE block_partial_copy_2d2d_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy a block
 !> \param[out] extent_out     output data
 !> \param[in] extent_in       input data
 !> \param[in] n               number of elements to copy
 !> \param[in] out_fe          first element of output
 !> \param[in] in_fe           first element of input
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_copy_[nametype1](extent_out, extent_in, n, out_fe, in_fe)
     INTEGER, INTENT(IN)                           :: n, out_fe, in_fe
     [type1], DIMENSION(*), INTENT(OUT)  :: extent_out
@@ -348,13 +348,13 @@
   END SUBROUTINE block_copy_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_transpose_copy_[nametype1](extent_out, extent_in,&
        rows, columns)
     [type1], DIMENSION(:), INTENT(OUT) :: extent_out
@@ -370,13 +370,13 @@
          RESHAPE(extent_in(1:rows*columns), (/rows, columns/))), (/rows*columns/))
   END SUBROUTINE block_transpose_copy_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy a block
 !> \param[out] extent_out     output matrix in the form of a 2-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_copy_2d1d_[nametype1](extent_out, extent_in,&
        rows, columns)
     INTEGER, INTENT(IN)                           :: rows, columns
@@ -391,13 +391,13 @@
     extent_out = RESHAPE(extent_in, (/rows, columns/))
   END SUBROUTINE block_copy_2d1d_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy a block
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_copy_1d1d_[nametype1](extent_out, extent_in,&
        rows, columns)
     INTEGER, INTENT(IN)                           :: rows, columns
@@ -412,13 +412,13 @@
     extent_out(:) = extent_in(:)
   END SUBROUTINE block_copy_1d1d_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy a block
 !> \param[out] extent_out     output matrix in the form of a 2-d array
 !> \param[in] extent_in       input matrix in the form of a 2-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_copy_2d2d_[nametype1](extent_out, extent_in,&
        rows, columns)
     INTEGER, INTENT(IN)                           :: rows, columns
@@ -434,13 +434,13 @@
   END SUBROUTINE block_copy_2d2d_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 2-d array
 !> \param[in] extent_in       input matrix in the form of a 1-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_transpose_copy_2d1d_[nametype1](extent_out, extent_in,&
        rows, columns)
     INTEGER, INTENT(IN)                           :: rows, columns
@@ -455,13 +455,13 @@
     extent_out = TRANSPOSE(RESHAPE(extent_in, (/rows, columns/)))
   END SUBROUTINE block_transpose_copy_2d1d_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 2-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_copy_1d2d_[nametype1](extent_out, extent_in,&
        rows, columns)
     [type1], DIMENSION(:), INTENT(OUT)            :: extent_out
@@ -477,13 +477,13 @@
   END SUBROUTINE block_copy_1d2d_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy and transpose block.
 !> \param[out] extent_out     output matrix in the form of a 1-d array
 !> \param[in] extent_in       input matrix in the form of a 2-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_transpose_copy_1d2d_[nametype1](extent_out, extent_in,&
        rows, columns)
     [type1], DIMENSION(:), INTENT(OUT)            :: extent_out
@@ -499,12 +499,12 @@
   END SUBROUTINE block_transpose_copy_1d2d_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief In-place block transpose.
 !> \param[in,out] extent      Matrix in the form of a 1-d array
 !> \param[in] rows input matrix size
 !> \param[in] columns input matrix size
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_transpose_inplace_[nametype1](extent, rows, columns)
     INTEGER, INTENT(IN)                      :: rows, columns
     [type1], DIMENSION(rows*columns), &
@@ -530,7 +530,7 @@
   END SUBROUTINE block_transpose_inplace_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copy data from a double real array to a data area
 !>
 !> There are no checks done for correctness!
@@ -540,7 +540,7 @@
 !> \param[in] data_size  number of elements to copy
 !> \param[in] src        source data array
 !> \param[in] source_lb  (optional) lower bound of source
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_data_set_a[nametype1] (dst, lb, data_size, src, source_lb)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: dst
     INTEGER, INTENT(IN)                      :: lb, data_size
@@ -569,14 +569,14 @@
     CALL memory_copy(dst%d%[base1]_[prec1](lb:ub),src(lb_s:ub_s),data_size)
   END SUBROUTINE dbcsr_data_set_a[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param m ...
 !> \param blk ...
 !> \param alpha ...
 !> \param imin ...
 !> \param imax ...
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_2d_add_on_diag_[nametype1](m, blk, alpha, imin, imax)
     INTEGER, INTENT(IN)                      :: m
     [type1], INTENT(INOUT), DIMENSION(m,m)   :: blk
@@ -591,7 +591,7 @@
 !   ---------------------------------------------------------------------------
 
     IF(PRESENT(imin).AND.PRESENT(imax)) THEN
-       DO i = max(1,imin),min(m,imax)
+       DO i = MAX(1,imin),MIN(m,imax)
          blk(i,i) = blk(i,i) + alpha
        ENDDO
     ELSE
@@ -601,14 +601,14 @@
     ENDIF
   END SUBROUTINE block_2d_add_on_diag_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param m ...
 !> \param blk ...
 !> \param alpha ...
 !> \param imin ...
 !> \param imax ...
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_add_on_diag_[nametype1](m, blk, alpha, imin, imax)
     INTEGER, INTENT(IN)                      :: m
     [type1], INTENT(INOUT), DIMENSION(m*m)   :: blk
@@ -627,12 +627,12 @@
     ENDIF
   END SUBROUTINE block_add_on_diag_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param block_a ...
 !> \param block_b ...
 !> \param len ...
-! *****************************************************************************
+! **************************************************************************************************
   PURE SUBROUTINE block_add_[nametype1](block_a, block_b, len)
     INTEGER, INTENT(IN)                    :: len
     [type1], DIMENSION(len), INTENT(INOUT) :: block_a

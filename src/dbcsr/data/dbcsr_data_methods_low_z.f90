@@ -1,21 +1,21 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets a data pointer.
 !> \param[inout] area     target data area
 !> \param[in]    p        source data pointer
 !> \par Assumptions
 !>      Assumes that no memory will be lost when repointing the
 !>      pointer in the data area and that the area is initialized.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE set_data_p_z (area, p)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: p
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_complex(kind=real_8)', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_z', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -23,19 +23,19 @@
     area%d%c_dp => p
   END SUBROUTINE set_data_p_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets a data pointer.
 !> \param[inout] area     target data area
 !> \param[in]    p        source data pointer
 !> \par Assumptions
 !>      Assumes that no memory will be lost when repointing the
 !>      pointer in the data area and that the area is initialized.
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE set_data_p_2d_z (area, p)
     TYPE(dbcsr_data_obj), INTENT(INOUT)      :: area
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER         :: p
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_2d_complex(kind=real_8)', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'set_data_p_2d_z', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@
   END SUBROUTINE set_data_p_2d_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
 !> \param[in] select_data_type   force datatype
@@ -55,7 +55,7 @@
 !>      This routine is hidden behind the dbcsr_get_data interface, hence the
 !>      need for the select_data_type argument.
 !>      see dbcsr_get_data_p_z
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION dbcsr_get_data_c_z (area, select_data_type, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
     COMPLEX(kind=real_8), INTENT(IN)            :: select_data_type
@@ -95,7 +95,7 @@
     ENDIF
   END FUNCTION dbcsr_get_data_c_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \brief dbcsr_get_data_c_z
 !> \param[in] area       data area
@@ -104,7 +104,7 @@
 !> \retval DATA pointer to data
 !> \par Calling
 !>      This routine can be called explicitly.
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION dbcsr_get_data_p_z (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)         :: area
     COMPLEX(kind=real_8), DIMENSION(:), POINTER :: DATA
@@ -137,7 +137,7 @@
     ENDIF
   END FUNCTION dbcsr_get_data_p_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \brief dbcsr_get_data_c_z
 !> \param[in] area       data area
@@ -146,7 +146,7 @@
 !> \retval DATA pointer to data
 !> \par Calling
 !>      This routine can be called explicitly.
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION dbcsr_get_data_p_2d_z (area, lb, ub) RESULT (DATA)
     TYPE(dbcsr_data_obj), INTENT(IN)            :: area
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
@@ -185,13 +185,13 @@
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
 !> \param[out] DATA pointer to data
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE get_data_z (area, DATA, lb, ub)
     TYPE(dbcsr_data_obj), INTENT(IN)  :: area
     COMPLEX(kind=real_8), DIMENSION(:), POINTER    :: DATA
@@ -227,13 +227,13 @@
   END SUBROUTINE get_data_z
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the single/double precision real/complex data
 !> \param[in] area       data area
 !> \param[out] DATA pointer to data
 !> \param[in] lb         (optional) lower bound for pointer
 !> \param[in] ub         (optional) upper bound for pointer
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE get_data_2d_z (area, DATA, lb, ub)
     TYPE(dbcsr_data_obj), INTENT(IN)            :: area
     COMPLEX(kind=real_8), DIMENSION(:,:), POINTER            :: DATA
@@ -274,16 +274,16 @@
     ENDIF
   END SUBROUTINE get_data_2d_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
 !> \param[in] scalar                    scalar to encapsulate
 !> \retval encapsulated_scalar          encapsulated scalar 
-! *****************************************************************************
+! **************************************************************************************************
   ELEMENTAL FUNCTION dbcsr_scalar_z (scalar) RESULT (encapsulated_scalar)
     COMPLEX(kind=real_8), INTENT(IN)       :: scalar
     TYPE(dbcsr_scalar_type)   :: encapsulated_scalar
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_complex(kind=real_8)', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_z', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
@@ -292,16 +292,16 @@
     encapsulated_scalar%c_dp = scalar
   END FUNCTION dbcsr_scalar_z
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets a scalar in an encapsulated data structure
 !> \param[in] encapsulated_scalar          encapsulated scalar
 !> \param[out] value                       value of the scalar
-! *****************************************************************************
+! **************************************************************************************************
   ELEMENTAL SUBROUTINE dbcsr_scalar_get_value_z (encapsulated_scalar, value)
     TYPE(dbcsr_scalar_type), INTENT(IN) :: encapsulated_scalar
     COMPLEX(kind=real_8), INTENT(OUT)                :: value
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_get_value_complex(kind=real_8)', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_scalar_get_value_z', &
       routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------

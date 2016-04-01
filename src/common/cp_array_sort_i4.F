@@ -173,6 +173,6 @@ CONTAINS
 !     "
 !  lessQ = "CP_I_LESS_Q"
 !  nametype1 = "i4"
-!  type1 = "integer(kind=int_4)"
+!  type1 = "INTEGER(kind=int_4)"
 
 END MODULE cp_array_sort_i4

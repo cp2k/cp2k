@@ -612,9 +612,7 @@ CONTAINS
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
-!    "USE kinds, only: dp
-!     USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type"
+!  USE = "USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type"
 !  array= = "=>"
 !  arrayEl = "%matrix"
 !  common_dir = "../common"

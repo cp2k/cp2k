@@ -1,11 +1,11 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 [defines]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief describes a generic linked list template.
 !>      Linked list are supposed to always use pointers to the nodes for
 !>      basically everything: a pointer to the node is a list, an element of
@@ -40,7 +40,7 @@
 !>             always through pointers (identifying pointer, list and iterators)
 !>      6.2004 removed %initialized from list elements
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 MODULE cp_linked_list_[nametype1]
 #include "[common_dir]/../base/base_uses.f90"
   [USE]
@@ -129,7 +129,7 @@ MODULE cp_linked_list_[nametype1]
      module procedure cp_sll_[nametype1]_to_array
   END INTERFACE
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief represent a single linked list that stores pointers to the elements
 !> \param first_el the element that is stored in this node.
 !> \param rest the rest of the list
@@ -150,19 +150,19 @@ MODULE cp_linked_list_[nametype1]
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   TYPE cp_sll_[nametype1]_type
      [type1] :: first_el
      TYPE(cp_sll_[nametype1]_type), POINTER :: rest
   END TYPE cp_sll_[nametype1]_type
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief pointer to a linked list (to make arrays of pointers)
 !> \param list the pointer to the list
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   TYPE cp_sll_[nametype1]_p_type
      TYPE(cp_sll_[nametype1]_type), POINTER :: list
   END TYPE cp_sll_[nametype1]_p_type
@@ -172,7 +172,7 @@ CONTAINS
 [private_routines]
 ! =========== creation / distruction ========
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief allocates and initializes a single linked list
 !> \param sll the single linked list to initialize
 !> \param first_el the first element of this list
@@ -180,7 +180,7 @@ CONTAINS
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_create(sll,first_el,rest)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     [type1in], OPTIONAL :: first_el
@@ -199,7 +199,7 @@ CONTAINS
     END IF
   END SUBROUTINE cp_sll_[nametype1]_create
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief deallocates the singly linked list starting at sll.
 !>      Does not work if loops are present!
 !> \param sll the list to be deallocated
@@ -209,7 +209,7 @@ CONTAINS
 !> \note
 !>      does not deallocate the elments that are stored in the list
 !>      check more?
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_dealloc(sll)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
 
@@ -220,13 +220,13 @@ CONTAINS
 
 ! * low-level *
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief deallocates a node of a singly linked list (low level)
 !> \param sll the node to be deallocated
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_dealloc_node(sll)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
 
@@ -238,14 +238,14 @@ CONTAINS
 
 ! ============= get/set ============
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the first element stored in the list
 !> \param sll the single linked list to get the element from
 !> \retval res ...
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION cp_sll_[nametype1]_get_first_el(sll) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     [type1] :: res
@@ -255,7 +255,7 @@ CONTAINS
     res [=] sll%first_el
   END FUNCTION cp_sll_[nametype1]_get_first_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the rest of the list
 !> \param sll the single linked list to get the rest from
 !> \param iter how many times the call to rest should be iterated,
@@ -266,7 +266,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      split the case iter=1 to make it more optimized?
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION cp_sll_[nametype1]_get_rest(sll, iter) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, OPTIONAL :: iter
@@ -300,7 +300,7 @@ CONTAINS
     END IF
   END FUNCTION cp_sll_[nametype1]_get_rest
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the length of the list
 !> \param sll the list you want to know the length of
 !> \retval res ...
@@ -309,7 +309,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(n))
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION cp_sll_[nametype1]_get_length(sll) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), pointer :: sll
     INTEGER ::res
@@ -329,7 +329,7 @@ CONTAINS
     END DO
   END FUNCTION cp_sll_[nametype1]_get_length
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
@@ -339,7 +339,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION cp_sll_[nametype1]_get_el_at(sll,index) RESULT(res)
     [type1] :: res
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
@@ -358,7 +358,7 @@ CONTAINS
     res [=] pos%first_el
   END FUNCTION cp_sll_[nametype1]_get_el_at
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief sets the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
@@ -369,7 +369,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_set_el_at(sll,index,value)
     [type1in] :: value
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
@@ -390,7 +390,7 @@ CONTAINS
 
 ! * iteration *
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns true if the actual element is valid (i.e. iterator ont at end)
 !>      moves the iterator to the next element
 !> \param iterator iterator that moves along the list
@@ -399,7 +399,7 @@ CONTAINS
 !> \par History
 !>      none
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION cp_sll_[nametype1]_next(iterator,el_att) RESULT(res)
     TYPE(cp_sll_[nametype1]_type), POINTER :: iterator
     [type1out], OPTIONAL :: el_att
@@ -418,7 +418,7 @@ CONTAINS
 
 ! ============ structure modifications ============
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief insert an element at the beginning of the list
 !> \param sll the single linked list point at the beginning of which
 !>           you want to add the element
@@ -428,7 +428,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      fast (O(1))
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_insert_el(sll,el)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     [type1in]:: el
@@ -443,7 +443,7 @@ CONTAINS
     sll => newSlot
   END SUBROUTINE cp_sll_[nametype1]_insert_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief remove the first element of the linked list
 !> \param sll the list whose first element has to be removed
 !> \par History
@@ -451,7 +451,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      fast (O(1))
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_rm_first_el(sll)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
 
@@ -467,7 +467,7 @@ CONTAINS
     END IF
   END SUBROUTINE cp_sll_[nametype1]_rm_first_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief inserts the element at the given index
 !> \param sll the list you get the element from
 !> \param el the new element
@@ -478,7 +478,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_insert_el_at(sll,el,index)
     [type1in] :: el
     INTEGER, INTENT(in) :: index
@@ -500,7 +500,7 @@ CONTAINS
     END IF
   END SUBROUTINE cp_sll_[nametype1]_insert_el_at
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief removes the element at the given index
 !> \param sll the list you get the element from
 !> \param index the position of the element (stating at 1)
@@ -509,7 +509,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      slow (O(index))
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_rm_el_at(sll,index)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
     INTEGER, INTENT(in)::index
@@ -530,7 +530,7 @@ CONTAINS
     END IF
   END SUBROUTINE cp_sll_[nametype1]_rm_el_at
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief removes all the elements from the list
 !> \param sll the list that should be removed
 !> \par History
@@ -538,7 +538,7 @@ CONTAINS
 !> \author Fawzi Mohamed
 !> \note
 !>      check more?
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE cp_sll_[nametype1]_rm_all_el(sll)
     TYPE(cp_sll_[nametype1]_type), POINTER :: sll
 
@@ -555,7 +555,7 @@ CONTAINS
     NULLIFY(sll)
   END SUBROUTINE cp_sll_[nametype1]_rm_all_el
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief returns a newly allocated array with the same contents as
 !>      the linked list
 !> \param sll the list to trasform in array
@@ -563,7 +563,7 @@ CONTAINS
 !> \par History
 !>      07.2002 created [fawzi]
 !> \author Fawzi Mohamed
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION cp_sll_[nametype1]_to_array(sll) RESULT(res)
   TYPE(cp_sll_[nametype1]_type), POINTER :: sll
   [type1arrayEl], DIMENSION(:), POINTER :: res

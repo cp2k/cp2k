@@ -1,15 +1,15 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns a pointer with different bounds.
 !> \param[in] original   original data pointer
 !> \param[in] lb lower and upper bound for the new pointer view
 !> \param[in] ub lower and upper bound for the new pointer view
 !> \retval view new pointer
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION pointer_view_[nametype1] (original, lb, ub) RESULT (view)
     [type1], DIMENSION(:), POINTER :: original, view
     INTEGER, INTENT(IN)                  :: lb, ub
@@ -17,7 +17,7 @@
   END FUNCTION pointer_view_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Ensures that an array is appropriately large.
 !> \param[in,out] array       array to verify and possibly resize
 !> \param[in] lb    (optional) desired array lower bound
@@ -29,7 +29,7 @@
 !> \param[in] memory_type     (optional) use special memory
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE ensure_array_size_[nametype1](array, lb, ub, factor,&
        nocopy, memory_type, zero_pad)
     [type1], DIMENSION(:), POINTER                 :: array
@@ -70,11 +70,11 @@
     IF (PRESENT (zero_pad)) pad = zero_pad
     !> Creates a new array if it doesn't yet exist.
     IF (.NOT.ASSOCIATED(array)) THEN
-       call dbcsr_assert (lb_new, "EQ", 1, &
+       CALL dbcsr_assert (lb_new, "EQ", 1, &
             dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
             "Arrays must start at 1", __LINE__)
-       call mem_alloc_[nametype1] (array, ub, mem_type=mem_type)
-       IF (pad .AND. ub .GT. 0) call mem_zero_[nametype1] (array, ub)
+       CALL mem_alloc_[nametype1] (array, ub, mem_type=mem_type)
+       IF (pad .AND. ub .GT. 0) CALL mem_zero_[nametype1] (array, ub)
        !CALL timestop(error_handler)
        RETURN
     ENDIF
@@ -116,14 +116,14 @@
     !
     ! Deallocates the old array if it's not needed to copy the old data.
     IF(.NOT.docopy) THEN
-       call mem_dealloc_[nametype1] (array, mem_type=mem_type)
+       CALL mem_dealloc_[nametype1] (array, mem_type=mem_type)
     ENDIF
     !
     ! Allocates the new array
-    call dbcsr_assert (lb_new, "EQ", 1, &
+    CALL dbcsr_assert (lb_new, "EQ", 1, &
          dbcsr_fatal_level, dbcsr_unimplemented_error_nr, routineN,&
          "Arrays must start at 1", __LINE__)
-    call mem_alloc_[nametype1] (newarray, ub_new-lb_new+1, mem_type)
+    CALL mem_alloc_[nametype1] (newarray, ub_new-lb_new+1, mem_type)
     !
     ! Now copy and/or zero pad.
     IF(docopy) THEN
@@ -136,11 +136,11 @@
        ENDIF
        IF (pad) THEN
           !newarray(lb_new:lb_orig-1) = 0
-          call mem_zero_[nametype1] (newarray(lb_new:lb_orig-1), (lb_orig-1)-lb_new+1)
+          CALL mem_zero_[nametype1] (newarray(lb_new:lb_orig-1), (lb_orig-1)-lb_new+1)
           !newarray(ub_orig+1:ub_new) = 0
-          call mem_zero_[nametype1] (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
+          CALL mem_zero_[nametype1] (newarray(ub_orig+1:ub_new), ub_new-(ub_orig+1)+1)
        ENDIF
-       call mem_dealloc_[nametype1] (array, mem_type=mem_type)
+       CALL mem_dealloc_[nametype1] (array, mem_type=mem_type)
     ELSEIF (pad) THEN
        !newarray(:) = [zero1]
        CALL mem_zero_[nametype1] (newarray, SIZE(newarray))
@@ -150,12 +150,12 @@
     !CALL timestop(error_handler)
   END SUBROUTINE ensure_array_size_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies memory area
 !> \param[out] dst   destination memory
 !> \param[in] src    source memory
 !> \param[in] n      length of copy
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_copy_[nametype1] (dst, src, n)
     INTEGER, INTENT(IN) :: n
     [type1], DIMENSION(1:n), INTENT(OUT) :: dst
@@ -165,11 +165,11 @@
     !$OMP END PARALLEL WORKSHARE
   END SUBROUTINE mem_copy_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Zeros memory area
 !> \param[out] dst   destination memory
 !> \param[in] n      length of elements to zero
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_zero_[nametype1] (dst, n)
     INTEGER, INTENT(IN) :: n
     [type1], DIMENSION(1:n), INTENT(OUT) :: dst
@@ -179,12 +179,12 @@
   END SUBROUTINE mem_zero_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] n           length of elements to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_alloc_[nametype1] (mem, n, mem_type)
     [type1], DIMENSION(:), POINTER        :: mem
     INTEGER, INTENT(IN)                   :: n
@@ -212,12 +212,12 @@
   END SUBROUTINE mem_alloc_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] sizes length of elements to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_alloc_[nametype1]_2d (mem, sizes, mem_type)
     [type1], DIMENSION(:,:), POINTER      :: mem
     INTEGER, DIMENSION(2), INTENT(IN)     :: sizes
@@ -245,11 +245,11 @@
   END SUBROUTINE mem_alloc_[nametype1]_2d
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_dealloc_[nametype1] (mem, mem_type)
     [type1], DIMENSION(:), POINTER        :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
@@ -274,11 +274,11 @@
   END SUBROUTINE mem_dealloc_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_dealloc_[nametype1]_2d (mem, mem_type)
     [type1], DIMENSION(:,:), POINTER      :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
@@ -305,14 +305,14 @@
   END SUBROUTINE mem_dealloc_[nametype1]_2d
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
 !>        rank remapping.
 !> \param r2p ...
 !> \param d1 ...
 !> \param d2 ...
 !> \param r1p ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE pointer_[nametype1]_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
     [type1], DIMENSION(:, :), &

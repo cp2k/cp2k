@@ -1,10 +1,10 @@
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Addes an entry from a swarm-message.
 !> \param msg ...
 !> \param key ...
 !> \param value ...
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
  SUBROUTINE swarm_message_add_1d_r8(msg, key, value)
    TYPE(swarm_message_type), INTENT(INOUT)   :: msg
    CHARACTER(LEN=*), INTENT(IN)              :: key
@@ -34,13 +34,13 @@
  END SUBROUTINE swarm_message_add_1d_r8
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns an entry from a swarm-message.
 !> \param msg ...
 !> \param key ...
 !> \param value ...
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
  SUBROUTINE swarm_message_get_1d_r8(msg, key, value)
    TYPE(swarm_message_type), INTENT(IN)  :: msg
    CHARACTER(LEN=*), INTENT(IN)          :: key

@@ -285,7 +285,7 @@ templates: instantiateddir $(addprefix $(INSTANTIATEDDIR), $(ALL_INST_FILES:.ins
 TOOL_HELP += "templates : instantiate all templates"
 
 $(addprefix $(INSTANTIATEDDIR), %.instantiated): %.instantiation instantiateddir
-	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py --backup-dir=$(PRETTYOBJDIR) $(notdir $<)
+	@cd $(dir $<); $(TOOLSRC)/instantiateTemplates.py $(notdir $<)
 	@touch $@
 
 # Prettyfier stuff ==========================================================

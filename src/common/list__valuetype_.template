@@ -1,10 +1,10 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief An array-based list which grows on demand.
 !>        When the internal array is full, a new array of twice the size will be
 !>        allocated and the items are copied over.
@@ -19,7 +19,7 @@
 !> \par History
 !>      12.2012 first version [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 
 MODULE list_[valuetype]
 
@@ -69,14 +69,14 @@ MODULE list_[valuetype]
   CONTAINS
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Test if the given list has been initialized.
 !> \param list ...
 !> \retval res ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION list_[valuetype]_isready(list) RESULT(res)
     TYPE(list_[valuetype]_type), intent(in)  :: list
     LOGICAL                                     :: res
@@ -84,7 +84,7 @@ FUNCTION list_[valuetype]_isready(list) RESULT(res)
 END FUNCTION list_[valuetype]_isready
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates the internal data-structures of the given list.
 !>        This has to be called before any of the other routines.
 !>        For deallocation call list_[valuetype]_destroy.
@@ -93,7 +93,7 @@ END FUNCTION list_[valuetype]_isready
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE list_[valuetype]_init(list, initial_capacity)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     INTEGER, INTENT(in), OPTIONAL               :: initial_capacity
@@ -116,7 +116,7 @@ SUBROUTINE list_[valuetype]_init(list, initial_capacity)
     list%size = 0
 END SUBROUTINE list_[valuetype]_init
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocated the internal data-structures of the given list.
 !>        Caution: If the stored values are pointers, their targets will
 !>                 not get deallocated by this routine.
@@ -124,7 +124,7 @@ END SUBROUTINE list_[valuetype]_init
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE list_[valuetype]_destroy(list)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     INTEGER :: i
@@ -139,7 +139,7 @@ SUBROUTINE list_[valuetype]_destroy(list)
 END SUBROUTINE list_[valuetype]_destroy
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Assings the given value to the given position in the list. 
 !>        Thereby, the former value at that position gets overwritten.
 !>        If the position is out of bounds, the program stops.
@@ -149,7 +149,7 @@ END SUBROUTINE list_[valuetype]_destroy
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE list_[valuetype]_set(list, value, pos)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     [valuetype_in], intent(in) :: value
@@ -164,14 +164,14 @@ SUBROUTINE list_[valuetype]_set(list, value, pos)
 END SUBROUTINE list_[valuetype]_set
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Appends the given value at the end of the list.
 !> \param list ...
 !> \param value ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE list_[valuetype]_push(list, value)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     [valuetype_in], intent(in)                  :: value
@@ -190,7 +190,7 @@ SUBROUTINE list_[valuetype]_push(list, value)
 END SUBROUTINE list_[valuetype]_push
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Inserts the given value at the givenn position within the list.
 !>        Values which lay behind the insertion-position move one position up.
 !> \param list ...
@@ -199,7 +199,7 @@ END SUBROUTINE list_[valuetype]_push
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE list_[valuetype]_insert(list, value, pos)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     [valuetype_in], intent(in) :: value
@@ -228,7 +228,7 @@ SUBROUTINE list_[valuetype]_insert(list, value, pos)
 END SUBROUTINE list_[valuetype]_insert
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the last element in the list.
 !>    Is equivalent to: list_[valuetype]_get(list, list_[valuetype]_size(list))
 !> \param list ...
@@ -236,7 +236,7 @@ END SUBROUTINE list_[valuetype]_insert
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION list_[valuetype]_peek(list) RESULT(value)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     [valuetype_out]  :: value
@@ -250,7 +250,7 @@ FUNCTION list_[valuetype]_peek(list) RESULT(value)
 END FUNCTION list_[valuetype]_peek
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the last element in the list and removes it.
 !>        Is equivialent to:
 !>        value = list_[valuetype]_get(list, list_[valuetype]_size(list))
@@ -261,7 +261,7 @@ END FUNCTION list_[valuetype]_peek
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION list_[valuetype]_pop(list) RESULT(value)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     [valuetype_out]  :: value
@@ -278,13 +278,13 @@ END FUNCTION list_[valuetype]_pop
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Removes all values from the list. The list itself is not deallocated.
 !> \param list ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE list_[valuetype]_clear(list)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     INTEGER :: i
@@ -300,7 +300,7 @@ END SUBROUTINE list_[valuetype]_clear
 
 
 !
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the value at the given position from the list.
 !> \param list ...
 !> \param pos Position in the list - musst fulfill 0 < pos < list_size+1 .
@@ -308,7 +308,7 @@ END SUBROUTINE list_[valuetype]_clear
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION list_[valuetype]_get(list, pos) RESULT(value)
     TYPE(list_[valuetype]_type), intent(in)  :: list
     INTEGER, intent(in) :: pos
@@ -326,14 +326,14 @@ FUNCTION list_[valuetype]_get(list, pos) RESULT(value)
 END FUNCTION list_[valuetype]_get
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Removes the value at the given position from the list.
 !> \param list ...
 !> \param pos Position in the list - musst fulfill 0 < pos < list_size+1 .
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE list_[valuetype]_del(list, pos)
     TYPE(list_[valuetype]_type), intent(inout)  :: list
     INTEGER, intent(in) :: pos
@@ -355,14 +355,14 @@ SUBROUTINE list_[valuetype]_del(list, pos)
 
 END SUBROUTINE list_[valuetype]_del
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns the current size of the list.
 !> \param list ...
 !> \retval size ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 FUNCTION list_[valuetype]_size(list) RESULT(size)
     TYPE(list_[valuetype]_type), intent(in)  :: list
     INTEGER :: size
@@ -374,14 +374,14 @@ FUNCTION list_[valuetype]_size(list) RESULT(size)
 END FUNCTION list_[valuetype]_size
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Internal routine for changing the size of the internal array.
 !> \param list ...
 !> \param new_capacity ...
 !> \par History
 !>      12.2012 created [ole]
 !> \author Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
 SUBROUTINE change_capacity(list, new_capacity)
    TYPE(list_[valuetype]_type), intent(inout)  :: list
    INTEGER, intent(in) :: new_capacity

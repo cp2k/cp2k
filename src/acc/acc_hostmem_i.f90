@@ -1,16 +1,16 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016 the CP2K developers group                       !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016 the CP2K developers group                                            !
+!--------------------------------------------------------------------------------------------------!
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates 1D fortan-array as cuda host-pinned memory.
 !> \param host_mem pointer to array
 !> \param n size given in terms of item-count (not bytes!)
 !> \param stream ...
 !> \author  Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE acc_hostmem_alloc_i (host_mem, n, stream)
     INTEGER(KIND=int_4), DIMENSION(:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n
@@ -30,14 +30,14 @@
 
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates 2D fortan-array as cuda host-pinned memory.
 !> \param host_mem pointer to array
 !> \param n1 sizes given in terms of item-count (not bytes!)
 !> \param n2 sizes given in terms of item-count (not bytes!)
 !> \param stream ...
 !> \author  Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE acc_hostmem_alloc_i_2D (host_mem, n1, n2, stream)
     INTEGER(KIND=int_4), DIMENSION(:,:), POINTER           :: host_mem
     INTEGER, INTENT(IN)                      :: n1, n2
@@ -59,12 +59,12 @@
   END SUBROUTINE acc_hostmem_alloc_i_2D
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocates a 1D fortan-array, which is cuda host-pinned memory.
 !> \param host_mem pointer to array
 !> \param stream ...
 !> \author  Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE acc_hostmem_dealloc_i (host_mem, stream)
     INTEGER(KIND=int_4), DIMENSION(:), &
       POINTER                                :: host_mem
@@ -83,12 +83,12 @@
   END SUBROUTINE acc_hostmem_dealloc_i
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocates a 2D fortan-array, which is cuda host-pinned memory.
 !> \param host_mem pointer to array
 !> \param stream ...
 !> \author  Ole Schuett
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE acc_hostmem_dealloc_i_2D (host_mem, stream)
     INTEGER(KIND=int_4), DIMENSION(:,:), &
       POINTER                                :: host_mem

@@ -1,15 +1,15 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Returns a pointer with different bounds.
 !> \param[in] original   original data pointer
 !> \param[in] lb lower and upper bound for the new pointer view
 !> \param[in] ub lower and upper bound for the new pointer view
 !> \retval view new pointer
-! *****************************************************************************
+! **************************************************************************************************
   FUNCTION pointer_view_c (original, lb, ub) RESULT (view)
     COMPLEX(kind=real_4), DIMENSION(:), POINTER :: original, view
     INTEGER, INTENT(IN)                  :: lb, ub
@@ -17,7 +17,7 @@
   END FUNCTION pointer_view_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Ensures that an array is appropriately large.
 !> \param[in,out] array       array to verify and possibly resize
 !> \param[in] lb    (optional) desired array lower bound
@@ -29,7 +29,7 @@
 !> \param[in] memory_type     (optional) use special memory
 !> \param[in] zero_pad        (optional) zero new allocations; default is to
 !>                            write nothing
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE ensure_array_size_c(array, lb, ub, factor,&
        nocopy, memory_type, zero_pad)
     COMPLEX(kind=real_4), DIMENSION(:), POINTER                 :: array
@@ -129,7 +129,7 @@
     IF(docopy) THEN
        IF(dbg .AND. (lb_new.GT.lb_orig .OR. ub_new.LT.ub_orig))&
             CPABORT("Old extent exceeds the new one.")
-       IF (ub_orig-lb_orig+1 .GT. 0) THEN
+       IF (ub_orig-lb_orig+1 .gt. 0) THEN
           !newarray(lb_orig:ub_orig) = array(lb_orig:ub_orig)
           CALL mem_copy_c (newarray(lb_orig:ub_orig),&
                array(lb_orig:ub_orig), ub_orig-lb_orig+1)
@@ -150,12 +150,12 @@
     !CALL timestop(error_handler)
   END SUBROUTINE ensure_array_size_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Copies memory area
 !> \param[out] dst   destination memory
 !> \param[in] src    source memory
 !> \param[in] n      length of copy
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_copy_c (dst, src, n)
     INTEGER, INTENT(IN) :: n
     COMPLEX(kind=real_4), DIMENSION(1:n), INTENT(OUT) :: dst
@@ -165,11 +165,11 @@
     !$OMP END PARALLEL WORKSHARE
   END SUBROUTINE mem_copy_c
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Zeros memory area
 !> \param[out] dst   destination memory
 !> \param[in] n      length of elements to zero
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_zero_c (dst, n)
     INTEGER, INTENT(IN) :: n
     COMPLEX(kind=real_4), DIMENSION(1:n), INTENT(OUT) :: dst
@@ -179,12 +179,12 @@
   END SUBROUTINE mem_zero_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] n           length of elements to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_alloc_c (mem, n, mem_type)
     COMPLEX(kind=real_4), DIMENSION(:), POINTER        :: mem
     INTEGER, INTENT(IN)                   :: n
@@ -212,12 +212,12 @@
   END SUBROUTINE mem_alloc_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Allocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] sizes length of elements to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_alloc_c_2d (mem, sizes, mem_type)
     COMPLEX(kind=real_4), DIMENSION(:,:), POINTER      :: mem
     INTEGER, DIMENSION(2), INTENT(IN)     :: sizes
@@ -245,11 +245,11 @@
   END SUBROUTINE mem_alloc_c_2d
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_dealloc_c (mem, mem_type)
     COMPLEX(kind=real_4), DIMENSION(:), POINTER        :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
@@ -274,11 +274,11 @@
   END SUBROUTINE mem_dealloc_c
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Deallocates memory
 !> \param[out] mem        memory to allocate
 !> \param[in] mem_type    memory type
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE mem_dealloc_c_2d (mem, mem_type)
     COMPLEX(kind=real_4), DIMENSION(:,:), POINTER      :: mem
     TYPE(dbcsr_memtype_type), INTENT(IN)  :: mem_type
@@ -305,14 +305,14 @@
   END SUBROUTINE mem_dealloc_c_2d
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Sets a rank-2 pointer to rank-1 data using Fortran 2003 pointer
 !>        rank remapping.
 !> \param r2p ...
 !> \param d1 ...
 !> \param d2 ...
 !> \param r1p ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE pointer_c_rank_remap2 (r2p, d1, d2, r1p)
     INTEGER, INTENT(IN)                      :: d1, d2
     COMPLEX(kind=real_4), DIMENSION(:, :), &

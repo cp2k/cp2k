@@ -6,9 +6,7 @@
  'type1in':'type(cp_fm_type), pointer',
  'type1out':'type(cp_fm_type), pointer',
  'common_dir':'../common',
- 'USE':
-"""USE kinds, only: dp
-USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type""",
+ 'USE':'USE cp_fm_types, ONLY: cp_fm_type, cp_fm_p_type',
  'defines':
 """! less not much meningful...
 #define CP_SLL_FM_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )

@@ -612,9 +612,7 @@ CONTAINS
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
-!    "USE kinds, only: dp
-!     USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type"
+!  USE = "USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type"
 !  array= = "=>"
 !  arrayEl = "%rs_grid"
 !  common_dir = "../common"

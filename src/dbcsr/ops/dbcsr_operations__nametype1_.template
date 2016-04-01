@@ -1,14 +1,14 @@
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2016  CP2K developers group                          !
-!-----------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations                              !
+!   Copyright (C) 2000 - 2016  CP2K developers group                                               !
+!--------------------------------------------------------------------------------------------------!
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief traces a DBCSR matrix
 !> \param[in] matrix_a       DBCSR matrix
 !> \param[out] trace         the trace of the matrix
 !>
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_trace_a_[nametype1](matrix_a, trace)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     [type1], INTENT(INOUT)                   :: trace
@@ -74,7 +74,7 @@
     CALL timestop(error_handle)
   END SUBROUTINE dbcsr_trace_a_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief traces a product of DBCSR matrices
 !> \param[in] matrix_a DBCSR matrices
 !> \param[in] matrix_b DBCSR matrices
@@ -82,7 +82,7 @@
 !> \param[in] trans_a            (optional) is matrix_a transposed or not?
 !> \param[in] trans_b            (optional) is matrix_b transposed or not?
 !> \param local_sum ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_trace_ab_[nametype1](matrix_a, matrix_b, trace, trans_a, trans_b, local_sum)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a, matrix_b
     [type1], INTENT(INOUT)                   :: trace
@@ -161,8 +161,8 @@
        a_row_size = a_row_blk_size(row)
        b_row_size = b_row_blk_size(row)
        IF(a_row_size.NE.b_row_size) THEN
-          write(*,*) 'a_row_size',a_row_size
-          write(*,*) 'b_row_size',b_row_size
+          WRITE(*,*) 'a_row_size',a_row_size
+          WRITE(*,*) 'b_row_size',b_row_size
           CPABORT("matrices not consistent")
        ENDIF
        b_blk = matrix_b%m%row_p(row)+1
@@ -179,8 +179,8 @@
           IF(found) THEN
              b_col_size = b_col_blk_size(a_col)
              IF(a_col_size.NE.b_col_size)  THEN
-                write(*,*) 'a_col_size',a_col_size
-                write(*,*) 'b_col_size',b_col_size
+                WRITE(*,*) 'a_col_size',a_col_size
+                WRITE(*,*) 'b_col_size',b_col_size
                 CPABORT("matrices not consistent")
              ENDIF
              !
@@ -239,12 +239,12 @@
   END SUBROUTINE dbcsr_trace_ab_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface for matrix scaling by a scalar
 !> \param matrix_a ...
 !> \param alpha_scalar ...
 !> \param last_column ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_scale_[nametype1](matrix_a, alpha_scalar, last_column)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix_a
     [type1], INTENT(IN)                      :: alpha_scalar
@@ -260,7 +260,7 @@
     CALL dbcsr_scalar_fill_all (sc)
     sc%data_type = dbcsr_get_data_type (matrix_a)
     CALL timeset(routineN, error_handler)
-    IF (PRESENT (last_column)) then
+    IF (PRESENT (last_column)) THEN
        CALL dbcsr_scale_anytype(matrix_a,&
             alpha_scalar=sc,&
             limits=(/0,0,0,last_column/))
@@ -270,12 +270,12 @@
     CALL timestop(error_handler)
   END SUBROUTINE dbcsr_scale_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface for matrix scaling by a vector
 !> \param matrix_a ...
 !> \param alpha ...
 !> \param side ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_scale_by_vector_[nametype1](matrix_a, alpha, side)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix_a
     [type1], DIMENSION(:), INTENT(IN), TARGET :: alpha
@@ -295,11 +295,11 @@
   END SUBROUTINE dbcsr_scale_by_vector_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Interface for dbcsr_set
 !> \param matrix ...
 !> \param alpha ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_set_[nametype1](matrix, alpha)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     [type1], INTENT(IN)                      :: alpha
@@ -310,7 +310,7 @@
     ENDIF
   END SUBROUTINE dbcsr_set_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param eps ...
@@ -318,7 +318,7 @@
 !> \param use_absolute ...
 !> \param filter_diag ...
 !> \param quick ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_filter_[nametype1] (matrix, eps, method, use_absolute, &
        filter_diag, quick)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
@@ -329,11 +329,11 @@
          use_absolute, filter_diag, quick)
   END SUBROUTINE dbcsr_filter_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param diag ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_set_diag_[nametype1](matrix, diag)
     TYPE(dbcsr_obj), INTENT(INOUT)            :: matrix
     [type1], DIMENSION(:), INTENT(IN), TARGET :: diag
@@ -353,11 +353,11 @@
     CALL dbcsr_data_release (diag_a)
   END SUBROUTINE dbcsr_set_diag_[nametype1]
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
 !> \param diag ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_get_diag_[nametype1](matrix, diag)
 
     TYPE(dbcsr_obj), INTENT(IN)                    :: matrix
@@ -379,13 +379,13 @@
   END SUBROUTINE dbcsr_get_diag_[nametype1]
 
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief add a constant to the diagonal of a matrix
 !> \param[inout] matrix       DBCSR matrix
 !> \param[in]    alpha_scalar scalar
 !> \param first_row ...
 !> \param last_row ...
-! *****************************************************************************
+! **************************************************************************************************
   SUBROUTINE dbcsr_add_on_diag_[nametype1](matrix, alpha_scalar, first_row, last_row)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     [type1], INTENT(IN)                      :: alpha_scalar

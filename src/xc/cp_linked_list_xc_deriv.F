@@ -172,12 +172,12 @@ MODULE cp_linked_list_xc_deriv
 
 CONTAINS
 
-! **************************************************************************************************
+! *****************************************************************************
 !> \brief private compare function
 !> \param el1 ...
 !> \param el2 ...
 !> \retval res ...
-! **************************************************************************************************
+! *****************************************************************************
    FUNCTION cp_sll_deriv_less_q(el1, el2) RESULT(res)
       TYPE(xc_derivative_type), POINTER                  :: el1, el2
       LOGICAL                                            :: res
@@ -633,9 +633,7 @@ CONTAINS
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "=>"
-!  USE =
-!    "USE kinds, only: dp
-!     USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type"
+!  USE = "USE xc_derivative_types, only: xc_derivative_type,xc_derivative_p_type"
 !  array= = "=>"
 !  arrayEl = "%deriv"
 !  common_dir = "../common"
@@ -648,12 +646,12 @@ CONTAINS
 !  nametype1 = "xc_deriv"
 !  private_routines =
 !    "
-!     ! **************************************************************************************************
+!     ! *****************************************************************************
 !     !> \brief private compare function
 !     !> \param el1 ...
 !     !> \param el2 ...
 !     !> \retval res ...
-!     ! **************************************************************************************************
+!     ! *****************************************************************************
 !     function cp_sll_deriv_less_q(el1,el2) result(res)
 !       type(xc_derivative_type), pointer :: el1,el2
 !       logical :: res
