@@ -1,0 +1,115 @@
+!
+! Excited state optimization using MOM
+!
+&GLOBAL
+  SEED 123412
+  WALLTIME    20000
+  PROJECT     MP2_MOM_geo
+  RUN_TYPE    GEO_OPT
+  PRINT_LEVEL LOW
+  &TIMINGS
+    THRESHOLD  0.001
+  &END
+  ! TRACE
+  ! TRACE_MASTER .FALSE. 
+  ! TRACE_MAX 10000
+&END GLOBAL
+&MOTION
+  &GEO_OPT
+     MAX_ITER 1
+  &END
+&END
+!
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME    HFX_BASIS
+    POTENTIAL_FILE_NAME    HF_POTENTIALS 
+    UKS .TRUE.
+    MULTIPLICITY 1
+
+    &MGRID
+      CUTOFF    200
+      REL_CUTOFF 50
+      ! SKIP_LOAD_BALANCE_DISTRIBUTED
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-18
+    &END QS
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-7
+      MAX_SCF 30
+      ADDED_MOS 5
+
+      &MOM ON
+        DEOCC_ALPHA 4
+        OCC_ALPHA   5
+      &END MOM
+
+      &OUTER_SCF
+        EPS_SCF  1.0E-7
+        MAX_SCF  2
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL NONE
+      &END XC_FUNCTIONAL
+      &HF
+        FRACTION  1.0
+        &SCREENING
+          EPS_SCHWARZ          1.0E-7
+          SCREEN_ON_INITIAL_P  FALSE
+        &END SCREENING
+        &INTERACTION_POTENTIAL
+          POTENTIAL_TYPE TRUNCATED
+          CUTOFF_RADIUS  3.0
+          T_C_G_DATA  t_c_g.dat
+        &END
+      &END HF
+      &WF_CORRELATION
+        METHOD  RI_MP2_GPW
+        &RI_MP2
+          BLOCK_SIZE  1
+          EPS_CANONICAL 1.0E-7
+          FREE_HFX_BUFFER .FALSE.
+        &END
+        &CPHF
+          EPS_CONV  1.0E-5
+          MAX_ITER  50
+        &END
+        &WFC_GPW
+          CUTOFF      100
+          REL_CUTOFF  25
+          EPS_FILTER  1.0E-5
+          EPS_GRID    1.0E-4
+        &END
+        MEMORY    500
+        NUMBER_PROC  1
+      &END
+    &END XC
+  &END DFT
+  &SUBSYS
+    &COORD
+      O  0.000000    0.000000   -0.065587  
+      H  0.000000   -0.757136    0.520545  
+      H  0.000000    0.757136    0.520545  
+    &END
+    &CELL
+        ABC 8.000 8.000 8.000    
+    &END
+    &KIND H
+      BASIS_SET          DZVP-GTH
+      RI_AUX_BASIS_SET   RI_DZVP-GTH
+      POTENTIAL          GTH-HF-q1
+    &END KIND
+    &KIND O
+      BASIS_SET          DZVP-GTH
+      RI_AUX_BASIS_SET   RI_DZVP-GTH
+      POTENTIAL          GTH-HF-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
+

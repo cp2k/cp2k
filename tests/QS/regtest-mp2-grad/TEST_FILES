@@ -2,4 +2,5 @@ H2O_grad_gpw.inp                                      11      7e-11            -
 H2_H2_no_freeHFX.inp                                  11      3e-14             -2.307711033963856
 O2_dyn.inp                                            11      2e-11            -31.653804574525605
 CH3_dyn_screen.inp               11     2e-06             -6.789981113689812
+MOM_MP2_geoopt.inp                                    11      2e-06            -16.795821388034661
 #EOF
