@@ -824,7 +824,8 @@ CONTAINS
          info = info_out
       ELSE
          IF (info /= 0) &
-            CPABORT("Cholesky decompose failed: matrix is not positive definite  or ill-conditioned")
+            CALL cp_abort(__LOCATION__, &
+                          "Cholesky decompose failed: matrix is not positive definite  or ill-conditioned")
       END IF
 
       CPASSERT(info == 0)
@@ -879,7 +880,8 @@ CONTAINS
          info_out = info
       ELSE
          IF (info /= 0) &
-            CPABORT("Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
+            CALL cp_abort(__LOCATION__, &
+                          "Cholesky invert failed: the matrix is not positive definite or ill-conditioned.")
       END IF
 
       CALL timestop(handle)
@@ -1042,7 +1044,8 @@ CONTAINS
          info = info_out
       ELSE
          IF (info /= 0) &
-            CPABORT("triangular invert failed: matrix is not positive definite  or ill-conditioned")
+            CALL cp_abort(__LOCATION__, &
+                          "triangular invert failed: matrix is not positive definite  or ill-conditioned")
       END IF
 
       CALL timestop(handle)
