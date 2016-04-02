@@ -5521,7 +5521,7 @@ CONTAINS
 !> \param cell ...
 !> \param subsys ...
 !> \param particles ...
-!> \param qs_env ...
+!> \param qs_env should be removed
 !> \author alin m elena
 ! **************************************************************************************************
    SUBROUTINE Wc_colvar(colvar, cell, subsys, particles, qs_env)
@@ -5530,7 +5530,7 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
       TYPE(particle_type), DIMENSION(:), &
          OPTIONAL, POINTER                      :: particles
-     TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env ! optional just because I am lazy... but I should get rid of it...
+      TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'Wc_colvar', &
                                      routineP = moduleN//':'//routineN
@@ -5543,7 +5543,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), &
          POINTER                                :: my_particles
       TYPE(wannier_centres_type), DIMENSION(:), POINTER :: wc
-    INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
+      INTEGER, ALLOCATABLE                     :: wcai(:), wcdi(:)
       INTEGER                                  :: nwca, nwcd
       REAL(dp)                                 :: rcut
 
@@ -5658,7 +5658,7 @@ CONTAINS
          POINTER                                :: my_particles
       TYPE(wannier_centres_type), &
          DIMENSION(:), POINTER :: wc
-    INTEGER, ALLOCATABLE                     :: wcai(:),wcdi(:) ! contains the indeces of the wannier centres closed to the donor and acceptor
+      INTEGER, ALLOCATABLE                     :: wcai(:), wcdi(:)
       INTEGER                                  :: nwca, nwcd
       REAL(dp)                                 :: rcut
 
@@ -5720,9 +5720,6 @@ CONTAINS
                iamin = wcai(i)
             ENDIF
          ENDDO
-!       if (output_unit>0) then
-!          write(output_unit,'(a,2(i0,1x),5(f16.8,1x))')"HBP|",idmin,iamin,wc(1)%WannierHamDiag(idmin),wc(1)%WannierHamDiag(iamin),dmin,amin, wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
-!       endif
          colvar%HBP%ewc(il) = colvar%HBP%shift+wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
          colvar%ss = colvar%ss+colvar%HBP%shift+wc(1)%WannierHamDiag(idmin)-wc(1)%WannierHamDiag(iamin)
       ENDDO

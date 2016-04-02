@@ -242,7 +242,7 @@ MODULE helium_types
       INTEGER :: get_helium_forces !< parameter to determine whether the average or last MC force should be taken to MD
       CHARACTER(LEN=2), DIMENSION(:), POINTER :: solute_element !< element names of solute atoms (pint_env%ndim/3)
       TYPE(int_arr_ptr), DIMENSION(:), POINTER :: solute_i !< indices of solute atoms sorted by atomic kinds
-     TYPE(cell_type), POINTER  :: solute_cell !< dimensions of the solvated system cell (a,b,c) (not needed now and should be removed at some point)
+      TYPE(cell_type), POINTER  :: solute_cell !< dimensions of the solvated system cell (a,b,c) (should be removed at some point)
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: force_avrg !< averaged forces exerted by He solvent on the solute DIM(p,ndim)
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: force_inst !< instantaneous forces exerted by He on the solute (p,ndim)
       CHARACTER(LEN=2), DIMENSION(:), POINTER  :: ename

@@ -515,7 +515,8 @@ CONTAINS
                          vold(ibead, idim)*vold(ibead, idim))
          END DO
       END DO
-    ! the piglet is such a strong thermostat, that it messes up the "exact" integration. The thermostats energy will rise lineary, because "it will suck up its own mess" (quote from Michele Ceriotti)
+      ! the piglet is such a strong thermostat, that it messes up the "exact" integration.
+      ! The thermostats energy will rise linearly, because "it will suck up its own mess" (quote from Michele Ceriotti)
       piglet_therm%thermostat_energy = piglet_therm%thermostat_energy-0.5_dp*delta_ekin
 
       CALL timestop(handle)

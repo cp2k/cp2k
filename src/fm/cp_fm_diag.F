@@ -823,7 +823,8 @@ CONTAINS
       ALLOCATE (work(5*n))
       ALLOCATE (iwork(6*n))
 #if defined (__SCALAPACK2)
-    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+      CALL pdsyevr(job_type, 'I', 'U', n, a, 1, 1, desca, vl, vu, ilow_local, iup_local, m, nz, w(1), &
+                   z, 1, 1, descz, work, lwork, iwork, liwork, info)
 #endif
       lwork = INT(work(1))
       lwork = NINT(work(1)+300000)
@@ -840,7 +841,8 @@ CONTAINS
       !Second call: solve the eigenvalue problem
       info = 0
 #if defined (__SCALAPACK2)
-    CALL pdsyevr(job_type,'I','U',n,a,1,1,desca,vl,vu,ilow_local,iup_local,m,nz,w(1),z,1,1,descz,work,lwork,iwork,liwork,info)
+      CALL pdsyevr(job_type, 'I', 'U', n, a, 1, 1, desca, vl, vu, ilow_local, iup_local, m, nz, w(1), &
+                   z, 1, 1, descz, work, lwork, iwork, liwork, info)
 #endif
 
       IF (info > 0) THEN

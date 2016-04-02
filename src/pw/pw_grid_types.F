@@ -49,7 +49,7 @@ MODULE pw_grid_types
       INTEGER, DIMENSION(2) :: rs_dims ! real space group dimensions
       INTEGER, DIMENSION(2) :: rs_pos ! real space group positions in grid
       INTEGER, DIMENSION(:, :, :, :), POINTER :: bo ! list of axis distribution
-     INTEGER, DIMENSION(:), POINTER :: pos_of_x ! what my_pos holds a given x plane....should go since this hard-codes to plane distributed
+      INTEGER, DIMENSION(:), POINTER :: pos_of_x ! what my_pos holds a given x plane....should go: hard-codes to plane distributed
    END TYPE pw_para_type
 
    ! all you always wanted to know about grids, but were...

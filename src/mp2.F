@@ -223,7 +223,8 @@ CONTAINS
          END IF
       ENDIF
 
-    IF(mp2_env%mp2_num_proc<=0 .OR. mp2_env%mp2_num_proc>para_env%num_pe .OR. MOD(para_env%num_pe,mp2_env%mp2_num_proc).NE.0) THEN
+      IF (mp2_env%mp2_num_proc <= 0 .OR. mp2_env%mp2_num_proc > para_env%num_pe .OR. &
+          MOD(para_env%num_pe, mp2_env%mp2_num_proc) .NE. 0) THEN
          IF (unit_nr > 0 .AND. mp2_env%mp2_num_proc .NE. -1) &
             WRITE (unit_nr, '(T3,A,T76,I5)') 'Requested number of processes per group:', mp2_env%mp2_num_proc
          mp2_env%mp2_num_proc = para_env%num_pe
