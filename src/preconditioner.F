@@ -252,8 +252,7 @@ CONTAINS
                DEALLOCATE (preconditioner(ispin)%preconditioner)
             ENDDO
             DEALLOCATE (preconditioner)
-            ! these are 'independent'
-         CASE (ot_precond_none, ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_full_single_inverse)
+         CASE (ot_precond_none, ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_full_single_inverse) ! these are 'independent'
             ! do nothing
          CASE DEFAULT
             CPABORT("")

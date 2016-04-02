@@ -782,8 +782,7 @@ CONTAINS
       mu_fa = evaluate_trs4_polynomial(mu_a, gamma_values, i-1)-0.5_dp
       DO j = 1, 40
          mu_c = 0.5*(mu_a+mu_b)
-         ! i-1 because in the last iteration, only convergence is checked
-         mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i-1)-0.5_dp
+         mu_fc = evaluate_trs4_polynomial(mu_c, gamma_values, i-1)-0.5_dp ! i-1 because in the last iteration, only convergence is checked
          IF (ABS(mu_fc) < 1.0E-6_dp .OR. (mu_b-mu_a)/2 < 1.0E-6_dp) EXIT !TODO: define threshold values
 
          IF (mu_fc*mu_fa > 0) THEN

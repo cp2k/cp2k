@@ -35,8 +35,7 @@ MODULE message_passing
 
 #if defined(__parallel) && ! defined(__HAS_NO_MPI_MOD)
   USE mpi  ! compiler *errors* mean mpi installation and fortran compiler mismatch: see INSTALL (-D__HAS_NO_MPI_MOD)
-! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines
-!              (problems with types and ranks explosion),
+! subroutines: unfortunately, mpi implementations do not provide interfaces for all subroutines (problems with types and ranks explosion),
 !              we do not quite know what is in the module, so we can not include any....
 !              to nevertheless get checking for what is included, we use the mpi module without use clause, getting all there is
 ! USE mpi, ONLY: mpi_allgather, mpi_allgatherv, mpi_alloc_mem, mpi_allreduce, mpi_alltoall, mpi_alltoallv, mpi_bcast,&

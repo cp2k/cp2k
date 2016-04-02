@@ -1010,8 +1010,7 @@ CONTAINS
          dipole_type = "[Non Periodic]"
          DO i = 1, SIZE(particle_set)
             atomic_kind => particle_set(i)%atomic_kind
-            ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
-            ria = particle_set(i)%r(:)
+            ria = particle_set(i)%r(:) ! no pbc(particle_set(i)%r(:),cell) so that the total dipole is the sum of the molecular dipoles
             CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
             IF (ASSOCIATED(charges)) q = charges(i)
             dipole = dipole-q*(ria-rcc)

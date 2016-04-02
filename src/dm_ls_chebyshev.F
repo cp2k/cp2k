@@ -267,10 +267,8 @@ CONTAINS
          DO iwindow = 1, nwindow
             CALL cp_dbcsr_copy(matrix_dummy1, matrix_tmp1)
             CALL cp_dbcsr_copy(matrix_dummy2(iwindow), matrix_tmp2) !matrix_dummy2=
-            !first term of chebyshev poly(matrix)
-            CALL cp_dbcsr_scale(matrix_dummy1, kernel_g(1)*aitchev_T(1, iwindow))
-            !second term of chebyshev poly(matrix)
-            CALL cp_dbcsr_scale(matrix_dummy2(iwindow), 2.0_dp*kernel_g(2)*aitchev_T(2, iwindow))
+            CALL cp_dbcsr_scale(matrix_dummy1, kernel_g(1)*aitchev_T(1, iwindow)) !first term of chebyshev poly(matrix)
+            CALL cp_dbcsr_scale(matrix_dummy2(iwindow), 2.0_dp*kernel_g(2)*aitchev_T(2, iwindow)) !second term of chebyshev poly(matrix)
 
             CALL cp_dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
          END DO
@@ -288,8 +286,7 @@ CONTAINS
             DO iwindow = 1, nwindow
 
                CALL cp_dbcsr_copy(matrix_dummy1, matrix_tmp2)
-               !second term of chebyshev poly(matrix)
-               CALL cp_dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb+1)*aitchev_T(icheb+1, iwindow))
+               CALL cp_dbcsr_scale(matrix_dummy1, 2.0_dp*kernel_g(icheb+1)*aitchev_T(icheb+1, iwindow)) !second term of chebyshev poly(matrix)
                CALL cp_dbcsr_add(matrix_dummy2(iwindow), matrix_dummy1, 1.0_dp, 1.0_dp)
                CALL cp_dbcsr_trace(matrix_dummy2(iwindow), trace=trace_dm(iwindow)) !icheb+1 th coefficient
 

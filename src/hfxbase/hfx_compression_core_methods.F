@@ -173,8 +173,7 @@ CONTAINS
             data_tmp = full_data(idata)
             pack_tmp = ISHFT(data_tmp, 64-Nbits+i_odd_bits) ! put the missing bits on the left if pack_tmp
             ibits_remaining = 64-Nbits+i_odd_bits
-            ! shift to make place, but not more than the number of available bits
-            pack_tmp = ISHFT(pack_tmp, -MIN(Nbits, ibits_remaining))
+            pack_tmp = ISHFT(pack_tmp, -MIN(Nbits, ibits_remaining)) ! shift to make place, but not more than the number of available bits
          ENDIF
       ENDDO
 
