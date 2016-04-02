@@ -5644,7 +5644,7 @@ CONTAINS
       TYPE(cp_subsys_type), OPTIONAL, POINTER  :: subsys
       TYPE(particle_type), DIMENSION(:), &
          OPTIONAL, POINTER                      :: particles
-     TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env ! optional just because I am lazy... but I should get rid of it...
+      TYPE(qs_environment_type), POINTER, OPTIONAL       :: qs_env ! optional just because I am lazy... but I should get rid of it...
 
       CHARACTER(len=*), PARAMETER :: routineN = 'HBP_colvar', &
                                      routineP = moduleN//':'//routineN

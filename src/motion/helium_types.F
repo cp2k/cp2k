@@ -131,13 +131,13 @@ MODULE helium_types
       REAL(KIND=dp), DIMENSION(3)    :: origin !< origin of the cell (first voxel position)
       REAL(KIND=dp)                  :: droplet_radius !< radius of the droplet
 
-    REAL(KIND=dp), DIMENSION(3)    :: center !< COM of solute (if present) or center of periodic cell (if periodic) or COM of helium
+      REAL(KIND=dp), DIMENSION(3)    :: center !< COM of solute (if present) or center of periodic cell (if periodic) or COM of helium
 
       ! sampling parameters
       INTEGER :: sampling_method
 
       INTEGER :: iter_norot !< number of iterations to try for a given imaginary time slice rotation (num inner MC loop iters)
-     INTEGER :: iter_rot !< number of rotations to try (total number of iterations is iter_norot*iter_rot) (num outer MC loop iters)
+      INTEGER :: iter_rot !< number of rotations to try (total number of iterations is iter_norot*iter_rot) (num outer MC loop iters)
       !
       INTEGER       :: maxcycle !< maximum cyclic permutation change to attempt
       INTEGER       :: m_dist_type !< distribution from which the cycle length m is sampled
