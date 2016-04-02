@@ -847,15 +847,21 @@ def reformat_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, whitespac
                  for l in lines]  # deleting trailing whitespaces
 
         for ind, line, orig_line in zip(indent, lines, orig_lines):
+            # get actual line length excluding comment:
+            line_length = 0
+            for line_length, _ in CharFilter(enumerate(line)):
+                pass
+            line_length += 1
+
             if do_indent:
                 ind_use = ind
             else:
                 ind_use = 1
-            if ind_use + len(line) <= 133:
+            if ind_use + line_length <= 133: # 132 plus 1 newline char
                 outfile.write('!$' * is_omp_conditional + ' ' *
                               (ind_use - 2 * is_omp_conditional +
                                len(line) - len(line.lstrip(' '))) + line.lstrip(' '))
-            elif len(line) <= 133:
+            elif line_length <= 133:
                 outfile.write('!$' * is_omp_conditional + ' ' *
                               (133 - 2 * is_omp_conditional -
                                len(line.lstrip(' '))) + line.lstrip(' '))
