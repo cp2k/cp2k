@@ -9,7 +9,7 @@ CO.inp                            1     2e-14            -111.98853657931863
 CO_xastpxfh.inp                                        1      4e-09            -92.340788080870666
 CO_xastpxfh_locall.inp                                 1      4e-12             -92.76703520816123
 CO_xastpxfh_150Ry.inp                                  1      2e-12             -92.83674249641638
-CO_xastpxfh_pdos.inp                                   1      2e-11             -92.340788080870666
+CO_xastpxfh_pdos.inp              1     3e-10            -92.340788080870666
 #bug fix gpw_type
 H2O_gpw.inp                                            1      2e-13             -17.10774257571033
 #bug fix perdew_zunger
