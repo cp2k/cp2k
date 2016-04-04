@@ -93,7 +93,7 @@ CONTAINS
       INTEGER(kind=int_8)                                :: a
       LOGICAL                                            :: swapped
 
-! a,t:  used during swaping of elements in arr and indices
+      ! a,t:  used during swaping of elements in arr and indices
 
       swapped = .TRUE.
 

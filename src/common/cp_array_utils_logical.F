@@ -40,7 +40,7 @@
 ! **************************************************************************************************
 MODULE cp_array_utils_logical
    USE cp_log_handling,                 ONLY: cp_to_string
-! dummy line needed for coverage broadcasting
+   ! dummy line needed for coverage broadcasting
    USE machine,                         ONLY: m_flush
 #include "../base/base_uses.f90"
 
