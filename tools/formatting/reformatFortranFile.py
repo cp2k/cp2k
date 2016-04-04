@@ -708,7 +708,7 @@ def reformat_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, whitespac
             has_comment = bool(comment.strip())
             sep = has_comment and not comment.strip() == line.strip()
             if line.strip():  # empty lines between linebreaks are ignored
-                comment_lines.append(' ' * sep + comment.rstrip(' \n'))
+                comment_lines.append(' ' * sep + comment.strip())
 
         orig_lines = lines
         nfl += 1

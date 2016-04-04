@@ -139,7 +139,9 @@ class InputStream(object):
                 continuation = 0
             if m.group("continue"):
                 continuation = 1
-            if m.group("comment"):
+            if line.lstrip().startswith('!') and not ompRe.search(line):
+                comments.append(line.rstrip('\n'))
+            elif m.group("comment"):
                 comments.append(m.group("comment"))
             else:
                 comments.append('')
