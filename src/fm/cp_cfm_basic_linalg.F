@@ -31,7 +31,7 @@ MODULE cp_cfm_basic_linalg
              cp_cfm_scale, cp_cfm_column_scale, cp_cfm_schur_product, &
              cp_cfm_solve, cp_cfm_cholesky_decompose, cp_cfm_triangular_multiply, &
              cp_cfm_triangular_invert, cp_cfm_axpy, cp_cfm_geadd, cp_cfm_transpose, &
-             cp_cfm_cholesky_invert
+             cp_cfm_cholesky_invert, cp_cfm_lu_invert
 
 ! **************************************************************************************************
 
@@ -774,6 +774,88 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_cfm_solve
+
+! **************************************************************************************************
+!> \brief inverts a matrix using LU decomposition
+!>        the input matrix will be overwritten
+!> \param matrix   : input a general square non-singular matrix, outputs its inverse
+!> \param info_out : optional, if present outputs the info from (p)zgetri
+!> \author Lianheng Tong
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_lu_invert(matrix, info_out)
+      TYPE(cp_cfm_type), POINTER               :: matrix
+      INTEGER, INTENT(OUT), OPTIONAL           :: info_out
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_invert', &
+                                     routineP = moduleN//':'//routineN
+
+      INTEGER :: nrows_global, handle, info, lwork, liwork
+      INTEGER, DIMENSION(:), ALLOCATABLE       :: ipivot
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: mat
+      COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE :: work
+      INTEGER, DIMENSION(:), ALLOCATABLE :: iwork
+#if defined(__SCALAPACK)
+      INTEGER, DIMENSION(9)                    :: desca
+#else
+      INTEGER                                  :: lda
+#endif
+
+      CALL timeset(routineN, handle)
+
+      mat => matrix%local_data
+      nrows_global = matrix%matrix_struct%nrow_global
+      CPASSERT(nrows_global .EQ. matrix%matrix_struct%ncol_global)
+      ALLOCATE (ipivot(nrows_global))
+      ! do LU decomposition
+#if defined(__SCALAPACK)
+      desca = matrix%matrix_struct%descriptor
+      CALL pzgetrf(nrows_global, nrows_global, &
+                   mat, 1, 1, desca, ipivot, info)
+#else
+      lda = SIZE(mat, 1)
+      CALL zgetrf(nrows_global, nrows_global, &
+                  mat, lda, ipivot, info)
+#endif
+      IF (info /= 0) THEN
+         CALL cp_abort(__LOCATION__, "LU decomposition has failed")
+      END IF
+      ! do inversion
+      ALLOCATE (work(1))
+      ALLOCATE (iwork(1))
+#if defined(__SCALAPACK)
+      CALL pzgetri(nrows_global, mat, 1, 1, desca, &
+                   ipivot, work, -1, iwork, -1, info)
+      lwork = INT(work(1))
+      liwork = INT(iwork(1))
+      DEALLOCATE (work)
+      DEALLOCATE (iwork)
+      ALLOCATE (work(lwork))
+      ALLOCATE (iwork(liwork))
+      CALL pzgetri(nrows_global, mat, 1, 1, desca, &
+                   ipivot, work, lwork, iwork, liwork, info)
+#else
+      CALL dgetri(nrows_global, mat, lda, &
+                  ipivot, work, -1, info)
+      lwork = INT(work(1))
+      DEALLOCATE (work)
+      ALLOCATE (work(lwork))
+      CALL dgetri(nrows_global, mat, lda, &
+                  ipivot, work, lwork, info)
+#endif
+      DEALLOCATE (work)
+      DEALLOCATE (iwork)
+      DEALLOCATE (ipivot)
+
+      IF (PRESENT(info_out)) THEN
+         info = info_out
+      ELSE
+         IF (info /= 0) &
+            CALL cp_abort(__LOCATION__, "LU inversion has failed")
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_lu_invert
 
 ! **************************************************************************************************
 !> \brief used to replace a symmetric positive def. matrix M with its cholesky
