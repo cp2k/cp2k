@@ -789,13 +789,14 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_lu_invert', &
                                      routineP = moduleN//':'//routineN
 
-      INTEGER :: nrows_global, handle, info, lwork, liwork
-      INTEGER, DIMENSION(:), ALLOCATABLE       :: ipivot
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER :: mat
+      INTEGER :: nrows_global, handle, info, lwork
+      INTEGER, DIMENSION(:), ALLOCATABLE          :: ipivot
+      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER  :: mat
       COMPLEX(KIND=dp), DIMENSION(:), ALLOCATABLE :: work
-      INTEGER, DIMENSION(:), ALLOCATABLE :: iwork
 #if defined(__SCALAPACK)
+      INTEGER                                  :: liwork
       INTEGER, DIMENSION(9)                    :: desca
+      INTEGER, DIMENSION(:), ALLOCATABLE       :: iwork
 #else
       INTEGER                                  :: lda
 #endif
@@ -821,8 +822,8 @@ CONTAINS
       END IF
       ! do inversion
       ALLOCATE (work(1))
-      ALLOCATE (iwork(1))
 #if defined(__SCALAPACK)
+      ALLOCATE (iwork(1))
       CALL pzgetri(nrows_global, mat, 1, 1, desca, &
                    ipivot, work, -1, iwork, -1, info)
       lwork = INT(work(1))
@@ -833,6 +834,7 @@ CONTAINS
       ALLOCATE (iwork(liwork))
       CALL pzgetri(nrows_global, mat, 1, 1, desca, &
                    ipivot, work, lwork, iwork, liwork, info)
+      DEALLOCATE (iwork)
 #else
       CALL dgetri(nrows_global, mat, lda, &
                   ipivot, work, -1, info)
@@ -843,7 +845,6 @@ CONTAINS
                   ipivot, work, lwork, info)
 #endif
       DEALLOCATE (work)
-      DEALLOCATE (iwork)
       DEALLOCATE (ipivot)
 
       IF (PRESENT(info_out)) THEN
