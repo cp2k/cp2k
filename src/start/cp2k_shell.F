@@ -214,7 +214,7 @@ PROGRAM cp2k_shell
      CASE('VERSION')
        ! Queried by ASE. Increase version after bug-fixing or behavior changes.
         IF (para_env%source==para_env%mepos) THEN
-            WRITE(sout,'(a)',iostat=iostat) "CP2K Shell Version: 2.0"
+            WRITE(sout,'(a)',iostat=iostat) "CP2K Shell Version: 2.1"
             IF (iostat/=0) CPABORT('writing version')
         END IF
      CASE('WRITE_FILE')
