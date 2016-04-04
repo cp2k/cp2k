@@ -372,7 +372,7 @@ check_lib() {
 check_gfortran_module() {
     local __module_name=$1
     local __FC=${FC:-gfortran}
-    cat <<EOF | $__FC -c -o /dev/null -xf95 -ffree-form - >&- 2>&-
+    cat <<EOF | $__FC -c -o /dev/null -xf95 -ffree-form - > /dev/null 2>&1
 PROGRAM check_gfortran_module
 USE ${__module_name}
 IMPLICIT NONE
@@ -388,7 +388,7 @@ check_gfortran_flag() {
     local __FC=${FC:-gfortran}
     # no need to do a full compilation, just -E -cpp would do for
     # checking flags
-    cat <<EOF | $__FC -E -cpp $__flag -xf95 -ffree-form - >&- 2>&-
+    cat <<EOF | $__FC -E -cpp $__flag -xf95 -ffree-form - > /dev/null 2>&1
 PROGRAM test_code
   IMPLICIT NONE
   PRINT *, "PASS"
@@ -403,7 +403,7 @@ check_gcc_flag() {
     local __CC=${CC:-gcc}
     # no need to do a full compilation, just -E -cpp would do for
     # checking flags
-    cat <<EOF | $__CC -E -cpp $__flag -xc - >&- 2>&-
+    cat <<EOF | $__CC -E -cpp $__flag -xc - > /dev/null 2>&1
 #include <stdio.h>
 int main() {
   printf("PASS\n");
@@ -418,7 +418,7 @@ check_gxx_flag() {
     local __CXX=${CXX:-g++}
     # no need to do a full compilation, just -E -cpp would do for
     # checking flags
-    cat <<EOF | $__CC -E -cpp $__flag -xc - >&- 2>&-
+    cat <<EOF | $__CXX -E -cpp $__flag -xc - > /dev/null 2>&1
 #include <stdio.h>
 int main() {
   printf("PASS\n");
