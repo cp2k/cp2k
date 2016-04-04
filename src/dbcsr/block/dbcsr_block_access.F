@@ -71,6 +71,7 @@ MODULE dbcsr_block_access
    USE dbcsr_work_operations,           ONLY: add_work_coordinate,&
                                               dbcsr_work_create
    USE kinds,                           ONLY: dp,&
+                                              int_8,&
                                               real_4,&
                                               real_8
 #include "../../base/base_uses.f90"
@@ -304,17 +305,19 @@ CONTAINS
 !> \param block ...
 !> \param transposed ...
 !> \param summation ...
+!> \param flop ...
 !> \param scale ...
 !> \param[in]
 !> \param[out]
 !>
 ! **************************************************************************************************
    SUBROUTINE dbcsr_put_block_area(matrix, row, col, block, transposed, &
-                                   summation, scale)
+                                   summation, flop, scale)
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix
       INTEGER, INTENT(IN)                                :: row, col
       TYPE(dbcsr_data_obj)                               :: block
       LOGICAL, INTENT(IN), OPTIONAL                      :: transposed, summation
+      INTEGER(KIND=int_8), INTENT(INOUT), OPTIONAL       :: flop
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: scale
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_area', &
@@ -340,75 +343,75 @@ CONTAINS
          IF (do_scale) THEN
             IF (data_type_m .EQ. dbcsr_type_real_4) THEN
                CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed, &
-                                    summation, scale=scale%r_sp)
+                                    summation, flop, scale=scale%r_sp)
             ELSEIF (data_type_m .EQ. dbcsr_type_real_8) THEN
                CALL dbcsr_put_block(matrix, row, col, REAL(block%d%r_sp, real_8), transposed, &
-                                    summation, scale=REAL(scale%r_sp, real_8))
+                                    summation, flop, scale=REAL(scale%r_sp, real_8))
             ENDIF
          ELSE
             IF (data_type_m .EQ. dbcsr_type_real_4) THEN
                CALL dbcsr_put_block(matrix, row, col, block%d%r_sp, transposed, &
-                                    summation)
+                                    summation, flop)
             ELSEIF (data_type_m .EQ. dbcsr_type_real_8) THEN
                CALL dbcsr_put_block(matrix, row, col, REAL(block%d%r_sp, real_8), transposed, &
-                                    summation)
+                                    summation, flop)
             ENDIF
          ENDIF
       CASE (dbcsr_type_real_8)
          IF (do_scale) THEN
             CALL dbcsr_put_block(matrix, row, col, block%d%r_dp, transposed, &
-                                 summation, scale=scale%r_dp)
+                                 summation, flop, scale=scale%r_dp)
          ELSE
             CALL dbcsr_put_block(matrix, row, col, block%d%r_dp, transposed, &
-                                 summation)
+                                 summation, flop)
          ENDIF
       CASE (dbcsr_type_complex_4)
          IF (do_scale) THEN
             CALL dbcsr_put_block(matrix, row, col, block%d%c_sp, transposed, &
-                                 summation, scale=scale%c_sp)
+                                 summation, flop, scale=scale%c_sp)
          ELSE
             CALL dbcsr_put_block(matrix, row, col, block%d%c_sp, transposed, &
-                                 summation)
+                                 summation, flop)
          ENDIF
       CASE (dbcsr_type_complex_8)
          IF (do_scale) THEN
             CALL dbcsr_put_block(matrix, row, col, block%d%c_dp, transposed, &
-                                 summation, scale=scale%c_dp)
+                                 summation, flop, scale=scale%c_dp)
          ELSE
             CALL dbcsr_put_block(matrix, row, col, block%d%c_dp, transposed, &
-                                 summation)
+                                 summation, flop)
          ENDIF
       CASE (dbcsr_type_real_4_2d)
          IF (do_scale) THEN
             CALL dbcsr_put_block(matrix, row, col, block%d%r2_sp, transposed, &
-                                 summation, scale=scale%r_sp)
+                                 summation, flop, scale=scale%r_sp)
          ELSE
             CALL dbcsr_put_block(matrix, row, col, block%d%r2_sp, transposed, &
-                                 summation)
+                                 summation, flop)
          ENDIF
       CASE (dbcsr_type_real_8_2d)
          IF (do_scale) THEN
             CALL dbcsr_put_block(matrix, row, col, block%d%r2_dp, transposed, &
-                                 summation, scale=scale%r_dp)
+                                 summation, flop, scale=scale%r_dp)
          ELSE
             CALL dbcsr_put_block(matrix, row, col, block%d%r2_dp, transposed, &
-                                 summation)
+                                 summation, flop)
          ENDIF
       CASE (dbcsr_type_complex_4_2d)
          IF (do_scale) THEN
             CALL dbcsr_put_block(matrix, row, col, block%d%c2_sp, transposed, &
-                                 summation, scale=scale%c_sp)
+                                 summation, flop, scale=scale%c_sp)
          ELSE
             CALL dbcsr_put_block(matrix, row, col, block%d%c2_sp, transposed, &
-                                 summation)
+                                 summation, flop)
          ENDIF
       CASE (dbcsr_type_complex_8_2d)
          IF (do_scale) THEN
             CALL dbcsr_put_block(matrix, row, col, block%d%c2_dp, transposed, &
-                                 summation, scale=scale%c_dp)
+                                 summation, flop, scale=scale%c_dp)
          ELSE
             CALL dbcsr_put_block(matrix, row, col, block%d%c2_dp, transposed, &
-                                 summation)
+                                 summation, flop)
          ENDIF
       CASE default
          CPABORT("Invalid data type")

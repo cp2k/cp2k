@@ -258,11 +258,12 @@
 !> \param[in]  scale          (optional) scale the block being added
 ! **************************************************************************************************
   SUBROUTINE dbcsr_put_block2d_d(matrix, row, col, block, transposed,&
-       summation, scale)
+       summation, flop, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:,:), INTENT(IN)      :: block
     LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    INTEGER(KIND=int_8), INTENT(INOUT), OPTIONAL :: flop
     REAL(kind=real_8), INTENT(IN), OPTIONAL            :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block2d_d', &
@@ -282,10 +283,10 @@
     ENDIF
     IF (PRESENT (scale)) THEN
        CALL dbcsr_put_block (matrix, row, col,&
-            RESHAPE (block, (/SIZE(block)/)), tr, do_sum, scale)
+            RESHAPE (block, (/SIZE(block)/)), tr, do_sum, flop, scale)
     ELSE
        CALL dbcsr_put_block (matrix, row, col,&
-            RESHAPE (block, (/SIZE(block)/)), tr, do_sum)
+            RESHAPE (block, (/SIZE(block)/)), tr, do_sum, flop)
     ENDIF
   END SUBROUTINE dbcsr_put_block2d_d
 
@@ -303,11 +304,12 @@
 !> \param[in]  scale          (optional) scale the block being added
 ! **************************************************************************************************
   SUBROUTINE dbcsr_put_block_d(matrix, row, col, block, transposed,&
-       summation, scale)
+       summation, flop, scale)
     TYPE(dbcsr_obj), INTENT(INOUT)           :: matrix
     INTEGER, INTENT(IN)                      :: row, col
     REAL(kind=real_8), DIMENSION(:), INTENT(IN)        :: block
     LOGICAL, INTENT(IN), OPTIONAL            :: transposed, summation
+    INTEGER(KIND=int_8), INTENT(INOUT), OPTIONAL :: flop
     REAL(kind=real_8), INTENT(IN), OPTIONAL            :: scale
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_put_block_d', &
@@ -322,6 +324,7 @@
     LOGICAL                                  :: found, tr, do_sum, tr_diff,&
                                                 sym_tr
     REAL(kind=real_8), DIMENSION(:), POINTER           :: block_1d
+    INTEGER(KIND=int_8)                      :: my_flop
 
 !   ---------------------------------------------------------------------------
     IF (PRESENT (transposed)) THEN
@@ -334,6 +337,7 @@
     ELSE
        do_sum = .FALSE.
     ENDIF
+    my_flop = 0
     row_size = dbcsr_blk_row_size(matrix, row)
     col_size = dbcsr_blk_column_size(matrix, col)
     IF (tr) CALL swap (row_size, col_size)
@@ -371,6 +375,7 @@
                 CALL daxpy (nze, 1.0_real_8, block(1:nze), 1,&
                      block_1d, 1)
              ENDIF
+             my_flop = my_flop + nze * 2
           ELSE
              IF (PRESENT (scale)) THEN
                 CALL dcopy (nze, scale*block(1:nze), 1,&
@@ -459,6 +464,7 @@
        matrix%m%valid = .FALSE.
 !$OMP END CRITICAL (dbcsr_put_block_critical)
     ENDIF
+    IF (PRESENT(flop)) flop = flop + my_flop
   END SUBROUTINE dbcsr_put_block_d
 
 
