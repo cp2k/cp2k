@@ -298,7 +298,7 @@ CONTAINS
       END IF
 
       CALL cp_dbcsr_finalize(matrix)
-      ALLOCATE (rows(1), cols(1))
+      ALLOCATE (rows(3), cols(3))
       blk_cnt = 0
       nadd = 1
       IF (alloc_full) nadd = 2
@@ -315,12 +315,12 @@ CONTAINS
             CYCLE
          END IF
          IF (blk_cnt+nadd .GT. SIZE(rows)) THEN
-            ALLOCATE (tmp(blk_cnt))
-            tmp(:) = rows(:)
+            ALLOCATE (tmp(blk_cnt+nadd))
+            tmp(1:blk_cnt) = rows(1:blk_cnt)
             DEALLOCATE (rows)
             ALLOCATE (rows((blk_cnt+nadd)*2))
             rows(1:blk_cnt) = tmp(1:blk_cnt)
-            tmp(:) = cols(:)
+            tmp(1:blk_cnt) = cols(1:blk_cnt)
             DEALLOCATE (cols)
             ALLOCATE (cols((blk_cnt+nadd)*2))
             cols(1:blk_cnt) = tmp(1:blk_cnt)
