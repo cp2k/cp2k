@@ -36,13 +36,14 @@ MODULE pao_types
       INTEGER                          :: max_pao = -1
       INTEGER                          :: max_cycles = -1
       INTEGER                          :: parameterization = -1
+      INTEGER                          :: optimizer = -1
       INTEGER                          :: cg_init_steps = -1
       CHARACTER(LEN=default_path_length) :: preopt_dm_file = ""
       CHARACTER(LEN=default_path_length) :: restart_file = ""
 
       ! output units
       INTEGER                          :: iw = -1
-      INTEGER                          :: iw_cg = -1
+      INTEGER                          :: iw_opt = -1
 
       ! state variable
       INTEGER                          :: istep = -1
@@ -64,6 +65,7 @@ MODULE pao_types
       TYPE(cp_dbcsr_type)              :: matrix_G_prev
       TYPE(cp_dbcsr_type)              :: matrix_D
       TYPE(cp_dbcsr_type)              :: matrix_V_terms
+      TYPE(cp_dbcsr_type)              :: matrix_BFGS
 
    END TYPE
 

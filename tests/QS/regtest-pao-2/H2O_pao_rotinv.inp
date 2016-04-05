@@ -23,6 +23,7 @@
         EPS_PAO    5.0E-7
         MAX_PAO    3000
         PARAMETERIZATION ROTINV
+        OPTIMIZER BFGS
         &LINE_SEARCH
           METHOD 2PNT
         &END LINE_SEARCH

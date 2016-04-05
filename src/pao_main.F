@@ -28,9 +28,12 @@ MODULE pao_main
    USE pao_io,                          ONLY: pao_read_restart,&
                                               pao_write_restart
    USE pao_methods,                     ONLY: &
-        pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, pao_calc_CG_beta, &
-        pao_calc_energy, pao_calc_outer_grad_lnv, pao_check_grad, pao_check_trace_ps, &
-        pao_print_atom_info, pao_read_preopt_dm, pao_test_convergence
+        pao_build_matrix_X, pao_build_orthogonalizer, pao_build_selector, pao_calc_energy, &
+        pao_calc_outer_grad_lnv, pao_check_grad, pao_check_trace_ps, pao_print_atom_info, &
+        pao_read_preopt_dm, pao_test_convergence
+   USE pao_optimizer,                   ONLY: pao_opt_finalize,&
+                                              pao_opt_init,&
+                                              pao_opt_new_dir
    USE pao_param,                       ONLY: pao_calc_U,&
                                               pao_param_finalize,&
                                               pao_param_init,&
@@ -117,12 +120,6 @@ CONTAINS
       CALL cp_dbcsr_copy(pao%matrix_G, pao%matrix_X)
       CALL cp_dbcsr_set(pao%matrix_G, 0.0_dp)
 
-      CALL cp_dbcsr_init(pao%matrix_G_prev)
-      CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_G)
-
-      CALL cp_dbcsr_init(pao%matrix_D)
-      CALL cp_dbcsr_copy(pao%matrix_D, pao%matrix_G)
-
       CALL cp_dbcsr_init(pao%matrix_U)
       CALL cp_dbcsr_create(pao%matrix_U, template=matrix_s(1)%matrix, matrix_type="N", name="PAO matrix_U")
       CALL cp_dbcsr_reserve_diag_blocks(pao%matrix_U)
@@ -157,7 +154,7 @@ CONTAINS
 
       INTEGER                                            :: handle, icycle
       LOGICAL                                            :: cycle_converged, should_stop
-      REAL(KIND=dp)                                      :: beta, energy, norm_X
+      REAL(KIND=dp)                                      :: energy, norm_X
       TYPE(cp_dbcsr_type)                                :: matrix_M, matrix_X_start
       TYPE(ls_mstruct_type), POINTER                     :: ls_mstruct
       TYPE(pao_env_type), POINTER                        :: pao
@@ -179,11 +176,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ! reset CG
-      CALL linesearch_reset(pao%linesearch)
-      CALL cp_dbcsr_set(pao%matrix_D, 0.0_dp)
-      CALL cp_dbcsr_set(pao%matrix_G_prev, 0.0_dp)
-
       ! only perform mixing if the pao%matrix_X is non-zero
       ! useful if started from a reference DM.
       norm_X = cp_dbcsr_frobenius_norm(pao%matrix_X)
@@ -194,6 +186,8 @@ CONTAINS
 
       cycle_converged = .FALSE.
       icycle = 0
+      CALL linesearch_reset(pao%linesearch)
+      CALL pao_opt_init(pao)
 
       DO WHILE (.TRUE.)
          pao%istep = pao%istep+1
@@ -213,14 +207,8 @@ CONTAINS
             CALL cp_dbcsr_release(matrix_M)
             CALL pao_check_grad(pao, qs_env, ls_scf_env)
 
-            ! determine CG mixing factor
-            CALL pao_calc_CG_beta(pao, icycle, beta)
-
-            ! calculate new CG direction matrix_D
-            CALL cp_dbcsr_add(pao%matrix_D, pao%matrix_G, beta, 1.0_dp)
-
-            ! backup gradient for calc_CG_beta
-            CALL cp_dbcsr_copy(pao%matrix_G_prev, pao%matrix_G)
+            ! calculate new direction for line-search
+            CALL pao_opt_new_dir(pao, icycle)
 
             !backup X
             CALL cp_dbcsr_copy(pao%matrix_X_orig, pao%matrix_X)
@@ -256,7 +244,7 @@ CONTAINS
                               slope=cp_dbcsr_frobenius_norm(pao%matrix_G)**2)
          IF (pao%linesearch%step_size < 1e-10_dp) CPABORT("PAO gradient is wrong.")
          CALL cp_dbcsr_copy(pao%matrix_X, pao%matrix_X_orig) !restore X
-         CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, -pao%linesearch%step_size)
+         CALL cp_dbcsr_add(pao%matrix_X, pao%matrix_D, 1.0_dp, pao%linesearch%step_size)
       ENDDO
 
       ! perform mixing of matrix_X
@@ -268,6 +256,7 @@ CONTAINS
       ENDIF
 
       CALL pao_write_restart(pao, qs_env, energy)
+      CALL pao_opt_finalize(pao)
 
       CALL timestop(handle)
    END SUBROUTINE pao_update
@@ -296,8 +285,6 @@ CONTAINS
       ! We keep pao%matrix_X for next scf-run, e.g. during MD or GEO-OPT
       CALL cp_dbcsr_release(pao%matrix_X_orig)
       CALL cp_dbcsr_release(pao%matrix_G)
-      CALL cp_dbcsr_release(pao%matrix_G_prev)
-      CALL cp_dbcsr_release(pao%matrix_D)
       CALL cp_dbcsr_release(pao%matrix_U)
       CALL cp_dbcsr_release(pao%matrix_Y)
       CALL cp_dbcsr_release(pao%matrix_N)

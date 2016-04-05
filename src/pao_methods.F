@@ -57,7 +57,7 @@ MODULE pao_methods
 
    PUBLIC :: pao_print_atom_info
    PUBLIC :: pao_build_orthogonalizer, pao_build_selector, pao_build_matrix_X
-   PUBLIC :: pao_test_convergence, pao_calc_CG_beta
+   PUBLIC :: pao_test_convergence
    PUBLIC :: pao_calc_energy, pao_check_trace_ps
    PUBLIC :: pao_read_preopt_dm
    PUBLIC :: pao_calc_outer_grad_lnv
@@ -328,59 +328,6 @@ CONTAINS
             time_diff
       ENDIF
    END SUBROUTINE pao_test_convergence
-
-! **************************************************************************************************
-!> \brief Conjugate gradient algorithm
-!> \param pao ...
-!> \param icycle ...
-!> \param beta ...
-! **************************************************************************************************
-   SUBROUTINE pao_calc_CG_beta(pao, icycle, beta)
-      TYPE(pao_env_type), POINTER                        :: pao
-      INTEGER, INTENT(IN)                                :: icycle
-      REAL(KIND=dp), INTENT(OUT)                         :: beta
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_CG_beta', &
-         routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp)                                      :: change, trace_D, trace_D_Gnew, &
-                                                            trace_G_mix, trace_G_new, trace_G_prev
-
-      IF (icycle <= pao%cg_init_steps) THEN
-         IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| warming up with steepest descent"
-         beta = 0.0_dp
-      ELSE
-         CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G, trace_G_new)
-         CALL cp_dbcsr_trace(pao%matrix_G_prev, pao%matrix_G_prev, trace_G_prev)
-         CALL cp_dbcsr_trace(pao%matrix_G, pao%matrix_G_prev, trace_G_mix)
-         CALL cp_dbcsr_trace(pao%matrix_D, pao%matrix_G, trace_D_Gnew)
-         CALL cp_dbcsr_trace(pao%matrix_D, pao%matrix_D, trace_D)
-         IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| trace_G_new ", trace_G_new
-         IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| trace_G_prev ", trace_G_prev
-         IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| trace_G_mix ", trace_G_mix
-         IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| trace_D ", trace_D
-         IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| trace_D_Gnew", trace_D_Gnew
-
-         IF (trace_G_prev /= 0.0_dp) THEN
-            beta = (trace_G_new-trace_G_mix)/trace_G_prev !Polak–Ribiere
-         ENDIF
-
-         IF (beta < 0.0_dp) THEN
-            IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| resetting because beta < 0"
-            beta = 0.0_dp
-         ENDIF
-
-         change = trace_D_Gnew**2/trace_D*trace_G_new
-         IF (change > pao%cg_reset_limit) THEN
-            IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| resetting because change > CG_RESET_LIMIT"
-            beta = 0.0_dp
-         ENDIF
-
-      ENDIF
-
-      IF (pao%iw_cg > 0) WRITE (pao%iw_cg, *) "PAO|CG| beta: ", beta
-
-   END SUBROUTINE pao_calc_CG_beta
 
 ! **************************************************************************************************
 !> \brief Calculate the pao energy

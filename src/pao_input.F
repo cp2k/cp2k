@@ -38,7 +38,9 @@ MODULE pao_input
    INTEGER, PARAMETER, PUBLIC               :: pao_rotinv_param = 101, &
                                                pao_fock_param = 102, &
                                                pao_exp_param = 103, &
-                                               pao_gth_param = 104
+                                               pao_gth_param = 104, &
+                                               pao_opt_cg = 301, &
+                                               pao_opt_bfgs = 302
 
 CONTAINS
 
@@ -61,7 +63,7 @@ CONTAINS
       ! open main logger
       logger => cp_get_default_logger()
       pao%iw = cp_print_key_unit_nr(logger, input, "DFT%LS_SCF%PAO%PRINT%RUN_INFO", extension=".paolog")
-      pao%iw_cg = cp_print_key_unit_nr(logger, input, "DFT%LS_SCF%PAO%PRINT%CG_INFO", extension=".paocglog")
+      pao%iw_opt = cp_print_key_unit_nr(logger, input, "DFT%LS_SCF%PAO%PRINT%OPT_INFO", extension=".paooptlog")
 
       ! parse input and print
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%EPS_PAO", r_val=pao%eps_pao)
@@ -87,6 +89,9 @@ CONTAINS
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,E10.1)") " PAO|", "PENALTY_STRENGTH", pao%penalty_strength
       IF (pao%penalty_strength < 0.0_dp) CPABORT("PAO: PENALTY_STRENGTH < 0")
 
+      CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%OPTIMIZER", i_val=pao%optimizer)
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,A10)") " PAO|", "OPTIMIZER", id2str(pao%optimizer)
+
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%CG_INIT_STEPS", i_val=pao%cg_init_steps)
       IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,T71,I10)") " PAO|", "CG_INIT_STEPS", pao%cg_init_steps
       IF (pao%cg_init_steps < 1) CPABORT("PAO: CG_INIT_STEPS < 1")
@@ -109,10 +114,10 @@ CONTAINS
       IF (pao%num_grad_eps < 0.0_dp) CPABORT("PAO: NUM_GRADIENT_EPS < 0")
 
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%PREOPT_DM_FILE", c_val=pao%preopt_dm_file)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "PREOPT_DM_FILE ", pao%preopt_dm_file
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "PREOPT_DM_FILE ", TRIM(pao%preopt_dm_file)
 
       CALL section_vals_val_get(input, "DFT%LS_SCF%PAO%RESTART_FILE", c_val=pao%restart_file)
-      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "RESTART_FILE ", pao%restart_file
+      IF (pao%iw > 0) WRITE (pao%iw, "(A,T40,A,A)") " PAO|", "RESTART_FILE ", TRIM(pao%restart_file)
 
    END SUBROUTINE parse_pao_section
 
@@ -136,8 +141,12 @@ CONTAINS
          s = "FOCK"
       CASE (pao_exp_param)
          s = "EXP"
+      CASE (pao_opt_cg)
+         s = "CG"
+      CASE (pao_opt_bfgs)
+         s = "BFGS"
       CASE DEFAULT
-         CPABORT("PAO: unkown id")
+         CPABORT("PAO: unknown id")
       END SELECT
       s = ADJUSTR(s)
    END FUNCTION id2str
@@ -171,7 +180,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, name="MIXING", &
-                          description="Mixing fraction of new and old solutions after CG", &
+                          description="Mixing fraction of new and old optimizied solutions.", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -265,8 +274,8 @@ CONTAINS
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
 
-      CALL cp_print_key_section_create(printkey, "CG_INFO", &
-                                       description="Output by the CG optimizer", &
+      CALL cp_print_key_section_create(printkey, "OPT_INFO", &
+                                       description="Output by the optimizer", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, printkey)
       CALL section_release(printkey)
@@ -287,7 +296,17 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-      ! CG stuff *****************************************************************
+      ! OPT stuff ****************************************************************
+      CALL keyword_create(keyword, name="OPTIMIZER", &
+                          description="Optimizer used to find PAO basis.", &
+                          enum_c_vals=s2a("CG", "BFGS"), &
+                          enum_i_vals=(/pao_opt_cg, pao_opt_bfgs/), &
+                          enum_desc=s2a("Conjugate gradient algorithm", &
+                                        "Broyden–Fletcher–Goldfarb–Shanno algorithm"), &
+                          default_i_val=pao_opt_cg)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, name="CG_INIT_STEPS", &
                           description="Number of steepest descent steps before starting the"// &
                           " conjugate gradients optimization.", &
