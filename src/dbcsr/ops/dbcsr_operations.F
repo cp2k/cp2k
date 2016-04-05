@@ -613,11 +613,11 @@ CONTAINS
 
       INTEGER                                            :: blk, col, data_type_a, data_type_b, &
                                                             handle, row, size_a, size_b
+      INTEGER(KIND=int_8)                                :: my_flop
       LOGICAL                                            :: do_scale, tr
       TYPE(dbcsr_data_obj)                               :: data_block
       TYPE(dbcsr_iterator)                               :: iter
       TYPE(dbcsr_scalar_type)                            :: my_alpha_scalar, my_beta_scalar
-      INTEGER(KIND=int_8)                                :: my_flop
 
 !   ---------------------------------------------------------------------------
 
@@ -696,7 +696,7 @@ CONTAINS
          CALL dbcsr_data_clear_pointer(data_block)
          CALL dbcsr_data_release(data_block)
 !$OMP        END PARALLEL
-         IF (PRESENT(flop)) flop = flop + my_flop
+         IF (PRESENT(flop)) flop = flop+my_flop
       ENDIF
       CALL timestop(handle)
    END SUBROUTINE dbcsr_add_anytype
