@@ -857,7 +857,7 @@ def reformat_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, whitespac
                 ind_use = ind
             else:
                 ind_use = 1
-            if ind_use + line_length <= 133: # 132 plus 1 newline char
+            if ind_use + line_length <= 133:  # 132 plus 1 newline char
                 outfile.write('!$' * is_omp_conditional + ' ' *
                               (ind_use - 2 * is_omp_conditional +
                                len(line) - len(line.lstrip(' '))) + line.lstrip(' '))
@@ -883,6 +883,14 @@ def reformat_ffile(infile, outfile, logFile=sys.stdout, indent_size=2, whitespac
         # rm subsequent blank lines
         skip_blank = is_empty and not any(comments)
 
+try:
+    any
+except NameError:
+    def any(iterable):
+        for element in iterable:
+            if element:
+                return True
+        return False
 
 if __name__ == '__main__':
     import os.path
