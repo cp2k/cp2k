@@ -590,10 +590,6 @@ def format_single_fline(f_line, whitespace, linebreak_pos, ampersand_sep, filena
     str_end = -1
     instring = ''
     for pos, char in enumerate(line):
-        if not instring and char == '!':  # skip comments
-            line_parts.append(line[str_end + 1:pos])
-            line_parts.append(line[pos:])
-            break
         if char == '"' or char == "'":  # skip string
             if not instring:
                 str_start = pos
@@ -891,30 +887,5 @@ except NameError:
             if element:
                 return True
         return False
-
-if __name__ == '__main__':
-    import os.path
-    # is executable only for debugging purposes
-    # must be executed from ../ with python -m formatting/reformatFortranFile
-    if len(sys.argv) < 2:
-        print("usage:", sys.argv[0], " out_dir file1 [file2 ...]")
-        sys.exit(1)
-
-    outDir = sys.argv[1]
-    if not os.path.isdir(outDir):
-        print("out_dir must be a directory")
-        print("usage:", sys.argv[0], " out_dir file1 [file2 ...]")
-        sys.exit(1)
-
-    for fileName in sys.argv[2:]:
-        try:
-            print("reformatting", fileName)
-            infile = open(fileName, 'r')
-            outfile = open(os.path.join(
-                outDir, os.path.basename(fileName)), 'w')
-            reformat_ffile(infile, outfile)
-        except:
-            print("error for file", fileName)
-            raise
 
 # EOF
