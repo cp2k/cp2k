@@ -25,7 +25,7 @@
         PARAMETERIZATION ROTINV
         OPTIMIZER BFGS
         &LINE_SEARCH
-          METHOD 2PNT
+          METHOD ADAPT
         &END LINE_SEARCH
         &PRINT
           &RESTART ON
