@@ -600,11 +600,13 @@ CONTAINS
 !> \param[in] alpha_scalar   (optional)
 !> \param[in] beta_scalar    (optional)
 !>
+!> \param flop ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_add_anytype(matrix_a, matrix_b, alpha_scalar, beta_scalar)
+   SUBROUTINE dbcsr_add_anytype(matrix_a, matrix_b, alpha_scalar, beta_scalar, flop)
       TYPE(dbcsr_obj), INTENT(INOUT)                     :: matrix_a
       TYPE(dbcsr_obj), INTENT(IN)                        :: matrix_b
       TYPE(dbcsr_scalar_type), INTENT(IN), OPTIONAL      :: alpha_scalar, beta_scalar
+      INTEGER(KIND=int_8), INTENT(INOUT), OPTIONAL       :: flop
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_add_anytype', &
          routineP = moduleN//':'//routineN
@@ -615,6 +617,7 @@ CONTAINS
       TYPE(dbcsr_data_obj)                               :: data_block
       TYPE(dbcsr_iterator)                               :: iter
       TYPE(dbcsr_scalar_type)                            :: my_alpha_scalar, my_beta_scalar
+      INTEGER(KIND=int_8)                                :: my_flop
 
 !   ---------------------------------------------------------------------------
 
@@ -651,11 +654,13 @@ CONTAINS
       size_b = dbcsr_data_get_size_referenced(matrix_b%m%data_area)
       IF (.NOT. dbcsr_scalar_are_equal(my_beta_scalar, &
                                        dbcsr_scalar_zero(data_type_b))) THEN
+         my_flop = 0
 !$OMP        PARALLEL DEFAULT (NONE) &
 !$OMP                 PRIVATE (iter, data_block) &
 !$OMP                 PRIVATE (row, col, tr, blk) &
 !$OMP                 SHARED (matrix_a, matrix_b, data_type_b, size_b, size_a) &
-!$OMP                 SHARED (do_scale, my_beta_scalar)
+!$OMP                 SHARED (do_scale, my_beta_scalar) &
+!$OMP                 REDUCTION (+ : my_flop)
          IF (size_b .GT. size_a .AND. matrix_b%m%nblks .GT. matrix_a%m%nblks) THEN
             CALL dbcsr_work_create(matrix_a, &
                                    nblks_guess=matrix_b%m%nblks-matrix_a%m%nblks, &
@@ -678,10 +683,10 @@ CONTAINS
 
             IF (do_scale) THEN
                CALL dbcsr_put_block(matrix_a, row, col, data_block, tr, &
-                                    summation=.TRUE.)
+                                    summation=.TRUE., flop=my_flop)
             ELSE
                CALL dbcsr_put_block(matrix_a, row, col, data_block, tr, &
-                                    summation=.TRUE., scale=my_beta_scalar)
+                                    summation=.TRUE., flop=my_flop, scale=my_beta_scalar)
             ENDIF
 
          ENDDO
@@ -691,6 +696,7 @@ CONTAINS
          CALL dbcsr_data_clear_pointer(data_block)
          CALL dbcsr_data_release(data_block)
 !$OMP        END PARALLEL
+         IF (PRESENT(flop)) flop = flop + my_flop
       ENDIF
       CALL timestop(handle)
    END SUBROUTINE dbcsr_add_anytype
