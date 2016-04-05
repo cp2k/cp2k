@@ -71,7 +71,6 @@ CONTAINS
       INTEGER                                            :: maxs, mins
 
       !
-
       IF (PRESENT(order)) THEN
          maxs = order-1
       ELSE
@@ -116,7 +115,6 @@ CONTAINS
       INTEGER                                            :: pos
 
       !
-
       IF (ASSOCIATED(tree%b%root)) THEN
          pos = 0
          IF (PRESENT(keys) .AND. PRESENT(values)) THEN
@@ -145,9 +143,9 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      !
-      !
+!
 
+      !
       IF (node%filled .GT. 0 .AND. ASSOCIATED(node%subtrees(1)%node)) THEN
          DO i = 1, node%filled+1
             IF (PRESENT(pos)) THEN
@@ -195,9 +193,9 @@ CONTAINS
       INTEGER                                            :: ge_pos, position
       TYPE(btree_node), POINTER                          :: node
 
-      !
-      !
+!
 
+      !
       IF (PRESENT(exists)) THEN
          CALL btree_find_full(tree, key, node, position, ge_pos, short=.TRUE.)
          IF (position .GT. 0) THEN
@@ -243,10 +241,10 @@ CONTAINS
       TYPE(btree_node), POINTER                          :: new_node
       TYPE(zp2d)                                         :: upgrade_value
 
-      !
+!
+
       !
       ! Root is special
-
       IF (.NOT. ASSOCIATED(node)) THEN
          CALL btree_new_root(tree, key, value)
          IF (PRESENT(subtree)) THEN
@@ -336,7 +334,6 @@ CONTAINS
 
       !
       ! Shift keys
-
       node%keys(before+1:node%filled+1) = node%keys(before:node%filled)
       node%keys(before) = key
       ! Shift values
@@ -372,7 +369,6 @@ CONTAINS
       TYPE(btree_node), OPTIONAL, POINTER                :: subtree
 
       !
-
       new_node%filled = (tree%b%max_fill)-(split_pos-1)
       new_node%keys(1:new_node%filled) = &
          node%keys(split_pos:tree%b%max_fill)
@@ -427,7 +423,6 @@ CONTAINS
       TYPE(btree_node), OPTIONAL, POINTER                :: subtree
 
       !
-
       new_node%filled = (tree%b%max_fill+1)-split_pos
       new_node%keys(1:before-split_pos-1) = &
          node%keys(split_pos+1:before-1)
@@ -460,7 +455,6 @@ CONTAINS
 
       !
       ! Assume that node is not a leaf!
-
       DO i = 1, node%filled+1
          !IF (ASSOCIATED (node%subtrees(i)%node)) THEN
          !IF (.NOT. ASSOCIATED (node%subtrees(i)%node%parent,&
@@ -485,7 +479,6 @@ CONTAINS
       TYPE(btree_node), POINTER                          :: new_root, old_root
 
       !
-
       CALL btree_new_node(tree, new_root)
       new_root%filled = 1
       new_root%keys(1) = key
@@ -511,7 +504,6 @@ CONTAINS
       INTEGER                                            :: i
 
       !
-
       ALLOCATE (node)
       ALLOCATE (node%keys(tree%b%max_fill))
       ALLOCATE (node%values(tree%b%max_fill))
@@ -533,7 +525,6 @@ CONTAINS
       TYPE(btree_node), POINTER                          :: node
 
       !
-
       DEALLOCATE (node%keys)
       DEALLOCATE (node%values)
       DEALLOCATE (node%subtrees)
@@ -556,9 +547,9 @@ CONTAINS
       INTEGER                                            :: position
       TYPE(btree_node), POINTER                          :: node
 
-      !
-      !
+!
 
+      !
       CALL btree_find_full(tree, key, node, position, short=.TRUE.)
       IF (PRESENT(exists)) THEN
          exists = position .GT. 0
@@ -584,7 +575,6 @@ CONTAINS
       INTEGER                                            :: left, right
 
       !
-
       IF (keys(1) .GE. key) THEN
          position = 1
          RETURN
@@ -622,7 +612,6 @@ CONTAINS
       INTEGER                                            :: left, right
 
       !
-
       IF (keys(1) .GT. key) THEN
          position = 1
          RETURN
@@ -661,7 +650,6 @@ CONTAINS
       INTEGER                                            :: left, one, right
 
       !
-
       one = 1
       IF (PRESENT(FIRST)) one = first
       IF (one .LE. filled) THEN
@@ -710,8 +698,8 @@ CONTAINS
       LOGICAL                                            :: stop_short
 
 ! Used mark searches
-      !
 
+      !
       stop_short = .FALSE.
       IF (PRESENT(short)) stop_short = short
       NULLIFY (node)
@@ -770,7 +758,6 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: gti
 
       !
-
       NULLIFY (node)
       !IF (tree%b%n .EQ. 0) RETURN
       IF (.NOT. ASSOCIATED(tree%b%root)) RETURN
