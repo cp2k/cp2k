@@ -172,6 +172,7 @@ def parseRoutine(inFile):
                'preDeclComments': [],
                'declarations': [],
                'declComments': [],
+               'postDeclComments': [],
                'parsedDeclarations': [],
                'postRoutine': [],
                'kind': None, 'name': None, 'arguments': None, 'result': None,
@@ -221,12 +222,17 @@ def parseRoutine(inFile):
             routine['result'] = routine['name']
     while 1:
         (jline, comment_list, lines) = stream.nextFortranLine()
-        comments = '\n'.join(_ for _ in comment_list if _)
+        comments = '\n'.join(_ for _ in comment_list)
         if len(lines) == 0:
             break
         if lines[0].lower().startswith("#include"):
             break
         if not ignoreRe.match(jline):
+            if typeBeginRe.match(jline):
+                if routine['postDeclComments']:
+                    routine['declComments'].extend(routine['postDeclComments'])
+                routine['postDeclComments'] = []
+
             if typeBeginRe.match(jline):
                 m = typeRe.match(jline)
                 if (m.group('type').lower() == 'type' and
@@ -311,8 +317,8 @@ def parseRoutine(inFile):
         if (len(routine['parsedDeclarations']) == 0 and len(routine['use']) == 0 and
                 not re.match(" *implicit +none *$", jline, re.IGNORECASE)):
             routine['preDeclComments'].append("".join(lines))
-        elif comments:
-            routine['declComments'].append(comments)
+        else:
+            routine['postDeclComments'].append(comments)
     containsRe = re.compile(r" *contains *$", re.IGNORECASE)
 
     while len(lines) > 0:
@@ -732,8 +738,8 @@ def cleanDeclarations(routine, logFile=sys.stdout):
             newDecl.write("\n")
         wrote = 0
         for comment in routine['declComments']:
-            if not commentToRemoveRe.match(comment):
-                newDecl.write(comment)
+            if comment.strip() and not commentToRemoveRe.match(comment):
+                newDecl.write(comment.strip())
                 newDecl.write("\n")
                 wrote = 1
         if wrote:
@@ -746,6 +752,21 @@ def cleanDeclarations(routine, logFile=sys.stdout):
         logFile.write("parsedDeclartions=" +
                       str(routine['parsedDeclarations']))
         raise
+
+    newDecl = StringIO()
+    if routine['postDeclComments']:
+        comment_start = 0
+        for comment in routine['postDeclComments']:
+            if comment.strip():
+                break
+            else:
+                comment_start += 1
+
+        for comment in routine['postDeclComments'][comment_start:]:
+            if not commentToRemoveRe.match(comment):
+                newDecl.write(comment)
+                newDecl.write("\n")
+        routine['declarations'][0] += newDecl.getvalue()
 
 
 def rmNullify(var, strings):
