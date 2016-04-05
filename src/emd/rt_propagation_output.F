@@ -68,7 +68,6 @@ MODULE rt_propagation_output
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_current,               ONLY: calculate_jrho_resp
    USE qs_linres_types,                 ONLY: current_env_type
    USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
@@ -675,7 +674,6 @@ CONTAINS
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_r
       TYPE(pw_p_type), POINTER                           :: gs, rs
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
@@ -685,7 +683,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       logger => cp_get_default_logger()
-      CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env, rho=rho, ks_env=ks_env)
+      CALL get_qs_env(qs_env=qs_env, subsys=subsys, pw_env=pw_env, rho=rho)
       CALL qs_subsys_get(subsys, particles=particles)
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, rs_grids=rs_rho, rs_descs=rs_descs)
       CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g)

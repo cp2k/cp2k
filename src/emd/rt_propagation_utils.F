@@ -44,7 +44,6 @@ MODULE rt_propagation_utils
    USE qs_dftb_matrices,                ONLY: build_dftb_overlap
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
@@ -92,11 +91,10 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
       INTEGER                                            :: col_atom, handle, i, j, m, maxder, n, &
-                                                            nder, neighbor_list_id, row_atom
+                                                            nder, row_atom
       INTEGER, DIMENSION(6, 2)                           :: c_map_mat
       LOGICAL                                            :: return_s_derivatives
       REAL(dp), DIMENSION(:), POINTER                    :: block_values
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_dbcsr_iterator)                            :: iter
       TYPE(cp_dbcsr_p_type), DIMENSION(:), POINTER       :: C_mat, S_der, s_derivs
       TYPE(cp_dbcsr_type), POINTER                       :: B_mat, tmp_mat, tmp_mat2
@@ -104,7 +102,6 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(rt_prop_type), POINTER                        :: rtp
 
@@ -112,8 +109,6 @@ CONTAINS
 
       return_s_derivatives = .TRUE.
 
-      NULLIFY (atomic_kind_set)
-      NULLIFY (force)
       NULLIFY (particle_set)
       NULLIFY (rtp)
       NULLIFY (s_derivs)
@@ -122,11 +117,8 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env, &
                       rtp=rtp, &
-                      atomic_kind_set=atomic_kind_set, &
                       particle_set=particle_set, &
-                      neighbor_list_id=neighbor_list_id, &
                       sab_orb=sab_orb, &
-                      force=force, &
                       dft_control=dft_control, &
                       ks_env=ks_env)
 
